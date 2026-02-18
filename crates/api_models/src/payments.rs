@@ -6746,7 +6746,7 @@ pub enum ThreeDsMethodData {
         /// Three DS Method Key
         #[smithy(value_type = "Option<ThreeDsMethodKey>")]
         three_ds_method_key: Option<ThreeDsMethodKey>,
-        /// Indicates whethere to wait for Post message after 3DS method data submission
+        /// Indicates whether to wait for Post message after 3DS method data submission
         #[smithy(value_type = "bool")]
         consume_post_message_for_three_ds_method_completion: bool,
     },

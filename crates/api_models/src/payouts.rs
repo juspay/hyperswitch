@@ -661,8 +661,8 @@ pub enum PayoutMethodDataResponse {
     Wallet(Box<payout_method_utils::WalletAdditionalData>),
     #[schema(value_type = BankRedirectAdditionalData)]
     BankRedirect(Box<payout_method_utils::BankRedirectAdditionalData>),
-    #[schema(value_type = PassthroughAddtionalData)]
-    Passthrough(Box<payout_method_utils::PassthroughAddtionalData>),
+    #[schema(value_type = PassthroughAdditionalData)]
+    Passthrough(Box<payout_method_utils::PassthroughAdditionalData>),
 }
 
 #[derive(
@@ -1089,7 +1089,7 @@ impl From<BankRedirect> for payout_method_utils::BankRedirectAdditionalData {
     }
 }
 
-impl From<Passthrough> for payout_method_utils::PassthroughAddtionalData {
+impl From<Passthrough> for payout_method_utils::PassthroughAdditionalData {
     fn from(passthrough_data: Passthrough) -> Self {
         Self {
             psp_token: passthrough_data.psp_token.into(),
