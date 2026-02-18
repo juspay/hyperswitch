@@ -15803,7 +15803,7 @@
             "example": 1,
             "nullable": true
           },
-          "fetch_new_payment_methods": {
+          "include_new": {
             "type": "boolean",
             "nullable": true
           }
@@ -21260,6 +21260,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "acknowledgement_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AcknowledgementStatus"
               }
             ],
             "nullable": true

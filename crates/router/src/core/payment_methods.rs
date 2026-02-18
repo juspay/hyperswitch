@@ -2355,7 +2355,7 @@ pub async fn payment_method_intent_create(
         Some(customer_id),
         None,
         None,
-        None
+        None,
     )?;
 
     Ok(services::ApplicationResponse::Json(resp))
@@ -2465,8 +2465,7 @@ pub async fn list_saved_payment_methods_for_customer(
     include_new: bool,
 ) -> RouterResponse<payment_methods::CustomerPaymentMethodsListResponse> {
     let customer_payment_methods =
-        list_payment_methods_core(&state, &provider, &customer_id, include_new)
-            .await?;
+        list_payment_methods_core(&state, &provider, &customer_id, include_new).await?;
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         customer_payment_methods,
@@ -3827,7 +3826,10 @@ pub async fn retrieve_payment_method(
             .attach_printable("Failed to fetch payment method by storage")?;
     when(
         payment_method.status == common_enums::PaymentMethodStatus::Inactive,
-        || Err(report!(errors::ApiErrorResponse::PaymentMethodNotFound).attach_printable("Payment method is inactive")),
+        || {
+            Err(report!(errors::ApiErrorResponse::PaymentMethodNotFound)
+                .attach_printable("Payment method is inactive"))
+        },
     )?;
 
     let raw_payment_method_fetch_access = get_raw_payment_method_data_fetch_access(
@@ -3876,7 +3878,7 @@ pub async fn retrieve_payment_method(
         payment_method.customer_id.clone(),
         raw_payment_method_data,
         billing,
-        None
+        None,
     )
     .map(services::ApplicationResponse::Json)
 }
@@ -4259,7 +4261,7 @@ async fn execute_payment_method_update_handler(
         .generate_response(card_cvc_details)
         .attach_printable("Failed to generate response for payment method update")?;
 
-    Ok((response, handler.payment_method.clone(),))
+    Ok((response, handler.payment_method.clone()))
 }
 
 #[cfg(feature = "v2")]
