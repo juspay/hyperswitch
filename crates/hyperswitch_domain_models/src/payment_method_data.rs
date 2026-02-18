@@ -3115,7 +3115,11 @@ pub struct CardNumberWithStoredDetails {
 
 #[cfg(feature = "v2")]
 impl CardNumberWithStoredDetails {
-    pub fn new(card_number: cards::CardNumber, card_cvc: Option<masking::Secret<String>>, card_details: CardDetailsPaymentMethod) -> Self {
+    pub fn new(
+        card_number: cards::CardNumber,
+        card_cvc: Option<masking::Secret<String>>,
+        card_details: CardDetailsPaymentMethod,
+    ) -> Self {
         Self {
             card_number,
             card_cvc,
