@@ -53,6 +53,8 @@ pub mod refunds;
 pub mod revenue_recovery_data_backfill;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery_redis;
+#[cfg(feature = "v2")]
+pub mod revenue_recovery_reports;
 #[cfg(feature = "olap")]
 pub mod routing;
 #[cfg(feature = "v1")]
@@ -110,3 +112,7 @@ pub use self::app::{RecoveryDataBackfill, Tokenization};
 pub use super::compatibility::stripe::StripeApis;
 #[cfg(feature = "olap")]
 pub use crate::analytics::routes::{self as analytics, Analytics};
+
+// Update exports:
+#[cfg(feature = "v2")]
+pub use self::app::{RecoveryDataBackfill, RecoveryReports, Tokenization};
