@@ -2,7 +2,7 @@
 //! from `fred`'s internal data-types to custom data-types
 
 use common_utils::errors::CustomResult;
-use fred::types::RedisValue as FredRedisValue;
+use fred::types::Value as FredRedisValue;
 
 use crate::{errors, RedisConnectionPool};
 
@@ -61,9 +61,6 @@ pub struct RedisSettings {
     /// TTL for hash-tables in seconds
     pub default_hash_ttl: u32,
     pub stream_read_count: u64,
-    pub auto_pipeline: bool,
-    pub disable_auto_backpressure: bool,
-    pub max_in_flight_commands: u64,
     pub default_command_timeout: u64,
     pub max_feed_count: u64,
     pub unresponsive_timeout: u64,
@@ -112,9 +109,6 @@ impl Default for RedisSettings {
             default_ttl: 300,
             stream_read_count: 1,
             default_hash_ttl: 900,
-            auto_pipeline: true,
-            disable_auto_backpressure: false,
-            max_in_flight_commands: 5000,
             default_command_timeout: 30,
             max_feed_count: 200,
             unresponsive_timeout: 10,
@@ -134,7 +128,7 @@ pub enum RedisEntryId {
     UndeliveredEntryID,
 }
 
-impl From<RedisEntryId> for fred::types::XID {
+impl From<RedisEntryId> for fred::types::streams::XID {
     fn from(id: RedisEntryId) -> Self {
         match id {
             RedisEntryId::UserSpecifiedID {
@@ -150,7 +144,7 @@ impl From<RedisEntryId> for fred::types::XID {
     }
 }
 
-impl From<&RedisEntryId> for fred::types::XID {
+impl From<&RedisEntryId> for fred::types::streams::XID {
     fn from(id: &RedisEntryId) -> Self {
         match id {
             RedisEntryId::UserSpecifiedID {
@@ -172,16 +166,16 @@ pub enum SetnxReply {
     KeyNotSet, // Existing key
 }
 
-impl fred::types::FromRedis for SetnxReply {
-    fn from_value(value: fred::types::RedisValue) -> Result<Self, fred::error::RedisError> {
+impl fred::types::FromValue for SetnxReply {
+    fn from_value(value: fred::types::Value) -> Result<Self, fred::error::Error> {
         match value {
             // Returns String ( "OK" ) in case of success
-            fred::types::RedisValue::String(_) => Ok(Self::KeySet),
+            fred::types::Value::String(_) => Ok(Self::KeySet),
             // Return Null in case of failure
-            fred::types::RedisValue::Null => Ok(Self::KeyNotSet),
+            fred::types::Value::Null => Ok(Self::KeyNotSet),
             // Unexpected behaviour
-            _ => Err(fred::error::RedisError::new(
-                fred::error::RedisErrorKind::Unknown,
+            _ => Err(fred::error::Error::new(
+                fred::error::ErrorKind::Unknown,
                 "Unexpected SETNX command reply",
             )),
         }
@@ -194,13 +188,13 @@ pub enum HsetnxReply {
     KeyNotSet, // Existing key
 }
 
-impl fred::types::FromRedis for HsetnxReply {
-    fn from_value(value: fred::types::RedisValue) -> Result<Self, fred::error::RedisError> {
+impl fred::types::FromValue for HsetnxReply {
+    fn from_value(value: fred::types::Value) -> Result<Self, fred::error::Error> {
         match value {
-            fred::types::RedisValue::Integer(1) => Ok(Self::KeySet),
-            fred::types::RedisValue::Integer(0) => Ok(Self::KeyNotSet),
-            _ => Err(fred::error::RedisError::new(
-                fred::error::RedisErrorKind::Unknown,
+            fred::types::Value::Integer(1) => Ok(Self::KeySet),
+            fred::types::Value::Integer(0) => Ok(Self::KeyNotSet),
+            _ => Err(fred::error::Error::new(
+                fred::error::ErrorKind::Unknown,
                 "Unexpected HSETNX command reply",
             )),
         }
@@ -213,13 +207,13 @@ pub enum MsetnxReply {
     KeysNotSet, // At least one existing key
 }
 
-impl fred::types::FromRedis for MsetnxReply {
-    fn from_value(value: fred::types::RedisValue) -> Result<Self, fred::error::RedisError> {
+impl fred::types::FromValue for MsetnxReply {
+    fn from_value(value: fred::types::Value) -> Result<Self, fred::error::Error> {
         match value {
-            fred::types::RedisValue::Integer(1) => Ok(Self::KeysSet),
-            fred::types::RedisValue::Integer(0) => Ok(Self::KeysNotSet),
-            _ => Err(fred::error::RedisError::new(
-                fred::error::RedisErrorKind::Unknown,
+            fred::types::Value::Integer(1) => Ok(Self::KeysSet),
+            fred::types::Value::Integer(0) => Ok(Self::KeysNotSet),
+            _ => Err(fred::error::Error::new(
+                fred::error::ErrorKind::Unknown,
                 "Unexpected MSETNX command reply",
             )),
         }
@@ -232,7 +226,7 @@ pub enum StreamCapKind {
     MaxLen,
 }
 
-impl From<StreamCapKind> for fred::types::XCapKind {
+impl From<StreamCapKind> for fred::types::streams::XCapKind {
     fn from(item: StreamCapKind) -> Self {
         match item {
             StreamCapKind::MaxLen => Self::MaxLen,
@@ -247,7 +241,7 @@ pub enum StreamCapTrim {
     AlmostExact,
 }
 
-impl From<StreamCapTrim> for fred::types::XCapTrim {
+impl From<StreamCapTrim> for fred::types::streams::XCapTrim {
     fn from(item: StreamCapTrim) -> Self {
         match item {
             StreamCapTrim::Exact => Self::Exact,
@@ -272,13 +266,13 @@ impl DelReply {
     }
 }
 
-impl fred::types::FromRedis for DelReply {
-    fn from_value(value: fred::types::RedisValue) -> Result<Self, fred::error::RedisError> {
+impl fred::types::FromValue for DelReply {
+    fn from_value(value: fred::types::Value) -> Result<Self, fred::error::Error> {
         match value {
-            fred::types::RedisValue::Integer(1) => Ok(Self::KeyDeleted),
-            fred::types::RedisValue::Integer(0) => Ok(Self::KeyNotDeleted),
-            _ => Err(fred::error::RedisError::new(
-                fred::error::RedisErrorKind::Unknown,
+            fred::types::Value::Integer(1) => Ok(Self::KeyDeleted),
+            fred::types::Value::Integer(0) => Ok(Self::KeyNotDeleted),
+            _ => Err(fred::error::Error::new(
+                fred::error::ErrorKind::Unknown,
                 "Unexpected del command reply",
             )),
         }
@@ -291,13 +285,13 @@ pub enum SaddReply {
     KeyNotSet,
 }
 
-impl fred::types::FromRedis for SaddReply {
-    fn from_value(value: fred::types::RedisValue) -> Result<Self, fred::error::RedisError> {
+impl fred::types::FromValue for SaddReply {
+    fn from_value(value: fred::types::Value) -> Result<Self, fred::error::Error> {
         match value {
-            fred::types::RedisValue::Integer(1) => Ok(Self::KeySet),
-            fred::types::RedisValue::Integer(0) => Ok(Self::KeyNotSet),
-            _ => Err(fred::error::RedisError::new(
-                fred::error::RedisErrorKind::Unknown,
+            fred::types::Value::Integer(1) => Ok(Self::KeySet),
+            fred::types::Value::Integer(0) => Ok(Self::KeyNotSet),
+            _ => Err(fred::error::Error::new(
+                fred::error::ErrorKind::Unknown,
                 "Unexpected sadd command reply",
             )),
         }

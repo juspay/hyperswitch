@@ -4649,14 +4649,14 @@ async fn perform_surcharge_ops(
         .zip(business_profile)
         .map(|((pa, pi), bp)| (pa, pi, bp))
     {
-        call_surcharge_decision_management_for_saved_card(
+        Box::pin(call_surcharge_decision_management_for_saved_card(
             state,
             &platform,
             &business_profile,
             &payment_attempt,
             payment_intent,
             response,
-        )
+        ))
         .await?;
     }
 
