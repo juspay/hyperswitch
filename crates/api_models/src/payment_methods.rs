@@ -1305,6 +1305,7 @@ pub enum PaymentMethodsData {
     Card(CardDetailsPaymentMethod),
     BankDetails(PaymentMethodDataBankCreds),
     WalletDetails(PaymentMethodDataWalletInfo),
+    BankDebit(BankDebitDetailsPaymentMethod),
 }
 
 impl PaymentMethodsData {
@@ -1338,6 +1339,20 @@ pub struct CardDetailsPaymentMethod {
     #[serde(default = "saved_in_locker_default")]
     pub saved_to_locker: bool,
     pub co_badged_card_data: Option<CoBadgedCardDataToBeSaved>,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum BankDebitDetailsPaymentMethod {
+    AchBankDebit {
+        masked_account_number: String,
+        masked_routing_number: String,
+        card_holder_name: Option<masking::Secret<String>>,
+        bank_account_holder_name: Option<masking::Secret<String>>,
+        bank_name: Option<common_enums::BankNames>,
+        bank_type: Option<common_enums::BankType>,
+        bank_holder_type: Option<common_enums::BankHolderType>,
+    },
 }
 
 impl From<&CoBadgedCardData> for CoBadgedCardDataToBeSaved {
