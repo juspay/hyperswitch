@@ -137,6 +137,7 @@ impl PaymentMethodVaultingData {
 
         let card_with_details = payment_method_data::CardNumberWithStoredDetails::new(
             card_number.clone(),
+            card_cvc.clone(),
             stored_card_metadata.into(),
         );
 

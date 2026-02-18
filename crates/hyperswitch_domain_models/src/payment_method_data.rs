@@ -3109,14 +3109,16 @@ pub struct CardDetailsPaymentMethod {
 #[cfg(feature = "v2")]
 pub struct CardNumberWithStoredDetails {
     pub card_number: cards::CardNumber,
+    pub card_cvc: Option<masking::Secret<String>>,
     pub card_details: CardDetailsPaymentMethod,
 }
 
 #[cfg(feature = "v2")]
 impl CardNumberWithStoredDetails {
-    pub fn new(card_number: cards::CardNumber, card_details: CardDetailsPaymentMethod) -> Self {
+    pub fn new(card_number: cards::CardNumber, card_cvc: Option<masking::Secret<String>>, card_details: CardDetailsPaymentMethod) -> Self {
         Self {
             card_number,
+            card_cvc,
             card_details,
         }
     }
@@ -3128,6 +3130,7 @@ impl TryFrom<CardNumberWithStoredDetails> for payment_methods::CardDetail {
 
     fn try_from(testing: CardNumberWithStoredDetails) -> Result<Self, Self::Error> {
         let card_number = testing.card_number;
+        let card_cvc = testing.card_cvc;
         let item = testing.card_details;
         Ok(Self {
             card_number,
@@ -3150,7 +3153,7 @@ impl TryFrom<CardNumberWithStoredDetails> for payment_methods::CardDetail {
             card_type: item
                 .card_type
                 .and_then(|card_type| payment_methods::CardType::from_str(&card_type).ok()),
-            card_cvc: None,
+            card_cvc,
         })
     }
 }
