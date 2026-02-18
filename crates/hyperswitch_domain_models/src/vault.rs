@@ -94,7 +94,7 @@ impl PaymentMethodVaultingData {
 
                 let card_detail = Self::populated_payment_methods_data_for_payment_method_vaulting_data_card_number(
                         &card_details.card_number,
-                        card_details.card_cvc.,
+                        card_details.card_cvc.clone(),
                         payment_methods_data,
                     )?;
 
