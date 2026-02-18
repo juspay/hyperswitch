@@ -29383,7 +29383,7 @@
           },
           "three_ds_connector": {
             "type": "string",
-            "description": "Prefered 3ds Connector",
+            "description": "Preferred 3ds Connector",
             "nullable": true
           }
         }

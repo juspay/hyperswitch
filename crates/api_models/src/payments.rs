@@ -6722,7 +6722,7 @@ pub struct ThreeDsData {
     #[schema(value_type = Option<CardNetwork>, example = "Visa")]
     #[smithy(value_type = "Option<CardNetwork>")]
     pub card_network: Option<api_enums::CardNetwork>,
-    /// Prefered 3ds Connector
+    /// Preferred 3ds Connector
     #[smithy(value_type = "Option<String>")]
     pub three_ds_connector: Option<String>,
 }
