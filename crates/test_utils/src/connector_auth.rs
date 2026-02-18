@@ -117,6 +117,7 @@ pub struct ConnectorAuthentication {
     pub razorpay: Option<BodyKey>,
     pub recurly: Option<HeaderKey>,
     pub redsys: Option<HeaderKey>,
+    pub revolv3: Option<HeaderKey>,
     pub santander: Option<BodyKey>,
     pub shift4: Option<HeaderKey>,
     pub sift: Option<HeaderKey>,

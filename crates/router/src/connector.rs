@@ -3,6 +3,7 @@ pub mod utils;
 #[cfg(feature = "dummy_connector")]
 pub use hyperswitch_connectors::connectors::DummyConnector;
 pub use hyperswitch_connectors::connectors::{
+    revolv3, revolv3::Revolv3,
     aci, aci::Aci, adyen, adyen::Adyen, adyenplatform, adyenplatform::Adyenplatform, affirm,
     affirm::Affirm, airwallex, airwallex::Airwallex, amazonpay, amazonpay::Amazonpay, archipel,
     archipel::Archipel, authipay, authipay::Authipay, authorizedotnet,
@@ -41,13 +42,13 @@ pub use hyperswitch_connectors::connectors::{
     peachpayments::Peachpayments, phonepe, phonepe::Phonepe, placetopay, placetopay::Placetopay,
     plaid, plaid::Plaid, powertranz, powertranz::Powertranz, prophetpay, prophetpay::Prophetpay,
     rapyd, rapyd::Rapyd, razorpay, razorpay::Razorpay, recurly, recurly::Recurly, redsys,
-    redsys::Redsys, riskified, riskified::Riskified, santander, santander::Santander, shift4,
-    shift4::Shift4, sift, sift::Sift, signifyd, signifyd::Signifyd, silverflow,
-    silverflow::Silverflow, square, square::Square, stax, stax::Stax, stripe, stripe::Stripe,
-    stripebilling, stripebilling::Stripebilling, taxjar, taxjar::Taxjar, tesouro, tesouro::Tesouro,
-    threedsecureio, threedsecureio::Threedsecureio, thunes, thunes::Thunes, tokenex,
-    tokenex::Tokenex, tokenio, tokenio::Tokenio, trustpay, trustpay::Trustpay, trustpayments,
-    trustpayments::Trustpayments, tsys, tsys::Tsys, unified_authentication_service,
+    redsys::Redsys, revolv3, revolv3::Revolv3, riskified, riskified::Riskified, santander,
+    santander::Santander, shift4, shift4::Shift4, sift, sift::Sift, signifyd, signifyd::Signifyd,
+    silverflow, silverflow::Silverflow, square, square::Square, stax, stax::Stax, stripe,
+    stripe::Stripe, stripebilling, stripebilling::Stripebilling, taxjar, taxjar::Taxjar, tesouro,
+    tesouro::Tesouro, threedsecureio, threedsecureio::Threedsecureio, thunes, thunes::Thunes,
+    tokenex, tokenex::Tokenex, tokenio, tokenio::Tokenio, trustpay, trustpay::Trustpay,
+    trustpayments, trustpayments::Trustpayments, tsys, tsys::Tsys, unified_authentication_service,
     unified_authentication_service::UnifiedAuthenticationService, vgs, vgs::Vgs, volt, volt::Volt,
     wellsfargo, wellsfargo::Wellsfargo, wellsfargopayout, wellsfargopayout::Wellsfargopayout, wise,
     wise::Wise, worldline, worldline::Worldline, worldpay, worldpay::Worldpay, worldpaymodular,
