@@ -5,6 +5,8 @@ extend-ignore-identifiers-re = [
 ]
 
 [default.extend-identifiers]
+sepa_guarenteed_debit = "sepa_guarenteed_debit" # Would have to break the api contract for fixing this. Not worth the it.
+sepa_guarenteed_bank_debit = "sepa_guarenteed_bank_debit" # Would have to break the api contract for fixing this. Not worth the it.
 ABD = "ABD"  # Aberdeenshire, UK ISO 3166-2 code
 ACTIVITE = "ACTIVITE" # French translation of activity
 AER = "AER" # An alias to Api Error Response
