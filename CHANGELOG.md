@@ -4,6 +4,23 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.04.1-hotfix7
+
+### Features
+
+- **connector:** [Worldpayxml] Implement mandates for ApplePay and GooglePay ([#11287](https://github.com/juspay/hyperswitch/pull/11287)) ([`c30b905`](https://github.com/juspay/hyperswitch/commit/c30b905868dea2dafd6f9b59789a4bb82064622a))
+- **core:** Add webhook context support for event type determination ([#11291](https://github.com/juspay/hyperswitch/pull/11291)) ([`dd72e23`](https://github.com/juspay/hyperswitch/commit/dd72e23b419bd0e599db9f5d115b68aee42e14ac))
+- **payload:** Add merchant_secret to connector_webhook_details for all environments ([#11292](https://github.com/juspay/hyperswitch/pull/11292)) ([`963625a`](https://github.com/juspay/hyperswitch/commit/963625adc0b0d664d2dda472e7237aa177be5bfd))
+- **router:** Introduce duplication check for bank debit ([#11293](https://github.com/juspay/hyperswitch/pull/11293)) ([`ed102a4`](https://github.com/juspay/hyperswitch/commit/ed102a4a82f42d9bd52bae765577687901280384))
+
+### Bug Fixes
+
+- **connector:** [WorldpayWPG] Mandates Flow for Wallets When Authentication Type is three_ds ([#11290](https://github.com/juspay/hyperswitch/pull/11290)) ([`ee1786d`](https://github.com/juspay/hyperswitch/commit/ee1786d632ec97d63a6192d68815cb27ff9eb9c1))
+
+**Full Changelog:** [`2026.02.04.1-hotfix6...2026.02.04.1-hotfix7`](https://github.com/juspay/hyperswitch/compare/2026.02.04.1-hotfix6...2026.02.04.1-hotfix7)
+
+- - -
+
 ## 2026.02.04.1-hotfix6
 
 ### Features
