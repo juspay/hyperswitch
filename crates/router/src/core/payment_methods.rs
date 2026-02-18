@@ -5807,6 +5807,7 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
             None,
             None,
             pm_status,
+            self.platform.get_initiator(),
         )
         .await
         .attach_printable("Unable to create Payment method data")?;
