@@ -1,14 +1,40 @@
 use external_services::superposition;
 
 use super::{
-    dimension_state::{Dimensions, HasMerchantId, HasProfileId},
+    dimension_state::{Dimensions, HasMerchantId},
     fetch_db_with_dimensions, DatabaseBackedConfig,
 };
 use crate::{consts::superposition as superposition_consts, db::StorageInterface, utils::id_type};
 
-/// Macro to generate config struct and superposition::Config trait implementation
+/// Macro to generate config struct and superposition::Config trait implementation.
 /// Note: Manually implement `DatabaseBackedConfig` for the config struct:
 /// The `fetch_db` method is provided by the default implementation in DatabaseBackedConfig.
+///
+/// # Targeting Key
+///
+/// In Superposition, a **targeting key** is the identifier used to assign a user/entity
+/// to a specific experiment variant during traffic splitting. When an experiment is running
+/// (e.g., testing a new config value vs the old one), Superposition uses the targeting key
+/// to deterministically decide which variant a given entity sees.
+///
+/// The same targeting key value will always resolve to the same variant, ensuring
+/// consistent behavior for a given entity across requests.
+///
+/// ## How to Select a Targeting Key
+///
+/// The targeting key should be the **most granular entity that should have a consistent
+/// experiment experience**:
+///
+/// - Use **`CustomerId`** when the config affects customer-facing behavior.
+///   This ensures the same customer always sees the same variant
+///   across multiple payments and sessions.
+///
+/// - Use **`PaymentId`** when there is no customer context involved, or when the config
+///   decision is per-payment (e.g., proxy payment flows). Each payment will independently
+///   resolve to a variant.
+///
+/// As a rule of thumb: pick the entity whose experience should remain stable throughout
+/// the experiment.
 #[macro_export]
 macro_rules! config {
     (
@@ -24,6 +50,7 @@ macro_rules! config {
 
             impl superposition::Config for [<$superposition_key:camel>] {
                 type Output = $output;
+                type TargetingKey = $targeting_type;
 
                 const SUPERPOSITION_KEY: &'static str =
                     superposition_consts::$superposition_key;
@@ -43,12 +70,11 @@ macro_rules! config {
                     superposition_client: Option<&superposition::SuperpositionClient>,
                     targeting_key: Option<&$targeting_type>,
                 ) -> $output {
-                    let targeting_key_str = targeting_key.map(|id| id.get_string_repr().to_owned());
                     fetch_db_with_dimensions::<[<$superposition_key:camel>], $requirement, O, P>(
                         storage,
                         superposition_client,
                         self,
-                        targeting_key_str.as_ref(),
+                        targeting_key,
                     )
                     .await
                 }

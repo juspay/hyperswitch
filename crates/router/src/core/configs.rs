@@ -130,7 +130,7 @@ pub async fn fetch_db_with_dimensions<C, M, O, P>(
     storage: &dyn db::StorageInterface,
     superposition_client: Option<&superposition::SuperpositionClient>,
     dimensions: &dimension_state::Dimensions<M, O, P>,
-    targeting_key: Option<&String>,
+    targeting_key: Option<&C::TargetingKey>,
 ) -> C::Output
 where
     C: DatabaseBackedConfig,
@@ -171,7 +171,7 @@ pub async fn fetch_db_config<C>(
     superposition_client: Option<&superposition::SuperpositionClient>,
     db_key: &str,
     context: Option<ConfigContext>,
-    targeting_key: Option<&String>,
+    targeting_key: Option<&C::TargetingKey>,
 ) -> C::Output
 where
     C: DatabaseBackedConfig,
@@ -181,7 +181,6 @@ where
     let default_value = C::DEFAULT_VALUE;
     let config_type = C::KEY;
 
-    router_env::logger::info!("here in fetch_db_config ");
     let superposition_result = match superposition_client {
         Some(client) => C::fetch(client, context, targeting_key).await,
         None => Err(error_stack::report!(

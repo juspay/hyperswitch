@@ -5,7 +5,7 @@ pub mod types;
 
 use std::collections::HashMap;
 
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, id_type::TargetingKey};
 use error_stack::report;
 use masking::ExposeInterface;
 
@@ -187,7 +187,6 @@ impl SuperpositionClient {
     {
         let evaluation_context = self.build_evaluation_context(context, targeting_key);
         let type_name = std::any::type_name::<T>();
-        router_env::logger::info!("evaluation {:?}", evaluation_context);
 
         self.client
             .get_value(key, &evaluation_context)
@@ -206,6 +205,9 @@ pub trait Config {
     /// The output type of this configuration
     type Output: Default + Clone;
 
+    /// The type used as the targeting key for experiment traffic splitting
+    type TargetingKey: TargetingKey + Send + Sync;
+
     /// Get the Superposition key for this config
     const SUPERPOSITION_KEY: &'static str;
 
@@ -216,18 +218,18 @@ pub trait Config {
     fn fetch(
         superposition_client: &SuperpositionClient,
         context: Option<ConfigContext>,
-        targeting_key: Option<&String>,
+        targeting_key: Option<&Self::TargetingKey>,
     ) -> impl std::future::Future<Output = CustomResult<Self::Output, SuperpositionError>> + Send
     where
         open_feature::Client: GetValue<Self::Output>,
     {
-        router_env::logger::info!("in superposition client");
+        let targeting_key_str = targeting_key.map(|id| id.targeting_key_value().to_owned());
         async move {
             match superposition_client
                 .get_config_value::<Self::Output>(
                     Self::SUPERPOSITION_KEY,
                     context.as_ref(),
-                    targeting_key,
+                    targeting_key_str.as_ref(),
                 )
                 .await
             {
