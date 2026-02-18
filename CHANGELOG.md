@@ -4,6 +4,28 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.18.0
+
+### Features
+
+- **platform:**
+  - Introduce SDK authorization support for v2 ([#11280](https://github.com/juspay/hyperswitch/pull/11280)) ([`52ecea6`](https://github.com/juspay/hyperswitch/commit/52ecea6b549c29fe5a362e701e0aaac52bf9cea4))
+  - Enable payment method and customer routes for v2 in platform ([#11281](https://github.com/juspay/hyperswitch/pull/11281)) ([`2b9a0a6`](https://github.com/juspay/hyperswitch/commit/2b9a0a62bfbd1f5635805d7443c16c2d1d092e45))
+- **router:** Introduce duplication check for bank debit ([#11235](https://github.com/juspay/hyperswitch/pull/11235)) ([`ca19203`](https://github.com/juspay/hyperswitch/commit/ca192037ad206591cf568c39d332000a79293b70))
+- **superposition:** Introduce targeting key support for Superposition experiment traffic splitting ([#11163](https://github.com/juspay/hyperswitch/pull/11163)) ([`e53a93e`](https://github.com/juspay/hyperswitch/commit/e53a93e2c233e3174f5ec2cdada8c7db6a59202f))
+
+### Bug Fixes
+
+- **core:** Populate whole connector response in payment response ([#11306](https://github.com/juspay/hyperswitch/pull/11306)) ([`fc514c5`](https://github.com/juspay/hyperswitch/commit/fc514c545c87795cc58d4788235b99ca08b3db04))
+
+### Documentation
+
+- **api-reference:** Add authorization uplift documentation ([#11175](https://github.com/juspay/hyperswitch/pull/11175)) ([`a691e72`](https://github.com/juspay/hyperswitch/commit/a691e722ef04a05a4c9c4196302ebeaaa2602f82))
+
+**Full Changelog:** [`2026.02.17.0...2026.02.18.0`](https://github.com/juspay/hyperswitch/compare/2026.02.17.0...2026.02.18.0)
+
+- - -
+
 ## 2026.02.17.0
 
 ### Features
