@@ -1254,6 +1254,7 @@ pub struct PaymentMethodResponse {
     pub billing: Option<payments::Address>,
 
     /// The acknowledgement status of the payment method update
+    #[schema(value_type = Option<AcknowledgementStatus>)]
     pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
 }
 
