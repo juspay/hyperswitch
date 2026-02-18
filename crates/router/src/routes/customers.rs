@@ -394,7 +394,7 @@ pub async fn customers_delete(
         &req,
         id,
         |state, auth: auth::AuthenticationData, id, _| {
-            delete_customer(state, auth.platform.get_provider().clone(), id)
+            delete_customer(state, auth.platform, id, auth.profile)
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {

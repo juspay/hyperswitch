@@ -425,6 +425,41 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
 
     #[cfg(feature = "v2")]
     #[instrument(skip_all)]
+    async fn find_customer_by_global_id_merchant_id(
+        &self,
+        id: &id_type::GlobalCustomerId,
+        merchant_id: &id_type::MerchantId,
+        key_store: &MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<domain::Customer, StorageError> {
+        let conn = pg_connection_read(self).await?;
+        let result: domain::Customer = self
+            .find_resource_by_id(
+                key_store,
+                storage_scheme,
+                customers::Customer::find_by_global_id_merchant_id(&conn, id, merchant_id),
+                kv_router_store::FindResourceBy::Id(
+                    format!("cust_{}", id.get_string_repr()),
+                    PartitionKey::GlobalId {
+                        id: id.get_string_repr(),
+                    },
+                ),
+            )
+            .await?;
+
+        if result.merchant_id != *merchant_id {
+            Err(StorageError::ValueNotFound(
+                "db value not found".to_string(),
+            ))?
+        } else if result.status == common_enums::DeleteStatus::Redacted {
+            Err(StorageError::CustomerRedacted)?
+        } else {
+            Ok(result)
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
     async fn update_customer_by_global_id(
         &self,
         id: &id_type::GlobalCustomerId,
@@ -752,6 +787,28 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
             _ => Ok(customer),
         }
     }
+
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn find_customer_by_global_id_merchant_id(
+        &self,
+        id: &id_type::GlobalCustomerId,
+        merchant_id: &id_type::MerchantId,
+        key_store: &MerchantKeyStore,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<domain::Customer, StorageError> {
+        let conn = pg_connection_read(self).await?;
+        let customer: domain::Customer = self
+            .call_database(
+                key_store,
+                customers::Customer::find_by_global_id_merchant_id(&conn, id, merchant_id),
+            )
+            .await?;
+        match customer.name {
+            Some(ref name) if name.peek() == pii::REDACTED => Err(StorageError::CustomerRedacted)?,
+            _ => Ok(customer),
+        }
+    }
 }
 
 #[async_trait::async_trait]
@@ -958,6 +1015,18 @@ impl domain::CustomerInterface for MockDb {
     async fn find_customer_by_global_id(
         &self,
         _id: &id_type::GlobalCustomerId,
+        _key_store: &MerchantKeyStore,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<domain::Customer, StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(StorageError::MockDbError)?
+    }
+
+    #[cfg(feature = "v2")]
+    async fn find_customer_by_global_id_merchant_id(
+        &self,
+        _id: &id_type::GlobalCustomerId,
+        _merchant_id: &id_type::MerchantId,
         _key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
