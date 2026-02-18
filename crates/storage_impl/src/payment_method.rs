@@ -354,6 +354,29 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             .await
     }
 
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn find_payment_method_by_global_customer_id_merchant_id_statuses(
+        &self,
+        key_store: &MerchantKeyStore,
+        customer_id: &id_type::GlobalCustomerId,
+        merchant_id: &id_type::MerchantId,
+        statuses: Vec<common_enums::PaymentMethodStatus>,
+        limit: Option<i64>,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<DomainPaymentMethod>, errors::StorageError> {
+        self.router_store
+            .find_payment_method_by_global_customer_id_merchant_id_statuses(
+                key_store,
+                customer_id,
+                merchant_id,
+                statuses,
+                limit,
+                storage_scheme,
+            )
+            .await
+    }
+
     #[cfg(feature = "v1")]
     async fn delete_payment_method_by_merchant_id_payment_method_id(
         &self,
@@ -383,7 +406,6 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
     }
 
     // Check if KV stuff is needed here
-    #[cfg(feature = "v2")]
     async fn find_payment_method_by_fingerprint_id(
         &self,
         key_store: &MerchantKeyStore,
@@ -646,6 +668,31 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         .await
     }
 
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn find_payment_method_by_global_customer_id_merchant_id_statuses(
+        &self,
+        key_store: &MerchantKeyStore,
+        customer_id: &id_type::GlobalCustomerId,
+        merchant_id: &id_type::MerchantId,
+        statuses: Vec<common_enums::PaymentMethodStatus>,
+        limit: Option<i64>,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<DomainPaymentMethod>, errors::StorageError> {
+        let conn = pg_connection_read(self).await?;
+        self.find_resources(
+            key_store,
+            PaymentMethod::find_by_global_customer_id_merchant_id_statuses(
+                &conn,
+                customer_id,
+                merchant_id,
+                statuses,
+                limit,
+            ),
+        )
+        .await
+    }
+
     #[cfg(feature = "v1")]
     async fn delete_payment_method_by_merchant_id_payment_method_id(
         &self,
@@ -686,7 +733,6 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         .await
     }
 
-    #[cfg(feature = "v2")]
     async fn find_payment_method_by_fingerprint_id(
         &self,
         key_store: &MerchantKeyStore,
@@ -897,6 +943,27 @@ impl PaymentMethodInterface for MockDb {
             .await
     }
 
+    #[cfg(feature = "v2")]
+    async fn find_payment_method_by_global_customer_id_merchant_id_statuses(
+        &self,
+        key_store: &MerchantKeyStore,
+        customer_id: &id_type::GlobalCustomerId,
+        merchant_id: &id_type::MerchantId,
+        statuses: Vec<common_enums::PaymentMethodStatus>,
+        _limit: Option<i64>,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<DomainPaymentMethod>, errors::StorageError> {
+        let payment_methods = self.payment_methods.lock().await;
+        let find_pm_by = |pm: &&PaymentMethod| {
+            pm.customer_id == *customer_id
+                && pm.merchant_id == *merchant_id
+                && statuses.contains(&pm.status)
+        };
+        let error_message = "cannot find payment method".to_string();
+        self.get_resources(key_store, payment_methods, find_pm_by, error_message)
+            .await
+    }
+
     #[cfg(feature = "v1")]
     async fn delete_payment_method_by_merchant_id_payment_method_id(
         &self,
@@ -977,7 +1044,6 @@ impl PaymentMethodInterface for MockDb {
         .await
     }
 
-    #[cfg(feature = "v2")]
     async fn find_payment_method_by_fingerprint_id(
         &self,
         key_store: &MerchantKeyStore,
