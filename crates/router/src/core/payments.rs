@@ -49,6 +49,7 @@ use common_utils::{
 };
 use diesel_models::{fraud_check::FraudCheck, refund as diesel_refund};
 use error_stack::{report, ResultExt};
+use euclid::backend::inputs as dsl_inputs;
 use events::EventInfo;
 use futures::{
     future::{join_all, BoxFuture},
@@ -99,7 +100,6 @@ use self::{
     flows::{ConstructFlowSpecificData, Feature},
     gateway::context as gateway_context,
     operations::{BoxedOperation, Operation, PaymentResponse},
-    routing::{self as self_routing, SessionFlowRoutingInput},
 };
 use super::{
     errors::StorageErrorExt,
@@ -9014,6 +9014,53 @@ where
         )
         .await?;
 
+    let transaction_data = core_routing::PaymentsDslInput::new(
+        payment_data.get_setup_mandate(),
+        payment_data.get_payment_attempt(),
+        payment_data.get_payment_intent(),
+        payment_data.get_payment_method_data(),
+        payment_data.get_address(),
+        payment_data.get_recurring_details(),
+        payment_data.get_currency(),
+    );
+
+    let fallback_config = routing_helpers::get_merchant_default_config(
+        &*state.clone().store,
+        business_profile.get_id().get_string_repr(),
+        &transaction_type_from_payments_dsl(&transaction_data),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("euclid: failed to fetch fallback config")?;
+
+    // let transaction_d = &TransactionData::Payment(transaction_data.clone());
+
+    // let backend_input = match transaction_d {
+    //     TransactionData::Payment(payment_data) => routing::make_dsl_input(payment_data)
+    //         .change_context(errors::ApiErrorResponse""),
+    //     #[cfg(feature = "payouts")]
+    //     TransactionData::Payout(payout_data) => {
+    //         routing::make_dsl_input_for_payouts(payout_data).unwrap()
+    //     }
+    // };
+
+    let backend_input = match routing::make_dsl_input(&transaction_data).inspect_err(|err| {
+        logger::error!(
+            error=?err,
+            "euclid: make_dsl_input failed, falling back"
+        );
+    }) {
+        Ok(input) => input,
+        Err(_) => {
+            let fallback_routing_data =
+                core_routing::convert_fallback_to_connector_routing_data(state, &fallback_config)?;
+
+            return Ok(Some(ConnectorCallType::Retryable(fallback_routing_data)));
+        }
+    };
+
+    let transaction_type = enums::TransactionType::Payment;
+
     let connector = if should_call_connector(operation, payment_data) {
         Some(match connector_choice {
             api::ConnectorChoice::SessionMultiple(connectors) => {
@@ -9023,6 +9070,9 @@ where
                     business_profile,
                     payment_data,
                     connectors,
+                    fallback_config,
+                    backend_input,
+                    transaction_type,
                 )
                 .await?;
                 ConnectorCallType::SessionMultiple(routing_output)
@@ -9037,6 +9087,8 @@ where
                     Some(straight_through),
                     eligible_connectors,
                     mandate_type,
+                    fallback_config,
+                    backend_input,
                 )
                 .await?
             }
@@ -9050,6 +9102,8 @@ where
                     None,
                     eligible_connectors,
                     mandate_type,
+                    fallback_config,
+                    backend_input,
                 )
                 .await?
             }
@@ -9258,6 +9312,8 @@ pub async fn perform_routing_for_connector_selection<F, D>(
     request_straight_through: Option<serde_json::Value>,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     mandate_type: Option<api::MandateTransactionType>,
+    fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
+    backend_input: dsl_inputs::BackendInput,
 ) -> RouterResult<ConnectorCallType>
 where
     F: Send + Clone,
@@ -9302,6 +9358,8 @@ where
         &mut routing_data,
         eligible_connectors,
         mandate_type,
+        fallback_config,
+        backend_input,
     )
     .await?;
 
@@ -9493,6 +9551,8 @@ pub async fn decide_connector<F, D>(
     routing_data: &mut storage::RoutingData,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     mandate_type: Option<api::MandateTransactionType>,
+    fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
+    backend_input: dsl_inputs::BackendInput,
 ) -> RouterResult<ConnectorCallType>
 where
     F: Send + Clone,
@@ -9538,7 +9598,6 @@ where
     if let Some(connector) = pre_decided_connector {
         return Ok(connector);
     }
-
     let transaction_data = core_routing::PaymentsDslInput::new(
         payment_data.get_setup_mandate(),
         payment_data.get_payment_attempt(),
@@ -9548,15 +9607,6 @@ where
         payment_data.get_recurring_details(),
         payment_data.get_currency(),
     );
-
-    let fallback_config = routing_helpers::get_merchant_default_config(
-        &*state.clone().store,
-        business_profile.get_id().get_string_repr(),
-        &transaction_type_from_payments_dsl(&transaction_data),
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("euclid: failed to fetch fallback config")?;
 
     // Straight through routing block
     let request_straight_through_routing_stage =
@@ -9579,7 +9629,6 @@ where
     let txn = TransactionData::Payment(transaction_data.clone());
     let txn_data = transaction_data.clone();
     let fallback = fallback_config.clone();
-    let eligible = eligible_connectors.clone();
     let state_ref = &state;
     let fallback_outcome = (
         fallback.clone(),
@@ -9618,10 +9667,9 @@ where
             async move {
                 static_dynamic_routing_v1_for_payments(
                     state_ref,
-                    platform,
                     business_profile,
                     txn_data,
-                    eligible,
+                    backend_input,
                     fallback.clone(),
                 )
                 .await
@@ -10309,43 +10357,67 @@ pub fn should_add_task_to_process_tracker<F: Clone, D: OperationSessionGetters<F
 }
 
 #[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
 pub async fn perform_session_token_routing<F, D>(
     state: SessionState,
     platform: &domain::Platform,
     business_profile: &domain::Profile,
     payment_data: &mut D,
     connectors: api::SessionConnectorDatas,
+    fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
+    mut backend_input: dsl_inputs::BackendInput,
+    transaction_type: enums::TransactionType,
 ) -> RouterResult<api::SessionConnectorDatas>
 where
     F: Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F>,
 {
     let chosen = connectors.apply_filter_for_session_routing();
-    let sfr = SessionFlowRoutingInput {
+
+    let active_mca_ids =
+        routing::get_active_mca_ids(&state, platform.get_processor().get_key_store())
+            .await
+            .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                message: "Active mca_ids not found".to_string(),
+            })?;
+
+    let input = routing::SessionRoutingInput {
         state: &state,
-        country: payment_data
-            .get_address()
-            .get_payment_method_billing()
-            .and_then(|address| address.address.as_ref())
-            .and_then(|details| details.country),
+        business_profile,
         key_store: platform.get_processor().get_key_store(),
         merchant_account: platform.get_processor().get_account(),
-        payment_attempt: payment_data.get_payment_attempt(),
-        payment_intent: payment_data.get_payment_intent(),
-        chosen,
+        transaction_type: &transaction_type,
+        chosen: &chosen,
+        active_mca_ids: &active_mca_ids,
+        default_config: &fallback_config,
+        backend_input: &mut backend_input,
     };
-    let (result, routing_approach) = self_routing::perform_session_flow_routing(
-        sfr,
-        business_profile,
-        &enums::TransactionType::Payment,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("error performing session flow routing")?;
 
-    payment_data.set_routing_approach_in_attempt(routing_approach);
+    let routing_algorithm: routing::MerchantAccountRoutingAlgorithm = {
+        business_profile
+            .routing_algorithm
+            .clone()
+            .map(|val| val.parse_value("MerchantAccountRoutingAlgorithm"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?
+            .unwrap_or_default()
+    };
 
-    let final_list = connectors.filter_and_validate_for_session_flow(&result)?;
+    let stage = routing::SessionRoutingStage {
+        ctx: routing::SessionRoutingContext {
+            routing_algorithm: routing_algorithm.into(),
+        },
+    };
+
+    let outcome = stage
+        .route(input)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("error performing session routing stage")?;
+
+    payment_data.set_routing_approach_in_attempt(Some(outcome.routing_approach));
+
+    let final_list = connectors.filter_and_validate_for_session_flow(&outcome.session_output)?;
 
     Ok(final_list)
 }
@@ -10454,10 +10526,9 @@ pub async fn route_connector_v2_for_payments(
 #[allow(clippy::too_many_arguments)]
 pub async fn static_dynamic_routing_v1_for_payments(
     state: &SessionState,
-    platform: &domain::Platform,
     business_profile: &domain::Profile,
     payment_dsl_input: core_routing::PaymentsDslInput<'_>,
-    eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
+    backend_input: euclid::backend::BackendInput,
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
 ) -> RouterResult<routing::RoutingConnectorOutcomeWithApproachAndEligibility> {
     let txn_type = transaction_type_from_payments_dsl(&payment_dsl_input);
@@ -10485,15 +10556,6 @@ pub async fn static_dynamic_routing_v1_for_payments(
             .await
         })
         .await;
-
-    let transaction_data = &TransactionData::Payment(payment_dsl_input);
-    let backend_input = match transaction_data {
-        TransactionData::Payment(payment_data) => routing::make_dsl_input(payment_data).unwrap(),
-        #[cfg(feature = "payouts")]
-        TransactionData::Payout(payout_data) => {
-            routing::make_dsl_input_for_payouts(payout_data).unwrap()
-        }
-    };
 
     let static_input = routing::StaticRoutingInput {
         backend_input: &backend_input,
