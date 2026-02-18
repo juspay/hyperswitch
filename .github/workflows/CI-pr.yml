@@ -225,6 +225,26 @@ jobs:
       - name: Spell check
         uses: crate-ci/typos@master
 
+  typos-specific-dirs:
+    name: Spell check specific directories
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Spell check specific directories
+        uses: crate-ci/typos@master
+        with:
+          files: |
+            api-reference/
+            migrations/
+            config/
+            docs/
+            crates/api_models/
+            crates/common_enums/
+            crates/common_types/
+            crates/diesel_models/
+
   check-v2:
     name: Check compilation for V2 features
     runs-on: ubuntu-latest
