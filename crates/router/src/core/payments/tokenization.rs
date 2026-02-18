@@ -2067,6 +2067,11 @@ async fn generate_network_token_and_update_payment_method(
     payment_method_billing_address: Option<&hyperswitch_domain_models::address::Address>,
     payment_method_info: Option<domain::PaymentMethod>,
 ) -> RouterResult<()> {
+    // check if payment method exists
+    if payment_method_info.is_none() {
+        logger::info!("Payment method not found, skipping network tokenization");
+        return Ok(());
+    }
     // check if payment method already has a network token associated
     if let Some(true) = payment_method_info.as_ref().map(|pm| {
         pm.network_token_requestor_reference_id.is_some()
