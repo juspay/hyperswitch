@@ -81,8 +81,11 @@ pub async fn save_network_token_details_in_nt_mapper(
 
     db.insert_call_back_mapper(callback_mapper)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to insert in Callback Mapper table")?;
+        .inspect_err(|err| {
+            logger::error!("Failed to insert in Callback Mapper table: {:?}", err);
+        })
+        .attach_printable("Failed to insert in Callback Mapper table")
+        .ok();
     Ok(())
 }
 
