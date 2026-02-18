@@ -1566,15 +1566,11 @@ pub fn handle_unified_connector_service_response_for_create_connector_customer(
 
 pub fn handle_unified_connector_service_response_for_create_order(
     response: payments_grpc::PaymentServiceCreateOrderResponse,
-    prev_status: AttemptStatus,
 ) -> UnifiedConnectorServiceCreateOrderResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((
-            response.clone(),
-            prev_status,
-        ))?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
 
     Ok((router_data_response, status_code))
 }

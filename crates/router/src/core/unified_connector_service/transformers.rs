@@ -4200,19 +4200,13 @@ impl ForeignFrom<common_enums::PaymentMethodType> for payments_grpc::PaymentMeth
     }
 }
 
-impl
-    transformers::ForeignTryFrom<(
-        payments_grpc::PaymentServiceCreateOrderResponse,
-        AttemptStatus,
-    )> for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateOrderResponse>
+    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        (response, prev_status): (
-            payments_grpc::PaymentServiceCreateOrderResponse,
-            AttemptStatus,
-        ),
+        response: payments_grpc::PaymentServiceCreateOrderResponse,
     ) -> Result<Self, Self::Error> {
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
@@ -4221,7 +4215,7 @@ impl
                 payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
                 _ => Some(AttemptStatus::foreign_try_from((
                     response.status(),
-                    prev_status,
+                    AttemptStatus::Started,
                 ))?),
             };
 
@@ -4252,12 +4246,13 @@ impl
                 })
                 .ok_or(UnifiedConnectorServiceError::ResponseDeserializationFailed)?;
 
-            let status = AttemptStatus::foreign_try_from((response.status(), prev_status))?;
+            let status =
+                AttemptStatus::foreign_try_from((response.status(), AttemptStatus::Started))?;
 
-            let session_token = match response.session_token {
-                Some(session_token) => Some(SessionToken::foreign_try_from(session_token)?),
-                None => None,
-            };
+            let session_token = response
+                .session_token
+                .map(SessionToken::foreign_try_from)
+                .transpose()?;
 
             // For order creation, we typically return a successful response with the order_id
             // Since this is not a standard payment response, we'll create a simple success response

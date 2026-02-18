@@ -130,7 +130,6 @@ where
                 let (router_data_response, status_code) =
                     handle_unified_connector_service_response_for_create_order(
                         create_order_response.clone(),
-                        router_data.status,
                     )
                     .attach_printable("Failed to deserialize UCS response")?;
 
