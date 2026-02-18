@@ -4,6 +4,57 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.18.0
+
+### Features
+
+- **platform:**
+  - Introduce SDK authorization support for v2 ([#11280](https://github.com/juspay/hyperswitch/pull/11280)) ([`52ecea6`](https://github.com/juspay/hyperswitch/commit/52ecea6b549c29fe5a362e701e0aaac52bf9cea4))
+  - Enable payment method and customer routes for v2 in platform ([#11281](https://github.com/juspay/hyperswitch/pull/11281)) ([`2b9a0a6`](https://github.com/juspay/hyperswitch/commit/2b9a0a62bfbd1f5635805d7443c16c2d1d092e45))
+- **router:** Introduce duplication check for bank debit ([#11235](https://github.com/juspay/hyperswitch/pull/11235)) ([`ca19203`](https://github.com/juspay/hyperswitch/commit/ca192037ad206591cf568c39d332000a79293b70))
+- **superposition:** Introduce targeting key support for Superposition experiment traffic splitting ([#11163](https://github.com/juspay/hyperswitch/pull/11163)) ([`e53a93e`](https://github.com/juspay/hyperswitch/commit/e53a93e2c233e3174f5ec2cdada8c7db6a59202f))
+
+### Bug Fixes
+
+- **core:** Populate whole connector response in payment response ([#11306](https://github.com/juspay/hyperswitch/pull/11306)) ([`fc514c5`](https://github.com/juspay/hyperswitch/commit/fc514c545c87795cc58d4788235b99ca08b3db04))
+
+### Documentation
+
+- **api-reference:** Add authorization uplift documentation ([#11175](https://github.com/juspay/hyperswitch/pull/11175)) ([`a691e72`](https://github.com/juspay/hyperswitch/commit/a691e722ef04a05a4c9c4196302ebeaaa2602f82))
+
+**Full Changelog:** [`2026.02.17.0...2026.02.18.0`](https://github.com/juspay/hyperswitch/compare/2026.02.17.0...2026.02.18.0)
+
+- - -
+
+## 2026.02.17.0
+
+### Features
+
+- **migration:** Add support to migrate ACH tokens ([#11274](https://github.com/juspay/hyperswitch/pull/11274)) ([`a4acc25`](https://github.com/juspay/hyperswitch/commit/a4acc25f5d447b86ed13257d55d8f7954bf8a43a))
+- **payment:** Add storage type to PaymentMethodSession create call ([#11245](https://github.com/juspay/hyperswitch/pull/11245)) ([`30650bf`](https://github.com/juspay/hyperswitch/commit/30650bf1a5ca4205a5235917cf5fa2351791f833))
+
+### Miscellaneous Tasks
+
+- Added modular config key for Paylater and Wallet HS<>UCS ([#11246](https://github.com/juspay/hyperswitch/pull/11246)) ([`68d81ba`](https://github.com/juspay/hyperswitch/commit/68d81ba6c3ffe15420a688de20ba4e9e38f9d11f))
+
+**Full Changelog:** [`2026.02.16.1...2026.02.17.0`](https://github.com/juspay/hyperswitch/compare/2026.02.16.1...2026.02.17.0)
+
+- - -
+
+## 2026.02.16.1
+
+### Features
+
+- **payload:** Add merchant_secret to connector_webhook_details for all environments ([#11268](https://github.com/juspay/hyperswitch/pull/11268)) ([`1743e2c`](https://github.com/juspay/hyperswitch/commit/1743e2cdfa709ae2f1d082cbd150bb4f1b20ba31))
+
+### Refactors
+
+- **payment_methods:** Refactor PM update API to allow multiple updates in a session ([#11209](https://github.com/juspay/hyperswitch/pull/11209)) ([`373c7d5`](https://github.com/juspay/hyperswitch/commit/373c7d5e232e0be3a9d2b2375e6c2440fae6a1f5))
+
+**Full Changelog:** [`2026.02.16.0...2026.02.16.1`](https://github.com/juspay/hyperswitch/compare/2026.02.16.0...2026.02.16.1)
+
+- - -
+
 ## 2026.02.16.0
 
 ### Features
