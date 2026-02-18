@@ -1,6 +1,5 @@
 use common_utils::pii;
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
-use masking::Secret;
 
 pub mod sample_data;
 pub mod theme;
@@ -114,8 +113,7 @@ impl User {
     pub async fn reactivate_by_user_id(
         conn: &PgPooledConn,
         user_id: &str,
-        new_name: Option<String>,
-        new_password: Option<Secret<String>>,
+        user_update: ReactivateUserUpdate,
     ) -> StorageResult<Self> {
         generics::generic_update_with_unique_predicate_get_result::<
             <Self as HasTable>::Table,
@@ -127,10 +125,7 @@ impl User {
             users_dsl::user_id
                 .eq(user_id.to_owned())
                 .and(users_dsl::is_active.eq(false)),
-            UserUpdateInternal::from(UserUpdate::ActiveUpdate {
-                new_name,
-                new_password,
-            }),
+            UserUpdateInternal::from(user_update),
         )
         .await
     }

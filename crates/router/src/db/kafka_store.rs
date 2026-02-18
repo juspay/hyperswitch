@@ -3381,11 +3381,10 @@ impl UserInterface for KafkaStore {
     async fn reactivate_user_by_user_id(
         &self,
         user_id: &str,
-        new_name: Option<String>,
-        new_password: Option<Secret<String>>,
+        user_update: storage::ReactivateUserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError> {
         self.diesel_store
-            .reactivate_user_by_user_id(user_id, new_name, new_password)
+            .reactivate_user_by_user_id(user_id, user_update)
             .await
     }
 }

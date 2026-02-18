@@ -81,11 +81,13 @@ pub enum UserUpdate {
     LineageContextUpdate {
         lineage_context: LineageContext,
     },
-    InActiveUpdate,
-    ActiveUpdate {
-        new_name: Option<String>,
-        new_password: Option<Secret<String>>,
-    },
+    DeactivateUpdate,
+}
+
+#[derive(Debug)]
+pub struct ReactivateUserUpdate {
+    pub new_name: Option<String>,
+    pub new_password: Option<Secret<String>>,
 }
 
 impl From<UserUpdate> for UserUpdateInternal {
@@ -156,7 +158,7 @@ impl From<UserUpdate> for UserUpdateInternal {
                 lineage_context: Some(Some(lineage_context)),
                 is_active: None,
             },
-            UserUpdate::InActiveUpdate => Self {
+            UserUpdate::DeactivateUpdate => Self {
                 name: None,
                 password: Some(None),
                 is_verified: Some(false),
@@ -168,21 +170,24 @@ impl From<UserUpdate> for UserUpdateInternal {
                 lineage_context: Some(None),
                 is_active: Some(false),
             },
-            UserUpdate::ActiveUpdate {
-                new_name,
-                new_password,
-            } => Self {
-                name: new_name,
-                password: Some(new_password),
-                is_verified: Some(false),
-                last_modified_at,
-                last_password_modified_at: Some(Some(last_modified_at)),
-                totp_status: Some(TotpStatus::NotSet),
-                totp_secret: Some(None),
-                totp_recovery_codes: Some(None),
-                lineage_context: Some(None),
-                is_active: Some(true),
-            },
+        }
+    }
+}
+
+impl From<ReactivateUserUpdate> for UserUpdateInternal {
+    fn from(user_update: ReactivateUserUpdate) -> Self {
+        let last_modified_at = common_utils::date_time::now();
+        Self {
+            name: user_update.new_name,
+            password: Some(user_update.new_password),
+            is_verified: Some(false),
+            last_modified_at,
+            last_password_modified_at: Some(Some(last_modified_at)),
+            totp_status: Some(TotpStatus::NotSet),
+            totp_secret: Some(None),
+            totp_recovery_codes: Some(None),
+            lineage_context: Some(None),
+            is_active: Some(true),
         }
     }
 }

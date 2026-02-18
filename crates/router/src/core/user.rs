@@ -204,7 +204,6 @@ pub async fn get_active_user_details(
             entity_type: role_info.get_entity_type(),
             theme_id: theme.map(|theme| theme.theme_id),
             version,
-            is_active: user.is_active(),
         },
     ))
 }

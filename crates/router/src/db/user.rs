@@ -59,8 +59,7 @@ pub trait UserInterface {
     async fn reactivate_user_by_user_id(
         &self,
         user_id: &str,
-        new_name: Option<String>,
-        new_password: Option<Secret<String>>,
+        user_update: storage::ReactivateUserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError>;
 }
 
@@ -142,7 +141,7 @@ impl UserInterface for Store {
         &self,
         user_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
-        self.update_active_user_by_user_id(user_id, storage::UserUpdate::InActiveUpdate)
+        self.update_active_user_by_user_id(user_id, storage::UserUpdate::DeactivateUpdate)
             .await
             .map(|_| true)
     }
@@ -160,12 +159,11 @@ impl UserInterface for Store {
     async fn reactivate_user_by_user_id(
         &self,
         user_id: &str,
-        new_name: Option<String>,
-        new_password: Option<Secret<String>>,
+        user_update: storage::ReactivateUserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
 
-        storage::User::reactivate_by_user_id(&conn, user_id, new_name, new_password)
+        storage::User::reactivate_by_user_id(&conn, user_id, user_update)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -314,7 +312,7 @@ impl UserInterface for MockDb {
                 ..user.to_owned()
             },
 
-            storage::UserUpdate::InActiveUpdate => storage::User {
+            storage::UserUpdate::DeactivateUpdate => storage::User {
                 last_modified_at,
                 password: None,
                 last_password_modified_at: None,
@@ -326,10 +324,6 @@ impl UserInterface for MockDb {
                 is_active: false,
                 ..user.to_owned()
             },
-
-            storage::UserUpdate::ActiveUpdate { .. } => {
-                return Err(errors::StorageError::MockDbError.into());
-            }
         };
 
         Ok(user.to_owned())
@@ -392,7 +386,7 @@ impl UserInterface for MockDb {
                 ..user.to_owned()
             },
 
-            storage::UserUpdate::InActiveUpdate => storage::User {
+            storage::UserUpdate::DeactivateUpdate => storage::User {
                 last_modified_at,
                 password: None,
                 last_password_modified_at: Some(last_modified_at),
@@ -404,10 +398,6 @@ impl UserInterface for MockDb {
                 is_active: false,
                 ..user.to_owned()
             },
-
-            storage::UserUpdate::ActiveUpdate { .. } => {
-                return Err(errors::StorageError::MockDbError.into());
-            }
         };
 
         Ok(user.to_owned())
@@ -417,7 +407,7 @@ impl UserInterface for MockDb {
         &self,
         user_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
-        self.update_active_user_by_user_id(user_id, storage::UserUpdate::InActiveUpdate)
+        self.update_active_user_by_user_id(user_id, storage::UserUpdate::DeactivateUpdate)
             .await
             .map(|_| true)
     }
@@ -432,8 +422,7 @@ impl UserInterface for MockDb {
     async fn reactivate_user_by_user_id(
         &self,
         user_id: &str,
-        new_name: Option<String>,
-        new_password: Option<Secret<String>>,
+        user_update: storage::ReactivateUserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError> {
         let mut users = self.users.lock().await;
 
@@ -445,8 +434,11 @@ impl UserInterface for MockDb {
                 *user = storage::User {
                     user_id: user.user_id.clone(),
                     email: user.email.clone(),
-                    name: new_name.map(Secret::new).unwrap_or(user.name.clone()),
-                    password: new_password,
+                    name: user_update
+                        .new_name
+                        .map(Secret::new)
+                        .unwrap_or(user.name.clone()),
+                    password: user_update.new_password,
                     is_verified: false,
                     created_at: last_modified_at,
                     last_modified_at,

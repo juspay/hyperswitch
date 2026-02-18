@@ -215,7 +215,6 @@ pub struct GetUserDetailsResponse {
     pub entity_type: EntityType,
     pub theme_id: Option<String>,
     pub version: common_enums::ApiVersion,
-    pub is_active: bool,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]

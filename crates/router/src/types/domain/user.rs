@@ -855,9 +855,12 @@ impl NewUser {
             Some(user_from_db) => db
                 .reactivate_user_by_user_id(
                     &user_from_db.user_id,
-                    Some(self.get_name().expose()),
-                    self.get_password()
-                        .map(|user_password| user_password.get_secret()),
+                    diesel_models::user::ReactivateUserUpdate {
+                        new_name: Some(self.get_name().expose()),
+                        new_password: self
+                            .get_password()
+                            .map(|user_password| user_password.get_secret()),
+                    },
                 )
                 .await
                 .map(|user| user.into())
