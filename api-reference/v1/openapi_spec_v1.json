@@ -17523,7 +17523,7 @@
       },
       "DeRoutableConnectorChoice": {
         "type": "object",
-        "description": "Routable Connector chosen for a payment",
+        "description": "Connector representation used in API request/response.\n\nRepresents a Merchant Connector Account.",
         "required": [
           "gateway_name",
           "gateway_id"
@@ -17533,7 +17533,9 @@
             "$ref": "#/components/schemas/RoutableConnectors"
           },
           "gateway_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Merchant Connector Account ID.\n\nExample:\n```json\n\"mca_ExbsYfO1xFErhNtwY1PX\"\n```",
+            "example": "authipay_1705"
           }
         }
       },
@@ -17542,24 +17544,43 @@
         "properties": {
           "decided_gateway": {
             "type": "string",
+            "description": "The gateway decided by the routing engine",
+            "example": "stripe:mca1",
             "nullable": true
           },
           "gateway_priority_map": {
+            "type": "object",
+            "description": "Map of gateways with their priority scores",
+            "additionalProperties": {
+              "type": "number",
+              "format": "double"
+            },
+            "example": {
+              "adyen:mca2": 1.0,
+              "stripe:mca1": 1.0
+            },
             "nullable": true
           },
           "filter_wise_gateways": {
+            "type": "object",
+            "description": "Gateways organized by filter criteria",
             "nullable": true
           },
           "priority_logic_tag": {
             "type": "string",
+            "description": "Tag identifying the priority logic used",
             "nullable": true
           },
           "routing_approach": {
             "type": "string",
+            "description": "The routing approach used for decision making",
+            "example": "SR_SELECTION_V3_ROUTING",
             "nullable": true
           },
           "gateway_before_evaluation": {
             "type": "string",
+            "description": "The gateway that was evaluated before the final decision",
+            "example": "adyen:mca2",
             "nullable": true
           },
           "priority_logic_output": {
@@ -17572,25 +17593,37 @@
           },
           "reset_approach": {
             "type": "string",
+            "description": "The reset approach applied during routing",
+            "example": "NO_RESET",
             "nullable": true
           },
           "routing_dimension": {
             "type": "string",
+            "description": "Dimensions used for routing decision (payment type, method, etc.)",
+            "example": "ORDER_PAYMENT, UPI, upi",
             "nullable": true
           },
           "routing_dimension_level": {
             "type": "string",
+            "description": "Level at which routing dimension is evaluated",
+            "example": "PM_LEVEL",
             "nullable": true
           },
           "is_scheduled_outage": {
             "type": "boolean",
+            "description": "Indicates if routing decision was affected by scheduled outage",
+            "example": false,
             "nullable": true
           },
           "is_dynamic_mga_enabled": {
             "type": "boolean",
+            "description": "Indicates if dynamic merchant gateway account is enabled",
+            "example": false,
             "nullable": true
           },
           "gateway_mga_id_map": {
+            "type": "object",
+            "description": "Map of gateways to their MGA IDs",
             "nullable": true
           }
         }
@@ -17603,7 +17636,9 @@
         "properties": {
           "threshold": {
             "type": "number",
-            "format": "double"
+            "format": "double",
+            "description": "Threshold for elimination logic in gateway selection",
+            "example": 0.3
           }
         }
       },
@@ -17625,38 +17660,53 @@
       },
       "DecisionEngineSRSubLevelInputConfig": {
         "type": "object",
+        "description": "Payment method level configuration for success rate based routing",
         "properties": {
           "paymentMethodType": {
             "type": "string",
+            "description": "Payment method type (e.g., \"card\", \"wallet\")",
+            "example": "card",
             "nullable": true
           },
           "paymentMethod": {
             "type": "string",
+            "description": "Specific payment method (e.g., \"credit\", \"debit\")",
+            "example": "credit",
             "nullable": true
           },
           "latencyThreshold": {
             "type": "number",
             "format": "double",
+            "description": "Latency threshold in percentile for this payment method",
+            "example": 90.0,
             "nullable": true
           },
           "bucketSize": {
             "type": "integer",
             "format": "int32",
+            "description": "Number of transactions to consider for this payment method",
+            "example": 100,
             "nullable": true
           },
           "hedgingPercent": {
             "type": "number",
             "format": "double",
+            "description": "Percentage of traffic to route for exploration for this payment method",
+            "example": 5.0,
             "nullable": true
           },
           "lowerResetFactor": {
             "type": "number",
             "format": "double",
+            "description": "Lower reset factor for this payment method",
+            "example": 0.5,
             "nullable": true
           },
           "upperResetFactor": {
             "type": "number",
             "format": "double",
+            "description": "Upper reset factor for this payment method",
+            "example": 1.5,
             "nullable": true
           },
           "gatewayExtraScore": {
@@ -17664,36 +17714,48 @@
             "items": {
               "$ref": "#/components/schemas/DecisionEngineGatewayWiseExtraScore"
             },
+            "description": "Gateway-specific extra scoring factors for this payment method",
             "nullable": true
           }
         }
       },
       "DecisionEngineSuccessRateData": {
         "type": "object",
+        "description": "Configuration for Decision Engine success rate based routing",
         "properties": {
           "defaultLatencyThreshold": {
             "type": "number",
             "format": "double",
+            "description": "Default latency threshold in percentile for gateway selection",
+            "example": 90.0,
             "nullable": true
           },
           "defaultBucketSize": {
             "type": "integer",
             "format": "int32",
+            "description": "Default number of transactions to consider for success rate calculation",
+            "example": 100,
             "nullable": true
           },
           "defaultHedgingPercent": {
             "type": "number",
             "format": "double",
+            "description": "Default percentage of traffic to route for exploration/hedging",
+            "example": 5.0,
             "nullable": true
           },
           "defaultLowerResetFactor": {
             "type": "number",
             "format": "double",
+            "description": "Lower reset factor for adjusting gateway scores",
+            "example": 0.5,
             "nullable": true
           },
           "defaultUpperResetFactor": {
             "type": "number",
             "format": "double",
+            "description": "Upper reset factor for adjusting gateway scores",
+            "example": 1.5,
             "nullable": true
           },
           "defaultGatewayExtraScore": {
@@ -17701,6 +17763,7 @@
             "items": {
               "$ref": "#/components/schemas/DecisionEngineGatewayWiseExtraScore"
             },
+            "description": "Gateway-specific extra scoring factors",
             "nullable": true
           },
           "subLevelInputConfig": {
@@ -17708,6 +17771,7 @@
             "items": {
               "$ref": "#/components/schemas/DecisionEngineSRSubLevelInputConfig"
             },
+            "description": "Payment method level specific configurations",
             "nullable": true
           }
         }
@@ -18192,6 +18256,7 @@
             "items": {
               "$ref": "#/components/schemas/DynamicRoutingConfigParams"
             },
+            "deprecated": true,
             "nullable": true
           },
           "elimination_analyser_config": {
@@ -22987,7 +23052,7 @@
       },
       "MerchantRoutingAlgorithm": {
         "type": "object",
-        "description": "Routing Algorithm specific to merchants",
+        "description": "Routing algorithm configuration created for a merchant.\n\nRepresents a fully defined routing strategy scoped to a profile\nand transaction type.",
         "required": [
           "id",
           "profile_id",
@@ -23000,27 +23065,39 @@
         ],
         "properties": {
           "id": {
-            "type": "string"
+            "type": "string",
+            "description": "Unique identifier of the routing configuration.\n\nExample:\n```json\n\"routing_abc123\"\n```",
+            "example": "routing_abc123"
           },
           "profile_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Profile ID to which this routing configuration belongs.\n\nExample:\n```json\n\"profile_123\"\n```",
+            "example": "profile_123"
           },
           "name": {
-            "type": "string"
+            "type": "string",
+            "description": "Human-readable name of the routing configuration.\n\nExample:\n```json\n\"default_card_routing\"\n```",
+            "example": "default_card_routing"
           },
           "description": {
-            "type": "string"
+            "type": "string",
+            "description": "Description explaining the purpose of this routing configuration.\n\nExample:\n```json\n\"Primary routing strategy for card payments\"\n```",
+            "example": "Primary routing strategy for card payments"
           },
           "algorithm": {
             "$ref": "#/components/schemas/RoutingAlgorithmWrapper"
           },
           "created_at": {
             "type": "integer",
-            "format": "int64"
+            "format": "int64",
+            "description": "Timestamp (in milliseconds since epoch) when the routing\nconfiguration was created.\n\nExample:\n```json\n1718000000000\n```",
+            "example": 1718000000000
           },
           "modified_at": {
             "type": "integer",
-            "format": "int64"
+            "format": "int64",
+            "description": "Timestamp (in milliseconds since epoch) when the routing\nconfiguration was last modified.\n\nExample:\n```json\n1718050000000\n```",
+            "example": 1718050000000
           },
           "algorithm_for": {
             "$ref": "#/components/schemas/TransactionType"
@@ -24139,6 +24216,7 @@
       },
       "OpenRouterDecideGatewayRequest": {
         "type": "object",
+        "description": "Request to decide the optimal gateway for routing a payment",
         "required": [
           "paymentInfo",
           "merchantId"
@@ -24148,13 +24226,17 @@
             "$ref": "#/components/schemas/PaymentInfo"
           },
           "merchantId": {
-            "type": "string"
+            "type": "string",
+            "description": "Profile ID of the merchant",
+            "example": "pro_aMoPnEkgCVnh2WVsFe32"
           },
           "eligibleGatewayList": {
             "type": "array",
             "items": {
               "type": "string"
             },
+            "description": "List of eligible gateways for routing consideration",
+            "example": "[\"stripe:mca_123\", \"adyen:mca_456\"]",
             "nullable": true
           },
           "rankingAlgorithm": {
@@ -24167,6 +24249,8 @@
           },
           "eliminationEnabled": {
             "type": "boolean",
+            "description": "Whether elimination logic is enabled for filtering gateways",
+            "example": true,
             "nullable": true
           }
         }
@@ -25384,40 +25468,58 @@
       },
       "PaymentInfo": {
         "type": "object",
+        "description": "Payment information used for routing decision-making",
         "required": [
           "paymentId",
           "amount",
           "currency",
           "paymentType",
+          "metadata",
           "paymentMethodType",
-          "paymentMethod"
+          "paymentMethod",
+          "cardIsin"
         ],
         "properties": {
           "paymentId": {
-            "type": "string"
+            "type": "string",
+            "description": "Unique identifier for the payment transaction",
+            "example": "pay_12345"
           },
           "amount": {
-            "$ref": "#/components/schemas/MinorUnit"
+            "type": "integer",
+            "format": "int64",
+            "description": "Payment amount in minor units",
+            "example": "100"
           },
           "currency": {
-            "$ref": "#/components/schemas/Currency"
+            "type": "string",
+            "description": "Currency code for the payment",
+            "example": "USD"
           },
           "paymentType": {
-            "type": "string"
+            "type": "string",
+            "description": "Type of payment transaction being processed",
+            "example": "ORDER_PAYMENT"
           },
           "metadata": {
             "type": "string",
-            "nullable": true
+            "description": "Optional metadata associated with the payment",
+            "example": "metadata"
           },
           "paymentMethodType": {
-            "type": "string"
+            "type": "string",
+            "description": "Specific payment method type being used",
+            "example": "upi"
           },
           "paymentMethod": {
-            "$ref": "#/components/schemas/PaymentMethod"
+            "type": "string",
+            "description": "General payment method category",
+            "example": "upi"
           },
           "cardIsin": {
             "type": "string",
-            "nullable": true
+            "description": "Card Issuer Identification Number (first 6 digits of card)",
+            "example": "424242"
           }
         }
       },
@@ -33788,14 +33890,20 @@
         "properties": {
           "name": {
             "type": "string",
+            "description": "Name of the logic",
+            "example": "success_rate_logic",
             "nullable": true
           },
           "status": {
             "type": "string",
+            "description": "Status of the logic execution",
+            "example": "success",
             "nullable": true
           },
           "failure_reason": {
             "type": "string",
+            "description": "Reason for failure if the logic failed",
+            "example": "insufficient_data",
             "nullable": true
           }
         }
@@ -33805,6 +33913,8 @@
         "properties": {
           "isEnforcement": {
             "type": "boolean",
+            "description": "Whether enforcement mode is enabled",
+            "example": false,
             "nullable": true
           },
           "gws": {
@@ -33812,17 +33922,21 @@
             "items": {
               "type": "string"
             },
+            "description": "List of gateways returned by the priority logic",
+            "example": [
+              "stripe:mca1",
+              "adyen:mca2"
+            ],
             "nullable": true
           },
           "priorityLogicTag": {
             "type": "string",
+            "description": "Tag identifying the priority logic used",
             "nullable": true
           },
           "gatewayReferenceIds": {
             "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            },
+            "description": "Map of gateway reference IDs",
             "nullable": true
           },
           "primaryLogic": {
@@ -34315,19 +34429,23 @@
       },
       "ProfileDefaultRoutingConfig": {
         "type": "object",
+        "description": "Default routing configuration associated with a business profile.\n\nThis represents the fallback routing connectors configured\nat the profile level.",
         "required": [
           "profile_id",
           "connectors"
         ],
         "properties": {
           "profile_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Unique identifier of the business profile.\n\nExample:\n```json\n\"profile_123\"\n```",
+            "example": "profile_123"
           },
           "connectors": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/RoutableConnectorChoice"
-            }
+            },
+            "description": "List of connectors configured as default for this profile.\n\nExample:\n```json\n[\n{\n\"connector\": \"stripe\",\n\"merchant_connector_id\": \"mca_ExbsYfO1xFErhNtwY1PX\"\n}\n]\n```"
           }
         }
       },
@@ -36350,10 +36468,14 @@
         "properties": {
           "name": {
             "type": "string",
+            "description": "Unique name of the routing configuration.\n\nThis identifier is used to reference the routing config internally.\n\nExample:\n```json\n\"default_card_routing\"\n```",
+            "example": "default_card_routing",
             "nullable": true
           },
           "description": {
             "type": "string",
+            "description": "Optional human-readable description of the routing configuration.\n\nExample:\n```json\n\"Primary routing strategy for card payments in India\"\n```",
+            "example": "Primary routing strategy for card payments in Middle east",
             "nullable": true
           },
           "algorithm": {
@@ -36366,6 +36488,8 @@
           },
           "profile_id": {
             "type": "string",
+            "description": "Profile ID associated with this routing configuration.\n\nRouting configs can be scoped per business profile.\n\nExample:\n```json\n\"profile_123\"\n```",
+            "example": "profile_123",
             "nullable": true
           },
           "transaction_type": {
@@ -36380,28 +36504,35 @@
       },
       "RoutingDictionary": {
         "type": "object",
+        "description": "Routing dictionary for a merchant.\n\nContains all routing configurations created by the merchant,\nalong with the currently active routing configuration.",
         "required": [
           "merchant_id",
           "records"
         ],
         "properties": {
           "merchant_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Unique merchant identifier.\n\nExample:\n```json\n\"merchant_789\"\n```",
+            "example": "merchant_789"
           },
           "active_id": {
             "type": "string",
+            "description": "Currently active routing configuration ID.\n\nExample:\n```json\n\"routing_abc123\"\n```",
+            "example": "routing_abc123",
             "nullable": true
           },
           "records": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/RoutingDictionaryRecord"
-            }
+            },
+            "description": "List of all routing configuration records\nassociated with this merchant."
           }
         }
       },
       "RoutingDictionaryRecord": {
         "type": "object",
+        "description": "Metadata record representing a stored routing configuration.\n\nUsed in routing dictionary listings.",
         "required": [
           "id",
           "profile_id",
@@ -36413,27 +36544,39 @@
         ],
         "properties": {
           "id": {
-            "type": "string"
+            "type": "string",
+            "description": "Unique identifier of the routing configuration.\n\nExample:\n```json\n\"routing_abc123\"\n```",
+            "example": "routing_abc123"
           },
           "profile_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Profile ID associated with this routing configuration.\n\nExample:\n```json\n\"profile_123\"\n```",
+            "example": "profile_123"
           },
           "name": {
-            "type": "string"
+            "type": "string",
+            "description": "Name of the routing configuration.\n\nExample:\n```json\n\"india_card_routing\"\n```",
+            "example": "india_card_routing"
           },
           "kind": {
             "$ref": "#/components/schemas/RoutingAlgorithmKind"
           },
           "description": {
-            "type": "string"
+            "type": "string",
+            "description": "Description of this routing configuration.\n\nExample:\n```json\n\"Volume split routing for domestic transactions\"\n```",
+            "example": "Volume split routing for domestic transactions"
           },
           "created_at": {
             "type": "integer",
-            "format": "int64"
+            "format": "int64",
+            "description": "Creation timestamp (milliseconds since epoch).",
+            "example": 1718000000000
           },
           "modified_at": {
             "type": "integer",
-            "format": "int64"
+            "format": "int64",
+            "description": "Last modification timestamp (milliseconds since epoch).",
+            "example": 1718050000000
           },
           "algorithm_for": {
             "allOf": [
@@ -36445,12 +36588,15 @@
           },
           "decision_engine_routing_id": {
             "type": "string",
+            "description": "Associated Decision Engine routing identifier (if applicable).\n\nPresent when routing is linked to an external decision engine.\n\nExample:\n```json\n\"de_route_456\"\n```",
+            "example": "de_route_456",
             "nullable": true
           }
         }
       },
       "RoutingEvaluateRequest": {
         "type": "object",
+        "description": "Request body used to evaluate routing rules.\n\nThis API evaluates routing logic based on dynamic parameters\nlike payment method, amount, country, card_bin, etc.",
         "required": [
           "created_by",
           "parameters",
@@ -36458,22 +36604,26 @@
         ],
         "properties": {
           "created_by": {
-            "type": "string"
+            "type": "string",
+            "description": "Identifier of the user/system triggering routing evaluation.\n\nExample:\n```json\n\"created_by\": \"some_id\"\n```",
+            "example": "profile_123"
           },
           "parameters": {
             "type": "object",
-            "description": "Parameters that can be used in the routing evaluate request.\neg: {\"parameters\": {\n\"payment_method\": {\"type\": \"enum_variant\", \"value\": \"card\"},\n\"payment_method_type\": {\"type\": \"enum_variant\", \"value\": \"credit\"},\n\"amount\": {\"type\": \"number\", \"value\": 10},\n\"currency\": {\"type\": \"str_value\", \"value\": \"INR\"},\n\"authentication_type\": {\"type\": \"enum_variant\", \"value\": \"three_ds\"},\n\"card_bin\": {\"type\": \"str_value\", \"value\": \"424242\"},\n\"capture_method\": {\"type\": \"enum_variant\", \"value\": \"scheduled\"},\n\"business_country\": {\"type\": \"str_value\", \"value\": \"IN\"},\n\"billing_country\": {\"type\": \"str_value\", \"value\": \"IN\"},\n\"business_label\": {\"type\": \"str_value\", \"value\": \"business_label\"},\n\"setup_future_usage\": {\"type\": \"enum_variant\", \"value\": \"off_session\"},\n\"card_network\": {\"type\": \"enum_variant\", \"value\": \"visa\"},\n\"payment_type\": {\"type\": \"enum_variant\", \"value\": \"recurring_mandate\"},\n\"mandate_type\": {\"type\": \"enum_variant\", \"value\": \"single_use\"},\n\"mandate_acceptance_type\": {\"type\": \"enum_variant\", \"value\": \"online\"},\n\"metadata\":{\"type\": \"metadata_variant\", \"value\": {\"key\": \"key1\", \"value\": \"value1\"}}\n}}"
+            "description": "Dynamic parameters used during routing evaluation.\n\nEach key represents a routing attribute.\n\nExample fields:\n\n- `payment_method`\n- `payment_method_type`\n- `amount`\n- `currency`\n- `authentication_type`\n- `card_bin`\n- `capture_method`\n- `business_country`\n- `billing_country`\n- `business_label`\n- `setup_future_usage`\n- `card_network`\n- `payment_type`\n- `mandate_type`\n- `mandate_acceptance_type`\n- `metadata`\n\nExample:\n```json\n{\n\"payment_method\": { \"type\": \"enum_variant\", \"value\": \"card\" },\n\"amount\": { \"type\": \"number\", \"value\": 10 },\n\"currency\": { \"type\": \"str_value\", \"value\": \"INR\" },\n\"authentication_type\": { \"type\": \"enum_variant\", \"value\": \"three_ds\" },\n\"card_bin\": { \"type\": \"str_value\", \"value\": \"424242\" },\n\"business_country\": { \"type\": \"str_value\", \"value\": \"IN\" },\n\"setup_future_usage\": { \"type\": \"enum_variant\", \"value\": \"off_session\" },\n\"card_network\": { \"type\": \"enum_variant\", \"value\": \"visa\" },\n\"metadata\": {\n\"type\": \"metadata_variant\",\n\"value\": { \"key\": \"key1\", \"value\": \"value1\" }\n}\n}\n```\n\nFor the complete superset of supported routing keys,\nrefer to `routing_configs.keys` in:\nhttps://github.com/juspay/decision-engine/blob/main/config/development.toml"
           },
           "fallback_output": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/DeRoutableConnectorChoice"
-            }
+            },
+            "description": "Fallback connectors used if routing rule evaluation fails.\n\nThese connectors will be returned if no rule matches.\n\nExample:\n```json\n[\n{\n\"gateway_name\": \"stripe\",\n\"gateway_id\": \"mca_123\"\n}\n]\n```"
           }
         }
       },
       "RoutingEvaluateResponse": {
         "type": "object",
+        "description": "Response returned after routing evaluation.\n\nContains:\n- Routing status\n- Raw output structure (priority / volume_split)\n- Final evaluated connectors\n- Eligible connectors list",
         "required": [
           "status",
           "output",
@@ -36482,14 +36632,19 @@
         ],
         "properties": {
           "status": {
-            "type": "string"
+            "type": "string",
+            "description": "Status of routing evaluation.\n\nExample:\n```json\n\"success\"\n```",
+            "example": "success"
           },
-          "output": {},
+          "output": {
+            "description": "Raw routing output returned by routing engine.\n\nPossible structures:\n\n1. Volume Split:\n```json\n{\n\"type\": \"volume_split\",\n\"splits\": [\n{\n\"connector\": { \"gateway_name\": \"adyen\", \"gateway_id\": \"mca_124\" },\n\"split\": 60\n},\n{\n\"connector\": { \"gateway_name\": \"stripe\", \"gateway_id\": \"mca_123\" },\n\"split\": 40\n}\n]\n}\n```\n\n2. Priority:\n```json\n{\n\"type\": \"priority\",\n\"connectors\": [\n{ \"gateway_name\": \"stripe\", \"gateway_id\": \"mca_123\" },\n{ \"gateway_name\": \"adyen\", \"gateway_id\": \"mca_124\" }\n]\n}\n```"
+          },
           "evaluated_output": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/RoutableConnectorChoice"
-            }
+            },
+            "description": "Final connector(s) selected after evaluation.\n\nExample:\n```json\n[\n{\n\"connector\": \"stripe\",\n\"merchant_connector_id\": \"mca_123\"\n}\n]\n```"
           },
           "eligible_connectors": {
             "type": "array",
@@ -36514,7 +36669,7 @@
       },
       "RoutingRetrieveResponse": {
         "type": "object",
-        "description": "Response of the retrieved routing configs for a merchant account",
+        "description": "Response returned when retrieving routing configuration\nfor a merchant account.",
         "properties": {
           "algorithm": {
             "allOf": [
@@ -37992,6 +38147,7 @@
             "items": {
               "$ref": "#/components/schemas/DynamicRoutingConfigParams"
             },
+            "deprecated": true,
             "nullable": true
           },
           "config": {
@@ -38814,6 +38970,7 @@
       },
       "UpdateScorePayload": {
         "type": "object",
+        "description": "Request payload to update gateway performance score based on transaction outcome",
         "required": [
           "merchantId",
           "gateway",
@@ -38822,27 +38979,36 @@
         ],
         "properties": {
           "merchantId": {
-            "type": "string"
+            "type": "string",
+            "description": "Profile ID of the merchant",
+            "example": "pro_aMoPnEkgCVnh2WVsFe32"
           },
           "gateway": {
-            "type": "string"
+            "type": "string",
+            "description": "Payment Gateway identifier",
+            "example": "stripe:mca1"
           },
           "status": {
             "$ref": "#/components/schemas/TxnStatus"
           },
           "paymentId": {
-            "type": "string"
+            "type": "string",
+            "description": "Payment ID associated with the transaction",
+            "example": "pay_1234"
           }
         }
       },
       "UpdateScoreResponse": {
         "type": "object",
+        "description": "Response after updating gateway score",
         "required": [
           "message"
         ],
         "properties": {
           "message": {
-            "type": "string"
+            "type": "string",
+            "description": "Status message indicating the result of the score update",
+            "example": "Gateway score updated successfully"
           }
         }
       },
