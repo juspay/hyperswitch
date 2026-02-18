@@ -194,7 +194,7 @@ where
                 {
                     match call_modular_payment_method_update(
                         state,
-                        &payment_data.payment_attempt.merchant_id,
+                        &payment_data.payment_attempt.processor_merchant_id,
                         &payment_data.payment_attempt.profile_id,
                         &payment_method_id,
                         payload,
@@ -1938,6 +1938,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             additional_payment_method_data_intermediate,
         )
         .await?;
+
+    payment_data.whole_connector_response = router_data.raw_connector_response.clone();
 
     let payment_method_status = router_data.payment_method_status;
 
