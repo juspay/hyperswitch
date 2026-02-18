@@ -5028,7 +5028,11 @@ where
         )
         .await?;
 
-        let auth = AuthenticationData { platform, profile };
+        let auth = AuthenticationData {
+            platform,
+            profile,
+            client_secret: None,
+        };
 
         Ok((
             (auth.clone(), payload.user_id.clone()),
