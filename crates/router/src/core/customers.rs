@@ -1413,8 +1413,11 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                     description: self.description.clone(),
                     connector_customer: Box::new(None),
                     address_id: address.clone().map(|addr| addr.address_id),
-                    last_modified_by: initiator
-                        .and_then(|initiator| initiator.to_created_by().map(|last_modified_by| last_modified_by.to_string())),
+                    last_modified_by: initiator.and_then(|initiator| {
+                        initiator
+                            .to_created_by()
+                            .map(|last_modified_by| last_modified_by.to_string())
+                    }),
                 },
                 provider.get_key_store(),
                 provider.get_account().storage_scheme,
@@ -1531,8 +1534,11 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                     default_shipping_address: encrypted_customer_shipping_address.map(Into::into),
                     default_payment_method_id: Some(self.default_payment_method_id.clone()),
                     status: None,
-                    last_modified_by: initiator
-                        .and_then(|initiator| initiator.to_created_by().map(|last_modified_by| last_modified_by.to_string())),
+                    last_modified_by: initiator.and_then(|initiator| {
+                        initiator
+                            .to_created_by()
+                            .map(|last_modified_by| last_modified_by.to_string())
+                    }),
                 })),
                 provider.get_key_store(),
                 provider.get_account().storage_scheme,
