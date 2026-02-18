@@ -4871,6 +4871,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         minor_amount_capturable: router_data.minor_amount_capturable,
         authorized_amount: router_data.authorized_amount,
         customer_document_details: router_data.customer_document_details,
+        connector_intent_metadata: router_data.connector_intent_metadata,
     }
 }
 

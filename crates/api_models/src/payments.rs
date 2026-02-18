@@ -13014,10 +13014,10 @@ pub struct PaymentConstraints {
 #[serde(rename_all = "snake_case")]
 pub enum CalculationType {
     /// The value is treated as a percentage (e.g., "2.00" represents 2%).
-    /// In financial contexts, this is often used for late fees (fines) or 
+    /// In financial contexts, this is often used for late fees (fines) or
     /// monthly interest rates.
     Percentage,
-    /// The value is treated as a fixed monetary amount in the currency's major 
+    /// The value is treated as a fixed monetary amount in the currency's major
     /// or minor unit (e.g., "10.00" represents $10.00).
     /// Typically used for flat-fee penalties or specific rebate amounts.
     FlatAmount,
@@ -13038,7 +13038,7 @@ pub enum PaymentAllowanceType {
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 #[serde(rename_all = "snake_case")]
 pub enum ProtestType {
-/// No legal protest will be initiated
+    /// No legal protest will be initiated
     Disabled,
     /// Count is based on calendar days (Standard)
     CalendarDays,
@@ -13062,7 +13062,15 @@ pub struct SantanderPaymentDiscountRules {
 }
 
 #[derive(
-    Debug, Default, Clone, PartialEq, serde::Serialize, serde::Deserialize, Display, ToSchema, SmithyModel,
+    Debug,
+    Default,
+    Clone,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    Display,
+    ToSchema,
+    SmithyModel,
 )]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -13078,13 +13086,11 @@ pub enum DiscountType {
     DailyBusiness,
 }
 
-#[derive(
-    Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
-)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct DiscountTier {
-    /// The discount value (e.g., "5.50"). 
+    /// The discount value (e.g., "5.50").
     #[schema(value_type = String, example = "38.02")]
     #[smithy(value_type = "String")]
     pub amount: StringMajorUnit,
@@ -13095,9 +13101,7 @@ pub struct DiscountTier {
     pub end_date: Option<PrimitiveDateTime>,
 }
 
-#[derive(
-    Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
-)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct ProtestRules {
