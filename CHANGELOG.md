@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.04.1-hotfix9
+
+### Features
+
+- **payment-methods:** Add new status, customer pml changes in pm service ([#11317](https://github.com/juspay/hyperswitch/pull/11317)) ([`50cb15d`](https://github.com/juspay/hyperswitch/commit/50cb15d518f3b91a555f36325d0deeafbbc40c53))
+
+**Full Changelog:** [`2026.02.04.1-hotfix8...2026.02.04.1-hotfix9`](https://github.com/juspay/hyperswitch/compare/2026.02.04.1-hotfix8...2026.02.04.1-hotfix9)
+
+- - -
+
 ## 2026.02.04.1-hotfix8
 
 ### Features
