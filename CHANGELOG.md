@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.04.1-hotfix8
+
+### Features
+
+- **platform:** Support dual authentication for SDK - enhanced SDK authorization and publishable key with client secret ([#11250](https://github.com/juspay/hyperswitch/pull/11250)) ([`b278563`](https://github.com/juspay/hyperswitch/commit/b278563e34fccd1a924c432440531b7ca938d75a))
+
+### Bug Fixes
+
+- **router:** Use V1VaultEntityId to create fingerprint request ([#11311](https://github.com/juspay/hyperswitch/pull/11311)) ([`ee762cd`](https://github.com/juspay/hyperswitch/commit/ee762cdca5d3e7b48816a0a8deaa3cdea85bd736))
+
+**Full Changelog:** [`2026.02.04.1-hotfix7...2026.02.04.1-hotfix8`](https://github.com/juspay/hyperswitch/compare/2026.02.04.1-hotfix7...2026.02.04.1-hotfix8)
+
+- - -
+
 ## 2026.02.04.1-hotfix7
 
 ### Features
