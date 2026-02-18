@@ -1,4 +1,8 @@
-use std::{collections::HashMap, sync::{Arc, Mutex}};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
+
 use actix_web::{web, Scope};
 #[cfg(all(feature = "olap", feature = "v1"))]
 use api_models::routing::RoutingRetrieveQuery;
@@ -8,7 +12,9 @@ use common_enums::{ExecutionMode, TransactionType};
 #[cfg(feature = "partial-auth")]
 use common_utils::crypto::Blake3;
 use common_utils::{
-    events::ExternalServiceCallCollector, id_type, types::{TenantConfig, keymanager::KeyManagerState}
+    events::ExternalServiceCallCollector,
+    id_type,
+    types::{keymanager::KeyManagerState, TenantConfig},
 };
 #[cfg(feature = "email")]
 use external_services::email::{
@@ -28,7 +34,7 @@ use hyperswitch_interfaces::{
     secrets_interface::secret_state::{RawSecret, SecuredSecret},
     types as interfaces_types,
 };
-use router_env::{RequestId, logger};
+use router_env::{logger, RequestId};
 use scheduler::SchedulerInterface;
 use storage_impl::{redis::RedisStore, MockDb};
 use tokio::sync::oneshot;
@@ -574,9 +580,7 @@ impl AppState {
             ca: km_conf.ca.clone(),
             infra_values: Self::process_env_mappings(conf.infra_values.clone()),
             use_legacy_key_store_decryption: km_conf.use_legacy_key_store_decryption,
-            observability: Arc::new(Mutex::new(
-                ExternalServiceCallCollector::default(),
-            )),
+            observability: Arc::new(Mutex::new(ExternalServiceCallCollector::default())),
             created_from: "get_store_interface".to_string(),
         };
         logger::info!("Creating store interface for tenant");

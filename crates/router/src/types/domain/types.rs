@@ -1,3 +1,5 @@
+use std::sync::{Arc, Mutex};
+
 use ::payment_methods::state as pm_state;
 use common_utils::{events::ExternalServiceCallCollector, types::keymanager::KeyManagerState};
 pub use hyperswitch_domain_models::type_encryption::{
@@ -5,7 +7,6 @@ pub use hyperswitch_domain_models::type_encryption::{
 };
 use hyperswitch_interfaces::configs;
 use router_env::logger;
-use std::sync::{Arc, Mutex};
 
 use crate::{
     routes::app,
@@ -55,7 +56,9 @@ impl From<&app::SessionState> for KeyManagerState {
             infra_values: app::AppState::process_env_mappings(state.conf.infra_values.clone()),
             use_legacy_key_store_decryption: conf.use_legacy_key_store_decryption,
             observability: if store_km_state.is_some() {
-                logger::info!("Using existing observability collector from store for key manager state");
+                logger::info!(
+                    "Using existing observability collector from store for key manager state"
+                );
                 store_km_state.unwrap().observability.clone()
             } else {
                 logger::info!("Creating new observability collector for key manager state as store does not have it");

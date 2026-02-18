@@ -92,7 +92,7 @@ where
         ))?;
 
     let latency = start_time.elapsed().as_millis();
-        
+
     let kms_metadata = crate::events::ExternalServiceCall {
         service_name: "KeyManager".to_string(),
         event_id: uuid::Uuid::new_v4().to_string(),
@@ -111,7 +111,10 @@ where
         logger::info!("Recorded Keymanager observability data: {:?}", kms_metadata);
     }
     let mutex_latency = mutex_start_time.elapsed().as_micros();
-    logger::info!("Time taken to acquire lock and record observability for keymanager response: {} µs", mutex_latency);
+    logger::info!(
+        "Time taken to acquire lock and record observability for keymanager response: {} µs",
+        mutex_latency
+    );
 
     Ok(response)
 }
@@ -166,7 +169,6 @@ where
     )
     .await
     .map_err(|err| err.change_context(errors::KeyManagerClientError::RequestSendFailed))?;
-
 
     logger::info!(key_manager_response=?response);
 

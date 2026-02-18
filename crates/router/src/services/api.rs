@@ -189,7 +189,9 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
 
     // TEST: Add test data to request extensions in server_wrap_util
-    request.extensions_mut().insert("TEST_EXTENSION_DATA: Successfully added from server_wrap_util!".to_string());
+    request
+        .extensions_mut()
+        .insert("TEST_EXTENSION_DATA: Successfully added from server_wrap_util!".to_string());
     logger::info!("🔧 TEST: Added extension data to request in server_wrap_util");
 
     let mut app_state = state.get_ref().clone();
@@ -441,8 +443,6 @@ where
     logger::info!(
         tag = ?Tag::BeginRequest, payload = ?payload,
     headers = ?incoming_header_to_log);
-
-
 
     let server_wrap_util_res = server_wrap_util(
         &flow,

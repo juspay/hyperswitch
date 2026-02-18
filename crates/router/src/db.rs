@@ -219,7 +219,10 @@ impl StorageInterface for Store {
     }
 
     fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState) {
-        println!("Setting key manager state in Store with collector: {:?}", key_manager_state.observability);
+        println!(
+            "Setting key manager state in Store with collector: {:?}",
+            key_manager_state.observability
+        );
         self.key_manager_state = Some(key_manager_state.clone());
         #[cfg(feature = "kv_store")]
         self.router_store.set_key_manager_state(key_manager_state);

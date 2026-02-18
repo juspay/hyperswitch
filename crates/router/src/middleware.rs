@@ -1,19 +1,26 @@
+use std::{
+    sync::{Arc, Mutex},
+    time::Instant,
+};
 
-use common_utils::consts::TENANT_HEADER;
+use actix_web::{web::Data, FromRequest, HttpMessage};
+use common_utils::{consts::TENANT_HEADER, events::ExternalServiceCallCollector};
 use futures::StreamExt;
-use std::sync::{Arc, Mutex};
 // Re-export RequestId from router_env for convenience
 pub use router_env::RequestId;
 use router_env::{
     logger,
     tracing::{field::Empty, Instrument},
 };
-use std::time::Instant;
 
-use actix_web::{web::Data, HttpMessage, FromRequest};
-
-use crate::{events::{EventsHandler, api_logs::{ApiEvent, NewApiEvent}}, headers, routes::metrics};
-use common_utils::events::ExternalServiceCallCollector;
+use crate::{
+    events::{
+        api_logs::{ApiEvent, NewApiEvent},
+        EventsHandler,
+    },
+    headers,
+    routes::metrics,
+};
 
 /// Test middleware to check if we can access response extensions
 pub struct TestExtensionMiddleware;
@@ -64,10 +71,10 @@ where
     fn call(&self, req: actix_web::dev::ServiceRequest) -> Self::Future {
         let middleware_start_time = Instant::now();
         let user_agent = req
-                .headers()
-                .get(headers::USER_AGENT)
-                .and_then(|h| h.to_str().ok())
-                .map(|s| s.to_string());
+            .headers()
+            .get(headers::USER_AGENT)
+            .and_then(|h| h.to_str().ok())
+            .map(|s| s.to_string());
         let ip_addr = req.peer_addr().map(|addr| addr.to_string());
 
         let event_handler_opt = req
@@ -76,24 +83,32 @@ where
 
         let start_time = Instant::now();
         let response_fut = self.service.call(req);
-        
+
         Box::pin(async move {
             let response = response_fut.await?;
             let latency = start_time.elapsed().as_millis();
             let status_code = response.status().as_u16() as i64;
-            
+
             // Try to access the test extension data from the response extensions
             let (http_req, res_body) = response.into_parts();
 
-            let external_service_collector = http_req.extensions().get::<Arc<Mutex<ExternalServiceCallCollector>>>().cloned();
+            let external_service_collector = http_req
+                .extensions()
+                .get::<Arc<Mutex<ExternalServiceCallCollector>>>()
+                .cloned();
 
             let mut external_service_calls = Vec::new();
             if let Some(collector) = external_service_collector {
-                logger::info!("Found external service call data from collector in response extensions");
+                logger::info!(
+                    "Found external service call data from collector in response extensions"
+                );
                 if let Ok(mut guard) = collector.lock() {
                     let calls = guard.drain();
                     external_service_calls.extend(calls);
-                    logger::info!("Extracted {} external service calls", external_service_calls.len());
+                    logger::info!(
+                        "Extracted {} external service calls",
+                        external_service_calls.len()
+                    );
                 }
             } else {
                 logger::info!("No external service call data found in response extensions");
@@ -104,20 +119,28 @@ where
             let final_event = if let Some(api_event) = api_event {
                 let mut transformed = NewApiEvent::from(api_event.clone());
 
-                transformed.external_service_calls.extend(external_service_calls);
+                transformed
+                    .external_service_calls
+                    .extend(external_service_calls);
                 transformed.status_code = status_code;
                 transformed.latency = latency;
 
                 transformed
             } else {
                 // Fallback if no events found
-                logger::info!("No ApiEvent found in response extensions, creating a default NewApiEvent");
+                logger::info!(
+                    "No ApiEvent found in response extensions, creating a default NewApiEvent"
+                );
                 NewApiEvent {
                     tenant_id: None,
                     merchant_id: None,
                     api_flow: None,
-                    created_at_timestamp: time::OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000,
-                    request_id: RequestId::extract(&http_req).await.ok().map(|rid| rid.to_string()),
+                    created_at_timestamp: time::OffsetDateTime::now_utc().unix_timestamp_nanos()
+                        / 1_000_000,
+                    request_id: RequestId::extract(&http_req)
+                        .await
+                        .ok()
+                        .map(|rid| rid.to_string()),
                     latency,
                     status_code,
                     auth_type: None,
@@ -126,7 +149,10 @@ where
                     ip_addr: ip_addr.clone(),
                     url_path: Some(http_req.path().to_string()),
                     response: None,
-                    error: res_body.error().as_ref().map(|e| serde_json::Value::String(e.to_string())),
+                    error: res_body
+                        .error()
+                        .as_ref()
+                        .map(|e| serde_json::Value::String(e.to_string())),
                     event_type: None,
                     hs_latency: None,
                     http_method: Some(http_req.method().to_string()),
@@ -142,14 +168,14 @@ where
             } else {
                 logger::warn!("EventsHandler not available in app data, skipping Kafka logging");
             }
-            
+
             if let Ok(api_event_json) = serde_json::to_string_pretty(&final_event) {
                 logger::debug!("NewApiEvent details:\n{}", api_event_json);
             }
 
             let middleware_latency = middleware_start_time.elapsed().as_millis() - latency;
             logger::info!("Middleware processing latency: {} ms", middleware_latency);
-            
+
             let response = actix_web::dev::ServiceResponse::new(http_req, res_body);
             Ok(response)
         })
