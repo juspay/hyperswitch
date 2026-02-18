@@ -1,16 +1,16 @@
 use cards::CardNumber;
 use common_enums::{enums, AttemptStatus, CaptureMethod, Currency, PaymentMethod};
-use common_utils::{errors::ParsingError, ext_traits::Encode};
+use common_utils::{errors::ParsingError, ext_traits::Encode, types::FloatMajorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
-    router_flow_types::Execute,
+    router_flow_types::{Execute, RSync},
     router_request_types::ResponseId,
     router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        RefundsRouterData,
+        RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{api::CurrencyUnit, errors::ConnectorError};
@@ -333,7 +333,7 @@ pub struct PayeezyPaymentsResponse {
     pub transaction_id: String,
     pub transaction_tag: Option<String>,
     pub method: Option<String>,
-    pub amount: String,
+    pub amount: FloatMajorUnit,
     pub currency: String,
     pub bank_resp_code: String,
     pub bank_message: String,
@@ -542,7 +542,7 @@ pub struct RefundResponse {
     pub transaction_id: String,
     pub transaction_tag: Option<String>,
     pub method: Option<String>,
-    pub amount: String,
+    pub amount: FloatMajorUnit,
     pub currency: String,
     pub bank_resp_code: String,
     pub bank_message: String,
@@ -554,6 +554,21 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRout
     type Error = error_stack::Report<ParsingError>;
     fn try_from(
         item: RefundsResponseRouterData<Execute, RefundResponse>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(RefundsResponseData {
+                connector_refund_id: item.response.transaction_id,
+                refund_status: enums::RefundStatus::from(item.response.transaction_status),
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundSyncRouterData {
+    type Error = error_stack::Report<ParsingError>;
+    fn try_from(
+        item: RefundsResponseRouterData<RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RefundsResponseData {
