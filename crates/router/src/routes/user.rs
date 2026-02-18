@@ -16,7 +16,9 @@ use crate::{
     core::{api_locking, user as user_core},
     services::{
         api,
-        authentication::{self as auth},
+        authentication::{
+            AuthenticationData, {self as auth},
+        },
         authorization::permissions::Permission,
     },
     utils::user::dashboard_metadata::{parse_string_to_enums, set_ip_address_if_required},
@@ -1069,8 +1071,6 @@ pub async fn issue_embedded_token(
     state: web::Data<AppState>,
     http_req: HttpRequest,
 ) -> HttpResponse {
-    use crate::services::authentication::AuthenticationData;
-
     let flow = Flow::GetEmbeddedToken;
     Box::pin(api::server_wrap(
         flow,

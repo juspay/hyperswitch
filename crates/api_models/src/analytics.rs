@@ -1,7 +1,11 @@
 use std::collections::HashSet;
 
 pub use common_utils::types::TimeRange;
-use common_utils::{events::ApiEventMetric, pii::EmailStrategy, types::authentication::AuthInfo};
+use common_utils::{
+    events::ApiEventMetric,
+    pii::{Email, EmailStrategy},
+    types::authentication::AuthInfo,
+};
 use masking::Secret;
 
 use self::{
@@ -150,7 +154,7 @@ pub struct RefundDistributionBody {
 #[serde(rename_all = "camelCase")]
 pub struct ReportRequest {
     pub time_range: TimeRange,
-    pub emails: Option<Vec<Secret<String, EmailStrategy>>>,
+    pub emails: Option<Vec<Email>>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -159,7 +163,7 @@ pub struct GenerateReportRequest {
     pub request: ReportRequest,
     pub merchant_id: Option<common_utils::id_type::MerchantId>,
     pub auth: AuthInfo,
-    pub email: Secret<String, EmailStrategy>,
+    pub email: Email,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
