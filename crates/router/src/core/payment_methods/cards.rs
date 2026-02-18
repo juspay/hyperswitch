@@ -4296,7 +4296,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
                 customer_id,
                 limit,
                 dimensions,
-        ))
+            ))
             .await
         }
     } else {
@@ -4333,7 +4333,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
                         &customer_id,
                         limit,
                         dimensions,
-                ))
+                    ))
                     .await
                 }
             }
