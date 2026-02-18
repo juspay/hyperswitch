@@ -5364,6 +5364,13 @@
           }
         }
       },
+      "AcknowledgementStatus": {
+        "type": "string",
+        "enum": [
+          "authenticated",
+          "failed"
+        ]
+      },
       "AdditionalMerchantData": {
         "oneOf": [
           {
@@ -21488,6 +21495,7 @@
           },
           "keep_alive": {
             "type": "boolean",
+            "description": "Whether the card with new status should be listed in the session",
             "nullable": true
           }
         }
@@ -21617,7 +21625,8 @@
             "nullable": true
           },
           "keep_alive": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether the card with new status should be listed in the session"
           }
         }
       },
@@ -21838,7 +21847,7 @@
           "acknowledgement_status": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/common_enums.AcknowledgementStatus"
+                "$ref": "#/components/schemas/AcknowledgementStatus"
               }
             ],
             "nullable": true

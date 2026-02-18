@@ -552,6 +552,7 @@ pub struct PaymentMethodUpdate {
     pub network_transaction_id: Option<masking::Secret<String>>,
 
     /// The acknowledgement status of the payment method update, this is used to determine the status of the payment method update
+    #[schema(value_type = Option<AcknowledgementStatus>)]
     pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
 }
 
@@ -3611,6 +3612,7 @@ pub struct PaymentMethodSessionRequest {
     #[schema(value_type = StorageType)]
     pub storage_type: common_enums::StorageType,
 
+    /// Whether the card with new status should be listed in the session
     pub keep_alive: Option<bool>,
 }
 
@@ -3772,6 +3774,7 @@ pub struct PaymentMethodSessionResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sdk_authorization: Option<String>,
 
+    /// Whether the card with new status should be listed in the session
     pub keep_alive: bool,
 }
 
