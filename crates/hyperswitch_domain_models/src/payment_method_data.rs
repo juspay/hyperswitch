@@ -3109,13 +3109,13 @@ pub struct CardDetailsPaymentMethod {
 #[cfg(feature = "v2")]
 pub struct CardNumberWithStoredDetails {
     pub card_number: cards::CardNumber,
-    pub card_cvc: Option<masking::Secret<String>>,
+    pub card_cvc: Option<Secret<String>>,
     pub card_details: CardDetailsPaymentMethod,
 }
 
 #[cfg(feature = "v2")]
 impl CardNumberWithStoredDetails {
-    pub fn new(card_number: cards::CardNumber, card_cvc: Option<masking::Secret<String>>, card_details: CardDetailsPaymentMethod) -> Self {
+    pub fn new(card_number: cards::CardNumber, card_cvc: Option<Secret<String>>, card_details: CardDetailsPaymentMethod) -> Self {
         Self {
             card_number,
             card_cvc,
