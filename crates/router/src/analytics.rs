@@ -1785,9 +1785,10 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
-                    .await
-                    .change_context(AnalyticsError::UnknownError)?;
+                let user =
+                    UserInterface::find_active_user_by_user_id(&*state.global_store, &user_id)
+                        .await
+                        .change_context(AnalyticsError::UnknownError)?;
 
                 let user_email = UserEmail::from_pii_email(user.email)
                     .change_context(AnalyticsError::UnknownError)?
@@ -1836,9 +1837,10 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
-                    .await
-                    .change_context(AnalyticsError::UnknownError)?;
+                let user =
+                    UserInterface::find_active_user_by_user_id(&*state.global_store, &user_id)
+                        .await
+                        .change_context(AnalyticsError::UnknownError)?;
 
                 let user_email = UserEmail::from_pii_email(user.email)
                     .change_context(AnalyticsError::UnknownError)?
@@ -1885,9 +1887,10 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
-                    .await
-                    .change_context(AnalyticsError::UnknownError)?;
+                let user =
+                    UserInterface::find_active_user_by_user_id(&*state.global_store, &user_id)
+                        .await
+                        .change_context(AnalyticsError::UnknownError)?;
 
                 let user_email = UserEmail::from_pii_email(user.email)
                     .change_context(AnalyticsError::UnknownError)?
@@ -1942,9 +1945,10 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
-                    .await
-                    .change_context(AnalyticsError::UnknownError)?;
+                let user =
+                    UserInterface::find_active_user_by_user_id(&*state.global_store, &user_id)
+                        .await
+                        .change_context(AnalyticsError::UnknownError)?;
 
                 let user_email = UserEmail::from_pii_email(user.email)
                     .change_context(AnalyticsError::UnknownError)?
@@ -1992,9 +1996,10 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
-                    .await
-                    .change_context(AnalyticsError::UnknownError)?;
+                let user =
+                    UserInterface::find_active_user_by_user_id(&*state.global_store, &user_id)
+                        .await
+                        .change_context(AnalyticsError::UnknownError)?;
 
                 let user_email = UserEmail::from_pii_email(user.email)
                     .change_context(AnalyticsError::UnknownError)?
@@ -2041,9 +2046,10 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
-                    .await
-                    .change_context(AnalyticsError::UnknownError)?;
+                let user =
+                    UserInterface::find_active_user_by_user_id(&*state.global_store, &user_id)
+                        .await
+                        .change_context(AnalyticsError::UnknownError)?;
 
                 let user_email = UserEmail::from_pii_email(user.email)
                     .change_context(AnalyticsError::UnknownError)?
@@ -2099,9 +2105,10 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
-                    .await
-                    .change_context(AnalyticsError::UnknownError)?;
+                let user =
+                    UserInterface::find_active_user_by_user_id(&*state.global_store, &user_id)
+                        .await
+                        .change_context(AnalyticsError::UnknownError)?;
 
                 let user_email = UserEmail::from_pii_email(user.email)
                     .change_context(AnalyticsError::UnknownError)?
@@ -2150,9 +2157,10 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
-                    .await
-                    .change_context(AnalyticsError::UnknownError)?;
+                let user =
+                    UserInterface::find_active_user_by_user_id(&*state.global_store, &user_id)
+                        .await
+                        .change_context(AnalyticsError::UnknownError)?;
 
                 let user_email = UserEmail::from_pii_email(user.email)
                     .change_context(AnalyticsError::UnknownError)?
@@ -2199,9 +2207,10 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
-                    .await
-                    .change_context(AnalyticsError::UnknownError)?;
+                let user =
+                    UserInterface::find_active_user_by_user_id(&*state.global_store, &user_id)
+                        .await
+                        .change_context(AnalyticsError::UnknownError)?;
 
                 let user_email = UserEmail::from_pii_email(user.email)
                     .change_context(AnalyticsError::UnknownError)?
@@ -2256,9 +2265,10 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
-                    .await
-                    .change_context(AnalyticsError::UnknownError)?;
+                let user =
+                    UserInterface::find_active_user_by_user_id(&*state.global_store, &user_id)
+                        .await
+                        .change_context(AnalyticsError::UnknownError)?;
 
                 let user_email = UserEmail::from_pii_email(user.email)
                     .change_context(AnalyticsError::UnknownError)?
@@ -2307,9 +2317,10 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
-                    .await
-                    .change_context(AnalyticsError::UnknownError)?;
+                let user =
+                    UserInterface::find_active_user_by_user_id(&*state.global_store, &user_id)
+                        .await
+                        .change_context(AnalyticsError::UnknownError)?;
 
                 let user_email = UserEmail::from_pii_email(user.email)
                     .change_context(AnalyticsError::UnknownError)?
@@ -2356,9 +2367,10 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
-                    .await
-                    .change_context(AnalyticsError::UnknownError)?;
+                let user =
+                    UserInterface::find_active_user_by_user_id(&*state.global_store, &user_id)
+                        .await
+                        .change_context(AnalyticsError::UnknownError)?;
 
                 let user_email = UserEmail::from_pii_email(user.email)
                     .change_context(AnalyticsError::UnknownError)?
@@ -2413,9 +2425,10 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
-                    .await
-                    .change_context(AnalyticsError::UnknownError)?;
+                let user =
+                    UserInterface::find_active_user_by_user_id(&*state.global_store, &user_id)
+                        .await
+                        .change_context(AnalyticsError::UnknownError)?;
 
                 let user_email = UserEmail::from_pii_email(user.email)
                     .change_context(AnalyticsError::UnknownError)?
@@ -2464,9 +2477,10 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
-                    .await
-                    .change_context(AnalyticsError::UnknownError)?;
+                let user =
+                    UserInterface::find_active_user_by_user_id(&*state.global_store, &user_id)
+                        .await
+                        .change_context(AnalyticsError::UnknownError)?;
 
                 let user_email = UserEmail::from_pii_email(user.email)
                     .change_context(AnalyticsError::UnknownError)?
@@ -2513,9 +2527,10 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
-                    .await
-                    .change_context(AnalyticsError::UnknownError)?;
+                let user =
+                    UserInterface::find_active_user_by_user_id(&*state.global_store, &user_id)
+                        .await
+                        .change_context(AnalyticsError::UnknownError)?;
 
                 let user_email = UserEmail::from_pii_email(user.email)
                     .change_context(AnalyticsError::UnknownError)?

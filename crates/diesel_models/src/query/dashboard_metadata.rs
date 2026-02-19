@@ -132,4 +132,12 @@ impl DashboardMetadata {
         )
         .await
     }
+
+    pub async fn delete_all_by_user_id(
+        conn: &PgPooledConn,
+        user_id: String,
+    ) -> StorageResult<bool> {
+        generics::generic_delete::<<Self as HasTable>::Table, _>(conn, dsl::user_id.eq(user_id))
+            .await
+    }
 }

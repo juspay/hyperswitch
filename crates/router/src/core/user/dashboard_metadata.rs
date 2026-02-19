@@ -478,7 +478,7 @@ async fn insert_metadata(
 
             #[cfg(feature = "email")]
             {
-                let user_data = user.get_user_from_db(state).await?;
+                let user_data = user.get_active_user_from_db(state).await?;
                 let user_email = domain::UserEmail::from_pii_email(user_data.get_email())
                     .change_context(UserErrors::InternalServerError)?
                     .get_secret()

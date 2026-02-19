@@ -53,6 +53,11 @@ pub trait DashboardMetadataInterface {
         merchant_id: &id_type::MerchantId,
         data_key: enums::DashboardMetadata,
     ) -> CustomResult<storage::DashboardMetadata, errors::StorageError>;
+
+    async fn delete_all_metadata_by_user_id(
+        &self,
+        user_id: &str,
+    ) -> CustomResult<bool, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -161,6 +166,17 @@ impl DashboardMetadataInterface for Store {
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    #[instrument(skip_all)]
+    async fn delete_all_metadata_by_user_id(
+        &self,
+        user_id: &str,
+    ) -> CustomResult<bool, errors::StorageError> {
+        let conn = connection::pg_accounts_connection_write(self).await?;
+        storage::DashboardMetadata::delete_all_by_user_id(&conn, user_id.to_owned())
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 }
 
@@ -343,5 +359,26 @@ impl DashboardMetadataInterface for MockDb {
         let deleted_value = dashboard_metadata.swap_remove(index_to_remove);
 
         Ok(deleted_value)
+    }
+
+    async fn delete_all_metadata_by_user_id(
+        &self,
+        user_id: &str,
+    ) -> CustomResult<bool, errors::StorageError> {
+        let mut dashboard_metadata = self.dashboard_metadata.lock().await;
+
+        let initial_len = dashboard_metadata.len();
+
+        dashboard_metadata
+            .retain(|metadata_inner| metadata_inner.user_id.as_deref() != Some(user_id));
+
+        if dashboard_metadata.len() == initial_len {
+            return Err(errors::StorageError::ValueNotFound(format!(
+                "No dashboard metadata found for user_id = {user_id}"
+            ))
+            .into());
+        }
+
+        Ok(true)
     }
 }

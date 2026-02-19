@@ -22,14 +22,14 @@ use crate::{
     utils::user::dashboard_metadata::{parse_string_to_enums, set_ip_address_if_required},
 };
 
-pub async fn get_user_details(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+pub async fn get_active_user_details(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
     let flow = Flow::GetUserDetails;
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         (),
-        |state, user, _, _| user_core::get_user_details(state, user),
+        |state, user, _, _| user_core::get_active_user_details(state, user),
         &auth::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
     ))
