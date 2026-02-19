@@ -11,327 +11,198 @@ describe("Card - Customer Deletion and Psync", () => {
     });
   });
 
-  after("flush global state", () => {
+  afterEach("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  context("Card - Psync after Customer Deletion for Automatic Capture", () => {
-    context("No3DS Card - Psync after Customer Deletion  ", () => {
-      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
+  it("No3DS Card - Psync after Customer Deletion (Automatic Capture)", () => {
+    cy.task("log", "Create Customer");
+    cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
 
-      beforeEach(function () {
-        if (!shouldContinue) {
-          this.skip();
-        }
-      });
+    const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+      "PaymentIntent"
+    ];
 
-      it("Create Customer", () => {
-        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
-      });
+    cy.task("log", "Create Payment Intent");
+    cy.createPaymentIntentTest(
+      fixtures.createPaymentBody,
+      data,
+      "no_three_ds",
+      "automatic",
+      globalState
+    );
 
-      it("Create Payment Intent", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentIntent"];
+    if (!utils.should_continue_further(data)) return;
 
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "no_three_ds",
-          "automatic",
-          globalState
-        );
+    const confirmData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "No3DSAutoCapture"
+      ];
 
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
+    cy.task("log", "Confirm Payment");
+    cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
-      it("Confirm Payment", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["No3DSAutoCapture"];
+    if (!utils.should_continue_further(confirmData)) return;
 
-        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+    cy.task("log", "Retrieve Payment");
+    cy.retrievePaymentCallTest({ globalState, data: confirmData });
 
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
+    cy.task("log", "Delete Customer");
+    cy.customerDeleteCall(globalState);
 
-      it("Retrieve Payment", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["No3DSAutoCapture"];
-
-        cy.retrievePaymentCallTest({ globalState, data });
-      });
-
-      it("Delete Customer", () => {
-        cy.customerDeleteCall(globalState);
-      });
-
-      it("Retrieve Payment", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["No3DSAutoCapture"];
-
-        cy.retrievePaymentCallTest({ globalState, data });
-      });
-    });
-
-    context("3DS Card - Psync after Customer Deletion  ", () => {
-      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
-
-      beforeEach(function () {
-        if (!shouldContinue) {
-          this.skip();
-        }
-      });
-
-      before("seed global state", () => {
-        cy.task("getGlobalState").then((state) => {
-          globalState = new State(state);
-        });
-      });
-
-      afterEach("flush global state", () => {
-        cy.task("setGlobalState", globalState.data);
-      });
-
-      it("Create Customer", () => {
-        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
-      });
-
-      it("Create Payment Intent", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentIntent"];
-
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "three_ds",
-          "automatic",
-          globalState
-        );
-
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
-
-      it("Confirm Payment", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["3DSAutoCapture"];
-
-        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
-
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
-
-      it("Handle redirection", () => {
-        const expected_redirection = fixtures.confirmBody["return_url"];
-        cy.handleRedirection(globalState, expected_redirection);
-      });
-
-      it("Retrieve Payment", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["No3DSAutoCapture"];
-
-        cy.retrievePaymentCallTest({ globalState, data });
-      });
-
-      it("Delete Customer", () => {
-        cy.customerDeleteCall(globalState);
-      });
-
-      it("Retrieve Payment", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["No3DSAutoCapture"];
-
-        cy.retrievePaymentCallTest({ globalState, data });
-      });
-    });
+    cy.task("log", "Retrieve Payment (After Customer Deletion)");
+    cy.retrievePaymentCallTest({ globalState, data: confirmData });
   });
 
-  context("Card - Psync after Customer Deletion for Manual Capture", () => {
-    context("No3DS Card - Psync after Customer Deletion  ", () => {
-      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
+  it("3DS Card - Psync after Customer Deletion (Automatic Capture)", () => {
+    cy.task("log", "Create Customer");
+    cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
 
-      beforeEach(function () {
-        if (!shouldContinue) {
-          this.skip();
-        }
-      });
+    const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+      "PaymentIntent"
+    ];
 
-      it("Create Customer", () => {
-        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
-      });
+    cy.task("log", "Create Payment Intent");
+    cy.createPaymentIntentTest(
+      fixtures.createPaymentBody,
+      data,
+      "three_ds",
+      "automatic",
+      globalState
+    );
 
-      it("Create Payment Intent", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentIntent"];
+    if (!utils.should_continue_further(data)) return;
 
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "no_three_ds",
-          "manual",
-          globalState
-        );
+    const confirmData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "3DSAutoCapture"
+      ];
 
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
+    cy.task("log", "Confirm Payment");
+    cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
-      it("Confirm Payment", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["No3DSManualCapture"];
+    if (!utils.should_continue_further(confirmData)) return;
 
-        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+    cy.task("log", "Handle Redirection");
+    const expected_redirection = fixtures.confirmBody["return_url"];
+    cy.handleRedirection(globalState, expected_redirection);
 
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
+    const retrieveData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "No3DSAutoCapture"
+      ];
 
-      it("Retrieve Payment", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["No3DSManualCapture"];
+    cy.task("log", "Retrieve Payment");
+    cy.retrievePaymentCallTest({ globalState, data: retrieveData });
 
-        cy.retrievePaymentCallTest({ globalState, data });
-      });
+    cy.task("log", "Delete Customer");
+    cy.customerDeleteCall(globalState);
 
-      it("Capture Payment", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["Capture"];
+    cy.task("log", "Retrieve Payment (After Customer Deletion)");
+    cy.retrievePaymentCallTest({ globalState, data: retrieveData });
+  });
 
-        cy.captureCallTest(fixtures.captureBody, data, globalState);
+  it("No3DS Card - Psync after Customer Deletion (Manual Capture)", () => {
+    cy.task("log", "Create Customer");
+    cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
 
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
+    const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+      "PaymentIntent"
+    ];
 
-      it("Retrieve Payment", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["Capture"];
+    cy.task("log", "Create Payment Intent");
+    cy.createPaymentIntentTest(
+      fixtures.createPaymentBody,
+      data,
+      "no_three_ds",
+      "manual",
+      globalState
+    );
 
-        cy.retrievePaymentCallTest({ globalState, data });
-      });
+    if (!utils.should_continue_further(data)) return;
 
-      it("Delete Customer", () => {
-        cy.customerDeleteCall(globalState);
-      });
+    const confirmData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "No3DSManualCapture"
+      ];
 
-      it("Retrieve Payment", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["No3DSManualCapture"];
+    cy.task("log", "Confirm Payment");
+    cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
-        cy.retrievePaymentCallTest({ globalState, data });
-      });
-    });
+    if (!utils.should_continue_further(confirmData)) return;
 
-    context("3DS Card - Psync after Customer Deletion  ", () => {
-      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
+    cy.task("log", "Retrieve Payment");
+    cy.retrievePaymentCallTest({ globalState, data: confirmData });
 
-      beforeEach(function () {
-        if (!shouldContinue) {
-          this.skip();
-        }
-      });
+    const captureData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Capture"];
 
-      before("seed global state", () => {
-        cy.task("getGlobalState").then((state) => {
-          globalState = new State(state);
-        });
-      });
+    cy.task("log", "Capture Payment");
+    cy.captureCallTest(fixtures.captureBody, captureData, globalState);
 
-      afterEach("flush global state", () => {
-        cy.task("setGlobalState", globalState.data);
-      });
+    if (!utils.should_continue_further(captureData)) return;
 
-      it("Create Customer", () => {
-        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
-      });
+    cy.task("log", "Retrieve Payment (After Capture)");
+    cy.retrievePaymentCallTest({ globalState, data: captureData });
 
-      it("Create Payment Intent", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentIntent"];
+    cy.task("log", "Delete Customer");
+    cy.customerDeleteCall(globalState);
 
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "three_ds",
-          "manual",
-          globalState
-        );
+    cy.task("log", "Retrieve Payment (After Customer Deletion)");
+    cy.retrievePaymentCallTest({ globalState, data: confirmData });
+  });
 
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
+  it("3DS Card - Psync after Customer Deletion (Manual Capture)", () => {
+    cy.task("log", "Create Customer");
+    cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
 
-      it("Confirm Payment", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["3DSManualCapture"];
+    const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+      "PaymentIntent"
+    ];
 
-        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+    cy.task("log", "Create Payment Intent");
+    cy.createPaymentIntentTest(
+      fixtures.createPaymentBody,
+      data,
+      "three_ds",
+      "manual",
+      globalState
+    );
 
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
+    if (!utils.should_continue_further(data)) return;
 
-      it("Handle redirection", () => {
-        const expected_redirection = fixtures.confirmBody["return_url"];
-        cy.handleRedirection(globalState, expected_redirection);
-      });
+    const confirmData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "3DSManualCapture"
+      ];
 
-      it("Retrieve Payment", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["3DSManualCapture"];
+    cy.task("log", "Confirm Payment");
+    cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
-        cy.retrievePaymentCallTest({ globalState, data });
-      });
+    if (!utils.should_continue_further(confirmData)) return;
 
-      it("Capture Payment", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["Capture"];
+    cy.task("log", "Handle Redirection");
+    const expected_redirection = fixtures.confirmBody["return_url"];
+    cy.handleRedirection(globalState, expected_redirection);
 
-        cy.captureCallTest(fixtures.captureBody, data, globalState);
+    cy.task("log", "Retrieve Payment");
+    cy.retrievePaymentCallTest({ globalState, data: confirmData });
 
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
+    const captureData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Capture"];
 
-      it("Retrieve Payment", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["Capture"];
+    cy.task("log", "Capture Payment");
+    cy.captureCallTest(fixtures.captureBody, captureData, globalState);
 
-        cy.retrievePaymentCallTest({ globalState, data });
-      });
+    if (!utils.should_continue_further(captureData)) return;
 
-      it("Delete Customer", () => {
-        cy.customerDeleteCall(globalState);
-      });
+    cy.task("log", "Retrieve Payment (After Capture)");
+    cy.retrievePaymentCallTest({ globalState, data: captureData });
 
-      it("Retrieve Payment", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["3DSManualCapture"];
+    cy.task("log", "Delete Customer");
+    cy.customerDeleteCall(globalState);
 
-        cy.retrievePaymentCallTest({ globalState, data });
-      });
-    });
+    cy.task("log", "Retrieve Payment (After Customer Deletion)");
+    cy.retrievePaymentCallTest({ globalState, data: confirmData });
   });
 });

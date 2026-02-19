@@ -19,119 +19,99 @@ describe("Reward Payment - Cashtocode", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  context("Evoucher payment method flow", () => {
-    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
+  it("Evoucher payment method flow", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))[
+      "reward_pm"
+    ]["PaymentIntentUSD"];
 
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
+    cy.task("log", "Create Payment Intent for Evoucher");
+    cy.createPaymentIntentTest(
+      fixtures.createPaymentBody,
+      data,
+      "no_three_ds",
+      "automatic",
+      globalState
+    );
 
-    it("Create Payment Intent for Evoucher", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "reward_pm"
-      ]["PaymentIntentUSD"];
+    if (!utils.should_continue_further(data)) return;
 
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        data,
-        "no_three_ds",
-        "automatic",
-        globalState
-      );
+    cy.task("log", "Payment Methods Call");
+    cy.paymentMethodsCallTest(globalState);
 
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
+    const confirmData =
+      getConnectorDetails(globalState.get("connectorId"))["reward_pm"][
+        "Evoucher"
+      ];
 
-    it("Payment Methods Call Test", () => {
-      cy.paymentMethodsCallTest(globalState);
-    });
+    cy.task("log", "Confirm Evoucher Payment");
+    cy.confirmRewardCallTest(
+      fixtures.confirmBody,
+      confirmData,
+      true,
+      globalState
+    );
 
-    it("Confirm Evoucher Payment", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "reward_pm"
-      ]["Evoucher"];
+    if (!utils.should_continue_further(confirmData)) return;
 
-      cy.confirmRewardCallTest(fixtures.confirmBody, data, true, globalState);
+    const expected_redirection = fixtures.confirmBody["return_url"];
+    const payment_method_type = globalState.get("paymentMethodType");
 
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
+    cy.task("log", "Handle Redirection");
+    cy.handleRewardRedirection(
+      globalState,
+      payment_method_type,
+      expected_redirection
+    );
 
-    it("Handle redirection", () => {
-      const expected_redirection = fixtures.confirmBody["return_url"];
-      const payment_method_type = globalState.get("paymentMethodType");
-      cy.handleRewardRedirection(
-        globalState,
-        payment_method_type,
-        expected_redirection
-      );
-    });
-
-    it("Retrieve Payment Call Test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "reward_pm"
-      ]["Evoucher"];
-
-      cy.retrievePaymentCallTest({ globalState, data });
-    });
+    cy.task("log", "Retrieve Payment");
+    cy.retrievePaymentCallTest({ globalState, data: confirmData });
   });
 
-  context("Classic payment method flow", () => {
-    let shouldContinue = true;
+  it("Classic payment method flow", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))[
+      "reward_pm"
+    ]["PaymentIntentEUR"];
 
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
+    cy.task("log", "Create Payment Intent for Classic");
+    cy.createPaymentIntentTest(
+      fixtures.createPaymentBody,
+      data,
+      "no_three_ds",
+      "automatic",
+      globalState
+    );
 
-    it("Create Payment Intent for Classic", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "reward_pm"
-      ]["PaymentIntentEUR"];
+    if (!utils.should_continue_further(data)) return;
 
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        data,
-        "no_three_ds",
-        "automatic",
-        globalState
-      );
+    cy.task("log", "Payment Methods Call");
+    cy.paymentMethodsCallTest(globalState);
 
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
+    const confirmData =
+      getConnectorDetails(globalState.get("connectorId"))["reward_pm"][
+        "Classic"
+      ];
 
-    it("Payment Methods Call Test", () => {
-      cy.paymentMethodsCallTest(globalState);
-    });
+    cy.task("log", "Confirm Classic Payment");
+    cy.confirmRewardCallTest(
+      fixtures.confirmBody,
+      confirmData,
+      true,
+      globalState
+    );
 
-    it("Confirm Classic Payment", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "reward_pm"
-      ]["Classic"];
+    if (!utils.should_continue_further(confirmData)) return;
 
-      cy.confirmRewardCallTest(fixtures.confirmBody, data, true, globalState);
+    const expected_redirection = fixtures.confirmBody["return_url"];
+    const payment_method_type = globalState.get("paymentMethodType");
 
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
+    cy.task("log", "Handle Redirection for Classic");
+    cy.handleRewardRedirection(
+      globalState,
+      payment_method_type,
+      expected_redirection
+    );
 
-    it("Handle Redirection for Classic", () => {
-      const expected_redirection = fixtures.confirmBody["return_url"];
-      const payment_method_type = globalState.get("paymentMethodType");
-      cy.handleRewardRedirection(
-        globalState,
-        payment_method_type,
-        expected_redirection
-      );
-    });
-
-    it("Retrieve Payment Call Test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "reward_pm"
-      ]["Classic"];
-
-      cy.retrievePaymentCallTest({ globalState, data });
-    });
+    cy.task("log", "Retrieve Payment");
+    cy.retrievePaymentCallTest({ globalState, data: confirmData });
   });
 });
