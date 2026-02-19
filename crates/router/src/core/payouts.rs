@@ -2220,8 +2220,8 @@ pub async fn create_recipient_disburse_account(
                             connector_mandate_details: Some(common_connector_mandate),
                             last_modified_by: platform
                                 .get_initiator()
-                                .and_then(|i| i.to_created_by())
-                                .map(|c| c.to_string()),
+                                .and_then(|initiator| initiator.to_created_by())
+                                .map(|last_modified_by| last_modified_by.to_string()),
                         };
 
                     payout_data.payment_method = Some(

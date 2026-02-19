@@ -711,8 +711,8 @@ pub async fn save_payout_data_to_locker(
             payment_method_data: card_details_encrypted.map(Into::into),
             last_modified_by: platform
                 .get_initiator()
-                .and_then(|i| i.to_created_by())
-                .map(|c| c.to_string()),
+                .and_then(|initiator| initiator.to_created_by())
+                .map(|last_modified_by| last_modified_by.to_string()),
         };
         payout_data.payment_method = Some(
             db.update_payment_method(
@@ -903,8 +903,8 @@ pub(super) async fn get_or_create_customer_details(
                     version: common_types::consts::API_VERSION,
                     tax_registration_id: encryptable_customer.tax_registration_id,
                     document_details,
-                    created_by: platform.get_initiator().and_then(|i| i.to_created_by()),
-                    last_modified_by: platform.get_initiator().and_then(|i| i.to_created_by()), // Same as created_by on creation
+                    created_by: platform.get_initiator().and_then(|initiator| initiator.to_created_by()),
+                    last_modified_by: platform.get_initiator().and_then(|initiator| initiator.to_created_by()), // Same as created_by on creation
                 };
 
                 Ok(Some(

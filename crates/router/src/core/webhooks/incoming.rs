@@ -3313,7 +3313,7 @@ async fn update_connector_mandate_details(
                 connector_mandate_details: connector_mandate_details_value.map(masking::Secret::new),
                 network_transaction_id: webhook_connector_network_transaction_id
                     .map(|webhook_network_transaction_id| webhook_network_transaction_id.get_id().clone()),
-                last_modified_by: platform.get_initiator().and_then(|i| i.to_created_by()).map(|c| c.to_string()),
+                last_modified_by: platform.get_initiator().and_then(|initiator| initiator.to_created_by()).map(|c| c.to_string()),
             };
 
             state

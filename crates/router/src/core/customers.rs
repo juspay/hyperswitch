@@ -818,8 +818,8 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
                 document_details: None,
                 last_modified_by: platform
                     .get_initiator()
-                    .and_then(|i| i.to_created_by())
-                    .map(|created_by| created_by.to_string()),
+                    .and_then(|initiator| initiator.to_created_by())
+                    .map(|last_modified_by| last_modified_by.to_string()),
             }));
 
         db.update_customer_by_global_id(

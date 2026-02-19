@@ -254,8 +254,8 @@ pub async fn update_payment_method_record(
                 payment_method_data: updated_payment_method_data.clone(),
                 last_modified_by: platform
                     .get_initiator()
-                    .and_then(|i| i.to_created_by())
-                    .map(|c| c.to_string()),
+                    .and_then(|initiator| initiator.to_created_by())
+                    .map(|last_modified_by| last_modified_by.to_string()),
             }
         }
         // Case: Only connector_customer_id provided
@@ -343,8 +343,8 @@ pub async fn update_payment_method_record(
                 payment_method_data: updated_payment_method_data.clone(),
                 last_modified_by: platform
                     .get_initiator()
-                    .and_then(|i| i.to_created_by())
-                    .map(|c| c.to_string()),
+                    .and_then(|initiator| initiator.to_created_by())
+                    .map(|last_modified_by| last_modified_by.to_string()),
             }
         }
         _ => {
@@ -353,8 +353,8 @@ pub async fn update_payment_method_record(
                     payment_method_data: updated_payment_method_data,
                     last_modified_by: platform
                         .get_initiator()
-                        .and_then(|i| i.to_created_by())
-                        .map(|c| c.to_string()),
+                        .and_then(|initiator| initiator.to_created_by())
+                        .map(|last_modified_by| last_modified_by.to_string()),
                 }
             } else {
                 PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
@@ -362,8 +362,8 @@ pub async fn update_payment_method_record(
                     status,
                     last_modified_by: platform
                         .get_initiator()
-                        .and_then(|i| i.to_created_by())
-                        .map(|c| c.to_string()),
+                        .and_then(|initiator| initiator.to_created_by())
+                        .map(|last_modified_by| last_modified_by.to_string()),
                 }
             }
         }

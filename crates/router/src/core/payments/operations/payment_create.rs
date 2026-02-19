@@ -1529,7 +1529,7 @@ impl PaymentCreate {
                 capture_before: None,
                 card_discovery: None,
                 processor_merchant_id: platform.get_processor().get_account().get_id().clone(),
-                created_by: platform.get_initiator().and_then(|i| i.to_created_by()),
+                created_by: platform.get_initiator().and_then(|initiator| initiator.to_created_by()),
                 setup_future_usage_applied: request.setup_future_usage,
                 routing_approach: Some(common_enums::RoutingApproach::default()),
                 connector_request_reference_id: None,
@@ -1763,7 +1763,7 @@ impl PaymentCreate {
             request_extended_authorization: request.request_extended_authorization,
             psd2_sca_exemption_type: request.psd2_sca_exemption_type,
             processor_merchant_id: platform.get_processor().get_account().get_id().to_owned(),
-            created_by: platform.get_initiator().and_then(|i| i.to_created_by()),
+            created_by: platform.get_initiator().and_then(|initiator| initiator.to_created_by()),
             force_3ds_challenge: request.force_3ds_challenge,
             force_3ds_challenge_trigger: Some(force_3ds_challenge_trigger),
             is_iframe_redirection_enabled: request

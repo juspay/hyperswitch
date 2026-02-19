@@ -1676,8 +1676,8 @@ async fn execute_payment_method_create(
                 status: Some(enums::PaymentMethodStatus::Inactive),
                 last_modified_by: platform
                     .get_initiator()
-                    .and_then(|i| i.to_created_by())
-                    .map(|c| c.to_string()),
+                    .and_then(|initiator| initiator.to_created_by())
+                    .map(|last_modified_by| last_modified_by.to_string()),
             };
 
             db.update_payment_method(
@@ -4365,8 +4365,8 @@ pub async fn delete_payment_method_by_record(
         status: Some(enums::PaymentMethodStatus::Inactive),
         last_modified_by: platform
             .get_initiator()
-            .and_then(|i| i.to_created_by())
-            .map(|c| c.to_string()),
+            .and_then(|initiator| initiator.to_created_by())
+            .map(|last_modified_by| last_modified_by.to_string()),
         locker_fingerprint_id: Some(PAYMENT_METHOD_REDACTED_FINGERPRINT_ID.to_string()),
     };
 

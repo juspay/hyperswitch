@@ -28,6 +28,7 @@ use crate::merchant_connector_account::MerchantConnectorAccountTypeDetails;
 use crate::{
     behaviour,
     merchant_key_store::MerchantKeyStore,
+    platform,
     type_encryption::{self as types, AsyncLift},
 };
 
@@ -801,7 +802,7 @@ pub async fn update_connector_customer_in_customers(
     connector_label: &str,
     connector_customer_map: Option<&pii::SecretSerdeValue>,
     connector_customer_id: Option<String>,
-    initiator: Option<&crate::platform::Initiator>,
+    initiator: Option<&platform::Initiator>,
 ) -> Option<CustomerUpdate> {
     let mut connector_customer_map = connector_customer_map
         .and_then(|connector_customer| connector_customer.clone().expose().as_object().cloned())
@@ -831,7 +832,7 @@ pub async fn update_connector_customer_in_customers(
     merchant_connector_account: &MerchantConnectorAccountTypeDetails,
     customer: Option<&Customer>,
     connector_customer_id: Option<String>,
-    initiator: Option<&crate::platform::Initiator>,
+    initiator: Option<&platform::Initiator>,
 ) -> Option<CustomerUpdate> {
     match merchant_connector_account {
         MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(account) => {
