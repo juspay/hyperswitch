@@ -4248,6 +4248,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
     )
     .await;
 
+    // Fetch default profile id for the merchant as modular service needs profile id to fetch the customer payment methods
     let profile_id = platform
         .get_processor()
         .get_account()
@@ -4276,6 +4277,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
         if eligibility {
             let response = payment_methods::list_customer_pml_modular_service_call(
                 &state,
+                platform.clone(),
                 profile_id.get_required_value("ProfileId")?,
                 customer_id,
                 merchant_id,
@@ -4313,6 +4315,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
                 if eligibility {
                     let response = payment_methods::list_customer_pml_modular_service_call(
                         &state,
+                        platform.clone(),
                         profile_id.get_required_value("ProfileId")?,
                         &customer_id,
                         merchant_id,

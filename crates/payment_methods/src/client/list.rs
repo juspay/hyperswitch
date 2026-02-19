@@ -109,6 +109,9 @@ impl ListCustomerPaymentMethods {
     ) -> Vec<(&'static str, String)> {
         let mut params = Vec::new();
 
+        // Always include new PMs in the list to ensure V1 clients get a complete list of payment methods.
+        params.push(("include_new", true.to_string()));
+
         let qp = &request.query_params;
 
         if let Some(qp) = qp {

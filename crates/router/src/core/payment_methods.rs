@@ -781,6 +781,11 @@ pub async fn retrieve_payment_method_with_token(
                 payment_method_id: Some(bank_debit.payment_method_id.clone()),
             }
         }
+        storage::PaymentTokenData::ModularServiceToken(_) => storage::PaymentMethodDataWithId {
+            payment_method: None,
+            payment_method_data: None,
+            payment_method_id: None,
+        },
     };
     Ok(token)
 }
