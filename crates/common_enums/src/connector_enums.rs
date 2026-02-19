@@ -452,6 +452,11 @@ impl Connector {
                 | Self::DummyConnector7
         ) && !is_dummy_connector_enabled
     }
+
+    /// Lists those connectors who will send back their connector metadata stored in Attempt table in Payments Response
+    pub fn send_back_attempt_connector_metadata_in_payments_response(self) -> bool {
+        matches!(self, Self::Santander)
+    }
 }
 
 // Enum representing different status an invoice can have.

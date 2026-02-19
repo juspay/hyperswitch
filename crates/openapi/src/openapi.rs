@@ -519,6 +519,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::BankRedirectBilling,
         api_models::payments::BankRedirectBilling,
         api_models::payments::ConnectorMetadata,
+        api_models::payments::ConnectorMetadataResponse,
         api_models::payments::FeatureMetadata,
         api_models::payments::ApplepayConnectorMetadataRequest,
         api_models::payments::SessionTokenInfo,
