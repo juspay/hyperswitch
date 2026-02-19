@@ -213,7 +213,6 @@ pub fn construct_connector_webhook_registration_response(
     })
 }
 
-
 #[cfg(feature = "v1")]
 pub fn get_connector_webhook_list_response(
     register_webhook_response: &Option<serde_json::Value>,
