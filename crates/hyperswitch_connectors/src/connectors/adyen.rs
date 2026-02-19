@@ -157,8 +157,8 @@ impl ConnectorCommon for Adyen {
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error_code,
-            message: response.message.clone(),
-            reason: Some(response.message.clone()),
+            message: response.message.to_owned(),
+            reason: Some(response.message),
             attempt_status: None,
             connector_transaction_id: response.psp_reference,
             connector_response_reference_id: None,
