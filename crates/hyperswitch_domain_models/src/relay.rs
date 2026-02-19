@@ -16,7 +16,7 @@ use crate::{
     errors::api_error_response::ApiErrorResponse, router_data::ErrorResponse, router_response_types,
 };
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone)]
 pub struct Relay {
     pub id: id_type::RelayId,
     pub connector_resource_id: String,
@@ -29,9 +29,7 @@ pub struct Relay {
     pub connector_reference_id: Option<String>,
     pub error_code: Option<String>,
     pub error_message: Option<String>,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub modified_at: PrimitiveDateTime,
     pub response_data: Option<pii::SecretSerdeValue>,
 }
@@ -44,7 +42,7 @@ impl Relay {
     ) -> Self {
         let relay_id = id_type::RelayId::generate();
         Self {
-            id: relay_id.clone(),
+            id: relay_id,
             connector_resource_id: relay_request.connector_resource_id.clone(),
             connector_id: relay_request.connector_id.clone(),
             profile_id: profile_id.clone(),
@@ -509,7 +507,7 @@ impl super::behaviour::Conversion for Relay {
                 .request_data
                 .map(|data| {
                     serde_json::to_value(data).change_context(ValidationError::InvalidValue {
-                        message: "Failed while decrypting business profile data".to_string(),
+                        message: "Failed to serialize relay request data".to_string(),
                     })
                 })
                 .transpose()?
@@ -542,7 +540,7 @@ impl super::behaviour::Conversion for Relay {
                 .map(|data| {
                     serde_json::from_value(data.expose()).change_context(
                         ValidationError::InvalidValue {
-                            message: "Failed while decrypting business profile data".to_string(),
+                            message: "Failed to deserialize relay request data".to_string(),
                         },
                     )
                 })
@@ -569,7 +567,7 @@ impl super::behaviour::Conversion for Relay {
                 .request_data
                 .map(|data| {
                     serde_json::to_value(data).change_context(ValidationError::InvalidValue {
-                        message: "Failed while decrypting business profile data".to_string(),
+                        message: "Failed to serialize relay request data".to_string(),
                     })
                 })
                 .transpose()?
