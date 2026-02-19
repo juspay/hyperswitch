@@ -16,32 +16,32 @@ describe("Payment Methods Tests", () => {
   });
 
   it("Create payment method for customer", () => {
-    cy.task("log", "Create Customer");
+    cy.task("cli_log", "Create Customer");
     cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
 
     const data = getConnectorDetails("commons")["card_pm"]["PaymentMethod"];
 
-    cy.task("log", "Create Payment Method");
+    cy.task("cli_log", "Create Payment Method");
     cy.createPaymentMethodTest(globalState, data);
 
-    cy.task("log", "List PM for Customer");
+    cy.task("cli_log", "List PM for Customer");
     cy.listCustomerPMCallTest(globalState);
   });
 
   it("Set default payment method", () => {
-    cy.task("log", "List PM for Customer");
+    cy.task("cli_log", "List PM for Customer");
     cy.listCustomerPMCallTest(globalState);
 
     const pmData = getConnectorDetails("commons")["card_pm"]["PaymentMethod"];
 
-    cy.task("log", "Create Payment Method");
+    cy.task("cli_log", "Create Payment Method");
     cy.createPaymentMethodTest(globalState, pmData);
 
     const intentData = getConnectorDetails(globalState.get("connectorId"))[
       "card_pm"
     ]["PaymentIntentOffSession"];
 
-    cy.task("log", "Create Payment Intent");
+    cy.task("cli_log", "Create Payment Intent");
     cy.createPaymentIntentTest(
       fixtures.createPaymentBody,
       intentData,
@@ -56,43 +56,43 @@ describe("Payment Methods Tests", () => {
       "card_pm"
     ]["SaveCardUseNo3DSAutoCaptureOffSession"];
 
-    cy.task("log", "Confirm Payment");
+    cy.task("cli_log", "Confirm Payment");
     cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
     if (!utils.should_continue_further(confirmData)) return;
 
-    cy.task("log", "List PM for Customer");
+    cy.task("cli_log", "List PM for Customer");
     cy.listCustomerPMCallTest(globalState);
 
-    cy.task("log", "Set Default Payment Method");
+    cy.task("cli_log", "Set Default Payment Method");
     cy.setDefaultPaymentMethodTest(globalState);
   });
 
   it("Delete payment method for customer", () => {
-    cy.task("log", "Create Customer");
+    cy.task("cli_log", "Create Customer");
     cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
 
     const data = getConnectorDetails("commons")["card_pm"]["PaymentMethod"];
 
-    cy.task("log", "Create Payment Method");
+    cy.task("cli_log", "Create Payment Method");
     cy.createPaymentMethodTest(globalState, data);
 
-    cy.task("log", "List PM for Customer");
+    cy.task("cli_log", "List PM for Customer");
     cy.listCustomerPMCallTest(globalState);
 
-    cy.task("log", "Delete Payment Method for Customer");
+    cy.task("cli_log", "Delete Payment Method for Customer");
     cy.deletePaymentMethodTest(globalState);
   });
 
   it("'Last Used' off-session token payments - No 3DS save card", () => {
-    cy.task("log", "Create Customer");
+    cy.task("cli_log", "Create Customer");
     cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
 
     const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
       "SaveCardUseNo3DSAutoCaptureOffSession"
     ];
 
-    cy.task("log", "Create+Confirm Payment (No 3DS Off Session)");
+    cy.task("cli_log", "Create+Confirm Payment (No 3DS Off Session)");
     cy.createConfirmPaymentTest(
       fixtures.createConfirmPaymentBody,
       data,
@@ -103,7 +103,7 @@ describe("Payment Methods Tests", () => {
 
     if (!utils.should_continue_further(data)) return;
 
-    cy.task("log", "List PM for Customer");
+    cy.task("cli_log", "List PM for Customer");
     cy.listCustomerPMCallTest(globalState);
   });
 
@@ -112,7 +112,7 @@ describe("Payment Methods Tests", () => {
       "SaveCardUse3DSAutoCaptureOffSession"
     ];
 
-    cy.task("log", "Create+Confirm Payment (3DS Off Session)");
+    cy.task("cli_log", "Create+Confirm Payment (3DS Off Session)");
     cy.createConfirmPaymentTest(
       fixtures.createConfirmPaymentBody,
       data,
@@ -123,11 +123,11 @@ describe("Payment Methods Tests", () => {
 
     if (!utils.should_continue_further(data)) return;
 
-    cy.task("log", "Handle Redirection");
+    cy.task("cli_log", "Handle Redirection");
     const expectedRedirection = fixtures.confirmBody["return_url"];
     cy.handleRedirection(globalState, expectedRedirection);
 
-    cy.task("log", "List PM for Customer");
+    cy.task("cli_log", "List PM for Customer");
     cy.listCustomerPMCallTest(globalState);
   });
 
@@ -138,7 +138,7 @@ describe("Payment Methods Tests", () => {
       "card_pm"
     ]["PaymentIntent"];
 
-    cy.task("log", "Create Payment Intent");
+    cy.task("cli_log", "Create Payment Intent");
     cy.createPaymentIntentTest(
       fixtures.createPaymentBody,
       intentData,
@@ -164,16 +164,16 @@ describe("Payment Methods Tests", () => {
       },
     };
 
-    cy.task("log", "Confirm Save Card Payment");
+    cy.task("cli_log", "Confirm Save Card Payment");
     cy.saveCardConfirmCallTest(saveCardBody, newData, globalState);
 
     if (!utils.should_continue_further(confirmData)) return;
 
-    cy.task("log", "Handle Redirection");
+    cy.task("cli_log", "Handle Redirection");
     const expectedRedirection = fixtures.confirmBody["return_url"];
     cy.handleRedirection(globalState, expectedRedirection);
 
-    cy.task("log", "List PM for Customer");
+    cy.task("cli_log", "List PM for Customer");
     cy.listCustomerPMCallTest(globalState, 1);
   });
 
@@ -184,7 +184,7 @@ describe("Payment Methods Tests", () => {
       "card_pm"
     ]["PaymentIntent"];
 
-    cy.task("log", "Create Payment Intent");
+    cy.task("cli_log", "Create Payment Intent");
     cy.createPaymentIntentTest(
       fixtures.createPaymentBody,
       intentData,
@@ -199,12 +199,12 @@ describe("Payment Methods Tests", () => {
       "card_pm"
     ]["SaveCardUseNo3DSAutoCapture"];
 
-    cy.task("log", "Confirm Save Card Payment");
+    cy.task("cli_log", "Confirm Save Card Payment");
     cy.saveCardConfirmCallTest(saveCardBody, confirmData, globalState);
 
     if (!utils.should_continue_further(confirmData)) return;
 
-    cy.task("log", "List PM for Customer");
+    cy.task("cli_log", "List PM for Customer");
     cy.listCustomerPMCallTest(globalState);
   });
 });

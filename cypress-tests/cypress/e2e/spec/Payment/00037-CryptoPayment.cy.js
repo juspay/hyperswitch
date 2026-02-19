@@ -24,7 +24,7 @@ describe("Crypto Payment", () => {
       "crypto_pm"
     ]["PaymentIntent"];
 
-    cy.task("log", "Create Payment Intent");
+    cy.task("cli_log", "Create Payment Intent");
     cy.createPaymentIntentTest(
       fixtures.createPaymentBody,
       data,
@@ -35,14 +35,14 @@ describe("Crypto Payment", () => {
 
     if (!utils.should_continue_further(data)) return;
 
-    cy.task("log", "Payment Methods Call");
+    cy.task("cli_log", "Payment Methods Call");
     cy.paymentMethodsCallTest(globalState);
 
     const confirmData = getConnectorDetails(globalState.get("connectorId"))[
       "crypto_pm"
     ]["CryptoCurrency"];
 
-    cy.task("log", "Confirm Crypto Currency Payment");
+    cy.task("cli_log", "Confirm Crypto Currency Payment");
     cy.confirmRewardCallTest(
       fixtures.confirmBody,
       confirmData,
@@ -55,14 +55,14 @@ describe("Crypto Payment", () => {
     const expected_redirection = fixtures.confirmBody["return_url"];
     const payment_method_type = globalState.get("paymentMethodType");
 
-    cy.task("log", "Handle Redirection");
+    cy.task("cli_log", "Handle Redirection");
     cy.handleCryptoRedirection(
       globalState,
       payment_method_type,
       expected_redirection
     );
 
-    cy.task("log", "Retrieve Payment");
+    cy.task("cli_log", "Retrieve Payment");
     cy.retrievePaymentCallTest({ globalState });
   });
 
@@ -71,7 +71,7 @@ describe("Crypto Payment", () => {
       "crypto_pm"
     ]["PaymentIntent"];
 
-    cy.task("log", "Create Payment Intent (Manual)");
+    cy.task("cli_log", "Create Payment Intent (Manual)");
     cy.createPaymentIntentTest(
       fixtures.createPaymentBody,
       data,
@@ -82,14 +82,14 @@ describe("Crypto Payment", () => {
 
     if (!utils.should_continue_further(data)) return;
 
-    cy.task("log", "Payment Methods Call");
+    cy.task("cli_log", "Payment Methods Call");
     cy.paymentMethodsCallTest(globalState);
 
     const confirmData = getConnectorDetails(globalState.get("connectorId"))[
       "crypto_pm"
     ]["CryptoCurrencyManualCapture"];
 
-    cy.task("log", "Confirm Crypto Currency Payment (Manual Capture)");
+    cy.task("cli_log", "Confirm Crypto Currency Payment (Manual Capture)");
     cy.confirmRewardCallTest(
       fixtures.confirmBody,
       confirmData,
@@ -102,14 +102,14 @@ describe("Crypto Payment", () => {
     const expected_redirection = fixtures.confirmBody["return_url"];
     const payment_method_type = globalState.get("paymentMethodType");
 
-    cy.task("log", "Handle Redirection");
+    cy.task("cli_log", "Handle Redirection");
     cy.handleCryptoRedirection(
       globalState,
       payment_method_type,
       expected_redirection
     );
 
-    cy.task("log", "Retrieve Payment");
+    cy.task("cli_log", "Retrieve Payment");
     cy.retrievePaymentCallTest({ globalState });
   });
 });
