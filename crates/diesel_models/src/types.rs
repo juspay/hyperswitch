@@ -160,6 +160,7 @@ pub struct ImmediateExpirationTime {
 #[diesel(sql_type = Json)]
 pub struct ScheduledExpirationTime {
     /// Expiration time in terms of date, format: YYYY-MM-DD
+    #[serde(with = "common_utils::custom_serde::date_only")]
     pub date: time::PrimitiveDateTime,
     /// Days after expiration date for which the QR code remains valid
     pub validity_after_expiration: Option<u32>,
