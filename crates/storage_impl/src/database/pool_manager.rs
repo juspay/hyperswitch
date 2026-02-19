@@ -37,7 +37,7 @@ pub struct PgPoolManager {
     is_master: bool,
     recovery_config: PoolRecoveryConfig,
     recreation_lock: Arc<Mutex<()>>,
-    linked_replica: Arc<std::sync::Mutex<Option<PgPoolManager>>>,
+    linked_replica: Arc<std::sync::Mutex<Option<Self>>>,
 }
 
 impl std::fmt::Debug for PgPoolManager {
@@ -92,7 +92,7 @@ impl PgPoolManager {
         Arc::clone(&self.pool.load())
     }
 
-    pub fn set_linked_replica(&self, replica: PgPoolManager) {
+    pub fn set_linked_replica(&self, replica: Self) {
         if let Ok(mut guard) = self.linked_replica.lock() {
             *guard = Some(replica);
         }
