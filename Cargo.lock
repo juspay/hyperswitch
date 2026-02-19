@@ -4456,6 +4456,8 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_with",
+ "strum 0.26.3",
+ "strum_macros 0.26.4",
  "time",
  "url",
  "utoipa",

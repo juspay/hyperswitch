@@ -1782,6 +1782,7 @@ impl EventClass {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    strum::EnumIter,
     ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]

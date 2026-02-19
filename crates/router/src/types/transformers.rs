@@ -2212,40 +2212,95 @@ impl ForeignFrom<diesel_models::business_profile::CardTestingGuardConfig>
 }
 
 impl ForeignFrom<api_models::admin::WebhookDetails>
-    for diesel_models::business_profile::WebhookDetails
+    for hyperswitch_domain_models::business_profile::WebhookDetails
 {
     fn foreign_from(item: api_models::admin::WebhookDetails) -> Self {
+        let webhook_urls =
+            hyperswitch_domain_models::business_profile::WebhookUrls::get_multiple_webhook_urls(
+                item.webhook_url,
+                None,
+            );
+
         Self {
             webhook_version: item.webhook_version,
             webhook_username: item.webhook_username,
             webhook_password: item.webhook_password,
-            webhook_url: item.webhook_url,
             payment_created_enabled: item.payment_created_enabled,
             payment_failed_enabled: item.payment_failed_enabled,
             payment_succeeded_enabled: item.payment_succeeded_enabled,
             payment_statuses_enabled: item.payment_statuses_enabled,
             refund_statuses_enabled: item.refund_statuses_enabled,
             payout_statuses_enabled: item.payout_statuses_enabled,
-            multiple_webhooks_list: None,
+            multiple_webhooks_list: Some(webhook_urls),
         }
     }
 }
 
-impl ForeignFrom<diesel_models::business_profile::WebhookDetails>
-    for api_models::admin::WebhookDetails
+impl ForeignFrom<hyperswitch_domain_models::business_profile::WebhookDetails>
+    for diesel_models::business_profile::WebhookDetails
 {
-    fn foreign_from(item: diesel_models::business_profile::WebhookDetails) -> Self {
+    fn foreign_from(item: hyperswitch_domain_models::business_profile::WebhookDetails) -> Self {
+        let webhook_url = item
+            .multiple_webhooks_list
+            .as_ref()
+            .and_then(|list| list.get_legacy_url());
         Self {
             webhook_version: item.webhook_version,
             webhook_username: item.webhook_username,
             webhook_password: item.webhook_password,
-            webhook_url: item.webhook_url,
+            webhook_url,
+            payment_created_enabled: item.payment_created_enabled,
+            payment_succeeded_enabled: item.payment_succeeded_enabled,
+            payment_failed_enabled: item.payment_failed_enabled,
+            payment_statuses_enabled: item.payment_statuses_enabled,
+            refund_statuses_enabled: item.refund_statuses_enabled,
+            payout_statuses_enabled: item.payout_statuses_enabled,
+            multiple_webhooks_list: item.multiple_webhooks_list.map(|urls| {
+                urls.0
+                    .into_iter()
+                    .filter(|webhook_detail| !webhook_detail.is_legacy_url)
+                    .map(ForeignFrom::foreign_from)
+                    .collect()
+            }),
+        }
+    }
+}
+
+impl ForeignFrom<hyperswitch_domain_models::business_profile::WebhookDetails>
+    for api_models::admin::WebhookDetails
+{
+    fn foreign_from(item: hyperswitch_domain_models::business_profile::WebhookDetails) -> Self {
+        let webhook_url = item
+            .multiple_webhooks_list
+            .as_ref()
+            .and_then(|list| list.get_legacy_url());
+        Self {
+            webhook_version: item.webhook_version,
+            webhook_username: item.webhook_username,
+            webhook_password: item.webhook_password,
+            webhook_url,
             payment_created_enabled: item.payment_created_enabled,
             payment_failed_enabled: item.payment_failed_enabled,
             payment_succeeded_enabled: item.payment_succeeded_enabled,
             payment_statuses_enabled: item.payment_statuses_enabled,
             refund_statuses_enabled: item.refund_statuses_enabled,
             payout_statuses_enabled: item.payout_statuses_enabled,
+        }
+    }
+}
+
+impl ForeignFrom<hyperswitch_domain_models::business_profile::MultipleWebhookDetail>
+    for diesel_models::business_profile::MultipleWebhookDetail
+{
+    fn foreign_from(
+        item: hyperswitch_domain_models::business_profile::MultipleWebhookDetail,
+    ) -> Self {
+        Self {
+            webhook_endpoint_id: item.webhook_endpoint_id,
+            webhook_url: item.webhook_url,
+            events: item.events,
+            status: item.status,
+            is_legacy_url: false,
         }
     }
 }
