@@ -3455,7 +3455,7 @@ pub mod routes {
                 },
                 &auth::JWTAuth {
                     permission: Permission::OrganizationAnalyticsRead,
-                    allow_connected: true,
+                    allow_connected: false,
                     allow_platform: false,
                 },
                 req.headers(),
