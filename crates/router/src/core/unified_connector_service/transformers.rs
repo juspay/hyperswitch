@@ -87,7 +87,13 @@ pub fn build_upi_wait_screen_data(
 impl ForeignFrom<&payments_grpc::AccessToken> for AccessToken {
     fn foreign_from(grpc_token: &payments_grpc::AccessToken) -> Self {
         Self {
-            token: Secret::new(grpc_token.token.clone()),
+            token: Secret::new(
+                grpc_token
+                    .token
+                    .clone()
+                    .map(UcsMaskingExposeInterface::expose)
+                    .unwrap_or_default(),
+            ),
             expires: grpc_token.expires_in_seconds.unwrap_or_default(),
         }
     }
@@ -97,12 +103,26 @@ impl ForeignFrom<&AccessToken> for ConnectorState {
     fn foreign_from(access_token: &AccessToken) -> Self {
         Self {
             access_token: Some(payments_grpc::AccessToken {
-                token: access_token.token.peek().to_string(),
+                token: Some(unified_connector_service_masking::Secret::new(
+                    access_token.token.clone().expose(),
+                )),
                 expires_in_seconds: Some(access_token.expires),
                 token_type: None,
             }),
             connector_customer_id: None,
         }
+    }
+}
+
+fn get_grpc_payment_method_token(
+    value: &hyperswitch_domain_models::router_data::PaymentMethodToken,
+) -> Option<unified_connector_service_masking::Secret<String>> {
+    match value {
+        hyperswitch_domain_models::router_data::PaymentMethodToken::Token(secret_token) => {
+            let token = secret_token.clone().expose();
+            (!token.trim().is_empty()).then(|| unified_connector_service_masking::Secret::new(token))
+        }
+        _ => None,
     }
 }
 
@@ -142,12 +162,11 @@ impl
         // Always build payment_method using payment_method_data (which is non-optional).
         // payment_method_type is passed as optional, but payment_method must always be present
         // for UCS to process the tokenization request.
-        let payment_method = Some(
-            unified_connector_service::build_unified_connector_service_payment_method(
-                router_data.request.payment_method_data.clone(),
-                router_data.request.payment_method_type,
-            )?,
-        );
+        let payment_method = unified_connector_service::build_unified_connector_service_payment_method(
+            router_data.request.payment_method_data.clone(),
+            router_data.request.payment_method_type,
+            router_data.payment_method_token.as_ref(),
+        )?;
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
@@ -163,7 +182,7 @@ impl
             amount,
             currency: currency.into(),
             minor_amount: amount,
-            payment_method,
+            payment_method: Some(payment_method),
             customer_name: None,
             email: None,
             customer_id: None,
@@ -192,12 +211,11 @@ impl
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
-        let payment_method = Some(
-            unified_connector_service::build_unified_connector_service_payment_method(
-                router_data.request.payment_method_data.clone(),
-                router_data.request.payment_method_type,
-            )?,
-        );
+        let payment_method = unified_connector_service::build_unified_connector_service_payment_method(
+            router_data.request.payment_method_data.clone(),
+            router_data.request.payment_method_type,
+            router_data.payment_method_token.as_ref(),
+        )?;
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
@@ -259,7 +277,7 @@ impl
             connector_order_reference_id: router_data.request.order_id.clone(),
             amount: router_data.request.amount,
             currency: currency.into(),
-            payment_method,
+            payment_method: Some(payment_method),
             return_url: router_data.request.router_return_url.clone(),
             address: Some(address),
             auth_type: auth_type.into(),
@@ -327,8 +345,7 @@ impl
             payment_method_token: router_data
                 .payment_method_token
                 .as_ref()
-                .and_then(|pmt| pmt.get_payment_method_token())
-                .map(ExposeInterface::expose),
+                .and_then(get_grpc_payment_method_token),
             merchant_account_metadata,
             description: router_data.description.clone(),
             setup_mandate_details: router_data
@@ -402,17 +419,16 @@ impl
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
-        let payment_method = router_data
-            .request
-            .payment_method_data
-            .clone()
-            .map(|payment_method_data| {
+        let payment_method = match router_data.request.payment_method_data.clone() {
+            Some(payment_method_data) => Some(
                 unified_connector_service::build_unified_connector_service_payment_method(
                     payment_method_data,
                     router_data.request.payment_method_type,
-                )
-            })
-            .transpose()?;
+                    router_data.payment_method_token.as_ref(),
+                )?,
+            ),
+            None => None,
+        };
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
@@ -538,8 +554,7 @@ impl
             payment_method_token: router_data
                 .payment_method_token
                 .as_ref()
-                .and_then(|pmt| pmt.get_payment_method_token())
-                .map(ExposeInterface::expose),
+                .and_then(get_grpc_payment_method_token),
             merchant_account_metadata,
             description: router_data.description.clone(),
             setup_mandate_details: router_data
@@ -779,6 +794,7 @@ impl
             request_ref_id,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             handle_response,
+            payment_experience: None,
             setup_future_usage: setup_future_usage.map(|s| s.into()),
             connector_order_reference_id,
             amount: router_data.request.amount.get_amount_as_i64(),
@@ -875,17 +891,16 @@ impl
             router_data.request.currency.unwrap_or_default(),
         )?;
 
-        let payment_method = router_data
-            .request
-            .payment_method_data
-            .clone()
-            .map(|payment_method_data| {
+        let payment_method = match router_data.request.payment_method_data.clone() {
+            Some(payment_method_data) => Some(
                 unified_connector_service::build_unified_connector_service_payment_method(
                     payment_method_data,
                     router_data.request.payment_method_type,
-                )
-            })
-            .transpose()?;
+                    router_data.payment_method_token.as_ref(),
+                )?,
+            ),
+            None => None,
+        };
 
         let capture_method = router_data
             .request
@@ -979,17 +994,16 @@ impl
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
-        let payment_method = router_data
-            .request
-            .payment_method_data
-            .clone()
-            .map(|payment_method_data| {
+        let payment_method = match router_data.request.payment_method_data.clone() {
+            Some(payment_method_data) => Some(
                 unified_connector_service::build_unified_connector_service_payment_method(
                     payment_method_data,
                     router_data.request.payment_method_type,
-                )
-            })
-            .transpose()?;
+                    router_data.payment_method_token.as_ref(),
+                )?,
+            ),
+            None => None,
+        };
         let merchant_account_metadata = router_data
             .connector_meta_data
             .as_ref()
@@ -1065,12 +1079,11 @@ impl
             router_data.request.currency.unwrap_or_default(),
         )?;
 
-        let payment_method = Some(
-            unified_connector_service::build_unified_connector_service_payment_method(
-                router_data.request.payment_method_data.clone(),
-                router_data.request.payment_method_type,
-            )?,
-        );
+        let payment_method = unified_connector_service::build_unified_connector_service_payment_method(
+            router_data.request.payment_method_data.clone(),
+            router_data.request.payment_method_type,
+            router_data.payment_method_token.as_ref(),
+        )?;
 
         let capture_method = router_data
             .request
@@ -1106,7 +1119,7 @@ impl
             amount,
             currency: currency.into(),
             minor_amount: minor_amount.get_amount_as_i64(),
-            payment_method,
+            payment_method: Some(payment_method),
             email: router_data
                 .request
                 .email
@@ -1243,17 +1256,16 @@ impl
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
-        let payment_method = router_data
-            .request
-            .payment_method_data
-            .clone()
-            .map(|payment_method_data| {
+        let payment_method = match router_data.request.payment_method_data.clone() {
+            Some(payment_method_data) => Some(
                 unified_connector_service::build_unified_connector_service_payment_method(
                     payment_method_data,
                     router_data.request.payment_method_type,
-                )
-            })
-            .transpose()?;
+                    router_data.payment_method_token.as_ref(),
+                )?,
+            ),
+            None => None,
+        };
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
@@ -1379,12 +1391,11 @@ impl
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
-        let payment_method = Some(
-            unified_connector_service::build_unified_connector_service_payment_method(
-                router_data.request.payment_method_data.clone(),
-                router_data.request.payment_method_type,
-            )?,
-        );
+        let payment_method = unified_connector_service::build_unified_connector_service_payment_method(
+            router_data.request.payment_method_data.clone(),
+            router_data.request.payment_method_type,
+            router_data.payment_method_token.as_ref(),
+        )?;
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
@@ -1445,7 +1456,7 @@ impl
         Ok(Self {
             amount: router_data.request.amount,
             currency: currency.into(),
-            payment_method,
+            payment_method: Some(payment_method),
             return_url: router_data.request.router_return_url.clone(),
             address: Some(address),
             auth_type: auth_type.into(),
@@ -1728,12 +1739,11 @@ impl
         router_data: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
-        let payment_method = Some(
-            unified_connector_service::build_unified_connector_service_payment_method(
-                router_data.request.payment_method_data.clone(),
-                router_data.request.payment_method_type,
-            )?,
-        );
+        let payment_method = unified_connector_service::build_unified_connector_service_payment_method(
+            router_data.request.payment_method_data.clone(),
+            router_data.request.payment_method_type,
+            router_data.payment_method_token.as_ref(),
+        )?;
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
         let auth_type = payments_grpc::AuthenticationType::foreign_try_from(router_data.auth_type)?;
         let browser_info = router_data
@@ -1770,21 +1780,17 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
-            payment_method_token: router_data.payment_method_token.as_ref().and_then(|payment_method_token|{
-                match payment_method_token {
-                    hyperswitch_domain_models::router_data::PaymentMethodToken::Token(secret_token) => Some(secret_token.peek().clone()),
-                    hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(_) |
-                    hyperswitch_domain_models::router_data::PaymentMethodToken::GooglePayDecrypt(_) |
-                    hyperswitch_domain_models::router_data::PaymentMethodToken::PazeDecrypt(_) => None
-                }
-            }),
+            payment_method_token: router_data
+                .payment_method_token
+                .as_ref()
+                .and_then(get_grpc_payment_method_token),
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     router_data.connector_request_reference_id.clone(),
                 )),
             }),
             currency: currency.into(),
-            payment_method,
+            payment_method: Some(payment_method),
             minor_amount: Some(router_data.request.amount),
             email: router_data
                 .request
@@ -1958,16 +1964,21 @@ impl
             .as_ref()
             .map(ConnectorState::foreign_from);
 
-        let payment_method = match router_data.request.payment_method_data {
+        let payment_method_data = match router_data.request.payment_method_data.clone() {
             hyperswitch_domain_models::payment_method_data::PaymentMethodData::MandatePayment => {
                 None
             }
-            _ => Some(
+            payment_method_data => Some(payment_method_data),
+        };
+        let payment_method = match payment_method_data {
+            Some(payment_method_data) => Some(
                 unified_connector_service::build_unified_connector_service_payment_method(
-                    router_data.request.payment_method_data.clone(),
+                    payment_method_data,
                     router_data.request.payment_method_type,
+                    router_data.payment_method_token.as_ref(),
                 )?,
             ),
+            None => None,
         };
 
         let authentication_data = router_data
@@ -2898,8 +2909,14 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateAccessToken
                 connector_metadata: None,
             })
         } else {
+            let access_token = response
+                .access_token
+                .ok_or(UnifiedConnectorServiceError::ResponseDeserializationFailed)
+                .attach_printable(
+                    "Unexpected error: access_token is None in UCS access token response",
+                )?;
             Ok(AccessToken {
-                token: Secret::new(response.access_token),
+                token: Secret::new(access_token.expose()),
                 expires: response.expires_in_seconds.unwrap_or_default(),
             })
         };
@@ -3238,7 +3255,7 @@ impl transformers::ForeignTryFrom<&common_types::payments::ApplePayPaymentData>
                         "Failed to parse card number".to_string(),
                     ),
                 )?;
-                Ok(Self::DecryptedData(payments_grpc::ApplePayPredecryptData {
+                Ok(Self::DecryptedData(payments_grpc::ApplePayDecryptedData {
                     application_primary_account_number: Some(application_primary_account_number),
                     application_expiration_month: Some(
                         decrypted_data
@@ -3271,6 +3288,43 @@ impl transformers::ForeignTryFrom<&common_types::payments::ApplePayPaymentData>
     }
 }
 
+impl
+    transformers::ForeignTryFrom<(
+        &common_types::payments::ApplePayPaymentData,
+        Option<&hyperswitch_domain_models::router_data::PaymentMethodToken>,
+    )> for payments_grpc::apple_wallet::payment_data::PaymentData
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        (payment_data, payment_method_token): (
+            &common_types::payments::ApplePayPaymentData,
+            Option<&hyperswitch_domain_models::router_data::PaymentMethodToken>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let mut converted_payment_data = Self::foreign_try_from(payment_data)?;
+
+        match (&converted_payment_data, payment_method_token) {
+            (
+                payments_grpc::apple_wallet::payment_data::PaymentData::EncryptedData(_),
+                Some(
+                    hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(
+                        apple_pay_decrypt_data,
+                    ),
+                ),
+            ) => {
+                let token_payment_data = common_types::payments::ApplePayPaymentData::Decrypted(
+                    apple_pay_decrypt_data.as_ref().clone(),
+                );
+                converted_payment_data = Self::foreign_try_from(&token_payment_data)?;
+            }
+            _ => {}
+        }
+
+        Ok(converted_payment_data)
+    }
+}
+
 impl transformers::ForeignTryFrom<&common_types::payments::GpayTokenizationData>
     for payments_grpc::google_wallet::tokenization_data::TokenizationData
 {
@@ -3297,7 +3351,7 @@ impl transformers::ForeignTryFrom<&common_types::payments::GpayTokenizationData>
                         "Failed to parse card number".to_string(),
                     ),
                 )?;
-                Ok(Self::DecryptedData(payments_grpc::GPayPredecryptData {
+                Ok(Self::DecryptedData(payments_grpc::GooglePayDecryptedData {
                     card_exp_month: Some(decrypted_data.card_exp_month.clone().expose().into()),
                     card_exp_year: Some(decrypted_data.card_exp_year.clone().expose().into()),
                     application_primary_account_number: Some(application_primary_account_number),
@@ -3309,6 +3363,47 @@ impl transformers::ForeignTryFrom<&common_types::payments::GpayTokenizationData>
                 }))
             }
         }
+    }
+}
+
+impl
+    transformers::ForeignTryFrom<(
+        &common_types::payments::GpayTokenizationData,
+        Option<&hyperswitch_domain_models::router_data::PaymentMethodToken>,
+    )> for payments_grpc::google_wallet::tokenization_data::TokenizationData
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        (tokenization_data, payment_method_token): (
+            &common_types::payments::GpayTokenizationData,
+            Option<&hyperswitch_domain_models::router_data::PaymentMethodToken>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let mut converted_tokenization_data = Self::foreign_try_from(tokenization_data)?;
+
+        match (&converted_tokenization_data, payment_method_token) {
+            (
+                payments_grpc::google_wallet::tokenization_data::TokenizationData::EncryptedData(
+                    _,
+                ),
+                Some(
+                    hyperswitch_domain_models::router_data::PaymentMethodToken::GooglePayDecrypt(
+                        google_pay_decrypt_data,
+                    ),
+                ),
+            ) => {
+                let tokenization_data_from_token =
+                    common_types::payments::GpayTokenizationData::Decrypted(
+                        google_pay_decrypt_data.as_ref().clone(),
+                    );
+                converted_tokenization_data =
+                    Self::foreign_try_from(&tokenization_data_from_token)?;
+            }
+            _ => {}
+        }
+
+        Ok(converted_tokenization_data)
     }
 }
 
