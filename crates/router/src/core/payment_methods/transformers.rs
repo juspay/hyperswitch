@@ -1333,8 +1333,12 @@ impl DomainPaymentMethodWrapper {
             network_token_locker_id: None,
             network_token_payment_method_data: None,
             vault_source_details: domain::PaymentMethodVaultSourceDetails::InternalVault,
-            created_by: platform.get_initiator().and_then(|initiator| initiator.to_created_by()),
-            last_modified_by: platform.get_initiator().and_then(|initiator| initiator.to_created_by()),
+            created_by: platform
+                .get_initiator()
+                .and_then(|initiator| initiator.to_created_by()),
+            last_modified_by: platform
+                .get_initiator()
+                .and_then(|initiator| initiator.to_created_by()),
             customer_details: None,
             locker_fingerprint_id: None,
         }))
@@ -1461,8 +1465,12 @@ impl DomainPaymentMethodWrapper {
             network_token_locker_id: None,
             network_token_payment_method_data: None,
             vault_source_details: domain::PaymentMethodVaultSourceDetails::InternalVault,
-            created_by: platform.get_initiator().and_then(|initiator| initiator.to_created_by()),
-            last_modified_by: platform.get_initiator().and_then(|initiator| initiator.to_created_by()),
+            created_by: platform
+                .get_initiator()
+                .and_then(|initiator| initiator.to_created_by()),
+            last_modified_by: platform
+                .get_initiator()
+                .and_then(|initiator| initiator.to_created_by()),
             customer_details: None,
             locker_fingerprint_id: None,
         }))
