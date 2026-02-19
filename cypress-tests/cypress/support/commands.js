@@ -3758,6 +3758,24 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add(
+  "handleWalletRedirection",
+  (globalState, paymentMethodType, expectedRedirection) => {
+    const connectorId = globalState.get("connectorId");
+    const nextActionUrl = globalState.get("nextActionUrl");
+
+    const expectedUrl = new URL(expectedRedirection);
+    const redirectionUrl = new URL(nextActionUrl);
+
+    handleRedirection(
+      "bank_redirect",
+      { redirectionUrl, expectedUrl },
+      connectorId,
+      paymentMethodType
+    );
+  }
+);
+
+Cypress.Commands.add(
   "confirmRealTimePaymentCallTest",
   (confirmBody, data, confirm, globalState) => {
     const {
