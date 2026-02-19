@@ -38,10 +38,9 @@ describe("Reward Payment - Cashtocode", () => {
     cy.task("log", "Payment Methods Call");
     cy.paymentMethodsCallTest(globalState);
 
-    const confirmData =
-      getConnectorDetails(globalState.get("connectorId"))["reward_pm"][
-        "Evoucher"
-      ];
+    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+      "reward_pm"
+    ]["Evoucher"];
 
     cy.task("log", "Confirm Evoucher Payment");
     cy.confirmRewardCallTest(
@@ -86,10 +85,9 @@ describe("Reward Payment - Cashtocode", () => {
     cy.task("log", "Payment Methods Call");
     cy.paymentMethodsCallTest(globalState);
 
-    const confirmData =
-      getConnectorDetails(globalState.get("connectorId"))["reward_pm"][
-        "Classic"
-      ];
+    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+      "reward_pm"
+    ]["Classic"];
 
     cy.task("log", "Confirm Classic Payment");
     cy.confirmRewardCallTest(

@@ -37,10 +37,9 @@ describe("Payment Methods Tests", () => {
     cy.task("log", "Create Payment Method");
     cy.createPaymentMethodTest(globalState, pmData);
 
-    const intentData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "PaymentIntentOffSession"
-      ];
+    const intentData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["PaymentIntentOffSession"];
 
     cy.task("log", "Create Payment Intent");
     cy.createPaymentIntentTest(
@@ -53,10 +52,9 @@ describe("Payment Methods Tests", () => {
 
     if (!utils.should_continue_further(intentData)) return;
 
-    const confirmData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "SaveCardUseNo3DSAutoCaptureOffSession"
-      ];
+    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["SaveCardUseNo3DSAutoCaptureOffSession"];
 
     cy.task("log", "Confirm Payment");
     cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
@@ -136,10 +134,9 @@ describe("Payment Methods Tests", () => {
   it("'Last Used' off-session token payments - 3DS save card with token", () => {
     const saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
 
-    const intentData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "PaymentIntent"
-      ];
+    const intentData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["PaymentIntent"];
 
     cy.task("log", "Create Payment Intent");
     cy.createPaymentIntentTest(
@@ -152,10 +149,9 @@ describe("Payment Methods Tests", () => {
 
     if (!utils.should_continue_further(intentData)) return;
 
-    const confirmData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "SaveCardUseNo3DSAutoCapture"
-      ];
+    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["SaveCardUseNo3DSAutoCapture"];
 
     const newData = {
       ...confirmData,
@@ -184,10 +180,9 @@ describe("Payment Methods Tests", () => {
   it("'Last Used' off-session token payments - No 3DS save card with token", () => {
     const saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
 
-    const intentData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "PaymentIntent"
-      ];
+    const intentData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["PaymentIntent"];
 
     cy.task("log", "Create Payment Intent");
     cy.createPaymentIntentTest(
@@ -200,10 +195,9 @@ describe("Payment Methods Tests", () => {
 
     if (!utils.should_continue_further(intentData)) return;
 
-    const confirmData =
-      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "SaveCardUseNo3DSAutoCapture"
-      ];
+    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["SaveCardUseNo3DSAutoCapture"];
 
     cy.task("log", "Confirm Save Card Payment");
     cy.saveCardConfirmCallTest(saveCardBody, confirmData, globalState);

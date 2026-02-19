@@ -38,10 +38,9 @@ describe("Crypto Payment", () => {
     cy.task("log", "Payment Methods Call");
     cy.paymentMethodsCallTest(globalState);
 
-    const confirmData =
-      getConnectorDetails(globalState.get("connectorId"))["crypto_pm"][
-        "CryptoCurrency"
-      ];
+    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+      "crypto_pm"
+    ]["CryptoCurrency"];
 
     cy.task("log", "Confirm Crypto Currency Payment");
     cy.confirmRewardCallTest(
@@ -86,10 +85,9 @@ describe("Crypto Payment", () => {
     cy.task("log", "Payment Methods Call");
     cy.paymentMethodsCallTest(globalState);
 
-    const confirmData =
-      getConnectorDetails(globalState.get("connectorId"))["crypto_pm"][
-        "CryptoCurrencyManualCapture"
-      ];
+    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+      "crypto_pm"
+    ]["CryptoCurrencyManualCapture"];
 
     cy.task("log", "Confirm Crypto Currency Payment (Manual Capture)");
     cy.confirmRewardCallTest(
