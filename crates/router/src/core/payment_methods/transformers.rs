@@ -3,14 +3,15 @@ use api_models::payment_methods::Card;
 #[cfg(feature = "v2")]
 use api_models::{enums as api_enums, payment_methods::PaymentMethodResponseItem};
 use common_enums::CardNetwork;
-#[cfg(feature = "v1")]
-use common_utils::{crypto::Encryptable, request::Headers, types::keymanager::KeyManagerState};
 use common_utils::{
+    consts as common_consts,
     ext_traits::{AsyncExt, Encode, StringExt},
-    id_type,
+    generate_id, id_type,
     pii::{Email, SecretSerdeValue},
-    request::RequestContent,
+    request::{Headers, RequestContent},
 };
+#[cfg(feature = "v1")]
+use common_utils::{crypto::Encryptable, types::keymanager::KeyManagerState};
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{payment_method_data, sdk_auth::SdkAuthorization};
@@ -22,6 +23,8 @@ use masking::{ExposeInterface, PeekInterface};
 use payment_methods::client::{
     self as pm_client,
     create::{CreatePaymentMethodResponse, CreatePaymentMethodV1Request},
+    list::ListCustomerPaymentMethods,
+    list::{ListCustomerPaymentMethodsV1Request, ListCustomerPaymentMethodsV1Response},
     retrieve::{RetrievePaymentMethodResponse, RetrievePaymentMethodV1Request},
     UpdatePaymentMethod, UpdatePaymentMethodV1Payload, UpdatePaymentMethodV1Request,
 };
@@ -35,12 +38,17 @@ use crate::{
     core::{
         errors::{self, CustomResult},
         payment_methods::cards::{call_vault_service, create_encrypted_data},
+        utils as core_utils,
     },
     headers,
     pii::Secret,
     routes,
+    routes::payment_methods::ParentPaymentMethodToken,
     services::{api as services, encryption, EncryptionAlgorithm},
-    types::{api, domain},
+    types::{
+        api, domain,
+        storage::{ModularServiceTokenData, PaymentTokenData},
+    },
     utils::OptionExt,
 };
 #[cfg(feature = "v2")]
@@ -1141,6 +1149,94 @@ impl transformers::ForeignFrom<&payment_method_data::SingleUsePaymentMethodToken
             token: token.clone().token,
         }
     }
+}
+
+#[cfg(feature = "v1")]
+pub async fn list_customer_pml_modular_service_call(
+    state: &routes::SessionState,
+    platform: domain::Platform,
+    profile_id: id_type::ProfileId,
+    customer_id: &id_type::CustomerId,
+    merchant_id: &id_type::MerchantId,
+    query_params: &Option<api_models::payment_methods::PaymentMethodListRequest>,
+) -> CustomResult<ListCustomerPaymentMethodsV1Response, errors::ApiErrorResponse> {
+    let db = &*state.store;
+
+    let business_profile = core_utils::validate_and_get_business_profile(
+        db,
+        platform.get_processor(),
+        Some(&profile_id),
+    )
+    .await?;
+
+    let list_customer_pml_request = ListCustomerPaymentMethodsV1Request {
+        customer_id: customer_id.clone(),
+        query_params: query_params.clone(),
+        modular_service_prefix: state.conf.micro_services.payment_methods_prefix.0.clone(),
+    };
+    let internal_api_key = &state
+        .conf
+        .internal_merchant_id_profile_id_auth
+        .internal_api_key;
+
+    let mut parent_headers = Headers::new();
+    parent_headers.insert((
+        "X-Profile-Id".to_string(),
+        profile_id.get_string_repr().to_string().into_masked(),
+    ));
+    parent_headers.insert((
+        "X-Internal-Api-Key".to_string(),
+        internal_api_key.clone().expose().to_string().into_masked(),
+    ));
+    parent_headers.insert((
+        "X-Merchant-Id".to_string(),
+        merchant_id.get_string_repr().to_string().into_masked(),
+    ));
+    let trace = RequestIdentifier::new(&state.conf.trace_header.header_name)
+        .use_incoming_id(state.conf.trace_header.id_reuse_strategy);
+
+    let client = pm_client::PaymentMethodClient::new(
+        &state.conf.micro_services.payment_methods_base_url,
+        &parent_headers,
+        &trace,
+    );
+
+    let mut pm_response = ListCustomerPaymentMethods::call(
+        state,
+        &client,
+        list_customer_pml_request,
+    )
+    .await
+    .map_err(|err| {
+        logger::error!(payment_method_list_error = ?err, "Error in listing payment methods");
+        errors::ApiErrorResponse::InternalServerError
+    })?;
+
+    let intent_fulfillment_time = business_profile
+        .as_ref()
+        .and_then(|b_profile| b_profile.get_order_fulfillment_time())
+        .unwrap_or(common_consts::DEFAULT_INTENT_FULFILLMENT_TIME);
+
+    // Create tokens for each payment method and store in redis
+    for pma in pm_response.customer_payment_methods.iter_mut() {
+        let parent_payment_method_token = generate_id(common_consts::ID_LENGTH, "token");
+        let hyperswitch_token_data =
+            PaymentTokenData::ModularServiceToken(ModularServiceTokenData {
+                payment_method_id: pma.payment_method_id.clone(),
+            });
+
+        ParentPaymentMethodToken::create_key_for_token((
+            &parent_payment_method_token,
+            pma.payment_method,
+        ))
+        .insert(intent_fulfillment_time, hyperswitch_token_data, state)
+        .await?;
+
+        // Update the payment_token in the response
+        pma.payment_token = parent_payment_method_token;
+    }
+
+    Ok(pm_response)
 }
 
 #[cfg(feature = "v1")]

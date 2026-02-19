@@ -28,6 +28,8 @@ use storage_impl::platform_wrapper;
 use time::PrimitiveDateTime;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
+#[cfg(feature = "v1")]
+use crate::routes::payment_methods::ParentPaymentMethodToken;
 use crate::{
     consts,
     core::{
@@ -865,12 +867,36 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     };
 
                 let pm_info = if let Some(payment_method_ref) = payment_method_reference {
+                    // First check if payment_token exists in Redis (contains pm_id), else use payment_token from request
+                    let pm_token_result = ParentPaymentMethodToken::create_key_for_token((
+                        payment_method_ref,
+                        req.payment_method.clone().unwrap_or_default(),
+                    ))
+                    .get_data_for_token(&state)
+                    .await;
+
+                    let pm_token_to_use = match pm_token_result {
+                        Ok(storage::PaymentTokenData::ModularServiceToken(modular_token)) => {
+                            logger::info!(
+                                payment_method_id = %modular_token.payment_method_id,
+                                "Payment token data found in Redis, using pm_id to fetch from PM Modular Service"
+                            );
+                            modular_token.payment_method_id
+                        }
+                        _ => {
+                            logger::info!(
+                                "Payment token data not found or error in Redis, using payment_token from request"
+                            );
+                            payment_method_ref.clone()
+                        }
+                    };
+
                     // Fetch payment method using PM Modular Service
                     let pm_info = pm_transformers::fetch_payment_method_from_modular_service(
                         state,
                         platform,
                         &profile_id,
-                        payment_method_ref,
+                        &pm_token_to_use,
                         None, // CVC token data is not passed in create api
                         is_off_session_payment,
                     )
