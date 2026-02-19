@@ -120,7 +120,8 @@ fn get_grpc_payment_method_token(
     match value {
         hyperswitch_domain_models::router_data::PaymentMethodToken::Token(secret_token) => {
             let token = secret_token.clone().expose();
-            (!token.trim().is_empty()).then(|| unified_connector_service_masking::Secret::new(token))
+            (!token.trim().is_empty())
+                .then(|| unified_connector_service_masking::Secret::new(token))
         }
         _ => None,
     }
@@ -162,11 +163,12 @@ impl
         // Always build payment_method using payment_method_data (which is non-optional).
         // payment_method_type is passed as optional, but payment_method must always be present
         // for UCS to process the tokenization request.
-        let payment_method = unified_connector_service::build_unified_connector_service_payment_method(
-            router_data.request.payment_method_data.clone(),
-            router_data.request.payment_method_type,
-            router_data.payment_method_token.as_ref(),
-        )?;
+        let payment_method =
+            unified_connector_service::build_unified_connector_service_payment_method(
+                router_data.request.payment_method_data.clone(),
+                router_data.request.payment_method_type,
+                router_data.payment_method_token.as_ref(),
+            )?;
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
@@ -211,11 +213,12 @@ impl
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
-        let payment_method = unified_connector_service::build_unified_connector_service_payment_method(
-            router_data.request.payment_method_data.clone(),
-            router_data.request.payment_method_type,
-            router_data.payment_method_token.as_ref(),
-        )?;
+        let payment_method =
+            unified_connector_service::build_unified_connector_service_payment_method(
+                router_data.request.payment_method_data.clone(),
+                router_data.request.payment_method_type,
+                router_data.payment_method_token.as_ref(),
+            )?;
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
@@ -1079,11 +1082,12 @@ impl
             router_data.request.currency.unwrap_or_default(),
         )?;
 
-        let payment_method = unified_connector_service::build_unified_connector_service_payment_method(
-            router_data.request.payment_method_data.clone(),
-            router_data.request.payment_method_type,
-            router_data.payment_method_token.as_ref(),
-        )?;
+        let payment_method =
+            unified_connector_service::build_unified_connector_service_payment_method(
+                router_data.request.payment_method_data.clone(),
+                router_data.request.payment_method_type,
+                router_data.payment_method_token.as_ref(),
+            )?;
 
         let capture_method = router_data
             .request
@@ -1391,11 +1395,12 @@ impl
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
-        let payment_method = unified_connector_service::build_unified_connector_service_payment_method(
-            router_data.request.payment_method_data.clone(),
-            router_data.request.payment_method_type,
-            router_data.payment_method_token.as_ref(),
-        )?;
+        let payment_method =
+            unified_connector_service::build_unified_connector_service_payment_method(
+                router_data.request.payment_method_data.clone(),
+                router_data.request.payment_method_type,
+                router_data.payment_method_token.as_ref(),
+            )?;
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
@@ -1739,11 +1744,12 @@ impl
         router_data: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
-        let payment_method = unified_connector_service::build_unified_connector_service_payment_method(
-            router_data.request.payment_method_data.clone(),
-            router_data.request.payment_method_type,
-            router_data.payment_method_token.as_ref(),
-        )?;
+        let payment_method =
+            unified_connector_service::build_unified_connector_service_payment_method(
+                router_data.request.payment_method_data.clone(),
+                router_data.request.payment_method_type,
+                router_data.payment_method_token.as_ref(),
+            )?;
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
         let auth_type = payments_grpc::AuthenticationType::foreign_try_from(router_data.auth_type)?;
         let browser_info = router_data
@@ -1851,17 +1857,26 @@ impl
             state,
             order_id: None,
             connector_metadata: None,
-            enable_partial_authorization: router_data.request.enable_partial_authorization.map(|e| e.is_true()),
-            billing_descriptor: router_data.request.billing_descriptor.as_ref().map(payments_grpc::BillingDescriptor::foreign_from),
-            payment_channel: router_data.request.payment_channel.as_ref().map(payments_grpc::PaymentChannel::foreign_try_from)
+            enable_partial_authorization: router_data
+                .request
+                .enable_partial_authorization
+                .map(|e| e.is_true()),
+            billing_descriptor: router_data
+                .request
+                .billing_descriptor
+                .as_ref()
+                .map(payments_grpc::BillingDescriptor::foreign_from),
+            payment_channel: router_data
+                .request
+                .payment_channel
+                .as_ref()
+                .map(payments_grpc::PaymentChannel::foreign_try_from)
                 .transpose()?
                 .map(|payment_channel| payment_channel.into()),
             locale: None,
-            connector_testing_data: router_data
-                .request
-                .connector_testing_data
-                .as_ref()
-                .map(|data| unified_connector_service_masking::Secret::new(data.peek().to_string())),
+            connector_testing_data: router_data.request.connector_testing_data.as_ref().map(
+                |data| unified_connector_service_masking::Secret::new(data.peek().to_string()),
+            ),
         })
     }
 }
@@ -3307,11 +3322,9 @@ impl
         match (&converted_payment_data, payment_method_token) {
             (
                 payments_grpc::apple_wallet::payment_data::PaymentData::EncryptedData(_),
-                Some(
-                    hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(
-                        apple_pay_decrypt_data,
-                    ),
-                ),
+                Some(hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(
+                    apple_pay_decrypt_data,
+                )),
             ) => {
                 let token_payment_data = common_types::payments::ApplePayPaymentData::Decrypted(
                     apple_pay_decrypt_data.as_ref().clone(),
@@ -3384,14 +3397,10 @@ impl
 
         match (&converted_tokenization_data, payment_method_token) {
             (
-                payments_grpc::google_wallet::tokenization_data::TokenizationData::EncryptedData(
-                    _,
-                ),
-                Some(
-                    hyperswitch_domain_models::router_data::PaymentMethodToken::GooglePayDecrypt(
-                        google_pay_decrypt_data,
-                    ),
-                ),
+                payments_grpc::google_wallet::tokenization_data::TokenizationData::EncryptedData(_),
+                Some(hyperswitch_domain_models::router_data::PaymentMethodToken::GooglePayDecrypt(
+                    google_pay_decrypt_data,
+                )),
             ) => {
                 let tokenization_data_from_token =
                     common_types::payments::GpayTokenizationData::Decrypted(
