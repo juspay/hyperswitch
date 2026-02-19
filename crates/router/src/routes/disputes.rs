@@ -215,7 +215,7 @@ pub async fn retrieve_disputes_list_profile(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileDisputeRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -302,7 +302,7 @@ pub async fn get_disputes_filters_profile(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileDisputeRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -628,7 +628,7 @@ pub async fn get_disputes_aggregate_profile(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileDisputeRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),

@@ -380,7 +380,7 @@ pub async fn list_routing_configs_for_profile(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -1019,7 +1019,7 @@ pub async fn routing_retrieve_linked_config(
                 &auth::JWTAuthProfileFromRoute {
                     profile_id,
                     required_permission: Permission::ProfileRoutingRead,
-                    allow_connected: false,
+                    allow_connected: true,
                     allow_platform: false,
                 },
                 req.headers(),
@@ -1052,7 +1052,7 @@ pub async fn routing_retrieve_linked_config(
                 }),
                 &auth::JWTAuth {
                     permission: Permission::ProfileRoutingRead,
-                    allow_connected: false,
+                    allow_connected: true,
                     allow_platform: false,
                 },
                 req.headers(),

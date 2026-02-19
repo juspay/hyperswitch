@@ -1914,7 +1914,7 @@ pub async fn payments_list(
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantPaymentRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
