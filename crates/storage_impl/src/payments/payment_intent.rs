@@ -1143,6 +1143,14 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                         on: SortOn::Created,
                         by: SortBy::Desc,
                     } => query.order(pi_dsl::created_at.desc()),
+                    Order {
+                        on: SortOn::Modified,
+                        by: SortBy::Asc,
+                    } => query.order(pi_dsl::modified_at.asc()),
+                    Order {
+                        on: SortOn::Modified,
+                        by: SortBy::Desc,
+                    } => query.order(pi_dsl::modified_at.desc()),
                 };
 
                 if let Some(limit) = params.limit {
@@ -1360,6 +1368,14 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                         on: SortOn::Created,
                         by: SortBy::Desc,
                     } => query.order(pi_dsl::created_at.desc()),
+                    Order {
+                        on: SortOn::Modified,
+                        by: SortBy::Asc,
+                    } => query.order(pi_dsl::modified_at.asc()),
+                    Order {
+                        on: SortOn::Modified,
+                        by: SortBy::Desc,
+                    } => query.order(pi_dsl::modified_at.desc()),
                 };
 
                 if let Some(limit) = params.limit {
