@@ -725,6 +725,45 @@ function bankRedirectRedirection(
             }
             break;
 
+          case "calida":
+            switch (paymentMethodType) {
+              case "bluecode":
+                cy.log("Handling Bluecode redirect flow");
+
+                cy.contains("body", /Open your Bluecode compatible App/i, {
+                  timeout: constants.TIMEOUT / 3,
+                }).should("be.visible");
+
+                // Bluecode shows a QR that the shopper scans inside their wallet app.
+                cy.get(
+                  "canvas:visible, img:visible, svg:visible, picture:visible",
+                  {
+                    timeout: constants.TIMEOUT / 2,
+                  }
+                )
+                  .first()
+                  .scrollIntoView()
+                  .should("be.visible")
+                  .then(($el) => {
+                    cy.log(
+                      "Verified Bluecode QR code is visible",
+                      $el.prop("tagName")
+                    );
+                  });
+
+                cy.contains("button, a", /Cancel/i, {
+                  timeout: constants.TIMEOUT / 3,
+                }).should("be.visible");
+
+                verifyUrl = false;
+                break;
+              default:
+                throw new Error(
+                  `Unsupported Calida payment method type: ${paymentMethodType}`
+                );
+            }
+            break;
+
           case "volt":
             if (paymentMethodType === "open_banking_uk") {
               cy.log("Handling Volt OpenBankingUk redirect flow");

@@ -1,3 +1,5 @@
+use crate::errors::{CustomResult, ValidationError};
+
 crate::id_type!(
     CustomerId,
     "A type for customer_id that can be used for customer ids"
@@ -20,5 +22,12 @@ impl crate::events::ApiEventMetric for CustomerId {
         Some(crate::events::ApiEventsType::Customer {
             customer_id: self.clone(),
         })
+    }
+}
+
+impl CustomerId {
+    /// Get a customer id from String
+    pub fn wrap(customer_id: String) -> CustomResult<Self, ValidationError> {
+        Self::try_from(std::borrow::Cow::from(customer_id))
     }
 }

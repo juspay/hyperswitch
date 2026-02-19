@@ -9,6 +9,7 @@ use router_env::{instrument, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
+        configs::dimension_state::DimensionsWithMerchantId,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
     },
@@ -164,7 +165,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsStartReq
             payment_intent,
             currency,
             amount,
-            email: None,
             mandate_id: None,
             mandate_connector: None,
             setup_mandate: None,
@@ -287,49 +287,20 @@ where
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
-        state: &SessionState,
-        payment_data: &mut PaymentData<F>,
-        request: Option<CustomerDetails>,
-        provider: &domain::Provider,
+        _state: &SessionState,
+        _payment_data: &mut PaymentData<F>,
+        _request: Option<CustomerDetails>,
+        _provider: &domain::Provider,
+        _dimensions: DimensionsWithMerchantId,
     ) -> CustomResult<
         (PaymentSessionOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,
     > {
-        match provider.get_account().merchant_account_type {
-            common_enums::MerchantAccountType::Standard => {
-                helpers::create_customer_if_not_exist(
-                    state,
-                    Box::new(self),
-                    payment_data,
-                    request,
-                    provider,
-                )
-                .await
-            }
-            common_enums::MerchantAccountType::Platform => {
-                let customer = helpers::get_customer_if_exists(
-                    state,
-                    request.as_ref().and_then(|r| r.customer_id.as_ref()),
-                    payment_data.payment_intent.customer_id.as_ref(),
-                    provider,
-                )
-                .await?
-                .inspect(|cust| {
-                    payment_data.email = payment_data
-                        .email
-                        .clone()
-                        .or_else(|| cust.email.clone().map(Into::into));
-                });
-
-                Ok((Box::new(self), customer))
-            }
-            common_enums::MerchantAccountType::Connected => {
-                Err(errors::StorageError::ValueNotFound(
-                    "Connected merchant cannot be a provider".to_string(),
-                )
-                .into())
-            }
-        }
+        // We don't need to fetch customer here.
+        // Customer details have already been populated in the payment_intent during Confirm
+        // The customer returned from this method is only used for updating connector_customer_id
+        // which does not happen in case of PaymentStart
+        Ok((Box::new(self), None))
     }
 
     #[instrument(skip_all)]

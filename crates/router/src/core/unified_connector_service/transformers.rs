@@ -604,6 +604,14 @@ impl
             .as_ref()
             .map(ConnectorState::foreign_from);
 
+        let merchant_account_metadata = router_data
+            .connector_meta_data
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()
+            .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
+            .map(|s| s.into());
+
         Ok(Self {
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
@@ -615,8 +623,9 @@ impl
             metadata: None,
             webhook_url: None,
             connector_metadata: None,
-            merchant_account_metadata: None,
+            merchant_account_metadata,
             state,
+            test_mode: router_data.test_mode,
         })
     }
 }
@@ -645,11 +654,20 @@ impl
     ) -> Result<Self, Self::Error> {
         let request_ref_id = router_data.connector_request_reference_id.clone();
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
+
+        let merchant_account_metadata = router_data
+            .connector_meta_data
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()
+            .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
+            .map(|s| s.into());
+
         Ok(Self {
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(request_ref_id)),
             }),
-            merchant_account_metadata: None,
+            merchant_account_metadata,
             customer_name: router_data
                 .request
                 .name
@@ -672,6 +690,7 @@ impl
             address: Some(address),
             metadata: None,
             connector_metadata: None,
+            test_mode: router_data.test_mode,
         })
     }
 }
@@ -801,6 +820,15 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
+
+        let merchant_account_metadata = router_data
+            .connector_meta_data
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()
+            .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
+            .map(|s| s.into());
+
         Ok(Self {
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
@@ -820,7 +848,8 @@ impl
             state: None,
             browser_info: None,
             connector_metadata: None,
-            merchant_account_metadata: None,
+            merchant_account_metadata,
+            test_mode: router_data.test_mode,
         })
     }
 }
@@ -3068,6 +3097,10 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_method_data
                 Ok(Self::UpiAccount)
             }
             hyperswitch_domain_models::payment_method_data::UpiSource::UpiCcCl => Ok(Self::UpiCcCl),
+            hyperswitch_domain_models::payment_method_data::UpiSource::UpiPpi => Ok(Self::UpiPpi),
+            hyperswitch_domain_models::payment_method_data::UpiSource::UpiVoucher => {
+                Ok(Self::UpiVoucher)
+            }
         }
     }
 }
@@ -5678,15 +5711,24 @@ impl
     ) -> Result<Self, Self::Error> {
         let request_ref_id = router_data.connector_request_reference_id.clone();
 
+        let merchant_account_metadata = router_data
+            .connector_meta_data
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()
+            .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
+            .map(|s| s.into());
+
         Ok(Self {
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(request_ref_id)),
             }),
-            merchant_account_metadata: None,
+            merchant_account_metadata,
             // depricated field we have to remove this/ Default to unspecified connector
             connector: 0_i32,
             metadata: None,
             connector_metadata: None,
+            test_mode: router_data.test_mode,
         })
     }
 }

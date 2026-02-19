@@ -6,6 +6,8 @@ pub use ::payment_methods::helpers::{
 };
 #[cfg(feature = "v2")]
 use api_models::ephemeral_key::ClientSecretResponse;
+#[cfg(feature = "v2")]
+use api_models::payments::{additional_info::UpiAdditionalData, UpiSource};
 use api_models::{
     customers::CustomerDocumentDetails,
     mandates::RecurringDetails,
@@ -84,7 +86,8 @@ use crate::{
     connector,
     consts::{self, BASE64_ENGINE},
     core::{
-        authentication, configs,
+        authentication,
+        configs::dimension_state::DimensionsWithMerchantId,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers::MandateGenericData,
         payment_methods::{
@@ -481,16 +484,15 @@ pub async fn get_token_pm_type_mandate_details(
         ),
         Some(api::MandateTransactionType::RecurringMandateTransaction) => {
             match &request.recurring_details {
-                Some(recurring_details) => {
-                    match recurring_details {
-                        RecurringDetails::NetworkTransactionIdAndCardDetails(_) => {
-                            (None, request.payment_method, None, None, None, None, None)
-                        }
-                        RecurringDetails::ProcessorPaymentToken(processor_payment_token) => {
-                            if let Some(mca_id) = &processor_payment_token.merchant_connector_id {
-                                let db = &*state.store;
+                Some(recurring_details) => match recurring_details {
+                    RecurringDetails::NetworkTransactionIdAndCardDetails(_) => {
+                        (None, request.payment_method, None, None, None, None, None)
+                    }
+                    RecurringDetails::ProcessorPaymentToken(processor_payment_token) => {
+                        if let Some(mca_id) = &processor_payment_token.merchant_connector_id {
+                            let db = &*state.store;
 
-                                #[cfg(feature = "v1")]
+                            #[cfg(feature = "v1")]
                             let connector_name = db
                                 .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                                     platform.get_processor().get_account().get_id(),
@@ -502,106 +504,117 @@ pub async fn get_token_pm_type_mandate_details(
                                     id: mca_id.clone().get_string_repr().to_string(),
                                 })?.connector_name;
 
-                                #[cfg(feature = "v2")]
+                            #[cfg(feature = "v2")]
                             let connector_name = db
-                                .find_merchant_connector_account_by_id( mca_id, merchant_key_store)
+                                .find_merchant_connector_account_by_id(mca_id, merchant_key_store)
                                 .await
-                                .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                                    id: mca_id.clone().get_string_repr().to_string(),
-                                })?.connector_name;
-                                (
-                                    None,
-                                    request.payment_method,
-                                    None,
-                                    None,
-                                    None,
-                                    Some(payments::MandateConnectorDetails {
-                                        connector: connector_name,
-                                        merchant_connector_id: Some(mca_id.clone()),
-                                    }),
-                                    None,
-                                )
-                            } else {
-                                (None, request.payment_method, None, None, None, None, None)
-                            }
-                        }
-                        RecurringDetails::MandateId(mandate_id) => {
-                            let mandate_generic_data = Box::pin(get_token_for_recurring_mandate(
-                                state,
-                                request,
-                                platform,
-                                mandate_id.to_owned(),
-                            ))
-                            .await?;
-
-                            (
-                                mandate_generic_data.token,
-                                mandate_generic_data.payment_method,
-                                mandate_generic_data
-                                    .payment_method_type
-                                    .or(request.payment_method_type),
-                                None,
-                                mandate_generic_data.recurring_mandate_payment_data,
-                                mandate_generic_data.mandate_connector,
-                                mandate_generic_data.payment_method_info,
-                            )
-                        }
-                        RecurringDetails::PaymentMethodId(payment_method_id) => {
-                            let payment_method_info = match pm_info {
-                                Some(pm) => pm.clone(),
-                                None => state
-                                    .store
-                                    .find_payment_method(
-                                        platform.get_provider().get_key_store(),
-                                        payment_method_id,
-                                        platform.get_provider().get_account().storage_scheme,
-                                    )
-                                    .await
-                                    .to_not_found_response(
-                                        errors::ApiErrorResponse::PaymentMethodNotFound,
-                                    )?,
-                            };
-                            let customer_id = request
-                                .get_customer_id()
-                                .get_required_value("customer_id")?;
-
-                            verify_mandate_details_for_recurring_payments(
-                                &payment_method_info.merchant_id,
-                                platform.get_provider().get_account().get_id(),
-                                &payment_method_info.customer_id,
-                                customer_id,
-                            )?;
-
+                                .to_not_found_response(
+                                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                                        id: mca_id.clone().get_string_repr().to_string(),
+                                    },
+                                )?
+                                .connector_name;
                             (
                                 None,
-                                payment_method_info.get_payment_method_type(),
-                                payment_method_info.get_payment_method_subtype(),
+                                request.payment_method,
                                 None,
                                 None,
                                 None,
-                                Some(payment_method_info),
+                                Some(payments::MandateConnectorDetails {
+                                    connector: connector_name,
+                                    merchant_connector_id: Some(mca_id.clone()),
+                                }),
+                                None,
                             )
+                        } else {
+                            (None, request.payment_method, None, None, None, None, None)
                         }
-                        RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => (
-                            None,
-                            request.payment_method,
-                            request.payment_method_type,
-                            None,
-                            None,
-                            None,
-                            None,
-                        ),
-                        RecurringDetails::CardWithLimitedData(_) => (
-                            None,
-                            request.payment_method,
-                            request.payment_method_type,
-                            None,
-                            None,
-                            None,
-                            None,
-                        ),
                     }
-                }
+                    RecurringDetails::MandateId(mandate_id) => {
+                        let mandate_generic_data = Box::pin(get_token_for_recurring_mandate(
+                            state,
+                            request,
+                            platform,
+                            mandate_id.to_owned(),
+                        ))
+                        .await?;
+
+                        (
+                            mandate_generic_data.token,
+                            mandate_generic_data.payment_method,
+                            mandate_generic_data
+                                .payment_method_type
+                                .or(request.payment_method_type),
+                            None,
+                            mandate_generic_data.recurring_mandate_payment_data,
+                            mandate_generic_data.mandate_connector,
+                            mandate_generic_data.payment_method_info,
+                        )
+                    }
+                    RecurringDetails::PaymentMethodId(payment_method_id) => {
+                        let payment_method_info = match pm_info {
+                            Some(pm) => pm.clone(),
+                            None => state
+                                .store
+                                .find_payment_method(
+                                    platform.get_provider().get_key_store(),
+                                    payment_method_id,
+                                    platform.get_provider().get_account().storage_scheme,
+                                )
+                                .await
+                                .to_not_found_response(
+                                    errors::ApiErrorResponse::PaymentMethodNotFound,
+                                )?,
+                        };
+                        let customer_id = request
+                            .get_customer_id()
+                            .get_required_value("customer_id")?;
+
+                        verify_mandate_details_for_recurring_payments(
+                            &payment_method_info.merchant_id,
+                            platform.get_provider().get_account().get_id(),
+                            &payment_method_info.customer_id,
+                            customer_id,
+                        )?;
+
+                        (
+                            None,
+                            payment_method_info.get_payment_method_type(),
+                            payment_method_info.get_payment_method_subtype(),
+                            None,
+                            None,
+                            None,
+                            Some(payment_method_info),
+                        )
+                    }
+                    RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => (
+                        None,
+                        request.payment_method,
+                        request.payment_method_type,
+                        None,
+                        None,
+                        None,
+                        None,
+                    ),
+                    RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(_) => (
+                        None,
+                        request.payment_method,
+                        request.payment_method_type,
+                        None,
+                        None,
+                        None,
+                        None,
+                    ),
+                    RecurringDetails::CardWithLimitedData(_) => (
+                        None,
+                        request.payment_method,
+                        request.payment_method_type,
+                        None,
+                        None,
+                        None,
+                        None,
+                    ),
+                },
                 None => {
                     if let Some(mandate_id) = request.mandate_id.clone() {
                         let mandate_generic_data = Box::pin(get_token_for_recurring_mandate(
@@ -1350,6 +1363,7 @@ fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult
     match recurring_details {
         RecurringDetails::ProcessorPaymentToken(_)
         | RecurringDetails::NetworkTransactionIdAndCardDetails(_)
+        | RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
         | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => Ok(()),
         _ => {
             req.customer_id.check_value_present("customer_id")?;
@@ -1863,6 +1877,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     _payment_data: &mut PaymentData<F>,
     _req: Option<CustomerDetails>,
     _provider: &domain::Provider,
+    _dimensions: DimensionsWithMerchantId,
 ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
     todo!()
 }
@@ -1876,6 +1891,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     payment_data: &mut PaymentData<F>,
     req: Option<CustomerDetails>,
     provider: &domain::Provider,
+    dimensions: DimensionsWithMerchantId,
 ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
     let merchant_id = provider.get_account().get_id();
     let storage_scheme = provider.get_account().storage_scheme;
@@ -1971,21 +1987,13 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
 
             Some(match customer_data {
                 Some(c) => {
-                    let implicit_customer_update = configs::get_config_bool(
-                        state,
-                        consts::superposition::IMPLICIT_CUSTOMER_UPDATE,
-                        &provider
-                            .get_account()
-                            .get_id()
-                            .get_implicit_customer_update_key(), // database
-                        Some(external_services::superposition::ConfigContext::new().with(
-                            "merchant_id",
-                            provider.get_account().get_id().get_string_repr(),
-                        )), // context
-                        false, // Implicit Customer update is disabled by default
-                    )
-                    .await
-                    .attach_printable("Failed to fetch implicit_customer_update config")?;
+                    let implicit_customer_update = dimensions
+                        .get_implicit_customer_update(
+                            state.store.as_ref(),
+                            state.superposition_service.as_deref(),
+                            Some(&customer_id),
+                        )
+                        .await;
 
                     // Update the customer data if new data is passed in the request
                     if implicit_customer_update
@@ -2128,12 +2136,6 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                 );
 
                 payment_data.payment_intent.customer_id = Some(customer.customer_id.clone());
-                payment_data.email = payment_data.email.clone().or_else(|| {
-                    customer
-                        .email
-                        .clone()
-                        .map(|encrypted_value| encrypted_value.into())
-                });
 
                 Some(customer)
             }
@@ -2947,7 +2949,11 @@ pub async fn fetch_card_details_from_external_vault(
         }
         hyperswitch_domain_models::vault::PaymentMethodVaultingData::NetworkToken(_) => {
             Err(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Network Token not supproted")
+                .attach_printable("Network Token not supported")
+        }
+        hyperswitch_domain_models::vault::PaymentMethodVaultingData::BankDebit(_) => {
+            Err(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Bank Debit not supported")
         }
     }
 }
@@ -5975,6 +5981,13 @@ pub async fn get_additional_payment_data(
                 network_token_with_ntid.to_owned().into(),
             )),
         )),
+        domain::PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(
+            decrypted_wallet_token_with_ntid,
+        ) => Ok(Some(
+            api_models::payments::AdditionalPaymentData::NetworkToken(Box::new(
+                decrypted_wallet_token_with_ntid.to_owned().into(),
+            )),
+        )),
     }
 }
 
@@ -7225,6 +7238,7 @@ pub fn get_key_params_for_surcharge_details(
         | domain::PaymentMethodData::NetworkToken(_)
         | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_)
         | domain::PaymentMethodData::CardWithLimitedDetails(_)
+        | domain::PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | domain::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => None,
     }
 }
@@ -7627,6 +7641,39 @@ pub fn add_connector_response_to_additional_payment_data(
             }),
             samsung_pay: samsung_pay.clone(),
         },
+        #[cfg(feature = "v2")]
+        (
+            api_models::payments::AdditionalPaymentData::Upi {
+                details: Some(details),
+            },
+            AdditionalPaymentMethodConnectorResponse::Upi {
+                upi_mode: Some(upi_mode),
+            },
+        ) => {
+            let upi_source = Some(UpiSource::from(upi_mode));
+            let updated_details = match details {
+                UpiAdditionalData::UpiCollect(_) => UpiAdditionalData::UpiCollect(Box::new(
+                    api_models::payments::additional_info::UpiCollectAdditionalData {
+                        vpa_id: None,
+                        upi_source,
+                    },
+                )),
+                UpiAdditionalData::UpiIntent(_) => {
+                    UpiAdditionalData::UpiIntent(Box::new(api_models::payments::UpiIntentData {
+                        upi_source,
+                        app_name: None,
+                    }))
+                }
+                UpiAdditionalData::UpiQr(_) => {
+                    UpiAdditionalData::UpiQr(Box::new(api_models::payments::UpiQrData {
+                        upi_source,
+                    }))
+                }
+            };
+            api_models::payments::AdditionalPaymentData::Upi {
+                details: Some(updated_details),
+            }
+        }
 
         _ => additional_payment_data,
     }
