@@ -386,6 +386,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::GooglePayCardFundingSource,
         api_models::enums::VaultTokenType,
         api_models::enums::StorageType,
+        api_models::enums::AcknowledgementStatus,
         api_models::enums::PostCaptureVoidStatus,
         api_models::admin::MerchantConnectorCreate,
         api_models::admin::AdditionalMerchantData,

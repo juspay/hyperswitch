@@ -1117,6 +1117,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             match pm_transformers::create_payment_method_in_modular_service(
                                 state,
                                 platform.get_provider().get_account().get_id(),
+                                platform.get_processor().get_account().get_id(),
                                 business_profile.get_id(),
                                 payment_method,
                                 payment_method_type,
@@ -1186,7 +1187,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     .profile_id
                     .clone()
                     .or(platform
-                        .get_provider()
+                        .get_processor()
                         .get_account()
                         .get_default_profile()
                         .clone())
@@ -1217,6 +1218,15 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     )
                     .await?;
                     logger::info!("Payment method fetched from PM Modular Service.");
+
+                    utils::when(
+                        pm_info.payment_method.0.customer_id
+                            != req.customer_id.clone().get_required_value("customer_id")?,
+                        || {
+                            logger::info!("Payment method id does not belong to the customer id provided in the request.");
+                            Err(errors::ApiErrorResponse::PaymentMethodNotFound)
+                        },
+                    )?;
 
                     Some(pm_info)
                 } else {
