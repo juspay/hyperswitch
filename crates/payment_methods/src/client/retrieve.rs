@@ -35,6 +35,8 @@ pub struct RetrievePaymentMethodResponse {
     pub connector_tokens: Option<Vec<ConnectorTokenDetails>>,
     pub network_token: Option<NetworkTokenResponse>,
     pub raw_payment_method_data: Option<RawPaymentMethodData>,
+    pub network_transaction_id: Option<String>,
+    pub billing: Option<hyperswitch_domain_models::address::Address>,
 }
 
 impl TryFrom<&RetrievePaymentMethodV1Request> for ModularPMRetrieveRequest {
@@ -68,6 +70,8 @@ impl TryFrom<ModularPMRetrieveResponse> for RetrievePaymentMethodResponse {
             connector_tokens: v2_resp.connector_tokens,
             network_token: v2_resp.network_token,
             raw_payment_method_data: v2_resp.raw_payment_method_data,
+            billing: v2_resp.billing,
+            network_transaction_id: v2_resp.network_transaction_id,
         })
     }
 }
