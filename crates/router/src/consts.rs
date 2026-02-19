@@ -366,6 +366,8 @@ pub mod superposition {
     pub const UCS_ENABLED: &str = "ucs_enabled";
     /// Authentication service eligibility configuration key
     pub const AUTHENTICATION_SERVICE_ELIGIBLE: &str = "authentication_service_eligible";
+    /// Should disable auth tokenization configuration key - controls whether post-authentication card data is tokenized and pushed to external vault
+    pub const SHOULD_DISABLE_AUTH_TOKENIZATION: &str = "should_disable_auth_tokenization";
 
 }
 

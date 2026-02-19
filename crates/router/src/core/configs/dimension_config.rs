@@ -218,3 +218,23 @@ impl DatabaseBackedConfig for AuthenticationServiceEligible {
         format!("{}_{}", Self::KEY, merchant_id)
     }
 }
+
+config! {
+    superposition_key = SHOULD_DISABLE_AUTH_TOKENIZATION,
+    output = bool,
+    default = false,
+    requires = HasMerchantId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for ShouldDisableAuthTokenization {
+    const KEY: &'static str = "should_disable_auth_tokenization";
+
+    fn db_key<M, O, P>(dimensions: &Dimensions<M, O, P>) -> String {
+        let merchant_id = dimensions
+            .get_merchant_id()
+            .map(|id| id.get_string_repr())
+            .unwrap_or_default();
+        format!("{}_{}", Self::KEY, merchant_id)
+    }
+}

@@ -46,6 +46,7 @@ use hyperswitch_domain_models::{
 use masking::{ExposeInterface, PeekInterface};
 
 use super::{
+    configs,
     errors::{RouterResponse, RouterResult},
     payments::helpers::MerchantConnectorAccountType,
 };
@@ -1752,6 +1753,8 @@ pub async fn authentication_sync_core(
     let merchant_id = merchant_account.get_id();
     let db = &*state.store;
     let key_manager_state = (&state).into();
+    let dimensions = configs::dimension_state::Dimensions::new()
+        .with_merchant_id(merchant_id.clone());
     let authentication = db
         .find_authentication_by_merchant_id_authentication_id(
             merchant_id,
@@ -1916,19 +1919,13 @@ pub async fn authentication_sync_core(
                 .await?
             };
 
-            let config = db
-                .find_config_by_key_unwrap_or(
-                    &merchant_id.get_should_disable_auth_tokenization(),
-                    Some("false".to_string()),
+            let should_disable_auth_tokenization = dimensions
+                .get_should_disable_auth_tokenization(
+                    state.store.as_ref(),
+                    state.superposition_service.as_deref(),
+                    None,
                 )
                 .await;
-            let should_disable_auth_tokenization = match config {
-                Ok(conf) => conf.config == "true",
-                Err(error) => {
-                    router_env::logger::error!(?error);
-                    false
-                }
-            };
 
             let vault_token_data = if should_disable_auth_tokenization {
                 // Do not tokenize if the disable flag is present in the config

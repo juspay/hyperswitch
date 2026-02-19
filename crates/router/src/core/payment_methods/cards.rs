@@ -4258,7 +4258,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
             None,
             customer_id,
             limit,
-            dimensions,
+            &dimensions,
         ))
         .await
     } else {
@@ -4278,7 +4278,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
                     payment_intent,
                     &customer_id,
                     limit,
-                    dimensions,
+                    &dimensions,
                 ))
                 .await
             }
@@ -4300,7 +4300,7 @@ pub async fn list_customer_payment_method(
     payment_intent: Option<storage::PaymentIntent>,
     customer_id: &id_type::CustomerId,
     limit: Option<i64>,
-    dimensions: DimensionsWithMerchantId,
+    dimensions: &DimensionsWithMerchantId,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
     let off_session_payment_flag = payment_intent
