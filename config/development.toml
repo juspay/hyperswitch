@@ -836,6 +836,9 @@ interac = { currency = "CAD"}
 [pm_filters.loonio]
 interac = { currency = "CAD"}
 
+[pm_filters.dlocal]
+oxxo = { currency = "MXN" }
+
 [pm_filters.mollie]
 eps = { country = "AT", currency = "EUR" }
 ideal = { country = "NL", currency = "EUR" }

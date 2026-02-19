@@ -980,6 +980,9 @@ interac = { currency = "CAD"}
 [pm_filters.loonio]
 interac = { currency = "CAD"}
 
+[pm_filters.dlocal]
+oxxo = { currency = "MXN" }
+
 [pm_filters.coingate]
 crypto_currency = { country = "AL, AD, AT, BE, BA, BG, HR, CZ, DK, EE, FI, FR, DE, GR, HU, IS, IE, IT, LV, LT, LU, MT, MD, NL, NO, PL, PT, RO, RS, SK, SI, ES, SE, CH, UA, GB, AR, BR, CL, CO, CR, DO, SV, GD, MX, PE, LC, AU, NZ, CY, HK, IN, IL, JP, KR, QA, SA, SG, EG", currency = "EUR, USD, GBP" }
 

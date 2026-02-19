@@ -8,6 +8,7 @@ use hyperswitch_domain_models::{
     payment_method_data::{
         BankRedirectData, Card, NetworkTokenData, PayLaterData, PaymentMethodData, WalletData,
     },
+    payment_methods::storage_enums::MitCategory,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::SetupMandate,
     router_request_types::{
@@ -558,6 +559,8 @@ pub enum InstructionMode {
 #[serde(rename_all = "UPPERCASE")]
 pub enum InstructionType {
     Unscheduled,
+    Recurring,
+    Installment,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -579,6 +582,10 @@ pub struct Instruction {
 
     #[serde(rename = "standingInstruction.source")]
     source: InstructionSource,
+
+    #[serde(rename = "standingInstruction.initialTransactionId")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    initial_transaction_id: Option<String>,
 
     create_registration: Option<bool>,
 }
@@ -644,6 +651,7 @@ impl TryFrom<&AciRouterData<&PaymentsAuthorizeRouterData>> for AciPaymentsReques
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Aci"),
@@ -833,13 +841,29 @@ fn get_instruction_details(
             mode: InstructionMode::Initial,
             transaction_type: InstructionType::Unscheduled,
             source: InstructionSource::CardholderInitiatedTransaction,
+            initial_transaction_id: None,
             create_registration: Some(true),
         });
     } else if item.router_data.request.mandate_id.is_some() {
+        let initial_transaction_id = item
+            .router_data
+            .request
+            .get_connector_mandate_request_reference_id()
+            .ok();
+
+        let transaction_type = match item.router_data.request.mit_category.as_ref() {
+            Some(MitCategory::Installment) => InstructionType::Installment,
+            Some(MitCategory::Recurring) => InstructionType::Recurring,
+            Some(MitCategory::Unscheduled) | Some(MitCategory::Resubmission) | None => {
+                InstructionType::Unscheduled
+            }
+        };
+
         return Some(Instruction {
             mode: InstructionMode::Repeated,
-            transaction_type: InstructionType::Unscheduled,
+            transaction_type,
             source: InstructionSource::MerchantInitiatedTransaction,
+            initial_transaction_id,
             create_registration: None,
         });
     }
@@ -1075,7 +1099,7 @@ where
                 connector_mandate_id: Some(id.expose()),
                 payment_method_id: None,
                 mandate_metadata: None,
-                connector_mandate_request_reference_id: None,
+                connector_mandate_request_reference_id: Some(item.response.id.clone()),
             });
 
         let auto_capture = matches!(
@@ -1460,7 +1484,7 @@ impl
             connector_mandate_id: Some(item.response.id.clone()),
             payment_method_id: None,
             mandate_metadata: None,
-            connector_mandate_request_reference_id: None,
+            connector_mandate_request_reference_id: Some(item.response.id.clone()),
         });
 
         let status = if SUCCESSFUL_CODES.contains(&item.response.result.code.as_str()) {
