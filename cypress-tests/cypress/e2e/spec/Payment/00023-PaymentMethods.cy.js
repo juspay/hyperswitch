@@ -37,9 +37,10 @@ describe("Payment Methods Tests", () => {
     cy.task("cli_log", "Create Payment Method");
     cy.createPaymentMethodTest(globalState, pmData);
 
-    const intentData = getConnectorDetails(globalState.get("connectorId"))[
-      "card_pm"
-    ]["PaymentIntentOffSession"];
+    const intentData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "PaymentIntentOffSession"
+      ];
 
     cy.task("cli_log", "Create Payment Intent");
     cy.createPaymentIntentTest(
@@ -52,9 +53,10 @@ describe("Payment Methods Tests", () => {
 
     if (!utils.should_continue_further(intentData)) return;
 
-    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-      "card_pm"
-    ]["SaveCardUseNo3DSAutoCaptureOffSession"];
+    const confirmData =
+      getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "SaveCardUseNo3DSAutoCaptureOffSession"
+      ];
 
     cy.task("cli_log", "Confirm Payment");
     cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
@@ -84,127 +86,151 @@ describe("Payment Methods Tests", () => {
     cy.deletePaymentMethodTest(globalState);
   });
 
-  it("'Last Used' off-session token payments - No 3DS save card", () => {
-    cy.task("cli_log", "Create Customer");
-    cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+  context("'Last Used' off-session token payments", () => {
+    let shouldContinue = true;
 
-    const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-      "SaveCardUseNo3DSAutoCaptureOffSession"
-    ];
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
 
-    cy.task("cli_log", "Create+Confirm Payment (No 3DS Off Session)");
-    cy.createConfirmPaymentTest(
-      fixtures.createConfirmPaymentBody,
-      data,
-      "no_three_ds",
-      "automatic",
-      globalState
-    );
+    it("No 3DS save card", () => {
+      cy.task("cli_log", "Create Customer");
+      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
 
-    if (!utils.should_continue_further(data)) return;
+      const data =
+        getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+          "SaveCardUseNo3DSAutoCaptureOffSession"
+        ];
 
-    cy.task("cli_log", "List PM for Customer");
-    cy.listCustomerPMCallTest(globalState);
-  });
+      cy.task("cli_log", "Create+Confirm Payment (No 3DS Off Session)");
+      cy.createConfirmPaymentTest(
+        fixtures.createConfirmPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
 
-  it("'Last Used' off-session token payments - 3DS save card", () => {
-    const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-      "SaveCardUse3DSAutoCaptureOffSession"
-    ];
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
 
-    cy.task("cli_log", "Create+Confirm Payment (3DS Off Session)");
-    cy.createConfirmPaymentTest(
-      fixtures.createConfirmPaymentBody,
-      data,
-      "three_ds",
-      "automatic",
-      globalState
-    );
+      cy.task("cli_log", "List PM for Customer");
+      cy.listCustomerPMCallTest(globalState);
+    });
 
-    if (!utils.should_continue_further(data)) return;
+    it("3DS save card", () => {
+      const data =
+        getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+          "SaveCardUse3DSAutoCaptureOffSession"
+        ];
 
-    cy.task("cli_log", "Handle Redirection");
-    const expectedRedirection = fixtures.confirmBody["return_url"];
-    cy.handleRedirection(globalState, expectedRedirection);
+      cy.task("cli_log", "Create+Confirm Payment (3DS Off Session)");
+      cy.createConfirmPaymentTest(
+        fixtures.createConfirmPaymentBody,
+        data,
+        "three_ds",
+        "automatic",
+        globalState
+      );
 
-    cy.task("cli_log", "List PM for Customer");
-    cy.listCustomerPMCallTest(globalState);
-  });
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+      if (!shouldContinue) return;
 
-  it("'Last Used' off-session token payments - 3DS save card with token", () => {
-    const saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
+      cy.task("cli_log", "Handle Redirection");
+      const expectedRedirection = fixtures.confirmBody["return_url"];
+      cy.handleRedirection(globalState, expectedRedirection);
 
-    const intentData = getConnectorDetails(globalState.get("connectorId"))[
-      "card_pm"
-    ]["PaymentIntent"];
+      cy.task("cli_log", "List PM for Customer");
+      cy.listCustomerPMCallTest(globalState);
+    });
 
-    cy.task("cli_log", "Create Payment Intent");
-    cy.createPaymentIntentTest(
-      fixtures.createPaymentBody,
-      intentData,
-      "three_ds",
-      "automatic",
-      globalState
-    );
+    it("3DS save card with token", () => {
+      const saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
 
-    if (!utils.should_continue_further(intentData)) return;
+      const intentData =
+        getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+          "PaymentIntent"
+        ];
 
-    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-      "card_pm"
-    ]["SaveCardUseNo3DSAutoCapture"];
+      cy.task("cli_log", "Create Payment Intent");
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        intentData,
+        "three_ds",
+        "automatic",
+        globalState
+      );
 
-    const newData = {
-      ...confirmData,
-      Response: {
-        ...confirmData.Response,
-        body: {
-          ...confirmData.Response.body,
-          status: "requires_customer_action",
+      if (shouldContinue)
+        shouldContinue = utils.should_continue_further(intentData);
+      if (!shouldContinue) return;
+
+      const confirmData =
+        getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+          "SaveCardUseNo3DSAutoCapture"
+        ];
+
+      const newData = {
+        ...confirmData,
+        Response: {
+          ...confirmData.Response,
+          body: {
+            ...confirmData.Response.body,
+            status: "requires_customer_action",
+          },
         },
-      },
-    };
+      };
 
-    cy.task("cli_log", "Confirm Save Card Payment");
-    cy.saveCardConfirmCallTest(saveCardBody, newData, globalState);
+      cy.task("cli_log", "Confirm Save Card Payment");
+      cy.saveCardConfirmCallTest(saveCardBody, newData, globalState);
 
-    if (!utils.should_continue_further(confirmData)) return;
+      if (shouldContinue)
+        shouldContinue = utils.should_continue_further(confirmData);
+      if (!shouldContinue) return;
 
-    cy.task("cli_log", "Handle Redirection");
-    const expectedRedirection = fixtures.confirmBody["return_url"];
-    cy.handleRedirection(globalState, expectedRedirection);
+      cy.task("cli_log", "Handle Redirection");
+      const expectedRedirection = fixtures.confirmBody["return_url"];
+      cy.handleRedirection(globalState, expectedRedirection);
 
-    cy.task("cli_log", "List PM for Customer");
-    cy.listCustomerPMCallTest(globalState, 1);
-  });
+      cy.task("cli_log", "List PM for Customer");
+      cy.listCustomerPMCallTest(globalState, 1);
+    });
 
-  it("'Last Used' off-session token payments - No 3DS save card with token", () => {
-    const saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
+    it("No 3DS save card with token", () => {
+      const saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
 
-    const intentData = getConnectorDetails(globalState.get("connectorId"))[
-      "card_pm"
-    ]["PaymentIntent"];
+      const intentData =
+        getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+          "PaymentIntent"
+        ];
 
-    cy.task("cli_log", "Create Payment Intent");
-    cy.createPaymentIntentTest(
-      fixtures.createPaymentBody,
-      intentData,
-      "no_three_ds",
-      "automatic",
-      globalState
-    );
+      cy.task("cli_log", "Create Payment Intent");
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        intentData,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
 
-    if (!utils.should_continue_further(intentData)) return;
+      if (shouldContinue)
+        shouldContinue = utils.should_continue_further(intentData);
+      if (!shouldContinue) return;
 
-    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-      "card_pm"
-    ]["SaveCardUseNo3DSAutoCapture"];
+      const confirmData =
+        getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+          "SaveCardUseNo3DSAutoCapture"
+        ];
 
-    cy.task("cli_log", "Confirm Save Card Payment");
-    cy.saveCardConfirmCallTest(saveCardBody, confirmData, globalState);
+      cy.task("cli_log", "Confirm Save Card Payment");
+      cy.saveCardConfirmCallTest(saveCardBody, confirmData, globalState);
 
-    if (!utils.should_continue_further(confirmData)) return;
+      if (shouldContinue)
+        shouldContinue = utils.should_continue_further(confirmData);
 
-    cy.task("cli_log", "List PM for Customer");
-    cy.listCustomerPMCallTest(globalState);
+      cy.task("cli_log", "List PM for Customer");
+      cy.listCustomerPMCallTest(globalState);
+    });
   });
 });
