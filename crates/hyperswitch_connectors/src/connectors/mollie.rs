@@ -47,7 +47,6 @@ use hyperswitch_interfaces::{
 };
 use lazy_static::lazy_static;
 use masking::{Mask, PeekInterface};
-
 use transformers as mollie;
 
 // use self::mollie::{webhook_headers, MollieWebhookBodyEventType};
