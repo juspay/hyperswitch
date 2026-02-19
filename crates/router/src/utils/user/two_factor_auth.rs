@@ -160,7 +160,7 @@ pub async fn insert_totp_attempts_in_redis(
     redis_conn
         .set_key_with_expiry(
             &get_totp_attempts_key(user_id).into(),
-            user_totp_attempts,
+            u16::from(user_totp_attempts),
             consts::user::REDIS_TOTP_ATTEMPTS_TTL_IN_SECS,
         )
         .await
@@ -184,7 +184,7 @@ pub async fn insert_recovery_code_attempts_in_redis(
     redis_conn
         .set_key_with_expiry(
             &get_recovery_code_attempts_key(user_id).into(),
-            user_recovery_code_attempts,
+            u16::from(user_recovery_code_attempts),
             consts::user::REDIS_RECOVERY_CODE_ATTEMPTS_TTL_IN_SECS,
         )
         .await

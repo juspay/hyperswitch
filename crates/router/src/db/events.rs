@@ -1543,7 +1543,7 @@ mod tests {
             let primary_object_id_clone = primary_object_id.clone();
 
             let handle = tokio::spawn(async move {
-                webhooks_core::create_event_and_trigger_outgoing_webhook(
+                Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
                     state_clone,
                     cloned_processor,
                     business_profile_clone,
@@ -1553,7 +1553,7 @@ mod tests {
                     primary_object_type,
                     content_clone,
                     primary_object_created_at,
-                )
+                ))
                 .await
                 .map_err(|e| format!("create_event_and_trigger_outgoing_webhook failed: {e}"))
             });

@@ -23,17 +23,13 @@ use std::sync::{atomic, Arc};
 
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
-pub use fred::interfaces::PubsubInterface;
-use fred::{
-    clients::Transaction,
-    interfaces::ClientLike,
-    prelude::{EventInterface, TransactionInterface},
-};
+pub use fred::interfaces::{EventInterface, PubsubInterface};
+use fred::{clients::Transaction, interfaces::ClientLike, prelude::TransactionInterface};
 
 pub use self::types::*;
 
 pub struct RedisConnectionPool {
-    pub pool: Arc<fred::prelude::RedisPool>,
+    pub pool: Arc<fred::prelude::Pool>,
     pub key_prefix: String,
     pub config: Arc<RedisConfig>,
     pub subscriber: Arc<SubscriberClient>,
@@ -42,11 +38,11 @@ pub struct RedisConnectionPool {
 }
 
 pub struct RedisClient {
-    inner: fred::prelude::RedisClient,
+    inner: fred::prelude::Client,
 }
 
 impl std::ops::Deref for RedisClient {
-    type Target = fred::prelude::RedisClient;
+    type Target = fred::prelude::Client;
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
@@ -54,12 +50,11 @@ impl std::ops::Deref for RedisClient {
 
 impl RedisClient {
     pub async fn new(
-        config: fred::types::RedisConfig,
-        reconnect_policy: fred::types::ReconnectPolicy,
-        perf: fred::types::PerformanceConfig,
+        config: fred::types::config::Config,
+        reconnect_policy: fred::types::config::ReconnectPolicy,
+        perf: fred::types::config::PerformanceConfig,
     ) -> CustomResult<Self, errors::RedisError> {
-        let client =
-            fred::prelude::RedisClient::new(config, Some(perf), None, Some(reconnect_policy));
+        let client = fred::prelude::Client::new(config, Some(perf), None, Some(reconnect_policy));
         client.connect();
         client
             .wait_for_connect()
@@ -76,9 +71,9 @@ pub struct SubscriberClient {
 
 impl SubscriberClient {
     pub async fn new(
-        config: fred::types::RedisConfig,
-        reconnect_policy: fred::types::ReconnectPolicy,
-        perf: fred::types::PerformanceConfig,
+        config: fred::types::config::Config,
+        reconnect_policy: fred::types::config::ReconnectPolicy,
+        perf: fred::types::config::PerformanceConfig,
     ) -> CustomResult<Self, errors::RedisError> {
         let client =
             fred::clients::SubscriberClient::new(config, Some(perf), None, Some(reconnect_policy));
@@ -122,31 +117,29 @@ impl RedisConnectionPool {
                 conf.host, conf.port,
             ),
         };
-        let mut config = fred::types::RedisConfig::from_url(&redis_connection_url)
+        let mut config = fred::types::config::Config::from_url(&redis_connection_url)
             .change_context(errors::RedisError::RedisConnectionError)?;
 
-        let perf = fred::types::PerformanceConfig {
-            auto_pipeline: conf.auto_pipeline,
+        let perf = fred::types::config::PerformanceConfig {
             default_command_timeout: std::time::Duration::from_secs(conf.default_command_timeout),
             max_feed_count: conf.max_feed_count,
-            backpressure: fred::types::BackpressureConfig {
-                disable_auto_backpressure: conf.disable_auto_backpressure,
-                max_in_flight_commands: conf.max_in_flight_commands,
-                policy: fred::types::BackpressurePolicy::Drain,
-            },
+            ..fred::types::config::PerformanceConfig::default()
         };
 
-        let connection_config = fred::types::ConnectionConfig {
-            unresponsive_timeout: std::time::Duration::from_secs(conf.unresponsive_timeout),
-            ..fred::types::ConnectionConfig::default()
+        let connection_config = fred::types::config::ConnectionConfig {
+            unresponsive: fred::types::config::UnresponsiveConfig {
+                max_timeout: Some(std::time::Duration::from_secs(conf.unresponsive_timeout)),
+                ..fred::types::config::UnresponsiveConfig::default()
+            },
+            ..fred::types::config::ConnectionConfig::default()
         };
 
         if !conf.use_legacy_version {
             config.version = fred::types::RespVersion::RESP3;
         }
-        config.tracing = fred::types::TracingConfig::new(true);
-        config.blocking = fred::types::Blocking::Error;
-        let reconnect_policy = fred::types::ReconnectPolicy::new_constant(
+        config.tracing = fred::types::config::TracingConfig::new(true);
+        config.blocking = fred::types::config::Blocking::Error;
+        let reconnect_policy = fred::types::config::ReconnectPolicy::new_constant(
             conf.reconnect_max_attempts,
             conf.reconnect_delay,
         );
@@ -157,7 +150,7 @@ impl RedisConnectionPool {
         let publisher =
             RedisClient::new(config.clone(), reconnect_policy.clone(), perf.clone()).await?;
 
-        let pool = fred::prelude::RedisPool::new(
+        let pool = fred::prelude::Pool::new(
             config,
             Some(perf),
             Some(connection_config),
@@ -196,12 +189,12 @@ impl RedisConnectionPool {
         use futures::StreamExt;
         use tokio_stream::wrappers::BroadcastStream;
 
-        let error_rxs: Vec<BroadcastStream<fred::error::RedisError>> = self
-            .pool
-            .clients()
-            .iter()
-            .map(|client| BroadcastStream::new(client.error_rx()))
-            .collect();
+        let error_rxs: Vec<BroadcastStream<(fred::error::Error, Option<fred::prelude::Server>)>> =
+            self.pool
+                .clients()
+                .iter()
+                .map(|client| BroadcastStream::new(client.error_rx()))
+                .collect();
 
         let mut error_rx = futures::stream::select_all(error_rxs);
         loop {
@@ -220,12 +213,14 @@ impl RedisConnectionPool {
     }
 
     pub async fn on_unresponsive(&self) {
-        let _ = self.pool.clients().iter().map(|client| {
-            client.on_unresponsive(|server| {
-                tracing::warn!(redis_server =?server.host, "Redis server is unresponsive");
-                Ok(())
-            })
-        });
+        for client in self.pool.clients() {
+            let _ = client
+                .on_unresponsive(|server| async move {
+                    tracing::warn!(redis_server = ?server.host, "Redis server is unresponsive");
+                    Ok(())
+                })
+                .await;
+        }
     }
 
     pub fn get_transaction(&self) -> Transaction {
