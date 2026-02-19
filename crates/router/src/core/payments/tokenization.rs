@@ -515,7 +515,7 @@ where
                                         )
                                         .await
                                         .attach_printable(
-                                            "Failed to save network token details in NT mapper table",
+                                            "Failed to save network token details in callback_mapper table",
                                         )?;
                                     };
                                 }
@@ -660,7 +660,7 @@ where
                                             .await
                                             .transpose()
                                             .attach_printable(
-                                            "Failed to save network token details in NT mapper table",
+                                            "Failed to save network token details in callback_mapper table",
                                         )?;
 
                                         Ok(pm)
@@ -932,7 +932,7 @@ where
                                     )
                                     .await
                                     .attach_printable(
-                                        "Failed to save network token details in NT mapper table",
+                                        "Failed to save network token details in callback_mapper table",
                                     )?;
                                 }
                                 None => {
@@ -2150,7 +2150,7 @@ async fn generate_network_token_and_update_payment_method(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to update payment method with network token details")?;
 
-                // Save network token details in NT mapper table if network_token_requestor_ref_id is present
+                // Save network token details in callback_mapper table if network_token_requestor_ref_id is present
                 if let (Some(nt_ref_id), Some(cust_id)) =
                     (network_token_requestor_ref_id, customer_id.clone())
                 {
@@ -2162,7 +2162,9 @@ async fn generate_network_token_and_update_payment_method(
                         nt_ref_id,
                     )
                     .await
-                    .attach_printable("Failed to save network token details in NT mapper table")?;
+                    .attach_printable(
+                        "Failed to save network token details in callback_mapper table",
+                    )?;
                 }
             }
         }
