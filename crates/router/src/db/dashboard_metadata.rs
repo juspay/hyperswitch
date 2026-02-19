@@ -369,17 +369,12 @@ impl DashboardMetadataInterface for MockDb {
 
         let initial_len = dashboard_metadata.len();
 
-        dashboard_metadata.retain(|metadata_inner| {
-            !(metadata_inner
-                .user_id
-                .clone()
-                .map(|user_id_inner| user_id_inner == user_id)
-                .unwrap_or(false))
-        });
+        dashboard_metadata
+            .retain(|metadata_inner| metadata_inner.user_id.as_deref() != Some(user_id));
 
         if dashboard_metadata.len() == initial_len {
             return Err(errors::StorageError::ValueNotFound(format!(
-                "No user available for user_id = {user_id}"
+                "No dashboard metadata found for user_id = {user_id}"
             ))
             .into());
         }
