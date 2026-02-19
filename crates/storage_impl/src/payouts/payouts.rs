@@ -786,12 +786,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         status: Option<Vec<storage_enums::PayoutStatus>>,
         payout_type: Option<Vec<storage_enums::PayoutType>>,
     ) -> error_stack::Result<i64, StorageError> {
-        let conn = self
-            .db_store
-            .get_replica_pool()
-            .get()
-            .await
-            .change_context(StorageError::DatabaseConnectionError)?;
+        let conn = pg_connection_read(self).await?;
         let connector_strings = connector.as_ref().map(|connectors| {
             connectors
                 .iter()

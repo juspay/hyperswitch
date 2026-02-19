@@ -50,18 +50,9 @@ pub trait DatabaseStore: Clone + Send + Sync {
             .get_master_pool_manager()
             .check_and_handle_failover_error(error_message);
 
-        if master_triggered {
-            self.get_replica_pool_manager().trigger_pool_recreation();
-        }
-
         let accounts_triggered = self
             .get_accounts_master_pool_manager()
             .check_and_handle_failover_error(error_message);
-
-        if accounts_triggered {
-            self.get_accounts_replica_pool_manager()
-                .trigger_pool_recreation();
-        }
 
         master_triggered || accounts_triggered
     }
@@ -241,6 +232,9 @@ impl DatabaseStore for ReplicaStore {
         )
         .await
         .attach_printable("failed to create accounts replica pool manager")?;
+
+        master_pool_manager.set_linked_replica(replica_pool_manager.clone());
+        accounts_master_pool_manager.set_linked_replica(accounts_replica_pool_manager.clone());
 
         let master_pool = master_pool_manager.get_pool();
         let replica_pool = replica_pool_manager.get_pool();

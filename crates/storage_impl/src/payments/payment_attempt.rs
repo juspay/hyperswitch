@@ -660,12 +660,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         card_discovery: Option<Vec<common_enums::CardDiscovery>>,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
-        let conn = self
-            .db_store
-            .get_replica_pool()
-            .get()
-            .await
-            .change_context(errors::StorageError::DatabaseConnectionError)?;
+        let conn = pg_connection_read(self).await?;
         let connector_strings = connector.as_ref().map(|connector| {
             connector
                 .iter()
@@ -704,12 +699,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         card_network: Option<Vec<common_enums::CardNetwork>>,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
-        let conn = self
-            .db_store
-            .get_replica_pool()
-            .get()
-            .await
-            .change_context(errors::StorageError::DatabaseConnectionError)?;
+        let conn = pg_connection_read(self).await?;
 
         DieselPaymentAttempt::get_total_count_of_attempts(
             &conn,

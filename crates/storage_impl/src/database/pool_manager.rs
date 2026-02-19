@@ -37,6 +37,7 @@ pub struct PgPoolManager {
     is_master: bool,
     recovery_config: PoolRecoveryConfig,
     recreation_lock: Arc<Mutex<()>>,
+    linked_replica: Arc<std::sync::Mutex<Option<PgPoolManager>>>,
 }
 
 impl std::fmt::Debug for PgPoolManager {
@@ -58,6 +59,7 @@ impl Clone for PgPoolManager {
             is_master: self.is_master,
             recovery_config: self.recovery_config.clone(),
             recreation_lock: Arc::clone(&self.recreation_lock),
+            linked_replica: Arc::clone(&self.linked_replica),
         }
     }
 }
@@ -82,11 +84,18 @@ impl PgPoolManager {
             is_master,
             recovery_config: config,
             recreation_lock: Arc::new(Mutex::new(())),
+            linked_replica: Arc::new(std::sync::Mutex::new(None)),
         })
     }
 
     pub fn get_pool(&self) -> Arc<PgPool> {
         Arc::clone(&self.pool.load())
+    }
+
+    pub fn set_linked_replica(&self, replica: PgPoolManager) {
+        if let Ok(mut guard) = self.linked_replica.lock() {
+            *guard = Some(replica);
+        }
     }
 
     pub fn check_and_handle_failover_error(&self, error_message: &str) -> bool {
@@ -186,6 +195,12 @@ impl PgPoolManager {
                         }
                         .in_current_span(),
                     );
+
+                    if let Ok(guard) = self.linked_replica.lock() {
+                        if let Some(replica) = guard.as_ref() {
+                            replica.trigger_pool_recreation();
+                        }
+                    }
 
                     return;
                 }
