@@ -340,6 +340,9 @@ pub async fn handle_metadata_update(
                         .get_initiator()
                         .and_then(|initiator| initiator.to_created_by())
                         .map(|last_modified_by| last_modified_by.to_string()),
+                    metadata: None,
+                    last_used_at: None,
+                    connector_mandate_details: None,
                 }
             } else {
                 storage::PaymentMethodUpdate::AdditionalDataUpdate {
@@ -356,6 +359,9 @@ pub async fn handle_metadata_update(
                         .get_initiator()
                         .and_then(|initiator| initiator.to_created_by())
                         .map(|last_modified_by| last_modified_by.to_string()),
+                    metadata: None,
+                    last_used_at: None,
+                    connector_mandate_details: None,
                 }
             };
             let db = &*state.store;
