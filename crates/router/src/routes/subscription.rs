@@ -426,10 +426,11 @@ pub async fn get_estimate(
         allow_connected_scope_operation: false,
         allow_platform_self_operation: false,
     };
-    let (auth_type, _auth_flow) = match auth::get_auth_type_and_flow(req.headers(), api_auth) {
-        Ok(auth) => auth,
-        Err(err) => return oss_api::log_and_return_error_response(report!(err)),
-    };
+    let (auth_type, _auth_flow) =
+        match auth::check_authorization_header_or_get_auth(req.headers(), api_auth) {
+            Ok(auth) => auth,
+            Err(err) => return oss_api::log_and_return_error_response(report!(err)),
+        };
     Box::pin(oss_api::server_wrap(
         flow,
         state,

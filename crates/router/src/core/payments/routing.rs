@@ -415,7 +415,10 @@ pub fn make_dsl_input(
                 domain::PaymentMethodData::NetworkToken(network_token_details) => {
                     network_token_details.card_network.clone()
                 }
-                domain::PaymentMethodData::CardRedirect(_)
+                domain::PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(
+                    _,
+                )
+                | domain::PaymentMethodData::CardRedirect(_)
                 | domain::PaymentMethodData::Wallet(_)
                 | domain::PaymentMethodData::PayLater(_)
                 | domain::PaymentMethodData::BankRedirect(_)
@@ -452,7 +455,10 @@ pub fn make_dsl_input(
                 domain::PaymentMethodData::NetworkToken(network_token_details) => {
                     network_token_details.card_issuer.clone()
                 }
-                domain::PaymentMethodData::CardRedirect(_)
+                domain::PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(
+                    _,
+                )
+                | domain::PaymentMethodData::CardRedirect(_)
                 | domain::PaymentMethodData::Wallet(_)
                 | domain::PaymentMethodData::PayLater(_)
                 | domain::PaymentMethodData::BankRedirect(_)
