@@ -15197,6 +15197,21 @@
           }
         }
       },
+      "ConnectorMetadataResponse": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "santander"
+            ],
+            "properties": {
+              "santander": {
+                "$ref": "#/components/schemas/SantanderData"
+              }
+            }
+          }
+        ]
+      },
       "ConnectorSelection": {
         "oneOf": [
           {
@@ -28967,6 +28982,14 @@
             ],
             "nullable": true
           },
+          "connector_response_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorMetadataResponse"
+              }
+            ],
+            "nullable": true
+          },
           "feature_metadata": {
             "allOf": [
               {
@@ -30582,6 +30605,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/ConnectorMetadata"
+              }
+            ],
+            "nullable": true
+          },
+          "connector_response_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorMetadataResponse"
               }
             ],
             "nullable": true
@@ -35243,6 +35274,11 @@
             "type": "string",
             "description": "Contains whole connector response",
             "nullable": true
+          },
+          "connector_refund_id": {
+            "type": "string",
+            "description": "A unique identifier for a payment provided by the connector",
+            "nullable": true
           }
         }
       },
@@ -36750,6 +36786,15 @@
           },
           "3_d_s": {
             "$ref": "#/components/schemas/SamsungPayTokenData"
+          }
+        }
+      },
+      "SantanderData": {
+        "type": "object",
+        "properties": {
+          "end_to_end_id": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
