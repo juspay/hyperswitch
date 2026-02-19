@@ -154,14 +154,6 @@ impl ConnectorCommon for Adyen {
         event_builder.map(|i| i.set_error_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        let message = response.invalid_fields.map(|fields| {
-            fields
-                .iter()
-                .map(|f| format!("{}: {}", f.name, f.message))
-                .collect::<Vec<_>>()
-                .join(", ")
-        });
-
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error_code,

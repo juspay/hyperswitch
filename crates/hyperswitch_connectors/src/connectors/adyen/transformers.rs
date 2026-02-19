@@ -5491,14 +5491,6 @@ pub struct AdyenErrorResponse {
     pub error_code: String,
     pub message: String,
     pub psp_reference: Option<String>,
-    pub invalid_fields: Option<Vec<InvalidFieldErrorResponse>>,
-}
-
-#[derive(Debug, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct InvalidFieldErrorResponse {
-    pub name: String,
-    pub message: String,
 }
 
 // #[cfg(test)]
