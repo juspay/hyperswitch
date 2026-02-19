@@ -630,9 +630,6 @@ impl RoutingStage for StraightThroughRoutingStage {
 
 #[derive(Clone)]
 pub struct StaticRoutingInput<'a> {
-    // pub platform: &'a domain::Platform,
-    // pub business_profile: &'a domain::Profile,
-    // pub eligible_connectors: Option<&'a Vec<api_enums::RoutableConnectors>>,
     pub backend_input: &'a backend::BackendInput,
 }
 
@@ -651,7 +648,6 @@ impl RoutingStage for StaticRoutingStage {
             let connectors = static_routing_v1(
                 &self.ctx.routing_algorithm,
                 input.backend_input.clone(),
-                // &routing::TransactionData::Payment(input.transaction_data.clone()),
             )
             .await
             .change_context(errors::RoutingError::DslExecutionError)
@@ -809,10 +805,11 @@ impl RoutingStage for SessionRoutingStage {
                     primary
                 };
 
-                let routable_connector_choice_option = final_selection
-                    .is_empty()
-                    .then(|| (None, static_approach.clone()))
-                    .unwrap_or((Some(final_selection), static_approach));
+                let routable_connector_choice_option = if final_selection.is_empty() {
+                        (None, static_approach.clone())
+                    } else {
+                        (Some(final_selection), static_approach)
+                    };
 
                 final_routing_approach = routable_connector_choice_option.1;
 
