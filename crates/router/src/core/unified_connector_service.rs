@@ -1317,7 +1317,7 @@ pub fn build_unified_connector_service_payment_method(
                             payments_grpc::Boleto {
                                 social_security_number: boleto_data
                                     .social_security_number
-                                    .map(|ssn| ssn.expose().into()),
+                                    .map(|ssn| ssn.expose()),
                             },
                         )),
                     })
