@@ -2,14 +2,16 @@ pub mod transformers;
 
 use std::sync::LazyLock;
 
+use base64::Engine;
 use common_enums::enums;
 use common_utils::{
+    crypto,
     errors::CustomResult,
-    ext_traits::BytesExt,
+    ext_traits::{ByteSliceExt, BytesExt, ValueExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
@@ -51,6 +53,7 @@ use crate::{constants::headers, types::ResponseRouterData, utils};
 
 const PAYJUSTNOWINSTORE_MERCHANT_TERMINAL_ID: &str = "X-PayJustNow-Merchant-Terminal-ID";
 const SIGNATURE: &str = "X-Signature";
+const MERCHANT_REFERENCE_NON_UNIQUE: &str = "X-Merchant-Reference-Non-Unique";
 
 #[derive(Clone)]
 pub struct Payjustnowinstore {
@@ -116,6 +119,10 @@ where
                 self.get_content_type().to_string().into(),
             ),
             (SIGNATURE.to_string(), signature_hex.into_masked()),
+            (
+                MERCHANT_REFERENCE_NON_UNIQUE.to_string(),
+                "true".to_string().into(),
+            ),
         ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -486,23 +493,126 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Payjustno
 impl webhooks::IncomingWebhook for Payjustnowinstore {
     fn get_webhook_object_reference_id(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let details: payjustnowinstore::PayjustnowinstoreWebhookDetails = request
+            .body
+            .parse_struct("PayjustnowinstoreWebhookDetails")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+            api_models::payments::PaymentIdType::ConnectorTransactionId(details.token),
+        ))
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let details: payjustnowinstore::PayjustnowinstoreWebhookDetails = request
+            .body
+            .parse_struct("PayjustnowinstoreWebhookDetails")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        let event_type = match details.payment_status {
+            payjustnowinstore::PayjustnowinstoreWebhookStatus::Paid => {
+                api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess
+            }
+            payjustnowinstore::PayjustnowinstoreWebhookStatus::PaymentFailed => {
+                api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure
+            }
+            payjustnowinstore::PayjustnowinstoreWebhookStatus::Pending => {
+                api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing
+            }
+            payjustnowinstore::PayjustnowinstoreWebhookStatus::OrderCancelled => {
+                api_models::webhooks::IncomingWebhookEvent::PaymentIntentCancelled
+            }
+        };
+        Ok(event_type)
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let details: payjustnowinstore::PayjustnowinstoreWebhookDetails = request
+            .body
+            .parse_struct("PayjustnowinstoreWebhookDetails")
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        Ok(Box::new(details))
+    }
+
+    fn get_webhook_source_verification_algorithm(
+        &self,
+        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(crypto::HmacSha256))
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let signature = request
+            .headers
+            .get("x-signature")
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?
+            .to_str()
+            .map_err(|_| errors::ConnectorError::WebhookSignatureNotFound)?
+            .to_string();
+        let decoded_signature = base64::engine::general_purpose::STANDARD
+            .decode(signature)
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
+        Ok(decoded_signature)
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        Ok(request
+            .body
+            .iter()
+            .filter(|&b| !b.is_ascii_whitespace())
+            .copied()
+            .collect::<Vec<u8>>())
+    }
+
+    async fn verify_webhook_source(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        merchant_id: &common_utils::id_type::MerchantId,
+        _connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        connector_account_details: crypto::Encryptable<masking::Secret<serde_json::Value>>,
+        _connector_name: &str,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        let connector_auth_type: ConnectorAuthType = connector_account_details
+            .parse_value("ConnectorAuthType")
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let auth = payjustnowinstore::PayjustnowinstoreAuthType::try_from(&connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+
+        let key_bytes = auth.merchant_api_key.clone().expose().into_bytes();
+        let key = hmac::Key::new(hmac::HMAC_SHA256, &key_bytes);
+        let webhook_secret = api_models::webhooks::ConnectorWebhookSecrets {
+            secret: key_bytes.clone(),
+            additional_secret: None,
+        };
+        let signature = self.get_webhook_source_verification_signature(request, &webhook_secret)?;
+
+        let message =
+            self.get_webhook_source_verification_message(request, merchant_id, &webhook_secret)?;
+        let message_string = String::from_utf8(message)
+            .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
+        let message_signature = hmac::sign(&key, message_string.as_bytes());
+        let message_signature_hex = hex::encode(message_signature.as_ref());
+        let decoded_message_signature = base64::engine::general_purpose::STANDARD
+            .decode(message_signature_hex)
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
+
+        Ok(signature == decoded_message_signature)
     }
 }
 
@@ -513,9 +623,9 @@ static PAYJUSTNOWINSTORE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMet
             enums::CaptureMethod::SequentialAutomatic,
         ];
 
-        let mut payjustnow_supported_payment_methods = SupportedPaymentMethods::new();
+        let mut payjustnowinstore_supported_payment_methods = SupportedPaymentMethods::new();
 
-        payjustnow_supported_payment_methods.add(
+        payjustnowinstore_supported_payment_methods.add(
             enums::PaymentMethod::PayLater,
             enums::PaymentMethodType::Payjustnow,
             PaymentMethodDetails {
@@ -526,17 +636,18 @@ static PAYJUSTNOWINSTORE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMet
             },
         );
 
-        payjustnow_supported_payment_methods
+        payjustnowinstore_supported_payment_methods
     });
 
 static PAYJUSTNOWINSTORE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "PayJustNow In-Store",
     description: "PayJustNow provides a BNPL solution for online and in-store payments, enabling customers to pay in three interest-free installments while merchants get paid upfront.",
     connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
-    integration_status: enums::ConnectorIntegrationStatus::Alpha,
+    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
 };
 
-static PAYJUSTNOWINSTORE_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+static PAYJUSTNOWINSTORE_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] =
+    [enums::EventClass::Payments];
 
 impl ConnectorSpecifications for Payjustnowinstore {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

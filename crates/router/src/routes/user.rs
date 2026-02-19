@@ -1075,7 +1075,7 @@ pub async fn issue_embedded_token(
         state.clone(),
         &http_req,
         (),
-        |state, auth_data, _, _| {
+        |state, auth_data: auth::AuthenticationData, _, _| {
             user_core::issue_embedded_token(
                 state,
                 auth_data.platform.get_processor().clone(),
@@ -1083,8 +1083,8 @@ pub async fn issue_embedded_token(
             )
         },
         &auth::ApiKeyAuth {
-            is_platform_allowed: false,
-            is_connected_allowed: false,
+            allow_platform_self_operation: false,
+            allow_connected_scope_operation: false,
         },
         api_locking::LockAction::NotApplicable,
     ))

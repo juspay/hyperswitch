@@ -73,6 +73,16 @@ pub enum UpdateActiveAttempt {
     Unset,
 }
 
+/// Generic enum to handle updating or clearing a field
+#[derive(Debug, ToSchema, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SetOrUnset<T> {
+    /// Set the field to a specific value
+    Set(T),
+    /// Clear/unset the field
+    Unset,
+}
+
 #[cfg(feature = "payouts")]
 impl From<PayoutConnectors> for RoutableConnectors {
     fn from(value: PayoutConnectors) -> Self {
@@ -161,6 +171,7 @@ pub enum FrmConnectors {
     /// Signifyd Risk Manager. Official docs: https://docs.signifyd.com/
     Signifyd,
     Riskified,
+    Cybersourcedecisionmanager,
 }
 
 #[derive(
@@ -208,6 +219,18 @@ impl From<VaultConnectors> for Connector {
             VaultConnectors::Vgs => Self::Vgs,
             VaultConnectors::HyperswitchVault => Self::HyperswitchVault,
             VaultConnectors::Tokenex => Self::Tokenex,
+        }
+    }
+}
+
+impl TryFrom<Connector> for VaultConnectors {
+    type Error = String;
+    fn try_from(value: Connector) -> Result<Self, Self::Error> {
+        match value {
+            Connector::Vgs => Ok(Self::Vgs),
+            Connector::HyperswitchVault => Ok(Self::HyperswitchVault),
+            Connector::Tokenex => Ok(Self::Tokenex),
+            _ => Err(format!("Connector {value} is not a valid vault connector")),
         }
     }
 }
@@ -281,6 +304,7 @@ pub enum FieldType {
     UserShippingAddressPincode,
     UserShippingAddressState,
     UserShippingAddressCountry { options: Vec<String> },
+    UserDocumentType { options: Vec<String> },
     UserSocialSecurityNumber,
     UserBlikCode,
     UserBank,

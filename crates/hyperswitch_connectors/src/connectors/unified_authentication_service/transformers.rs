@@ -427,7 +427,7 @@ pub struct AuthenticationDetails {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UasTokenDetails {
     pub payment_token: cards::NetworkToken,
-    pub payment_account_reference: String,
+    pub payment_account_reference: Option<String>,
     pub token_expiration_month: Secret<String>,
     pub token_expiration_year: Secret<String>,
 }

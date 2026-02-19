@@ -2,7 +2,7 @@
 use hyperswitch_domain_models::{
     router_data_v2::flow_common_types::ConnectorWebhookConfigurationFlowData,
     router_flow_types::merchant_connector_webhook_management::ConnectorWebhookRegister,
-    router_request_types::merchant_connector_webhook_management::ConnectorWebhookRegisterData,
+    router_request_types::merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
     router_response_types::merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
 };
 
@@ -13,7 +13,7 @@ pub trait WebhookRegisterV2:
     ConnectorIntegrationV2<
     ConnectorWebhookRegister,
     ConnectorWebhookConfigurationFlowData,
-    ConnectorWebhookRegisterData,
+    ConnectorWebhookRegisterRequest,
     ConnectorWebhookRegisterResponse,
 >
 {

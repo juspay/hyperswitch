@@ -182,6 +182,8 @@ impl TryFrom<&SetupMandateRouterData> for HelcimVerifyRequest {
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Helcim"),
@@ -287,6 +289,8 @@ impl TryFrom<&HelcimRouterData<&PaymentsAuthorizeRouterData>> for HelcimPayments
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Helcim"),
@@ -393,6 +397,7 @@ impl<F>
                 network_txn_id: None,
                 connector_response_reference_id: item.response.invoice_number.clone(),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             status: enums::AttemptStatus::from(item.response),
@@ -435,6 +440,7 @@ impl TryFrom<PaymentsResponseRouterData<HelcimPaymentsResponse>> for PaymentsAut
                 network_txn_id: None,
                 connector_response_reference_id: item.response.invoice_number.clone(),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             status: enums::AttemptStatus::from(item.response),
@@ -481,6 +487,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<HelcimPaymentsResponse>> for Payment
                     network_txn_id: None,
                     connector_response_reference_id: item.response.invoice_number.clone(),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 status: enums::AttemptStatus::from(item.response),
@@ -554,6 +561,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<HelcimPaymentsResponse>>
                 network_txn_id: None,
                 connector_response_reference_id: item.response.invoice_number.clone(),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             status: enums::AttemptStatus::from(item.response),
@@ -605,6 +613,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<HelcimPaymentsResponse>>
                 network_txn_id: None,
                 connector_response_reference_id: item.response.invoice_number.clone(),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             status: enums::AttemptStatus::from(item.response),

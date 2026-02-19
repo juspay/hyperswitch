@@ -202,7 +202,6 @@ impl<F: Clone + Send + Sync>
         req_state: ReqState,
         processor: &domain::Processor,
         mut payment_data: hyperswitch_domain_models::payments::PaymentCancelData<F>,
-        _customer: Option<domain::Customer>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(
@@ -260,8 +259,7 @@ impl<F: Send + Clone + Sync>
         _state: &'a SessionState,
         _payment_data: &mut hyperswitch_domain_models::payments::PaymentCancelData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
-        _merchant_key_store: &domain::MerchantKeyStore,
-        _customer: &Option<domain::Customer>,
+        _platform: &domain::Platform,
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
     ) -> RouterResult<(

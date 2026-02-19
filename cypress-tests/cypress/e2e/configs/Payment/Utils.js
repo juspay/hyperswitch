@@ -15,6 +15,7 @@ import { connectorDetails as barclaycardConnectorDetails } from "./Barclaycard.j
 import { connectorDetails as billwerkConnectorDetails } from "./Billwerk.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
 import { connectorDetails as braintreeConnectorDetails } from "./Braintree.js";
+import { connectorDetails as calidaConnectorDetails } from "./Calida.js";
 import { connectorDetails as cashtocodeConnectorDetails } from "./Cashtocode.js";
 import { connectorDetails as celeroConnectorDetails } from "./Celero.js";
 import { connectorDetails as checkbookConnectorDetails } from "./Checkbook.js";
@@ -87,6 +88,7 @@ const connectorDetails = {
   billwerk: billwerkConnectorDetails,
   bluesnap: bluesnapConnectorDetails,
   braintree: braintreeConnectorDetails,
+  calida: calidaConnectorDetails,
   cashtocode: cashtocodeConnectorDetails,
   celero: celeroConnectorDetails,
   checkout: checkoutConnectorDetails,
@@ -404,6 +406,7 @@ export const CONNECTOR_LISTS = {
   // Exclusion lists (skip these connectors)
   EXCLUDE: {
     CONNECTOR_AGNOSTIC_NTID: [
+      "authorizedotnet",
       "bamboraapac",
       "bankofamerica",
       "billwerk",
@@ -442,6 +445,7 @@ export const CONNECTOR_LISTS = {
     UCS_CONNECTORS: ["authorizedotnet"],
     OVERCAPTURE: ["adyen"],
     MANUAL_RETRY: ["cybersource"],
+    PAYMENTS_WEBHOOK: ["noon", "stripe", "authorizedotnet"],
     // Add more inclusion lists
   },
 };
@@ -454,3 +458,52 @@ export const shouldExcludeConnector = (connectorId, list) => {
 export const shouldIncludeConnector = (connectorId, list) => {
   return !list.includes(connectorId);
 };
+
+export function setNormalizedValue(
+  webhookBody,
+  config,
+  connectorTransactionID
+) {
+  if (!config?.path) {
+    throw new Error("Invalid config: missing path");
+  }
+  // Split the dot-separated path into individual keys
+  const keys = config.path.split(".");
+  let target = webhookBody;
+
+  // Traverse the object until the parent of the final key
+  for (const key of keys.slice(0, -1)) {
+    if (!Object.prototype.hasOwnProperty.call(target, key)) {
+      throw new Error(`Path does not exist: ${config.path}`);
+    }
+    target = target[key];
+  }
+  // The final key where the normalized value will be assigned
+  const finalKey = keys[keys.length - 1];
+
+  // Coerce value based on expected type
+  const normalizedconnectorTransactionID = coerceValue(
+    connectorTransactionID,
+    config.type
+  );
+
+  target[finalKey] = normalizedconnectorTransactionID;
+}
+
+function coerceValue(value, type) {
+  switch (type) {
+    case "string":
+      return String(value);
+
+    case "number": {
+      const num = Number(value);
+      if (!Number.isFinite(num)) {
+        throw new Error(`Cannot coerce "${value}" to number`);
+      }
+      return num;
+    }
+
+    default:
+      return value;
+  }
+}

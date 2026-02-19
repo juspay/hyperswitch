@@ -22,6 +22,7 @@ function normalize(input) {
     paypal: "Paypal",
     stax: "Stax",
     wellsfargo: "Wellsfargo",
+    nmi: "Nmi",
     // Add more known exceptions here
   };
 
@@ -118,6 +119,7 @@ const CURRENCY_MAP = {
   Pix: "BRL",
 
   // European payment methods (EUR)
+  Bluecode: "EUR",
   Eps: "EUR",
   Giropay: "EUR",
   Ideal: "EUR",

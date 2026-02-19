@@ -10,6 +10,7 @@ use router_env::{instrument, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
+        configs::dimension_state::DimensionsWithMerchantId,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{
             self, helpers, operations, CustomerDetails, IncrementalAuthorizationDetails,
@@ -47,6 +48,7 @@ impl<F: Send + Clone + Sync>
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _payment_method_wrapper: Option<operations::PaymentMethodWithRawData>,
     ) -> RouterResult<
         operations::GetTrackerResponse<
             'a,
@@ -57,16 +59,16 @@ impl<F: Send + Clone + Sync>
     > {
         let db = &*state.store;
 
-        let merchant_id = platform.get_processor().get_account().get_id();
+        let processor_merchant_id = platform.get_processor().get_account().get_id();
         let storage_scheme = platform.get_processor().get_account().storage_scheme;
         let payment_id = payment_id
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let payment_intent = db
-            .find_payment_intent_by_payment_id_merchant_id(
+            .find_payment_intent_by_payment_id_processor_merchant_id(
                 &payment_id,
-                merchant_id,
+                processor_merchant_id,
                 platform.get_processor().get_key_store(),
                 storage_scheme,
             )
@@ -88,9 +90,9 @@ impl<F: Send + Clone + Sync>
 
         let attempt_id = payment_intent.active_attempt.get_id().clone();
         let payment_attempt = db
-            .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+            .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &payment_intent.payment_id,
-                merchant_id,
+                processor_merchant_id,
                 attempt_id.clone().as_str(),
                 storage_scheme,
                 platform.get_processor().get_key_store(),
@@ -133,7 +135,6 @@ impl<F: Send + Clone + Sync>
             payment_attempt,
             currency,
             amount: amount.into(),
-            email: None,
             mandate_id: None,
             mandate_connector: None,
             setup_mandate: None,
@@ -207,7 +208,6 @@ impl<F: Clone + Sync>
         _req_state: ReqState,
         processor: &domain::Processor,
         mut payment_data: payments::PaymentData<F>,
-        _customer: Option<domain::Customer>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(
@@ -247,6 +247,7 @@ impl<F: Clone + Sync>
             error_message: None,
             connector_authorization_id: None,
             previously_authorized_amount: payment_data.payment_attempt.get_total_amount(),
+            processor_merchant_id: Some(payment_data.payment_intent.processor_merchant_id.clone()),
         };
         let authorization = state
             .store
@@ -319,23 +320,13 @@ impl<F: Clone + Send + Sync>
     for PaymentIncrementalAuthorization
 {
     #[instrument(skip_all)]
-    async fn populate_raw_customer_details<'a>(
-        &'a self,
-        _state: &SessionState,
-        _payment_data: &mut payments::PaymentData<F>,
-        _request: Option<&CustomerDetails>,
-        _processor: &domain::Processor,
-    ) -> CustomResult<(), errors::StorageError> {
-        Ok(())
-    }
-
-    #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
-        _state: &SessionState,
-        _payment_data: &mut payments::PaymentData<F>,
-        _request: Option<CustomerDetails>,
-        _provider: &domain::Provider,
+        state: &SessionState,
+        payment_data: &mut payments::PaymentData<F>,
+        request: Option<CustomerDetails>,
+        provider: &domain::Provider,
+        _dimensions: DimensionsWithMerchantId,
     ) -> CustomResult<
         (
             BoxedOperation<
@@ -348,7 +339,18 @@ impl<F: Clone + Send + Sync>
         ),
         errors::StorageError,
     > {
-        Ok((Box::new(self), None))
+        // Fetching customer here to ensure customer has not been redacted
+        // We do not allow incremental authorization in case the customer has been redacted as it
+        // would be starting new money movement
+        let customer = helpers::get_customer_if_exists(
+            state,
+            request.as_ref().and_then(|r| r.customer_id.as_ref()),
+            payment_data.payment_intent.customer_id.as_ref(),
+            provider,
+        )
+        .await?;
+
+        Ok((Box::new(self), customer))
     }
 
     #[instrument(skip_all)]
@@ -357,8 +359,7 @@ impl<F: Clone + Send + Sync>
         _state: &'a SessionState,
         _payment_data: &mut payments::PaymentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
-        _merchant_key_store: &domain::MerchantKeyStore,
-        _customer: &Option<domain::Customer>,
+        _platform: &domain::Platform,
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
     ) -> RouterResult<(
@@ -383,7 +384,7 @@ impl<F: Clone + Send + Sync>
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         _payment_data: &mut payments::PaymentData<F>,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)

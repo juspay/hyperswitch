@@ -418,6 +418,14 @@ export const payment_methods_enabled = [
         payment_experience: "invoke_sdk_client",
       },
       {
+        payment_method_type: "bluecode",
+        payment_experience: "redirect_to_url",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
         payment_method_type: "skrill",
         payment_experience: "redirect_to_url",
         minimum_amount: 1,
@@ -798,6 +806,38 @@ export const connectorDetails = {
           address: {
             ...standardBillingAddress.address,
             country: "CA",
+          },
+        },
+      },
+    }),
+  },
+  wallet_pm: {
+    PaymentIntent: (paymentMethodType) =>
+      getCustomExchange({
+        Request: {
+          currency: getCurrency(paymentMethodType),
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      }),
+    Bluecode: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "bluecode",
+        payment_method_data: {
+          wallet: {
+            bluecode_redirect: {},
+          },
+        },
+        billing: {
+          ...standardBillingAddress,
+          address: {
+            ...standardBillingAddress.address,
+            country: "AT",
           },
         },
       },
@@ -1541,7 +1581,7 @@ export const connectorDetails = {
           card: {
             card_number: "4242424242424242",
             card_exp_month: "01",
-            card_exp_year: "2026",
+            card_exp_year: "2030",
             card_holder_name: "joseph Doe",
             card_cvc: "123",
           },
@@ -1568,7 +1608,7 @@ export const connectorDetails = {
           card: {
             card_number: "4242424242424242",
             card_exp_month: "01",
-            card_exp_year: "2026",
+            card_exp_year: "2030",
             card_holder_name: "joseph Doe",
             card_cvc: "123",
           },

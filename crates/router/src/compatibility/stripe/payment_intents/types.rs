@@ -3,7 +3,6 @@ use std::str::FromStr;
 use api_models::payments;
 use common_types::payments as common_payments_types;
 use common_utils::{
-    crypto::Encryptable,
     date_time,
     ext_traits::StringExt,
     id_type,
@@ -553,9 +552,9 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
             payment_token: resp.payment_token,
             shipping: resp.shipping,
             billing: resp.billing,
-            email: resp.email.map(|inner| inner.into()),
-            name: resp.name.map(Encryptable::into_inner),
-            phone: resp.phone.map(Encryptable::into_inner),
+            email: resp.email,
+            name: resp.name,
+            phone: resp.phone,
             authentication_type: resp.authentication_type,
             statement_descriptor_name: resp.statement_descriptor_name,
             statement_descriptor_suffix: resp.statement_descriptor_suffix,
@@ -960,7 +959,10 @@ fn get_pmd_based_on_payment_method_type(
 ) -> Option<payments::PaymentMethodData> {
     match payment_method_type {
         Some(api_enums::PaymentMethodType::UpiIntent) => Some(payments::PaymentMethodData::Upi(
-            payments::UpiData::UpiIntent(payments::UpiIntentData { upi_source: None }),
+            payments::UpiData::UpiIntent(payments::UpiIntentData {
+                upi_source: None,
+                app_name: None,
+            }),
         )),
         Some(api_enums::PaymentMethodType::Fps) => {
             Some(payments::PaymentMethodData::RealTimePayment(Box::new(

@@ -176,6 +176,21 @@ pub enum RecurringDetails {
     /// is not stored in the application
     #[smithy(value_type = "NetworkTransactionIdAndNetworkTokenDetails")]
     NetworkTransactionIdAndNetworkTokenDetails(Box<NetworkTransactionIdAndNetworkTokenDetails>),
+
+    /// Network transaction ID and Wallet Token details for MIT payments when payment_method_data
+    /// is not stored in the application
+    /// Applicable for wallet tokens such as Apple Pay and Google Pay.
+    #[smithy(value_type = "NetworkTransactionIdAndDecryptedWalletTokenDetails")]
+    #[schema(value_type = NetworkTransactionIdAndDecryptedWalletTokenDetails)]
+    NetworkTransactionIdAndDecryptedWalletTokenDetails(
+        Box<common_payments_types::NetworkTransactionIdAndDecryptedWalletTokenDetails>,
+    ),
+
+    /// Card with Limited Data to do MIT payment
+    /// Can only be used if enabled for Merchant
+    /// Allows doing MIT with only Card data (no reference id)
+    #[smithy(value_type = "CardWithLimitedData")]
+    CardWithLimitedData(Box<CardWithLimitedData>),
 }
 
 /// Processor payment token for MIT payments where payment_method_data is not available
@@ -258,6 +273,37 @@ pub struct NetworkTransactionIdAndCardDetails {
     Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct CardWithLimitedData {
+    /// The card number
+    #[schema(value_type = String, example = "4242424242424242")]
+    #[smithy(value_type = "String")]
+    pub card_number: cards::CardNumber,
+
+    /// The card's expiry month
+    #[schema(value_type = Option<String>, example = "24")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_exp_month: Option<Secret<String>>,
+
+    /// The card's expiry year
+    #[schema(value_type = Option<String>, example = "24")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_exp_year: Option<Secret<String>>,
+
+    /// The card holder's name
+    #[schema(value_type = Option<String>, example = "John Test")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The ECI(Electronic Commerce Indicator) value for this authentication.
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub eci: Option<String>,
+}
+
+#[derive(
+    Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct NetworkTransactionIdAndNetworkTokenDetails {
     /// The Network Token
     #[schema(value_type = String, example = "4604000460040787")]
@@ -328,5 +374,16 @@ impl RecurringDetails {
 
     pub fn is_network_transaction_id_and_network_token_details_flow(self) -> bool {
         matches!(self, Self::NetworkTransactionIdAndNetworkTokenDetails(_))
+    }
+
+    pub fn is_network_transaction_id_and_decrypted_wallet_token_details_flow(self) -> bool {
+        matches!(
+            self,
+            Self::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
+        )
+    }
+
+    pub fn is_card_limited_details_flow(self) -> bool {
+        matches!(self, Self::CardWithLimitedData(_))
     }
 }

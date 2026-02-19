@@ -15,7 +15,7 @@ use common_utils::{
 use diesel_models::{enums as storage_enums, types::OrderDetailsWithAmount};
 use error_stack::ResultExt;
 use masking::Secret;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
 use super::payment_method_data::PaymentMethodData;
@@ -69,9 +69,13 @@ pub struct PaymentsAuthorizeData {
     pub request_incremental_authorization: bool,
     pub metadata: Option<serde_json::Value>,
     pub authentication_data: Option<AuthenticationData>,
+    pub ucs_authentication_data: Option<UcsAuthenticationData>,
     pub request_extended_authorization:
         Option<common_types::primitive_wrappers::RequestExtendedAuthorizationBool>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
+
+    // Guest customer fields
+    pub guest_customer: Option<payments::GuestCustomer>,
 
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
@@ -98,6 +102,8 @@ pub struct PaymentsAuthorizeData {
     pub tokenization: Option<common_enums::Tokenization>,
     pub partner_merchant_identifier_details:
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
+    pub rrn: Option<String>,
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -220,8 +226,12 @@ pub struct PaymentsPostSessionTokensData {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentsUpdateMetadataData {
-    pub metadata: pii::SecretSerdeValue,
+    pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_transaction_id: String,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub connector_meta: Option<serde_json::Value>,
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
+    pub payment_method_data: Option<PaymentMethodData>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -258,6 +268,7 @@ pub struct PaymentsCaptureData {
     pub minor_amount_to_capture: MinorUnit,
     pub integrity_object: Option<CaptureIntegrityObject>,
     pub webhook_url: Option<String>,
+    pub merchant_order_reference_id: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -780,6 +791,28 @@ impl TryFrom<SetupMandateRequestData> for PaymentsPreAuthenticateData {
     }
 }
 
+impl TryFrom<PaymentsAuthorizeData> for PaymentsAuthenticateData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: Some(data.payment_method_data),
+            payment_method_type: data.payment_method_type,
+            amount: Some(data.amount),
+            minor_amount: Some(data.minor_amount),
+            email: data.email,
+            currency: Some(data.currency),
+            complete_authorize_url: data.complete_authorize_url,
+            browser_info: data.browser_info,
+            redirect_response: None,
+            capture_method: data.capture_method,
+            // This is hard coded to None to avoid back and forth authentication_data conversion between UcsAuthenticationData and AuthenticationData.
+            // This is handled within authentication_step function in authorize_flow.rs
+            authentication_data: None,
+        })
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentsAuthenticateData {
     pub payment_method_data: Option<PaymentMethodData>,
@@ -791,6 +824,8 @@ pub struct PaymentsAuthenticateData {
     pub browser_info: Option<BrowserInformation>,
     pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
     pub minor_amount: Option<MinorUnit>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub authentication_data: Option<UcsAuthenticationData>,
 }
 
 impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
@@ -807,6 +842,8 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
             complete_authorize_url: data.complete_authorize_url,
             browser_info: data.browser_info,
             redirect_response: data.redirect_response,
+            capture_method: data.capture_method,
+            authentication_data: data.authentication_data,
         })
     }
 }
@@ -825,6 +862,7 @@ pub struct PaymentsPostAuthenticateData {
     // New amount for amount frame work
     pub minor_amount: Option<MinorUnit>,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub complete_authorize_url: Option<String>,
 }
 
 impl TryFrom<CompleteAuthorizeData> for PaymentsPostAuthenticateData {
@@ -843,6 +881,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsPostAuthenticateData {
             connector_transaction_id: data.connector_transaction_id,
             redirect_response: data.redirect_response,
             metadata: data.connector_meta.map(Secret::new),
+            complete_authorize_url: data.complete_authorize_url,
         })
     }
 }
@@ -950,6 +989,7 @@ pub struct CompleteAuthorizeData {
     pub is_stored_credential: Option<bool>,
     pub tokenization: Option<common_enums::Tokenization>,
     pub router_return_url: Option<String>,
+    pub merchant_order_reference_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -975,6 +1015,7 @@ pub struct PaymentsSyncData {
     pub integrity_object: Option<SyncIntegrityObject>,
     pub connector_reference_id: Option<String>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]
@@ -1000,6 +1041,9 @@ pub struct PaymentsCancelData {
     pub webhook_url: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
+    pub merchant_order_reference_id: Option<String>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]
@@ -1189,7 +1233,7 @@ impl
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UcsAuthenticationData {
     pub eci: Option<String>,
     pub cavv: Option<Secret<String>>,
@@ -1347,6 +1391,15 @@ impl TryFrom<router_data::ConnectorAuthType> for AccessTokenRequestData {
             router_data::ConnectorAuthType::MultiAuthKey { api_key, key1, .. } => Ok(Self {
                 app_id: api_key,
                 id: Some(key1),
+                authentication_token: None,
+            }),
+            router_data::ConnectorAuthType::CertificateAuth {
+                certificate,
+                private_key,
+                ..
+            } => Ok(Self {
+                app_id: certificate,
+                id: Some(private_key),
                 authentication_token: None,
             }),
 
@@ -1509,6 +1562,30 @@ pub struct CustomerDetails {
     pub phone: Option<Secret<String, masking::WithType>>,
     pub phone_country_code: Option<String>,
     pub tax_registration_id: Option<Secret<String, masking::WithType>>,
+    pub document_details: Option<api_models::customers::CustomerDocumentDetails>,
+}
+
+impl CustomerDetails {
+    pub fn get_customer_data(&self) -> Option<payments::payment_intent::CustomerData> {
+        if self.name.is_some()
+            || self.email.is_some()
+            || self.phone.is_some()
+            || self.phone_country_code.is_some()
+            || self.tax_registration_id.is_some()
+            || self.document_details.is_some()
+        {
+            Some(payments::payment_intent::CustomerData {
+                name: self.name.clone(),
+                email: self.email.clone(),
+                phone: self.phone.clone(),
+                phone_country_code: self.phone_country_code.clone(),
+                tax_registration_id: self.tax_registration_id.clone(),
+                customer_document_details: self.document_details.clone(),
+            })
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

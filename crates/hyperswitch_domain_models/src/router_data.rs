@@ -1,5 +1,6 @@
 use std::{collections::HashMap, marker::PhantomData};
 
+use api_models::customers::CustomerDocumentDetails;
 use cards::NetworkToken;
 use common_types::{payments as common_payment_types, primitive_wrappers};
 use common_utils::{
@@ -119,6 +120,9 @@ pub struct RouterData<Flow, Request, Response> {
     /// Indicates whether the payment ID was provided by the merchant (true),
     /// or generated internally by Hyperswitch (false)
     pub is_payment_id_from_merchant: Option<bool>,
+
+    // Document details of the customer consisting of document number and type
+    pub customer_document_details: Option<CustomerDocumentDetails>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -639,6 +643,33 @@ pub struct ConnectorResponseData {
 }
 
 impl ConnectorResponseData {
+    pub fn with_auth_code(auth_code: String, pmt: common_enums::PaymentMethodType) -> Self {
+        let additional_payment_method_data = match pmt {
+            common_enums::PaymentMethodType::GooglePay => {
+                AdditionalPaymentMethodConnectorResponse::GooglePay {
+                    auth_code: Some(auth_code),
+                }
+            }
+            common_enums::PaymentMethodType::ApplePay => {
+                AdditionalPaymentMethodConnectorResponse::ApplePay {
+                    auth_code: Some(auth_code),
+                }
+            }
+            _ => AdditionalPaymentMethodConnectorResponse::Card {
+                authentication_data: None,
+                payment_checks: None,
+                card_network: None,
+                domestic_network: None,
+                auth_code: Some(auth_code),
+            },
+        };
+        Self {
+            additional_payment_method_data: Some(additional_payment_method_data),
+            extended_authorization_response_data: None,
+            is_overcapture_enabled: None,
+            mandate_reference: None,
+        }
+    }
     pub fn with_additional_payment_method_data(
         additional_payment_method_data: AdditionalPaymentMethodConnectorResponse,
     ) -> Self {
@@ -685,6 +716,8 @@ pub enum AdditionalPaymentMethodConnectorResponse {
         card_network: Option<String>,
         /// Domestic(Co-Branded) Card network returned by the processor
         domestic_network: Option<String>,
+        /// auth code returned by the processor
+        auth_code: Option<String>,
     },
     PayLater {
         klarna_sdk: Option<KlarnaSdkResponse>,
@@ -692,8 +725,23 @@ pub enum AdditionalPaymentMethodConnectorResponse {
     BankRedirect {
         interac: Option<InteracCustomerInfo>,
     },
+    Upi {
+        /// UPI mode detected from the connector response
+        upi_mode: Option<payment_method_data::UpiSource>,
+    },
+    GooglePay {
+        auth_code: Option<String>,
+    },
+    ApplePay {
+        auth_code: Option<String>,
+    },
+    SepaBankTransfer {
+        debitor_iban: Option<Secret<String>>,
+        debitor_bic: Option<Secret<String>>,
+        debitor_name: Option<Secret<String>>,
+        debitor_email: Option<Secret<String>>,
+    },
 }
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExtendedAuthorizationResponseData {
     pub extended_authentication_applied:
@@ -918,6 +966,10 @@ impl
                             connector_response_reference_id: connector_response_reference_id
                                 .clone(),
                             amount_captured,
+                            payment_method_data: payment_data
+                                .payment_attempt
+                                .payment_method_data
+                                .clone(),
                         },
                     ))
                 }
@@ -990,11 +1042,12 @@ impl
 
                 PaymentAttemptUpdate::ErrorUpdate {
                     status: attempt_status,
-                    error: error_details,
+                    error: Box::new(error_details),
                     amount_capturable,
                     connector_payment_id: connector_transaction_id,
                     connector_response_reference_id,
                     updated_by: storage_scheme.to_string(),
+                    payment_method_data: payment_data.payment_attempt.payment_method_data.clone(),
                 }
             }
         }
@@ -1310,11 +1363,12 @@ impl
 
                 PaymentAttemptUpdate::ErrorUpdate {
                     status: attempt_status,
-                    error: error_details,
+                    error: Box::new(error_details),
                     amount_capturable,
                     connector_payment_id: connector_transaction_id,
                     connector_response_reference_id,
                     updated_by: storage_scheme.to_string(),
+                    payment_method_data: payment_data.payment_attempt.payment_method_data.clone(),
                 }
             }
         }
@@ -1556,11 +1610,19 @@ impl
                 router_response_types::PaymentsResponseData::TransactionResponse { .. } => {
                     let attempt_status = self.get_attempt_status_for_db_update(payment_data);
 
+                    // Extract payment_method_data from payment_attempt (already updated with connector response data in PostUpdateTracker)
+                    let payment_method_data = payment_data
+                        .payment_attempt
+                        .payment_method_data
+                        .as_ref()
+                        .map(|data| data.clone().expose());
+
                     PaymentAttemptUpdate::SyncUpdate {
                         status: attempt_status,
                         amount_capturable,
                         updated_by: storage_scheme.to_string(),
                         amount_captured,
+                        payment_method_data,
                     }
                 }
                 router_response_types::PaymentsResponseData::MultipleCaptureResponse { .. } => {
@@ -1633,11 +1695,12 @@ impl
 
                 PaymentAttemptUpdate::ErrorUpdate {
                     status: attempt_status,
-                    error: error_details,
+                    error: Box::new(error_details),
                     amount_capturable,
                     connector_payment_id: connector_transaction_id,
                     connector_response_reference_id,
                     updated_by: storage_scheme.to_string(),
+                    payment_method_data: payment_data.payment_attempt.payment_method_data.clone(),
                 }
             }
         }
@@ -1846,6 +1909,10 @@ impl
                             connector_response_reference_id: connector_response_reference_id
                                 .clone(),
                             amount_captured,
+                            payment_method_data: payment_data
+                                .payment_attempt
+                                .payment_method_data
+                                .clone(),
                         },
                     ))
                 }
@@ -1918,11 +1985,12 @@ impl
 
                 PaymentAttemptUpdate::ErrorUpdate {
                     status: attempt_status,
-                    error: error_details,
+                    error: Box::new(error_details),
                     amount_capturable,
                     connector_payment_id: connector_transaction_id,
                     connector_response_reference_id,
                     updated_by: storage_scheme.to_string(),
+                    payment_method_data: payment_data.payment_attempt.payment_method_data.clone(),
                 }
             }
         }
@@ -2095,6 +2163,10 @@ impl
                                 ),
                             connector_response_reference_id: None,
                             amount_captured,
+                            payment_method_data: payment_data
+                                .payment_attempt
+                                .payment_method_data
+                                .clone(),
                         },
                     ))
                 }
@@ -2160,11 +2232,12 @@ impl
 
                 PaymentAttemptUpdate::ErrorUpdate {
                     status: attempt_status,
-                    error: error_details,
+                    error: Box::new(error_details),
                     amount_capturable,
                     connector_payment_id: connector_transaction_id,
                     connector_response_reference_id,
                     updated_by: storage_scheme.to_string(),
+                    payment_method_data: payment_data.payment_attempt.payment_method_data.clone(),
                 }
             }
         }
@@ -2343,10 +2416,11 @@ impl
                 PaymentAttemptUpdate::ErrorUpdate {
                     status,
                     amount_capturable: Some(MinorUnit::zero()),
-                    error: error_details,
+                    error: Box::new(error_details),
                     updated_by: storage_scheme.to_string(),
                     connector_payment_id: connector_transaction_id,
                     connector_response_reference_id,
+                    payment_method_data: payment_data.payment_attempt.payment_method_data.clone(),
                 }
             }
             Ok(ref _response) => PaymentAttemptUpdate::VoidUpdate {

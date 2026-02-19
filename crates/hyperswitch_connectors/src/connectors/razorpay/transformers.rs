@@ -253,6 +253,7 @@ impl TryFrom<PaymentsResponseRouterData<RazorpayPaymentsResponse>>
                 network_txn_id: None,
                 connector_response_reference_id: Some(order_id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -336,6 +337,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, RazorpaySyncResponse, T, PaymentsRespon
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -455,6 +457,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, RazorpayRefundResponse>>
 //                             network_txn_id: None,
 //                             connector_response_reference_id: None,
 //                             incremental_authorization_allowed: None,
+//                             authentication_data: None,
 //                             charges: None,
 //                         })
 //                     },

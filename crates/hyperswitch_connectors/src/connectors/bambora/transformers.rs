@@ -225,6 +225,8 @@ impl TryFrom<BamboraRouterData<&types::PaymentsAuthorizeRouterData>> for Bambora
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("bambora"),
@@ -477,6 +479,7 @@ impl<F> TryFrom<ResponseRouterData<F, BamboraResponse, PaymentsAuthorizeData, Pa
                     network_txn_id: None,
                     connector_response_reference_id: Some(pg_response.order_number.to_string()),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -504,6 +507,7 @@ impl<F> TryFrom<ResponseRouterData<F, BamboraResponse, PaymentsAuthorizeData, Pa
                             item.data.connector_request_reference_id.to_string(),
                         ),
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     }),
                     ..item.data
@@ -547,6 +551,7 @@ impl<F>
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order_number.to_string()),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -586,6 +591,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<BamboraPaymentsResponse>>
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order_number.to_string()),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -614,6 +620,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<BamboraPaymentsResponse>>
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order_number.to_string()),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -642,6 +649,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<BamboraPaymentsResponse>>
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order_number.to_string()),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data

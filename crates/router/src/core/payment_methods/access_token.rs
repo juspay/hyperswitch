@@ -1,9 +1,9 @@
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::types::VaultRouterData;
+use hyperswitch_interfaces::consts;
 
 use crate::{
-    consts,
     core::{
         errors::{self, RouterResult},
         payments,

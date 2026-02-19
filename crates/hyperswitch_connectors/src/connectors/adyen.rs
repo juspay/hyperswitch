@@ -29,7 +29,7 @@ use hyperswitch_domain_models::{
         Accept, Defend, Evidence, GiftCardBalanceCheck, Retrieve, Upload,
     },
     router_request_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterData,
+        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
         AcceptDisputeRequestData, AccessTokenRequestData, DefendDisputeRequestData,
         GiftCardBalanceCheckRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsExtendAuthorizationData,
@@ -79,7 +79,9 @@ use hyperswitch_interfaces::{
         PaymentsGiftCardBalanceCheckType, PaymentsPreProcessingType, PaymentsSyncType,
         PaymentsVoidType, RefundExecuteType, Response, SetupMandateType, SubmitEvidenceType,
     },
-    webhooks::{IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails},
+    webhooks::{
+        IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails, WebhookContext,
+    },
 };
 use masking::{ExposeInterface, Mask, Maskable, Secret};
 use ring::hmac;
@@ -2117,6 +2119,7 @@ impl IncomingWebhook for Adyen {
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
@@ -2151,6 +2154,7 @@ impl IncomingWebhook for Adyen {
     fn get_dispute_details(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<disputes::DisputePayload, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
@@ -2549,7 +2553,7 @@ impl WebhookRegister for Adyen {}
 impl
     ConnectorIntegration<
         ConnectorWebhookRegister,
-        ConnectorWebhookRegisterData,
+        ConnectorWebhookRegisterRequest,
         ConnectorWebhookRegisterResponse,
     > for Adyen
 {
@@ -3428,7 +3432,7 @@ static ADYEN_WEBHOOK_SETUP_CAPABILITIES:
         is_webhook_auto_configuration_supported: true,
         requires_webhook_secret: Some(false),
         config_type: Some(
-            common_types::connector_webhook_configuration::WebhookConfigType::Standard,
+            common_types::connector_webhook_configuration::WebhookConfigType::AllEvents,
         ),
     };
 

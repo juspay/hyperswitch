@@ -40,6 +40,7 @@ use crate::{
     mandates::*,
     merchant_connector_webhook_management::*,
     organization::{
+        ConvertOrganizationToPlatformRequest, ConvertOrganizationToPlatformResponse,
         OrganizationCreateRequest, OrganizationId, OrganizationResponse, OrganizationUpdateRequest,
     },
     payment_methods::*,
@@ -75,6 +76,8 @@ impl_api_event_type!(
         RetrievePaymentLinkResponse,
         MandateListConstraints,
         CreateFileResponse,
+        ConvertOrganizationToPlatformRequest,
+        ConvertOrganizationToPlatformResponse,
         ConnectorWebhookRegisterRequest,
         ConnectorWebhookListResponse,
         MerchantConnectorResponse,
