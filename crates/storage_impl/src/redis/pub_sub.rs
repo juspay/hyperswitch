@@ -1,7 +1,7 @@
 use std::sync::atomic;
 
 use error_stack::ResultExt;
-use redis_interface::{errors as redis_errors, PubsubInterface, RedisValue};
+use redis_interface::{errors as redis_errors, EventInterface, PubsubInterface, RedisValue};
 use router_env::{logger, tracing::Instrument};
 
 use crate::redis::cache::{
@@ -32,7 +32,7 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
         self.subscriber.manage_subscriptions();
 
         self.subscriber
-            .subscribe::<(), &str>(channel)
+            .subscribe::<_>(channel)
             .await
             .change_context(redis_errors::RedisError::SubscribeError)?;
 
@@ -85,7 +85,7 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
     #[inline]
     async fn on_message(&self) -> error_stack::Result<(), redis_errors::RedisError> {
         logger::debug!("Started on message");
-        let mut rx = self.subscriber.on_message();
+        let mut rx = self.subscriber.message_rx();
         while let Ok(message) = rx.recv().await {
             let channel_name = message.channel.to_string();
             logger::debug!("Received message on channel: {channel_name}");
