@@ -1129,53 +1129,6 @@ pub async fn connector_webhook_register(
 
 /// Configure Connector Webhook - Register
 ///
-/// To setup webhook configuration for an existing Merchant at the connector.
-#[cfg(feature = "v1")]
-#[
-    instrument(skip_all, fields(flow = ?Flow::MerchantConnectorWebhookRegister))]
-pub async fn connector_webhook_register(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    path: web::Path<(
-        common_utils::id_type::MerchantId,
-        common_utils::id_type::MerchantConnectorAccountId,
-    )>,
-    json_payload: web::Json<
-        api_models::merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
-    >,
-) -> HttpResponse {
-    let flow = Flow::MerchantConnectorWebhookRegister;
-    let (merchant_id, merchant_connector_id) = path.into_inner();
-
-    Box::pin(api::server_wrap(
-        flow,
-        state,
-        &req,
-        json_payload.into_inner(),
-        |state, auth, req, _| {
-            register_connector_webhook(
-                state,
-                &merchant_id,
-                auth.profile_id,
-                &merchant_connector_id,
-                req,
-            )
-        },
-        auth::auth_type(
-            &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
-            &auth::JWTAuthMerchantFromRoute {
-                merchant_id: merchant_id.clone(),
-                required_permission: Permission::ProfileConnectorWrite,
-            },
-            req.headers(),
-        ),
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-/// Configure Connector Webhook - Register
-///
 /// List webhooks configured with hyperswitch at the connector
 #[cfg(feature = "v1")]
 #[
@@ -1204,8 +1157,8 @@ pub async fn retrieve_connector_webhook(
         |state, auth, req, _| {
             fetch_connector_webhook(
                 state,
-                auth.merchant_account.get_id().clone(),
-                auth.profile_id,
+                req.merchant_id.clone(),
+                auth.profile.map(|profile| profile.get_id().clone()),
                 req.merchant_connector_id,
             )
         },
