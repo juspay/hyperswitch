@@ -666,6 +666,7 @@ impl From<NetworkTokenDetailsForNetworkTransactionId> for NetworkTokenData {
             bank_code: network_token_details_for_nti.bank_code,
             nick_name: network_token_details_for_nti.nick_name,
             eci: network_token_details_for_nti.eci,
+            par: None, // check this
         }
     }
 }
@@ -1383,6 +1384,7 @@ pub struct NetworkTokenData {
     pub bank_code: Option<String>,
     pub nick_name: Option<Secret<String>>,
     pub eci: Option<String>,
+    pub par: Option<Secret<String>>,
 }
 
 #[cfg(feature = "v2")]
@@ -2589,6 +2591,7 @@ impl From<api_models::payments::NetworkTokenData> for NetworkTokenData {
             bank_code: network_token_data.bank_code,
             nick_name: network_token_data.nick_name,
             eci: network_token_data.eci,
+            par: network_token_data.par,
         }
     }
 }
@@ -3409,6 +3412,7 @@ impl From<NetworkTokenData> for AdditionalNetworkTokenInfo {
             card_holder_name: None,
             last4: Some(network_token_data.token_number.get_last4().clone()),
             token_isin: Some(network_token_data.token_number.get_card_isin().clone()),
+            par: network_token_data.par.clone(),
         }
     }
 }
@@ -3451,6 +3455,7 @@ impl From<NetworkTokenDetailsForNetworkTransactionId> for AdditionalNetworkToken
                     .get_card_isin()
                     .clone(),
             ),
+            par: None, // check this
         }
     }
 }
@@ -3473,6 +3478,7 @@ impl From<DecryptedWalletTokenDetailsForNetworkTransactionId> for AdditionalNetw
                     .get_card_isin()
                     .clone(),
             ),
+            par: None, // check this
         }
     }
 }

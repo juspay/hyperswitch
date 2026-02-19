@@ -663,6 +663,7 @@ pub async fn get_token_from_tokenization_service(
         card_issuing_country: None,
         bank_code: None,
         eci: token_response.eci,
+        par: token_response.card_details.map(|details| details.par),
     };
     Ok(network_token_data)
 }

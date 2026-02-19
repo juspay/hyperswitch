@@ -7042,6 +7042,9 @@ impl From<pm_types::TokenResponse> for domain::NetworkTokenData {
             bank_code: None,
             nick_name: None,
             eci: None,
+            par: token_response
+                .card_details
+                .map(|card_details| card_details.par),
         }
     }
 }

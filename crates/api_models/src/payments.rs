@@ -3465,6 +3465,11 @@ pub struct NetworkTokenData {
     #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub eci: Option<String>,
+
+    /// The Payment Account Reference (PAR) for this card.
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub par: Option<Secret<String>>,
 }
 
 #[derive(
@@ -3515,6 +3520,11 @@ pub struct NetworkTokenResponse {
     #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub card_holder_name: Option<Secret<String>>,
+
+    /// par value for the card
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub par: Option<Secret<String>>,
 }
 
 #[derive(
@@ -4060,6 +4070,9 @@ pub struct AdditionalNetworkTokenInfo {
 
     /// The card holder's name
     pub card_holder_name: Option<Secret<String>>,
+
+    /// Payment Account Reference (PAR) for the card
+    pub par: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -9153,6 +9166,7 @@ impl From<AdditionalNetworkTokenInfo> for NetworkTokenResponse {
             token_exp_month: network_token.token_exp_month,
             token_exp_year: network_token.token_exp_year,
             card_holder_name: network_token.card_holder_name,
+            par: network_token.par,
         }
     }
 }
