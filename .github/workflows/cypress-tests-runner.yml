@@ -17,13 +17,13 @@ env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
   PAYMENTS_CONNECTORS: "stripe cybersource"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "adyen paypal checkout"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "fiuu redsys zift"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3: "nexixpay cryptopay finix"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_4: "novalnet airwallex noon"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_5: "worldpayxml checkout mollie"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_6: "trustpay braintree"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_7: "airwallex novalnet redsys"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "cryptopay finix nexixpay"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "adyen checkout zift"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3: "airwallex finix noon"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_4: "nmi fiuu gigadat"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_5: "worldpayxml worldpay loonio"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_6: "authorizedotnet cashtocode volt"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_7: "paypal novalnet redsys"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_8: "paypal nuvei"
   ALPHA_PAYMENTS_CONNECTORS: "celero silverflow"
   RUST_BACKTRACE: short
@@ -289,7 +289,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "35671d9f-0b8c-4d86-b6ce-af15f5fe1abc.json.gpg"
+          S3_SOURCE_FILE_NAME: "b59e91fc-9054-4412-a746-664fdc185345.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
@@ -489,7 +489,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "35671d9f-0b8c-4d86-b6ce-af15f5fe1abc.json.gpg"
+          S3_SOURCE_FILE_NAME: "b59e91fc-9054-4412-a746-664fdc185345.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
@@ -662,6 +662,27 @@ jobs:
                   "parallel": 3,
                   "report_artifact_name": "cypress-test-results-batch-4",
                   "server_logs_artifact": "server-logs-batch-4"
+                },
+                {
+                  "name": "batch-5",
+                  "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_5}"'",
+                  "parallel": 3,
+                  "report_artifact_name": "cypress-test-results-batch-5",
+                  "server_logs_artifact": "server-logs-batch-5"
+                },
+                {
+                  "name": "batch-6",
+                  "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_6}"'",
+                  "parallel": 3,
+                  "report_artifact_name": "cypress-test-results-batch-6",
+                  "server_logs_artifact": "server-logs-batch-6"
+                },
+                {
+                  "name": "batch-7",
+                  "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_7}"'",
+                  "parallel": 3,
+                  "report_artifact_name": "cypress-test-results-batch-7",
+                  "server_logs_artifact": "server-logs-batch-7"
                 }
               ]
             }'
@@ -737,7 +758,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "35671d9f-0b8c-4d86-b6ce-af15f5fe1abc.json.gpg"
+          S3_SOURCE_FILE_NAME: "b59e91fc-9054-4412-a746-664fdc185345.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
@@ -1120,7 +1141,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "35671d9f-0b8c-4d86-b6ce-af15f5fe1abc.json.gpg"
+          S3_SOURCE_FILE_NAME: "b59e91fc-9054-4412-a746-664fdc185345.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
