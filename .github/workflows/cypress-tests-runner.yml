@@ -289,7 +289,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "35671d9f-0b8c-4d86-b6ce-af15f5fe1abc.json.gpg"
+          S3_SOURCE_FILE_NAME: "b59e91fc-9054-4412-a746-664fdc185345.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
@@ -489,7 +489,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "35671d9f-0b8c-4d86-b6ce-af15f5fe1abc.json.gpg"
+          S3_SOURCE_FILE_NAME: "b59e91fc-9054-4412-a746-664fdc185345.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
@@ -758,7 +758,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "35671d9f-0b8c-4d86-b6ce-af15f5fe1abc.json.gpg"
+          S3_SOURCE_FILE_NAME: "b59e91fc-9054-4412-a746-664fdc185345.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
@@ -1141,7 +1141,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "35671d9f-0b8c-4d86-b6ce-af15f5fe1abc.json.gpg"
+          S3_SOURCE_FILE_NAME: "b59e91fc-9054-4412-a746-664fdc185345.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
