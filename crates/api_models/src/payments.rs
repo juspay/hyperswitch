@@ -8517,7 +8517,7 @@ pub struct PaymentsResponse {
     pub authentication_type: Option<api_enums::AuthenticationType>,
 
     /// The authentication type that was appliced for this order
-    /// This depeneds on the 3DS rules configured, If not a default authentication type will be applied
+    /// This depends on the 3DS rules configured, If not a default authentication type will be applied
     #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "no_three_ds")]
     pub authentication_type_applied: Option<api_enums::AuthenticationType>,
 
