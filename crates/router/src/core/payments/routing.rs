@@ -645,13 +645,11 @@ impl RoutingStage for StaticRoutingStage {
 
     fn route<'a>(&'a self, input: Self::Input<'a>) -> Self::Fut<'a> {
         Box::pin(async move {
-            let connectors = static_routing_v1(
-                &self.ctx.routing_algorithm,
-                input.backend_input.clone(),
-            )
-            .await
-            .change_context(errors::RoutingError::DslExecutionError)
-            .attach_printable("euclid: unable to perform static routing")?;
+            let connectors =
+                static_routing_v1(&self.ctx.routing_algorithm, input.backend_input.clone())
+                    .await
+                    .change_context(errors::RoutingError::DslExecutionError)
+                    .attach_printable("euclid: unable to perform static routing")?;
 
             Ok(RoutingConnectorOutcome { connectors })
         })
@@ -806,10 +804,10 @@ impl RoutingStage for SessionRoutingStage {
                 };
 
                 let routable_connector_choice_option = if final_selection.is_empty() {
-                        (None, static_approach.clone())
-                    } else {
-                        (Some(final_selection), static_approach)
-                    };
+                    (None, static_approach.clone())
+                } else {
+                    (Some(final_selection), static_approach)
+                };
 
                 final_routing_approach = routable_connector_choice_option.1;
 

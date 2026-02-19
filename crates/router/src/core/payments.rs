@@ -10382,21 +10382,20 @@ where
         backend_input: &mut backend_input,
     };
 
-    let routing_algorithm: routing::MerchantAccountRoutingAlgorithm =
-        business_profile
-            .routing_algorithm
-            .clone()
-            .map(|val| val.parse_value("MerchantAccountRoutingAlgorithm"))
-            .transpose()
-            .inspect_err(|err| {
-                logger::error!(
-                    error=?err,
-                    "Invalid merchant routing algorithm, falling back to default"
-                );
-            })
-            .ok()
-            .flatten()
-            .unwrap_or_default();
+    let routing_algorithm: routing::MerchantAccountRoutingAlgorithm = business_profile
+        .routing_algorithm
+        .clone()
+        .map(|val| val.parse_value("MerchantAccountRoutingAlgorithm"))
+        .transpose()
+        .inspect_err(|err| {
+            logger::error!(
+                error=?err,
+                "Invalid merchant routing algorithm, falling back to default"
+            );
+        })
+        .ok()
+        .flatten()
+        .unwrap_or_default();
 
     let session_routing_stage = routing::SessionRoutingStage {
         ctx: routing::SessionRoutingContext {
