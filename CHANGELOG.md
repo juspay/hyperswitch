@@ -4,6 +4,21 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.20.0
+
+### Bug Fixes
+
+- **customers:** Add missing JWTAuth from customer PML in v2 ([#11337](https://github.com/juspay/hyperswitch/pull/11337)) ([`3aba0af`](https://github.com/juspay/hyperswitch/commit/3aba0af8dee82ff1f6fec55bb19e783a0f71c989))
+- **network_tokenization:** Save network token data for saved payment methods ([#11152](https://github.com/juspay/hyperswitch/pull/11152)) ([`2994c6d`](https://github.com/juspay/hyperswitch/commit/2994c6d92c4230e7abc56345e96ca2544fe6e86e))
+
+### Miscellaneous Tasks
+
+- **redis_interfaces:** Upgrade fred crate to version 8.0.6 ([#11331](https://github.com/juspay/hyperswitch/pull/11331)) ([`5fda7de`](https://github.com/juspay/hyperswitch/commit/5fda7de6d87ec2d3611412edd2d34fa17c250def))
+
+**Full Changelog:** [`2026.02.19.0...2026.02.20.0`](https://github.com/juspay/hyperswitch/compare/2026.02.19.0...2026.02.20.0)
+
+- - -
+
 ## 2026.02.19.0
 
 ### Features
