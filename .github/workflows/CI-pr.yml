@@ -243,6 +243,7 @@ jobs:
             crates/api_models/
             crates/common_utils/
             crates/common_enums/
+            crates/diesel_models/
             migrations/
             v2_migrations/
             v2_compatible_migrations/
