@@ -67,6 +67,8 @@ pub struct RedisSettings {
     pub default_command_timeout: u64,
     pub max_feed_count: u64,
     pub unresponsive_timeout: u64,
+    pub unresponsive_check_interval: u64,
+    pub broadcast_channel_capacity: usize,
 }
 
 impl RedisSettings {
@@ -118,6 +120,8 @@ impl Default for RedisSettings {
             default_command_timeout: 30,
             max_feed_count: 200,
             unresponsive_timeout: 10,
+            unresponsive_check_interval: 2,
+            broadcast_channel_capacity: 32,
         }
     }
 }
