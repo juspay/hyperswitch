@@ -10377,21 +10377,20 @@ where
         backend_input: &mut backend_input,
     };
 
-    let routing_algorithm: routing::MerchantAccountRoutingAlgorithm =
-        business_profile
-            .routing_algorithm
-            .clone()
-            .map(|val| val.parse_value("MerchantAccountRoutingAlgorithm"))
-            .transpose()
-            .inspect_err(|err| {
-                logger::error!(
-                    error=?err,
-                    "Invalid merchant routing algorithm, falling back to default"
-                );
-            })
-            .ok()
-            .flatten()
-            .unwrap_or_default();
+    let routing_algorithm: routing::MerchantAccountRoutingAlgorithm = business_profile
+        .routing_algorithm
+        .clone()
+        .map(|val| val.parse_value("MerchantAccountRoutingAlgorithm"))
+        .transpose()
+        .inspect_err(|err| {
+            logger::error!(
+                error=?err,
+                "Invalid merchant routing algorithm, falling back to default"
+            );
+        })
+        .ok()
+        .flatten()
+        .unwrap_or_default();
 
     let session_routing_stage = routing::SessionRoutingStage {
         ctx: routing::SessionRoutingContext {
@@ -10521,108 +10520,24 @@ pub async fn static_dynamic_routing_v1_for_payments(
     backend_input: euclid::backend::BackendInput,
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
 ) -> RouterResult<routing::RoutingConnectorOutcomeWithApproachAndEligibility> {
-    let txn_type = transaction_type_from_payments_dsl(&payment_dsl_input);
-    let routing_algorithm_id = {
-        let routing_algorithm = business_profile.routing_algorithm.clone();
-        let algorithm_ref = routing_algorithm
-            .map(|ra| ra.parse_value::<api::routing::RoutingAlgorithmRef>("RoutingAlgorithmRef"))
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Could not decode merchant routing algorithm ref")?
-            .unwrap_or_default();
-
-        algorithm_ref.algorithm_id
-    };
-
-    let cached_algorithm = routing_algorithm_id
-        .async_and_then(|routing_algorithm_id| async move {
-            routing::try_ensure_algorithm_cached_v1(
-                state,
-                &business_profile.merchant_id,
-                &routing_algorithm_id,
-                business_profile.get_id(),
-                &txn_type,
-            )
-            .await
-        })
-        .await;
-
-    let static_input = routing::StaticRoutingInput {
-        backend_input: &backend_input,
-    };
-
-    let static_stage = cached_algorithm.map(|cached_algorithm| routing::StaticRoutingStage {
-        ctx: routing::RoutingContext {
-            routing_algorithm: cached_algorithm,
-        },
-    });
-
-    let (static_connectors, static_approach) = static_stage
-        .clone()
-        .async_and_then(|static_stage| async move {
-            static_stage
-                .route(static_input)
-                .await
-                .inspect_err(|err| {
-                    logger::error!(
-                        error=?err,
-                        "euclid: static routing failed"
-                    );
-                })
-                .ok()
-                .map(|outcome| routing::RoutingConnectorOutcome {
-                    connectors: outcome.connectors,
-                })
-        })
-        .await
-        .unwrap_or_else(routing::RoutingConnectorOutcome::empty)
-        .resolve_or_fallback_with_approach(
-            "static-routing",
-            &fallback_config,
-            static_stage
-                .as_ref()
-                .map(|s| s.routing_approach())
-                .unwrap_or(common_enums::RoutingApproach::DefaultFallback),
-            common_enums::RoutingApproach::DefaultFallback,
-        );
+    let (static_connectors, static_approach) = routing::perform_static_routing_with_de(
+        state,
+        business_profile,
+        &payment_dsl_input,
+        &backend_input,
+        &fallback_config,
+    )
+    .await?;
 
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-    let (connectors, routing_approach) = {
-        let static_connectors_ref = &static_connectors;
-        let transaction_data_ref = &payment_dsl_input;
-
-        business_profile
-            .dynamic_routing_algorithm
-            .as_ref()
-            .map(|_| routing::DynamicRoutingStage)
-            .async_and_then(|dynamic_routing_stage| async move {
-                let dynamic_routing_input = routing::DynamicRoutingInput {
-                    state,
-                    business_profile,
-                    transaction_data: transaction_data_ref,
-                    static_connectors: static_connectors_ref,
-                };
-
-                dynamic_routing_stage
-                    .route(dynamic_routing_input)
-                    .await
-                    .inspect_err(|err| {
-                        logger::error!(
-                            error=?err,
-                            "euclid: dynamic routing failed"
-                        );
-                    })
-                    .ok()
-                    .flatten()
-                    .map(|outcome| routing::RoutingConnectorOutcomeWithApproach {
-                        connectors: outcome.connectors,
-                        routing_approach: outcome.routing_approach,
-                    })
-            })
-            .await
-            .unwrap_or_else(routing::RoutingConnectorOutcomeWithApproach::empty)
-            .resolve_or_fallback("dynamic-routing", static_connectors_ref, static_approach)
-    };
+    let (connectors, routing_approach) = routing::perform_dynamic_routing_if_enabled(
+        state,
+        business_profile,
+        &payment_dsl_input,
+        &static_connectors,
+        static_approach,
+    )
+    .await;
 
     #[cfg(not(all(feature = "v1", feature = "dynamic_routing")))]
     let (connectors, routing_approach) = (static_connectors, static_approach);
