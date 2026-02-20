@@ -1206,6 +1206,7 @@ pub struct CardInstallmentOption {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq)]
 pub struct InstallmentOption {
     /// Payment method for which these installment plans apply (e.g., "card")
+    #[schema(value_type = PaymentMethod)]
     pub payment_method: common_enums::PaymentMethod,
     /// List of available installment configurations
     pub installments: Vec<CardInstallmentOption>,

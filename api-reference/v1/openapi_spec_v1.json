@@ -20891,7 +20891,7 @@
         ],
         "properties": {
           "payment_method": {
-            "$ref": "#/components/schemas/common_enums.PaymentMethod"
+            "$ref": "#/components/schemas/PaymentMethod"
           },
           "installments": {
             "type": "array",

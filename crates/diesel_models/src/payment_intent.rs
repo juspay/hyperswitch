@@ -87,6 +87,7 @@ pub struct PaymentIntent {
     pub partner_merchant_identifier_details:
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
     pub state_metadata: Option<PaymentIntentStateMetadata>,
+    pub installment_options: Option<serde_json::Value>,
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -412,6 +413,7 @@ pub struct PaymentIntentNew {
     pub active_attempts_group_id: Option<common_utils::id_type::GlobalAttemptGroupId>,
     pub active_attempt_id_type: Option<common_enums::ActiveAttemptIDType>,
     pub state_metadata: Option<PaymentIntentStateMetadata>,
+    pub installment_options: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v1")]
@@ -862,6 +864,7 @@ impl PaymentIntentUpdateInternal {
             tokenization: None,
             partner_merchant_identifier_details: source.partner_merchant_identifier_details,
             state_metadata,
+            installment_options: source.installment_options,
         }
     }
 }
