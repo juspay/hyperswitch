@@ -37,6 +37,8 @@ pub async fn customers_create(
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -73,6 +75,8 @@ pub async fn customers_create(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -95,6 +99,8 @@ pub async fn customers_retrieve(
     let auth = if auth::is_jwt_auth(req.headers()) {
         Box::new(auth::JWTAuth {
             permission: Permission::MerchantCustomerRead,
+            allow_connected: true,
+            allow_platform: true,
         })
     } else {
         let api_auth = auth::ApiKeyAuth {
@@ -151,6 +157,8 @@ pub async fn customers_retrieve(
     let auth = if auth::is_jwt_auth(req.headers()) {
         &auth::JWTAuth {
             permission: Permission::MerchantCustomerRead,
+            allow_connected: true,
+            allow_platform: true,
         }
     } else {
         sdk_or_api_or_client_auth(
@@ -202,6 +210,8 @@ pub async fn customers_list(
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -234,6 +244,8 @@ pub async fn customers_list(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -267,6 +279,8 @@ pub async fn customers_list_with_count(
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -299,6 +313,8 @@ pub async fn customers_list_with_count(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -343,6 +359,8 @@ pub async fn customers_update(
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -384,6 +402,8 @@ pub async fn customers_update(
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -417,6 +437,8 @@ pub async fn customers_delete(
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -455,6 +477,8 @@ pub async fn customers_delete(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -488,6 +512,8 @@ pub async fn get_customer_mandates(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantMandateRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
