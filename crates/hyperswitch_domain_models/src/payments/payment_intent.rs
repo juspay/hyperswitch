@@ -266,8 +266,7 @@ pub struct PaymentIntentUpdateFields {
     pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<primitive_wrappers::EnableOvercaptureBool>,
     pub shipping_cost: Option<MinorUnit>,
-    pub installment_options:
-        Option<Vec<common_types::payments::InstallmentOption>>,
+    pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
 }
 
 #[cfg(feature = "v1")]
@@ -487,8 +486,7 @@ pub struct PaymentIntentUpdateInternal {
     pub enable_overcapture: Option<primitive_wrappers::EnableOvercaptureBool>,
     pub shipping_cost: Option<MinorUnit>,
     pub state_metadata: Option<common_types::payments::PaymentIntentStateMetadata>,
-    pub installment_options:
-        Option<Vec<common_types::payments::InstallmentOption>>,
+    pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
 }
 
 // This conversion is used in the `update_payment_intent` function
@@ -1600,8 +1598,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             shipping_cost,
             state_metadata,
             installment_options: installment_options
-                .map(|opts| serde_json::to_value(opts).ok())
-                .flatten(),
+                .and_then(|opts| serde_json::to_value(opts).ok()),
         }
     }
 }
@@ -2444,8 +2441,7 @@ impl behaviour::Conversion for PaymentIntent {
             state_metadata: self.state_metadata,
             installment_options: self
                 .installment_options
-                .map(|opts| serde_json::to_value(opts).ok())
-                .flatten(),
+                .and_then(|opts| serde_json::to_value(opts).ok()),
         })
     }
 
@@ -2563,8 +2559,7 @@ impl behaviour::Conversion for PaymentIntent {
                 state_metadata: storage_model.state_metadata,
                 installment_options: storage_model
                     .installment_options
-                    .map(|v| serde_json::from_value(v).ok())
-                    .flatten(),
+                    .and_then(|v| serde_json::from_value(v).ok()),
             })
         }
         .await
@@ -2653,8 +2648,7 @@ impl behaviour::Conversion for PaymentIntent {
             state_metadata: self.state_metadata,
             installment_options: self
                 .installment_options
-                .map(|opts| serde_json::to_value(opts).ok())
-                .flatten(),
+                .and_then(|opts| serde_json::to_value(opts).ok()),
         })
     }
 }

@@ -2369,7 +2369,7 @@ where
                     header_payload,
                 )
                 .await
-            },
+            }
         }
     }
 }
