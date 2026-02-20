@@ -19,6 +19,7 @@ use external_services::http_client::client;
 use hyperswitch_domain_models::merchant_connector_account::{
     FromRequestEncryptableMerchantConnectorAccount, UpdateEncryptableMerchantConnectorAccount,
 };
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::types as pm_auth_types;
 use uuid::Uuid;
@@ -2389,8 +2390,57 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                 "{}_{}",
                 self.connector_name, business_profile.profile_name
             ));
+        // If payment_methods_enabled is not passed, default to all payment methods
+        // supported by the connector so the dashboard can show them as enabled.
+        let pm_enabled_from_connector = if self.payment_methods_enabled.is_none() {
+            match api::feature_matrix::FeatureMatrixConnectorData::convert_connector(
+                &self.connector_name.to_string(),
+            ) {
+                Ok(connector) => connector.get_supported_payment_methods(),
+                Err(err) => {
+                    logger::debug!(
+                        "Could not fetch default payment methods for connector {}: {:?}",
+                        self.connector_name,
+                        err
+                    );
+                    None
+                }
+            }
+            .map(|supported_pms| {
+                supported_pms
+                    .iter()
+                    .map(|(pm, pmt_metadata)| admin_types::PaymentMethodsEnabled {
+                        payment_method: *pm,
+                        payment_method_types: Some(
+                            pmt_metadata
+                                .keys()
+                                .map(
+                                    |pmt| api_models::payment_methods::RequestPaymentMethodTypes {
+                                        payment_method_type: *pmt,
+                                        payment_experience: None,
+                                        card_networks: None,
+                                        accepted_currencies: None,
+                                        accepted_countries: None,
+                                        minimum_amount: None,
+                                        maximum_amount: None,
+                                        recurring_enabled: None,
+                                        installment_payment_enabled: None,
+                                    },
+                                )
+                                .collect(),
+                        ),
+                    })
+                    .collect::<Vec<_>>()
+            })
+        } else {
+            None
+        };
+        let effective_pm_enabled = self
+            .payment_methods_enabled
+            .clone()
+            .or(pm_enabled_from_connector);
         let payment_methods_enabled = PaymentMethodsEnabled {
-            payment_methods_enabled: &self.payment_methods_enabled,
+            payment_methods_enabled: &effective_pm_enabled,
         };
         let payment_methods_enabled = payment_methods_enabled.get_payment_methods_enabled()?;
         let frm_configs = self.get_frm_config_as_secret();
