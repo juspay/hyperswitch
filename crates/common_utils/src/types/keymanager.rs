@@ -54,7 +54,6 @@ pub struct KeyManagerState {
     pub infra_values: Option<serde_json::Value>,
     pub use_legacy_key_store_decryption: bool,
     pub observability: Arc<Mutex<ExternalServiceCallCollector>>,
-    pub created_from: String,
 }
 
 impl KeyManagerState {
@@ -75,7 +74,6 @@ impl KeyManagerState {
             infra_values: Default::default(),
             use_legacy_key_store_decryption: false,
             observability: Arc::new(Mutex::new(ExternalServiceCallCollector::default())),
-            created_from: "mock".to_string(),
         }
     }
 

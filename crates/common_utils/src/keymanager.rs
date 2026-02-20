@@ -104,7 +104,6 @@ where
         metadata: std::collections::HashMap::new(),
     };
 
-    logger::info!("Observability collector state: {:?}", state.observability);
     let mutex_start_time = std::time::Instant::now();
     if let Ok(mut collector) = state.observability.lock() {
         collector.record(kms_metadata.clone());
@@ -159,7 +158,6 @@ where
             .change_context(errors::KeyManagerClientError::FailedtoConstructHeader)?,
     ));
 
-    logger::info!("Sending request to Key Manager at endpoint: {}", url);
     let response = send_encryption_request(
         state,
         HeaderMap::from_iter(header.into_iter()),

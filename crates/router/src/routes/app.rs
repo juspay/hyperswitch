@@ -581,9 +581,7 @@ impl AppState {
             infra_values: Self::process_env_mappings(conf.infra_values.clone()),
             use_legacy_key_store_decryption: km_conf.use_legacy_key_store_decryption,
             observability: Arc::new(Mutex::new(ExternalServiceCallCollector::default())),
-            created_from: "get_store_interface".to_string(),
         };
-        logger::info!("Creating store interface for tenant");
         match storage_impl {
             StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match event_handler {
                 EventsHandler::Kafka(kafka_client) => Box::new(

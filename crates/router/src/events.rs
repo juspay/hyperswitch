@@ -11,8 +11,7 @@ use storage_impl::errors::{ApplicationError, StorageError, StorageResult};
 use time::PrimitiveDateTime;
 
 use crate::{
-    db::KafkaProducer,
-    services::kafka::{KafkaMessage, KafkaSettings},
+    db::KafkaProducer, events::api_logs::{NewApiEvent, ObservabilityEventHandlerInterface}, services::kafka::{KafkaMessage, KafkaSettings}
 };
 
 pub mod api_logs;
@@ -69,6 +68,12 @@ impl Default for EventsHandler {
 impl events_interfaces::EventHandlerInterface for EventsHandler {
     fn log_connector_event(&self, event: &events_interfaces::connector_api_logs::ConnectorEvent) {
         self.log_event(event);
+    }
+}
+
+impl ObservabilityEventHandlerInterface for EventsHandler {
+    fn log_wide_event(&self, event: NewApiEvent) {
+        self.log_event(&event);
     }
 }
 

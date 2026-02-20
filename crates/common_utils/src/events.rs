@@ -282,10 +282,6 @@ pub struct ExternalServiceCallCollector {
 impl Default for ExternalServiceCallCollector {
     fn default() -> Self {
         let collector_id = uuid::Uuid::new_v4().to_string();
-        println!(
-            "Creating new ExternalServiceCallCollector with id: {}",
-            collector_id
-        );
         Self {
             external_service_calls: Vec::new(),
             collector_id,

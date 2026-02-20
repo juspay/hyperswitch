@@ -1,9 +1,3 @@
--- New API Events Queue for Test Extension Middleware
--- This queue reads from a dedicated Kafka topic for NewApiEvent
--- Reuses the same event handler, kafka producer with a new topic (hyperswitch-new-api-log-events)
-
--- Queue table for NewApiEvent messages
--- Uses stream error mode to handle messages that don't match the original api_events_queue schema
 CREATE TABLE new_api_events_queue (
     `tenant_id` Nullable(String),
     `merchant_id` Nullable(String),
@@ -29,7 +23,7 @@ CREATE TABLE new_api_events_queue (
         status_code UInt16,
         success Bool,
         latency_ms UInt32,
-        metadata String  -- stored as JSON string since it's a map
+        metadata String  
     ))
 ) ENGINE = Kafka SETTINGS kafka_broker_list = 'kafka0:29092',
 kafka_topic_list = 'hyperswitch-new-api-log-events',
@@ -37,7 +31,6 @@ kafka_group_name = 'hyper_new_api_events',
 kafka_format = 'JSONEachRow',
 kafka_handle_error_mode = 'stream';
 
--- Parse errors table for new_api_events_queue
 CREATE MATERIALIZED VIEW new_api_events_parse_errors (
     `topic` String,
     `partition` Int64,
@@ -58,7 +51,6 @@ FROM
 WHERE
     length(_error) > 0;
 
--- Final table to store NewApiEvent from TestExtensionMiddleware
 CREATE TABLE new_api_events (
     `tenant_id` Nullable(String),
     `merchant_id` Nullable(String),
@@ -96,7 +88,6 @@ ORDER BY (created_at, status_code)
 TTL inserted_at + toIntervalMonth(6) 
 SETTINGS index_granularity = 8192;
 
--- Materialized View to insert valid NewApiEvent messages from the queue
 CREATE MATERIALIZED VIEW new_api_events_mv TO new_api_events AS
 SELECT
     tenant_id,

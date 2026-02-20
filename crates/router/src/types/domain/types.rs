@@ -6,7 +6,6 @@ pub use hyperswitch_domain_models::type_encryption::{
     crypto_operation, AsyncLift, CryptoOperation, Lift, OptionalEncryptableJsonType,
 };
 use hyperswitch_interfaces::configs;
-use router_env::logger;
 
 use crate::{
     routes::app,
@@ -16,7 +15,6 @@ use crate::{
 impl ForeignFrom<(&app::AppState, configs::Tenant)> for KeyManagerState {
     fn foreign_from((app_state, tenant): (&app::AppState, configs::Tenant)) -> Self {
         let conf = app_state.conf.key_manager.get_inner();
-        logger::info!("Creating key manager state from app state and tenant from impl");
         Self {
             global_tenant_id: app_state.conf.multitenancy.global_tenant.tenant_id.clone(),
             tenant_id: tenant.tenant_id.clone(),
@@ -32,14 +30,12 @@ impl ForeignFrom<(&app::AppState, configs::Tenant)> for KeyManagerState {
             infra_values: app::AppState::process_env_mappings(app_state.conf.infra_values.clone()),
             use_legacy_key_store_decryption: conf.use_legacy_key_store_decryption,
             observability: Arc::new(Mutex::new(ExternalServiceCallCollector::default())),
-            created_from: "foreign_from_app_state".to_string(),
         }
     }
 }
 impl From<&app::SessionState> for KeyManagerState {
     fn from(state: &app::SessionState) -> Self {
         let conf = state.conf.key_manager.get_inner();
-        logger::info!("Creating key manager state from session state from impl");
         let store_km_state = state.store.get_key_manager_state();
         Self {
             global_tenant_id: state.conf.multitenancy.global_tenant.tenant_id.clone(),
@@ -55,16 +51,7 @@ impl From<&app::SessionState> for KeyManagerState {
             ca: conf.ca.clone(),
             infra_values: app::AppState::process_env_mappings(state.conf.infra_values.clone()),
             use_legacy_key_store_decryption: conf.use_legacy_key_store_decryption,
-            observability: if store_km_state.is_some() {
-                logger::info!(
-                    "Using existing observability collector from store for key manager state"
-                );
-                store_km_state.unwrap().observability.clone()
-            } else {
-                logger::info!("Creating new observability collector for key manager state as store does not have it");
-                Arc::new(Mutex::new(ExternalServiceCallCollector::default()))
-            },
-            created_from: "from_session_state".to_string(),
+            observability: store_km_state.map(|km_state| km_state.observability.clone()).unwrap_or_else(|| Arc::new(Mutex::new(ExternalServiceCallCollector::default()))),
         }
     }
 }

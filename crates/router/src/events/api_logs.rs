@@ -237,10 +237,6 @@ impl KafkaMessage for NewApiEvent {
     }
 }
 
-// #[derive(Debug, Serialize)]
-// #[serde(rename_all = "snake_case")]
-// pub struct ObservabilityContext {
-//     pub merchant_id: Option<common_utils::id_type::MerchantId>,
-//     pub organization_id: Option<common_utils::id_type::OrganizationId>,
-//     pub profile_id: Option<common_utils::id_type::ProfileId>,
-// }
+pub trait ObservabilityEventHandlerInterface {
+    fn log_wide_event(&self, event: NewApiEvent);
+}

@@ -438,8 +438,6 @@ services:
       - ./crates/analytics/docs/clickhouse/scripts:/docker-entrypoint-initdb.d
     environment:
       - TZ=Asia/Kolkata
-      - CLICKHOUSE_USER=default
-      - CLICKHOUSE_PASSWORD=Clickhouse@123
     profiles:
       - olap
     ulimits:
@@ -511,4 +509,3 @@ services:
       - HYPERSWITCH_CLIENT_URL=http://localhost:9050
       - HYPERSWITCH_SERVER_URL=http://localhost:8080
     labels:
-      logs: "promtail"

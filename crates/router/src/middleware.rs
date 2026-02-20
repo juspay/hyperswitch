@@ -3,7 +3,7 @@ use std::{
     time::Instant,
 };
 
-use actix_web::{web::Data, FromRequest, HttpMessage};
+use actix_web::{FromRequest, HttpMessage};
 use common_utils::{consts::TENANT_HEADER, events::ExternalServiceCallCollector};
 use futures::StreamExt;
 // Re-export RequestId from router_env for convenience
@@ -15,18 +15,25 @@ use router_env::{
 
 use crate::{
     events::{
-        api_logs::{ApiEvent, NewApiEvent},
-        EventsHandler,
+        api_logs::{ApiEvent, NewApiEvent, ObservabilityEventHandlerInterface},
     },
     headers,
     routes::metrics,
 };
 
-/// Test middleware to check if we can access response extensions
-pub struct TestExtensionMiddleware;
+/// Middleware to capture observability data
+pub struct ObservabilityMiddleware<T: ObservabilityEventHandlerInterface + Clone> {
+    event_handler: T,
+}
 
-impl<S: 'static, B> actix_web::dev::Transform<S, actix_web::dev::ServiceRequest>
-    for TestExtensionMiddleware
+impl<T: ObservabilityEventHandlerInterface + Clone> ObservabilityMiddleware<T> {
+    pub fn new(event_handler: T) -> Self {
+        Self { event_handler }
+    }
+}
+
+impl<S: 'static, B, T: ObservabilityEventHandlerInterface + Clone + 'static> actix_web::dev::Transform<S, actix_web::dev::ServiceRequest>
+    for ObservabilityMiddleware<T>
 where
     S: actix_web::dev::Service<
         actix_web::dev::ServiceRequest,
@@ -38,21 +45,22 @@ where
 {
     type Response = actix_web::dev::ServiceResponse<B>;
     type Error = actix_web::Error;
-    type Transform = TestExtensionMiddlewareService<S>;
+    type Transform = ObservabilityMiddlewareService<S, T>;
     type InitError = ();
     type Future = std::future::Ready<Result<Self::Transform, Self::InitError>>;
 
     fn new_transform(&self, service: S) -> Self::Future {
-        std::future::ready(Ok(TestExtensionMiddlewareService { service }))
+        std::future::ready(Ok(ObservabilityMiddlewareService { service, event_handler: self.event_handler.clone() }))
     }
 }
 
-pub struct TestExtensionMiddlewareService<S> {
+pub struct ObservabilityMiddlewareService<S, T> {
     service: S,
+    event_handler: T,
 }
 
-impl<S, B> actix_web::dev::Service<actix_web::dev::ServiceRequest>
-    for TestExtensionMiddlewareService<S>
+impl<S, B, T: ObservabilityEventHandlerInterface + Clone + 'static> actix_web::dev::Service<actix_web::dev::ServiceRequest>
+    for ObservabilityMiddlewareService<S, T>
 where
     S: actix_web::dev::Service<
             actix_web::dev::ServiceRequest,
@@ -77,19 +85,15 @@ where
             .map(|s| s.to_string());
         let ip_addr = req.peer_addr().map(|addr| addr.to_string());
 
-        let event_handler_opt = req
-            .app_data::<Data<EventsHandler>>()
-            .map(|data| data.get_ref().clone());
-
-        let start_time = Instant::now();
+        let event_handler = self.event_handler.clone();
         let response_fut = self.service.call(req);
 
         Box::pin(async move {
+            let start_time = Instant::now();
             let response = response_fut.await?;
-            let latency = start_time.elapsed().as_millis();
+            let req_latency = start_time.elapsed().as_millis();
             let status_code = response.status().as_u16() as i64;
 
-            // Try to access the test extension data from the response extensions
             let (http_req, res_body) = response.into_parts();
 
             let external_service_collector = http_req
@@ -99,16 +103,9 @@ where
 
             let mut external_service_calls = Vec::new();
             if let Some(collector) = external_service_collector {
-                logger::info!(
-                    "Found external service call data from collector in response extensions"
-                );
                 if let Ok(mut guard) = collector.lock() {
                     let calls = guard.drain();
                     external_service_calls.extend(calls);
-                    logger::info!(
-                        "Extracted {} external service calls",
-                        external_service_calls.len()
-                    );
                 }
             } else {
                 logger::info!("No external service call data found in response extensions");
@@ -123,11 +120,11 @@ where
                     .external_service_calls
                     .extend(external_service_calls);
                 transformed.status_code = status_code;
-                transformed.latency = latency;
+                transformed.latency = req_latency;
 
                 transformed
             } else {
-                // Fallback if no events found
+                // Fallback if no events found in request extensions
                 logger::info!(
                     "No ApiEvent found in response extensions, creating a default NewApiEvent"
                 );
@@ -141,7 +138,7 @@ where
                         .await
                         .ok()
                         .map(|rid| rid.to_string()),
-                    latency,
+                    latency: req_latency,
                     status_code,
                     auth_type: None,
                     request: None,
@@ -161,22 +158,13 @@ where
                 }
             };
 
-            // Log event to kafka
-            if let Some(ref event_handler) = event_handler_opt {
-                event_handler.log_event(&final_event);
-                logger::info!("Successfully logged NewApiEvent to Kafka");
-            } else {
-                logger::warn!("EventsHandler not available in app data, skipping Kafka logging");
-            }
-
-            if let Ok(api_event_json) = serde_json::to_string_pretty(&final_event) {
-                logger::debug!("NewApiEvent details:\n{}", api_event_json);
-            }
-
-            let middleware_latency = middleware_start_time.elapsed().as_millis() - latency;
-            logger::info!("Middleware processing latency: {} ms", middleware_latency);
+            event_handler.log_wide_event(final_event.clone());
 
             let response = actix_web::dev::ServiceResponse::new(http_req, res_body);
+
+            let middleware_latency = middleware_start_time.elapsed().as_millis() - req_latency;
+            logger::info!("Middleware processing latency: {} ms", middleware_latency);
+
             Ok(response)
         })
     }
