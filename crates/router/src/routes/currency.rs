@@ -21,7 +21,10 @@ pub async fn retrieve_forex(state: web::Data<AppState>, req: HttpRequest) -> Htt
                 allow_connected_scope_operation: false,
                 allow_platform_self_operation: false,
             }),
-            &auth::DashboardNoPermissionAuth,
+            &auth::DashboardNoPermissionAuth {
+                allow_connected: false,
+                allow_platform: false,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -57,7 +60,10 @@ pub async fn convert_forex(
                 allow_connected_scope_operation: false,
                 allow_platform_self_operation: false,
             }),
-            &auth::DashboardNoPermissionAuth,
+            &auth::DashboardNoPermissionAuth {
+                allow_connected: false,
+                allow_platform: false,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
