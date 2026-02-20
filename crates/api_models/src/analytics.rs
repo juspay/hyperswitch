@@ -152,13 +152,8 @@ pub struct ReportRequest {
     pub time_range: TimeRange,
     pub emails: Option<Vec<Secret<String, EmailStrategy>>>,
     #[cfg(feature = "v2")]
-    #[serde(default = "default_report_type")]
-    pub report_type: Option<ReportType>,
-}
-
-#[cfg(feature = "v2")]
-fn default_report_type() -> Option<ReportType> {
-    Some(ReportType::V2Payments)
+    #[serde(default)]
+    pub report_type: ReportType,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
