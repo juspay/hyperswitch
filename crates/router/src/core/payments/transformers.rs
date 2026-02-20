@@ -7,9 +7,8 @@ use api_models::payments as api_payments;
 #[cfg(feature = "v2")]
 use api_models::payments::RevenueRecoveryGetIntentResponse;
 use api_models::payments::{
-    Address, ConnectorMandateReferenceId, ConnectorMetadataResponse, CustomerDetails,
-    CustomerDetailsResponse, FrmMessage, MandateIds, NetworkDetails, RequestSurchargeDetails,
-    SantanderData,
+    Address, ConnectorMandateReferenceId, CustomerDetails, CustomerDetailsResponse, FrmMessage,
+    MandateIds, NetworkDetails, RequestSurchargeDetails,
 };
 use common_enums::{
     connector_enums::Connector, Currency, MerchantAccountType, RequestIncrementalAuthorization,
@@ -3986,10 +3985,8 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse feature metadata")?;
 
-        let connector_response_metadata = get_connector_response_metadata_from_attempt_metadata(
-            routed_through.clone(),
-            payment_attempt.clone().connector_metadata,
-        );
+        let connector_response_metadata =
+            payment_attempt.get_connector_response_metadata_from_attempt_metadata();
 
         let payments_response = api::PaymentsResponse {
             payment_id: payment_intent.payment_id,
@@ -4296,6 +4293,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
     fn foreign_from((pi, pa): (storage::PaymentIntent, storage::PaymentAttempt)) -> Self {
         let connector_transaction_id = pa.get_connector_payment_id().map(ToString::to_string);
         Self {
+            connector_response_metadata: pa.clone().get_connector_response_metadata_from_attempt_metadata(),
             payment_id: pi.payment_id,
             merchant_id: pi.merchant_id,
             status: pi.status,
@@ -4445,7 +4443,6 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             billing_descriptor: pi.billing_descriptor,
             partner_merchant_identifier_details: pi.partner_merchant_identifier_details,
             payment_method_tokenization_details: None,
-            connector_response_metadata: get_connector_response_metadata_from_attempt_metadata(pa.connector, pa.connector_metadata),
         }
     }
 }
@@ -7084,25 +7081,4 @@ impl ForeignFrom<common_types::three_ds_decision_rule_engine::ThreeDSDecision>
             }
         }
     }
-}
-
-fn get_connector_response_metadata_from_attempt_metadata(
-    connector: Option<String>,
-    payment_attempt_connector_metadata: Option<serde_json::Value>,
-) -> Option<ConnectorMetadataResponse> {
-    let connector = connector
-        .as_deref()
-        .and_then(|s| Connector::from_str(s).ok())?;
-
-    if !connector.send_back_attempt_connector_metadata_in_payments_response() {
-        return None;
-    }
-
-    payment_attempt_connector_metadata.and_then(|metadata| match connector {
-        Connector::Santander => metadata
-            .parse_value::<SantanderData>("SantanderData")
-            .ok()
-            .map(ConnectorMetadataResponse::Santander),
-        _ => None,
-    })
 }
