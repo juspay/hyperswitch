@@ -106,6 +106,7 @@ impl TryFrom<CreateOrderResponseRouterData<RazorpayOrderResponse>>
         Ok(Self {
             response: Ok(PaymentsResponseData::PaymentsCreateOrderResponse {
                 order_id: item.response.id.clone(),
+                session_token: None,
             }),
             ..item.data
         })
