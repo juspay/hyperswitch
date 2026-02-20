@@ -5046,6 +5046,84 @@ where
     }
 }
 
+#[cfg(feature = "v2")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationDataWithUserId, A> for JWTAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationDataWithUserId, AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+        if payload.check_in_blacklist(state).await? {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
+
+        let role_info = authorization::get_role_info(state, &payload).await?;
+        authorization::check_permission(self.permission, &role_info)?;
+
+        let key_store = state
+            .store()
+            .get_merchant_key_store_by_merchant_id(
+                &payload.merchant_id,
+                &state.store().get_master_key().to_vec().into(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InvalidJwtToken)
+            .attach_printable("Failed to fetch merchant key store for the merchant id")?;
+
+        let merchant = state
+            .store()
+            .find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
+            .await
+            .change_context(errors::ApiErrorResponse::InvalidJwtToken)?;
+
+        let profile = state
+            .store()
+            .find_business_profile_by_merchant_id_profile_id(
+                &key_store,
+                &payload.merchant_id,
+                &payload.profile_id,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+        let initiator = Some(domain::Initiator::Jwt {
+            user_id: payload.user_id.clone(),
+        });
+
+        let platform = resolve_platform(
+            state,
+            request_headers,
+            merchant.clone(),
+            key_store,
+            initiator,
+        )
+        .await?;
+
+        let auth = AuthenticationData {
+            platform,
+            profile,
+            client_secret: None,
+        };
+
+        Ok((
+            (auth.clone(), payload.user_id.clone()),
+            AuthenticationType::MerchantJwt {
+                merchant_id: payload.merchant_id,
+                user_id: Some(payload.user_id),
+            },
+        ))
+    }
+}
+
 pub struct DashboardNoPermissionAuth {
     pub allow_connected: bool,
     pub allow_platform: bool,
