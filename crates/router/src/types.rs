@@ -556,30 +556,13 @@ impl Capturable for PaymentsCancelPostCaptureData {
         &self,
         _payment_data: &PaymentData<F>,
         _amount_capturable: Option<i64>,
-        attempt_status: common_enums::AttemptStatus,
+        _attempt_status: common_enums::AttemptStatus,
     ) -> Option<i64>
     where
         F: Clone,
     {
-        let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
-        match intent_status {
-            common_enums::IntentStatus::Cancelled
-            | common_enums::IntentStatus::CancelledPostCapture
-            | common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::Conflicted
-            | common_enums::IntentStatus::Expired => Some(0),
-            common_enums::IntentStatus::Succeeded
-            | common_enums::IntentStatus::Failed
-            | common_enums::IntentStatus::RequiresCustomerAction
-            | common_enums::IntentStatus::RequiresMerchantAction
-            | common_enums::IntentStatus::RequiresPaymentMethod
-            | common_enums::IntentStatus::RequiresConfirmation
-            | common_enums::IntentStatus::RequiresCapture
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
-            | common_enums::IntentStatus::Processing
-            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
-            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => None,
-        }
+        // Capture not available after post capture void flow, hence return 0
+        Some(0)
     }
 }
 impl Capturable for PaymentsApproveData {}

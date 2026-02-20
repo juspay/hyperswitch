@@ -2072,6 +2072,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         429 => router_data.status,
                                         _ => enums::AttemptStatus::Failure,
                                     }
+                                } else if sub_flow == "CancelPostCapture" {
+                                    router_data.status
                                 } else {
                                     match err.status_code {
                                         500..=511 => enums::AttemptStatus::Pending,
@@ -2529,6 +2531,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         types::PaymentsResponseData::PaymentsCreateOrderResponse { .. } => {
                             (None, None, None)
                         }
+                        types::PaymentsResponseData::PostCaptureVoidResponse { .. } => {
+                            (None, None, None)
+                        }
                     }
                 }
             }
@@ -2656,37 +2661,12 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         &payment_data,
     );
 
-    let payment_intent_update = match &router_data.response {
-        Err(_) => storage::PaymentIntentUpdate::PGStatusUpdate {
-            status: api_models::enums::IntentStatus::foreign_from(
-                payment_data.payment_attempt.status,
-            ),
-            updated_by: processor.get_account().storage_scheme.to_string(),
-            // make this false only if initial payment fails, if incremental authorization call fails don't make it false
-            incremental_authorization_allowed: Some(false),
-            feature_metadata: payment_data
-                .payment_intent
-                .feature_metadata
-                .clone()
-                .map(masking::Secret::new),
-        },
-        Ok(_) => storage::PaymentIntentUpdate::ResponseUpdate {
-            status: api_models::enums::IntentStatus::foreign_from(
-                payment_data.payment_attempt.status,
-            ),
-            amount_captured,
-            updated_by: processor.get_account().storage_scheme.to_string(),
-            fingerprint_id: payment_data.payment_attempt.fingerprint_id.clone(),
-            incremental_authorization_allowed: payment_data
-                .payment_intent
-                .incremental_authorization_allowed,
-            feature_metadata: payment_data
-                .payment_intent
-                .feature_metadata
-                .clone()
-                .map(masking::Secret::new),
-        },
-    };
+    let payment_intent_update = get_payment_intent_update_data::<_, _>(
+        payment_data.clone(),
+        &router_data,
+        processor,
+        amount_captured,
+    );
 
     let m_db = state.clone().store;
     let m_key_store = processor.get_key_store().clone();
@@ -2841,6 +2821,68 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 },
             ))
         }
+    }
+}
+
+#[cfg(feature = "v1")]
+fn get_payment_intent_update_data<F: Clone, T: types::Capturable>(
+    payment_data: PaymentData<F>,
+    router_data: &types::RouterData<F, T, types::PaymentsResponseData>,
+    processor: &domain::Processor,
+    amount_captured: Option<MinorUnit>,
+) -> storage::PaymentIntentUpdate {
+    match &router_data.response {
+        Err(_) => storage::PaymentIntentUpdate::PGStatusUpdate {
+            status: api_models::enums::IntentStatus::foreign_from(
+                payment_data.payment_attempt.status,
+            ),
+            updated_by: processor.get_account().storage_scheme.to_string(),
+            incremental_authorization_allowed: Some(false),
+            feature_metadata: payment_data
+                .payment_intent
+                .feature_metadata
+                .clone()
+                .map(masking::Secret::new),
+        },
+        Ok(types::PaymentsResponseData::PostCaptureVoidResponse {
+            post_capture_void_status,
+            connector_reference_id,
+            description,
+        }) => {
+            let post_capture_void_response = common_types::domain::PostCaptureVoidData {
+                status: *post_capture_void_status,
+                connector_reference_id: connector_reference_id.clone(),
+                description: description.clone(),
+            };
+
+            let current_state = payment_data
+                .payment_intent
+                .state_metadata
+                .clone()
+                .unwrap_or_default()
+                .set_post_capture_void_data(post_capture_void_response);
+
+            storage::PaymentIntentUpdate::StateMetadataUpdate {
+                state_metadata: current_state.clone(),
+                updated_by: processor.get_account().storage_scheme.to_string(),
+            }
+        }
+        Ok(_) => storage::PaymentIntentUpdate::ResponseUpdate {
+            status: api_models::enums::IntentStatus::foreign_from(
+                payment_data.payment_attempt.status,
+            ),
+            amount_captured,
+            updated_by: processor.get_account().storage_scheme.to_string(),
+            fingerprint_id: payment_data.payment_attempt.fingerprint_id.clone(),
+            incremental_authorization_allowed: payment_data
+                .payment_intent
+                .incremental_authorization_allowed,
+            feature_metadata: payment_data
+                .payment_intent
+                .feature_metadata
+                .clone()
+                .map(masking::Secret::new),
+        },
     }
 }
 
