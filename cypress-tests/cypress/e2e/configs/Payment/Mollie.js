@@ -238,30 +238,6 @@ export const connectorDetails = {
         },
       },
     },
-    Capture: getCustomExchange({
-      Request: {
-        amount_to_capture: 6000,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
-          amount: 6000,
-          amount_capturable: 6000,
-        },
-      },
-      ResponseCustom: {
-        status: 400,
-        body: {
-          error: {
-            code: "IR_14",
-            message:
-              "This Payment could not be captured because it has a payment.status of succeeded. The expected state is requires_capture, partially_captured_and_capturable, processing",
-            type: "invalid_request",
-          },
-        },
-      },
-    }),
     PartialCapture: {
       Request: {
         amount_to_capture: 2000,
@@ -824,7 +800,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "failed",
+          error_code: "Unprocessable Entity",
+          error_message: "method",
         },
       },
     },
