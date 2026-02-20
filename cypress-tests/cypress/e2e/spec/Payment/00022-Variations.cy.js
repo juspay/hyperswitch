@@ -644,6 +644,8 @@ describe("Corner cases", () => {
       ]["PartialRefund"];
       cy.refundCallTest(fixtures.refundBody, refundData, globalState);
 
+      if (!utils.should_continue_further(refundData)) return;
+
       const syncRefundData = getConnectorDetails(
         globalState.get("connectorId")
       )["card_pm"]["SyncRefund"];
