@@ -43,13 +43,12 @@ use hyperswitch_interfaces::{
     consts, errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
-    webhooks::{self},
+    webhooks,
 };
 use lazy_static::lazy_static;
 use masking::{Mask, PeekInterface};
 use transformers as mollie;
 
-// use self::mollie::{webhook_headers, MollieWebhookBodyEventType};
 use crate::{
     constants::headers,
     types::ResponseRouterData,

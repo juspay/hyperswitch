@@ -380,7 +380,10 @@ impl TryFrom<&MollieRouterData<&types::SetupMandateRouterData>> for MolliePaymen
             redirect_url: item.router_data.request.get_router_return_url()?,
             cancel_url: None,
 
-            webhook_url: item.router_data.request.get_webhook_url()?,
+            webhook_url: match router_env::env::which() {
+                router_env::Env::Development => "".to_string(),
+                _ => item.router_data.request.get_webhook_url()?,
+            },
 
             locale: None,
             payment_method_data,
@@ -483,7 +486,10 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
             description,
             redirect_url,
             cancel_url: None,
-            webhook_url: item.router_data.request.get_webhook_url()?,
+            webhook_url: match router_env::env::which() {
+                router_env::Env::Development => "".to_string(),
+                _ => item.router_data.request.get_webhook_url()?,
+            },
             locale: None,
             payment_method_data,
             metadata: Some(MollieMetadata {
