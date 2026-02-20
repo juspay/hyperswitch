@@ -8704,6 +8704,30 @@
         ],
         "description": "Masked payout method details for storing in db"
       },
+      "AddonsDetails": {
+        "type": "object",
+        "required": [
+          "item_price_id"
+        ],
+        "properties": {
+          "plan_id": {
+            "type": "string",
+            "description": "Identifier for the associated addon plan_id.",
+            "nullable": true
+          },
+          "item_price_id": {
+            "type": "string",
+            "description": "Identifier for the associated item_price_id for the addon subscription."
+          },
+          "quantity": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Quantity of the addon subscription.",
+            "nullable": true,
+            "minimum": 0
+          }
+        }
+      },
       "Address": {
         "type": "object",
         "properties": {
@@ -14861,9 +14885,20 @@
             "description": "Identifier for the associated item_price_id for the subscription.",
             "nullable": true
           },
-          "coupon": {
-            "type": "string",
-            "description": "Optional coupon code applied to this subscription.",
+          "coupon_codes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Optional coupon codes applied to this subscription.",
+            "nullable": true
+          },
+          "addons": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AddonsDetails"
+            },
+            "description": "Addons details for the subscription.",
             "nullable": true
           },
           "profile_id": {
@@ -16188,8 +16223,19 @@
             "type": "string",
             "description": "Identifier for the associated item_price_id for the subscription."
           },
-          "coupon_code": {
-            "type": "string",
+          "addons": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AddonsDetails"
+            },
+            "description": "Addons details for the subscription.",
+            "nullable": true
+          },
+          "coupon_codes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
             "description": "Identifier for the coupon code for the subscription.",
             "nullable": true
           },
@@ -16369,9 +16415,20 @@
             "description": "Identifier for the subscription plan.",
             "nullable": true
           },
-          "coupon_code": {
-            "type": "string",
-            "description": "Optional coupon code applied to the subscription.",
+          "addons": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AddonsDetails"
+            },
+            "description": "Addons details for the subscription.",
+            "nullable": true
+          },
+          "coupon_codes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Optional coupon codes applied to the subscription.",
             "nullable": true
           },
           "customer_id": {
@@ -18354,9 +18411,20 @@
             "type": "string",
             "description": "Identifier for the associated item_price_id for the subscription."
           },
-          "coupon_code": {
-            "type": "string",
+          "coupon_codes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
             "description": "Identifier for the coupon code for the subscription.",
+            "nullable": true
+          },
+          "addons": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AddonsDetails"
+            },
+            "description": "Addons details for the subscription.",
             "nullable": true
           }
         }
@@ -18385,8 +18453,11 @@
             "description": "Identifier for the associated item_price_id for the subscription.",
             "nullable": true
           },
-          "coupon_code": {
-            "type": "string",
+          "coupon_codes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
             "description": "Identifier for the coupon code for the subscription.",
             "nullable": true
           },
@@ -38095,9 +38166,19 @@
           "merchant_id": {
             "$ref": "#/components/schemas/MerchantId"
           },
-          "coupon_code": {
-            "type": "string",
-            "description": "Optional coupon code applied to this subscription.",
+          "coupon_codes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Optional coupon codes applied to this subscription.",
+            "nullable": true
+          },
+          "addons": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AddonsDetails"
+            },
             "nullable": true
           },
           "customer_id": {
@@ -39027,6 +39108,22 @@
           "item_price_id": {
             "type": "string",
             "description": "Identifier for the associated item_price_id for the subscription."
+          },
+          "coupon_codes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Identifier for the coupon code for the subscription.",
+            "nullable": true
+          },
+          "addons": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AddonsDetails"
+            },
+            "description": "Addons details for the subscription.",
+            "nullable": true
           }
         }
       },

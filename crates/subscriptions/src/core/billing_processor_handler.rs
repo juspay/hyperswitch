@@ -24,7 +24,9 @@ use hyperswitch_interfaces::{
     api_client, configs::MerchantConnectorAccountType, connector_integration_interface,
 };
 
-use crate::{errors::SubscriptionResult, state::SubscriptionState as SessionState};
+use crate::{
+    errors::SubscriptionResult, helpers::AddonsExt, state::SubscriptionState as SessionState,
+};
 
 pub struct BillingHandler {
     pub auth_type: hyperswitch_domain_models::router_data::ConnectorAuthType,
@@ -174,6 +176,8 @@ impl BillingHandler {
         state: &SessionState,
         subscription: hyperswitch_domain_models::subscription::Subscription,
         item_price_id: Option<String>,
+        coupon_codes: Option<Vec<String>>,
+        addons: Option<Vec<api_models::subscription::AddonsDetails>>,
         billing_address: Option<api_models::payments::Address>,
     ) -> SubscriptionResult<subscription_response_types::SubscriptionCreateResponse> {
         let subscription_item = subscription_request_types::SubscriptionItem {
@@ -182,15 +186,19 @@ impl BillingHandler {
             })?,
             quantity: Some(1),
         };
+
+        let subscription_items = addons.add_to_subscription_items(vec![subscription_item]);
+
         let subscription_req = subscription_request_types::SubscriptionCreateRequest {
             subscription_id: subscription.id.to_owned(),
             customer_id: subscription.customer_id.to_owned(),
-            subscription_items: vec![subscription_item],
+            subscription_items,
             billing_address: billing_address.ok_or(
                 errors::ApiErrorResponse::MissingRequiredField {
                     field_name: "billing",
                 },
             )?,
+            coupon_codes,
             auto_collection: subscription_request_types::SubscriptionAutoCollection::Off,
             connector_params: self.connector_params.clone(),
         };
@@ -267,8 +275,18 @@ impl BillingHandler {
         state: &SessionState,
         estimate_request: subscription_types::EstimateSubscriptionQuery,
     ) -> SubscriptionResult<subscription_response_types::GetSubscriptionEstimateResponse> {
+        let subscription_item = subscription_request_types::SubscriptionItem {
+            item_price_id: estimate_request.item_price_id,
+            quantity: Some(1),
+        };
+
+        let addons = estimate_request.addons;
+
+        let subscription_items = addons.add_to_subscription_items(vec![subscription_item]);
+
         let estimate_req = subscription_request_types::GetSubscriptionEstimateRequest {
-            price_id: estimate_request.item_price_id.clone(),
+            subscription_items,
+            coupon_codes: estimate_request.coupon_codes.clone(),
         };
 
         let router_data = self.build_router_data(

@@ -36,13 +36,16 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::errors;
 use masking::{ExposeInterface, Secret};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 use time::PrimitiveDateTime;
 
 use crate::{
     convert_connector_response_to_domain_response,
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{self, PaymentsAuthorizeRequestData, RouterData as OtherRouterData},
+    utils::{
+        self, serialize_indexed_collection, serialize_optional_indexed_collection,
+        PaymentsAuthorizeRequestData, RouterData as OtherRouterData,
+    },
 };
 
 // SubscriptionCreate structures
@@ -50,10 +53,15 @@ use crate::{
 pub struct ChargebeeSubscriptionCreateRequest {
     #[serde(rename = "id")]
     pub subscription_id: SubscriptionId,
-    #[serde(rename = "subscription_items[item_price_id][0]")]
-    pub item_price_id: String,
-    #[serde(rename = "subscription_items[quantity][0]")]
-    pub quantity: Option<u32>,
+    #[serde(serialize_with = "serialize_item_price_id")]
+    #[serde(flatten)]
+    pub item_price_id: Vec<String>,
+    #[serde(
+        serialize_with = "serialize_quantity",
+        skip_serializing_if = "Option::is_none"
+    )]
+    #[serde(flatten)]
+    pub quantity: Option<Vec<u32>>,
     #[serde(rename = "billing_address[line1]")]
     pub billing_address_line1: Option<Secret<String>>,
     #[serde(rename = "billing_address[city]")]
@@ -64,7 +72,42 @@ pub struct ChargebeeSubscriptionCreateRequest {
     pub billing_address_zip: Option<Secret<String>>,
     #[serde(rename = "billing_address[country]")]
     pub billing_address_country: Option<common_enums::CountryAlpha2>,
+    #[serde(
+        serialize_with = "serialize_coupon_ids",
+        skip_serializing_if = "Option::is_none"
+    )]
+    #[serde(flatten)]
+    pub coupon_codes: Option<Vec<String>>,
     pub auto_collection: ChargebeeAutoCollection,
+}
+
+fn serialize_item_price_id<S>(item_price_ids: &[String], serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serialize_indexed_collection(
+        item_price_ids,
+        "subscription_items[item_price_id][{}]",
+        serializer,
+    )
+}
+
+fn serialize_quantity<S>(quantities: &Option<Vec<u32>>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serialize_optional_indexed_collection(
+        quantities,
+        "subscription_items[quantity][{}]",
+        serializer,
+    )
+}
+
+fn serialize_coupon_ids<S>(coupons: &Option<Vec<String>>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serialize_optional_indexed_collection(coupons, "coupon_ids[{}]", serializer)
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -92,22 +135,22 @@ impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::Subscriptio
     ) -> Result<Self, Self::Error> {
         let req = &item.router_data.request;
 
-        let first_item =
-            req.subscription_items
-                .first()
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "subscription_items",
-                })?;
+        let (item_price_ids, quantities): (Vec<String>, Vec<u32>) = req
+            .subscription_items
+            .iter()
+            .map(|item| (item.item_price_id.clone(), item.quantity.unwrap_or(1)))
+            .unzip();
 
         Ok(Self {
             subscription_id: req.subscription_id.clone(),
-            item_price_id: first_item.item_price_id.clone(),
-            quantity: first_item.quantity,
+            item_price_id: item_price_ids,
+            quantity: Some(quantities),
             billing_address_line1: item.router_data.get_optional_billing_line1(),
             billing_address_city: item.router_data.get_optional_billing_city(),
             billing_address_state: item.router_data.get_optional_billing_state(),
             billing_address_zip: item.router_data.get_optional_billing_zip(),
             billing_address_country: item.router_data.get_optional_billing_country(),
+            coupon_codes: req.coupon_codes.clone(),
             auto_collection: req.auto_collection.clone().into(),
         })
     }
@@ -1157,15 +1200,38 @@ convert_connector_response_to_domain_response!(
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChargebeeSubscriptionEstimateRequest {
-    #[serde(rename = "subscription_items[item_price_id][0]")]
-    pub price_id: String,
+    #[serde(serialize_with = "serialize_item_price_id")]
+    #[serde(flatten)]
+    pub item_price_ids: Vec<String>,
+    #[serde(
+        serialize_with = "serialize_quantity",
+        skip_serializing_if = "Option::is_none"
+    )]
+    #[serde(flatten)]
+    pub quantities: Option<Vec<u32>>,
+    #[serde(
+        serialize_with = "serialize_coupon_ids",
+        skip_serializing_if = "Option::is_none"
+    )]
+    #[serde(flatten)]
+    pub coupon_codes: Option<Vec<String>>,
 }
 
 impl TryFrom<&GetSubscriptionEstimateRouterData> for ChargebeeSubscriptionEstimateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &GetSubscriptionEstimateRouterData) -> Result<Self, Self::Error> {
-        let price_id = item.request.price_id.to_owned();
-        Ok(Self { price_id })
+        let (item_price_ids, quantities): (Vec<String>, Vec<u32>) = item
+            .request
+            .subscription_items
+            .iter()
+            .map(|item| (item.item_price_id.clone(), item.quantity.unwrap_or(1)))
+            .unzip();
+        let coupon_codes = item.request.coupon_codes.clone();
+        Ok(Self {
+            item_price_ids,
+            quantities: Some(quantities),
+            coupon_codes,
+        })
     }
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
