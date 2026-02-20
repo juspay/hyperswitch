@@ -9,7 +9,7 @@ pub struct RetryMapping {
     pub frequencies: Vec<(i32, i32)>, // (frequency, count)
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ConnectorPTMapping {
     pub default_mapping: RetryMapping,
     pub custom_merchant_mapping: HashMap<common_utils::id_type::MerchantId, RetryMapping>,
