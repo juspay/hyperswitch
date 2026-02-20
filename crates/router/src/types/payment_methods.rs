@@ -25,6 +25,14 @@ pub trait VaultingInterface {
     fn get_vaulting_flow_name() -> &'static str;
 }
 
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct VaultFingerprintRequest {
+    pub data: String,
+    pub key: hyperswitch_domain_models::vault::V1VaultEntityId,
+}
+
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultFingerprintRequest {
     pub data: String,
@@ -446,7 +454,7 @@ pub struct PanMetadataUpdateBody {
 pub struct PaymentMethodUpdateHandler<'a> {
     pub platform: &'a hyperswitch_domain_models::platform::Platform,
     pub profile: &'a hyperswitch_domain_models::business_profile::Profile,
-    pub request: api_models::payment_methods::PaymentMethodUpdate,
+    pub request: hyperswitch_domain_models::payment_methods::PaymentMethodUpdate,
     pub payment_method: hyperswitch_domain_models::payment_methods::PaymentMethod,
     pub state: &'a crate::routes::app::SessionState,
 }

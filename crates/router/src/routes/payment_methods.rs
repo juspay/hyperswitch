@@ -81,19 +81,14 @@ pub async fn create_payment_method_api(
         allow_connected_scope_operation: true,
         allow_platform_self_operation: true,
     };
-    let jwt_auth = auth::JWTAuth {
-        permission: Permission::MerchantCustomerRead,
+    let (auth_type, _api_key_type) = match auth::check_internal_api_key_auth_no_client_secret(
+        req.headers(),
+        api_auth,
+        state.conf.internal_merchant_id_profile_id_auth.clone(),
+    ) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(error_stack::report!(err)),
     };
-    let (auth_type, _api_key_type) =
-        match auth::check_internal_api_key_or_dashboard_auth_no_client_secret(
-            req.headers(),
-            api_auth,
-            jwt_auth,
-            state.conf.internal_merchant_id_profile_id_auth.clone(),
-        ) {
-            Ok(auth) => auth,
-            Err(err) => return api::log_and_return_error_response(error_stack::report!(err)),
-        };
 
     Box::pin(api::server_wrap(
         flow,
@@ -851,26 +846,31 @@ pub async fn list_customer_payment_method_api(
         allow_connected_scope_operation: true,
         allow_platform_self_operation: true,
     };
-
-    let (auth_type, api_key_type) = match auth::check_internal_api_key_auth_no_client_secret(
-        req.headers(),
-        api_auth,
-        state.conf.internal_merchant_id_profile_id_auth.clone(),
-    ) {
-        Ok(auth) => auth,
-        Err(err) => return api::log_and_return_error_response(error_stack::report!(err)),
+    let jwt_auth = auth::JWTAuth {
+        permission: Permission::MerchantCustomerRead,
     };
+    let (auth_type, api_key_type) =
+        match auth::check_internal_api_key_or_dashboard_auth_no_client_secret(
+            req.headers(),
+            api_auth,
+            jwt_auth,
+            state.conf.internal_merchant_id_profile_id_auth.clone(),
+        ) {
+            Ok(auth) => auth,
+            Err(err) => return api::log_and_return_error_response(error_stack::report!(err)),
+        };
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, _, _| {
+        |state, auth: auth::AuthenticationData, payload, _| {
             payment_methods_routes::list_saved_payment_methods_for_customer(
                 state,
                 auth.platform.get_provider().clone(),
                 customer_id.clone(),
+                payload.include_new.unwrap_or(false),
             )
         },
         &*auth_type,

@@ -5,7 +5,7 @@ use csv::Reader;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     api::ApplicationResponse, errors::api_error_response as errors,
-    payment_methods::PaymentMethodUpdate, platform,
+    payment_methods::StoragePaymentMethodUpdate as PaymentMethodUpdate, platform,
 };
 use masking::{ExposeInterface, PeekInterface};
 use payment_methods::core::migration::MerchantConnectorValidator;
