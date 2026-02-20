@@ -64,7 +64,7 @@ use crate::{
 #[cfg(feature = "v1")]
 use crate::{
     mandates::{MandateDataType, MandateDetails},
-    router_request_types,
+    platform, router_request_types,
 };
 
 #[async_trait::async_trait]
@@ -906,7 +906,7 @@ impl PaymentAttempt {
         storage_scheme: storage_enums::MerchantStorageScheme,
         request: &api_models::payments::PaymentsConfirmIntentRequest,
         encrypted_data: DecryptedPaymentAttempt,
-        initiator: Option<&crate::platform::Initiator>,
+        initiator: Option<&platform::Initiator>,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let id = id_type::GlobalAttemptId::generate(&cell_id);
         let intent_amount_details = payment_intent.amount_details.clone();
@@ -1003,7 +1003,7 @@ impl PaymentAttempt {
         storage_scheme: storage_enums::MerchantStorageScheme,
         request: &api_models::payments::ProxyPaymentsRequest,
         encrypted_data: DecryptedPaymentAttempt,
-        initiator: Option<&crate::platform::Initiator>,
+        initiator: Option<&platform::Initiator>,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let id = id_type::GlobalAttemptId::generate(&cell_id);
         let intent_amount_details = payment_intent.amount_details.clone();
@@ -1096,7 +1096,7 @@ impl PaymentAttempt {
         storage_scheme: storage_enums::MerchantStorageScheme,
         request: &api_models::payments::ExternalVaultProxyPaymentsRequest,
         encrypted_data: DecryptedPaymentAttempt,
-        initiator: Option<&crate::platform::Initiator>,
+        initiator: Option<&platform::Initiator>,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let id = id_type::GlobalAttemptId::generate(&cell_id);
         let intent_amount_details = payment_intent.amount_details.clone();
@@ -1197,7 +1197,7 @@ impl PaymentAttempt {
         storage_scheme: storage_enums::MerchantStorageScheme,
         request: &api_models::payments::PaymentsAttemptRecordRequest,
         encrypted_data: DecryptedPaymentAttempt,
-        initiator: Option<&crate::platform::Initiator>,
+        initiator: Option<&platform::Initiator>,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let id = id_type::GlobalAttemptId::generate(&cell_id);
 
