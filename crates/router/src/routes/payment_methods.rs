@@ -848,6 +848,8 @@ pub async fn list_customer_payment_method_api(
     };
     let jwt_auth = auth::JWTAuth {
         permission: Permission::MerchantCustomerRead,
+        allow_connected: true,
+        allow_platform: true,
     };
     let (auth_type, api_key_type) =
         match auth::check_internal_api_key_or_dashboard_auth_no_client_secret(
