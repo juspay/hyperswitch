@@ -19,7 +19,7 @@ jobs:
       HOTFIX_PR_NEEDS_MAIN_BRANCH_PR_MERGED: ${{ vars.HOTFIX_PR_NEEDS_MAIN_BRANCH_PR_MERGED }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Get hotfix pull request body
         shell: bash

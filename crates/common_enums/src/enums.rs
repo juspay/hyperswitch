@@ -2493,7 +2493,7 @@ impl PaymentMethodType {
             Self::RedPagos => "RedPagos",
             Self::SamsungPay => "Samsung Pay",
             Self::Sepa => "SEPA Direct Debit",
-            Self::SepaGuarenteedDebit => "SEPA Guarenteed Direct Debit",
+            Self::SepaGuarenteedDebit => "SEPA Guaranteed Direct Debit",
             Self::SepaBankTransfer => "SEPA Bank Transfer",
             Self::Sofort => "Sofort",
             Self::Skrill => "Skrill",

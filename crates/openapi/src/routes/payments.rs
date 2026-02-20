@@ -259,7 +259,7 @@
                   "off_session": true,
                   "recurring_details": {
                       "type": "payment_method_id",
-                      "data": "pm_123456789" 
+                      "data": "pm_123456789"
                   },
                   "split_payments": {
                       "stripe_split_payment": {
@@ -468,8 +468,8 @@
                         "customer_id": "cus_abcdefgh",
                         "customer": {
                             "id": "cus_abcdefgh",
-                            "name": "John Dough", 
-                            "email": "john@example.com", 
+                            "name": "John Dough",
+                            "email": "john@example.com",
                             "phone": "9123456789"
                         },
                         "billing": {
@@ -501,8 +501,8 @@
                       "connector_mandate_id": "pm_abcdefgh",
                       "customer": {
                           "id": "cus_abcdefgh",
-                          "name": "John Dough", 
-                          "email": "john@example.com", 
+                          "name": "John Dough",
+                          "email": "john@example.com",
                           "phone": "9123456789"
                       },
                       "billing": {
@@ -534,8 +534,8 @@
                     "connector_mandate_id": "pm_abcdefgh",
                     "customer": {
                         "id": "cus_abcdefgh",
-                        "name": "John Dough", 
-                        "email": "john@example.com", 
+                        "name": "John Dough",
+                        "email": "john@example.com",
                         "phone": "9123456789"
                     },
                     "billing": {
@@ -1041,7 +1041,7 @@ pub fn payments_update_metadata() {}
     ),
     request_body=PaymentsEligibilityRequest,
     responses(
-        (status = 200, description = "Eligbility submit is successful", body = PaymentsEligibilityResponse),
+        (status = 200, description = "Eligibility submit is successful", body = PaymentsEligibilityResponse),
         (status = 400, description = "Bad Request", body = GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
