@@ -1774,6 +1774,11 @@ impl ForeignFrom<diesel_refund::Refund> for api::RefundResponse {
             issuer_error_code: refund.issuer_error_code,
             issuer_error_message: refund.issuer_error_message,
             raw_connector_response: None,
+            connector_refund_id: refund
+                .connector_refund_id
+                .as_ref()
+                .map(ConnectorTransactionId::get_id)
+                .map(ToOwned::to_owned),
         }
     }
 }
@@ -1803,6 +1808,11 @@ impl ForeignFrom<(diesel_refund::Refund, Option<masking::Secret<String>>)> for a
             issuer_error_code: refund.issuer_error_code,
             issuer_error_message: refund.issuer_error_message,
             raw_connector_response,
+            connector_refund_id: refund
+                .connector_refund_id
+                .as_ref()
+                .map(ConnectorTransactionId::get_id)
+                .map(ToOwned::to_owned),
         }
     }
 }

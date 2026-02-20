@@ -10779,6 +10779,21 @@
           }
         }
       },
+      "ConnectorMetadataResponse": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "santander"
+            ],
+            "properties": {
+              "santander": {
+                "$ref": "#/components/schemas/SantanderData"
+              }
+            }
+          }
+        ]
+      },
       "ConnectorSelection": {
         "oneOf": [
           {
@@ -28040,6 +28055,15 @@
           },
           "3_d_s": {
             "$ref": "#/components/schemas/SamsungPayTokenData"
+          }
+        }
+      },
+      "SantanderData": {
+        "type": "object",
+        "properties": {
+          "end_to_end_id": {
+            "type": "string",
+            "nullable": true
           }
         }
       },

@@ -7425,6 +7425,11 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<ConnectorMetadata>")]
     pub connector_metadata: Option<serde_json::Value>, // This is Value because it is fetched from DB and before putting in DB the type is validated
 
+    /// Returns additional provider-specific metadata for certain connectors
+    #[schema(value_type = Option<ConnectorMetadataResponse>)]
+    #[smithy(value_type = "Option<ConnectorMetadataResponse>")]
+    pub connector_response_metadata: Option<ConnectorMetadataResponse>,
+
     /// Additional data that might be required by hyperswitch, to enable some specific features.
     #[schema(value_type = Option<FeatureMetadata>)]
     #[smithy(value_type = "Option<FeatureMetadata>")]
@@ -9790,6 +9795,20 @@ pub struct ConnectorMetadata {
     pub adyen: Option<AdyenConnectorMetadata>,
     #[smithy(value_type = "Option<PeachpaymentsData>")]
     pub peachpayments: Option<PeachpaymentsData>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(rename_all = "snake_case")]
+pub enum ConnectorMetadataResponse {
+    Santander(SantanderData),
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct SantanderData {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub end_to_end_id: Option<String>,
 }
 
 impl ConnectorMetadata {

@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 #[cfg(all(feature = "v1", feature = "olap"))]
 use api_models::enums::Connector;
 #[cfg(feature = "v2")]
@@ -1825,6 +1827,29 @@ impl PaymentAttempt {
                 .and_then(|method| unsupported_payment_methods.get(method))
                 .is_some_and(|unsupported_set| unsupported_set.contains(&pm_type))
         })
+    }
+
+    /// Extract connector response metadata from the payment attempt metadata based on the connector's configuration
+    pub fn get_connector_response_metadata_from_attempt_metadata(
+        &self,
+    ) -> Option<api_models::payments::ConnectorMetadataResponse> {
+        let connector = self
+            .connector
+            .as_deref()
+            .and_then(|s| Connector::from_str(s).ok())?;
+
+        self.connector_metadata
+            .clone()
+            .and_then(|metadata| match connector {
+                Connector::Santander => metadata
+                    .parse_value::<api_models::payments::SantanderData>("SantanderData")
+                    .attach_printable(
+                        "Failed to parse payment_attempt.connector_metadata to SantanderData",
+                    )
+                    .ok()
+                    .map(api_models::payments::ConnectorMetadataResponse::Santander),
+                _ => None,
+            })
     }
 }
 
