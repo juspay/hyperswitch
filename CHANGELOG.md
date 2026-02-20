@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.19.0-hotfix1
+
+### Miscellaneous Tasks
+
+- **redis_interfaces:** Upgrade fred crate to version 8.0.6 ([#11345](https://github.com/juspay/hyperswitch/pull/11345)) ([`fbda950`](https://github.com/juspay/hyperswitch/commit/fbda95071a453eee6f6490d3eb49c3db76ee2544))
+
+**Full Changelog:** [`2026.02.19.0...2026.02.19.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.02.19.0...2026.02.19.0-hotfix1)
+
+- - -
+
 ## 2026.02.19.0
 
 ### Features
