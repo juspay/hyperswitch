@@ -37,7 +37,7 @@ use tokio::sync::{mpsc, oneshot};
 
 pub use self::env::logger;
 pub(crate) use self::macros::*;
-use crate::{configs::settings, core::errors};
+use crate::{configs::settings, core::errors, events::EventsHandler};
 
 #[cfg(feature = "mimalloc")]
 #[global_allocator]
@@ -124,6 +124,7 @@ pub fn mk_app(
     >,
 > {
     let mut server_app = get_application_builder(
+        state.event_handler.clone(),
         request_body_limit,
         state.conf.cors.clone(),
         state.conf.trace_header.clone(),
@@ -388,6 +389,7 @@ impl Stop for mpsc::Sender<()> {
 }
 
 pub fn get_application_builder(
+    event_handler: EventsHandler,
     request_body_limit: usize,
     cors: settings::CorsSettings,
     trace_header: settings::TraceHeaderConfig,
@@ -422,6 +424,7 @@ pub fn get_application_builder(
         .wrap(middleware::AddAcceptLanguageHeader)
         .wrap(middleware::RequestResponseMetrics)
         .wrap(middleware::LogSpanInitializer)
+        .wrap(middleware::ObservabilityMiddleware::new(event_handler))
         .wrap(router_env::tracing_actix_web::TracingLogger::<
             router_env::CustomRootSpanBuilder,
         >::new())

@@ -14,7 +14,7 @@ use actix_http::header::HeaderMap;
 use actix_web::{
     body,
     http::header::{HeaderName, HeaderValue},
-    web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError,
+    web, FromRequest, HttpMessage, HttpRequest, HttpResponse, Responder, ResponseError,
 };
 pub use client::{ApiClient, MockApiClient, ProxyClient};
 pub use common_enums::enums::PaymentAction;
@@ -364,8 +364,19 @@ where
         request.method(),
         infra.clone(),
     );
-
+    request.extensions_mut().insert(api_event.clone());
     state.event_handler().log_event(&api_event);
+
+    if let Some(collector) = session_state
+        .store
+        .get_key_manager_state()
+        .map(|state| state.observability.clone())
+    {
+        logger::info!("Using existing observability collector from session state store for request extensions");
+        request.extensions_mut().insert(collector);
+    } else {
+        logger::info!("Observability collector not found in session state store, skipping insertion into request extensions");
+    }
 
     output
 }
@@ -570,6 +581,7 @@ where
         tag = ?Tag::EndRequest,
         time_taken_ms = request_duration.as_millis(),
     );
+
     res
 }
 

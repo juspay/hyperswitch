@@ -259,3 +259,46 @@ impl<T: ApiEventMetric> ApiEventMetric for &T {
 }
 
 impl ApiEventMetric for TimeRange {}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct ExternalServiceCall {
+    pub service_name: String,
+    pub event_id: String,
+    pub endpoint: String,
+    pub method: String,
+    pub status_code: Option<u16>,
+    pub success: bool,
+    pub latency_ms: u128,
+    pub metadata: std::collections::HashMap<String, String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ExternalServiceCallCollector {
+    pub external_service_calls: Vec<ExternalServiceCall>,
+    pub collector_id: String,
+}
+
+impl Default for ExternalServiceCallCollector {
+    fn default() -> Self {
+        let collector_id = uuid::Uuid::new_v4().to_string();
+        Self {
+            external_service_calls: Vec::new(),
+            collector_id,
+        }
+    }
+}
+
+impl ExternalServiceCallCollector {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn record(&mut self, call: ExternalServiceCall) {
+        self.external_service_calls.push(call);
+    }
+
+    pub fn drain(&mut self) -> Vec<ExternalServiceCall> {
+        std::mem::take(&mut self.external_service_calls)
+    }
+}

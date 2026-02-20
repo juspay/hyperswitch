@@ -1,4 +1,7 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 use actix_web::{web, Scope};
 #[cfg(all(feature = "olap", feature = "v1"))]
@@ -9,6 +12,7 @@ use common_enums::{ExecutionMode, TransactionType};
 #[cfg(feature = "partial-auth")]
 use common_utils::crypto::Blake3;
 use common_utils::{
+    events::ExternalServiceCallCollector,
     id_type,
     types::{keymanager::KeyManagerState, TenantConfig},
 };
@@ -576,6 +580,7 @@ impl AppState {
             ca: km_conf.ca.clone(),
             infra_values: Self::process_env_mappings(conf.infra_values.clone()),
             use_legacy_key_store_decryption: km_conf.use_legacy_key_store_decryption,
+            observability: Arc::new(Mutex::new(ExternalServiceCallCollector::default())),
         };
         match storage_impl {
             StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match event_handler {
@@ -647,7 +652,7 @@ impl AppState {
         event_handler.add_tenant(tenant_conf);
         let mut store = self.stores.get(tenant).ok_or_else(err)?.clone();
         let key_manager_state = KeyManagerState::foreign_from((self.as_ref(), tenant_conf.clone()));
-        store.set_key_manager_state(key_manager_state);
+        store.set_key_manager_state(key_manager_state.clone());
         Ok(SessionState {
             store,
             global_store: self.global_store.clone(),

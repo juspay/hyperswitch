@@ -1,6 +1,7 @@
 #![allow(missing_docs)]
 
 use core::fmt;
+use std::sync::{Arc, Mutex};
 
 use base64::Engine;
 use masking::{ExposeInterface, PeekInterface, Secret, Strategy, StrongSecret};
@@ -19,6 +20,7 @@ use crate::{
     crypto::Encryptable,
     encryption::Encryption,
     errors::{self, CustomResult},
+    events::ExternalServiceCallCollector,
     id_type,
     transformers::{ForeignFrom, ForeignTryFrom},
 };
@@ -51,6 +53,7 @@ pub struct KeyManagerState {
     pub cert: Secret<String>,
     pub infra_values: Option<serde_json::Value>,
     pub use_legacy_key_store_decryption: bool,
+    pub observability: Arc<Mutex<ExternalServiceCallCollector>>,
 }
 
 impl KeyManagerState {
@@ -70,6 +73,7 @@ impl KeyManagerState {
             cert: Default::default(),
             infra_values: Default::default(),
             use_legacy_key_store_decryption: false,
+            observability: Arc::new(Mutex::new(ExternalServiceCallCollector::default())),
         }
     }
 
