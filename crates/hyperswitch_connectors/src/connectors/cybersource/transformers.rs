@@ -3210,8 +3210,14 @@ pub struct ClientRiskInformationRules {
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceTokenInformation {
     payment_instrument: Option<CybersoucrePaymentInstrument>,
+    customer: Option<CybersourceCustomerResponse>,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CybersourceCustomerResponse {
+    id: Option<String>,
+}
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CybersourceErrorInformation {
     reason: Option<String>,
