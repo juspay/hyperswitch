@@ -22,6 +22,7 @@ DavaoDelSur = "DavaoDelSur" # philippines state abbreviation
 IlocosSur = "IlocosSur" # philippines state abbreviation
 LanaoDelSur = "LanaoDelSur" # philippines state abbreviation
 MaguindanaoDelSur = "MaguindanaoDelSur" # philippines state abbreviation
+SurigaoDelSur = "SurigaoDelSur" # philippines state abbreviation
 GES = "GES" # france state abbreviation
 VOR = "VOR" # russia state abbreviation
 Arges = "Arges" # Romania state abbreviation
