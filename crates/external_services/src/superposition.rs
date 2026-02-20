@@ -166,16 +166,8 @@ impl SuperpositionClient {
     }
 
     /// Generic method to get a typed configuration value from Superposition
-    ///
     /// # Type Parameters
     /// * `T` - The type of value to retrieve. Supported types: `bool`, `String`, `i64`, `f64`, `serde_json::Value`
-    ///
-    /// # Arguments
-    /// * `key` - The configuration key
-    /// * `context` - Optional evaluation context
-    ///
-    /// # Returns
-    /// * `CustomResult<T, SuperpositionError>` - The configuration value or error
     pub async fn get_config_value<T>(
         &self,
         key: &str,
@@ -199,8 +191,7 @@ impl SuperpositionClient {
     }
 }
 
-/// Each config type implements this trait to define how its value should be
-/// retrieved from Superposition.
+/// Each config type implements this trait to define how its value should be retrieved from Superposition.
 pub trait Config {
     /// The output type of this configuration
     type Output: Default + Clone;
