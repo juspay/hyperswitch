@@ -2,6 +2,7 @@ use diesel_models::user as storage;
 use error_stack::report;
 use masking::Secret;
 use router_env::{instrument, tracing};
+use storage_impl::database::store::DatabaseStore;
 
 use super::{domain, MockDb};
 use crate::{
@@ -60,10 +61,11 @@ impl UserInterface for Store {
         user_data: storage::UserNew,
     ) -> CustomResult<storage::User, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        user_data
-            .insert(&conn)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+        user_data.insert(&conn).await.map_err(|error| {
+            let error_msg = format!("{:?}", error);
+            self.handle_query_error(&error_msg);
+            report!(errors::StorageError::from(error))
+        })
     }
 
     #[instrument(skip_all)]
@@ -97,7 +99,11 @@ impl UserInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::User::update_by_user_id(&conn, user_id, user)
             .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+            .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(errors::StorageError::from(error))
+            })
     }
 
     #[instrument(skip_all)]
@@ -109,7 +115,11 @@ impl UserInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::User::update_by_user_email(&conn, user_email.get_inner(), user)
             .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+            .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(errors::StorageError::from(error))
+            })
     }
 
     #[instrument(skip_all)]
@@ -120,7 +130,11 @@ impl UserInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::User::delete_by_user_id(&conn, user_id)
             .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+            .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(errors::StorageError::from(error))
+            })
     }
 
     async fn find_users_by_user_ids(

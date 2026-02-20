@@ -5,6 +5,7 @@ use diesel_models::{
 };
 use error_stack::report;
 use router_env::{instrument, tracing};
+use storage_impl::database::store::DatabaseStore;
 
 use super::MockDb;
 use crate::{
@@ -79,9 +80,11 @@ impl RoleInterface for Store {
         role: storage::RoleNew,
     ) -> CustomResult<storage::Role, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        role.insert(&conn)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+        role.insert(&conn).await.map_err(|error| {
+            let error_msg = format!("{:?}", error);
+            self.handle_query_error(&error_msg);
+            report!(errors::StorageError::from(error))
+        })
     }
 
     #[instrument(skip_all)]
@@ -139,7 +142,11 @@ impl RoleInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::Role::update_by_role_id(&conn, role_id, role_update)
             .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+            .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(errors::StorageError::from(error))
+            })
     }
 
     #[instrument(skip_all)]
@@ -150,7 +157,11 @@ impl RoleInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::Role::delete_by_role_id(&conn, role_id)
             .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+            .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(errors::StorageError::from(error))
+            })
     }
 
     //TODO: Remove once generic_list_roles_by_entity_type is stable

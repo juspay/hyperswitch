@@ -24,9 +24,9 @@ use router_env::{instrument, tracing};
 
 use super::MockDb;
 use crate::{
+    connection::{pg_connection_read, pg_connection_write},
     diesel_error_to_data_error, errors,
     kv_router_store::{FindResourceBy, KVRouterStore},
-    utils::{pg_connection_read, pg_connection_write},
     DatabaseStore, RouterStore,
 };
 #[cfg(feature = "v1")]

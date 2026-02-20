@@ -136,6 +136,7 @@ mod storage {
     use error_stack::report;
     use hyperswitch_domain_models::refunds;
     use router_env::{instrument, tracing};
+    use storage_impl::database::store::DatabaseStore;
 
     use super::RefundInterface;
     use crate::{
@@ -172,9 +173,11 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
-            new.insert(&conn)
-                .await
-                .map_err(|error| report!(errors::StorageError::from(error)))
+            new.insert(&conn).await.map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(errors::StorageError::from(error))
+            })
         }
 
         #[instrument(skip_all)]
@@ -215,9 +218,11 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
-            this.update(&conn, refund)
-                .await
-                .map_err(|error| report!(errors::StorageError::from(error)))
+            this.update(&conn, refund).await.map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(errors::StorageError::from(error))
+            })
         }
 
         #[cfg(feature = "v2")]
@@ -229,9 +234,11 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
-            this.update_with_id(&conn, refund)
-                .await
-                .map_err(|error| report!(errors::StorageError::from(error)))
+            this.update_with_id(&conn, refund).await.map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(errors::StorageError::from(error))
+            })
         }
 
         #[cfg(feature = "v1")]
@@ -407,8 +414,9 @@ mod storage {
     use hyperswitch_domain_models::refunds;
     use redis_interface::HsetnxReply;
     use router_env::{instrument, tracing};
-    use storage_impl::redis::kv_store::{
-        decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey,
+    use storage_impl::{
+        database::store::DatabaseStore,
+        redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
     };
 
     use super::RefundInterface;
@@ -495,9 +503,11 @@ mod storage {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_write(self).await?;
-                    new.insert(&conn)
-                        .await
-                        .map_err(|error| report!(errors::StorageError::from(error)))
+                    new.insert(&conn).await.map_err(|error| {
+                        let error_msg = format!("{:?}", error);
+                        self.handle_query_error(&error_msg);
+                        report!(errors::StorageError::from(error))
+                    })
                 }
                 enums::MerchantStorageScheme::RedisKv => {
                     let merchant_id = new.merchant_id.clone();
@@ -641,9 +651,11 @@ mod storage {
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
-            new.insert(&conn)
-                .await
-                .map_err(|error| report!(errors::StorageError::from(error)))
+            new.insert(&conn).await.map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(errors::StorageError::from(error))
+            })
         }
 
         #[cfg(feature = "v1")]
@@ -748,9 +760,11 @@ mod storage {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_write(self).await?;
-                    this.update(&conn, refund)
-                        .await
-                        .map_err(|error| report!(errors::StorageError::from(error)))
+                    this.update(&conn, refund).await.map_err(|error| {
+                        let error_msg = format!("{:?}", error);
+                        self.handle_query_error(&error_msg);
+                        report!(errors::StorageError::from(error))
+                    })
                 }
                 enums::MerchantStorageScheme::RedisKv => {
                     let key_str = key.to_string();

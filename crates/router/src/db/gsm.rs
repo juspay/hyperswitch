@@ -1,6 +1,7 @@
 use diesel_models::gsm as storage;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
+use storage_impl::database::store::DatabaseStore;
 
 use super::MockDb;
 use crate::{
@@ -64,7 +65,11 @@ impl GsmInterface for Store {
             .attach_printable("Failed to convert gsm domain models to diesel models")?
             .insert(&conn)
             .await
-            .map_err(|error| report!(errors::StorageError::from(error)))?;
+            .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(errors::StorageError::from(error))
+            })?;
 
         hyperswitch_domain_models::gsm::GatewayStatusMap::try_from(gsm_db_record)
             .change_context(errors::StorageError::DeserializationFailed)
@@ -131,7 +136,11 @@ impl GsmInterface for Store {
             gsm_update_data,
         )
         .await
-        .map_err(|error| report!(errors::StorageError::from(error)))?;
+        .map_err(|error| {
+            let error_msg = format!("{:?}", error);
+            self.handle_query_error(&error_msg);
+            report!(errors::StorageError::from(error))
+        })?;
 
         hyperswitch_domain_models::gsm::GatewayStatusMap::try_from(gsm_db_record)
             .change_context(errors::StorageError::DeserializationFailed)
@@ -150,7 +159,11 @@ impl GsmInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::GatewayStatusMap::delete(&conn, connector, flow, sub_flow, code, message)
             .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+            .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(errors::StorageError::from(error))
+            })
     }
 }
 

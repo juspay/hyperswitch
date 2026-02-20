@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use error_stack::report;
 use hyperswitch_domain_models::disputes;
 use router_env::{instrument, tracing};
+use storage_impl::database::store::DatabaseStore;
 
 use super::{MockDb, Store};
 use crate::{
@@ -65,10 +66,11 @@ impl DisputeInterface for Store {
         dispute: storage::DisputeNew,
     ) -> CustomResult<storage::Dispute, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        dispute
-            .insert(&conn)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+        dispute.insert(&conn).await.map_err(|error| {
+            let error_msg = format!("{:?}", error);
+            self.handle_query_error(&error_msg);
+            report!(errors::StorageError::from(error))
+        })
     }
 
     #[instrument(skip_all)]
@@ -132,9 +134,11 @@ impl DisputeInterface for Store {
         dispute: storage::DisputeUpdate,
     ) -> CustomResult<storage::Dispute, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        this.update(&conn, dispute)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+        this.update(&conn, dispute).await.map_err(|error| {
+            let error_msg = format!("{:?}", error);
+            self.handle_query_error(&error_msg);
+            report!(errors::StorageError::from(error))
+        })
     }
 
     #[instrument(skip_all)]

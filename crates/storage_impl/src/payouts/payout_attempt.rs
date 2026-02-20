@@ -24,13 +24,13 @@ use redis_interface::HsetnxReply;
 use router_env::{instrument, logger, tracing};
 
 use crate::{
+    connection::{pg_connection_read, pg_connection_write},
     diesel_error_to_data_error, errors,
     errors::RedisErrorExt,
     kv_router_store::KVRouterStore,
     lookup::ReverseLookupInterface,
     redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
-    utils::{self, pg_connection_read, pg_connection_write},
-    DataModelExt, DatabaseStore,
+    utils, DataModelExt, DatabaseStore,
 };
 
 #[async_trait::async_trait]
@@ -415,6 +415,8 @@ impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
             .insert(&conn)
             .await
             .map_err(|er| {
+                let error_msg = format!("{:?}", er);
+                self.db_store.handle_query_error(&error_msg);
                 let new_err = diesel_error_to_data_error(*er.current_context());
                 er.change_context(new_err)
             })
@@ -435,6 +437,8 @@ impl<T: DatabaseStore> PayoutAttemptInterface for crate::RouterStore<T> {
             .update_with_attempt_id(&conn, payout.to_storage_model())
             .await
             .map_err(|er| {
+                let error_msg = format!("{:?}", er);
+                self.db_store.handle_query_error(&error_msg);
                 let new_err = diesel_error_to_data_error(*er.current_context());
                 er.change_context(new_err)
             })

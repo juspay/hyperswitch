@@ -11,12 +11,12 @@ use masking::PeekInterface;
 use router_env::{instrument, tracing};
 
 use crate::{
+    connection::{pg_connection_read, pg_connection_write},
     diesel_error_to_data_error,
     errors::StorageError,
     kv_router_store,
     redis::kv_store::{decide_storage_scheme, KvStorePartition, Op, PartitionKey},
     store::enums::MerchantStorageScheme,
-    utils::{pg_connection_read, pg_connection_write},
     CustomResult, DatabaseStore, MockDb, RouterStore,
 };
 
@@ -747,6 +747,8 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         customers::Customer::delete_by_customer_id_merchant_id(&conn, customer_id, merchant_id)
             .await
             .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.db_store.handle_query_error(&error_msg);
                 let new_err = diesel_error_to_data_error(*error.current_context());
                 error.change_context(new_err)
             })

@@ -5,7 +5,7 @@ use hyperswitch_domain_models::{
     merchant_key_store::MerchantKeyStore,
 };
 use router_env::{instrument, tracing};
-use storage_impl::StorageError;
+use storage_impl::{database::store::DatabaseStore, StorageError};
 
 use super::{MockDb, Store};
 use crate::{connection, core::errors::CustomResult, types::storage};
@@ -61,7 +61,11 @@ impl AuthenticationInterface for Store {
             .change_context(StorageError::EncryptionError)?
             .insert(&conn)
             .await
-            .map_err(|error| report!(StorageError::from(error)))?
+            .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(StorageError::from(error))
+            })?
             .convert(
                 state,
                 merchant_key_store.key.get_inner(),
@@ -145,7 +149,11 @@ impl AuthenticationInterface for Store {
             authentication_update.into(),
         )
         .await
-        .map_err(|error| report!(StorageError::from(error)))
+        .map_err(|error| {
+            let error_msg = format!("{:?}", error);
+            self.handle_query_error(&error_msg);
+            report!(StorageError::from(error))
+        })
         .async_and_then(|authn| async {
             authn
                 .convert(

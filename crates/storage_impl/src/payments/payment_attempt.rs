@@ -33,12 +33,13 @@ use router_env::{instrument, tracing};
 #[cfg(feature = "v2")]
 use crate::kv_router_store::{FilterResourceParams, FindResourceBy, UpdateResourceParams};
 use crate::{
+    connection::{pg_connection_read, pg_connection_write},
     diesel_error_to_data_error, errors,
     errors::RedisErrorExt,
     kv_router_store::KVRouterStore,
     lookup::ReverseLookupInterface,
     redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
-    utils::{pg_connection_read, pg_connection_write, try_redis_get_else_try_database_get},
+    utils::try_redis_get_else_try_database_get,
     DataModelExt, DatabaseStore, RouterStore,
 };
 
@@ -65,6 +66,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             .insert(&conn)
             .await
             .map_err(|er| {
+                let error_msg = format!("{:?}", er);
+                self.db_store.handle_query_error(&error_msg);
                 let new_err = diesel_error_to_data_error(*er.current_context());
                 er.change_context(new_err)
             })
@@ -97,6 +100,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             .insert(&conn)
             .await
             .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.db_store.handle_query_error(&error_msg);
                 let new_error = diesel_error_to_data_error(*error.current_context());
                 error.change_context(new_error)
             })?
@@ -655,12 +660,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         card_discovery: Option<Vec<common_enums::CardDiscovery>>,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
-        let conn = self
-            .db_store
-            .get_replica_pool()
-            .get()
-            .await
-            .change_context(errors::StorageError::DatabaseConnectionError)?;
+        let conn = pg_connection_read(self).await?;
         let connector_strings = connector.as_ref().map(|connector| {
             connector
                 .iter()
@@ -699,12 +699,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         card_network: Option<Vec<common_enums::CardNetwork>>,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
-        let conn = self
-            .db_store
-            .get_replica_pool()
-            .get()
-            .await
-            .change_context(errors::StorageError::DatabaseConnectionError)?;
+        let conn = pg_connection_read(self).await?;
 
         DieselPaymentAttempt::get_total_count_of_attempts(
             &conn,
