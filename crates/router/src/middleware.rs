@@ -14,9 +14,7 @@ use router_env::{
 };
 
 use crate::{
-    events::{
-        api_logs::{ApiEvent, NewApiEvent, ObservabilityEventHandlerInterface},
-    },
+    events::api_logs::{ApiEvent, NewApiEvent, ObservabilityEventHandlerInterface},
     headers,
     routes::metrics,
 };
@@ -32,8 +30,8 @@ impl<T: ObservabilityEventHandlerInterface + Clone> ObservabilityMiddleware<T> {
     }
 }
 
-impl<S: 'static, B, T: ObservabilityEventHandlerInterface + Clone + 'static> actix_web::dev::Transform<S, actix_web::dev::ServiceRequest>
-    for ObservabilityMiddleware<T>
+impl<S: 'static, B, T: ObservabilityEventHandlerInterface + Clone + 'static>
+    actix_web::dev::Transform<S, actix_web::dev::ServiceRequest> for ObservabilityMiddleware<T>
 where
     S: actix_web::dev::Service<
         actix_web::dev::ServiceRequest,
@@ -50,7 +48,10 @@ where
     type Future = std::future::Ready<Result<Self::Transform, Self::InitError>>;
 
     fn new_transform(&self, service: S) -> Self::Future {
-        std::future::ready(Ok(ObservabilityMiddlewareService { service, event_handler: self.event_handler.clone() }))
+        std::future::ready(Ok(ObservabilityMiddlewareService {
+            service,
+            event_handler: self.event_handler.clone(),
+        }))
     }
 }
 
@@ -59,8 +60,8 @@ pub struct ObservabilityMiddlewareService<S, T> {
     event_handler: T,
 }
 
-impl<S, B, T: ObservabilityEventHandlerInterface + Clone + 'static> actix_web::dev::Service<actix_web::dev::ServiceRequest>
-    for ObservabilityMiddlewareService<S, T>
+impl<S, B, T: ObservabilityEventHandlerInterface + Clone + 'static>
+    actix_web::dev::Service<actix_web::dev::ServiceRequest> for ObservabilityMiddlewareService<S, T>
 where
     S: actix_web::dev::Service<
             actix_web::dev::ServiceRequest,

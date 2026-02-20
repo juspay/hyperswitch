@@ -11,7 +11,9 @@ use storage_impl::errors::{ApplicationError, StorageError, StorageResult};
 use time::PrimitiveDateTime;
 
 use crate::{
-    db::KafkaProducer, events::api_logs::{NewApiEvent, ObservabilityEventHandlerInterface}, services::kafka::{KafkaMessage, KafkaSettings}
+    db::KafkaProducer,
+    events::api_logs::{NewApiEvent, ObservabilityEventHandlerInterface},
+    services::kafka::{KafkaMessage, KafkaSettings},
 };
 
 pub mod api_logs;
