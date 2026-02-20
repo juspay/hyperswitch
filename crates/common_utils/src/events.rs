@@ -269,7 +269,7 @@ pub struct ExternalServiceCall {
     pub method: String,
     pub status_code: Option<u16>,
     pub success: bool,
-    pub latency_ms: u32,
+    pub latency_ms: u128,
     pub metadata: std::collections::HashMap<String, String>,
 }
 

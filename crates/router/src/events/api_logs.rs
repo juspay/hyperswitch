@@ -1,8 +1,6 @@
 use actix_web::HttpRequest;
-use api_models::{admin::MerchantId, organization::OrganizationId};
 pub use common_utils::events::{ApiEventMetric, ApiEventsType, ExternalServiceCall};
-use common_utils::{id_type::ProfileId, impl_api_event_type};
-use hyperswitch_domain_models::merchant_account;
+use common_utils::impl_api_event_type;
 use router_env::{types::FlowMetric, RequestId};
 use serde::Serialize;
 use time::OffsetDateTime;

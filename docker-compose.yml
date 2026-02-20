@@ -509,3 +509,4 @@ services:
       - HYPERSWITCH_CLIENT_URL=http://localhost:9050
       - HYPERSWITCH_SERVER_URL=http://localhost:8080
     labels:
+      logs: "promtail"

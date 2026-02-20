@@ -100,14 +100,17 @@ where
         method: method.to_string(),
         status_code: Some(response.status().as_u16()),
         success: response.status().is_success(),
-        latency_ms: latency as u32,
+        latency_ms: latency,
         metadata: std::collections::HashMap::new(),
     };
 
     let mutex_start_time = std::time::Instant::now();
     if let Ok(mut collector) = state.observability.lock() {
         collector.record(kms_metadata.clone());
-        logger::info!("Recorded Keymanager observability data: {:?}", kms_metadata);
+        logger::info!(
+            "Keymanager service call observability data: {:?}",
+            kms_metadata
+        );
     }
     let mutex_latency = mutex_start_time.elapsed().as_micros();
     logger::info!(

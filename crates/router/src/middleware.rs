@@ -93,7 +93,7 @@ where
             let start_time = Instant::now();
             let response = response_fut.await?;
             let req_latency = start_time.elapsed().as_millis();
-            let status_code = response.status().as_u16() as i64;
+            let status_code = response.status().as_u16().into();
 
             let (http_req, res_body) = response.into_parts();
 
