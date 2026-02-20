@@ -2736,3 +2736,29 @@ pub fn log_connectors(stage: &str, connectors: &[routing::RoutableConnectorChoic
         names.join(", ")
     );
 }
+
+pub fn convert_fallback_to_connector_routing_data(
+    state: &SessionState,
+    fallback: &[routing_types::RoutableConnectorChoice],
+) -> RouterResult<Vec<api::ConnectorRoutingData>> {
+    fallback
+        .iter()
+        .map(|choice| {
+            let connector_name = choice.connector.to_string();
+
+            let connector_data = api::ConnectorData::get_connector_by_name(
+                &state.conf.connectors,
+                &connector_name,
+                api::GetToken::Connector,
+                choice.merchant_connector_id.clone(),
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+            Ok(api::ConnectorRoutingData {
+                connector_data,
+                network: None,
+                action_type: None,
+            })
+        })
+        .collect()
+}
