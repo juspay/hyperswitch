@@ -645,13 +645,11 @@ impl RoutingStage for StaticRoutingStage {
 
     fn route<'a>(&'a self, input: Self::Input<'a>) -> Self::Fut<'a> {
         Box::pin(async move {
-            let connectors = static_routing_v1(
-                &self.ctx.routing_algorithm,
-                input.backend_input.clone(),
-            )
-            .await
-            .change_context(errors::RoutingError::DslExecutionError)
-            .attach_printable("euclid: unable to perform static routing")?;
+            let connectors =
+                static_routing_v1(&self.ctx.routing_algorithm, input.backend_input.clone())
+                    .await
+                    .change_context(errors::RoutingError::DslExecutionError)
+                    .attach_printable("euclid: unable to perform static routing")?;
 
             Ok(RoutingConnectorOutcome { connectors })
         })
@@ -660,6 +658,162 @@ impl RoutingStage for StaticRoutingStage {
     fn routing_approach(&self) -> common_enums::RoutingApproach {
         common_enums::RoutingApproach::RuleBasedRouting
     }
+}
+
+pub struct DecisionEngineStaticRoutingInput<'a> {
+    pub state: &'a SessionState,
+    pub business_profile: &'a domain::Profile,
+    pub backend_input: backend::BackendInput,
+    pub fallback_config: &'a [routing_types::RoutableConnectorChoice],
+    pub payment_id: String,
+}
+
+pub struct DecisionEngineStaticRoutingStage;
+
+impl RoutingStage for DecisionEngineStaticRoutingStage {
+    type Input<'a> = DecisionEngineStaticRoutingInput<'a>;
+    type Output = RoutingConnectorOutcome;
+    type Fut<'a> = BoxFuture<'a, RoutingResult<Self::Output>>;
+
+    fn route<'a>(&'a self, input: Self::Input<'a>) -> Self::Fut<'a> {
+        Box::pin(async move {
+            let connectors = if !input.state.conf.open_router.static_routing_enabled {
+                logger::debug!("decision engine not enabled");
+                Vec::default()
+            } else {
+                utils::decision_engine_routing(
+                    input.state,
+                    input.backend_input.clone(),
+                    input.business_profile,
+                    input.payment_id,
+                    input.fallback_config.to_vec(),
+                )
+                .await
+                .inspect_err(|err| {
+                    logger::error!(
+                        error=?err,
+                        "decision engine evaluation failed"
+                    );
+                })
+                .unwrap_or_default()
+            };
+            Ok(RoutingConnectorOutcome { connectors })
+        })
+    }
+
+    fn routing_approach(&self) -> common_enums::RoutingApproach {
+        common_enums::RoutingApproach::Other("DecisionEngineStaticRouting".to_string())
+    }
+}
+
+pub async fn perform_static_routing_with_de(
+    state: &SessionState,
+    business_profile: &domain::Profile,
+    payment_dsl_input: &routing::PaymentsDslInput<'_>,
+    backend_input: &backend::BackendInput,
+    fallback_config: &[api_models::routing::RoutableConnectorChoice],
+) -> errors::RouterResult<(
+    Vec<routing_types::RoutableConnectorChoice>,
+    common_enums::RoutingApproach,
+)> {
+    let txn_type = routing::transaction_type_from_payments_dsl(payment_dsl_input);
+
+    let routing_algorithm_id = business_profile
+        .routing_algorithm
+        .clone()
+        .map(|ra| ra.parse_value::<api::routing::RoutingAlgorithmRef>("RoutingAlgorithmRef"))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?
+        .unwrap_or_default()
+        .algorithm_id;
+
+    let cached_algorithm = routing_algorithm_id
+        .async_and_then(|routing_algorithm_id| async move {
+            try_ensure_algorithm_cached_v1(
+                state,
+                &business_profile.merchant_id,
+                &routing_algorithm_id,
+                business_profile.get_id(),
+                &txn_type,
+            )
+            .await
+        })
+        .await;
+
+    let static_input = StaticRoutingInput { backend_input };
+
+    let static_stage = cached_algorithm.map(|algo| StaticRoutingStage {
+        ctx: RoutingContext {
+            routing_algorithm: algo,
+        },
+    });
+
+    let (static_connectors, static_approach) = static_stage
+        .clone()
+        .async_and_then(|static_stage| async move {
+            static_stage
+                .route(static_input)
+                .await
+                .inspect_err(|err| {
+                    logger::error!(
+                        error=?err,
+                        "euclid: static routing failed"
+                    );
+                })
+                .ok()
+                .map(|outcome| RoutingConnectorOutcome {
+                    connectors: outcome.connectors,
+                })
+        })
+        .await
+        .unwrap_or_else(RoutingConnectorOutcome::empty)
+        .resolve_or_fallback_with_approach(
+            "static-routing",
+            fallback_config,
+            static_stage
+                .as_ref()
+                .map(|s| s.routing_approach())
+                .unwrap_or(common_enums::RoutingApproach::DefaultFallback),
+            common_enums::RoutingApproach::DefaultFallback,
+        );
+
+    let de_stage = DecisionEngineStaticRoutingStage;
+
+    let de_input = DecisionEngineStaticRoutingInput {
+        state,
+        business_profile,
+        backend_input: backend_input.clone(),
+        fallback_config,
+        payment_id: payment_dsl_input
+            .payment_intent
+            .payment_id
+            .get_string_repr()
+            .to_string(),
+    };
+
+    let de_connectors = de_stage
+        .route(de_input)
+        .await
+        .inspect_err(|err| {
+            logger::error!(
+                error=?err,
+                "euclid: static routing failed"
+            );
+        })
+        .unwrap_or_else(|_| RoutingConnectorOutcome::empty())
+        .connectors;
+
+    utils::compare_and_log_result(
+        de_connectors.clone(),
+        static_connectors.clone(),
+        "evaluate_routing".to_string(),
+    );
+
+    let final_static_connector =
+        utils::select_routing_result(state, business_profile, static_connectors, de_connectors)
+            .await;
+
+    Ok((final_static_connector, static_approach))
 }
 
 pub struct SessionRoutingInput<'a> {
@@ -806,10 +960,10 @@ impl RoutingStage for SessionRoutingStage {
                 };
 
                 let routable_connector_choice_option = if final_selection.is_empty() {
-                        (None, static_approach.clone())
-                    } else {
-                        (Some(final_selection), static_approach)
-                    };
+                    (None, static_approach.clone())
+                } else {
+                    (Some(final_selection), static_approach)
+                };
 
                 final_routing_approach = routable_connector_choice_option.1;
 
@@ -1086,9 +1240,6 @@ where
     Ok(None)
 }
 
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-pub struct DynamicRoutingStage;
-
 pub struct RoutingConnectorOutcomeForSessionRouting {
     pub session_output:
         FxHashMap<api_enums::PaymentMethodType, Vec<routing_types::SessionRoutingChoice>>,
@@ -1126,6 +1277,9 @@ impl RoutingConnectorOutcomeWithApproach {
         }
     }
 }
+
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+pub struct DynamicRoutingStage;
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 impl DynamicRoutingStage {
@@ -1213,6 +1367,50 @@ impl RoutingStage for DynamicRoutingStage {
     fn routing_approach(&self) -> common_enums::RoutingApproach {
         common_enums::RoutingApproach::Other("DynamicRouting".to_string())
     }
+}
+
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+pub async fn perform_dynamic_routing_if_enabled(
+    state: &SessionState,
+    business_profile: &domain::Profile,
+    payment_dsl_input: &routing::PaymentsDslInput<'_>,
+    static_connectors: &[routing_types::RoutableConnectorChoice],
+    static_approach: common_enums::RoutingApproach,
+) -> (
+    Vec<routing_types::RoutableConnectorChoice>,
+    common_enums::RoutingApproach,
+) {
+    business_profile
+        .dynamic_routing_algorithm
+        .as_ref()
+        .map(|_| DynamicRoutingStage)
+        .async_and_then(|stage| async move {
+            let input = DynamicRoutingInput {
+                state,
+                business_profile,
+                transaction_data: payment_dsl_input,
+                static_connectors,
+            };
+
+            stage
+                .route(input)
+                .await
+                .inspect_err(|err| {
+                    logger::error!(
+                        error=?err,
+                        "euclid: dynamic routing failed"
+                    );
+                })
+                .ok()
+                .flatten()
+                .map(|outcome| RoutingConnectorOutcomeWithApproach {
+                    connectors: outcome.connectors,
+                    routing_approach: outcome.routing_approach,
+                })
+        })
+        .await
+        .unwrap_or_else(RoutingConnectorOutcomeWithApproach::empty)
+        .resolve_or_fallback("dynamic-routing", static_connectors, static_approach)
 }
 
 pub async fn static_routing_v1(
