@@ -1,4 +1,4 @@
-use std::{fmt::Debug, marker::PhantomData, str::FromStr};
+use std::{borrow::Cow, fmt::Debug, marker::PhantomData, str::FromStr};
 
 #[cfg(feature = "v2")]
 use api_models::enums as api_enums;
@@ -52,7 +52,7 @@ use hyperswitch_interfaces::connector_integration_interface::RouterDataConversio
 use masking::{ExposeInterface, Maskable, Secret};
 #[cfg(feature = "v2")]
 use masking::{ExposeOptionInterface, PeekInterface};
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 
 use super::{flows::Feature, types::AuthenticationData, OperationSessionGetters, PaymentData};
 use crate::{
@@ -7091,4 +7091,414 @@ impl ForeignFrom<common_types::three_ds_decision_rule_engine::ThreeDSDecision>
             }
         }
     }
+}
+
+#[cfg(all(feature = "v1", feature = "olap"))]
+struct PaymentIntentFromOpenSearch(storage::PaymentIntent);
+
+#[cfg(all(feature = "v1", feature = "olap"))]
+struct PaymentAttemptFromOpenSearch(storage::PaymentAttempt);
+
+#[cfg(all(feature = "v1", feature = "olap"))]
+fn nanos_to_primitive_datetime(nanos: i64) -> time::PrimitiveDateTime {
+    time::OffsetDateTime::from_unix_timestamp_nanos(i128::from(nanos))
+        .map(|date_time| time::PrimitiveDateTime::new(date_time.date(), date_time.time()))
+        .unwrap_or(time::PrimitiveDateTime::MIN)
+}
+
+#[cfg(all(feature = "v1", feature = "olap"))]
+impl ForeignTryFrom<api_models::analytics::search::OpenSearchPaymentIntentSource>
+    for PaymentIntentFromOpenSearch
+{
+    type Error = errors::ApiErrorResponse;
+
+    fn foreign_try_from(
+        source: api_models::analytics::search::OpenSearchPaymentIntentSource,
+    ) -> Result<Self, Self::Error> {
+        let payment_id = common_utils::id_type::PaymentId::try_from(Cow::Owned(source.payment_id.clone()))
+            .map_err(|_| {
+                logger::error!(payment_id = %source.payment_id, "Failed to parse payment_id from OpenSearch");
+                errors::ApiErrorResponse::InternalServerError
+            })?;
+
+        let merchant_id = common_utils::id_type::MerchantId::try_from(Cow::Owned(source.merchant_id.clone()))
+            .map_err(|_| {
+                logger::error!(merchant_id = %source.merchant_id, "Failed to parse merchant_id from OpenSearch");
+                errors::ApiErrorResponse::InternalServerError
+            })?;
+
+        let status = enums::IntentStatus::from_str(&source.status).unwrap_or_default();
+
+        let currency = source.currency.parse::<Currency>().ok();
+
+        let created_at = nanos_to_primitive_datetime(source.created_at);
+        let modified_at = nanos_to_primitive_datetime(source.modified_at);
+
+        let customer_id = source
+            .customer_id
+            .and_then(|id| common_utils::id_type::CustomerId::try_from(Cow::Owned(id)).ok());
+
+        let profile_id = source
+            .profile_id
+            .and_then(|id| common_utils::id_type::ProfileId::try_from(Cow::Owned(id)).ok());
+
+        let business_country = source
+            .business_country
+            .as_deref()
+            .and_then(|business_country| enums::CountryAlpha2::from_str(business_country).ok());
+
+        let setup_future_usage = source
+            .setup_future_usage
+            .as_deref()
+            .and_then(|setup_future_usage| enums::FutureUsage::from_str(setup_future_usage).ok());
+
+        // Currently processor_merchant_id is not present in the OpenSearch hit, so we are using merchant_id as processor_merchant_id
+        // TODO: Once processor_merchant_id is available in the OpenSearch hit, remove the unwrap_or and throw error if processor_merchant_id is not present
+        let processor_merchant_id = source
+            .processor_merchant_id
+            .and_then(|id| common_utils::id_type::MerchantId::try_from(Cow::Owned(id)).ok())
+            .unwrap_or_else(|| merchant_id.clone());
+
+        let organization_id = source
+            .organization_id
+            .and_then(|id| common_utils::id_type::OrganizationId::try_from(Cow::Owned(id)).ok())
+            .unwrap_or_default();
+
+        let mit_category = source
+            .mit_category
+            .as_deref()
+            .and_then(|mit_category| enums::MitCategory::from_str(mit_category).ok());
+
+        let metadata = source
+            .metadata
+            .as_deref()
+            .and_then(|json_str| serde_json::from_str(json_str).ok());
+
+        let attempt_count = i16::try_from(source.attempt_count).unwrap_or_default();
+
+        Ok(Self(storage::PaymentIntent {
+            payment_id,
+            merchant_id,
+            status,
+            amount: MinorUnit::new(source.amount),
+            currency,
+            amount_captured: None,
+            customer_id,
+            description: source.description,
+            return_url: source.return_url,
+            metadata,
+            connector_id: source.connector,
+            shipping_address_id: None,
+            billing_address_id: None,
+            statement_descriptor_name: source.statement_descriptor_name,
+            statement_descriptor_suffix: source.statement_descriptor_suffix,
+            created_at,
+            modified_at,
+            last_synced: None,
+            setup_future_usage,
+            off_session: None,
+            client_secret: source.client_secret,
+            active_attempt: hyperswitch_domain_models::RemoteStorageObject::ForeignID(
+                source.active_attempt_id.clone().unwrap_or_default(),
+            ),
+            business_country,
+            business_label: source.business_label,
+            order_details: None,
+            allowed_payment_method_types: None,
+            connector_metadata: None,
+            feature_metadata: None,
+            attempt_count,
+            profile_id,
+            merchant_decision: None,
+            payment_link_id: None,
+            payment_confirm_source: None,
+            updated_by: String::from("opensearch"),
+            surcharge_applicable: None,
+            request_incremental_authorization: None,
+            incremental_authorization_allowed: None,
+            authorization_count: None,
+            session_expiry: None,
+            fingerprint_id: None,
+            request_external_three_ds_authentication: None,
+            frm_metadata: None,
+            customer_details: None,
+            billing_details: None,
+            merchant_order_reference_id: source.merchant_order_reference_id,
+            shipping_details: None,
+            is_payment_processor_token_flow: None,
+            shipping_cost: source.shipping_cost.map(MinorUnit::new),
+            organization_id,
+            tax_details: None,
+            skip_external_tax_calculation: None,
+            request_extended_authorization: None,
+            psd2_sca_exemption_type: None,
+            split_payments: None,
+            processor_merchant_id,
+            created_by: None,
+            is_iframe_redirection_enabled: None,
+            is_payment_id_from_merchant: None,
+            payment_channel: None,
+            tax_status: None,
+            discount_amount: None,
+            shipping_amount_tax: None,
+            duty_amount: None,
+            order_date: None,
+            enable_partial_authorization: None,
+            enable_overcapture: None,
+            mit_category,
+            billing_descriptor: None,
+            tokenization: None,
+            force_3ds_challenge: None,
+            force_3ds_challenge_trigger: None,
+            partner_merchant_identifier_details: None,
+            state_metadata: None,
+        }))
+    }
+}
+
+#[cfg(all(feature = "v1", feature = "olap"))]
+impl
+    ForeignTryFrom<(
+        &api_models::analytics::search::OpenSearchPaymentIntentSource,
+        Option<&api_models::analytics::search::OpenSearchPaymentAttemptSource>,
+    )> for PaymentAttemptFromOpenSearch
+{
+    type Error = errors::ApiErrorResponse;
+
+    fn foreign_try_from(
+        (intent_source, attempt_source): (
+            &api_models::analytics::search::OpenSearchPaymentIntentSource,
+            Option<&api_models::analytics::search::OpenSearchPaymentAttemptSource>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let payment_id = common_utils::id_type::PaymentId::try_from(Cow::Owned(
+            intent_source.payment_id.clone(),
+        ))
+        .map_err(|error| {
+            logger::error!(
+                ?error,
+                payment_id = %intent_source.payment_id,
+                "Failed to parse payment_id from OpenSearch"
+            );
+            errors::ApiErrorResponse::InternalServerError
+        })?;
+
+        let merchant_id = common_utils::id_type::MerchantId::try_from(Cow::Owned(
+            intent_source.merchant_id.clone(),
+        ))
+        .map_err(|error| {
+            logger::error!(
+                ?error,
+                merchant_id = %intent_source.merchant_id,
+                "Failed to parse merchant_id from OpenSearch"
+            );
+            errors::ApiErrorResponse::InternalServerError
+        })?;
+
+        let profile_id_str = intent_source.profile_id.as_deref().ok_or_else(|| {
+            logger::error!(
+                payment_id = %intent_source.payment_id,
+                "Missing profile_id in OpenSearch data"
+            );
+            errors::ApiErrorResponse::InternalServerError
+        })?;
+
+        let profile_id =
+            common_utils::id_type::ProfileId::try_from(Cow::Owned(profile_id_str.to_string()))
+                .map_err(|error| {
+                    logger::error!(
+                        ?error,
+                        payment_id = %intent_source.payment_id,
+                        profile_id = %profile_id_str,
+                        "Failed to parse profile_id from OpenSearch"
+                    );
+                    errors::ApiErrorResponse::InternalServerError
+                })?;
+
+        let organization_id = intent_source
+            .organization_id
+            .as_ref()
+            .and_then(|id| {
+                common_utils::id_type::OrganizationId::try_from(Cow::Owned(id.clone())).ok()
+            })
+            .unwrap_or_default();
+
+        let attempt_status = attempt_source
+            .and_then(|a| a.status.as_deref())
+            .and_then(|s| enums::AttemptStatus::from_str(s).ok())
+            .unwrap_or_default();
+
+        let capture_method = attempt_source
+            .and_then(|a| a.capture_method.as_deref())
+            .and_then(|cm| enums::CaptureMethod::from_str(cm).ok());
+
+        let created_at = attempt_source
+            .map(|a| nanos_to_primitive_datetime(a.created_at))
+            .unwrap_or_else(|| nanos_to_primitive_datetime(intent_source.created_at));
+
+        let modified_at = attempt_source
+            .map(|a| nanos_to_primitive_datetime(a.modified_at))
+            .unwrap_or_else(|| nanos_to_primitive_datetime(intent_source.modified_at));
+
+        let capture_on = attempt_source.and_then(|a| a.capture_on.map(nanos_to_primitive_datetime));
+
+        let payment_method = intent_source
+            .payment_method
+            .as_deref()
+            .and_then(|pm| enums::PaymentMethod::from_str(pm).ok());
+
+        let payment_method_type = intent_source
+            .payment_method_type
+            .as_deref()
+            .and_then(|pmt| enums::PaymentMethodType::from_str(pmt).ok());
+
+        let authentication_type = intent_source
+            .authentication_type
+            .as_deref()
+            .and_then(|at| enums::AuthenticationType::from_str(at).ok());
+
+        let merchant_connector_id = intent_source.merchant_connector_id.as_ref().and_then(|id| {
+            common_utils::id_type::MerchantConnectorAccountId::try_from(Cow::Owned(id.clone())).ok()
+        });
+
+        let currency = intent_source.currency.parse().ok();
+
+        let browser_info = attempt_source
+            .and_then(|a| a.browser_info.as_deref())
+            .and_then(|json_str| serde_json::from_str(json_str).ok());
+
+        let processor_merchant_id = intent_source
+            .processor_merchant_id
+            .as_ref()
+            .and_then(|id| common_utils::id_type::MerchantId::try_from(Cow::Owned(id.clone())).ok())
+            .unwrap_or_else(|| merchant_id.clone());
+
+        let attempt_id = attempt_source
+            .map(|a| a.attempt_id.clone())
+            .or_else(|| intent_source.active_attempt_id.clone())
+            .unwrap_or_else(|| format!("{}_1", intent_source.payment_id));
+
+        let connector_transaction_id =
+            attempt_source.and_then(|a| a.connector_transaction_id.clone());
+        let error_code = attempt_source.and_then(|a| a.error_code.clone());
+        let error_message = attempt_source.and_then(|a| a.error_message.clone());
+
+        let amount_capturable = attempt_source
+            .and_then(|a| a.amount_capturable)
+            .map(MinorUnit::new)
+            .unwrap_or(MinorUnit::zero());
+
+        let base_amount = attempt_source.and_then(|a| a.net_amount).unwrap_or(0);
+
+        let net_amount = hyperswitch_domain_models::payments::payment_attempt::NetAmount::new(
+            MinorUnit::new(base_amount),
+            intent_source.shipping_cost.map(MinorUnit::new),
+            None, // order_tax_amount
+            None, // surcharge_amount
+            None, // tax_on_surcharge
+        );
+
+        Ok(Self(storage::PaymentAttempt {
+            attempt_id,
+            payment_id,
+            merchant_id,
+            status: attempt_status,
+            connector: intent_source.connector.clone(),
+            error_message,
+            payment_method,
+            connector_transaction_id,
+            capture_method,
+            capture_on,
+            confirm: false,
+            authentication_type,
+            created_at,
+            modified_at,
+            last_synced: None,
+            amount_capturable,
+            updated_by: String::from("opensearch"),
+            merchant_connector_id,
+            authentication_data: None,
+            encoded_data: None,
+            unified_code: None,
+            unified_message: None,
+            external_three_ds_authentication_attempted: None,
+            authentication_connector: None,
+            authentication_id: None,
+            fingerprint_id: None,
+            payment_method_billing_address_id: None,
+            charge_id: None,
+            client_source: None,
+            client_version: None,
+            customer_acceptance: None,
+            profile_id,
+            organization_id,
+            preprocessing_step_id: None,
+            error_code,
+            connector_metadata: None,
+            payment_method_type,
+            payment_experience: None,
+            payment_method_data: None,
+            business_sub_label: intent_source.business_sub_label.clone(),
+            straight_through_algorithm: None,
+            mandate_id: intent_source.mandate_id.clone(),
+            mandate_data: None,
+            payment_token: None,
+            connector_response_reference_id: None,
+            multiple_capture_count: None,
+            amount_to_capture: None,
+            cancellation_reason: None,
+            browser_info,
+            payment_method_id: intent_source.payment_method_id.clone(),
+            setup_future_usage_applied: None,
+            capture_before: None,
+            extended_authorization_applied: None,
+            extended_authorization_last_applied_at: None,
+            card_discovery: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
+            network_transaction_id: None,
+            is_overcapture_enabled: None,
+            network_details: None,
+            is_stored_credential: None,
+            request_extended_authorization: None,
+            currency,
+            save_to_locker: None,
+            offer_amount: None,
+            mandate_details: None,
+            error_reason: None,
+            connector_mandate_detail: None,
+            tokenization: None,
+            charges: None,
+            processor_merchant_id,
+            created_by: None,
+            routing_approach: None,
+            connector_request_reference_id: None,
+            debit_routing_savings: None,
+            authorized_amount: None,
+            encrypted_payment_method_data: None,
+            error_details: None,
+            net_amount,
+            retry_type: None,
+        }))
+    }
+}
+
+#[cfg(all(feature = "v1", feature = "olap"))]
+pub fn convert_opensearch_hit_to_payments_response(
+    hit: serde_json::Value,
+) -> Result<api_models::payments::PaymentsResponse, errors::ApiErrorResponse> {
+    let source: api_models::analytics::search::OpenSearchPaymentIntentSource =
+        serde_json::from_value(hit).map_err(|error| {
+            logger::error!(?error, "Failed to deserialize OpenSearch hit");
+            errors::ApiErrorResponse::InternalServerError
+        })?;
+
+    let payment_intent = PaymentIntentFromOpenSearch::foreign_try_from(source.clone())?.0;
+    let payment_attempt =
+        PaymentAttemptFromOpenSearch::foreign_try_from((&source, source.get_active_attempt()))?.0;
+
+    Ok(api_models::payments::PaymentsResponse::foreign_from((
+        payment_intent,
+        payment_attempt,
+    )))
 }

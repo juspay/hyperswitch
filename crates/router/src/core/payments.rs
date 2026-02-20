@@ -8622,15 +8622,102 @@ pub async fn apply_filters_on_payments(
     profile_id_list: Option<Vec<id_type::ProfileId>>,
     constraints: api::PaymentListFilterConstraints,
 ) -> RouterResponse<api::PaymentListResponseV2> {
-    common_utils::metrics::utils::record_operation_time(
+    Box::pin(common_utils::metrics::utils::record_operation_time(
         async {
+            let merchant_id = platform.get_processor().get_account().get_id();
+            if state.search_provider.is_opensearch_enabled() {
+                logger::info!("Attempting to query OpenSearch for payment list with filters");
+
+                let profile_id_opt =
+                    profile_id_list
+                    .as_ref()
+                    .and_then(|ids| ids.first())
+                    .cloned();
+
+                let org_id = platform.get_processor().get_account().get_org_id();
+                let auth_info = match profile_id_opt {
+                    Some(profile_id) => vec![
+                            common_utils::types::authentication::AuthInfo::ProfileLevel {
+                        org_id: org_id.clone(),
+                        merchant_id: merchant_id.clone(),
+                        profile_ids: vec![profile_id],
+                    }],
+                    None => vec![
+                            common_utils::types::authentication::AuthInfo::MerchantLevel {
+                        org_id: org_id.clone(),
+                        merchant_ids: vec![merchant_id.clone()],
+                    }],
+                };
+
+                let filters = helpers::get_search_filters(&constraints);
+
+                let search_req =
+                    api_models::analytics::search::GetSearchRequestWithIndex::try_from((
+                        constraints.clone(),
+                        String::new(),
+                        filters,
+                    ))
+                    .map_err(|error| {
+                        error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to build OpenSearch request")
+                            .attach_printable(error)
+                    })?;
+
+                match state
+                    .search_provider
+                    .search_results(search_req, auth_info)
+                    .await
+                {
+                    Ok(response) => {
+                        logger::info!(
+                            count = response.hits.len(),
+                            total = response.count,
+                            "Successfully retrieved payments from OpenSearch"
+                        );
+
+                        let payments_list_result: Result<
+                            Vec<payments_api::PaymentsResponse>,
+                            errors::ApiErrorResponse,
+                        > = response
+                            .hits
+                            .into_iter()
+                            .map(transformers::convert_opensearch_hit_to_payments_response)
+                            .collect();
+
+                        match payments_list_result {
+                            Ok(payments_list) => {
+                                return Ok(services::ApplicationResponse::Json(
+                                    payments_api::PaymentListResponseV2 {
+                                        count: payments_list.len(),
+                                        total_count: i64::try_from(response.count).unwrap_or(i64::MAX),
+                                        data: payments_list,
+                                    },
+                                ));
+                            }
+                            Err(error) => {
+                                logger::error!(
+                                    ?error,
+                                    "Failed to convert OpenSearch hits to PaymentsResponse, falling back to PostgreSQL"
+                                );
+                            }
+                        }
+                    }
+                    Err(error) => {
+                        logger::error!(
+                            ?error,
+                            "OpenSearch query failed, falling back to PostgreSQL"
+                        );
+                    }
+                }
+            }
+
             let limit = &constraints.limit;
             helpers::validate_payment_list_request_for_joins(*limit)?;
             let db: &dyn StorageInterface = state.store.as_ref();
             let pi_fetch_constraints = (constraints.clone(), profile_id_list.clone()).try_into()?;
             let list: Vec<(storage::PaymentIntent, storage::PaymentAttempt)> = db
                 .get_filtered_payment_intents_attempt(
-                    platform.get_processor().get_account().get_id(),
+                    merchant_id,
                     &pi_fetch_constraints,
                     platform.get_processor().get_key_store(),
                     platform.get_processor().get_account().storage_scheme,
@@ -8642,7 +8729,7 @@ pub async fn apply_filters_on_payments(
 
             let active_attempt_ids = db
                 .get_filtered_active_attempt_ids_for_total_count(
-                    platform.get_processor().get_account().get_id(),
+                    merchant_id,
                     &pi_fetch_constraints,
                     platform.get_processor().get_account().storage_scheme,
                 )
@@ -8655,7 +8742,7 @@ pub async fn apply_filters_on_payments(
                     .attach_printable("Error while converting from usize to i64")
             } else {
                 db.get_total_count_of_filtered_payment_attempts(
-                    platform.get_processor().get_account().get_id(),
+                    merchant_id,
                     &active_attempt_ids,
                     constraints.connector,
                     constraints.payment_method,
@@ -8671,7 +8758,7 @@ pub async fn apply_filters_on_payments(
             }?;
 
             Ok(services::ApplicationResponse::Json(
-                api::PaymentListResponseV2 {
+                payments_api::PaymentListResponseV2 {
                     count: data.len(),
                     total_count,
                     data,
@@ -8683,7 +8770,7 @@ pub async fn apply_filters_on_payments(
             "merchant_id",
             platform.get_processor().get_account().get_id().clone()
         )),
-    )
+    ))
     .await
 }
 

@@ -568,6 +568,16 @@ impl ApiEventMetric for PaymentsManualUpdateResponse {
     }
 }
 
+#[cfg(feature = "v1")]
+impl ApiEventMetric for PaymentsSessionResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.payment_id.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
 impl ApiEventMetric for PaymentsSessionResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Payment {

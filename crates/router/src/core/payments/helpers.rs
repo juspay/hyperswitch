@@ -8748,3 +8748,40 @@ pub fn get_merchant_advice_code_recommended_action(
         _ => None,
     }
 }
+
+#[cfg(all(feature = "v1", feature = "olap"))]
+pub fn get_search_filters(
+    constraints: &api_models::payments::PaymentListFilterConstraints,
+) -> api_models::analytics::search::SearchFilters {
+    api_models::analytics::search::SearchFilters {
+        payment_method: constraints.payment_method.clone(),
+        currency: constraints.currency.clone(),
+        status: constraints.status.clone(),
+        payment_method_type: constraints.payment_method_type.clone(),
+        authentication_type: constraints.authentication_type.clone(),
+        card_network: constraints.card_network.clone(),
+        connector: constraints.connector.clone(),
+        card_discovery: constraints.card_discovery.clone(),
+        customer_id: constraints
+            .customer_id
+            .as_ref()
+            .map(|customer_id| vec![customer_id.clone()]),
+        payment_id: constraints
+            .payment_id
+            .as_ref()
+            .map(|payment_id| vec![payment_id.clone()]),
+        merchant_order_reference_id: constraints
+            .merchant_order_reference_id
+            .as_ref()
+            .map(|merchant_order_reference_id| vec![merchant_order_reference_id.clone()]),
+        customer_email: constraints.customer_email.as_ref().map(|customer_email| {
+            vec![common_utils::hashing::HashedString::from(
+                customer_email.clone().expose(),
+            )]
+        }),
+        search_tags: None,
+        card_last_4: None,
+        amount: None,
+        amount_filter: constraints.amount_filter.clone(),
+    }
+}
