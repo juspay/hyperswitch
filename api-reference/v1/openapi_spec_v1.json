@@ -48,54 +48,51 @@
                   "value": {
                     "amount": 6540,
                     "currency": "USD",
-                    "payment_id": "abcdefghijklmnopqrstuvwxyz",
                     "customer": {
+                      "email": "john@example.com",
                       "id": "cus_abcdefgh",
                       "name": "John Dough",
-                      "phone": "9123456789",
-                      "email": "john@example.com"
+                      "phone": "9123456789"
                     },
                     "description": "Its my first payment request",
-                    "statement_descriptor_name": "joseph",
-                    "statement_descriptor_suffix": "JS",
                     "metadata": {
                       "udf1": "some-value",
                       "udf2": "some-value"
-                    }
+                    },
+                    "payment_id": "abcdefghijklmnopqrstuvwxyz",
+                    "statement_descriptor_name": "joseph",
+                    "statement_descriptor_suffix": "JS"
                   }
                 },
                 "03. Create a 3DS payment": {
                   "value": {
                     "amount": 6540,
-                    "currency": "USD",
-                    "authentication_type": "three_ds"
+                    "authentication_type": "three_ds",
+                    "currency": "USD"
                   }
                 },
                 "04. Create a manual capture payment (basic)": {
                   "value": {
                     "amount": 6540,
-                    "currency": "USD",
-                    "capture_method": "manual"
+                    "capture_method": "manual",
+                    "currency": "USD"
                   }
                 },
                 "05. Create a setup mandate payment": {
                   "value": {
                     "amount": 6540,
-                    "currency": "USD",
-                    "confirm": true,
-                    "customer_id": "StripeCustomer123",
                     "authentication_type": "no_three_ds",
-                    "payment_method": "card",
-                    "payment_method_data": {
-                      "card": {
-                        "card_number": "4242424242424242",
-                        "card_exp_month": "10",
-                        "card_exp_year": "25",
-                        "card_holder_name": "joseph Doe",
-                        "card_cvc": "123"
+                    "confirm": true,
+                    "currency": "USD",
+                    "customer_acceptance": {
+                      "acceptance_type": "online",
+                      "accepted_at": "1963-05-03T04:07:52.723Z",
+                      "online": {
+                        "ip_address": "127.0.0.1",
+                        "user_agent": "amet irure esse"
                       }
                     },
-                    "setup_future_usage": "off_session",
+                    "customer_id": "StripeCustomer123",
                     "mandate_data": {
                       "customer_acceptance": {
                         "acceptance_type": "online",
@@ -112,23 +109,26 @@
                         }
                       }
                     },
-                    "customer_acceptance": {
-                      "acceptance_type": "online",
-                      "accepted_at": "1963-05-03T04:07:52.723Z",
-                      "online": {
-                        "ip_address": "127.0.0.1",
-                        "user_agent": "amet irure esse"
+                    "payment_method": "card",
+                    "payment_method_data": {
+                      "card": {
+                        "card_cvc": "123",
+                        "card_exp_month": "10",
+                        "card_exp_year": "25",
+                        "card_holder_name": "joseph Doe",
+                        "card_number": "4242424242424242"
                       }
-                    }
+                    },
+                    "setup_future_usage": "off_session"
                   }
                 },
                 "06. Create a recurring payment with mandate_id": {
                   "value": {
                     "amount": 6540,
-                    "currency": "USD",
-                    "confirm": true,
-                    "customer_id": "StripeCustomer",
                     "authentication_type": "no_three_ds",
+                    "confirm": true,
+                    "currency": "USD",
+                    "customer_id": "StripeCustomer",
                     "mandate_id": "{{mandate_id}}",
                     "off_session": true
                   }
@@ -136,26 +136,26 @@
                 "07. Create a payment and save the card": {
                   "value": {
                     "amount": 6540,
-                    "currency": "USD",
-                    "confirm": true,
-                    "customer_id": "StripeCustomer123",
                     "authentication_type": "no_three_ds",
-                    "payment_method": "card",
-                    "payment_method_data": {
-                      "card": {
-                        "card_number": "4242424242424242",
-                        "card_exp_month": "10",
-                        "card_exp_year": "25",
-                        "card_holder_name": "joseph Doe",
-                        "card_cvc": "123"
-                      }
-                    },
+                    "confirm": true,
+                    "currency": "USD",
                     "customer_acceptance": {
                       "acceptance_type": "online",
                       "accepted_at": "1963-05-03T04:07:52.723Z",
                       "online": {
                         "ip_address": "127.0.0.1",
                         "user_agent": "amet irure esse"
+                      }
+                    },
+                    "customer_id": "StripeCustomer123",
+                    "payment_method": "card",
+                    "payment_method_data": {
+                      "card": {
+                        "card_cvc": "123",
+                        "card_exp_month": "10",
+                        "card_exp_year": "25",
+                        "card_holder_name": "joseph Doe",
+                        "card_number": "4242424242424242"
                       }
                     },
                     "setup_future_usage": "off_session"
@@ -164,50 +164,65 @@
                 "08. Create a payment using an already saved card's token": {
                   "value": {
                     "amount": 6540,
-                    "currency": "USD",
-                    "confirm": true,
+                    "card_cvc": "123",
                     "client_secret": "{{client_secret}}",
+                    "confirm": true,
+                    "currency": "USD",
                     "payment_method": "card",
-                    "payment_token": "{{payment_token}}",
-                    "card_cvc": "123"
+                    "payment_token": "{{payment_token}}"
                   }
                 },
                 "09. Create a payment with billing details": {
                   "value": {
                     "amount": 6540,
-                    "currency": "USD",
-                    "customer": {
-                      "id": "cus_abcdefgh"
-                    },
                     "billing": {
                       "address": {
+                        "city": "San Fransico",
+                        "country": "US",
+                        "first_name": "joseph",
+                        "last_name": "Doe",
                         "line1": "1467",
                         "line2": "Harrison Street",
                         "line3": "Harrison Street",
-                        "city": "San Fransico",
                         "state": "California",
-                        "zip": "94122",
-                        "country": "US",
-                        "first_name": "joseph",
-                        "last_name": "Doe"
+                        "zip": "94122"
                       },
                       "phone": {
-                        "number": "9123456789",
-                        "country_code": "+91"
+                        "country_code": "+91",
+                        "number": "9123456789"
                       }
+                    },
+                    "currency": "USD",
+                    "customer": {
+                      "id": "cus_abcdefgh"
                     }
                   }
                 },
                 "10. Create a Stripe Split Payments CIT call": {
                   "value": {
                     "amount": 200,
-                    "currency": "USD",
-                    "profile_id": "pro_abcdefghijklmnop",
-                    "confirm": true,
-                    "capture_method": "automatic",
                     "amount_to_capture": 200,
-                    "customer_id": "StripeCustomer123",
-                    "setup_future_usage": "off_session",
+                    "authentication_type": "no_three_ds",
+                    "billing": {
+                      "address": {
+                        "city": "San Fransico",
+                        "country": "US",
+                        "first_name": "joseph",
+                        "last_name": "Doe",
+                        "line1": "1467",
+                        "line2": "Harrison Street",
+                        "line3": "Harrison Street",
+                        "state": "California",
+                        "zip": "94122"
+                      },
+                      "phone": {
+                        "country_code": "+91",
+                        "number": "9999999999"
+                      }
+                    },
+                    "capture_method": "automatic",
+                    "confirm": true,
+                    "currency": "USD",
                     "customer_acceptance": {
                       "acceptance_type": "offline",
                       "accepted_at": "1963-05-03T04:07:52.723Z",
@@ -216,44 +231,29 @@
                         "user_agent": "amet irure esse"
                       }
                     },
-                    "authentication_type": "no_three_ds",
-                    "return_url": "https://hyperswitch.io",
-                    "name": "John Doe",
-                    "phone": "999999999",
-                    "phone_country_code": "+65",
+                    "customer_id": "StripeCustomer123",
                     "description": "Its my first payment request",
+                    "name": "John Doe",
                     "payment_method": "card",
-                    "payment_method_type": "debit",
                     "payment_method_data": {
                       "card": {
-                        "card_number": "4242424242424242",
+                        "card_cvc": "123",
                         "card_exp_month": "09",
                         "card_exp_year": "25",
                         "card_holder_name": "joseph Doe",
-                        "card_cvc": "123"
+                        "card_number": "4242424242424242"
                       }
                     },
-                    "billing": {
-                      "address": {
-                        "line1": "1467",
-                        "line2": "Harrison Street",
-                        "line3": "Harrison Street",
-                        "city": "San Fransico",
-                        "state": "California",
-                        "zip": "94122",
-                        "country": "US",
-                        "first_name": "joseph",
-                        "last_name": "Doe"
-                      },
-                      "phone": {
-                        "number": "9999999999",
-                        "country_code": "+91"
-                      }
-                    },
+                    "payment_method_type": "debit",
+                    "phone": "999999999",
+                    "phone_country_code": "+65",
+                    "profile_id": "pro_abcdefghijklmnop",
+                    "return_url": "https://hyperswitch.io",
+                    "setup_future_usage": "off_session",
                     "split_payments": {
                       "stripe_split_payment": {
-                        "charge_type": "direct",
                         "application_fees": 100,
+                        "charge_type": "direct",
                         "transfer_account_id": "acct_123456789"
                       }
                     }
@@ -262,20 +262,20 @@
                 "11. Create a Stripe Split Payments MIT call": {
                   "value": {
                     "amount": 200,
+                    "confirm": true,
                     "currency": "USD",
-                    "profile_id": "pro_abcdefghijklmnop",
                     "customer_id": "StripeCustomer123",
                     "description": "Subsequent Mandate Test Payment (MIT from New CIT Demo)",
-                    "confirm": true,
                     "off_session": true,
+                    "profile_id": "pro_abcdefghijklmnop",
                     "recurring_details": {
-                      "type": "payment_method_id",
-                      "data": "pm_123456789"
+                      "data": "pm_123456789",
+                      "type": "payment_method_id"
                     },
                     "split_payments": {
                       "stripe_split_payment": {
-                        "charge_type": "direct",
                         "application_fees": 11,
+                        "charge_type": "direct",
                         "transfer_account_id": "acct_123456789"
                       }
                     }
@@ -297,93 +297,98 @@
                 "examples": {
                   "01. Response for minimal payment creation (requires payment method)": {
                     "value": {
-                      "payment_id": "pay_syxxxxxxxxxxxx",
-                      "merchant_id": "merchant_myyyyyyyyyyyy",
-                      "status": "requires_payment_method",
                       "amount": 6540,
-                      "currency": "USD",
+                      "amount_capturable": 6540,
+                      "attempt_count": 1,
                       "client_secret": "pay_syxxxxxxxxxxxx_secret_szzzzzzzzzzz",
                       "created": "2023-10-26T10:00:00Z",
-                      "amount_capturable": 6540,
+                      "currency": "USD",
+                      "expires_on": "2023-10-26T10:15:00Z",
+                      "merchant_id": "merchant_myyyyyyyyyyyy",
+                      "payment_id": "pay_syxxxxxxxxxxxx",
                       "profile_id": "pro_pzzzzzzzzzzz",
-                      "attempt_count": 1,
-                      "expires_on": "2023-10-26T10:15:00Z"
+                      "status": "requires_payment_method"
                     }
                   },
                   "02. Response for payment with customer details (requires payment method)": {
                     "value": {
-                      "payment_id": "pay_custmeta_xxxxxxxxxxxx",
-                      "merchant_id": "merchant_myyyyyyyyyyyy",
-                      "status": "requires_payment_method",
                       "amount": 6540,
-                      "currency": "USD",
-                      "customer_id": "cus_abcdefgh",
-                      "customer": {
-                        "id": "cus_abcdefgh",
-                        "name": "John Dough",
-                        "email": "john@example.com",
-                        "phone": "9123456789"
-                      },
-                      "description": "Its my first payment request",
-                      "statement_descriptor_name": "joseph",
-                      "statement_descriptor_suffix": "JS",
-                      "metadata": {
-                        "udf1": "some-value",
-                        "udf2": "some-value"
-                      },
+                      "attempt_count": 1,
                       "client_secret": "pay_custmeta_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
                       "created": "2023-10-26T10:05:00Z",
+                      "currency": "USD",
+                      "customer": {
+                        "email": "john@example.com",
+                        "id": "cus_abcdefgh",
+                        "name": "John Dough",
+                        "phone": "9123456789"
+                      },
+                      "customer_id": "cus_abcdefgh",
+                      "description": "Its my first payment request",
                       "ephemeral_key": {
                         "customer_id": "cus_abcdefgh",
                         "secret": "epk_ephemeralxxxxxxxxxxxx"
                       },
+                      "expires_on": "2023-10-26T10:20:00Z",
+                      "merchant_id": "merchant_myyyyyyyyyyyy",
+                      "metadata": {
+                        "udf1": "some-value",
+                        "udf2": "some-value"
+                      },
+                      "payment_id": "pay_custmeta_xxxxxxxxxxxx",
                       "profile_id": "pro_pzzzzzzzzzzz",
-                      "attempt_count": 1,
-                      "expires_on": "2023-10-26T10:20:00Z"
+                      "statement_descriptor_name": "joseph",
+                      "statement_descriptor_suffix": "JS",
+                      "status": "requires_payment_method"
                     }
                   },
                   "03. Response for 3DS payment creation (requires payment method)": {
                     "value": {
-                      "payment_id": "pay_3ds_xxxxxxxxxxxx",
-                      "merchant_id": "merchant_myyyyyyyyyyyy",
-                      "status": "requires_payment_method",
                       "amount": 6540,
-                      "currency": "USD",
+                      "attempt_count": 1,
                       "authentication_type": "three_ds",
                       "client_secret": "pay_3ds_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
                       "created": "2023-10-26T10:10:00Z",
+                      "currency": "USD",
+                      "expires_on": "2023-10-26T10:25:00Z",
+                      "merchant_id": "merchant_myyyyyyyyyyyy",
+                      "payment_id": "pay_3ds_xxxxxxxxxxxx",
                       "profile_id": "pro_pzzzzzzzzzzz",
-                      "attempt_count": 1,
-                      "expires_on": "2023-10-26T10:25:00Z"
+                      "status": "requires_payment_method"
                     }
                   },
                   "04. Response for basic manual capture payment (requires payment method)": {
                     "value": {
-                      "payment_id": "pay_manualcap_xxxxxxxxxxxx",
-                      "merchant_id": "merchant_myyyyyyyyyyyy",
-                      "status": "requires_payment_method",
                       "amount": 6540,
-                      "currency": "USD",
+                      "attempt_count": 1,
                       "capture_method": "manual",
                       "client_secret": "pay_manualcap_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
                       "created": "2023-10-26T10:15:00Z",
+                      "currency": "USD",
+                      "expires_on": "2023-10-26T10:30:00Z",
+                      "merchant_id": "merchant_myyyyyyyyyyyy",
+                      "payment_id": "pay_manualcap_xxxxxxxxxxxx",
                       "profile_id": "pro_pzzzzzzzzzzz",
-                      "attempt_count": 1,
-                      "expires_on": "2023-10-26T10:30:00Z"
+                      "status": "requires_payment_method"
                     }
                   },
                   "05. Response for successful setup mandate payment": {
                     "value": {
-                      "payment_id": "pay_mandatesetup_xxxxxxxxxxxx",
-                      "merchant_id": "merchant_myyyyyyyyyyyy",
-                      "status": "succeeded",
                       "amount": 6540,
-                      "currency": "USD",
                       "amount_capturable": 0,
                       "amount_received": 6540,
+                      "attempt_count": 1,
+                      "authentication_type": "no_three_ds",
+                      "client_secret": "pay_mandatesetup_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
                       "connector": "fauxpay",
+                      "connector_transaction_id": "txn_connectortransidxxxx",
+                      "created": "2023-10-26T10:20:00Z",
+                      "currency": "USD",
                       "customer_id": "StripeCustomer123",
-                      "mandate_id": "man_xxxxxxxxxxxx",
+                      "ephemeral_key": {
+                        "customer_id": "StripeCustomer123",
+                        "secret": "epk_ephemeralxxxxxxxxxxxx"
+                      },
                       "mandate_data": {
                         "customer_acceptance": {
                           "acceptance_type": "online",
@@ -400,232 +405,227 @@
                           }
                         }
                       },
-                      "setup_future_usage": "on_session",
+                      "mandate_id": "man_xxxxxxxxxxxx",
+                      "merchant_connector_id": "mca_mcaconnectorxxxx",
+                      "merchant_id": "merchant_myyyyyyyyyyyy",
+                      "payment_id": "pay_mandatesetup_xxxxxxxxxxxx",
                       "payment_method": "card",
                       "payment_method_data": {
                         "card": {
-                          "last4": "4242",
                           "card_exp_month": "10",
                           "card_exp_year": "25",
-                          "card_holder_name": "joseph Doe"
+                          "card_holder_name": "joseph Doe",
+                          "last4": "4242"
                         }
                       },
-                      "authentication_type": "no_three_ds",
-                      "client_secret": "pay_mandatesetup_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
-                      "created": "2023-10-26T10:20:00Z",
-                      "ephemeral_key": {
-                        "customer_id": "StripeCustomer123",
-                        "secret": "epk_ephemeralxxxxxxxxxxxx"
-                      },
                       "profile_id": "pro_pzzzzzzzzzzz",
-                      "attempt_count": 1,
-                      "merchant_connector_id": "mca_mcaconnectorxxxx",
-                      "connector_transaction_id": "txn_connectortransidxxxx"
+                      "setup_future_usage": "on_session",
+                      "status": "succeeded"
                     }
                   },
                   "06. Response for successful recurring payment with mandate_id": {
                     "value": {
-                      "payment_id": "pay_recurring_xxxxxxxxxxxx",
-                      "merchant_id": "merchant_myyyyyyyyyyyy",
-                      "status": "succeeded",
                       "amount": 6540,
-                      "currency": "USD",
                       "amount_capturable": 0,
                       "amount_received": 6540,
-                      "connector": "fauxpay",
-                      "customer_id": "StripeCustomer",
-                      "mandate_id": "{{mandate_id}}",
-                      "off_session": true,
-                      "payment_method": "card",
+                      "attempt_count": 1,
                       "authentication_type": "no_three_ds",
                       "client_secret": "pay_recurring_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                      "connector": "fauxpay",
+                      "connector_transaction_id": "txn_connectortransidxxxx",
                       "created": "2023-10-26T10:22:00Z",
-                      "profile_id": "pro_pzzzzzzzzzzz",
-                      "attempt_count": 1,
+                      "currency": "USD",
+                      "customer_id": "StripeCustomer",
+                      "mandate_id": "{{mandate_id}}",
                       "merchant_connector_id": "mca_mcaconnectorxxxx",
-                      "connector_transaction_id": "txn_connectortransidxxxx"
+                      "merchant_id": "merchant_myyyyyyyyyyyy",
+                      "off_session": true,
+                      "payment_id": "pay_recurring_xxxxxxxxxxxx",
+                      "payment_method": "card",
+                      "profile_id": "pro_pzzzzzzzzzzz",
+                      "status": "succeeded"
                     }
                   },
                   "07. Response for successful payment with card saved": {
                     "value": {
-                      "payment_id": "pay_savecard_xxxxxxxxxxxx",
-                      "merchant_id": "merchant_myyyyyyyyyyyy",
-                      "status": "succeeded",
                       "amount": 6540,
-                      "currency": "USD",
                       "amount_capturable": 0,
                       "amount_received": 6540,
-                      "connector": "fauxpay",
-                      "customer_id": "StripeCustomer123",
-                      "setup_future_usage": "on_session",
-                      "payment_method": "card",
-                      "payment_method_data": {
-                        "card": {
-                          "last4": "4242",
-                          "card_exp_month": "10",
-                          "card_exp_year": "25",
-                          "card_holder_name": "joseph Doe"
-                        }
-                      },
+                      "attempt_count": 1,
                       "authentication_type": "no_three_ds",
                       "client_secret": "pay_savecard_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                      "connector": "fauxpay",
+                      "connector_transaction_id": "txn_connectortransidxxxx",
                       "created": "2023-10-26T10:25:00Z",
+                      "currency": "USD",
+                      "customer_id": "StripeCustomer123",
                       "ephemeral_key": {
                         "customer_id": "StripeCustomer123",
                         "secret": "epk_ephemeralxxxxxxxxxxxx"
                       },
-                      "profile_id": "pro_pzzzzzzzzzzz",
-                      "attempt_count": 1,
                       "merchant_connector_id": "mca_mcaconnectorxxxx",
-                      "connector_transaction_id": "txn_connectortransidxxxx",
-                      "payment_token": null
+                      "merchant_id": "merchant_myyyyyyyyyyyy",
+                      "payment_id": "pay_savecard_xxxxxxxxxxxx",
+                      "payment_method": "card",
+                      "payment_method_data": {
+                        "card": {
+                          "card_exp_month": "10",
+                          "card_exp_year": "25",
+                          "card_holder_name": "joseph Doe",
+                          "last4": "4242"
+                        }
+                      },
+                      "payment_token": null,
+                      "profile_id": "pro_pzzzzzzzzzzz",
+                      "setup_future_usage": "on_session",
+                      "status": "succeeded"
                     }
                   },
                   "08. Response for successful payment using saved card token": {
                     "value": {
-                      "payment_id": "pay_token_xxxxxxxxxxxx",
-                      "merchant_id": "merchant_myyyyyyyyyyyy",
-                      "status": "succeeded",
                       "amount": 6540,
-                      "currency": "USD",
                       "amount_capturable": 0,
                       "amount_received": 6540,
+                      "attempt_count": 1,
+                      "client_secret": "pay_token_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
                       "connector": "fauxpay",
+                      "connector_transaction_id": "txn_connectortransidxxxx",
+                      "created": "2023-10-26T10:27:00Z",
+                      "currency": "USD",
+                      "merchant_connector_id": "mca_mcaconnectorxxxx",
+                      "merchant_id": "merchant_myyyyyyyyyyyy",
+                      "payment_id": "pay_token_xxxxxxxxxxxx",
                       "payment_method": "card",
                       "payment_token": "{{payment_token}}",
-                      "client_secret": "pay_token_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
-                      "created": "2023-10-26T10:27:00Z",
                       "profile_id": "pro_pzzzzzzzzzzz",
-                      "attempt_count": 1,
-                      "merchant_connector_id": "mca_mcaconnectorxxxx",
-                      "connector_transaction_id": "txn_connectortransidxxxx"
+                      "status": "succeeded"
                     }
                   },
                   "09. Response for payment with billing details (requires payment method)": {
                     "value": {
-                      "payment_id": "pay_manualbill_xxxxxxxxxxxx",
-                      "merchant_id": "merchant_myyyyyyyyyyyy",
-                      "status": "requires_payment_method",
                       "amount": 6540,
-                      "currency": "USD",
-                      "customer_id": "cus_abcdefgh",
-                      "customer": {
-                        "id": "cus_abcdefgh",
-                        "name": "John Dough",
-                        "email": "john@example.com",
-                        "phone": "9123456789"
-                      },
+                      "attempt_count": 1,
                       "billing": {
                         "address": {
-                          "line1": "1467",
-                          "line2": "Harrison Street",
                           "city": "San Fransico",
-                          "state": "California",
-                          "zip": "94122",
                           "country": "US",
                           "first_name": "joseph",
-                          "last_name": "Doe"
+                          "last_name": "Doe",
+                          "line1": "1467",
+                          "line2": "Harrison Street",
+                          "state": "California",
+                          "zip": "94122"
                         },
                         "phone": {
-                          "number": "9123456789",
-                          "country_code": "+91"
+                          "country_code": "+91",
+                          "number": "9123456789"
                         }
                       },
                       "client_secret": "pay_manualbill_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
                       "created": "2023-10-26T10:30:00Z",
+                      "currency": "USD",
+                      "customer": {
+                        "email": "john@example.com",
+                        "id": "cus_abcdefgh",
+                        "name": "John Dough",
+                        "phone": "9123456789"
+                      },
+                      "customer_id": "cus_abcdefgh",
                       "ephemeral_key": {
                         "customer_id": "cus_abcdefgh",
                         "secret": "epk_ephemeralxxxxxxxxxxxx"
                       },
+                      "expires_on": "2023-10-26T10:45:00Z",
+                      "merchant_id": "merchant_myyyyyyyyyyyy",
+                      "payment_id": "pay_manualbill_xxxxxxxxxxxx",
                       "profile_id": "pro_pzzzzzzzzzzz",
-                      "attempt_count": 1,
-                      "expires_on": "2023-10-26T10:45:00Z"
+                      "status": "requires_payment_method"
                     }
                   },
                   "10. Response for the CIT call for Stripe Split Payments": {
                     "value": {
-                      "payment_id": "pay_manualbill_xxxxxxxxxxxx",
-                      "merchant_id": "merchant_myyyyyyyyyyyy",
-                      "status": "succeeded",
                       "amount": 200,
-                      "currency": "USD",
-                      "customer_id": "cus_abcdefgh",
-                      "payment_method_id": "pm_123456789",
-                      "connector_mandate_id": "pm_abcdefgh",
-                      "customer": {
-                        "id": "cus_abcdefgh",
-                        "name": "John Dough",
-                        "email": "john@example.com",
-                        "phone": "9123456789"
-                      },
+                      "attempt_count": 1,
                       "billing": {
                         "address": {
-                          "line1": "1467",
-                          "line2": "Harrison Street",
                           "city": "San Fransico",
-                          "state": "California",
-                          "zip": "94122",
                           "country": "US",
                           "first_name": "joseph",
-                          "last_name": "Doe"
+                          "last_name": "Doe",
+                          "line1": "1467",
+                          "line2": "Harrison Street",
+                          "state": "California",
+                          "zip": "94122"
                         },
                         "phone": {
-                          "number": "9123456789",
-                          "country_code": "+91"
+                          "country_code": "+91",
+                          "number": "9123456789"
                         }
                       },
                       "client_secret": "pay_manualbill_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                      "connector_mandate_id": "pm_abcdefgh",
                       "created": "2023-10-26T10:30:00Z",
+                      "currency": "USD",
+                      "customer": {
+                        "email": "john@example.com",
+                        "id": "cus_abcdefgh",
+                        "name": "John Dough",
+                        "phone": "9123456789"
+                      },
+                      "customer_id": "cus_abcdefgh",
                       "ephemeral_key": {
                         "customer_id": "cus_abcdefgh",
                         "secret": "epk_ephemeralxxxxxxxxxxxx"
                       },
+                      "expires_on": "2023-10-26T10:45:00Z",
+                      "merchant_id": "merchant_myyyyyyyyyyyy",
+                      "payment_id": "pay_manualbill_xxxxxxxxxxxx",
+                      "payment_method_id": "pm_123456789",
                       "profile_id": "pro_pzzzzzzzzzzz",
-                      "attempt_count": 1,
-                      "expires_on": "2023-10-26T10:45:00Z"
+                      "status": "succeeded"
                     }
                   },
                   "11. Response for the MIT call for Stripe Split Payments": {
                     "value": {
-                      "payment_id": "pay_manualbill_xxxxxxxxxxxx",
-                      "merchant_id": "merchant_myyyyyyyyyyyy",
-                      "status": "succeeded",
                       "amount": 200,
-                      "currency": "USD",
-                      "customer_id": "cus_abcdefgh",
-                      "payment_method_id": "pm_123456789",
-                      "connector_mandate_id": "pm_abcdefgh",
-                      "customer": {
-                        "id": "cus_abcdefgh",
-                        "name": "John Dough",
-                        "email": "john@example.com",
-                        "phone": "9123456789"
-                      },
+                      "attempt_count": 1,
                       "billing": {
                         "address": {
-                          "line1": "1467",
-                          "line2": "Harrison Street",
                           "city": "San Fransico",
-                          "state": "California",
-                          "zip": "94122",
                           "country": "US",
                           "first_name": "joseph",
-                          "last_name": "Doe"
+                          "last_name": "Doe",
+                          "line1": "1467",
+                          "line2": "Harrison Street",
+                          "state": "California",
+                          "zip": "94122"
                         },
                         "phone": {
-                          "number": "9123456789",
-                          "country_code": "+91"
+                          "country_code": "+91",
+                          "number": "9123456789"
                         }
                       },
                       "client_secret": "pay_manualbill_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
+                      "connector_mandate_id": "pm_abcdefgh",
                       "created": "2023-10-26T10:30:00Z",
+                      "currency": "USD",
+                      "customer": {
+                        "email": "john@example.com",
+                        "id": "cus_abcdefgh",
+                        "name": "John Dough",
+                        "phone": "9123456789"
+                      },
+                      "customer_id": "cus_abcdefgh",
                       "ephemeral_key": {
                         "customer_id": "cus_abcdefgh",
                         "secret": "epk_ephemeralxxxxxxxxxxxx"
                       },
+                      "expires_on": "2023-10-26T10:45:00Z",
+                      "merchant_id": "merchant_myyyyyyyyyyyy",
+                      "payment_id": "pay_manualbill_xxxxxxxxxxxx",
+                      "payment_method_id": "pm_123456789",
                       "profile_id": "pro_pzzzzzzzzzzz",
-                      "attempt_count": 1,
-                      "expires_on": "2023-10-26T10:45:00Z"
+                      "status": "succeeded"
                     }
                   }
                 }
@@ -685,19 +685,19 @@
                   "value": {
                     "shipping": {
                       "address": {
+                        "city": "San Fransico",
+                        "country": "US",
+                        "first_name": "joseph",
+                        "last_name": "Doe",
                         "line1": "1467",
                         "line2": "Harrison Street",
                         "line3": "Harrison Street",
-                        "city": "San Fransico",
                         "state": "California",
-                        "zip": "94122",
-                        "country": "US",
-                        "first_name": "joseph",
-                        "last_name": "Doe"
+                        "zip": "94122"
                       },
                       "phone": {
-                        "number": "9123456789",
-                        "country_code": "+91"
+                        "country_code": "+91",
+                        "number": "9123456789"
                       }
                     }
                   }
@@ -849,17 +849,6 @@
               "examples": {
                 "Confirm a payment with payment method data": {
                   "value": {
-                    "payment_method": "card",
-                    "payment_method_type": "credit",
-                    "payment_method_data": {
-                      "card": {
-                        "card_number": "4242424242424242",
-                        "card_exp_month": "10",
-                        "card_exp_year": "25",
-                        "card_holder_name": "joseph Doe",
-                        "card_cvc": "123"
-                      }
-                    },
                     "customer_acceptance": {
                       "acceptance_type": "online",
                       "accepted_at": "1963-05-03T04:07:52.723Z",
@@ -867,7 +856,18 @@
                         "ip_address": "127.0.0.1",
                         "user_agent": "amet irure esse"
                       }
-                    }
+                    },
+                    "payment_method": "card",
+                    "payment_method_data": {
+                      "card": {
+                        "card_cvc": "123",
+                        "card_exp_month": "10",
+                        "card_exp_year": "25",
+                        "card_holder_name": "joseph Doe",
+                        "card_number": "4242424242424242"
+                      }
+                    },
+                    "payment_method_type": "credit"
                   }
                 }
               }
@@ -1751,15 +1751,15 @@
               "examples": {
                 "Create a relay request": {
                   "value": {
-                    "connector_resource_id": "7256228702616471803954",
                     "connector_id": "mca_5apGeP94tMts6rg3U3kR",
-                    "type": "refund",
+                    "connector_resource_id": "7256228702616471803954",
                     "data": {
                       "refund": {
                         "amount": 6540,
                         "currency": "USD"
                       }
-                    }
+                    },
+                    "type": "refund"
                   }
                 }
               }
@@ -1859,9 +1859,9 @@
               "examples": {
                 "Create an instant refund to refund partial amount": {
                   "value": {
+                    "amount": 654,
                     "payment_id": "{{payment_id}}",
-                    "refund_type": "instant",
-                    "amount": 654
+                    "refund_type": "instant"
                   }
                 },
                 "Create an instant refund to refund the whole amount": {
@@ -1872,10 +1872,10 @@
                 },
                 "Create an instant refund with reason": {
                   "value": {
-                    "payment_id": "{{payment_id}}",
-                    "refund_type": "instant",
                     "amount": 6540,
-                    "reason": "Customer returned product"
+                    "payment_id": "{{payment_id}}",
+                    "reason": "Customer returned product",
+                    "refund_type": "instant"
                   }
                 }
               }
@@ -2503,37 +2503,37 @@
               "examples": {
                 "Create a merchant account with custom connector label": {
                   "value": {
-                    "connector_type": "payment_processor",
-                    "connector_name": "adyen",
-                    "connector_label": "EU_adyen",
                     "connector_account_details": {
-                      "auth_type": "BodyKey",
                       "api_key": "{{adyen-api-key}}",
+                      "auth_type": "BodyKey",
                       "key1": "{{adyen_merchant_account}}"
-                    }
+                    },
+                    "connector_label": "EU_adyen",
+                    "connector_name": "adyen",
+                    "connector_type": "payment_processor"
                   }
                 },
                 "Create a merchant connector account under a specific profile": {
                   "value": {
-                    "connector_type": "payment_processor",
-                    "connector_name": "adyen",
                     "connector_account_details": {
-                      "auth_type": "BodyKey",
                       "api_key": "{{adyen-api-key}}",
+                      "auth_type": "BodyKey",
                       "key1": "{{adyen_merchant_account}}"
                     },
+                    "connector_name": "adyen",
+                    "connector_type": "payment_processor",
                     "profile_id": "{{profile_id}}"
                   }
                 },
                 "Create a merchant connector account with minimal fields": {
                   "value": {
-                    "connector_type": "payment_processor",
-                    "connector_name": "adyen",
                     "connector_account_details": {
-                      "auth_type": "BodyKey",
                       "api_key": "{{adyen-api-key}}",
+                      "auth_type": "BodyKey",
                       "key1": "{{adyen_merchant_account}}"
-                    }
+                    },
+                    "connector_name": "adyen",
+                    "connector_type": "payment_processor"
                   }
                 }
               }
@@ -3416,16 +3416,16 @@
               "examples": {
                 "Save a card": {
                   "value": {
-                    "payment_method": "card",
-                    "payment_method_type": "credit",
-                    "payment_method_issuer": "Visa",
                     "card": {
-                      "card_number": "4242424242424242",
                       "card_exp_month": "11",
                       "card_exp_year": "30",
-                      "card_holder_name": "John Doe"
+                      "card_holder_name": "John Doe",
+                      "card_number": "4242424242424242"
                     },
-                    "customer_id": "{{customer_id}}"
+                    "customer_id": "{{customer_id}}",
+                    "payment_method": "card",
+                    "payment_method_issuer": "Visa",
+                    "payment_method_type": "credit"
                   }
                 }
               }
@@ -6637,10 +6637,6 @@
                   "value": {
                     "created_after": "2023-01-01T00:00:00",
                     "created_before": "2023-01-31T23:59:59",
-                    "limit": 5,
-                    "offset": 0,
-                    "object_id": "{{object_id}}",
-                    "profile_id": "{{profile_id}}",
                     "event_classes": [
                       "payments",
                       "refunds"
@@ -6648,7 +6644,11 @@
                     "event_types": [
                       "payment_succeeded"
                     ],
-                    "is_delivered": true
+                    "is_delivered": true,
+                    "limit": 5,
+                    "object_id": "{{object_id}}",
+                    "offset": 0,
+                    "profile_id": "{{profile_id}}"
                   }
                 }
               }
@@ -6695,10 +6695,6 @@
                   "value": {
                     "created_after": "2023-01-01T00:00:00",
                     "created_before": "2023-01-31T23:59:59",
-                    "limit": 5,
-                    "offset": 0,
-                    "object_id": "{{object_id}}",
-                    "profile_id": "{{profile_id}}",
                     "event_classes": [
                       "payments",
                       "refunds"
@@ -6706,7 +6702,11 @@
                     "event_types": [
                       "payment_succeeded"
                     ],
-                    "is_delivered": true
+                    "is_delivered": true,
+                    "limit": 5,
+                    "object_id": "{{object_id}}",
+                    "offset": 0,
+                    "profile_id": "{{profile_id}}"
                   }
                 }
               }
@@ -7364,11 +7364,11 @@
                   "Successful Platform Account Creation": {
                     "description": "Return values for a successfully created platform account",
                     "value": {
+                      "merchant_account_type": "platform",
+                      "merchant_id": "merchant_abc",
                       "org_id": "org_abc",
                       "org_name": "organization_abc",
-                      "org_type": "platform",
-                      "merchant_id": "merchant_abc",
-                      "merchant_account_type": "platform"
+                      "org_type": "platform"
                     }
                   }
                 }
@@ -7414,61 +7414,30 @@
               "examples": {
                 "Create and confirm subscription": {
                   "value": {
-                    "item_price_id": "standard-plan-USD-Monthly",
-                    "customer_id": "cust_123456789",
-                    "description": "Hello this is description",
-                    "merchant_reference_id": "mer_ref_123456789",
-                    "shipping": {
-                      "address": {
-                        "state": "zsaasdas",
-                        "city": "Banglore",
-                        "country": "US",
-                        "line1": "sdsdfsdf",
-                        "line2": "hsgdbhd",
-                        "line3": "alsksoe",
-                        "zip": "571201",
-                        "first_name": "joseph",
-                        "last_name": "doe"
-                      },
-                      "phone": {
-                        "number": "123456789",
-                        "country_code": "+1"
-                      }
-                    },
                     "billing": {
                       "address": {
+                        "city": "San Fransico",
+                        "country": "US",
+                        "first_name": "joseph",
+                        "last_name": "Doe",
                         "line1": "1467",
                         "line2": "Harrison Street",
                         "line3": "Harrison Street",
-                        "city": "San Fransico",
                         "state": "California",
-                        "zip": "94122",
-                        "country": "US",
-                        "first_name": "joseph",
-                        "last_name": "Doe"
+                        "zip": "94122"
                       },
                       "phone": {
-                        "number": "123456789",
-                        "country_code": "+1"
+                        "country_code": "+1",
+                        "number": "123456789"
                       }
                     },
+                    "customer_id": "cust_123456789",
+                    "description": "Hello this is description",
+                    "item_price_id": "standard-plan-USD-Monthly",
+                    "merchant_reference_id": "mer_ref_123456789",
                     "payment_details": {
-                      "payment_type": "setup_mandate",
-                      "payment_method": "card",
-                      "payment_method_type": "credit",
-                      "payment_method_data": {
-                        "card": {
-                          "card_number": "4000000000000002",
-                          "card_exp_month": "03",
-                          "card_exp_year": "2030",
-                          "card_holder_name": "CLBRW dffdg",
-                          "card_cvc": "737"
-                        }
-                      },
                       "authentication_type": "no_three_ds",
-                      "setup_future_usage": "off_session",
                       "capture_method": "automatic",
-                      "return_url": "https://google.com",
                       "customer_acceptance": {
                         "acceptance_type": "online",
                         "accepted_at": "1963-05-03T04:07:52.723Z",
@@ -7476,6 +7445,37 @@
                           "ip_address": "127.0.0.1",
                           "user_agent": "amet irure esse"
                         }
+                      },
+                      "payment_method": "card",
+                      "payment_method_data": {
+                        "card": {
+                          "card_cvc": "737",
+                          "card_exp_month": "03",
+                          "card_exp_year": "2030",
+                          "card_holder_name": "CLBRW dffdg",
+                          "card_number": "4000000000000002"
+                        }
+                      },
+                      "payment_method_type": "credit",
+                      "payment_type": "setup_mandate",
+                      "return_url": "https://google.com",
+                      "setup_future_usage": "off_session"
+                    },
+                    "shipping": {
+                      "address": {
+                        "city": "Banglore",
+                        "country": "US",
+                        "first_name": "joseph",
+                        "last_name": "doe",
+                        "line1": "sdsdfsdf",
+                        "line2": "hsgdbhd",
+                        "line3": "alsksoe",
+                        "state": "zsaasdas",
+                        "zip": "571201"
+                      },
+                      "phone": {
+                        "country_code": "+1",
+                        "number": "123456789"
                       }
                     }
                   }
@@ -7542,9 +7542,9 @@
                     "item_price_id": "standard-plan-USD-Monthly",
                     "payment_details": {
                       "authentication_type": "no_three_ds",
-                      "setup_future_usage": "off_session",
                       "capture_method": "automatic",
-                      "return_url": "https://google.com"
+                      "return_url": "https://google.com",
+                      "setup_future_usage": "off_session"
                     }
                   }
                 }
@@ -7616,49 +7616,21 @@
                 "Confirm subscription": {
                   "value": {
                     "payment_details": {
-                      "shipping": {
-                        "address": {
-                          "state": "zsaasdas",
-                          "city": "Banglore",
-                          "country": "US",
-                          "line1": "sdsdfsdf",
-                          "line2": "hsgdbhd",
-                          "line3": "alsksoe",
-                          "zip": "571201",
-                          "first_name": "joseph",
-                          "last_name": "doe"
-                        },
-                        "phone": {
-                          "number": "123456789",
-                          "country_code": "+1"
-                        }
-                      },
                       "billing": {
                         "address": {
+                          "city": "San Fransico",
+                          "country": "US",
+                          "first_name": "joseph",
+                          "last_name": "Doe",
                           "line1": "1467",
                           "line2": "Harrison Street",
                           "line3": "Harrison Street",
-                          "city": "San Fransico",
                           "state": "California",
-                          "zip": "94122",
-                          "country": "US",
-                          "first_name": "joseph",
-                          "last_name": "Doe"
+                          "zip": "94122"
                         },
                         "phone": {
-                          "number": "123456789",
-                          "country_code": "+1"
-                        }
-                      },
-                      "payment_method": "card",
-                      "payment_method_type": "credit",
-                      "payment_method_data": {
-                        "card": {
-                          "card_number": "4111111111111111",
-                          "card_exp_month": "03",
-                          "card_exp_year": "2030",
-                          "card_holder_name": "CLBRW dffdg",
-                          "card_cvc": "737"
+                          "country_code": "+1",
+                          "number": "123456789"
                         }
                       },
                       "customer_acceptance": {
@@ -7667,6 +7639,34 @@
                         "online": {
                           "ip_address": "127.0.0.1",
                           "user_agent": "amet irure esse"
+                        }
+                      },
+                      "payment_method": "card",
+                      "payment_method_data": {
+                        "card": {
+                          "card_cvc": "737",
+                          "card_exp_month": "03",
+                          "card_exp_year": "2030",
+                          "card_holder_name": "CLBRW dffdg",
+                          "card_number": "4111111111111111"
+                        }
+                      },
+                      "payment_method_type": "credit",
+                      "shipping": {
+                        "address": {
+                          "city": "Banglore",
+                          "country": "US",
+                          "first_name": "joseph",
+                          "last_name": "doe",
+                          "line1": "sdsdfsdf",
+                          "line2": "hsgdbhd",
+                          "line3": "alsksoe",
+                          "state": "zsaasdas",
+                          "zip": "571201"
+                        },
+                        "phone": {
+                          "country_code": "+1",
+                          "number": "123456789"
                         }
                       }
                     }
@@ -7795,8 +7795,8 @@
               "examples": {
                 "Update subscription": {
                   "value": {
-                    "plan_id": "cbdemo_enterprise-suite",
-                    "item_price_id": "cbdemo_enterprise-suite-monthly"
+                    "item_price_id": "cbdemo_enterprise-suite-monthly",
+                    "plan_id": "cbdemo_enterprise-suite"
                   }
                 }
               }
@@ -8183,9 +8183,9 @@
                 "Cancel subscription": {
                   "value": {
                     "cancel_option": "immediately",
-                    "unbilled_charges_option": "invoice",
                     "credit_option_for_current_term_charges": "prorate",
-                    "refundable_credits_handling": "schedule_refund"
+                    "refundable_credits_handling": "schedule_refund",
+                    "unbilled_charges_option": "invoice"
                   }
                 }
               }
@@ -17588,8 +17588,8 @@
               "format": "double"
             },
             "example": {
-              "stripe:mca1": 1.0,
-              "adyen:mca2": 1.0
+              "adyen:mca2": 1.0,
+              "stripe:mca1": 1.0
             },
             "nullable": true
           },
@@ -22294,38 +22294,38 @@
             "description": "An object containing the details about the payment methods that need to be enabled under this merchant connector account",
             "example": [
               {
+                "accepted_countries": {
+                  "list": [
+                    "FR",
+                    "DE",
+                    "IN"
+                  ],
+                  "type": "disable_only"
+                },
+                "accepted_currencies": {
+                  "list": [
+                    "USD",
+                    "EUR"
+                  ],
+                  "type": "enable_only"
+                },
+                "installment_payment_enabled": true,
+                "maximum_amount": 68607706,
+                "minimum_amount": 1,
                 "payment_method": "wallet",
-                "payment_method_types": [
-                  "upi_collect",
-                  "upi_intent"
-                ],
                 "payment_method_issuers": [
                   "labore magna ipsum",
                   "aute"
+                ],
+                "payment_method_types": [
+                  "upi_collect",
+                  "upi_intent"
                 ],
                 "payment_schemes": [
                   "Discover",
                   "Discover"
                 ],
-                "accepted_currencies": {
-                  "type": "enable_only",
-                  "list": [
-                    "USD",
-                    "EUR"
-                  ]
-                },
-                "accepted_countries": {
-                  "type": "disable_only",
-                  "list": [
-                    "FR",
-                    "DE",
-                    "IN"
-                  ]
-                },
-                "minimum_amount": 1,
-                "maximum_amount": 68607706,
-                "recurring_enabled": true,
-                "installment_payment_enabled": true
+                "recurring_enabled": true
               }
             ],
             "nullable": true
@@ -22539,38 +22539,38 @@
             "description": "An object containing the details about the payment methods that need to be enabled under this merchant connector account",
             "example": [
               {
+                "accepted_countries": {
+                  "list": [
+                    "FR",
+                    "DE",
+                    "IN"
+                  ],
+                  "type": "disable_only"
+                },
+                "accepted_currencies": {
+                  "list": [
+                    "USD",
+                    "EUR"
+                  ],
+                  "type": "enable_only"
+                },
+                "installment_payment_enabled": true,
+                "maximum_amount": 68607706,
+                "minimum_amount": 1,
                 "payment_method": "wallet",
-                "payment_method_types": [
-                  "upi_collect",
-                  "upi_intent"
-                ],
                 "payment_method_issuers": [
                   "labore magna ipsum",
                   "aute"
+                ],
+                "payment_method_types": [
+                  "upi_collect",
+                  "upi_intent"
                 ],
                 "payment_schemes": [
                   "Discover",
                   "Discover"
                 ],
-                "accepted_currencies": {
-                  "type": "enable_only",
-                  "list": [
-                    "USD",
-                    "EUR"
-                  ]
-                },
-                "accepted_countries": {
-                  "type": "disable_only",
-                  "list": [
-                    "FR",
-                    "DE",
-                    "IN"
-                  ]
-                },
-                "minimum_amount": 1,
-                "maximum_amount": 68607706,
-                "recurring_enabled": true,
-                "installment_payment_enabled": true
+                "recurring_enabled": true
               }
             ],
             "nullable": true
@@ -22685,38 +22685,38 @@
             "description": "An object containing the details about the payment methods that need to be enabled under this merchant connector account",
             "example": [
               {
+                "accepted_countries": {
+                  "list": [
+                    "FR",
+                    "DE",
+                    "IN"
+                  ],
+                  "type": "disable_only"
+                },
+                "accepted_currencies": {
+                  "list": [
+                    "USD",
+                    "EUR"
+                  ],
+                  "type": "enable_only"
+                },
+                "installment_payment_enabled": true,
+                "maximum_amount": 68607706,
+                "minimum_amount": 1,
                 "payment_method": "wallet",
-                "payment_method_types": [
-                  "upi_collect",
-                  "upi_intent"
-                ],
                 "payment_method_issuers": [
                   "labore magna ipsum",
                   "aute"
+                ],
+                "payment_method_types": [
+                  "upi_collect",
+                  "upi_intent"
                 ],
                 "payment_schemes": [
                   "Discover",
                   "Discover"
                 ],
-                "accepted_currencies": {
-                  "type": "enable_only",
-                  "list": [
-                    "USD",
-                    "EUR"
-                  ]
-                },
-                "accepted_countries": {
-                  "type": "disable_only",
-                  "list": [
-                    "FR",
-                    "DE",
-                    "IN"
-                  ]
-                },
-                "minimum_amount": 1,
-                "maximum_amount": 68607706,
-                "recurring_enabled": true,
-                "installment_payment_enabled": true
+                "recurring_enabled": true
               }
             ],
             "nullable": true
@@ -22852,38 +22852,38 @@
             "description": "An object containing the details about the payment methods that need to be enabled under this merchant connector account",
             "example": [
               {
+                "accepted_countries": {
+                  "list": [
+                    "FR",
+                    "DE",
+                    "IN"
+                  ],
+                  "type": "disable_only"
+                },
+                "accepted_currencies": {
+                  "list": [
+                    "USD",
+                    "EUR"
+                  ],
+                  "type": "enable_only"
+                },
+                "installment_payment_enabled": true,
+                "maximum_amount": 68607706,
+                "minimum_amount": 1,
                 "payment_method": "wallet",
-                "payment_method_types": [
-                  "upi_collect",
-                  "upi_intent"
-                ],
                 "payment_method_issuers": [
                   "labore magna ipsum",
                   "aute"
+                ],
+                "payment_method_types": [
+                  "upi_collect",
+                  "upi_intent"
                 ],
                 "payment_schemes": [
                   "Discover",
                   "Discover"
                 ],
-                "accepted_currencies": {
-                  "type": "enable_only",
-                  "list": [
-                    "USD",
-                    "EUR"
-                  ]
-                },
-                "accepted_countries": {
-                  "type": "disable_only",
-                  "list": [
-                    "FR",
-                    "DE",
-                    "IN"
-                  ]
-                },
-                "minimum_amount": 1,
-                "maximum_amount": 68607706,
-                "recurring_enabled": true,
-                "installment_payment_enabled": true
+                "recurring_enabled": true
               }
             ],
             "nullable": true
@@ -26301,11 +26301,11 @@
             "description": "Payment Method Types",
             "example": [
               {
-                "payment_method_type": "credit",
                 "message": {
-                  "value": "Sample message",
-                  "display_mode": "custom"
-                }
+                  "display_mode": "custom",
+                  "value": "Sample message"
+                },
+                "payment_method_type": "credit"
               }
             ]
           }
