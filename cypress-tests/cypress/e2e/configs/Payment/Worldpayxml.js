@@ -77,11 +77,11 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
       Response: {
-            status: 200,
-            body: {
-              status: "requires_customer_action",
-            },
-          },
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
     }),
     "3DSAutoCapture": {
       Request: {
@@ -468,7 +468,7 @@ export const connectorDetails = {
         },
       },
     },
-     PaymentMethodIdMandate3DSManualCapture: {
+    PaymentMethodIdMandate3DSManualCapture: {
       Configs: {
         TRIGGER_SKIP: true,
       },
@@ -500,7 +500,7 @@ export const connectorDetails = {
         },
       },
     }),
-     MandateMultiUseNo3DSAutoCapture: {
+    MandateMultiUseNo3DSAutoCapture: {
       Configs: {
         TRIGGER_SKIP: true,
       },
@@ -550,8 +550,8 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandate3DSAutoCapture: {
       Configs: {
-      TRIGGER_SKIP: true,
-    },
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -569,25 +569,25 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSAutoCaptureOffSession: {
-    Configs: {
-      TRIGGER_SKIP: true,
-    },
-    Request: {
-      payment_method: "card",
-      payment_method_type: "debit",
-      payment_method_data: {
-        card: successfulNo3DSCardDetails,
+      Configs: {
+        TRIGGER_SKIP: true,
       },
-      setup_future_usage: "off_session",
-      customer_acceptance: customerAcceptance,
-    },
-    Response: {
-      status: 200,
-      body: {
-        status: "processing",
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
       },
     },
-  },
     Response: {
       status: 200,
       body: {
