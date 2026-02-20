@@ -27778,7 +27778,8 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer",
+            "description": "The identifier for the customer\nThis field will be deprecated soon, use the customer object instead",
+            "deprecated": true,
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
             "maxLength": 64,
@@ -28287,7 +28288,8 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer",
+            "description": "The identifier for the customer\nThis field will be deprecated soon, use the customer object instead",
+            "deprecated": true,
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
             "maxLength": 64,
@@ -29815,7 +29817,8 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer",
+            "description": "The identifier for the customer\nThis field will be deprecated soon, use the customer object instead",
+            "deprecated": true,
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
             "maxLength": 64,
@@ -31322,7 +31325,8 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer",
+            "description": "The identifier for the customer\nThis field will be deprecated soon, use the customer object instead",
+            "deprecated": true,
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
             "maxLength": 64,
