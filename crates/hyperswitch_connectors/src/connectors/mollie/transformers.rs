@@ -380,8 +380,12 @@ impl TryFrom<&MollieRouterData<&types::SetupMandateRouterData>> for MolliePaymen
             description: item.router_data.get_description()?,
             redirect_url: item.router_data.request.get_router_return_url()?,
             cancel_url: None,
-            /* webhook_url is a mandatory field. */
-            webhook_url: "".to_string(),
+
+            webhook_url: match router_env::env::which() {
+                router_env::Env::Development => "".to_string(),
+                _ => item.router_data.request.get_webhook_url()?,
+            },
+
             locale: None,
             payment_method_data,
             metadata: Some(MollieMetadata {
@@ -436,7 +440,10 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
 
         let payment_method_data = match &item.router_data.request.payment_method_data {
             PaymentMethodData::Card(_) => {
-                let pm_token = item.router_data.get_payment_method_token()?;
+                let pm_token = item
+                    .router_data
+                    .get_payment_method_token()
+                    .attach_printable("Mollie token not found")?;
                 Ok(MolliePaymentMethodData::CreditCard(Box::new(
                     CreditCardMethodData {
                         billing_address: get_billing_details(item.router_data)?,
@@ -480,9 +487,10 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
             description,
             redirect_url,
             cancel_url: None,
-            /* webhook_url is a mandatory field.
-            But we can't support webhook in our core hence keeping it as empty string */
-            webhook_url: "".to_string(),
+            webhook_url: match router_env::env::which() {
+                router_env::Env::Development => "".to_string(),
+                _ => item.router_data.request.get_webhook_url()?,
+            },
             locale: None,
             payment_method_data,
             metadata: Some(MollieMetadata {
@@ -1014,4 +1022,9 @@ pub struct MollieErrorResponse {
     pub title: Option<String>,
     pub detail: String,
     pub field: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct MollieWebhookBody {
+    pub id: String,
 }
