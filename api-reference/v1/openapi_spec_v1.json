@@ -13032,6 +13032,13 @@
           }
         }
       },
+      "BillingFrequency": {
+        "type": "string",
+        "description": "Billing frequency for a card installment plan",
+        "enum": [
+          "month"
+        ]
+      },
       "BlikBankRedirectAdditionalData": {
         "type": "object",
         "properties": {
@@ -14028,6 +14035,31 @@
           "saved_card",
           "click_to_pay"
         ]
+      },
+      "CardInstallmentOption": {
+        "type": "object",
+        "description": "A single installment plan option accepted in request payloads",
+        "required": [
+          "number_of_installments",
+          "billing_frequency",
+          "interest_rate"
+        ],
+        "properties": {
+          "number_of_installments": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of installments (e.g., 2, 4, 6)",
+            "minimum": 0
+          },
+          "billing_frequency": {
+            "$ref": "#/components/schemas/BillingFrequency"
+          },
+          "interest_rate": {
+            "type": "number",
+            "format": "double",
+            "description": "Interest rate applied per installment as a percentage"
+          }
+        }
       },
       "CardNetwork": {
         "type": "string",
@@ -20850,6 +20882,26 @@
           "connected"
         ]
       },
+      "InstallmentOption": {
+        "type": "object",
+        "description": "Installment options grouped by payment method",
+        "required": [
+          "payment_method",
+          "installments"
+        ],
+        "properties": {
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "installments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardInstallmentOption"
+            },
+            "description": "List of available installment configurations"
+          }
+        }
+      },
       "IntentStatus": {
         "type": "string",
         "description": "Represents the overall status of a payment intent.\nThe status transitions through various states depending on the payment method, confirmation, capture method, and any subsequent actions (like customer authentication or manual capture).",
@@ -27560,7 +27612,8 @@
           "normal",
           "new_mandate",
           "setup_mandate",
-          "recurring_mandate"
+          "recurring_mandate",
+          "installment"
         ]
       },
       "PaymentsCancelPostCaptureRequest": {
@@ -28177,6 +28230,14 @@
               }
             ],
             "nullable": true
+          },
+          "installment_options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InstallmentOption"
+            },
+            "description": "Installment payment options grouped by payment method. When provided, the payment is treated as an installment payment.",
+            "nullable": true
           }
         }
       },
@@ -28704,6 +28765,14 @@
                 "$ref": "#/components/schemas/PartnerMerchantIdentifierDetails"
               }
             ],
+            "nullable": true
+          },
+          "installment_options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InstallmentOption"
+            },
+            "description": "Installment payment options grouped by payment method. When provided, the payment is treated as an installment payment.",
             "nullable": true
           }
         }
@@ -29416,6 +29485,14 @@
                 "$ref": "#/components/schemas/PaymentMethodTokenizationDetails"
               }
             ],
+            "nullable": true
+          },
+          "installment_options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InstallmentOption"
+            },
+            "description": "Installment payment options associated with this payment, grouped by payment method",
             "nullable": true
           }
         }
@@ -30298,6 +30375,14 @@
               }
             ],
             "nullable": true
+          },
+          "installment_options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InstallmentOption"
+            },
+            "description": "Installment payment options grouped by payment method. When provided, the payment is treated as an installment payment.",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -31036,6 +31121,14 @@
               }
             ],
             "nullable": true
+          },
+          "installment_options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InstallmentOption"
+            },
+            "description": "Installment payment options associated with this payment, grouped by payment method",
+            "nullable": true
           }
         }
       },
@@ -31721,6 +31814,14 @@
                 "$ref": "#/components/schemas/PartnerMerchantIdentifierDetails"
               }
             ],
+            "nullable": true
+          },
+          "installment_options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InstallmentOption"
+            },
+            "description": "Installment payment options grouped by payment method. When provided, the payment is treated as an installment payment.",
             "nullable": true
           }
         }

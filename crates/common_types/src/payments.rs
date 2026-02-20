@@ -1183,6 +1183,35 @@ pub struct NetworkTransactionIdAndDecryptedWalletTokenDetails {
     pub token_source: Option<TokenSource>,
 }
 
+/// Billing frequency for a card installment plan
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum BillingFrequency {
+    /// Monthly billing
+    Month,
+}
+
+/// A single installment plan option accepted in request payloads
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq)]
+pub struct CardInstallmentOption {
+    /// Number of installments (e.g., 2, 4, 6)
+    pub number_of_installments: u32,
+    /// Billing frequency for each installment cycle
+    pub billing_frequency: BillingFrequency,
+    /// Interest rate applied per installment as a percentage
+    pub interest_rate: f64,
+}
+
+/// Installment options grouped by payment method
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq)]
+pub struct InstallmentOption {
+    /// Payment method for which these installment plans apply (e.g., "card")
+    #[schema(value_type = PaymentMethod)]
+    pub payment_method: common_enums::PaymentMethod,
+    /// List of available installment configurations
+    pub installments: Vec<CardInstallmentOption>,
+}
+
 #[derive(
     Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
 )]

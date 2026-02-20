@@ -87,6 +87,7 @@ pub struct PaymentIntent {
     pub partner_merchant_identifier_details:
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
     pub state_metadata: Option<PaymentIntentStateMetadata>,
+    pub installment_options: Option<serde_json::Value>,
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -197,6 +198,7 @@ pub struct PaymentIntent {
     pub partner_merchant_identifier_details:
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
     pub state_metadata: Option<PaymentIntentStateMetadata>,
+    pub installment_options: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression, PartialEq)]
@@ -411,6 +413,7 @@ pub struct PaymentIntentNew {
     pub active_attempts_group_id: Option<common_utils::id_type::GlobalAttemptGroupId>,
     pub active_attempt_id_type: Option<common_enums::ActiveAttemptIDType>,
     pub state_metadata: Option<PaymentIntentStateMetadata>,
+    pub installment_options: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v1")]
@@ -501,6 +504,7 @@ pub struct PaymentIntentNew {
     pub partner_merchant_identifier_details:
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
     pub state_metadata: Option<PaymentIntentStateMetadata>,
+    pub installment_options: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v2")]
@@ -860,6 +864,7 @@ impl PaymentIntentUpdateInternal {
             tokenization: None,
             partner_merchant_identifier_details: source.partner_merchant_identifier_details,
             state_metadata,
+            installment_options: source.installment_options,
         }
     }
 }
@@ -919,6 +924,7 @@ pub struct PaymentIntentUpdateInternal {
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
     pub shipping_cost: Option<MinorUnit>,
     pub state_metadata: Option<PaymentIntentStateMetadata>,
+    pub installment_options: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v1")]
@@ -1058,6 +1064,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 currency: None,
                 status: None,
                 state_metadata: None,
+                installment_options: None,
                 amount_captured: None,
                 customer_id: None,
                 return_url: None,
@@ -1156,6 +1163,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                installment_options: None,
             },
             PaymentIntentUpdate::Update(value) => Self {
                 amount: Some(value.amount),
@@ -1209,6 +1217,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_overcapture: value.enable_overcapture,
                 shipping_cost: value.shipping_cost,
                 state_metadata: None,
+                installment_options: None,
             },
             PaymentIntentUpdate::PaymentCreateUpdate {
                 return_url,
@@ -1261,6 +1270,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 payment_channel: None,
                 feature_metadata: None,
                 state_metadata: None,
+                installment_options: None,
                 tax_status: None,
                 discount_amount: None,
                 order_date: None,
@@ -1318,6 +1328,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 payment_channel: None,
                 feature_metadata,
                 state_metadata: None,
+                installment_options: None,
                 tax_status: None,
                 discount_amount: None,
                 order_date: None,
@@ -1375,6 +1386,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 payment_channel: None,
                 feature_metadata: None,
                 state_metadata: None,
+                installment_options: None,
                 tax_status: None,
                 discount_amount: None,
                 order_date: None,
@@ -1440,6 +1452,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 payment_channel: None,
                 feature_metadata,
                 state_metadata: None,
+                installment_options: None,
                 tax_status: None,
                 discount_amount: None,
                 order_date: None,
@@ -1496,6 +1509,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 payment_channel: None,
                 feature_metadata: None,
                 state_metadata: None,
+                installment_options: None,
                 tax_status: None,
                 discount_amount: None,
                 order_date: None,
@@ -1553,6 +1567,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 payment_channel: None,
                 feature_metadata: None,
                 state_metadata: None,
+                installment_options: None,
                 tax_status: None,
                 discount_amount: None,
                 order_date: None,
@@ -1609,6 +1624,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 payment_channel: None,
                 feature_metadata: None,
                 state_metadata: None,
+                installment_options: None,
                 tax_status: None,
                 discount_amount: None,
                 order_date: None,
@@ -1665,6 +1681,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 payment_channel: None,
                 feature_metadata: None,
                 state_metadata: None,
+                installment_options: None,
                 tax_status: None,
                 discount_amount: None,
                 order_date: None,
@@ -1720,6 +1737,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 payment_channel: None,
                 feature_metadata: None,
                 state_metadata: None,
+                installment_options: None,
                 tax_status: None,
                 discount_amount: None,
                 order_date: None,
@@ -1772,6 +1790,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 payment_channel: None,
                 feature_metadata: None,
                 state_metadata: None,
+                installment_options: None,
                 tax_status: None,
                 discount_amount: None,
                 order_date: None,
@@ -1826,6 +1845,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 payment_channel: None,
                 feature_metadata: None,
                 state_metadata: None,
+                installment_options: None,
                 tax_status: None,
                 discount_amount: None,
                 order_date: None,
@@ -1880,6 +1900,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 payment_channel: None,
                 feature_metadata: None,
                 state_metadata: None,
+                installment_options: None,
                 tax_status: None,
                 discount_amount: None,
                 order_date: None,
@@ -1932,6 +1953,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 payment_channel: None,
                 feature_metadata: None,
                 state_metadata: None,
+                installment_options: None,
                 tax_status: None,
                 discount_amount: None,
                 order_date: None,
@@ -1989,6 +2011,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 payment_channel: None,
                 feature_metadata: None,
                 state_metadata: None,
+                installment_options: None,
                 tax_status: None,
                 discount_amount: None,
                 order_date: None,
