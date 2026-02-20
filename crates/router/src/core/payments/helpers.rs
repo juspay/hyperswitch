@@ -1656,6 +1656,7 @@ pub async fn validate_blocking_threshold(
 #[instrument(skip_all)]
 pub fn get_customer_details_from_request(
     request: &api_models::payments::PaymentsRequest,
+    optional_customer_details_from_pm_table: Option<CustomerDocumentDetails>,
 ) -> CustomerDetails {
     let customer_id = request.get_customer_id().map(ToOwned::to_owned);
 
@@ -1690,10 +1691,10 @@ pub fn get_customer_details_from_request(
         .as_ref()
         .and_then(|customer_details| customer_details.tax_registration_id.clone());
 
-    let document_details = request
+    let document_details = optional_customer_details_from_pm_table.or(request
         .customer
         .as_ref()
-        .and_then(|customer_details| customer_details.document_details.clone());
+        .and_then(|customer_details| customer_details.document_details.clone()));
 
     CustomerDetails {
         customer_id,
