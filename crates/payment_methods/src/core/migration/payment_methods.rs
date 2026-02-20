@@ -45,6 +45,24 @@ pub async fn migrate_payment_method(
     controller: &dyn PaymentMethodsController,
 ) -> CustomResult<ApplicationResponse<pm_api::PaymentMethodMigrateResponse>, errors::ApiErrorResponse>
 {
+    // If payment_method_data contains non-card data (e.g., bank debit), use the dedicated migration flow
+    if let Some(payment_method_data) = req
+        .payment_method_data
+        .clone()
+        .filter(|data| !matches!(data, pm_api::PaymentMethodCreateData::Card(_)))
+    {
+        return migrate_payment_method_data(
+            state,
+            &req,
+            payment_method_data,
+            merchant_id,
+            platform,
+            controller,
+        )
+        .await;
+    }
+
+    // Existing card migration flow
     let mut req = req;
     let card_details = &req.card.get_required_value("card")?;
 
@@ -157,7 +175,90 @@ pub async fn migrate_payment_method(
         pm_api::PaymentMethodMigrateResponse {
             payment_method_response,
             card_migrated: migrate_status.card_migrated,
+            payment_method_migrated: None,
             network_token_migrated: migrate_status.network_token_migrated,
+            connector_mandate_details_migrated: migrate_status.connector_mandate_details_migrated,
+            network_transaction_id_migrated: migrate_status.network_transaction_migrated,
+        },
+    ))
+}
+
+/// Migrates a payment method using payment_method_data (e.g., ACH bank debit, wallet, etc.).
+/// This bypasses card-specific logic (BIN lookup, card validation, network token, etc.)
+/// and stores the details directly via `controller.add_payment_method()`.
+#[cfg(feature = "v1")]
+#[instrument(skip_all)]
+async fn migrate_payment_method_data(
+    _state: &state::PaymentMethodsState,
+    req: &pm_api::PaymentMethodMigrate,
+    payment_method_data: pm_api::PaymentMethodCreateData,
+    merchant_id: &id_type::MerchantId,
+    platform: &platform::Platform,
+    controller: &dyn PaymentMethodsController,
+) -> CustomResult<ApplicationResponse<pm_api::PaymentMethodMigrateResponse>, errors::ApiErrorResponse>
+{
+    logger::debug!("Migrating payment method via payment_method_data");
+
+    if let Some(connector_mandate_details) = &req.connector_mandate_details {
+        controller
+            .validate_merchant_connector_ids_in_connector_mandate_details(
+                platform.get_processor().get_key_store(),
+                connector_mandate_details,
+                merchant_id,
+                None,
+            )
+            .await?;
+    };
+
+    let mut migration_status = migration::RecordMigrationStatusBuilder::new();
+
+    let payment_method_create =
+        pm_api::PaymentMethodCreate::get_payment_method_create_from_payment_method_data_migrate(
+            payment_method_data,
+            req,
+        );
+
+    let connector_mandate_details = payment_method_create
+        .connector_mandate_details
+        .clone()
+        .map(serde_json::to_value)
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    let network_transaction_id = payment_method_create.network_transaction_id.clone();
+
+    let res = controller
+        .add_payment_method(&payment_method_create)
+        .await?;
+
+    let payment_method_response = match res {
+        ApplicationResponse::Json(response) => response,
+        _ => Err(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch the payment method response")?,
+    };
+
+    migration_status.payment_method_migrated(true);
+    migration_status.network_transaction_id_migrated(
+        network_transaction_id.and_then(|val| (!val.is_empty_after_trim()).then_some(true)),
+    );
+    migration_status.connector_mandate_details_migrated(
+        connector_mandate_details
+            .and_then(|val| if val == json!({}) { None } else { Some(true) })
+            .or_else(|| {
+                payment_method_create
+                    .connector_mandate_details
+                    .and_then(|val| (!val.0.is_empty()).then_some(false))
+            }),
+    );
+
+    let migrate_status = migration_status.build();
+
+    Ok(ApplicationResponse::Json(
+        pm_api::PaymentMethodMigrateResponse {
+            payment_method_response,
+            card_migrated: None,
+            payment_method_migrated: migrate_status.payment_method_migrated,
+            network_token_migrated: None,
             connector_mandate_details_migrated: migrate_status.connector_mandate_details_migrated,
             network_transaction_id_migrated: migrate_status.network_transaction_migrated,
         },
@@ -451,6 +552,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
                 None,
                 Default::default(),
                 None,
+                None,
             )
             .await?;
         migration_status.connector_mandate_details_migrated(
@@ -616,6 +718,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 created_by: None,
                 last_modified_by: None,
                 customer_details: None,
+                locker_fingerprint_id: None,
             },
             provider.get_account().storage_scheme,
         )

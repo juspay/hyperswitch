@@ -17,13 +17,13 @@ env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
   PAYMENTS_CONNECTORS: "stripe cybersource"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "adyen paypal checkout"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "fiuu redsys zift"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3: "nexixpay cryptopay finix"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_4: "novalnet airwallex noon"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_5: "worldpayxml checkout mollie"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_6: "trustpay braintree"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_7: "airwallex novalnet redsys"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "cryptopay finix nexixpay"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "adyen checkout zift"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3: "airwallex finix noon"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_4: "nmi fiuu gigadat"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_5: "worldpayxml worldpay loonio"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_6: "authorizedotnet cashtocode volt"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_7: "paypal novalnet redsys"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_8: "paypal nuvei"
   ALPHA_PAYMENTS_CONNECTORS: "celero silverflow"
   RUST_BACKTRACE: short
@@ -33,6 +33,36 @@ env:
   RUST_MIN_STACK: 11534336
 
 jobs:
+  resolve-s-test-ready:
+    name: Resolve S-test-ready label
+    runs-on: ubuntu-latest
+    outputs:
+      s_test_ready: ${{ steps.check-s-test-ready.outputs.s_test_ready || steps.set-s-test-ready-for-skipped-tests.outputs.s_test_ready }}
+    steps:
+      - name: Check S-test-ready label
+        id: check-s-test-ready
+        if: ${{ env.RUN_TESTS == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if gh pr view ${{ github.event.pull_request.number }} \
+              --repo ${{ github.repository }} \
+              --json labels \
+              --jq '.labels[].name' | grep --quiet '^S-test-ready$'; then
+            echo "S-test-ready label found"
+            echo "s_test_ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::S-test-ready label is missing. Add the label and re-run jobs to execute Cypress tests."
+            exit 1
+          fi
+
+      - name: Set S-test-ready output for skipped tests
+        id: set-s-test-ready-for-skipped-tests
+        if: ${{ env.RUN_TESTS == 'false' }}
+        shell: bash
+        run: echo "s_test_ready=false" >> "$GITHUB_OUTPUT"
+
   formatter:
     name: Run formatter on Cypress tests and address lints
     if: ${{ github.event_name == 'pull_request' }}
@@ -94,10 +124,9 @@ jobs:
 
   build-hyperswitch:
     name: Build hyperswitch server
-    if: |
-      github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
+    needs: resolve-s-test-ready
     runs-on: ubuntu-latest
+
     env:
       # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
@@ -152,9 +181,7 @@ jobs:
   
   build-hyperswitch-runners:
     name: Build hyperswitch server(hyperswitch-runners)
-    if: |
-      github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
+    needs: resolve-s-test-ready
     runs-on: hyperswitch-runners
     env:
       # Use `sccache` for caching compilation artifacts
@@ -210,10 +237,7 @@ jobs:
   
   runner:
     name: Run mandatory Cypress tests
-    needs: build-hyperswitch
-    if: |
-      github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
+    needs: [resolve-s-test-ready, build-hyperswitch]
     permissions:
       pull-requests: write
     runs-on: ubuntu-latest
@@ -289,7 +313,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "35671d9f-0b8c-4d86-b6ce-af15f5fe1abc.json.gpg"
+          S3_SOURCE_FILE_NAME: "b59e91fc-9054-4412-a746-664fdc185345.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
@@ -410,10 +434,7 @@ jobs:
 
   runner-hyperswitch-runners:
     name: Run mandatory Cypress tests (hyperswitch-runners)
-    needs: build-hyperswitch-runners
-    if: |
-      github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
+    needs: [resolve-s-test-ready, build-hyperswitch-runners]
     permissions:
       pull-requests: write
     runs-on: hyperswitch-runners
@@ -489,7 +510,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "35671d9f-0b8c-4d86-b6ce-af15f5fe1abc.json.gpg"
+          S3_SOURCE_FILE_NAME: "b59e91fc-9054-4412-a746-664fdc185345.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
@@ -662,6 +683,27 @@ jobs:
                   "parallel": 3,
                   "report_artifact_name": "cypress-test-results-batch-4",
                   "server_logs_artifact": "server-logs-batch-4"
+                },
+                {
+                  "name": "batch-5",
+                  "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_5}"'",
+                  "parallel": 3,
+                  "report_artifact_name": "cypress-test-results-batch-5",
+                  "server_logs_artifact": "server-logs-batch-5"
+                },
+                {
+                  "name": "batch-6",
+                  "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_6}"'",
+                  "parallel": 3,
+                  "report_artifact_name": "cypress-test-results-batch-6",
+                  "server_logs_artifact": "server-logs-batch-6"
+                },
+                {
+                  "name": "batch-7",
+                  "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_7}"'",
+                  "parallel": 3,
+                  "report_artifact_name": "cypress-test-results-batch-7",
+                  "server_logs_artifact": "server-logs-batch-7"
                 }
               ]
             }'
@@ -737,7 +779,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "35671d9f-0b8c-4d86-b6ce-af15f5fe1abc.json.gpg"
+          S3_SOURCE_FILE_NAME: "b59e91fc-9054-4412-a746-664fdc185345.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
@@ -859,9 +901,8 @@ jobs:
 
   runner_alpha:
     name: Run optional Cypress tests for alpha connectors
-    needs: build-hyperswitch-runners
-    if: |
-      github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready')
+    if: ${{ github.event_name == 'pull_request' && needs.resolve-s-test-ready.outputs.s_test_ready == 'true' }}
+    needs: [resolve-s-test-ready, build-hyperswitch-runners]
     runs-on: hyperswitch-runners
     env:
       # Use `sccache` for caching compilation artifacts
@@ -1067,7 +1108,8 @@ jobs:
 
   runner_v2:
     name: Run Cypress tests on v2 and generate coverage report
-    if: github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready')
+    if: ${{ github.event_name == 'pull_request' && needs.resolve-s-test-ready.outputs.s_test_ready == 'true' }}
+    needs: resolve-s-test-ready
     runs-on: hyperswitch-runners
     permissions:
       pull-requests: write
@@ -1120,7 +1162,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "35671d9f-0b8c-4d86-b6ce-af15f5fe1abc.json.gpg"
+          S3_SOURCE_FILE_NAME: "b59e91fc-9054-4412-a746-664fdc185345.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"

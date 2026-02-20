@@ -98,10 +98,12 @@ default_hash_ttl = 900
 use_legacy_version = false
 stream_read_count = 1
 auto_pipeline = true
+broadcast_channel_capacity = 32   # The default capacity used when creating tokio broadcast channels
 disable_auto_backpressure = false
 max_in_flight_commands = 5000
 default_command_timeout = 30
 unresponsive_timeout = 10
+unresponsive_check_interval = 2   # The frequency at which the client checks for unresponsive connections. In seconds. This value should usually be less than half of `unresponsive_timeout` and always more than 1 ms.
 max_feed_count = 200
 
 [key_manager]
@@ -259,6 +261,7 @@ threedsecureio.base_url = "https://service.sandbox.3dsecure.io"
 thunes.base_url = "https://api.limonetikqualif.com/"
 tokenex.base_url = "https://test-api.tokenex.com"
 tokenio.base_url = "https://api.sandbox.token.io"
+truelayer.base_url = "https://api.truelayer-sandbox.com"
 stripe.base_url_file_upload = "https://files.stripe.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 trustpayments.base_url = "https://webservices.securetrading.net/"
@@ -978,6 +981,9 @@ interac = { currency = "CAD"}
 
 [pm_filters.loonio]
 interac = { currency = "CAD"}
+
+[pm_filters.dlocal]
+oxxo = { currency = "MXN" }
 
 [pm_filters.coingate]
 crypto_currency = { country = "AL, AD, AT, BE, BA, BG, HR, CZ, DK, EE, FI, FR, DE, GR, HU, IS, IE, IT, LV, LT, LU, MT, MD, NL, NO, PL, PT, RO, RS, SK, SI, ES, SE, CH, UA, GB, AR, BR, CL, CO, CR, DO, SV, GD, MX, PE, LC, AU, NZ, CY, HK, IN, IL, JP, KR, QA, SA, SG, EG", currency = "EUR, USD, GBP" }

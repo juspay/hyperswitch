@@ -23,7 +23,7 @@ pub async fn create_profile_acquirer(
         state,
         &req,
         payload,
-        |state: super::SessionState, auth_data, req, _| {
+        |state: super::SessionState, auth_data: auth::AuthenticationData, req, _| {
             crate::core::profile_acquirer::create_profile_acquirer(state, req, auth_data.platform)
         },
         auth::auth_type(
@@ -33,6 +33,8 @@ pub async fn create_profile_acquirer(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileAccountWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -61,7 +63,7 @@ pub async fn profile_acquirer_update(
         state,
         &req,
         payload,
-        |state: super::SessionState, auth_data, req, _| {
+        |state: super::SessionState, auth_data: auth::AuthenticationData, req, _| {
             crate::core::profile_acquirer::update_profile_acquirer_config(
                 state,
                 profile_id.clone(),
@@ -77,6 +79,8 @@ pub async fn profile_acquirer_update(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileAccountWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),

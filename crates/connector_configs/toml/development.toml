@@ -1536,8 +1536,12 @@ placeholder="Enter Display Name"
 required=true
 type="Text"
 
-[braintree.metadata.paypal_sdk]
-client_id="Client ID"
+[[braintree.metadata.paypal_sdk]]
+name="client_id"
+label="Client Id"
+placeholder="Enter Client Id"
+required=true
+type="Text"
 
 [cashtocode]
 [[cashtocode.reward]]
@@ -2273,6 +2277,8 @@ key1="Username"
   payment_method_type = "CartesBancaires"
 [[dlocal.debit]]
   payment_method_type = "UnionPay"
+[[dlocal.voucher]]
+  payment_method_type = "oxxo"
 [dlocal.connector_auth.SignatureKey]
 api_key="X Login"
 key1="X Trans Key"
@@ -4101,8 +4107,12 @@ api_key="Client Secret"
 key1="Client ID"
 [paypal.connector_webhook_details]
 merchant_secret="Source verification key"
-[paypal.metadata.paypal_sdk]
-client_id="Client ID"
+[[paypal.metadata.paypal_sdk]]
+name="client_id"
+label="Client Id"
+placeholder="Enter Client Id"
+required=true
+type="Text"
 
 [paypal_payout]
 [[paypal_payout.wallet]]
@@ -7171,6 +7181,8 @@ api_key = "API Key"
 [payload.connector_auth.CurrencyAuthKey.auth_key_map.CAD]
 processing_account_id = "processing_account_id"
 api_key = "API Key"
+[payload.connector_webhook_details]
+merchant_secret = "Source verification key"
 
 [silverflow]
 [[silverflow.credit]]
@@ -8121,3 +8133,8 @@ options=["Connector"]
   key1 = "Merchant Terminal Id"
 [[payjustnowinstore.pay_later]]
   payment_method_type = "payjustnow"
+
+[truelayer]
+[truelayer.connector_auth.BodyKey]
+  api_key = "Client ID"
+  key1 = "Client Secret"

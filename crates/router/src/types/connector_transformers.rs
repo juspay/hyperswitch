@@ -164,6 +164,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
                 })?
             }
             api_enums::Connector::Tokenio => Self::Tokenio,
+            // api_enums::Connector::Truelayer => Self::Truelayer,
             api_enums::Connector::Trustpay => Self::Trustpay,
             api_enums::Connector::Trustpayments => Self::Trustpayments,
             api_enums::Connector::Tsys => Self::Tsys,

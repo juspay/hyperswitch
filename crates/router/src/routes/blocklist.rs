@@ -42,6 +42,8 @@ pub async fn add_entry_to_blocklist(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -83,6 +85,8 @@ pub async fn remove_entry_from_blocklist(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -129,13 +133,19 @@ pub async fn list_blocked_payment_methods(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, query, _| {
+        |state, auth, mut query, _| {
+            if let Some(client_secret) = auth.client_secret {
+                query.client_secret = Some(client_secret);
+            }
+
             blocklist::list_blocklist_entries(state, auth.platform, query)
         },
         auth::auth_type(
             &*auth_type,
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -179,6 +189,8 @@ pub async fn toggle_blocklist_guard(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),

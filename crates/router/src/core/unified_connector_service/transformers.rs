@@ -3134,6 +3134,10 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_method_data
                 Ok(Self::UpiAccount)
             }
             hyperswitch_domain_models::payment_method_data::UpiSource::UpiCcCl => Ok(Self::UpiCcCl),
+            hyperswitch_domain_models::payment_method_data::UpiSource::UpiPpi => Ok(Self::UpiPpi),
+            hyperswitch_domain_models::payment_method_data::UpiSource::UpiVoucher => {
+                Ok(Self::UpiVoucher)
+            }
         }
     }
 }

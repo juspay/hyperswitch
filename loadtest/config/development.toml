@@ -221,6 +221,7 @@ threedsecureio.base_url = "https://service.sandbox.3dsecure.io"
 thunes.base_url = "https://api.limonetikqualif.com/"
 tokenex.base_url = "https://test-api.tokenex.com"
 tokenio.base_url = "https://api.sandbox.token.io"
+truelayer.base_url = "https://api.truelayer-sandbox.com"
 stripe.base_url_file_upload = "https://files.stripe.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 trustpayments.base_url = "https://webservices.securetrading.net/"
@@ -627,6 +628,9 @@ interac = { currency = "CAD"}
 
 [pm_filters.loonio]
 interac = { currency = "CAD"}
+
+[pm_filters.dlocal]
+oxxo = { currency = "MXN" }
 
 [pm_filters.authorizedotnet]
 credit = { currency = "CAD,USD" }

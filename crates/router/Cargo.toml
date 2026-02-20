@@ -54,6 +54,7 @@ async-bb8-diesel = "0.2.1"
 async-trait = "0.1.88"
 base64 = "0.22.1"
 bb8 = "0.8"
+open-feature = { version = "0.2.5"}
 blake3 = "1.8.2"
 bytes = "1.10.1"
 clap = { version = "4.5.38", default-features = false, features = ["std", "derive", "help", "usage"] }
@@ -73,6 +74,7 @@ josekit = "0.8.7"
 jsonwebtoken = "9.3.1"
 maud = { version = "0.26.0", features = ["actix-web"] }
 mimalloc = { version = "0.1", optional = true }
+paste = "1.0.15"
 mime = "0.3.17"
 nanoid = "0.4.0"
 num_cpus = "1.16.0"

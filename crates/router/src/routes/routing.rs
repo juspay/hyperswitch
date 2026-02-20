@@ -64,6 +64,8 @@ pub async fn routing_create_config(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -103,12 +105,16 @@ pub async fn routing_create_config(
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::ProfileRoutingWrite,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -149,6 +155,8 @@ pub async fn routing_link_config(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -195,6 +203,8 @@ pub async fn routing_link_config(
             &auth::JWTAuthProfileFromRoute {
                 profile_id: wrapper.profile_id,
                 required_permission: Permission::MerchantRoutingWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -202,6 +212,8 @@ pub async fn routing_link_config(
         &auth::JWTAuthProfileFromRoute {
             profile_id: wrapper.profile_id,
             required_permission: Permission::MerchantRoutingWrite,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -238,6 +250,8 @@ pub async fn routing_retrieve_config(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -276,12 +290,16 @@ pub async fn routing_retrieve_config(
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::ProfileRoutingRead,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -320,6 +338,8 @@ pub async fn list_routing_configs(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantRoutingRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -360,6 +380,8 @@ pub async fn list_routing_configs_for_profile(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingRead,
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -400,6 +422,8 @@ pub async fn routing_unlink_config(
             &auth::JWTAuthProfileFromRoute {
                 profile_id: path,
                 required_permission: Permission::MerchantRoutingWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -407,6 +431,8 @@ pub async fn routing_unlink_config(
         &auth::JWTAuthProfileFromRoute {
             profile_id: path,
             required_permission: Permission::MerchantRoutingWrite,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -446,6 +472,8 @@ pub async fn routing_unlink_config(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -487,12 +515,16 @@ pub async fn routing_update_default_config(
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantRoutingWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::MerchantRoutingWrite,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -527,6 +559,8 @@ pub async fn routing_update_default_config(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantRoutingWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -564,6 +598,8 @@ pub async fn routing_retrieve_default_config(
             &auth::JWTAuthProfileFromRoute {
                 profile_id: path,
                 required_permission: Permission::MerchantRoutingRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -571,6 +607,8 @@ pub async fn routing_retrieve_default_config(
         &auth::JWTAuthProfileFromRoute {
             profile_id: path,
             required_permission: Permission::MerchantRoutingRead,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -605,6 +643,8 @@ pub async fn routing_retrieve_default_config(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -641,12 +681,16 @@ pub async fn upsert_surcharge_decision_manager_config(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantSurchargeDecisionManagerWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::MerchantSurchargeDecisionManagerWrite,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -675,12 +719,16 @@ pub async fn delete_surcharge_decision_manager_config(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantSurchargeDecisionManagerWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::MerchantSurchargeDecisionManagerWrite,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -710,12 +758,16 @@ pub async fn retrieve_surcharge_decision_manager_config(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantSurchargeDecisionManagerRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::MerchantSurchargeDecisionManagerRead,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -746,12 +798,16 @@ pub async fn upsert_decision_manager_config(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantThreeDsDecisionManagerWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::MerchantThreeDsDecisionManagerWrite,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -787,12 +843,16 @@ pub async fn upsert_decision_manager_config(
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileThreeDsDecisionManagerWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::ProfileThreeDsDecisionManagerWrite,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -822,12 +882,16 @@ pub async fn delete_decision_manager_config(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantThreeDsDecisionManagerWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::MerchantThreeDsDecisionManagerWrite,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -862,12 +926,16 @@ pub async fn retrieve_decision_manager_config(
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileThreeDsDecisionManagerWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::ProfileThreeDsDecisionManagerWrite,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -898,12 +966,16 @@ pub async fn retrieve_decision_manager_config(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantThreeDsDecisionManagerRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::MerchantThreeDsDecisionManagerRead,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -947,6 +1019,8 @@ pub async fn routing_retrieve_linked_config(
                 &auth::JWTAuthProfileFromRoute {
                     profile_id,
                     required_permission: Permission::ProfileRoutingRead,
+                    allow_connected: true,
+                    allow_platform: false,
                 },
                 req.headers(),
             ),
@@ -978,6 +1052,8 @@ pub async fn routing_retrieve_linked_config(
                 }),
                 &auth::JWTAuth {
                     permission: Permission::ProfileRoutingRead,
+                    allow_connected: true,
+                    allow_platform: false,
                 },
                 req.headers(),
             ),
@@ -1025,6 +1101,8 @@ pub async fn routing_retrieve_linked_config(
             &auth::JWTAuthProfileFromRoute {
                 profile_id: wrapper.profile_id,
                 required_permission: Permission::ProfileRoutingRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -1032,6 +1110,8 @@ pub async fn routing_retrieve_linked_config(
         &auth::JWTAuthProfileFromRoute {
             profile_id: wrapper.profile_id,
             required_permission: Permission::ProfileRoutingRead,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -1065,6 +1145,8 @@ pub async fn routing_retrieve_default_config_for_profiles(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantRoutingRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -1076,6 +1158,8 @@ pub async fn routing_retrieve_default_config_for_profiles(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantRoutingRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -1119,6 +1203,8 @@ pub async fn routing_update_default_config_for_profile(
             &auth::JWTAuthProfileFromRoute {
                 profile_id: routing_payload_wrapper.profile_id,
                 required_permission: Permission::ProfileRoutingWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -1172,6 +1258,8 @@ pub async fn create_success_based_routing(
             &auth::JWTAuthProfileFromRoute {
                 profile_id: wrapper.profile_id,
                 required_permission: Permission::ProfileRoutingWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -1216,6 +1304,8 @@ pub async fn success_based_routing_update_configs(
             &auth::JWTAuthProfileFromRoute {
                 profile_id: routing_payload_wrapper.profile_id,
                 required_permission: Permission::ProfileRoutingWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -1260,6 +1350,8 @@ pub async fn elimination_routing_update_configs(
             &auth::JWTAuthProfileFromRoute {
                 profile_id: routing_payload_wrapper.profile_id,
                 required_permission: Permission::ProfileRoutingWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -1307,6 +1399,8 @@ pub async fn contract_based_routing_setup_config(
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuthProfileFromRoute {
+                allow_connected: false,
+                allow_platform: false,
                 profile_id: routing_payload_wrapper.profile_id,
                 required_permission: Permission::ProfileRoutingWrite,
             },
@@ -1357,6 +1451,8 @@ pub async fn contract_based_routing_update_configs(
             &auth::JWTAuthProfileFromRoute {
                 profile_id: routing_payload_wrapper.profile_id,
                 required_permission: Permission::ProfileRoutingWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -1410,6 +1506,8 @@ pub async fn create_elimination_routing(
             &auth::JWTAuthProfileFromRoute {
                 profile_id: wrapper.profile_id,
                 required_permission: Permission::ProfileRoutingWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -1460,6 +1558,8 @@ pub async fn set_dynamic_routing_volume_split(
             &auth::JWTAuthProfileFromRoute {
                 profile_id: payload.profile_id,
                 required_permission: Permission::ProfileRoutingWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -1494,6 +1594,8 @@ pub async fn get_dynamic_routing_volume_split(
             &auth::JWTAuthProfileFromRoute {
                 profile_id: payload.profile_id,
                 required_permission: Permission::ProfileRoutingRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -1616,7 +1718,9 @@ pub async fn call_decide_gateway_open_router(
         state,
         &req,
         payload.clone(),
-        |state, _auth, payload, _| routing::decide_gateway_open_router(state.clone(), payload),
+        |state, _auth: auth::AuthenticationData, payload, _| {
+            routing::decide_gateway_open_router(state.clone(), payload)
+        },
         &auth::ApiKeyAuth {
             allow_connected_scope_operation: false,
             allow_platform_self_operation: false,
@@ -1639,7 +1743,7 @@ pub async fn call_update_gateway_score_open_router(
         state,
         &req,
         payload.clone(),
-        |state, _auth, payload, _| {
+        |state, _auth: auth::AuthenticationData, payload, _| {
             routing::update_gateway_score_open_router(state.clone(), payload)
         },
         &auth::ApiKeyAuth {

@@ -157,6 +157,7 @@ tesouro.base_url = "https://api.sandbox.tesouro.com"
 thunes.base_url = "https://api.limonetikqualif.com/"
 tokenex.base_url = "https://test-api.tokenex.com"
 tokenio.base_url = "https://api.sandbox.token.io"
+truelayer.base_url = "https://api.truelayer-sandbox.com"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 trustpayments.base_url = "https://webservices.securetrading.net/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
@@ -846,6 +847,9 @@ interac = { currency = "CAD"}
 
 [pm_filters.loonio]
 interac = { currency = "CAD"}
+
+[pm_filters.dlocal]
+oxxo = { currency = "MXN" }
 
 [pm_filters.coingate]
 crypto_currency = { country = "AL, AD, AT, BE, BA, BG, HR, CZ, DK, EE, FI, FR, DE, GR, HU, IS, IE, IT, LV, LT, LU, MT, MD, NL, NO, PL, PT, RO, RS, SK, SI, ES, SE, CH, UA, GB, AR, BR, CL, CO, CR, DO, SV, GD, MX, PE, LC, AU, NZ, CY, HK, IN, IL, JP, KR, QA, SA, SG, EG", currency = "EUR, USD, GBP" }

@@ -1,7 +1,7 @@
 import { customerAcceptance } from "./Commons";
 
 const successfulNo3DSCardDetails = {
-  card_number: "5181030000183696",
+  card_number: "5200000000000015",
   card_exp_month: "01",
   card_exp_year: "28",
   card_holder_name: "John",
@@ -14,6 +14,14 @@ const successfulThreeDSTestCardDetails = {
   card_exp_year: "28",
   card_holder_name: "Joseph",
   card_cvc: "576",
+};
+
+const failedNo3DSCardDetails = {
+  card_number: "4111111111111111",
+  card_exp_month: "08",
+  card_exp_year: "30",
+  card_holder_name: "joseph Doe",
+  card_cvc: "999",
 };
 
 const singleUseMandateData = {
@@ -188,6 +196,25 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+        },
+      },
+    },
+    No3DSFailPayment: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: failedNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "15",
+          error_message: "No such issuer (invalid IIN)",
         },
       },
     },

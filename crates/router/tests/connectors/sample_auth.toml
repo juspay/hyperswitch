@@ -69,8 +69,8 @@ api_secret = "API Secret Key"
 api_key = "API Key"
 
 [dlocal]
-key1 = "key1"
-api_key = "api_key"
+key1 = "x trans key"
+api_key = "x login"
 api_secret = "secret"
 
 [bambora]
@@ -387,3 +387,7 @@ api_secret = "Password"
 [payjustnowinstore]
 api_key = "Merchant API Key"
 key1 = "Merchant Terminal Id"
+
+[truelayer]
+api_key = "Client ID"
+key1 = "Client Secret"
