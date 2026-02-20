@@ -1023,74 +1023,88 @@ impl webhooks::IncomingWebhook for Payload {
         let webhook_body: responses::PayloadWebhookEvent =
             request.body.parse_struct("PayloadWebhookEvent").switch()?;
 
-        // Check if this is an ACH late failure (network rejection after payment was already Charged)
-        // These should be treated as disputes, unlike regular Chargeback which uses normal flow
-        let is_ach_late_failure = snapshot
-            .map(|s| {
-                let payment_context = s.get_payment_context();
-                let is_ach =
-                    payment_context.payment_method_type == Some(enums::PaymentMethodType::Ach);
-                // let is_pending = payment_context.previous_status == enums::AttemptStatus::Pending;
-                let is_late_failure_trigger = matches!(
-                    webhook_body.trigger,
-                    responses::PayloadWebhooksTrigger::Decline
-                        | responses::PayloadWebhooksTrigger::Reject
-                        | responses::PayloadWebhooksTrigger::BankAccountReject
-                );
-                is_ach && is_late_failure_trigger
-            })
-            .unwrap_or(false);
+        // Check if this is an ACH late failure (network rejection after payment)
+        // - If payment was Pending → treat as Payment Failure
+        // - If payment was Charged → treat as Dispute
+        let ach_late_failure_event = snapshot.and_then(|s| {
+            let payment_context = s.get_payment_context();
+            let is_ach = payment_context.payment_method_type == Some(enums::PaymentMethodType::Ach);
 
-        Ok(if is_ach_late_failure {
-            api_models::webhooks::IncomingWebhookEvent::DisputeLost
-        } else {
+            let is_late_failure_trigger = matches!(
+                webhook_body.trigger,
+                responses::PayloadWebhooksTrigger::Decline
+                    | responses::PayloadWebhooksTrigger::Reject
+                    | responses::PayloadWebhooksTrigger::BankAccountReject
+            );
+
+            if is_ach && is_late_failure_trigger {
+                let previous_status = payment_context.previous_status;
+
+                // If payment was Pending, it's a regular failure during the 3-day window
+                // If payment was Charged/Success, it's a late rejection = dispute
+                match previous_status {
+                    enums::AttemptStatus::Pending => {
+                        Some(api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure)
+                    }
+                    enums::AttemptStatus::Charged => {
+                        Some(api_models::webhooks::IncomingWebhookEvent::DisputeLost)
+                    }
+                    _ => None,
+                }
+            } else {
+                None
+            }
+        });
+
+        Ok(ach_late_failure_event.unwrap_or_else(|| {
             api_models::webhooks::IncomingWebhookEvent::from(webhook_body.trigger)
-        })
+        }))
     }
 
-fn get_webhook_resource_object(
-    &self,
-    request: &webhooks::IncomingWebhookRequestDetails<'_>,
-) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-    let webhook_body: responses::PayloadWebhookEvent = request
-        .body
-        .parse_struct("PayloadWebhookEvent")
-        .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+    fn get_webhook_resource_object(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+        let webhook_body: responses::PayloadWebhookEvent = request
+            .body
+            .parse_struct("PayloadWebhookEvent")
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
-    // Get the webhook event type to determine if this should update status
-    let event_type = api_models::webhooks::IncomingWebhookEvent::from(webhook_body.trigger.clone());    
-    // For processing events, we want to keep the existing status
-    let payment_response = match event_type {
-        api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing => {
-            // Don't change status for processing events, return minimal response
-            responses::PayloadPaymentsResponse::PayloadCardsResponse(
-                responses::PayloadCardsResponseData {
-                    amount: None,
-                    avs: None,
-                    customer_id: None,
-                    transaction_id: webhook_body
-                        .triggered_on
-                        .transaction_id
-                        .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
-                    connector_payment_method_id: None,
-                    processing_id: None,
-                    processing_method_id: None,
-                    ref_number: None,
-                    status: responses::PayloadPaymentStatus::Processing, // Keep as Processing
-                    status_code: None,
-                    status_message: None,
-                    response_type: None,
-                },
-            )
-        }
-        _ => {
-            // For other events (success, failure, etc.), use the status from trigger
-            responses::PayloadPaymentsResponse::try_from(webhook_body)?
-        }
-    };
+        // Get the webhook event type to determine if this should update status
+        let event_type =
+            api_models::webhooks::IncomingWebhookEvent::from(webhook_body.trigger.clone());
+        // For processing events, we want to keep the existing status
+        let payment_response = match event_type {
+            api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing => {
+                // Don't change status for processing events, return minimal response
+                responses::PayloadPaymentsResponse::PayloadCardsResponse(
+                    responses::PayloadCardsResponseData {
+                        amount: None,
+                        avs: None,
+                        customer_id: None,
+                        transaction_id: webhook_body
+                            .triggered_on
+                            .transaction_id
+                            .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
+                        connector_payment_method_id: None,
+                        processing_id: None,
+                        processing_method_id: None,
+                        ref_number: None,
+                        status: responses::PayloadPaymentStatus::Processing, // Keep as Processing
+                        status_code: None,
+                        status_message: None,
+                        response_type: None,
+                    },
+                )
+            }
+            _ => {
+                // For other events (success, failure, etc.), use the status from trigger
+                responses::PayloadPaymentsResponse::try_from(webhook_body)?
+            }
+        };
 
-    Ok(Box::new(payment_response))
-}
+        Ok(Box::new(payment_response))
+    }
 }
 
 static PAYLOAD_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
