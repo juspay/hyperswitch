@@ -15,229 +15,165 @@ describe("Bank Transfers", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  context("Bank transfer - Pix forward flow", () => {
-    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
+  it("Bank transfer - Pix forward flow", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))[
+      "bank_transfer_pm"
+    ]["PaymentIntent"]("Pix");
 
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
+    cy.createPaymentIntentTest(
+      fixtures.createPaymentBody,
+      data,
+      "three_ds",
+      "automatic",
+      globalState
+    );
 
-    it("create-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["PaymentIntent"]("Pix");
+    if (!utils.should_continue_further(data)) return;
 
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        data,
-        "three_ds",
-        "automatic",
-        globalState
-      );
+    cy.paymentMethodsCallTest(globalState);
 
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
+    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+      "bank_transfer_pm"
+    ]["Pix"];
 
-    it("payment_methods-call-test", () => {
-      cy.paymentMethodsCallTest(globalState);
-    });
+    cy.confirmBankTransferCallTest(
+      fixtures.confirmBody,
+      confirmData,
+      true,
+      globalState
+    );
 
-    it("Confirm bank transfer", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["Pix"];
+    if (!utils.should_continue_further(confirmData)) return;
 
-      cy.confirmBankTransferCallTest(
-        fixtures.confirmBody,
-        data,
-        true,
-        globalState
-      );
+    const expected_redirection = fixtures.confirmBody["return_url"];
+    const payment_method_type = globalState.get("paymentMethodType");
 
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
+    cy.handleBankTransferRedirection(
+      globalState,
+      payment_method_type,
+      expected_redirection
+    );
+  });
 
-    it("Handle bank transfer redirection", () => {
-      const expected_redirection = fixtures.confirmBody["return_url"];
-      const payment_method_type = globalState.get("paymentMethodType");
+  it("Bank transfer - Instant Bank Transfer Finland forward flow", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))[
+      "bank_transfer_pm"
+    ]["PaymentIntent"]("InstantBankTransferFinland");
 
+    cy.createPaymentIntentTest(
+      fixtures.createPaymentBody,
+      data,
+      "three_ds",
+      "automatic",
+      globalState
+    );
+
+    if (!utils.should_continue_further(data)) return;
+
+    cy.paymentMethodsCallTest(globalState);
+
+    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+      "bank_transfer_pm"
+    ]["InstantBankTransferFinland"];
+
+    cy.confirmBankTransferCallTest(
+      fixtures.confirmBody,
+      confirmData,
+      true,
+      globalState
+    );
+
+    if (!utils.should_continue_further(confirmData)) return;
+
+    const expected_redirection = fixtures.confirmBody["return_url"];
+    const payment_method_type = globalState.get("paymentMethodType");
+
+    cy.handleBankTransferRedirection(
+      globalState,
+      payment_method_type,
+      expected_redirection
+    );
+  });
+
+  it("Bank transfer - Instant Bank Transfer Poland forward flow", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))[
+      "bank_transfer_pm"
+    ]["PaymentIntent"]("InstantBankTransferPoland");
+
+    cy.createPaymentIntentTest(
+      fixtures.createPaymentBody,
+      data,
+      "three_ds",
+      "automatic",
+      globalState
+    );
+
+    if (!utils.should_continue_further(data)) return;
+
+    cy.paymentMethodsCallTest(globalState);
+
+    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+      "bank_transfer_pm"
+    ]["InstantBankTransferPoland"];
+
+    cy.confirmBankTransferCallTest(
+      fixtures.confirmBody,
+      confirmData,
+      true,
+      globalState
+    );
+
+    if (!utils.should_continue_further(confirmData)) return;
+
+    const expected_redirection = fixtures.confirmBody["return_url"];
+    const payment_method_type = globalState.get("paymentMethodType");
+
+    cy.handleBankTransferRedirection(
+      globalState,
+      payment_method_type,
+      expected_redirection
+    );
+  });
+
+  it("Bank transfer - Ach flow", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))[
+      "bank_transfer_pm"
+    ]["PaymentIntent"]("Ach");
+
+    cy.createPaymentIntentTest(
+      fixtures.createPaymentBody,
+      data,
+      "three_ds",
+      "automatic",
+      globalState
+    );
+
+    if (!utils.should_continue_further(data)) return;
+
+    cy.paymentMethodsCallTest(globalState);
+
+    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+      "bank_transfer_pm"
+    ]["Ach"];
+
+    cy.confirmBankTransferCallTest(
+      fixtures.confirmBody,
+      confirmData,
+      true,
+      globalState
+    );
+
+    if (!utils.should_continue_further(confirmData)) return;
+
+    const expected_redirection = fixtures.confirmBody["return_url"];
+    const payment_method_type = globalState.get("paymentMethodType");
+
+    if (globalState.get("connectorId") != "checkbook") {
       cy.handleBankTransferRedirection(
         globalState,
         payment_method_type,
         expected_redirection
       );
-    });
-  });
-
-  context("Bank transfer - Instant Bank Transfer Finland forward flow", () => {
-    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
-
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
-
-    it("create-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["PaymentIntent"]("InstantBankTransferFinland");
-
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        data,
-        "three_ds",
-        "automatic",
-        globalState
-      );
-
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
-
-    it("payment_methods-call-test", () => {
-      cy.paymentMethodsCallTest(globalState);
-    });
-
-    it("Confirm bank transfer", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["InstantBankTransferFinland"];
-
-      cy.confirmBankTransferCallTest(
-        fixtures.confirmBody,
-        data,
-        true,
-        globalState
-      );
-
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
-
-    it("Handle bank transfer redirection", () => {
-      const expected_redirection = fixtures.confirmBody["return_url"];
-      const payment_method_type = globalState.get("paymentMethodType");
-
-      cy.handleBankTransferRedirection(
-        globalState,
-        payment_method_type,
-        expected_redirection
-      );
-    });
-  });
-
-  context("Bank transfer - Instant Bank Transfer Poland forward flow", () => {
-    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
-
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
-
-    it("create-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["PaymentIntent"]("InstantBankTransferPoland");
-
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        data,
-        "three_ds",
-        "automatic",
-        globalState
-      );
-
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
-
-    it("payment_methods-call-test", () => {
-      cy.paymentMethodsCallTest(globalState);
-    });
-
-    it("Confirm bank transfer", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["InstantBankTransferPoland"];
-
-      cy.confirmBankTransferCallTest(
-        fixtures.confirmBody,
-        data,
-        true,
-        globalState
-      );
-
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
-
-    it("Handle bank transfer redirection", () => {
-      const expected_redirection = fixtures.confirmBody["return_url"];
-      const payment_method_type = globalState.get("paymentMethodType");
-
-      cy.handleBankTransferRedirection(
-        globalState,
-        payment_method_type,
-        expected_redirection
-      );
-    });
-  });
-
-  context("Bank transfer - Ach flow", () => {
-    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
-
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
-
-    it("create-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["PaymentIntent"]("Ach");
-
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        data,
-        "three_ds",
-        "automatic",
-        globalState
-      );
-
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
-
-    it("payment_methods-call-test", () => {
-      cy.paymentMethodsCallTest(globalState);
-    });
-
-    it("Confirm bank transfer", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["Ach"];
-
-      cy.confirmBankTransferCallTest(
-        fixtures.confirmBody,
-        data,
-        true,
-        globalState
-      );
-
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
-
-    it("Handle bank transfer redirection", () => {
-      const expected_redirection = fixtures.confirmBody["return_url"];
-      const payment_method_type = globalState.get("paymentMethodType");
-
-      if (globalState.get("connectorId") != "checkbook") {
-        cy.handleBankTransferRedirection(
-          globalState,
-          payment_method_type,
-          expected_redirection
-        );
-      }
-    });
+    }
   });
 });
