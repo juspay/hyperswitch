@@ -1210,6 +1210,17 @@ pub fn build_unified_connector_service_payment_method(
                         }
                     )),
                 }),
+                hyperswitch_domain_models::payment_method_data::WalletData::Paze(paze_data) => {
+                    let paze_wallet_data = payments_grpc::paze_wallet::PazeData::foreign_try_from((
+                        &paze_data,
+                        payment_method_token,
+                    ))?;
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::Paze(payments_grpc::PazeWallet {
+                            paze_data: Some(paze_wallet_data),
+                        })),
+                    })
+                }
                 _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
                     "Unimplemented payment method subtype: {payment_method_type:?}"
                 ))

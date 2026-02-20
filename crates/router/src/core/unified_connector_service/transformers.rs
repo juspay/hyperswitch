@@ -3289,6 +3289,204 @@ impl transformers::ForeignTryFrom<&common_types::payments::ApplePayPaymentData>
 }
 
 impl
+    transformers::ForeignTryFrom<&hyperswitch_domain_models::router_data::PazeToken>
+    for payments_grpc::PazeToken
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        value: &hyperswitch_domain_models::router_data::PazeToken,
+    ) -> Result<Self, Self::Error> {
+        let payment_token = NetworkToken::from_str(&value.payment_token.get_card_no())
+            .change_context(UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                "Failed to parse network token".to_string(),
+            ))?;
+        Ok(Self {
+            payment_token: Some(payment_token),
+            token_expiration_month: Some(value.token_expiration_month.clone().expose().into()),
+            token_expiration_year: Some(value.token_expiration_year.clone().expose().into()),
+            payment_account_reference: Some(value.payment_account_reference.clone().expose().into()),
+        })
+    }
+}
+
+impl
+    transformers::ForeignTryFrom<&hyperswitch_domain_models::router_data::PazeDynamicData>
+    for payments_grpc::PazeDynamicData
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        value: &hyperswitch_domain_models::router_data::PazeDynamicData,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            dynamic_data_value: value
+                .dynamic_data_value
+                .clone()
+                .map(|dynamic_data| dynamic_data.expose().into()),
+            dynamic_data_type: value.dynamic_data_type.clone(),
+            dynamic_data_expiration: value.dynamic_data_expiration.clone(),
+        })
+    }
+}
+
+impl
+    transformers::ForeignTryFrom<&hyperswitch_domain_models::router_data::PazePhoneNumber>
+    for payments_grpc::PazePhoneNumber
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        value: &hyperswitch_domain_models::router_data::PazePhoneNumber,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            country_code: Some(value.country_code.clone().expose().into()),
+            phone_number: Some(value.phone_number.clone().expose().into()),
+        })
+    }
+}
+
+impl
+    transformers::ForeignTryFrom<&hyperswitch_domain_models::router_data::PazeConsumer>
+    for payments_grpc::PazeConsumer
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        value: &hyperswitch_domain_models::router_data::PazeConsumer,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            first_name: value
+                .first_name
+                .clone()
+                .map(|first_name| first_name.expose().into()),
+            last_name: value
+                .last_name
+                .clone()
+                .map(|last_name| last_name.expose().into()),
+            full_name: Some(value.full_name.clone().expose().into()),
+            email_address: Some(value.email_address.clone().expose().expose().into()),
+            mobile_number: value
+                .mobile_number
+                .as_ref()
+                .map(payments_grpc::PazePhoneNumber::foreign_try_from)
+                .transpose()?,
+            country_code: value.country_code.and_then(|country_code| {
+                payments_grpc::CountryAlpha2::from_str_name(&country_code.to_string())
+                    .map(|country| country.into())
+            }),
+            language_code: value.language_code.clone(),
+        })
+    }
+}
+
+impl
+    transformers::ForeignTryFrom<&hyperswitch_domain_models::router_data::PazeAddress>
+    for payments_grpc::PazeAddress
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        value: &hyperswitch_domain_models::router_data::PazeAddress,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            name: value.name.clone().map(|name| name.expose().into()),
+            line1: value.line1.clone().map(|line1| line1.expose().into()),
+            line2: value.line2.clone().map(|line2| line2.expose().into()),
+            line3: value.line3.clone().map(|line3| line3.expose().into()),
+            city: value.city.clone().map(|city| city.expose().into()),
+            state: value.state.clone().map(|state| state.expose().into()),
+            zip: value.zip.clone().map(|zip| zip.expose().into()),
+            country_code: value.country_code.and_then(|country_code| {
+                payments_grpc::CountryAlpha2::from_str_name(&country_code.to_string())
+                    .map(|country| country.into())
+            }),
+        })
+    }
+}
+
+impl
+    transformers::ForeignTryFrom<&hyperswitch_domain_models::router_data::PazeDecryptedData>
+    for payments_grpc::PazeDecryptedData
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        value: &hyperswitch_domain_models::router_data::PazeDecryptedData,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            client_id: Some(value.client_id.clone().expose().into()),
+            profile_id: value.profile_id.clone(),
+            token: Some(payments_grpc::PazeToken::foreign_try_from(&value.token)?),
+            payment_card_network: payments_grpc::CardNetwork::foreign_from(
+                value.payment_card_network.clone(),
+            )
+            .into(),
+            dynamic_data: value
+                .dynamic_data
+                .iter()
+                .map(payments_grpc::PazeDynamicData::foreign_try_from)
+                .collect::<Result<Vec<_>, _>>()?,
+            billing_address: Some(payments_grpc::PazeAddress::foreign_try_from(
+                &value.billing_address,
+            )?),
+            consumer: Some(payments_grpc::PazeConsumer::foreign_try_from(&value.consumer)?),
+            eci: value.eci.clone(),
+        })
+    }
+}
+
+impl transformers::ForeignTryFrom<&hyperswitch_domain_models::payment_method_data::PazeWalletData>
+    for payments_grpc::paze_wallet::PazeData
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        value: &hyperswitch_domain_models::payment_method_data::PazeWalletData,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self::CompleteResponse(
+            value.complete_response.clone().expose().into(),
+        ))
+    }
+}
+
+impl
+    transformers::ForeignTryFrom<(
+        &hyperswitch_domain_models::payment_method_data::PazeWalletData,
+        Option<&hyperswitch_domain_models::router_data::PaymentMethodToken>,
+    )> for payments_grpc::paze_wallet::PazeData
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        (wallet_data, payment_method_token): (
+            &hyperswitch_domain_models::payment_method_data::PazeWalletData,
+            Option<&hyperswitch_domain_models::router_data::PaymentMethodToken>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let mut converted_paze_data = Self::foreign_try_from(wallet_data)?;
+
+        match (&converted_paze_data, payment_method_token) {
+            (
+                payments_grpc::paze_wallet::PazeData::CompleteResponse(_),
+                Some(hyperswitch_domain_models::router_data::PaymentMethodToken::PazeDecrypt(
+                    paze_decrypted_data,
+                )),
+            ) => {
+                converted_paze_data = Self::DecryptedData(
+                    payments_grpc::PazeDecryptedData::foreign_try_from(
+                        paze_decrypted_data.as_ref(),
+                    )?,
+                );
+            }
+            _ => {}
+        }
+
+        Ok(converted_paze_data)
+    }
+}
+
+impl
     transformers::ForeignTryFrom<(
         &common_types::payments::ApplePayPaymentData,
         Option<&hyperswitch_domain_models::router_data::PaymentMethodToken>,
