@@ -16,9 +16,7 @@ use crate::{
     core::{api_locking, user as user_core},
     services::{
         api,
-        authentication::{
-            AuthenticationData, {self as auth},
-        },
+        authentication::{self as auth},
         authorization::permissions::Permission,
     },
     utils::user::dashboard_metadata::{parse_string_to_enums, set_ip_address_if_required},
