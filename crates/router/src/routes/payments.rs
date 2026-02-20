@@ -2323,7 +2323,8 @@ where
         match req.payment_type.unwrap_or_default() {
             api_models::enums::PaymentType::Normal
             | api_models::enums::PaymentType::RecurringMandate
-            | api_models::enums::PaymentType::NewMandate => {
+            | api_models::enums::PaymentType::NewMandate
+            | api_models::enums::PaymentType::Installment => {
                 payments::payments_core::<
                     api_types::Authorize,
                     payment_types::PaymentsResponse,
@@ -2368,7 +2369,7 @@ where
                     header_payload,
                 )
                 .await
-            }
+            },
         }
     }
 }

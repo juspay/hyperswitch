@@ -2786,6 +2786,7 @@ pub enum PaymentType {
     NewMandate,
     SetupMandate,
     RecurringMandate,
+    Installment,
 }
 
 /// SCA Exemptions types available for authentication
