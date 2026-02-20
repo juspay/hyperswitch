@@ -336,13 +336,11 @@ pub async fn payouts_create_core(
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let payout_type = payout_data.payouts.payout_type.to_owned();
 
-    // Persist payout method data in temp locker
-    if req.payout_method_data.is_some() {
-        let customer_id = payout_data
-            .payouts
-            .customer_id
-            .clone()
-            .get_required_value("customer_id when payout_method_data is provided")?;
+    // Consume pm-list payout_token on create:
+    if req.payout_method_data.is_some() || req.payout_token.is_some() {
+        let customer_id = payout_data.payouts.customer_id.clone().get_required_value(
+            "customer_id when payout_method_data or payout_token is provided",
+        )?;
         payout_data.payout_method_data = helpers::make_payout_method_data(
             &state,
             req.payout_method_data.as_ref(),
