@@ -141,8 +141,7 @@ pub struct PaymentIntent {
     pub partner_merchant_identifier_details:
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
     pub state_metadata: Option<common_types::payments::PaymentIntentStateMetadata>,
-    pub installment_options:
-        Option<Vec<common_types::payments::InstallmentOption>>,
+    pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
 }
 
 impl PaymentIntent {

@@ -1562,8 +1562,7 @@ pub struct PaymentsRequest {
 
     /// Installment payment options grouped by payment method. When provided, the payment is treated as an installment payment.
     #[schema(value_type = Option<Vec<InstallmentOption>>)]
-    pub installment_options:
-        Option<Vec<common_types::payments::InstallmentOption>>,
+    pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -7655,9 +7654,7 @@ pub struct PaymentsResponse {
 
     /// Installment payment options associated with this payment, grouped by payment method
     #[schema(value_type = Option<Vec<InstallmentOption>>)]
-    pub installment_options:
-        Option<Vec<common_types::payments::InstallmentOption>>,
-
+    pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
 }
 
 #[cfg(feature = "v1")]
