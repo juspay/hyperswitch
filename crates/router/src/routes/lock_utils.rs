@@ -381,7 +381,9 @@ impl From<Flow> for ApiIdentifier {
             | Flow::NetworkTokenEligibilityCheck => Self::GenericTokenization,
 
             Flow::RecoveryDataBackfill | Flow::RevenueRecoveryRedis => Self::RecoveryRecovery,
-            Flow::MerchantConnectorWebhookRegister => Self::MerchantConnectorWebhookManagement,
+            Flow::MerchantConnectorWebhookRegister | Flow::MerchantConnectorWebhookList => {
+                Self::MerchantConnectorWebhookManagement
+            }
         }
     }
 }

@@ -212,3 +212,31 @@ pub fn construct_connector_webhook_registration_response(
         error_message: register_webhook_response.error_message.clone(),
     })
 }
+
+#[cfg(feature = "v1")]
+pub fn get_connector_webhook_list_response(
+    register_webhook_response: &Option<serde_json::Value>,
+) -> RouterResult<Vec<api_models::merchant_connector_webhook_management::ConnectorWebhookResponse>>
+{
+    let mut webhooks = Vec::new();
+
+    if let Some(webhook_response) = register_webhook_response {
+        let webhook_response_objest = webhook_response
+            .as_object()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+        for (connector_webhook_id, webhook_data_value) in webhook_response_objest {
+            let webhook_data: domain::ConnectorWebhookData =
+                serde_json::from_value(webhook_data_value.clone())
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+            webhooks.push(
+                api_models::merchant_connector_webhook_management::ConnectorWebhookResponse {
+                    event_type: webhook_data.event_type,
+                    connector_webhook_id: connector_webhook_id.clone(),
+                },
+            );
+        }
+    }
+
+    Ok(webhooks)
+}
