@@ -42,7 +42,7 @@ use crate::{
     },
     unimplemented_payment_method,
     utils::{
-        self, AdditionalCardInfo, PaymentsAuthorizeRequestData, PaymentsCaptureRequestData,
+        self, CardData, PaymentsAuthorizeRequestData, PaymentsCaptureRequestData,
         PaymentsSyncRequestData, RouterData as OtherRouterData, WalletData as OtherWalletData,
     },
 };
@@ -792,7 +792,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                 };
 
                 let exp_month = network_token_data.token_exp_month.clone();
-                let expiry_year_4_digit = network_token_data.get_card_expiry_year_4_digit()?;
+                let expiry_year_4_digit = network_token_data.get_expiry_year_4_digit();
 
                 let payment_source = PaymentSource::DecryptedWalletToken(DecryptedWalletToken {
                     token: cards::CardNumber::from(network_token_data.decrypted_token.clone()),
