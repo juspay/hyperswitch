@@ -5003,10 +5003,7 @@ pub async fn payment_methods_session_confirm(
         })
         .or_else(|| payment_method_session_billing.clone());
 
-    let storage_type = get_storage_type_for_payment_method_create(
-        request.storage_type,
-        payment_method_session.storage_type,
-    )?;
+    let storage_type = payment_method_session.storage_type;
 
     let create_payment_method_request = get_payment_method_create_request(
         request
@@ -5150,25 +5147,6 @@ pub async fn payment_methods_session_confirm(
     Ok(services::ApplicationResponse::Json(
         payment_method_session_response,
     ))
-}
-
-#[cfg(feature = "v2")]
-pub fn get_storage_type_for_payment_method_create(
-    request_storage_type: Option<enums::StorageType>,
-    session_storage_type: enums::StorageType,
-) -> RouterResult<enums::StorageType> {
-    match session_storage_type {
-        // If volatile return Volatile
-        enums::StorageType::Volatile => Ok(enums::StorageType::Volatile),
-
-        // If persistent, validate that request_storage_type exists
-        enums::StorageType::Persistent => request_storage_type.ok_or(
-            errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "storage_type",
-            }
-            .into(),
-        ),
-    }
 }
 
 #[cfg(feature = "v2")]

@@ -3693,10 +3693,6 @@ pub struct PaymentMethodSessionConfirmRequest {
     /// The return url to which the customer should be redirected to after adding the payment method
     #[schema(value_type = Option<String>)]
     pub return_url: Option<common_utils::types::Url>,
-
-    /// The storage type for the payment method
-    #[schema(value_type = Option<StorageType>)]
-    pub storage_type: Option<common_enums::StorageType>,
 }
 
 #[cfg(feature = "v2")]
