@@ -1282,6 +1282,12 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     requeue,
                     schedule_time,
                 )
+                .await?;
+                helpers::schedule_pending_to_charged_if_eligible(
+                    &m_state,
+                    &m_payment_attempt,
+                    requeue,
+                )
                 .await
             }
             .in_current_span(),
