@@ -9987,6 +9987,12 @@ pub enum FeatureStatus {
     Supported,
 }
 
+impl FeatureStatus {
+    pub fn is_supported(&self) -> bool {
+        matches!(self, Self::Supported)
+    }
+}
+
 /// The type of tokenization to use for the payment method
 #[derive(
     Clone,

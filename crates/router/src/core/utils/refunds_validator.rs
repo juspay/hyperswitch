@@ -1,5 +1,9 @@
 use diesel_models::refund as diesel_refund;
 use error_stack::report;
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::router_response_types::SupportedPaymentMethodsExt;
+#[cfg(feature = "v1")]
+use hyperswitch_interfaces::{self, api::ConnectorSpecifications};
 use router_env::{instrument, tracing};
 use time::PrimitiveDateTime;
 
@@ -114,6 +118,7 @@ pub fn validate_refund_list(limit: Option<i64>) -> CustomResult<i64, errors::Api
 #[cfg(feature = "v1")]
 pub fn validate_for_valid_refunds(
     payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    connector_enum: hyperswitch_interfaces::connector_integration_interface::ConnectorEnum,
     connector: api_models::enums::Connector,
 ) -> RouterResult<()> {
     let payment_method = payment_attempt
@@ -121,30 +126,23 @@ pub fn validate_for_valid_refunds(
         .as_ref()
         .get_required_value("payment_method")?;
 
-    match payment_method {
-        diesel_models::enums::PaymentMethod::PayLater
-        | diesel_models::enums::PaymentMethod::Wallet => {
-            let payment_method_type = payment_attempt
-                .payment_method_type
-                .get_required_value("payment_method_type")?;
+    let payment_method_type = payment_attempt
+        .payment_method_type
+        .get_required_value("payment_method_type")?;
 
-            utils::when(
-                matches!(
-                    (connector, payment_method_type),
-                    (
-                        api_models::enums::Connector::Braintree,
-                        diesel_models::enums::PaymentMethodType::Paypal,
-                    )
-                ),
-                || {
-                    Err(errors::ApiErrorResponse::RefundNotPossible {
-                        connector: connector.to_string(),
-                    }
-                    .into())
-                },
-            )
-        }
-        _ => Ok(()),
+    let supported_payment_methods = connector_enum.get_supported_payment_methods();
+
+    let is_refund_supported = supported_payment_methods.is_none_or(|supported_payment_method| {
+        supported_payment_method.is_refund_supported(payment_method, &payment_method_type)
+    });
+
+    if !is_refund_supported {
+        Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: format!("Refunds are currently not supported for {payment_method_type} transactions via {connector}"),
+            }
+            .into())
+    } else {
+        Ok(())
     }
 }
 
