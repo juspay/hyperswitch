@@ -35,7 +35,7 @@ pub mod routes {
         analytics_validator::request_validator,
         consts::opensearch::SEARCH_INDEXES,
         core::{api_locking, errors::user::UserErrors, verification::utils},
-        db::{user::UserInterface, user_role::ListUserRolesByUserIdPayload},
+        db::{user_role::ListUserRolesByUserIdPayload},
         routes::AppState,
         services::{
             api,
@@ -1786,34 +1786,40 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let (user_email, optional_emails) = if let Some(user_id) = user_id {
-                    let user = state
-                        .global_store
-                        .find_user_by_id(&user_id)
-                        .await
-                        .change_context(AnalyticsError::UnknownError)?;
+                let (user_email, optional_emails) = match user_id {
+                    Some(user_id) => {
+                        let user = state
+                            .global_store
+                            .find_user_by_id(&user_id)
+                            .await
+                            .change_context(AnalyticsError::UnknownError)?;
 
-                    let user_email = UserEmail::from_pii_email(user.email)
-                        .change_context(AnalyticsError::UnknownError)?
-                        .get_secret();
-
-                    let user_email = Email::try_from(user_email.expose().to_string())
+                        let user_email = Email::try_from(
+                            UserEmail::from_pii_email(user.email)
+                            .change_context(AnalyticsError::UnknownError)?
+                            .get_secret()
+                            .expose()
+                            .to_string(),
+                        )
                         .change_context(AnalyticsError::MissingEmail)?;
-                    (user_email, payload.emails)
-                } else {
-                    let (primary_email, other_emails) = payload
-                        .emails
-                        .and_then(|mut emails| {
-                            if emails.is_empty() {
-                                None
-                            } else {
-                                let head = emails.remove(0);
-                                Some((head, emails))
-                            }
-                        })
-                        .ok_or(AnalyticsError::MissingEmail)?;
 
-                    (primary_email, Some(other_emails))
+                        (user_email, payload.emails)
+                    }
+                    None => {
+                        let (primary_email, other_emails) = payload
+                            .emails
+                            .and_then(|mut emails| {
+                                if emails.is_empty() {
+                                    None
+                                } else {
+                                    let primary_email = emails.remove(0);
+                                    Some((primary_email, emails))
+                                }
+                            })
+                            .ok_or(AnalyticsError::MissingEmail)?;
+
+                        (primary_email, Some(other_emails))
+                    }
                 };
 
                 let payload = ReportRequest {
@@ -1871,34 +1877,40 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let (user_email, optional_emails) = if let Some(user_id) = user_id {
-                    let user = state
-                        .global_store
-                        .find_user_by_id(&user_id)
-                        .await
-                        .change_context(AnalyticsError::UnknownError)?;
+                let (user_email, optional_emails) = match user_id {
+                    Some(user_id) => {
+                        let user = state
+                            .global_store
+                            .find_user_by_id(&user_id)
+                            .await
+                            .change_context(AnalyticsError::UnknownError)?;
 
-                    let user_email = UserEmail::from_pii_email(user.email)
-                        .change_context(AnalyticsError::UnknownError)?
-                        .get_secret();
-
-                    let user_email = Email::try_from(user_email.expose().to_string())
+                        let user_email = Email::try_from(
+                            UserEmail::from_pii_email(user.email)
+                            .change_context(AnalyticsError::UnknownError)?
+                            .get_secret()
+                            .expose()
+                            .to_string(),
+                        )
                         .change_context(AnalyticsError::MissingEmail)?;
-                    (user_email, payload.emails)
-                } else {
-                    let (primary_email, other_emails) = payload
-                        .emails
-                        .and_then(|mut emails| {
-                            if emails.is_empty() {
-                                None
-                            } else {
-                                let head = emails.remove(0);
-                                Some((head, emails))
-                            }
-                        })
-                        .ok_or(AnalyticsError::MissingEmail)?;
 
-                    (primary_email, Some(other_emails))
+                        (user_email, payload.emails)
+                    } 
+                    None => {
+                        let (primary_email, other_emails) = payload
+                            .emails
+                            .and_then(|mut emails| {
+                                if emails.is_empty() {
+                                    None
+                                } else {
+                                    let primary_email = emails.remove(0);
+                                    Some((primary_email, emails))
+                                }
+                            })
+                            .ok_or(AnalyticsError::MissingEmail)?;
+
+                        (primary_email, Some(other_emails))
+                    }
                 };
 
                 let payload = ReportRequest {
@@ -1954,34 +1966,40 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let (user_email, optional_emails) = if let Some(user_id) = user_id {
-                    let user = state
-                        .global_store
-                        .find_user_by_id(&user_id)
-                        .await
-                        .change_context(AnalyticsError::UnknownError)?;
+                let (user_email, optional_emails) = match user_id {
+                    Some(user_id) => {
+                        let user = state
+                            .global_store
+                            .find_user_by_id(&user_id)
+                            .await
+                            .change_context(AnalyticsError::UnknownError)?;
 
-                    let user_email = UserEmail::from_pii_email(user.email)
-                        .change_context(AnalyticsError::UnknownError)?
-                        .get_secret();
-
-                    let user_email = Email::try_from(user_email.expose().to_string())
+                        let user_email = Email::try_from(
+                            UserEmail::from_pii_email(user.email)
+                            .change_context(AnalyticsError::UnknownError)?
+                            .get_secret()
+                            .expose()
+                            .to_string(),
+                        )
                         .change_context(AnalyticsError::MissingEmail)?;
-                    (user_email, payload.emails)
-                } else {
-                    let (primary_email, other_emails) = payload
-                        .emails
-                        .and_then(|mut emails| {
-                            if emails.is_empty() {
-                                None
-                            } else {
-                                let head = emails.remove(0);
-                                Some((head, emails))
-                            }
-                        })
-                        .ok_or(AnalyticsError::MissingEmail)?;
 
-                    (primary_email, Some(other_emails))
+                        (user_email, payload.emails)
+                    } 
+                    None => {
+                        let (primary_email, other_emails) = payload
+                            .emails
+                            .and_then(|mut emails| {
+                                if emails.is_empty() {
+                                    None
+                                } else {
+                                    let primary_email = emails.remove(0);
+                                    Some((primary_email, emails))
+                                }
+                            })
+                            .ok_or(AnalyticsError::MissingEmail)?;
+
+                        (primary_email, Some(other_emails))
+                    }
                 };
 
                 let payload = ReportRequest {
@@ -2045,34 +2063,40 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let (user_email, optional_emails) = if let Some(user_id) = user_id {
-                    let user = state
-                        .global_store
-                        .find_user_by_id(&user_id)
-                        .await
-                        .change_context(AnalyticsError::UnknownError)?;
+                let (user_email, optional_emails) = match user_id {
+                    Some(user_id) => {
+                        let user = state
+                            .global_store
+                            .find_user_by_id(&user_id)
+                            .await
+                            .change_context(AnalyticsError::UnknownError)?;
 
-                    let user_email = UserEmail::from_pii_email(user.email)
-                        .change_context(AnalyticsError::UnknownError)?
-                        .get_secret();
-
-                    let user_email = Email::try_from(user_email.expose().to_string())
+                        let user_email = Email::try_from(
+                            UserEmail::from_pii_email(user.email)
+                            .change_context(AnalyticsError::UnknownError)?
+                            .get_secret()
+                            .expose()
+                            .to_string(),
+                        )
                         .change_context(AnalyticsError::MissingEmail)?;
-                    (user_email, payload.emails)
-                } else {
-                    let (primary_email, other_emails) = payload
-                        .emails
-                        .and_then(|mut emails| {
-                            if emails.is_empty() {
-                                None
-                            } else {
-                                let head = emails.remove(0);
-                                Some((head, emails))
-                            }
-                        })
-                        .ok_or(AnalyticsError::MissingEmail)?;
 
-                    (primary_email, Some(other_emails))
+                        (user_email, payload.emails)
+                    } 
+                    None => {
+                        let (primary_email, other_emails) = payload
+                            .emails
+                            .and_then(|mut emails| {
+                                if emails.is_empty() {
+                                    None
+                                } else {
+                                    let primary_email = emails.remove(0);
+                                    Some((primary_email, emails))
+                                }
+                            })
+                            .ok_or(AnalyticsError::MissingEmail)?;
+
+                        (primary_email, Some(other_emails))
+                    }
                 };
 
                 let payload = ReportRequest {
@@ -2129,34 +2153,40 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let (user_email, optional_emails) = if let Some(user_id) = user_id {
-                    let user = state
-                        .global_store
-                        .find_user_by_id(&user_id)
-                        .await
-                        .change_context(AnalyticsError::UnknownError)?;
+                let (user_email, optional_emails) = match user_id {
+                    Some(user_id) => {
+                        let user = state
+                            .global_store
+                            .find_user_by_id(&user_id)
+                            .await
+                            .change_context(AnalyticsError::UnknownError)?;
 
-                    let user_email = UserEmail::from_pii_email(user.email)
-                        .change_context(AnalyticsError::UnknownError)?
-                        .get_secret();
-
-                    let user_email = Email::try_from(user_email.expose().to_string())
+                        let user_email = Email::try_from(
+                            UserEmail::from_pii_email(user.email)
+                            .change_context(AnalyticsError::UnknownError)?
+                            .get_secret()
+                            .expose()
+                            .to_string(),
+                        )
                         .change_context(AnalyticsError::MissingEmail)?;
-                    (user_email, payload.emails)
-                } else {
-                    let (primary_email, other_emails) = payload
-                        .emails
-                        .and_then(|mut emails| {
-                            if emails.is_empty() {
-                                None
-                            } else {
-                                let head = emails.remove(0);
-                                Some((head, emails))
-                            }
-                        })
-                        .ok_or(AnalyticsError::MissingEmail)?;
 
-                    (primary_email, Some(other_emails))
+                        (user_email, payload.emails)
+                    } 
+                    None => {
+                        let (primary_email, other_emails) = payload
+                            .emails
+                            .and_then(|mut emails| {
+                                if emails.is_empty() {
+                                    None
+                                } else {
+                                    let primary_email = emails.remove(0);
+                                    Some((primary_email, emails))
+                                }
+                            })
+                            .ok_or(AnalyticsError::MissingEmail)?;
+
+                        (primary_email, Some(other_emails))
+                    }
                 };
 
                 let payload = ReportRequest {
@@ -2212,34 +2242,40 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let (user_email, optional_emails) = if let Some(user_id) = user_id {
-                    let user = state
-                        .global_store
-                        .find_user_by_id(&user_id)
-                        .await
-                        .change_context(AnalyticsError::UnknownError)?;
+                let (user_email, optional_emails) = match user_id {
+                    Some(user_id) => {
+                        let user = state
+                            .global_store
+                            .find_user_by_id(&user_id)
+                            .await
+                            .change_context(AnalyticsError::UnknownError)?;
 
-                    let user_email = UserEmail::from_pii_email(user.email)
-                        .change_context(AnalyticsError::UnknownError)?
-                        .get_secret();
-
-                    let user_email = Email::try_from(user_email.expose().to_string())
+                        let user_email = Email::try_from(
+                            UserEmail::from_pii_email(user.email)
+                            .change_context(AnalyticsError::UnknownError)?
+                            .get_secret()
+                            .expose()
+                            .to_string(),
+                        )
                         .change_context(AnalyticsError::MissingEmail)?;
-                    (user_email, payload.emails)
-                } else {
-                    let (primary_email, other_emails) = payload
-                        .emails
-                        .and_then(|mut emails| {
-                            if emails.is_empty() {
-                                None
-                            } else {
-                                let head = emails.remove(0);
-                                Some((head, emails))
-                            }
-                        })
-                        .ok_or(AnalyticsError::MissingEmail)?;
 
-                    (primary_email, Some(other_emails))
+                        (user_email, payload.emails)
+                    } 
+                    None => {
+                        let (primary_email, other_emails) = payload
+                            .emails
+                            .and_then(|mut emails| {
+                                if emails.is_empty() {
+                                    None
+                                } else {
+                                    let primary_email = emails.remove(0);
+                                    Some((primary_email, emails))
+                                }
+                            })
+                            .ok_or(AnalyticsError::MissingEmail)?;
+
+                        (primary_email, Some(other_emails))
+                    }
                 };
 
                 let payload = ReportRequest {
@@ -2304,34 +2340,40 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let (user_email, optional_emails) = if let Some(user_id) = user_id {
-                    let user = state
-                        .global_store
-                        .find_user_by_id(&user_id)
-                        .await
-                        .change_context(AnalyticsError::UnknownError)?;
+                let (user_email, optional_emails) = match user_id {
+                    Some(user_id) => {
+                        let user = state
+                            .global_store
+                            .find_user_by_id(&user_id)
+                            .await
+                            .change_context(AnalyticsError::UnknownError)?;
 
-                    let user_email = UserEmail::from_pii_email(user.email)
-                        .change_context(AnalyticsError::UnknownError)?
-                        .get_secret();
-
-                    let user_email = Email::try_from(user_email.expose().to_string())
+                        let user_email = Email::try_from(
+                            UserEmail::from_pii_email(user.email)
+                            .change_context(AnalyticsError::UnknownError)?
+                            .get_secret()
+                            .expose()
+                            .to_string(),
+                        )
                         .change_context(AnalyticsError::MissingEmail)?;
-                    (user_email, payload.emails)
-                } else {
-                    let (primary_email, other_emails) = payload
-                        .emails
-                        .and_then(|mut emails| {
-                            if emails.is_empty() {
-                                None
-                            } else {
-                                let head = emails.remove(0);
-                                Some((head, emails))
-                            }
-                        })
-                        .ok_or(AnalyticsError::MissingEmail)?;
 
-                    (primary_email, Some(other_emails))
+                        (user_email, payload.emails)
+                    } 
+                    None => {
+                        let (primary_email, other_emails) = payload
+                            .emails
+                            .and_then(|mut emails| {
+                                if emails.is_empty() {
+                                    None
+                                } else {
+                                    let primary_email = emails.remove(0);
+                                    Some((primary_email, emails))
+                                }
+                            })
+                            .ok_or(AnalyticsError::MissingEmail)?;
+
+                        (primary_email, Some(other_emails))
+                    }
                 };
 
                 let payload = ReportRequest {
@@ -2389,34 +2431,40 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let (user_email, optional_emails) = if let Some(user_id) = user_id {
-                    let user = state
-                        .global_store
-                        .find_user_by_id(&user_id)
-                        .await
-                        .change_context(AnalyticsError::UnknownError)?;
+                let (user_email, optional_emails) = match user_id {
+                    Some(user_id) => {
+                        let user = state
+                            .global_store
+                            .find_user_by_id(&user_id)
+                            .await
+                            .change_context(AnalyticsError::UnknownError)?;
 
-                    let user_email = UserEmail::from_pii_email(user.email)
-                        .change_context(AnalyticsError::UnknownError)?
-                        .get_secret();
-
-                    let user_email = Email::try_from(user_email.expose().to_string())
+                        let user_email = Email::try_from(
+                            UserEmail::from_pii_email(user.email)
+                            .change_context(AnalyticsError::UnknownError)?
+                            .get_secret()
+                            .expose()
+                            .to_string(),
+                        )
                         .change_context(AnalyticsError::MissingEmail)?;
-                    (user_email, payload.emails)
-                } else {
-                    let (primary_email, other_emails) = payload
-                        .emails
-                        .and_then(|mut emails| {
-                            if emails.is_empty() {
-                                None
-                            } else {
-                                let head = emails.remove(0);
-                                Some((head, emails))
-                            }
-                        })
-                        .ok_or(AnalyticsError::MissingEmail)?;
 
-                    (primary_email, Some(other_emails))
+                        (user_email, payload.emails)
+                    } 
+                    None => {
+                        let (primary_email, other_emails) = payload
+                            .emails
+                            .and_then(|mut emails| {
+                                if emails.is_empty() {
+                                    None
+                                } else {
+                                    let primary_email = emails.remove(0);
+                                    Some((primary_email, emails))
+                                }
+                            })
+                            .ok_or(AnalyticsError::MissingEmail)?;
+
+                        (primary_email, Some(other_emails))
+                    }
                 };
 
                 let payload = ReportRequest {
@@ -2472,34 +2520,40 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let (user_email, optional_emails) = if let Some(user_id) = user_id {
-                    let user = state
-                        .global_store
-                        .find_user_by_id(&user_id)
-                        .await
-                        .change_context(AnalyticsError::UnknownError)?;
+                let (user_email, optional_emails) = match user_id {
+                    Some(user_id) => {
+                        let user = state
+                            .global_store
+                            .find_user_by_id(&user_id)
+                            .await
+                            .change_context(AnalyticsError::UnknownError)?;
 
-                    let user_email = UserEmail::from_pii_email(user.email)
-                        .change_context(AnalyticsError::UnknownError)?
-                        .get_secret();
-
-                    let user_email = Email::try_from(user_email.expose().to_string())
+                        let user_email = Email::try_from(
+                            UserEmail::from_pii_email(user.email)
+                            .change_context(AnalyticsError::UnknownError)?
+                            .get_secret()
+                            .expose()
+                            .to_string(),
+                        )
                         .change_context(AnalyticsError::MissingEmail)?;
-                    (user_email, payload.emails)
-                } else {
-                    let (primary_email, other_emails) = payload
-                        .emails
-                        .and_then(|mut emails| {
-                            if emails.is_empty() {
-                                None
-                            } else {
-                                let head = emails.remove(0);
-                                Some((head, emails))
-                            }
-                        })
-                        .ok_or(AnalyticsError::MissingEmail)?;
 
-                    (primary_email, Some(other_emails))
+                        (user_email, payload.emails)
+                    } 
+                    None => {
+                        let (primary_email, other_emails) = payload
+                            .emails
+                            .and_then(|mut emails| {
+                                if emails.is_empty() {
+                                    None
+                                } else {
+                                    let primary_email = emails.remove(0);
+                                    Some((primary_email, emails))
+                                }
+                            })
+                            .ok_or(AnalyticsError::MissingEmail)?;
+
+                        (primary_email, Some(other_emails))
+                    }
                 };
 
                 let payload = ReportRequest {
@@ -2563,34 +2617,40 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let (user_email, optional_emails) = if let Some(user_id) = user_id {
-                    let user = state
-                        .global_store
-                        .find_user_by_id(&user_id)
-                        .await
-                        .change_context(AnalyticsError::UnknownError)?;
+                let (user_email, optional_emails) = match user_id {
+                    Some(user_id) => {
+                        let user = state
+                            .global_store
+                            .find_user_by_id(&user_id)
+                            .await
+                            .change_context(AnalyticsError::UnknownError)?;
 
-                    let user_email = UserEmail::from_pii_email(user.email)
-                        .change_context(AnalyticsError::UnknownError)?
-                        .get_secret();
-
-                    let user_email = Email::try_from(user_email.expose().to_string())
+                        let user_email = Email::try_from(
+                            UserEmail::from_pii_email(user.email)
+                            .change_context(AnalyticsError::UnknownError)?
+                            .get_secret()
+                            .expose()
+                            .to_string(),
+                        )
                         .change_context(AnalyticsError::MissingEmail)?;
-                    (user_email, payload.emails)
-                } else {
-                    let (primary_email, other_emails) = payload
-                        .emails
-                        .and_then(|mut emails| {
-                            if emails.is_empty() {
-                                None
-                            } else {
-                                let head = emails.remove(0);
-                                Some((head, emails))
-                            }
-                        })
-                        .ok_or(AnalyticsError::MissingEmail)?;
 
-                    (primary_email, Some(other_emails))
+                        (user_email, payload.emails)
+                    } 
+                    None => {
+                        let (primary_email, other_emails) = payload
+                            .emails
+                            .and_then(|mut emails| {
+                                if emails.is_empty() {
+                                    None
+                                } else {
+                                    let primary_email = emails.remove(0);
+                                    Some((primary_email, emails))
+                                }
+                            })
+                            .ok_or(AnalyticsError::MissingEmail)?;
+
+                        (primary_email, Some(other_emails))
+                    }
                 };
 
                 let payload = ReportRequest {
@@ -2648,34 +2708,40 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let (user_email, optional_emails) = if let Some(user_id) = user_id {
-                    let user = state
-                        .global_store
-                        .find_user_by_id(&user_id)
-                        .await
-                        .change_context(AnalyticsError::UnknownError)?;
+                let (user_email, optional_emails) = match user_id {
+                    Some(user_id) => {
+                        let user = state
+                            .global_store
+                            .find_user_by_id(&user_id)
+                            .await
+                            .change_context(AnalyticsError::UnknownError)?;
 
-                    let user_email = UserEmail::from_pii_email(user.email)
-                        .change_context(AnalyticsError::UnknownError)?
-                        .get_secret();
-
-                    let user_email = Email::try_from(user_email.expose().to_string())
+                        let user_email = Email::try_from(
+                            UserEmail::from_pii_email(user.email)
+                            .change_context(AnalyticsError::UnknownError)?
+                            .get_secret()
+                            .expose()
+                            .to_string(),
+                        )
                         .change_context(AnalyticsError::MissingEmail)?;
-                    (user_email, payload.emails)
-                } else {
-                    let (primary_email, other_emails) = payload
-                        .emails
-                        .and_then(|mut emails| {
-                            if emails.is_empty() {
-                                None
-                            } else {
-                                let head = emails.remove(0);
-                                Some((head, emails))
-                            }
-                        })
-                        .ok_or(AnalyticsError::MissingEmail)?;
 
-                    (primary_email, Some(other_emails))
+                        (user_email, payload.emails)
+                    } 
+                    None => {
+                        let (primary_email, other_emails) = payload
+                            .emails
+                            .and_then(|mut emails| {
+                                if emails.is_empty() {
+                                    None
+                                } else {
+                                    let primary_email = emails.remove(0);
+                                    Some((primary_email, emails))
+                                }
+                            })
+                            .ok_or(AnalyticsError::MissingEmail)?;
+
+                        (primary_email, Some(other_emails))
+                    }
                 };
 
                 let payload = ReportRequest {
@@ -2731,34 +2797,40 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let (user_email, optional_emails) = if let Some(user_id) = user_id {
-                    let user = state
-                        .global_store
-                        .find_user_by_id(&user_id)
-                        .await
-                        .change_context(AnalyticsError::UnknownError)?;
+                let (user_email, optional_emails) = match user_id {
+                    Some(user_id) => {
+                        let user = state
+                            .global_store
+                            .find_user_by_id(&user_id)
+                            .await
+                            .change_context(AnalyticsError::UnknownError)?;
 
-                    let user_email = UserEmail::from_pii_email(user.email)
-                        .change_context(AnalyticsError::UnknownError)?
-                        .get_secret();
-
-                    let user_email = Email::try_from(user_email.expose().to_string())
+                        let user_email = Email::try_from(
+                            UserEmail::from_pii_email(user.email)
+                            .change_context(AnalyticsError::UnknownError)?
+                            .get_secret()
+                            .expose()
+                            .to_string(),
+                        )
                         .change_context(AnalyticsError::MissingEmail)?;
-                    (user_email, payload.emails)
-                } else {
-                    let (primary_email, other_emails) = payload
-                        .emails
-                        .and_then(|mut emails| {
-                            if emails.is_empty() {
-                                None
-                            } else {
-                                let head = emails.remove(0);
-                                Some((head, emails))
-                            }
-                        })
-                        .ok_or(AnalyticsError::MissingEmail)?;
 
-                    (primary_email, Some(other_emails))
+                        (user_email, payload.emails)
+                    } 
+                    None => {
+                        let (primary_email, other_emails) = payload
+                            .emails
+                            .and_then(|mut emails| {
+                                if emails.is_empty() {
+                                    None
+                                } else {
+                                    let primary_email = emails.remove(0);
+                                    Some((primary_email, emails))
+                                }
+                            })
+                            .ok_or(AnalyticsError::MissingEmail)?;
+
+                        (primary_email, Some(other_emails))
+                    }
                 };
 
                 let payload = ReportRequest {
@@ -2822,34 +2894,40 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let (user_email, optional_emails) = if let Some(user_id) = user_id {
-                    let user = state
-                        .global_store
-                        .find_user_by_id(&user_id)
-                        .await
-                        .change_context(AnalyticsError::UnknownError)?;
+                let (user_email, optional_emails) = match user_id {
+                    Some(user_id) => {
+                        let user = state
+                            .global_store
+                            .find_user_by_id(&user_id)
+                            .await
+                            .change_context(AnalyticsError::UnknownError)?;
 
-                    let user_email = UserEmail::from_pii_email(user.email)
-                        .change_context(AnalyticsError::UnknownError)?
-                        .get_secret();
-
-                    let user_email = Email::try_from(user_email.expose().to_string())
+                        let user_email = Email::try_from(
+                            UserEmail::from_pii_email(user.email)
+                            .change_context(AnalyticsError::UnknownError)?
+                            .get_secret()
+                            .expose()
+                            .to_string(),
+                        )
                         .change_context(AnalyticsError::MissingEmail)?;
-                    (user_email, payload.emails)
-                } else {
-                    let (primary_email, other_emails) = payload
-                        .emails
-                        .and_then(|mut emails| {
-                            if emails.is_empty() {
-                                None
-                            } else {
-                                let head = emails.remove(0);
-                                Some((head, emails))
-                            }
-                        })
-                        .ok_or(AnalyticsError::MissingEmail)?;
 
-                    (primary_email, Some(other_emails))
+                        (user_email, payload.emails)
+                    } 
+                    None => {
+                        let (primary_email, other_emails) = payload
+                            .emails
+                            .and_then(|mut emails| {
+                                if emails.is_empty() {
+                                    None
+                                } else {
+                                    let primary_email = emails.remove(0);
+                                    Some((primary_email, emails))
+                                }
+                            })
+                            .ok_or(AnalyticsError::MissingEmail)?;
+
+                        (primary_email, Some(other_emails))
+                    }
                 };
 
                 let payload = ReportRequest {
@@ -2907,34 +2985,40 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let (user_email, optional_emails) = if let Some(user_id) = user_id {
-                    let user = state
-                        .global_store
-                        .find_user_by_id(&user_id)
-                        .await
-                        .change_context(AnalyticsError::UnknownError)?;
+                let (user_email, optional_emails) = match user_id {
+                    Some(user_id) => {
+                        let user = state
+                            .global_store
+                            .find_user_by_id(&user_id)
+                            .await
+                            .change_context(AnalyticsError::UnknownError)?;
 
-                    let user_email = UserEmail::from_pii_email(user.email)
-                        .change_context(AnalyticsError::UnknownError)?
-                        .get_secret();
-
-                    let user_email = Email::try_from(user_email.expose().to_string())
+                        let user_email = Email::try_from(
+                            UserEmail::from_pii_email(user.email)
+                            .change_context(AnalyticsError::UnknownError)?
+                            .get_secret()
+                            .expose()
+                            .to_string(),
+                        )
                         .change_context(AnalyticsError::MissingEmail)?;
-                    (user_email, payload.emails)
-                } else {
-                    let (primary_email, other_emails) = payload
-                        .emails
-                        .and_then(|mut emails| {
-                            if emails.is_empty() {
-                                None
-                            } else {
-                                let head = emails.remove(0);
-                                Some((head, emails))
-                            }
-                        })
-                        .ok_or(AnalyticsError::MissingEmail)?;
 
-                    (primary_email, Some(other_emails))
+                        (user_email, payload.emails)
+                    } 
+                    None => {
+                        let (primary_email, other_emails) = payload
+                            .emails
+                            .and_then(|mut emails| {
+                                if emails.is_empty() {
+                                    None
+                                } else {
+                                    let primary_email = emails.remove(0);
+                                    Some((primary_email, emails))
+                                }
+                            })
+                            .ok_or(AnalyticsError::MissingEmail)?;
+
+                        (primary_email, Some(other_emails))
+                    }
                 };
 
                 let payload = ReportRequest {
@@ -2990,34 +3074,40 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let (user_email, optional_emails) = if let Some(user_id) = user_id {
-                    let user = state
-                        .global_store
-                        .find_user_by_id(&user_id)
-                        .await
-                        .change_context(AnalyticsError::UnknownError)?;
+                let (user_email, optional_emails) = match user_id {
+                    Some(user_id) => {
+                        let user = state
+                            .global_store
+                            .find_user_by_id(&user_id)
+                            .await
+                            .change_context(AnalyticsError::UnknownError)?;
 
-                    let user_email = UserEmail::from_pii_email(user.email)
-                        .change_context(AnalyticsError::UnknownError)?
-                        .get_secret();
-
-                    let user_email = Email::try_from(user_email.expose().to_string())
+                        let user_email = Email::try_from(
+                            UserEmail::from_pii_email(user.email)
+                            .change_context(AnalyticsError::UnknownError)?
+                            .get_secret()
+                            .expose()
+                            .to_string(),
+                        )
                         .change_context(AnalyticsError::MissingEmail)?;
-                    (user_email, payload.emails)
-                } else {
-                    let (primary_email, other_emails) = payload
-                        .emails
-                        .and_then(|mut emails| {
-                            if emails.is_empty() {
-                                None
-                            } else {
-                                let head = emails.remove(0);
-                                Some((head, emails))
-                            }
-                        })
-                        .ok_or(AnalyticsError::MissingEmail)?;
 
-                    (primary_email, Some(other_emails))
+                        (user_email, payload.emails)
+                    } 
+                    None => {
+                        let (primary_email, other_emails) = payload
+                            .emails
+                            .and_then(|mut emails| {
+                                if emails.is_empty() {
+                                    None
+                                } else {
+                                    let primary_email = emails.remove(0);
+                                    Some((primary_email, emails))
+                                }
+                            })
+                            .ok_or(AnalyticsError::MissingEmail)?;
+
+                        (primary_email, Some(other_emails))
+                    }
                 };
 
                 let payload = ReportRequest {
