@@ -8889,6 +8889,46 @@ pub async fn add_process_sync_task(
     Ok(())
 }
 
+/// Schedule process tracker task to auto-promote a payment from Pending to Charged
+/// if eligible (e.g. Payload ACH after 3 days).
+#[cfg(feature = "v1")]
+pub async fn add_pending_promotion_task(
+    db: &dyn StorageInterface,
+    payment_attempt: &storage::PaymentAttempt,
+    schedule_time: time::PrimitiveDateTime,
+    application_source: enums::ApplicationSource,
+) -> CustomResult<(), errors::StorageError> {
+    let tracking_data = storage::PendingToChargedWorkflowTrackingData {
+        payment_id: payment_attempt.payment_id.clone(),
+        attempt_id: payment_attempt.get_id().to_owned(),
+        merchant_id: payment_attempt.merchant_id.clone(),
+    };
+    let runner = storage::ProcessTrackerRunner::PendingToChargedWorkflow;
+    let task = "pending_to_charged";
+    let tag = ["PENDING_TO_CHARGED"];
+    let process_tracker_id = pt_utils::get_process_tracker_id(
+        runner,
+        task,
+        payment_attempt.get_id(),
+        &payment_attempt.merchant_id,
+    );
+    let process_tracker_entry = storage::ProcessTrackerNew::new(
+        process_tracker_id,
+        task,
+        runner,
+        tag,
+        tracking_data,
+        None,
+        schedule_time,
+        common_types::consts::API_VERSION,
+        application_source,
+    )
+    .map_err(errors::StorageError::from)?;
+
+    db.insert_process(process_tracker_entry).await?;
+    Ok(())
+}
+
 #[cfg(feature = "v2")]
 pub async fn reset_process_sync_task(
     db: &dyn StorageInterface,

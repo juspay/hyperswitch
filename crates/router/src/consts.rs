@@ -36,6 +36,10 @@ pub const DEFAULT_FULFILLMENT_TIME: i64 = 15 * 60;
 /// Payment intent default client secret expiry (in seconds)
 pub const DEFAULT_SESSION_EXPIRY: i64 = 15 * 60;
 
+/// 3-day pending window for Payload ACH payments (in seconds).
+/// ACH payments remain in Pending status for this duration before auto-promoting to Charged.
+pub const PAYLOAD_ACH_PENDING_WINDOW_SECONDS: i64 = 3 * 24 * 60 * 60;
+
 /// The length of a merchant fingerprint secret
 pub const FINGERPRINT_SECRET_LENGTH: usize = 64;
 

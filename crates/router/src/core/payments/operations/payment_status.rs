@@ -132,7 +132,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         requeue: bool,
         schedule_time: Option<time::PrimitiveDateTime>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        helpers::add_domain_task_to_pt(self, state, payment_attempt, requeue, schedule_time).await
+        helpers::add_domain_task_to_pt(self, state, payment_attempt, requeue, schedule_time)
+            .await?;
+        // helpers::schedule_pending_to_charged_if_eligible(state, payment_attempt, requeue).await?;
+        Ok(())
     }
 
     async fn get_connector<'a>(

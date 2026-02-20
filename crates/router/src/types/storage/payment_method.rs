@@ -179,3 +179,12 @@ pub struct PaymentMethodStatusTrackingData {
     pub curr_status: enums::PaymentMethodStatus,
     pub merchant_id: common_utils::id_type::MerchantId,
 }
+
+/// Tracking data for the ACH pending promotion workflow.
+/// After 3 days, ACH payments in Pending status are auto-promoted to Charged.
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct PendingToChargedWorkflowTrackingData {
+    pub payment_id: common_utils::id_type::PaymentId,
+    pub attempt_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
+}
