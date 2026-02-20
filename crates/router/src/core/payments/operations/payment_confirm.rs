@@ -764,9 +764,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .and_then(|pm| pm.raw_payment_method_data)
             .or(payment_method_data_from_request.map(Into::into))
             .or(payment_method_recurring_details.clone())
-            .zip(additional_pm_data)
-            .map(|(payment_method_data, additional_payment_data)| {
-                payment_method_data.apply_additional_payment_data(additional_payment_data)
+            .map(|payment_method_data| {
+                if let Some(additional_pm_data) = additional_pm_data {
+                    payment_method_data.apply_additional_payment_data(additional_pm_data)
+                } else {
+                    payment_method_data
+                }
             });
 
         payment_attempt.payment_method_billing_address_id = payment_method_billing
@@ -1114,6 +1117,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             match pm_transformers::create_payment_method_in_modular_service(
                                 state,
                                 platform.get_provider().get_account().get_id(),
+                                platform.get_processor().get_account().get_id(),
                                 business_profile.get_id(),
                                 payment_method,
                                 payment_method_type,
@@ -1183,7 +1187,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     .profile_id
                     .clone()
                     .or(platform
-                        .get_provider()
+                        .get_processor()
                         .get_account()
                         .get_default_profile()
                         .clone())
@@ -1206,13 +1210,23 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     // Fetch payment method using PM Modular Service
                     let pm_info = pm_transformers::fetch_payment_method_from_modular_service(
                         state,
-                        platform.get_provider().get_account().get_id(),
+                        platform,
                         &profile_id,
                         payment_token,
                         payment_method_data,
+                        false, // is_off_session, is false since customer present in the flow, but to be checked in On_session MIT
                     )
                     .await?;
                     logger::info!("Payment method fetched from PM Modular Service.");
+
+                    utils::when(
+                        pm_info.payment_method.0.customer_id
+                            != req.customer_id.clone().get_required_value("customer_id")?,
+                        || {
+                            logger::info!("Payment method id does not belong to the customer id provided in the request.");
+                            Err(errors::ApiErrorResponse::PaymentMethodNotFound)
+                        },
+                    )?;
 
                     Some(pm_info)
                 } else {
