@@ -31,9 +31,9 @@ const SCHEDULER_FLOW: &str = "SCHEDULER_FLOW";
 async fn main() -> CustomResult<(), ProcessTrackerError> {
     let cmd_line = <CmdLineConf as clap::Parser>::parse();
 
-    #[allow(clippy::expect_used)]
     let conf = Settings::with_config_path(cmd_line.config_path)
-        .expect("Unable to construct application configuration");
+        .change_context(ProcessTrackerError::ConfigurationError)
+        .attach_printable("Unable to construct application configuration")?;
     let api_client = Box::new(
         services::ProxyClient::new(&conf.proxy)
             .change_context(ProcessTrackerError::ConfigurationError)?,
@@ -52,12 +52,13 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
         router::receiver_for_error(redis_shutdown_signal_rx, tx.clone()).in_current_span(),
     );
 
-    #[allow(clippy::expect_used)]
-    let scheduler_flow_str =
-        std::env::var(SCHEDULER_FLOW).expect("SCHEDULER_FLOW environment variable not set");
-    #[allow(clippy::expect_used)]
+    let scheduler_flow_str = std::env::var(SCHEDULER_FLOW)
+        .change_context(ProcessTrackerError::ConfigurationError)
+        .attach_printable("SCHEDULER_FLOW environment variable not set")?;
+
     let scheduler_flow = scheduler::SchedulerFlow::from_str(&scheduler_flow_str)
-        .expect("Unable to parse SchedulerFlow from environment variable");
+        .change_context(ProcessTrackerError::ConfigurationError)
+        .attach_printable("Unable to parse SchedulerFlow from environment variable")?;
 
     #[allow(clippy::print_stdout)] // The logger has not yet been initialized
     #[cfg(feature = "vergen")]
@@ -74,13 +75,13 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
         [router_env::service_name!()],
     );
 
-    #[allow(clippy::expect_used)]
     let web_server = Box::pin(start_web_server(
         state.clone(),
         scheduler_flow_str.to_string(),
     ))
     .await
-    .expect("Failed to create the server");
+    .change_context(ProcessTrackerError::ConfigurationError)
+    .attach_printable("Failed to create the server")?;
 
     let _task_handle = tokio::spawn(
         async move {
