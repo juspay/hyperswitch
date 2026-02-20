@@ -34,7 +34,7 @@ use hyperswitch_interfaces::{
     secrets_interface::secret_state::{RawSecret, SecuredSecret},
     types as interfaces_types,
 };
-use router_env::{logger, RequestId};
+use router_env::RequestId;
 use scheduler::SchedulerInterface;
 use storage_impl::{redis::RedisStore, MockDb};
 use tokio::sync::oneshot;
