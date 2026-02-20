@@ -372,7 +372,10 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
         )
     }
 
-    pub async fn create_customer(&self) -> RouterResult<api::CustomerDetails> {
+    pub async fn create_customer(
+        &self,
+        initiator: Option<&domain::Initiator>,
+    ) -> RouterResult<api::CustomerDetails> {
         let db = &*self.state.store;
         let customer_id = self
             .customer
@@ -437,9 +440,8 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             version: common_types::consts::API_VERSION,
             tax_registration_id: encryptable_customer.tax_registration_id,
             document_details: None,
-            // TODO: Populate created_by from authentication context once it is integrated in auth data
-            created_by: None,
-            last_modified_by: None, // Same as created_by on creation
+            created_by: initiator.and_then(|initiator| initiator.to_created_by()),
+            last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
         };
 
         db.insert_customer(
@@ -609,6 +611,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             Default::default(), // this method is used only for card bulk tokenization, and currently external vault is not supported for this hence passing Default i.e. InternalVault
             None,
             None,
+            platform.get_initiator(),
         )
         .await
     }

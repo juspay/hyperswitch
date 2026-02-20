@@ -59,6 +59,7 @@ pub trait PaymentMethodsController {
         vault_source_details: Option<PaymentMethodVaultSourceDetails>,
         payment_method_customer_details_encrypted: crypto::OptionalEncryptableValue,
         locker_fingerprint_id: Option<String>,
+        initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
     ) -> errors::PmResult<payment_methods::PaymentMethod>;
 
     #[cfg(feature = "v1")]
@@ -80,6 +81,7 @@ pub trait PaymentMethodsController {
         network_token_locker_id: Option<String>,
         network_token_payment_method_data: crypto::OptionalEncryptableValue,
         vault_source_details: Option<PaymentMethodVaultSourceDetails>,
+        initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
     ) -> errors::PmResult<payment_methods::PaymentMethod>;
 
     #[cfg(feature = "v2")]
@@ -103,6 +105,7 @@ pub trait PaymentMethodsController {
     async fn add_payment_method(
         &self,
         req: &api::PaymentMethodCreate,
+        initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
     ) -> errors::PmResponse<api::PaymentMethodResponse>;
 
     #[cfg(feature = "v1")]
@@ -115,6 +118,7 @@ pub trait PaymentMethodsController {
     async fn delete_payment_method(
         &self,
         pm_id: api::PaymentMethodId,
+        initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
     ) -> errors::PmResponse<api::PaymentMethodDeleteResponse>;
 
     #[cfg(feature = "v1")]
@@ -173,6 +177,7 @@ pub trait PaymentMethodsController {
         resp: &mut payment_methods::PaymentMethodResponse,
         customer_id: &id_type::CustomerId,
         key_store: &merchant_key_store::MerchantKeyStore,
+        initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
     ) -> errors::PmResult<payment_methods::PaymentMethod>;
 
     #[cfg(feature = "v2")]
@@ -233,6 +238,7 @@ pub trait PaymentMethodsController {
         network_token_data: &api_models::payment_methods::MigrateNetworkTokenData,
         network_token_requestor_ref_id: String,
         pm_id: String,
+        initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
     ) -> errors::PmResult<bool>;
 
     #[cfg(feature = "v1")]
@@ -241,6 +247,7 @@ pub trait PaymentMethodsController {
         merchant_id: &id_type::MerchantId,
         customer_id: &id_type::CustomerId,
         payment_method_id: String,
+        initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
     ) -> errors::PmResponse<api_models::payment_methods::CustomerDefaultPaymentMethodResponse>;
 
     #[cfg(feature = "v1")]
@@ -250,6 +257,7 @@ pub trait PaymentMethodsController {
         prev_status: common_enums::PaymentMethodStatus,
         curr_status: common_enums::PaymentMethodStatus,
         merchant_id: &id_type::MerchantId,
+        initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
     ) -> Result<(), sch_errors::ProcessTrackerError>;
 
     #[cfg(feature = "v1")]

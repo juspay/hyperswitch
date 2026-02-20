@@ -22,7 +22,13 @@ pub async fn customers_create(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            create_customer(state, auth.platform.get_provider().clone(), req, None)
+            create_customer(
+                state,
+                auth.platform.get_provider().clone(),
+                auth.platform.get_initiator().cloned(),
+                req,
+                None,
+            )
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
@@ -54,7 +60,13 @@ pub async fn customers_create(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            create_customer(state, auth.platform.get_provider().clone(), req, None)
+            create_customer(
+                state,
+                auth.platform.get_provider().clone(),
+                auth.platform.get_initiator().cloned(),
+                req,
+                None,
+            )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -336,6 +348,7 @@ pub async fn customers_update(
             update_customer(
                 state,
                 auth.platform.get_provider().clone(),
+                auth.platform.get_initiator().cloned(),
                 request_internal,
             )
         },
@@ -378,6 +391,7 @@ pub async fn customers_update(
             update_customer(
                 state,
                 auth.platform.get_provider().clone(),
+                auth.platform.get_initiator().cloned(),
                 request_internal,
             )
         },
@@ -449,7 +463,12 @@ pub async fn customers_delete(
         &req,
         customer_id,
         |state, auth: auth::AuthenticationData, customer_id, _| {
-            delete_customer(state, auth.platform.get_provider().clone(), customer_id)
+            delete_customer(
+                state,
+                auth.platform.get_provider().clone(),
+                auth.platform.get_initiator().cloned(),
+                customer_id,
+            )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {

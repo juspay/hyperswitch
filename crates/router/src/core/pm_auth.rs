@@ -473,7 +473,10 @@ async fn store_bank_details_in_payment_methods(
 
             let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
                 payment_method_data: Some(encrypted_data.into()),
-                last_modified_by: None,
+                last_modified_by: platform
+                    .get_initiator()
+                    .and_then(|initiator| initiator.to_created_by())
+                    .map(|last_modified_by| last_modified_by.to_string()),
             };
 
             update_entries.push((pm.clone(), pm_update));
@@ -528,8 +531,12 @@ async fn store_bank_details_in_payment_methods(
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
                 vault_source_details: Default::default(),
-                created_by: None,
-                last_modified_by: None,
+                created_by: platform
+                    .get_initiator()
+                    .and_then(|initiator| initiator.to_created_by()),
+                last_modified_by: platform
+                    .get_initiator()
+                    .and_then(|initiator| initiator.to_created_by()),
                 customer_details: None,
                 locker_fingerprint_id: None,
             };

@@ -212,6 +212,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsUpdateMetadataRequest, Payme
         _payment_data: &mut PaymentData<F>,
         _request: Option<payments::CustomerDetails>,
         _provider: &domain::Provider,
+        _initiator: Option<&domain::Initiator>,
         _dimensions: DimensionsWithMerchantId,
     ) -> errors::CustomResult<
         (

@@ -1891,6 +1891,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     payment_data: &mut PaymentData<F>,
     req: Option<CustomerDetails>,
     provider: &domain::Provider,
+    initiator: Option<&domain::Initiator>,
     dimensions: DimensionsWithMerchantId,
 ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
     let merchant_id = provider.get_account().get_id();
@@ -2023,7 +2024,9 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                             address_id: None,
                             tax_registration_id: encryptable_customer.tax_registration_id,
                             document_details: Box::new(document_details),
-                            last_modified_by: None,
+                            last_modified_by: initiator
+                                .and_then(|initiator| initiator.to_created_by())
+                                .map(|last_modified_by| last_modified_by.to_string()),
                         };
 
                         db.update_customer_by_customer_id_merchant_id(
@@ -2066,9 +2069,8 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         version: common_types::consts::API_VERSION,
                         tax_registration_id: encryptable_customer.tax_registration_id,
                         document_details,
-                        // TODO: Populate created_by from authentication context once it is integrated in auth data
-                        created_by: None,
-                        last_modified_by: None, // Same as created_by on creation
+                        created_by: initiator.and_then(|initiator| initiator.to_created_by()),
+                        last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
                     };
                     metrics::CUSTOMER_CREATED.add(1, &[]);
                     db.insert_customer(new_customer, key_store, storage_scheme)

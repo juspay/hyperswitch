@@ -178,4 +178,5 @@ pub struct PaymentMethodStatusTrackingData {
     pub prev_status: enums::PaymentMethodStatus,
     pub curr_status: enums::PaymentMethodStatus,
     pub merchant_id: common_utils::id_type::MerchantId,
+    pub last_modified_by: Option<String>,
 }

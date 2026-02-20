@@ -466,6 +466,7 @@ pub async fn add_payment_method_status_update_task(
     curr_status: enums::PaymentMethodStatus,
     merchant_id: &id_type::MerchantId,
     application_source: common_enums::ApplicationSource,
+    initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
 ) -> Result<(), ProcessTrackerError> {
     let created_at = payment_method.created_at;
     let schedule_time =
@@ -476,6 +477,9 @@ pub async fn add_payment_method_status_update_task(
         prev_status,
         curr_status,
         merchant_id: merchant_id.to_owned(),
+        last_modified_by: initiator
+            .and_then(|initiator| initiator.to_created_by())
+            .map(|last_modified_by| last_modified_by.to_string()),
     };
 
     let runner = storage::ProcessTrackerRunner::PaymentMethodStatusUpdateWorkflow;
@@ -1523,6 +1527,7 @@ impl PaymentMethodResolver {
                     platform.get_provider().get_key_store(),
                     platform.get_provider().get_account().storage_scheme,
                     billing_address.clone(),
+                    platform.get_initiator(),
                 )
                 .await?;
                 Box::pin(execute_payment_method_create(
@@ -1617,6 +1622,7 @@ async fn execute_payment_method_create(
                 payment_method_subtype,
                 external_vault_source,
                 Some(enums::PaymentMethodStatus::New),
+                platform.get_initiator(),
             )
             .await
             .attach_printable("unable to create payment method data")?;
@@ -1668,7 +1674,10 @@ async fn execute_payment_method_create(
         Err(e) => {
             let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
                 status: Some(enums::PaymentMethodStatus::Inactive),
-                last_modified_by: None,
+                last_modified_by: platform
+                    .get_initiator()
+                    .and_then(|initiator| initiator.to_created_by())
+                    .map(|last_modified_by| last_modified_by.to_string()),
             };
 
             db.update_payment_method(
@@ -1750,6 +1759,7 @@ pub async fn create_volatile_payment_method_card_core(
                 locker_id,
                 fingerprint_id,
                 external_vault_source,
+                platform.get_initiator(),
             )
             .await
             .attach_printable("failed to construct payment method")?
@@ -1926,6 +1936,7 @@ pub async fn create_payment_method_proxy_card_core(
         encrypted_payment_method_data,
         encrypted_external_vault_token_data,
         vault_type,
+        platform.get_initiator(),
     )
     .await?;
 
@@ -2294,6 +2305,7 @@ pub async fn payment_method_intent_create(
     state: &SessionState,
     req: api::PaymentMethodIntentCreate,
     provider: domain::Provider,
+    initiator: Option<&domain::Initiator>,
 ) -> RouterResponse<api::PaymentMethodResponse> {
     let db = &*state.store;
     let merchant_id = provider.get_account().get_id();
@@ -2343,6 +2355,7 @@ pub async fn payment_method_intent_create(
         provider.get_key_store(),
         provider.get_account().storage_scheme,
         payment_method_billing_address,
+        initiator,
     )
     .await
     .attach_printable("Failed to add Payment method to DB")?;
@@ -2729,6 +2742,7 @@ pub async fn create_payment_method_for_intent(
     payment_method_billing_address: Option<
         Encryptable<hyperswitch_domain_models::address::Address>,
     >,
+    initiator: Option<&domain::Initiator>,
 ) -> CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
     use josekit::jwe::zip::deflate::DeflateJweCompression::Def;
 
@@ -2765,8 +2779,8 @@ pub async fn create_payment_method_for_intent(
                 external_vault_source: None,
                 external_vault_token_data: None,
                 vault_type: None,
-                created_by: None,
-                last_modified_by: None,
+                created_by: initiator.and_then(|initiator| initiator.to_created_by()),
+                last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
                 customer_details: None,
             },
             storage_scheme,
@@ -2797,6 +2811,7 @@ pub async fn construct_payment_method_object(
     locker_id: Option<domain::VaultId>,
     locker_fingerprint_id: Option<String>,
     external_vault_source: Option<id_type::MerchantConnectorAccountId>,
+    initiator: Option<&domain::Initiator>,
 ) -> RouterResult<domain::PaymentMethod> {
     let current_time = common_utils::date_time::now();
 
@@ -2851,8 +2866,8 @@ pub async fn construct_payment_method_object(
         external_vault_source,
         external_vault_token_data: None,
         vault_type: None,
-        created_by: None,
-        last_modified_by: None,
+        created_by: initiator.and_then(|initiator| initiator.to_created_by()),
+        last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
         customer_details: None,
     })
 }
@@ -2878,6 +2893,7 @@ pub async fn create_payment_method_for_confirm(
         Encryptable<payment_methods::ExternalVaultTokenData>,
     >,
     vault_type: Option<common_enums::VaultType>,
+    initiator: Option<&domain::Initiator>,
 ) -> CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
     let db = &*state.store;
     let current_time = common_utils::date_time::now();
@@ -2911,8 +2927,8 @@ pub async fn create_payment_method_for_confirm(
                 external_vault_source,
                 external_vault_token_data: encrypted_external_vault_token_data,
                 vault_type,
-                created_by: None,
-                last_modified_by: None,
+                created_by: initiator.and_then(|initiator| initiator.to_created_by()),
+                last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
                 customer_details: None,
             },
             storage_scheme,
@@ -3087,6 +3103,7 @@ pub async fn create_pm_additional_data_update(
     payment_method_subtype: Option<common_enums::PaymentMethodType>,
     external_vault_source: Option<id_type::MerchantConnectorAccountId>,
     status: Option<storage_enums::PaymentMethodStatus>,
+    initiator: Option<&domain::Initiator>,
 ) -> RouterResult<storage::PaymentMethodUpdate> {
     let encrypted_payment_method_data = pmd
         .map(|payment_method_vaulting_data| payment_method_vaulting_data.get_payment_methods_data())
@@ -3133,7 +3150,9 @@ pub async fn create_pm_additional_data_update(
         locker_fingerprint_id: vault_fingerprint_id,
         external_vault_source,
         network_transaction_id,
-        last_modified_by: None,
+        last_modified_by: initiator
+            .and_then(|initiator| initiator.to_created_by())
+            .map(|last_modified_by| last_modified_by.to_string()),
     };
 
     Ok(pm_update)
@@ -4148,6 +4167,7 @@ pub async fn update_payment_method_status_internal(
     storage_scheme: enums::MerchantStorageScheme,
     status: enums::PaymentMethodStatus,
     payment_method_id: &id_type::GlobalPaymentMethodId,
+    initiator: Option<&domain::Initiator>,
 ) -> RouterResult<domain::PaymentMethod> {
     let db = &*state.store;
 
@@ -4158,7 +4178,9 @@ pub async fn update_payment_method_status_internal(
 
     let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
         status: Some(status),
-        last_modified_by: None,
+        last_modified_by: initiator
+            .and_then(|initiator| initiator.to_created_by())
+            .map(|last_modified_by| last_modified_by.to_string()),
     };
 
     let updated_pm = db
@@ -4341,7 +4363,10 @@ pub async fn delete_payment_method_by_record(
     // Soft delete
     let pm_update = storage::PaymentMethodUpdate::StatusAndFingerprintUpdate {
         status: Some(enums::PaymentMethodStatus::Inactive),
-        last_modified_by: None,
+        last_modified_by: platform
+            .get_initiator()
+            .and_then(|initiator| initiator.to_created_by())
+            .map(|last_modified_by| last_modified_by.to_string()),
         locker_fingerprint_id: Some(PAYMENT_METHOD_REDACTED_FINGERPRINT_ID.to_string()),
     };
 
@@ -5782,6 +5807,7 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
             None,
             None,
             pm_status,
+            self.platform.get_initiator(),
         )
         .await
         .attach_printable("Unable to create Payment method data")?;

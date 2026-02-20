@@ -3174,6 +3174,7 @@ async fn update_additional_payment_method_data(
     Box::pin(cards::update_customer_payment_method(
         state.clone(),
         platform.get_provider().clone(),
+        platform.get_initiator().cloned(),
         payment_method_update,
         &payment_method_id,
         Some(pm),
@@ -3312,7 +3313,7 @@ async fn update_connector_mandate_details(
                 connector_mandate_details: connector_mandate_details_value.map(masking::Secret::new),
                 network_transaction_id: webhook_connector_network_transaction_id
                     .map(|webhook_network_transaction_id| webhook_network_transaction_id.get_id().clone()),
-                last_modified_by: None,
+                last_modified_by: platform.get_initiator().and_then(|initiator| initiator.to_created_by()).map(|last_modified_by| last_modified_by.to_string()),
             };
 
             state
