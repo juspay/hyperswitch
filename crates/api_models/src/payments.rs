@@ -6725,7 +6725,6 @@ pub enum IframeData {
 pub struct DDCData {
     pub iframe_url: String,
     pub timeout_ms: Option<i32>,
-    pub ddc_connector: Option<String>,
 }
 
 #[derive(

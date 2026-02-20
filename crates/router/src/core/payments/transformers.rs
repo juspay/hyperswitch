@@ -3765,7 +3765,6 @@ where
                                         ddc_data: api_models::payments::DDCData {
                                             iframe_url: redirect_url,
                                             timeout_ms: None,
-                                            ddc_connector: payment_attempt.connector.clone(),
                                         }
                                     };
                                 }

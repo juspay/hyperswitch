@@ -2111,6 +2111,51 @@ pub fn get_modular_authentication_request_poll_id(
     authentication_id.get_external_authentication_request_poll_id()
 }
 
+pub fn get_html_redirect_response_after_ddc(
+    return_url_with_query_params: String,
+    redirect_mode: &str, // "required" or "if_required"
+) -> RouterResult<String> {
+    Ok(html! {
+        head {
+            title { "Redirect Form" }
+            (PreEscaped(format!(r#"
+                <script>
+                    const return_url = "{return_url_with_query_params}";
+                    const message = {{
+                        next_action: {{
+                            type: "redirect_to_url",
+                            url: return_url,
+                            redirect_mode: "{redirect_mode}"
+                        }}
+                    }};
+
+                    try {{
+                        // If inside iframe, notify SDK via postMessage
+                        if (window.self !== window.parent) {{
+                            window.parent.postMessage(message, '*');
+                        }}
+                        // If not inside iframe, perform direct redirect
+                        else {{
+                            window.location.href = return_url;
+                        }}
+                    }} catch (err) {{
+                        // Fallback: attempt postMessage again
+                        window.parent.postMessage(message, '*');
+                        
+                        // Force redirect after timeout as safety net
+                        setTimeout(function() {{
+                            window.location.href = return_url;
+                        }}, 10000);
+
+                        console.log(err.message);
+                    }}
+                </script>
+            "#)))
+        }
+    }
+    .into_string())
+}
+
 pub fn get_html_redirect_response_popup(
     return_url_with_query_params: String,
 ) -> RouterResult<String> {
