@@ -511,13 +511,15 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .map(domain::PaymentMethodData::from)
             .or(payment_method_recurring_details.clone());
 
-        let store = state.clone().store;
+        let cloned_state = state.clone();
+        let store = cloned_state.store.clone();
         let profile_id = payment_intent
             .profile_id
             .clone()
             .get_required_value("profile_id")
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("'profile_id' not set in payment intent")?;
+        let payment_id_for_spawn = payment_intent.payment_id.clone();
 
         let additional_pm_data_fut = tokio::spawn(
             async move {
@@ -528,6 +530,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                             store.as_ref(),
                             &profile_id,
                             None,
+                            &cloned_state,
+                            Some(&payment_id_for_spawn),
                         )
                         .await
                     })
@@ -654,7 +658,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let (token_data, payment_method_info) =
             if pm_utils::get_organization_eligibility_config_for_pm_modular_service(
-                &*state.store,
+                state,
                 &platform.get_processor().get_account().organization_id,
             )
             .await
@@ -2287,6 +2291,8 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     &*state.store,
                     profile_id,
                     payment_data.payment_method_token.as_ref(),
+                    state,
+                    Some(&payment_data.payment_intent.payment_id),
                 )
                 .await
             })

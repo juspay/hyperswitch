@@ -87,7 +87,7 @@ use crate::{
     consts::{self, BASE64_ENGINE},
     core::{
         authentication,
-        configs::dimension_state::DimensionsWithMerchantId,
+        configs::{self, dimension_state::DimensionsWithMerchantId},
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers::MandateGenericData,
         payment_methods::{
@@ -5340,25 +5340,29 @@ pub async fn get_additional_payment_data(
     db: &dyn StorageInterface,
     profile_id: &id_type::ProfileId,
     payment_method_token: Option<&PaymentMethodToken>,
+    state: &SessionState,
+    payment_id: Option<&id_type::PaymentId>,
 ) -> Result<
     Option<api_models::payments::AdditionalPaymentData>,
     error_stack::Report<errors::ApiErrorResponse>,
 > {
     match pm_data {
         domain::PaymentMethodData::Card(card_data) => {
-            //todo!
             let card_isin = Some(card_data.card_number.get_card_isin());
-            let enable_extended_bin =db
-            .find_config_by_key_unwrap_or(
-                format!("{}_enable_extended_card_bin", profile_id.get_string_repr()).as_str(),
-             Some("false".to_string()))
-            .await.map_err(|err| services::logger::error!(message="Failed to fetch the config", extended_card_bin_error=?err)).ok();
+            let dimensions = configs::dimension_state::Dimensions::new()
+                .with_profile_id(profile_id.clone());
+            let enable_extended_bin = dimensions
+                .get_enable_extended_card_bin(
+                    state.store.as_ref(),
+                    state.superposition_service.as_deref(),
+                    payment_id,
+                )
+                .await;
 
-            let card_extended_bin = match enable_extended_bin {
-                Some(config) if config.config == "true" => {
-                    Some(card_data.card_number.get_extended_card_bin())
-                }
-                _ => None,
+            let card_extended_bin = if enable_extended_bin {
+                Some(card_data.card_number.get_extended_card_bin())
+            } else {
+                None
             };
 
             // Added an additional check for card_data.co_badged_card_data.is_some()
@@ -8115,32 +8119,9 @@ where
     request.check_integrity(request, connector_transaction_id.to_owned())
 }
 
-pub async fn config_skip_saving_wallet_at_connector(
-    db: &dyn StorageInterface,
-    merchant_id: &id_type::MerchantId,
-) -> CustomResult<Option<Vec<storage_enums::PaymentMethodType>>, errors::ApiErrorResponse> {
-    let config = db
-        .find_config_by_key_unwrap_or(
-            &merchant_id.get_skip_saving_wallet_at_connector_key(),
-            Some("[]".to_string()),
-        )
-        .await;
-    Ok(match config {
-        Ok(conf) => Some(
-            serde_json::from_str::<Vec<storage_enums::PaymentMethodType>>(&conf.config)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("skip_save_wallet_at_connector config parsing failed")?,
-        ),
-        Err(error) => {
-            logger::error!(?error);
-            None
-        }
-    })
-}
-
 #[cfg(feature = "v1")]
 pub async fn override_setup_future_usage_to_on_session<F, D>(
-    db: &dyn StorageInterface,
+    state: &SessionState,
     payment_data: &mut D,
 ) -> CustomResult<(), errors::ApiErrorResponse>
 where
@@ -8149,23 +8130,26 @@ where
 {
     if payment_data.get_payment_intent().setup_future_usage == Some(enums::FutureUsage::OffSession)
     {
-        let skip_saving_wallet_at_connector_optional = config_skip_saving_wallet_at_connector(
-            db,
-            &payment_data.get_payment_intent().merchant_id,
-        )
-        .await?;
-
-        if let Some(skip_saving_wallet_at_connector) = skip_saving_wallet_at_connector_optional {
-            if let Some(payment_method_type) =
-                payment_data.get_payment_attempt().get_payment_method_type()
-            {
-                if skip_saving_wallet_at_connector.contains(&payment_method_type) {
-                    logger::debug!("Override setup_future_usage from off_session to on_session based on the merchant's skip_saving_wallet_at_connector configuration to avoid creating a connector mandate.");
-                    payment_data
-                        .set_setup_future_usage_in_payment_intent(enums::FutureUsage::OnSession);
-                }
+        if let Some(payment_method_type) =
+            payment_data.get_payment_attempt().get_payment_method_type()
+        {
+            let merchant_id = payment_data.get_payment_intent().merchant_id.clone();
+            let dimensions = configs::dimension_state::Dimensions::new()
+                .with_merchant_id(merchant_id.clone())
+                .with_payment_method_type(payment_method_type);
+            let skip = dimensions
+                .get_skip_saving_wallet_at_connector(
+                    state.store.as_ref(),
+                    state.superposition_service.as_deref(),
+                    Some(&merchant_id),
+                )
+                .await;
+            if skip {
+                logger::debug!("Override setup_future_usage from off_session to on_session based on the merchant's skip_saving_wallet_at_connector configuration to avoid creating a connector mandate.");
+                payment_data
+                    .set_setup_future_usage_in_payment_intent(enums::FutureUsage::OnSession);
             }
-        };
+        }
     };
     Ok(())
 }
@@ -8466,7 +8450,7 @@ pub fn validate_platform_request_for_marketplace(
 /// Superposition handles org → merchant priority resolution.
 /// DB fallback uses merchant-level key.
 pub async fn is_merchant_eligible_authentication_service(
-    dimensions: &DimensionsWithMerchantId,
+    dimensions: &configs::dimension_state::DimensionsWithMerchantAndOrgId,
     state: &SessionState,
 ) -> bool {
     dimensions

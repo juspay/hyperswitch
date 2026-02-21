@@ -857,6 +857,8 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     &*state.store,
                     profile_id,
                     payment_data.payment_method_token.as_ref(),
+                    state,
+                    Some(&payment_data.payment_intent.payment_id),
                 )
                 .await
             })

@@ -815,49 +815,41 @@ fn compile_accepted_currency_for_mca(
 }
 
 pub async fn get_merchant_config_for_eligibility_check(
-    db: &dyn StorageInterface,
-    merchant_id: &common_utils::id_type::MerchantId,
+    state: &SessionState,
+    dimensions: &crate::core::configs::dimension_state::DimensionsWithMerchantId,
+    customer_id: Option<&common_utils::id_type::CustomerId>,
 ) -> bool {
-    let config = db
-        .find_config_by_key_unwrap_or(
-            &merchant_id.get_should_perform_eligibility_check_key(),
-            Some("false".to_string()),
+    dimensions
+        .get_should_perform_eligibility(
+            state.store.as_ref(),
+            state.superposition_service.as_deref(),
+            customer_id,
         )
-        .await;
-    match config {
-        Ok(conf) => conf.config == "true",
-        Err(error) => {
-            logger::error!(?error);
-            false
-        }
-    }
+        .await
 }
 
 pub async fn get_organization_eligibility_config_for_pm_modular_service(
-    db: &dyn StorageInterface,
+    state: &SessionState,
     organization_id: &common_utils::id_type::OrganizationId,
 ) -> bool {
-    let config = db
-        .find_config_by_key_unwrap_or(
-            &organization_id.get_should_call_pm_modular_service_key(),
-            Some("false".to_string()),
+    let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+        .with_organization_id(organization_id.clone());
+    dimensions
+        .get_should_call_pm_modular_service(
+            state.store.as_ref(),
+            state.superposition_service.as_deref(),
+            None,
         )
-        .await;
-    match config {
-        Ok(conf) => conf.config == "true",
-        Err(error) => {
-            logger::error!(?error);
-            false
-        }
-    }
+        .await
 }
 
 pub async fn get_sdk_next_action_for_payment_method_list(
-    db: &dyn StorageInterface,
-    merchant_id: &common_utils::id_type::MerchantId,
+    state: &SessionState,
+    dimensions: &crate::core::configs::dimension_state::DimensionsWithMerchantId,
+    customer_id: Option<&common_utils::id_type::CustomerId>,
 ) -> api_models::payments::SdkNextAction {
     let should_perform_eligibility_check =
-        get_merchant_config_for_eligibility_check(db, merchant_id).await;
+        get_merchant_config_for_eligibility_check(state, dimensions, customer_id).await;
     let next_action_call = if should_perform_eligibility_check {
         api_models::payments::NextActionCall::EligibilityCheck
     } else {

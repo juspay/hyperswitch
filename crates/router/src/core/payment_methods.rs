@@ -84,6 +84,7 @@ use crate::{
 use crate::{
     consts,
     core::{
+        configs,
         errors::{ProcessTrackerError, RouterResult},
         payments::{self as payments_core, helpers as payment_helpers},
         utils as core_utils,
@@ -3710,9 +3711,11 @@ pub async fn retrieve_payment_method(
             .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
             .attach_printable("Failed to fetch payment method by storage")?;
 
+    let dimensions = configs::dimension_state::Dimensions::new()
+        .with_merchant_id(platform.get_provider().get_account().get_id().clone());
     let raw_payment_method_fetch_access = get_raw_payment_method_data_fetch_access(
-        db,
-        platform.get_provider().get_account().get_id(),
+        &state,
+        &dimensions,
         api_key_type,
         fetch_raw_detail_query_param,
     )
@@ -3976,8 +3979,8 @@ impl RawPaymentMethodFetchAccess {
 }
 
 pub async fn get_raw_payment_method_data_fetch_access(
-    db: &dyn StorageInterface,
-    merchant_id: &id_type::MerchantId,
+    state: &SessionState,
+    dimensions: &configs::dimension_state::DimensionsWithMerchantId,
     api_key_type: enums::ApiKeyType,
     fetch_raw_detail_query_param: bool,
 ) -> RouterResult<RawPaymentMethodFetchAccess> {
@@ -3994,23 +3997,18 @@ pub async fn get_raw_payment_method_data_fetch_access(
         // External API keys allowed only via org-level config
         // This supports cases where a PCI-compliant entity needs to retrieve raw payment method details.
         enums::ApiKeyType::External => {
-            let config = db
-                .find_config_by_key_unwrap_or(
-                    &merchant_id.should_return_raw_payment_method_details_key(),
-                    Some("false".to_string()),
+            let is_allowed = dimensions
+                .get_should_return_raw_payment_method_details(
+                    state.store.as_ref(),
+                    state.superposition_service.as_deref(),
+                    None,
                 )
                 .await;
 
-            match config {
-                Ok(conf) if conf.config.eq_ignore_ascii_case("true") => Ok(fetch_access),
-                Ok(_) => Ok(RawPaymentMethodFetchAccess::Denied),
-                Err(error) => {
-                    router_env::logger::error!(
-                        ?error,
-                        "Failed to fetch raw payment method details config"
-                    );
-                    Ok(RawPaymentMethodFetchAccess::Denied)
-                }
+            if is_allowed {
+                Ok(fetch_access)
+            } else {
+                Ok(RawPaymentMethodFetchAccess::Denied)
             }
         }
     }

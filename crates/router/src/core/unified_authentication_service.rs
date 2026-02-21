@@ -1424,6 +1424,7 @@ trait EligibilityCheck {
         &self,
         state: &SessionState,
         platform: &domain::Platform,
+        dimensions: &configs::dimension_state::DimensionsWithMerchantId,
     ) -> CustomResult<bool, ApiErrorResponse>;
 
     // Run the actual check and return the SDK Next Action if applicable
@@ -1469,33 +1470,16 @@ impl EligibilityCheck for StoreEligibilityCheckData {
     async fn should_run(
         &self,
         state: &SessionState,
-        platform: &domain::Platform,
+        _platform: &domain::Platform,
+        dimensions: &configs::dimension_state::DimensionsWithMerchantId,
     ) -> CustomResult<bool, ApiErrorResponse> {
-        let merchant_id = platform.get_processor().get_account().get_id();
-        let should_store_eligibility_check_data_key =
-            merchant_id.get_should_store_eligibility_check_data_for_authentication();
-        let should_store_eligibility_check_data = state
-            .store
-            .find_config_by_key_unwrap_or(
-                &should_store_eligibility_check_data_key,
-                Some("false".to_string()),
+        Ok(dimensions
+            .get_should_store_eligibility_check_data_for_authentication(
+                state.store.as_ref(),
+                state.superposition_service.as_deref(),
+                None,
             )
-            .await;
-
-        Ok(match should_store_eligibility_check_data {
-            Ok(config) => serde_json::from_str(&config.config).unwrap_or(false),
-
-            // If it is not present in db we are defaulting it to false
-            Err(inner) => {
-                if !inner.current_context().is_db_not_found() {
-                    router_env::logger::error!(
-                        "Error fetching should store eligibility check data enabled config {:?}",
-                        inner
-                    );
-                }
-                false
-            }
-        })
+            .await)
     }
 
     async fn execute_check(
@@ -1564,7 +1548,9 @@ impl EligibilityHandler {
         &self,
         check: C,
     ) -> CustomResult<Option<AuthenticationSdkNextAction>, ApiErrorResponse> {
-        let should_run = check.should_run(&self.state, &self.platform).await?;
+        let dimensions = configs::dimension_state::Dimensions::new()
+            .with_merchant_id(self.platform.get_processor().get_account().get_id().clone());
+        let should_run = check.should_run(&self.state, &self.platform, &dimensions).await?;
         Ok(match should_run {
             true => check
                 .execute_check(

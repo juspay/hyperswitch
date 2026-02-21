@@ -1279,6 +1279,8 @@ impl PaymentCreate {
                     &*state.store,
                     &profile_id,
                     None,
+                    state,
+                    Some(payment_id),
                 )
                 .await
             })

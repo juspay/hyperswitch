@@ -826,8 +826,11 @@ where
             should_continue_capture,
         );
 
+        let uas_dimensions = configs::dimension_state::Dimensions::new()
+            .with_merchant_id(platform.get_processor().get_account().get_id().clone())
+            .with_organization_id(platform.get_processor().get_account().organization_id.clone());
         let is_eligible_for_uas = helpers::is_merchant_eligible_authentication_service(
-            &dimensions,
+            &uas_dimensions,
             state,
         )
         .await;
@@ -1497,7 +1500,7 @@ where
     validate_for_proxy_payment(
         state,
         &payment_data,
-        platform.get_processor().get_account().get_id(),
+        dimensions,
     )
     .await?;
 
@@ -9198,7 +9201,7 @@ where
 pub async fn validate_for_proxy_payment<F, D>(
     state: &SessionState,
     payment_data: &D,
-    merchant_id: &id_type::MerchantId,
+    dimensions: &DimensionsWithMerchantId,
 ) -> RouterResult<()>
 where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -9210,20 +9213,13 @@ where
         .clone()
         .is_card_limited_details_flow();
 
-    let db = &*state.store;
-    let config = db
-        .find_config_by_key_unwrap_or(
-            &merchant_id.get_should_enable_mit_with_limited_card_data(),
-            Some("false".to_string()),
+    let is_mit_with_limited_card_data_enabled = dimensions
+        .get_should_enable_mit_with_limited_card_data(
+            state.store.as_ref(),
+            state.superposition_service.as_deref(),
+            Some(&payment_data.get_payment_intent().payment_id),
         )
         .await;
-    let is_mit_with_limited_card_data_enabled = match config {
-        Ok(conf) => conf.config == "true",
-        Err(error) => {
-            router_env::logger::error!(?error);
-            false
-        }
-    };
 
     utils::when(
         is_card_limited_details_flow && !is_mit_with_limited_card_data_enabled,
@@ -9621,7 +9617,7 @@ where
                 .first()
                 .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
 
-            helpers::override_setup_future_usage_to_on_session(&*state.store, payment_data).await?;
+            helpers::override_setup_future_usage_to_on_session(&state, payment_data).await?;
 
             return Ok(ConnectorCallType::PreDetermined(
                 first_pre_routing_connector_data_list.clone(),
@@ -9909,7 +9905,7 @@ where
             }
         }
         _ => {
-            helpers::override_setup_future_usage_to_on_session(&*state.store, payment_data).await?;
+            helpers::override_setup_future_usage_to_on_session(state, payment_data).await?;
 
             let first_choice = connectors
                 .first()
@@ -10941,7 +10937,8 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         .attach_printable("authentication_connector_details not configured by the merchant")?;
 
     let dimensions = configs::dimension_state::Dimensions::new()
-        .with_merchant_id(platform.get_processor().get_account().get_id().clone());
+        .with_merchant_id(platform.get_processor().get_account().get_id().clone())
+        .with_organization_id(platform.get_processor().get_account().organization_id.clone());
 
     let authentication_response = if helpers::is_merchant_eligible_authentication_service(
         &dimensions,
