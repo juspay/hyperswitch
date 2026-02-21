@@ -2658,8 +2658,12 @@ async fn frm_incoming_webhook_flow(
     business_profile: domain::Profile,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     if source_verified {
-        let payment_attempt =
-            get_payment_attempt_from_object_reference_id(&state, object_ref_id, platform.get_processor()).await?;
+        let payment_attempt = get_payment_attempt_from_object_reference_id(
+            &state,
+            object_ref_id,
+            platform.get_processor(),
+        )
+        .await?;
         let payment_response = match event_type {
             webhooks::IncomingWebhookEvent::FrmApproved => {
                 Box::pin(payments::payments_core::<
@@ -3204,8 +3208,12 @@ async fn update_connector_mandate_details(
     if webhook_connector_mandate_details.is_some()
         || webhook_connector_network_transaction_id.is_some()
     {
-        let payment_attempt =
-            get_payment_attempt_from_object_reference_id(state, object_ref_id, platform.get_processor()).await?;
+        let payment_attempt = get_payment_attempt_from_object_reference_id(
+            state,
+            object_ref_id,
+            platform.get_processor(),
+        )
+        .await?;
         if let Some(ref payment_method_id) = payment_attempt.payment_method_id {
             let payment_method_info = state
                 .store
