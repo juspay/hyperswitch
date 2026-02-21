@@ -507,11 +507,7 @@ async fn fetch_three_ds_execution_path(
         .with_organization_id(platform.get_processor().get_account().organization_id.clone());
 
     let is_merchant_eligible_for_uas =
-        payments::helpers::is_merchant_eligible_authentication_service(
-            &dimensions,
-            state,
-        )
-        .await;
+        payments::helpers::is_merchant_eligible_authentication_service(&dimensions, state).await;
 
     if is_merchant_eligible_for_uas && eligible_connector_list.contains(&connector_enum) {
         Ok(ThreeDsProcessingMode::UnifiedAuthenticationService(

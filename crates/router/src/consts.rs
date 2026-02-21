@@ -359,9 +359,10 @@ pub mod superposition {
     /// enable extended card bin configuration key - controls whether first 8 digits of card number are extracted and stored
     pub const ENABLE_EXTENDED_CARD_BIN: &str = "enable_extended_card_bin";
     /// should call gsm configuration
-    pub const SHOULD_CALL_GSM : &str = "should_call_gsm_";
+    pub const SHOULD_CALL_GSM: &str = "should_call_gsm_";
     /// payment update enabled for client auth configuration key
-    pub const PAYMENT_UPDATE_ENABLED_FOR_CLIENT_AUTH: &str = "payment_update_enabled_for_client_auth";
+    pub const PAYMENT_UPDATE_ENABLED_FOR_CLIENT_AUTH: &str =
+        "payment_update_enabled_for_client_auth";
     /// UCS enabled configuration key
     pub const UCS_ENABLED: &str = "ucs_enabled";
     /// Authentication service eligibility configuration key
