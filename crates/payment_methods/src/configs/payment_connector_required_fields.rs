@@ -3073,6 +3073,7 @@ fn get_pay_later_required_fields() -> HashMap<enums::PaymentMethodType, Connecto
                             ]),
                             RequiredField::BillingEmail,
                             RequiredField::BillingAddressLine1,
+                            RequiredField::BillingAddressLine2,
                             RequiredField::BillingAddressZip,
                             RequiredField::BillingAddressCity,
                             RequiredField::BillingUserFirstName,
