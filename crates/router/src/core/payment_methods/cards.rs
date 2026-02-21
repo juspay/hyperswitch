@@ -86,11 +86,7 @@ use crate::{
         },
         payments::{
             helpers,
-            routing::{
-                self,
-                utils::{load_skip_pre_routing_config, perform_pre_routing},
-                SessionFlowRoutingInput,
-            },
+            routing::{self, utils::perform_pre_routing, SessionFlowRoutingInput},
         },
         utils as core_utils,
     },
@@ -2833,6 +2829,8 @@ pub async fn list_payment_methods(
 ) -> errors::RouterResponse<api::PaymentMethodListResponse> {
     let db = &*state.store;
     let pm_config_mapping = &state.conf.pm_filters;
+    let dimensions = configs::dimension_state::Dimensions::new()
+        .with_merchant_id(platform.get_processor().get_account().get_id().clone());
     let payment_intent = if let Some(cs) = &req.client_secret {
         if cs.starts_with("pm_") {
             validate_payment_method_and_client_secret(cs, db, &platform).await?;
@@ -3073,14 +3071,7 @@ pub async fn list_payment_methods(
     if let Some((payment_attempt, payment_intent)) =
         payment_attempt.as_ref().zip(payment_intent.as_ref())
     {
-        let pre_routing_disabled_pm_pmt_key = &platform
-            .get_processor()
-            .get_account()
-            .get_id()
-            .get_pre_routing_disabled_pm_pmt_key();
-
-        let skip_pre_routing =
-            load_skip_pre_routing_config(&state, pre_routing_disabled_pm_pmt_key.to_string()).await;
+        let merchant_id = platform.get_processor().get_account().get_id();
 
         let routing_enabled_pms = &router_consts::ROUTING_ENABLED_PAYMENT_METHODS;
         let routing_enabled_pm_types = &router_consts::ROUTING_ENABLED_PAYMENT_METHOD_TYPES;
@@ -3088,12 +3079,15 @@ pub async fn list_payment_methods(
         let mut chosen = api::SessionConnectorDatas::new(Vec::new());
         for intermediate in &response {
             if perform_pre_routing(
+                &state,
+                merchant_id,
                 routing_enabled_pms,
                 routing_enabled_pm_types,
                 &intermediate.payment_method,
                 &intermediate.payment_method_type,
-                &skip_pre_routing,
-            ) {
+            )
+            .await
+            {
                 let connector_data = helpers::get_connector_data_with_token(
                     &state,
                     intermediate.connector.to_string(),
@@ -3130,14 +3124,36 @@ pub async fn list_payment_methods(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("error performing session flow routing")?;
 
+        let mut pre_routing_results: HashMap<
+            (enums::PaymentMethod, enums::PaymentMethodType),
+            bool,
+        > = HashMap::new();
+        for intermediate in &response {
+            let key = (
+                intermediate.payment_method,
+                intermediate.payment_method_type,
+            );
+            if !pre_routing_results.contains_key(&key) {
+                let should_pre_route = perform_pre_routing(
+                    &state,
+                    merchant_id,
+                    routing_enabled_pms,
+                    routing_enabled_pm_types,
+                    &intermediate.payment_method,
+                    &intermediate.payment_method_type,
+                )
+                .await;
+                pre_routing_results.insert(key, should_pre_route);
+            }
+        }
+
         response.retain(|intermediate| {
-            if !perform_pre_routing(
-                routing_enabled_pms,
-                routing_enabled_pm_types,
-                &intermediate.payment_method,
-                &intermediate.payment_method_type,
-                &skip_pre_routing,
-            ) {
+            let key = (
+                intermediate.payment_method,
+                intermediate.payment_method_type,
+            );
+            let should_pre_route = pre_routing_results.get(&key).copied().unwrap_or(false);
+            if !should_pre_route {
                 return true;
             }
 
@@ -3734,9 +3750,13 @@ pub async fn list_payment_methods(
         .as_ref()
         .and_then(|intent| intent.request_external_three_ds_authentication)
         .unwrap_or(false);
+    let customer_id = payment_intent
+        .as_ref()
+        .and_then(|intent| intent.customer_id.as_ref());
     let sdk_next_action = payment_method_utils::get_sdk_next_action_for_payment_method_list(
-        db,
-        platform.get_processor().get_account().get_id(),
+        &state,
+        &dimensions,
+        customer_id,
     )
     .await;
     let is_guest_customer = payment_intent
@@ -4346,7 +4366,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
             None,
             customer_id,
             limit,
-            dimensions,
+            &dimensions,
         ))
         .await
     } else {
@@ -4366,7 +4386,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
                     payment_intent,
                     &customer_id,
                     limit,
-                    dimensions,
+                    &dimensions,
                 ))
                 .await
             }
@@ -4388,7 +4408,7 @@ pub async fn list_customer_payment_method(
     payment_intent: Option<storage::PaymentIntent>,
     customer_id: &id_type::CustomerId,
     limit: Option<i64>,
-    dimensions: DimensionsWithMerchantId,
+    dimensions: &DimensionsWithMerchantId,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
     let off_session_payment_flag = payment_intent

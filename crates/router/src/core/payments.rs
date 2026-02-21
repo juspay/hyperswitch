@@ -24,7 +24,7 @@ use std::{
     vec::IntoIter,
 };
 
-use external_services::grpc_client;
+use external_services::{grpc_client, superposition};
 #[cfg(feature = "v2")]
 pub mod payment_methods;
 
@@ -609,7 +609,7 @@ pub async fn payments_operation_core<'a, F, Req, Op, FData, D>(
     auth_flow: services::AuthFlow,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     header_payload: HeaderPayload,
-    dimensions: DimensionsWithMerchantId,
+    dimensions: &DimensionsWithMerchantId,
 ) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync + Debug + 'static,
@@ -703,7 +703,7 @@ where
             &mut payment_data,
             customer_details, // TODO: Remove this field after implicit customer update is removed
             platform.get_provider(),
-            dimensions,
+            &dimensions,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
@@ -826,12 +826,17 @@ where
             should_continue_capture,
         );
 
-        let is_eligible_for_uas = helpers::is_merchant_eligible_authentication_service(
-            platform.get_processor().get_account().get_id(),
-            platform.get_processor().get_account().get_org_id(),
-            state,
-        )
-        .await?;
+        let uas_dimensions = configs::dimension_state::Dimensions::new()
+            .with_merchant_id(platform.get_processor().get_account().get_id().clone())
+            .with_organization_id(
+                platform
+                    .get_processor()
+                    .get_account()
+                    .organization_id
+                    .clone(),
+            );
+        let is_eligible_for_uas =
+            helpers::is_merchant_eligible_authentication_service(&uas_dimensions, state).await;
 
         if <Req as Authenticate>::is_external_three_ds_data_passed_by_merchant(&req) {
             let maybe_connector_enum = match &connector_details {
@@ -1185,10 +1190,16 @@ where
                     #[cfg(all(feature = "retry", feature = "v1"))]
                     {
                         use crate::core::payments::retry::{self, GsmValidation};
+                        let dimension = configs::dimension_state::Dimensions::new()
+                            .with_merchant_id(
+                                platform.get_provider().get_account().get_id().clone(),
+                            );
                         let config_bool = retry::config_should_call_gsm(
+                            state,
                             &*state.store,
                             platform.get_processor().get_account().get_id(),
                             &business_profile,
+                            &dimension,
                         )
                         .await;
 
@@ -1431,7 +1442,7 @@ pub async fn proxy_for_payments_operation_core<F, Req, Op, FData, D>(
     auth_flow: services::AuthFlow,
     header_payload: HeaderPayload,
     return_raw_connector_response: Option<bool>,
-    dimensions: DimensionsWithMerchantId,
+    dimensions: &DimensionsWithMerchantId,
 ) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync,
@@ -1489,12 +1500,7 @@ where
         )
         .await?;
 
-    validate_for_proxy_payment(
-        state,
-        &payment_data,
-        platform.get_processor().get_account().get_id(),
-    )
-    .await?;
+    validate_for_proxy_payment(state, &payment_data, dimensions).await?;
 
     core_utils::validate_profile_id_from_auth_layer(
         profile_id_from_auth_layer,
@@ -1551,7 +1557,7 @@ where
             &mut payment_data,
             customer_details,
             platform.get_provider(),
-            dimensions,
+            &dimensions,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
@@ -2410,7 +2416,7 @@ where
             auth_flow,
             eligible_routable_connectors,
             header_payload.clone(),
-            dimensions,
+            &dimensions,
         )
         .await?;
 
@@ -2473,7 +2479,7 @@ where
             auth_flow,
             header_payload.clone(),
             return_raw_connector_response,
-            dimensions,
+            &dimensions,
         )
         .await?;
 
@@ -6510,24 +6516,17 @@ where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
     let merchant_id = processor.get_account().get_id();
-    let blocklist_enabled_key = merchant_id.get_blocklist_guard_key();
-    let blocklist_guard_enabled = state
-        .store
-        .find_config_by_key_unwrap_or(&blocklist_enabled_key, Some("false".to_string()))
+    let dimensions =
+        configs::dimension_state::Dimensions::new().with_merchant_id(merchant_id.clone());
+
+    let blocklist_guard_enabled = dimensions
+        .get_blocklist_guard_enabled(
+            state.store.as_ref(),
+            state.superposition_service.as_deref(),
+            None,
+        )
         .await;
-
-    let blocklist_guard_enabled: bool = match blocklist_guard_enabled {
-        Ok(config) => serde_json::from_str(&config.config).unwrap_or(false),
-
-        // If it is not present in db we are defaulting it to false
-        Err(inner) => {
-            if !inner.current_context().is_db_not_found() {
-                logger::error!("Error fetching guard blocklist enabled config {:?}", inner);
-            }
-            false
-        }
-    };
-
+    logger::info!("blocklist_guard_enabled {:?}", blocklist_guard_enabled);
     if blocklist_guard_enabled {
         Ok(operation
             .to_domain()?
@@ -9200,7 +9199,7 @@ where
 pub async fn validate_for_proxy_payment<F, D>(
     state: &SessionState,
     payment_data: &D,
-    merchant_id: &id_type::MerchantId,
+    dimensions: &DimensionsWithMerchantId,
 ) -> RouterResult<()>
 where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -9212,20 +9211,13 @@ where
         .clone()
         .is_card_limited_details_flow();
 
-    let db = &*state.store;
-    let config = db
-        .find_config_by_key_unwrap_or(
-            &merchant_id.get_should_enable_mit_with_limited_card_data(),
-            Some("false".to_string()),
+    let is_mit_with_limited_card_data_enabled = dimensions
+        .get_should_enable_mit_with_limited_card_data(
+            state.store.as_ref(),
+            state.superposition_service.as_deref(),
+            Some(&payment_data.get_payment_intent().payment_id),
         )
         .await;
-    let is_mit_with_limited_card_data_enabled = match config {
-        Ok(conf) => conf.config == "true",
-        Err(error) => {
-            router_env::logger::error!(?error);
-            false
-        }
-    };
 
     utils::when(
         is_card_limited_details_flow && !is_mit_with_limited_card_data_enabled,
@@ -9489,6 +9481,9 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
+    let merchant_id = platform.get_processor().get_account().get_id().clone();
+    let dimensions =
+        configs::dimension_state::Dimensions::new().with_merchant_id(merchant_id.clone());
     // If the connector was already decided previously, use the same connector
     // This is in case of flows like payments_sync, payments_cancel where the successive operations
     // with the connector have to be made using the same connector account.
@@ -9580,9 +9575,11 @@ where
 
             #[cfg(feature = "retry")]
             let should_do_retry = retry::config_should_call_gsm(
+                &state,
                 &*state.store,
-                platform.get_processor().get_account().get_id(),
+                &merchant_id,
                 business_profile,
+                &dimensions,
             )
             .await;
 
@@ -9618,7 +9615,7 @@ where
                 .first()
                 .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
 
-            helpers::override_setup_future_usage_to_on_session(&*state.store, payment_data).await?;
+            helpers::override_setup_future_usage_to_on_session(&state, payment_data).await?;
 
             return Ok(ConnectorCallType::PreDetermined(
                 first_pre_routing_connector_data_list.clone(),
@@ -9906,7 +9903,7 @@ where
             }
         }
         _ => {
-            helpers::override_setup_future_usage_to_on_session(&*state.store, payment_data).await?;
+            helpers::override_setup_future_usage_to_on_session(state, payment_data).await?;
 
             let first_choice = connectors
                 .first()
@@ -10937,100 +10934,105 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         .get_required_value("authentication_connector_details")
         .attach_printable("authentication_connector_details not configured by the merchant")?;
 
-    let authentication_response = if helpers::is_merchant_eligible_authentication_service(
-        platform.get_processor().get_account().get_id(),
-        platform.get_processor().get_account().get_org_id(),
-        &state,
-    )
-    .await?
-    {
-        let routing_region = uas_utils::fetch_routing_region_for_uas(
-            &state,
-            processor_merchant_id.clone(),
+    let dimensions = configs::dimension_state::Dimensions::new()
+        .with_merchant_id(platform.get_processor().get_account().get_id().clone())
+        .with_organization_id(
             platform
                 .get_processor()
                 .get_account()
                 .organization_id
                 .clone(),
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to fetch routing path")?;
-        let auth_response =
-            <ExternalAuthentication as UnifiedAuthenticationService>::authentication(
+        );
+
+    let authentication_response =
+        if helpers::is_merchant_eligible_authentication_service(&dimensions, &state).await {
+            let routing_region = uas_utils::fetch_routing_region_for_uas(
                 &state,
-                &business_profile,
-                &payment_method_details.1,
+                processor_merchant_id.clone(),
+                platform
+                    .get_processor()
+                    .get_account()
+                    .organization_id
+                    .clone(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch routing path")?;
+            let auth_response =
+                <ExternalAuthentication as UnifiedAuthenticationService>::authentication(
+                    &state,
+                    &business_profile,
+                    &payment_method_details.1,
+                    browser_info,
+                    Some(amount),
+                    Some(currency),
+                    authentication::MessageCategory::Payment,
+                    req.device_channel,
+                    authentication.clone(),
+                    return_url,
+                    req.sdk_information.clone(),
+                    req.threeds_method_comp_ind,
+                    optional_customer.and_then(|customer| customer.email.map(pii::Email::from)),
+                    webhook_url,
+                    &merchant_connector_account,
+                    &authentication_connector,
+                    Some(payment_intent.payment_id),
+                    authentication.force_3ds_challenge,
+                    authentication.psd2_sca_exemption_type,
+                    Some(routing_region),
+                )
+                .await?;
+            let authentication = Box::pin(external_authentication_update_trackers(
+                &state,
+                auth_response,
+                authentication.clone(),
+                None,
+                platform.get_processor().get_key_store(),
+                None,
+                None,
+                None,
+                None,
+                req.sdk_information
+                    .and_then(|sdk_information| sdk_information.device_details),
+                None,
+                None,
+            ))
+            .await?;
+            authentication::AuthenticationResponse::try_from(authentication)?
+        } else {
+            Box::pin(authentication_core::perform_authentication(
+                &state,
+                business_profile.merchant_id,
+                authentication_connector,
+                payment_method_details.0,
+                payment_method_details.1,
+                billing_address
+                    .as_ref()
+                    .map(|address| address.into())
+                    .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                        field_name: "billing_address",
+                    })?,
+                shipping_address.as_ref().map(|address| address.into()),
                 browser_info,
+                merchant_connector_account,
                 Some(amount),
                 Some(currency),
                 authentication::MessageCategory::Payment,
                 req.device_channel,
-                authentication.clone(),
+                authentication,
                 return_url,
-                req.sdk_information.clone(),
+                req.sdk_information,
                 req.threeds_method_comp_ind,
                 optional_customer.and_then(|customer| customer.email.map(pii::Email::from)),
                 webhook_url,
-                &merchant_connector_account,
-                &authentication_connector,
-                Some(payment_intent.payment_id),
-                authentication.force_3ds_challenge,
-                authentication.psd2_sca_exemption_type,
-                Some(routing_region),
-            )
-            .await?;
-        let authentication = Box::pin(external_authentication_update_trackers(
-            &state,
-            auth_response,
-            authentication.clone(),
-            None,
-            platform.get_processor().get_key_store(),
-            None,
-            None,
-            None,
-            None,
-            req.sdk_information
-                .and_then(|sdk_information| sdk_information.device_details),
-            None,
-            None,
-        ))
-        .await?;
-        authentication::AuthenticationResponse::try_from(authentication)?
-    } else {
-        Box::pin(authentication_core::perform_authentication(
-            &state,
-            business_profile.merchant_id,
-            authentication_connector,
-            payment_method_details.0,
-            payment_method_details.1,
-            billing_address
-                .as_ref()
-                .map(|address| address.into())
-                .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "billing_address",
-                })?,
-            shipping_address.as_ref().map(|address| address.into()),
-            browser_info,
-            merchant_connector_account,
-            Some(amount),
-            Some(currency),
-            authentication::MessageCategory::Payment,
-            req.device_channel,
-            authentication,
-            return_url,
-            req.sdk_information,
-            req.threeds_method_comp_ind,
-            optional_customer.and_then(|customer| customer.email.map(pii::Email::from)),
-            webhook_url,
-            authentication_details.three_ds_requestor_url.clone(),
-            payment_intent.psd2_sca_exemption_type,
-            payment_intent.payment_id,
-            payment_intent.force_3ds_challenge_trigger.unwrap_or(false),
-            platform.get_processor().get_key_store(),
-        ))
-        .await?
-    };
+                authentication_details.three_ds_requestor_url.clone(),
+                payment_intent.psd2_sca_exemption_type,
+                payment_intent.payment_id,
+                payment_intent.force_3ds_challenge_trigger.unwrap_or(false),
+                platform.get_processor().get_key_store(),
+            ))
+            .await?
+        };
     Ok(services::ApplicationResponse::Json(
         api_models::payments::PaymentsExternalAuthenticationResponse {
             transaction_status: authentication_response.trans_status,

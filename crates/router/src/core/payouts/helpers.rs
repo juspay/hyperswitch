@@ -1495,21 +1495,25 @@ pub async fn get_additional_payout_data(
     pm_data: &api::PayoutMethodData,
     db: &dyn StorageInterface,
     profile_id: &id_type::ProfileId,
+    state: &SessionState,
 ) -> Option<payout_additional::AdditionalPayoutMethodData> {
     match pm_data {
         api::PayoutMethodData::Card(card_data) => {
             let card_isin = Some(card_data.card_number.get_card_isin());
-            let enable_extended_bin =db
-            .find_config_by_key_unwrap_or(
-                format!("{}_enable_extended_card_bin", profile_id.get_string_repr()).as_str(),
-             Some("false".to_string()))
-            .await.map_err(|err| services::logger::error!(message="Failed to fetch the config", extended_card_bin_error=?err)).ok();
+            let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+                .with_profile_id(profile_id.clone());
+            let enable_extended_bin = dimensions
+                .get_enable_extended_card_bin(
+                    state.store.as_ref(),
+                    state.superposition_service.as_deref(),
+                    None,
+                )
+                .await;
 
-            let card_extended_bin = match enable_extended_bin {
-                Some(config) if config.config == "true" => {
-                    Some(card_data.card_number.get_extended_card_bin())
-                }
-                _ => None,
+            let card_extended_bin = if enable_extended_bin {
+                Some(card_data.card_number.get_extended_card_bin())
+            } else {
+                None
             };
             let last4 = Some(card_data.card_number.get_last4());
 

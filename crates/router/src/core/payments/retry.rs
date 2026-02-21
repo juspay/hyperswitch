@@ -3,6 +3,7 @@ use std::vec::IntoIter;
 use common_utils::{ext_traits::Encode, types::MinorUnit};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
+use external_services::superposition;
 use hyperswitch_domain_models::ext_traits::OptionExt;
 use router_env::{
     logger,
@@ -12,6 +13,7 @@ use router_env::{
 use crate::{
     consts,
     core::{
+        configs,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{
             self, complete_connector_service,
@@ -25,7 +27,7 @@ use crate::{
     routes::{
         self,
         app::{self, ReqState},
-        metrics,
+        metrics, SessionState,
     },
     services,
     types::{self, api, domain, storage, transformers::ForeignFrom},
@@ -869,31 +871,43 @@ pub fn make_new_payment_attempt(
 }
 
 pub async fn get_merchant_config_for_gsm(
+    state: &SessionState,
     db: &dyn StorageInterface,
     merchant_id: &common_utils::id_type::MerchantId,
+    dimension: &configs::dimension_state::DimensionsWithMerchantId,
 ) -> bool {
-    let config = db
-        .find_config_by_key_unwrap_or(
-            &merchant_id.get_should_call_gsm_key(),
-            Some("false".to_string()),
+    let should_call_gsm = dimension
+        .get_should_call_gsm(
+            state.store.as_ref(),
+            state.superposition_service.as_deref(),
+            Some(merchant_id),
         )
         .await;
-    match config {
-        Ok(conf) => conf.config == "true",
-        Err(error) => {
-            logger::error!(?error);
-            false
-        }
-    }
+    // let config = db
+    //     .find_config_by_key_unwrap_or(
+    //         &merchant_id.get_should_call_gsm_key(),
+    //         Some("false".to_string()),
+    //     )
+    //     .await;
+    // match config {
+    //     Ok(conf) => conf.config == "true",
+    //     Err(error) => {
+    //         logger::error!(?error);
+    //         false
+    //     }
+    // }
+    should_call_gsm
 }
 
 #[cfg(feature = "v1")]
 pub async fn config_should_call_gsm(
+    state: &SessionState,
     db: &dyn StorageInterface,
     merchant_id: &common_utils::id_type::MerchantId,
     profile: &domain::Profile,
+    dimension: &configs::dimension_state::DimensionsWithMerchantId,
 ) -> bool {
-    let merchant_config_gsm = get_merchant_config_for_gsm(db, merchant_id).await;
+    let merchant_config_gsm = get_merchant_config_for_gsm(state, db, merchant_id, dimension).await;
     let profile_config_gsm = profile.is_auto_retries_enabled;
     merchant_config_gsm || profile_config_gsm
 }
