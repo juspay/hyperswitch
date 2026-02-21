@@ -8482,12 +8482,11 @@ pub fn validate_platform_request_for_marketplace(
 ///
 /// This ensures parent (org) rules take precedence over child (merchant) configurations
 pub async fn is_merchant_eligible_authentication_service(
-    merchant_id: &id_type::MerchantId,
-    org_id: &id_type::OrganizationId,
+    processor: &domain::Processor,
     state: &SessionState,
 ) -> RouterResult<bool> {
     let db = &*state.store;
-    let org_key = org_id.get_authentication_service_eligible_key();
+    let org_key = processor.get_account().get_org_id().get_authentication_service_eligible_key();
     let org_eligible = db
         .find_config_by_key(&org_key)
         .await
@@ -8499,7 +8498,7 @@ pub async fn is_merchant_eligible_authentication_service(
 
     Ok(org_eligible
         .async_unwrap_or_else(|| async {
-            let merchant_key = merchant_id.get_authentication_service_eligible_key();
+            let merchant_key = processor.get_account().get_id().get_authentication_service_eligible_key();
             db.find_config_by_key(&merchant_key)
                 .await
                 .inspect_err(|error| {

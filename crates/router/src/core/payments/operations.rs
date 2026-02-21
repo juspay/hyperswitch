@@ -433,7 +433,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         _payment_data: &mut D,
         _connector_call_type: &ConnectorCallType,
         _business_profile: &domain::Profile,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }

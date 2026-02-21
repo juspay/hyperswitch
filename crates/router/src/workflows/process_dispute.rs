@@ -64,7 +64,7 @@ impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
         let payment_attempt = get_payment_attempt_from_object_reference_id(
             state,
             tracking_data.dispute_payload.object_reference_id.clone(),
-            &platform,
+            platform.get_processor(),
         )
         .await?;
 
