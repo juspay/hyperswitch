@@ -1062,10 +1062,36 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        // Extract amount and currency for integrity check
+        let response_integrity_object = response
+            .nordea_payments_response
+            .as_ref()
+            .and_then(|wrapper| wrapper.payments.first())
+            .and_then(|payment| {
+                payment.amount.as_ref().and_then(|amount| {
+                    payment.currency.as_ref().map(|currency| {
+                        utils::get_authorise_integrity_object(
+                            self.amount_converter,
+                            amount.clone(),
+                            currency.to_string(),
+                        )
+                    })
+                })
+            })
+            .transpose()?;
+
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            if let Some(integrity_object) = response_integrity_object {
+                router_data.request.integrity_object = Some(integrity_object);
+            }
+            router_data
         })
     }
 
@@ -1140,10 +1166,36 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Nor
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
+
+        // Extract amount and currency for integrity check
+        let response_integrity_object = response
+            .payments_response
+            .as_ref()
+            .and_then(|payment| {
+                payment.amount.as_ref().and_then(|amount| {
+                    payment.currency.as_ref().map(|currency| {
+                        utils::get_sync_integrity_object(
+                            self.amount_converter,
+                            amount.clone(),
+                            currency.to_string(),
+                        )
+                    })
+                })
+            })
+            .transpose()?;
+
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed);
+
+        new_router_data.map(|mut router_data| {
+            if let Some(integrity_object) = response_integrity_object {
+                router_data.request.integrity_object = Some(integrity_object);
+            }
+            router_data
         })
     }
 
