@@ -2901,8 +2901,13 @@ pub async fn payout_create_db_entries(
         .clone()
         .or(stored_payout_method_data.cloned())
         .async_and_then(|payout_method_data| async move {
-            helpers::get_additional_payout_data(&payout_method_data, &*state.store, profile_id, state)
-                .await
+            helpers::get_additional_payout_data(
+                &payout_method_data,
+                &*state.store,
+                profile_id,
+                state,
+            )
+            .await
         })
         .await
         // If no payout method data in request but we have a stored payment method, populate from it
@@ -3112,9 +3117,13 @@ pub async fn make_payout_data(
     };
 
     if let Some(payout_method_data) = payout_method_data_req.clone() {
-        let additional_payout_method_data =
-            helpers::get_additional_payout_data(&payout_method_data, &*state.store, &profile_id, state)
-                .await;
+        let additional_payout_method_data = helpers::get_additional_payout_data(
+            &payout_method_data,
+            &*state.store,
+            &profile_id,
+            state,
+        )
+        .await;
 
         let update_additional_payout_method_data =
             storage::PayoutAttemptUpdate::AdditionalPayoutMethodDataUpdate {

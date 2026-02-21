@@ -1550,7 +1550,9 @@ impl EligibilityHandler {
     ) -> CustomResult<Option<AuthenticationSdkNextAction>, ApiErrorResponse> {
         let dimensions = configs::dimension_state::Dimensions::new()
             .with_merchant_id(self.platform.get_processor().get_account().get_id().clone());
-        let should_run = check.should_run(&self.state, &self.platform, &dimensions).await?;
+        let should_run = check
+            .should_run(&self.state, &self.platform, &dimensions)
+            .await?;
         Ok(match should_run {
             true => check
                 .execute_check(
@@ -1739,8 +1741,8 @@ pub async fn authentication_sync_core(
     let merchant_id = merchant_account.get_id();
     let db = &*state.store;
     let key_manager_state = (&state).into();
-    let dimensions = configs::dimension_state::Dimensions::new()
-        .with_merchant_id(merchant_id.clone());
+    let dimensions =
+        configs::dimension_state::Dimensions::new().with_merchant_id(merchant_id.clone());
     let authentication = db
         .find_authentication_by_merchant_id_authentication_id(
             merchant_id,

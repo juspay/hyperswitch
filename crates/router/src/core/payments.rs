@@ -828,12 +828,15 @@ where
 
         let uas_dimensions = configs::dimension_state::Dimensions::new()
             .with_merchant_id(platform.get_processor().get_account().get_id().clone())
-            .with_organization_id(platform.get_processor().get_account().organization_id.clone());
-        let is_eligible_for_uas = helpers::is_merchant_eligible_authentication_service(
-            &uas_dimensions,
-            state,
-        )
-        .await;
+            .with_organization_id(
+                platform
+                    .get_processor()
+                    .get_account()
+                    .organization_id
+                    .clone(),
+            );
+        let is_eligible_for_uas =
+            helpers::is_merchant_eligible_authentication_service(&uas_dimensions, state).await;
 
         if <Req as Authenticate>::is_external_three_ds_data_passed_by_merchant(&req) {
             let maybe_connector_enum = match &connector_details {
@@ -1497,12 +1500,7 @@ where
         )
         .await?;
 
-    validate_for_proxy_payment(
-        state,
-        &payment_data,
-        dimensions,
-    )
-    .await?;
+    validate_for_proxy_payment(state, &payment_data, dimensions).await?;
 
     core_utils::validate_profile_id_from_auth_layer(
         profile_id_from_auth_layer,
@@ -10938,7 +10936,13 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
 
     let dimensions = configs::dimension_state::Dimensions::new()
         .with_merchant_id(platform.get_processor().get_account().get_id().clone())
-        .with_organization_id(platform.get_processor().get_account().organization_id.clone());
+        .with_organization_id(
+            platform
+                .get_processor()
+                .get_account()
+                .organization_id
+                .clone(),
+        );
 
     let authentication_response =
         if helpers::is_merchant_eligible_authentication_service(&dimensions, &state).await {

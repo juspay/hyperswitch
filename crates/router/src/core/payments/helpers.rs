@@ -5346,8 +5346,8 @@ pub async fn get_additional_payment_data(
     match pm_data {
         domain::PaymentMethodData::Card(card_data) => {
             let card_isin = Some(card_data.card_number.get_card_isin());
-            let dimensions = configs::dimension_state::Dimensions::new()
-                .with_profile_id(profile_id.clone());
+            let dimensions =
+                configs::dimension_state::Dimensions::new().with_profile_id(profile_id.clone());
             let enable_extended_bin = dimensions
                 .get_enable_extended_card_bin(
                     state.store.as_ref(),

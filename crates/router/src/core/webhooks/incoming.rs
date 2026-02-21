@@ -504,7 +504,13 @@ async fn fetch_three_ds_execution_path(
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
     let dimensions = configs::dimension_state::Dimensions::new()
         .with_merchant_id(platform.get_processor().get_account().get_id().clone())
-        .with_organization_id(platform.get_processor().get_account().organization_id.clone());
+        .with_organization_id(
+            platform
+                .get_processor()
+                .get_account()
+                .organization_id
+                .clone(),
+        );
 
     let is_merchant_eligible_for_uas =
         payments::helpers::is_merchant_eligible_authentication_service(&dimensions, state).await;

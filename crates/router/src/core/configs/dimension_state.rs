@@ -104,7 +104,10 @@ impl
 
 /// Can only add merchant_id if not already present
 impl<O, P, R, T, PM> Dimensions<NoMerchantId, O, P, R, T, PM> {
-    pub fn with_merchant_id(self, id: id_type::MerchantId) -> Dimensions<HasMerchantId, O, P, R, T, PM> {
+    pub fn with_merchant_id(
+        self,
+        id: id_type::MerchantId,
+    ) -> Dimensions<HasMerchantId, O, P, R, T, PM> {
         Dimensions {
             merchant_id: Some(id),
             organization_id: self.organization_id,
@@ -137,7 +140,10 @@ impl<M, P, R, T, PM> Dimensions<M, NoOrgId, P, R, T, PM> {
 
 /// Can only add profile_id if not already present
 impl<M, O, R, T, PM> Dimensions<M, O, NoProfileId, R, T, PM> {
-    pub fn with_profile_id(self, id: id_type::ProfileId) -> Dimensions<M, O, HasProfileId, R, T, PM> {
+    pub fn with_profile_id(
+        self,
+        id: id_type::ProfileId,
+    ) -> Dimensions<M, O, HasProfileId, R, T, PM> {
         Dimensions {
             merchant_id: self.merchant_id,
             organization_id: self.organization_id,
@@ -338,17 +344,59 @@ impl Default
     }
 }
 
-pub type DimensionsWithMerchantId =
-    Dimensions<HasMerchantId, NoOrgId, NoProfileId, NoPayoutRetryType, NoPaymentMethodType, NoPaymentMethod>;
-pub type DimensionsWithOrgId =
-    Dimensions<NoMerchantId, HasOrgId, NoProfileId, NoPayoutRetryType, NoPaymentMethodType, NoPaymentMethod>;
-pub type DimensionsWithProfileId =
-    Dimensions<NoMerchantId, NoOrgId, HasProfileId, NoPayoutRetryType, NoPaymentMethodType, NoPaymentMethod>;
-pub type DimensionsWithMerchantAndOrgId =
-    Dimensions<HasMerchantId, HasOrgId, NoProfileId, NoPayoutRetryType, NoPaymentMethodType, NoPaymentMethod>;
-pub type DimensionsWithMerchantAndPayoutRetryType =
-    Dimensions<HasMerchantId, NoOrgId, NoProfileId, HasPayoutRetryType, NoPaymentMethodType, NoPaymentMethod>;
-pub type DimensionsWithMerchantAndPaymentMethodType =
-    Dimensions<HasMerchantId, NoOrgId, NoProfileId, NoPayoutRetryType, HasPaymentMethodType, NoPaymentMethod>;
-pub type DimensionsWithMerchantPaymentMethodAndPaymentMethodType =
-    Dimensions<HasMerchantId, NoOrgId, NoProfileId, NoPayoutRetryType, HasPaymentMethodType, HasPaymentMethod>;
+pub type DimensionsWithMerchantId = Dimensions<
+    HasMerchantId,
+    NoOrgId,
+    NoProfileId,
+    NoPayoutRetryType,
+    NoPaymentMethodType,
+    NoPaymentMethod,
+>;
+pub type DimensionsWithOrgId = Dimensions<
+    NoMerchantId,
+    HasOrgId,
+    NoProfileId,
+    NoPayoutRetryType,
+    NoPaymentMethodType,
+    NoPaymentMethod,
+>;
+pub type DimensionsWithProfileId = Dimensions<
+    NoMerchantId,
+    NoOrgId,
+    HasProfileId,
+    NoPayoutRetryType,
+    NoPaymentMethodType,
+    NoPaymentMethod,
+>;
+pub type DimensionsWithMerchantAndOrgId = Dimensions<
+    HasMerchantId,
+    HasOrgId,
+    NoProfileId,
+    NoPayoutRetryType,
+    NoPaymentMethodType,
+    NoPaymentMethod,
+>;
+pub type DimensionsWithMerchantAndPayoutRetryType = Dimensions<
+    HasMerchantId,
+    NoOrgId,
+    NoProfileId,
+    HasPayoutRetryType,
+    NoPaymentMethodType,
+    NoPaymentMethod,
+>;
+pub type DimensionsWithMerchantAndPaymentMethodType = Dimensions<
+    HasMerchantId,
+    NoOrgId,
+    NoProfileId,
+    NoPayoutRetryType,
+    HasPaymentMethodType,
+    NoPaymentMethod,
+>;
+pub type DimensionsWithMerchantPaymentMethodAndPaymentMethodType = Dimensions<
+    HasMerchantId,
+    NoOrgId,
+    NoProfileId,
+    NoPayoutRetryType,
+    HasPaymentMethodType,
+    HasPaymentMethod,
+>;

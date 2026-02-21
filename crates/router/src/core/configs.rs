@@ -163,7 +163,9 @@ pub trait DatabaseBackedConfig: superposition::Config {
     const KEY: &'static str;
 
     /// Generate the database key for this config based on dimensions
-    fn db_key<M, O, P, R, T, PM>(dimensions: &dimension_state::Dimensions<M, O, P, R, T, PM>) -> String;
+    fn db_key<M, O, P, R, T, PM>(
+        dimensions: &dimension_state::Dimensions<M, O, P, R, T, PM>,
+    ) -> String;
 }
 
 /// Fetch configuration value from Superposition with database fallback.

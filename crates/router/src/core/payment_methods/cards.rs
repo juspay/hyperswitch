@@ -86,11 +86,7 @@ use crate::{
         },
         payments::{
             helpers,
-            routing::{
-                self,
-                utils::perform_pre_routing,
-                SessionFlowRoutingInput,
-            },
+            routing::{self, utils::perform_pre_routing, SessionFlowRoutingInput},
         },
         utils as core_utils,
     },
@@ -3045,7 +3041,10 @@ pub async fn list_payment_methods(
             bool,
         > = HashMap::new();
         for intermediate in &response {
-            let key = (intermediate.payment_method, intermediate.payment_method_type);
+            let key = (
+                intermediate.payment_method,
+                intermediate.payment_method_type,
+            );
             if !pre_routing_results.contains_key(&key) {
                 let should_pre_route = perform_pre_routing(
                     &state,
@@ -3061,7 +3060,10 @@ pub async fn list_payment_methods(
         }
 
         response.retain(|intermediate| {
-            let key = (intermediate.payment_method, intermediate.payment_method_type);
+            let key = (
+                intermediate.payment_method,
+                intermediate.payment_method_type,
+            );
             let should_pre_route = pre_routing_results.get(&key).copied().unwrap_or(false);
             if !should_pre_route {
                 return true;

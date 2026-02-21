@@ -370,13 +370,16 @@ pub mod superposition {
     /// Should disable auth tokenization configuration key - controls whether post-authentication card data is tokenized and pushed to external vault
     pub const SHOULD_DISABLE_AUTH_TOKENIZATION: &str = "should_disable_auth_tokenization";
     /// Should enable MIT with limited card data configuration key - controls whether merchant initiated transactions with limited card data are allowed for proxy payments
-    pub const SHOULD_ENABLE_MIT_WITH_LIMITED_CARD_DATA: &str = "should_enable_mit_with_limited_card_data";
+    pub const SHOULD_ENABLE_MIT_WITH_LIMITED_CARD_DATA: &str =
+        "should_enable_mit_with_limited_card_data";
     /// Should perform eligibility check configuration key - controls whether SDK performs eligibility check before payment confirmation
     pub const SHOULD_PERFORM_ELIGIBILITY: &str = "should_perform_eligibility";
     /// Should store eligibility check data for authentication configuration key
-    pub const SHOULD_STORE_ELIGIBILITY_CHECK_DATA_FOR_AUTHENTICATION: &str = "should_store_eligibility_check_data_for_authentication";
+    pub const SHOULD_STORE_ELIGIBILITY_CHECK_DATA_FOR_AUTHENTICATION: &str =
+        "should_store_eligibility_check_data_for_authentication";
     /// Should return raw payment method details configuration key - controls whether external API keys can retrieve unmasked payment method details
-    pub const SHOULD_RETURN_RAW_PAYMENT_METHOD_DETAILS: &str = "should_return_raw_payment_method_details";
+    pub const SHOULD_RETURN_RAW_PAYMENT_METHOD_DETAILS: &str =
+        "should_return_raw_payment_method_details";
     /// Should call PM modular service configuration key - controls whether the organization uses the modular payment method service
     pub const SHOULD_CALL_PM_MODULAR_SERVICE: &str = "should_call_pm_modular_service";
     /// Should call GSM for payout retry configuration key - controls whether GSM-based retry is enabled for payouts
@@ -385,7 +388,6 @@ pub mod superposition {
     pub const SKIP_SAVING_WALLET_AT_CONNECTOR: &str = "skip_saving_wallet_at_connector";
     /// Pre-routing disabled for payment method and payment method type configuration key
     pub const PRE_ROUTING_DISABLED_PM_PMT: &str = "pre_routing_disabled_pm_pmt";
-
 }
 
 #[cfg(test)]

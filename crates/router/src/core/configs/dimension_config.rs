@@ -3,9 +3,9 @@ use external_services::superposition;
 use super::{
     dimension_state::{
         Dimensions, DimensionsWithMerchantAndOrgId, DimensionsWithMerchantAndPaymentMethodType,
-        DimensionsWithMerchantAndPayoutRetryType,
-        DimensionsWithMerchantPaymentMethodAndPaymentMethodType, DimensionsWithMerchantId,
-        DimensionsWithOrgId, DimensionsWithProfileId,
+        DimensionsWithMerchantAndPayoutRetryType, DimensionsWithMerchantId,
+        DimensionsWithMerchantPaymentMethodAndPaymentMethodType, DimensionsWithOrgId,
+        DimensionsWithProfileId,
     },
     fetch_db_with_dimensions, DatabaseBackedConfig,
 };
