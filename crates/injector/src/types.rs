@@ -42,6 +42,8 @@ pub mod models {
     pub enum VaultConnectors {
         /// VGS (Very Good Security) vault connector
         VGS,
+
+        HyperswitchVault,
     }
 
     /// Token data containing vault-specific information for token replacement

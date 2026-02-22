@@ -42,7 +42,7 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
 use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments::{
-    self as payments_grpc, payment_method::PaymentMethod, CardDetails, ClassicReward,
+    self as payments_grpc, payment_method::PaymentMethod, CardDetails, ClassicReward, ProxyCardDetails,
     CryptoCurrency, EVoucher, OpenBanking, PaymentServiceAuthorizeResponse,
 };
 
@@ -1212,10 +1212,8 @@ pub fn build_unified_connector_service_payment_method_for_external_proxy(
                 .card_network
                 .clone()
                 .map(payments_grpc::CardNetwork::foreign_from);
-            let card_details = CardDetails {
-                card_number: Some(CardNumber::from_str(external_vault_card.card_number.peek()).change_context(
-                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason("Failed to parse card number".to_string())
-                )?),
+            let card_details = ProxyCardDetails {
+                card_number: Some(external_vault_card.card_number.expose().into()),
                 card_exp_month: Some(external_vault_card.card_exp_month.expose().into()),
                 card_exp_year: Some(external_vault_card.card_exp_year.expose().into()),
                 card_cvc: Some(external_vault_card.card_cvc.expose().into()),
@@ -1356,7 +1354,7 @@ pub fn parse_merchant_reference_id(id: &str) -> Option<id_type::PaymentReference
 #[cfg(feature = "v2")]
 pub fn build_unified_connector_service_external_vault_proxy_metadata(
     external_vault_merchant_connector_account: MerchantConnectorAccountTypeDetails,
-) -> CustomResult<String, UnifiedConnectorServiceError> {
+) -> CustomResult<Option<String>, UnifiedConnectorServiceError> {
     let external_vault_metadata = external_vault_merchant_connector_account
         .get_metadata()
         .ok_or(UnifiedConnectorServiceError::ParsingFailed)
@@ -1385,7 +1383,21 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
                 }
             ))
         }
-        api_enums::VaultConnectors::HyperswitchVault | api_enums::VaultConnectors::Tokenex => None,
+        api_enums::VaultConnectors::HyperswitchVault =>{
+            // let metadata = ExternalVaultConnectorMetadata {
+            //     proxy_url: common_utils::types::Url("http://localhost:8080/proxy".to_string()),
+            //     certificate: Secret::new("hyperswitch_vault_certificate".to_string()),
+            // };
+
+            Some(external_services::grpc_client::unified_connector_service::ExternalVaultProxyMetadata::HyperswitchVaultProxyMetadata(
+                external_services::grpc_client::unified_connector_service::VgsMetadata {
+                    proxy_url: common_utils::types::Url::wrap(url::Url::parse("http://localhost:8082/proxy").unwrap()),
+                    certificate: Secret::new("aHlwZXJzd2l0Y2hfdmF1bHRfY2VydGlmaWNhdGU6".to_string()),
+                }
+            ))
+
+        },
+        api_enums::VaultConnectors::Tokenex => None,
     };
 
     match unified_service_vault_metdata {
@@ -1394,12 +1406,9 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
                 .change_context(UnifiedConnectorServiceError::ParsingFailed)
                 .attach_printable("Failed to convert External vault metadata to bytes")?;
 
-            Ok(BASE64_ENGINE.encode(&external_vault_metadata_bytes))
+            Ok(Some(BASE64_ENGINE.encode(&external_vault_metadata_bytes)))
         }
-        None => Err(UnifiedConnectorServiceError::NotImplemented(
-            "External vault proxy metadata is not supported for {connector_name}".to_string(),
-        )
-        .into()),
+        None => Ok(None),
     }
 }
 

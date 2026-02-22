@@ -88,6 +88,7 @@ pub struct ConnectorAuthMetadata {
 pub enum ExternalVaultProxyMetadata {
     /// VGS proxy data variant
     VgsMetadata(VgsMetadata),
+    HyperswitchVaultProxyMetadata(VgsMetadata),
 }
 
 /// VGS proxy data

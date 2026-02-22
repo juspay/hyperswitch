@@ -367,7 +367,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             .attach_printable("Failed to fetch Unified Connector Service client")?;
 
         let payment_authorize_request =
-            payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from(&*self)
+            payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from(&*self) //change to authorize only
                 .change_context(ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to construct Payment Authorize Request")?;
 
@@ -402,7 +402,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
 
         let headers_builder = state
             .get_grpc_headers_ucs(unified_connector_service_execution_mode)
-            .external_vault_proxy_metadata(Some(external_vault_proxy_metadata))
+            .external_vault_proxy_metadata(external_vault_proxy_metadata)
             .merchant_reference_id(merchant_reference_id)
             .resource_id(resource_id)
             .lineage_ids(lineage_ids);

@@ -591,6 +591,13 @@ pub mod core {
                         field_name
                     );
                     Ok(extracted_field_value)
+                },
+                injector_types::VaultConnectors::HyperswitchVault => {
+                    logger::debug!(
+                        "Hyperswitch vault: Using direct token replacement for field '{}'",
+                        field_name
+                    );
+                    Ok(extracted_field_value)
                 }
             }
         }
