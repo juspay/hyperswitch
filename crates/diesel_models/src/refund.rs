@@ -67,6 +67,8 @@ pub struct Refund {
     pub processor_transaction_data: Option<String>,
     pub issuer_error_code: Option<String>,
     pub issuer_error_message: Option<String>,
+    pub processor_merchant_id: Option<id_type::MerchantId>,
+    pub created_by: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -119,6 +121,8 @@ pub struct Refund {
     #[diesel(deserialize_as = RequiredFromNullable<id_type::RefundReferenceId>)]
     pub merchant_reference_id: id_type::RefundReferenceId,
     pub connector_id: Option<id_type::MerchantConnectorAccountId>,
+    pub processor_merchant_id: Option<id_type::MerchantId>,
+    pub created_by: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -166,6 +170,8 @@ pub struct RefundNew {
     pub split_refunds: Option<common_types::refunds::SplitRefund>,
     pub processor_refund_data: Option<String>,
     pub processor_transaction_data: Option<String>,
+    pub processor_merchant_id: Option<id_type::MerchantId>,
+    pub created_by: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -213,6 +219,8 @@ pub struct RefundNew {
     pub split_refunds: Option<common_types::refunds::SplitRefund>,
     pub processor_refund_data: Option<String>,
     pub processor_transaction_data: Option<String>,
+    pub processor_merchant_id: Option<id_type::MerchantId>,
+    pub created_by: Option<String>,
 }
 
 #[cfg(feature = "v1")]

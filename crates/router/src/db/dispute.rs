@@ -200,6 +200,8 @@ impl DisputeInterface for MockDb {
             dispute_amount: dispute.dispute_amount,
             organization_id: dispute.organization_id,
             dispute_currency: dispute.dispute_currency,
+            processor_merchant_id: dispute.processor_merchant_id,
+            created_by: dispute.created_by,
         };
 
         locked_disputes.push(new_dispute.clone());
@@ -508,6 +510,8 @@ mod tests {
                 dispute_amount: MinorUnit::new(1040),
                 organization_id: common_utils::id_type::OrganizationId::default(),
                 dispute_currency: Some(Currency::default()),
+                processor_merchant_id: None,
+                created_by: None,
             }
         }
 

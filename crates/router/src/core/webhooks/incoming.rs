@@ -2329,6 +2329,8 @@ pub async fn get_or_update_dispute_object(
                 )?,
                 organization_id: organization_id.clone(),
                 dispute_currency: Some(dispute_details.currency),
+                processor_merchant_id: Some(payment_attempt.processor_merchant_id.clone()),
+                created_by: None,
             };
             state
                 .store

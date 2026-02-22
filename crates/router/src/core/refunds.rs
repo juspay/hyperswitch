@@ -1388,6 +1388,8 @@ pub async fn validate_and_create_refund(
             .clone(),
         processor_transaction_data,
         processor_refund_data: None,
+        processor_merchant_id: Some(platform.get_processor().get_account().get_id().clone()),
+        created_by: None,
     };
 
     let (refund, raw_connector_response) = match db
