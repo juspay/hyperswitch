@@ -117,12 +117,12 @@ pub struct Refund {
     pub unified_message: Option<String>,
     pub processor_refund_data: Option<String>,
     pub processor_transaction_data: Option<String>,
+    pub processor_merchant_id: Option<id_type::MerchantId>,
+    pub created_by: Option<String>,
     pub id: id_type::GlobalRefundId,
     #[diesel(deserialize_as = RequiredFromNullable<id_type::RefundReferenceId>)]
     pub merchant_reference_id: id_type::RefundReferenceId,
     pub connector_id: Option<id_type::MerchantConnectorAccountId>,
-    pub processor_merchant_id: Option<id_type::MerchantId>,
-    pub created_by: Option<String>,
 }
 
 #[cfg(feature = "v1")]
