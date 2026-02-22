@@ -82,7 +82,16 @@ pub async fn get_access_token_from_ucs_response(
 ) -> Option<AccessToken> {
     let ucs_access_token = ucs_state
         .and_then(|state| state.access_token.as_ref())
-        .map(AccessToken::foreign_from)?;
+        .map(AccessToken::foreign_try_from)
+        .transpose()
+        .inspect_err(|err| {
+            logger::warn!(
+                error = ?err,
+                "Invalid access token received from UCS connector state"
+            )
+        })
+        .ok()
+        .flatten()?;
 
     let merchant_id = processor.get_account().get_id();
 
@@ -648,6 +657,7 @@ pub async fn should_call_unified_connector_service_for_webhooks(
 pub fn build_unified_connector_service_payment_method(
     payment_method_data: hyperswitch_domain_models::payment_method_data::PaymentMethodData,
     payment_method_type: Option<PaymentMethodType>,
+    payment_method_token: Option<&hyperswitch_domain_models::router_data::PaymentMethodToken>,
 ) -> CustomResult<payments_grpc::PaymentMethod, UnifiedConnectorServiceError> {
     match payment_method_data {
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(card) => {
@@ -1077,40 +1087,56 @@ pub fn build_unified_connector_service_payment_method(
                 }),
                 hyperswitch_domain_models::payment_method_data::WalletData::ApplePay(
                     apple_pay_wallet_data
-                ) => Ok(payments_grpc::PaymentMethod {
-                    payment_method: Some(PaymentMethod::ApplePay(payments_grpc::AppleWallet {
-                        payment_data: Some(payments_grpc::apple_wallet::PaymentData {
-                            payment_data: Some(payments_grpc::apple_wallet::payment_data::PaymentData::foreign_try_from(&apple_pay_wallet_data.payment_data)?),
-                        }),
-                        payment_method: Some(payments_grpc::apple_wallet::PaymentMethod {
-                            display_name: apple_pay_wallet_data.payment_method.display_name,
-                            network: apple_pay_wallet_data.payment_method.network,
-                            r#type: apple_pay_wallet_data.payment_method.pm_type,
-                        }),
-                        transaction_identifier: apple_pay_wallet_data.transaction_identifier,
-                    })),
-                }),
+                ) => {
+                    let payment_data =
+                        payments_grpc::apple_wallet::payment_data::PaymentData::foreign_try_from((
+                            &apple_pay_wallet_data.payment_data,
+                            payment_method_token,
+                        ))?;
+
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::ApplePay(payments_grpc::AppleWallet {
+                            payment_data: Some(payments_grpc::apple_wallet::PaymentData {
+                                payment_data: Some(payment_data),
+                            }),
+                            payment_method: Some(payments_grpc::apple_wallet::PaymentMethod {
+                                display_name: apple_pay_wallet_data.payment_method.display_name,
+                                network: apple_pay_wallet_data.payment_method.network,
+                                r#type: apple_pay_wallet_data.payment_method.pm_type,
+                            }),
+                            transaction_identifier: apple_pay_wallet_data.transaction_identifier,
+                        })),
+                    })
+                }
                 hyperswitch_domain_models::payment_method_data::WalletData::GooglePay(
                     google_pay_wallet_data,
-                ) => Ok(payments_grpc::PaymentMethod {
-                    payment_method: Some(PaymentMethod::GooglePay(payments_grpc::GoogleWallet {
-                        r#type: google_pay_wallet_data.pm_type,
-                        description: google_pay_wallet_data.description,
-                        info: Some(payments_grpc::google_wallet::PaymentMethodInfo {
-                            card_network: google_pay_wallet_data.info.card_network,
-                            card_details: google_pay_wallet_data.info.card_details,
-                            assurance_details: google_pay_wallet_data.info.assurance_details.map(|details| {
-                                payments_grpc::google_wallet::payment_method_info::AssuranceDetails {
-                                    card_holder_authenticated: details.card_holder_authenticated,
-                                    account_verified: details.account_verified,
-                                }
+                ) => {
+                    let tokenization_data =
+                        payments_grpc::google_wallet::tokenization_data::TokenizationData::foreign_try_from((
+                            &google_pay_wallet_data.tokenization_data,
+                            payment_method_token,
+                        ))?;
+
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::GooglePay(payments_grpc::GoogleWallet {
+                            r#type: google_pay_wallet_data.pm_type,
+                            description: google_pay_wallet_data.description,
+                            info: Some(payments_grpc::google_wallet::PaymentMethodInfo {
+                                card_network: google_pay_wallet_data.info.card_network,
+                                card_details: google_pay_wallet_data.info.card_details,
+                                assurance_details: google_pay_wallet_data.info.assurance_details.map(|details| {
+                                    payments_grpc::google_wallet::payment_method_info::AssuranceDetails {
+                                        card_holder_authenticated: details.card_holder_authenticated,
+                                        account_verified: details.account_verified,
+                                    }
+                                }),
                             }),
-                        }),
-                        tokenization_data: Some(payments_grpc::google_wallet::TokenizationData {
-                            tokenization_data: Some(payments_grpc::google_wallet::tokenization_data::TokenizationData::foreign_try_from(&google_pay_wallet_data.tokenization_data)?),
-                        }),
-                    })),
-                }),
+                            tokenization_data: Some(payments_grpc::google_wallet::TokenizationData {
+                                tokenization_data: Some(tokenization_data),
+                            }),
+                        })),
+                    })
+                }
                 hyperswitch_domain_models::payment_method_data::WalletData::GooglePayThirdPartySdk(
                     google_pay_sdk_data,
                 ) => {
@@ -1193,6 +1219,17 @@ pub fn build_unified_connector_service_payment_method(
                         }
                     )),
                 }),
+                hyperswitch_domain_models::payment_method_data::WalletData::Paze(paze_data) => {
+                    let paze_wallet_data = payments_grpc::paze_wallet::PazeData::foreign_try_from((
+                        &paze_data,
+                        payment_method_token,
+                    ))?;
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::Paze(payments_grpc::PazeWallet {
+                            paze_data: Some(paze_wallet_data),
+                        })),
+                    })
+                }
                 _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
                     "Unimplemented payment method subtype: {payment_method_type:?}"
                 ))

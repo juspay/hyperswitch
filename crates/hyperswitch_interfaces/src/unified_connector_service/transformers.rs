@@ -430,6 +430,17 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
             ) => Ok(Self::ApplePay {
                 auth_code: apple_pay_data.auth_code,
             }),
+            Some(
+                payments_grpc::additional_payment_method_connector_response::PaymentMethodData::BankRedirect(
+                    bank_redirect_data,
+                ),
+            ) => Ok(Self::BankRedirect {
+                interac: bank_redirect_data.interac.map(|_| {
+                    hyperswitch_domain_models::router_data::InteracCustomerInfo {
+                        customer_info: None,
+                    }
+                }),
+            }),
             None => Err(error_stack::Report::new(
                 UnifiedConnectorServiceError::ResponseDeserializationFailed,
             )
