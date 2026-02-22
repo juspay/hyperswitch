@@ -12,7 +12,7 @@ multitenancy_fallback = []
 
 [dependencies]
 error-stack = "0.4.1"
-fred = { version = "7.1.2", features = ["metrics", "partial-tracing", "subscriber-client", "check-unresponsive"] }
+fred = { version = "8.0.6", features = ["metrics", "partial-tracing", "subscriber-client"] }
 futures = "0.3"
 serde = { version = "1.0.219", features = ["derive"] }
 thiserror = "1.0.69"

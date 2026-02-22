@@ -10,7 +10,10 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RedirectForm},
 };
 
-use crate::{helpers::ForeignTryFrom, unified_connector_service::payments_grpc};
+use crate::{
+    helpers::{ForeignFrom, ForeignTryFrom},
+    unified_connector_service::payments_grpc,
+};
 
 /// Unified Connector Service error variants
 #[derive(Debug, Clone, thiserror::Error)]
@@ -401,16 +404,17 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                 domestic_network: card_data.domestic_network,
                 auth_code: card_data.auth_code,
             }),
-            Some(
-                payments_grpc::additional_payment_method_connector_response::PaymentMethodData::Upi(
-                    _,
-                ),
-            ) => {
-                // Upi variant to be updated during #11019 PR merge
-                Err(UnifiedConnectorServiceError::NotImplemented(
-                    "UPI payment method data deserialization".to_string(),
-                )
-                .into())
+            Some(payments_grpc::additional_payment_method_connector_response::PaymentMethodData::Upi(upi_data)) => {
+                let upi_mode = upi_data
+                    .upi_mode
+                    .map(|mode| {
+                        payments_grpc::UpiSource::try_from(mode)
+                            .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                            .attach_printable("Failed to parse upi_mode from UCS connector response")
+                    })
+                    .transpose()?
+                    .map(hyperswitch_domain_models::payment_method_data::UpiSource::foreign_from);
+                Ok(Self::Upi { upi_mode })
             }
             Some(
                 payments_grpc::additional_payment_method_connector_response::PaymentMethodData::GooglePay(
@@ -724,6 +728,21 @@ impl ForeignTryFrom<payments_grpc::HttpMethod> for Method {
                 Err(UnifiedConnectorServiceError::ResponseDeserializationFailed)
                     .attach_printable("Invalid Http Method")
             }
+        }
+    }
+}
+
+impl ForeignFrom<payments_grpc::UpiSource>
+    for hyperswitch_domain_models::payment_method_data::UpiSource
+{
+    fn foreign_from(upi_source: payments_grpc::UpiSource) -> Self {
+        match upi_source {
+            payments_grpc::UpiSource::UpiCc => Self::UpiCc,
+            payments_grpc::UpiSource::UpiCl => Self::UpiCl,
+            payments_grpc::UpiSource::UpiAccount => Self::UpiAccount,
+            payments_grpc::UpiSource::UpiCcCl => Self::UpiCcCl,
+            payments_grpc::UpiSource::UpiPpi => Self::UpiPpi,
+            payments_grpc::UpiSource::UpiVoucher => Self::UpiVoucher,
         }
     }
 }

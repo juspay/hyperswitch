@@ -30,7 +30,10 @@ pub async fn get_user_details(state: web::Data<AppState>, req: HttpRequest) -> H
         &req,
         (),
         |state, user, _, _| user_core::get_user_details(state, user),
-        &auth::DashboardNoPermissionAuth,
+        &auth::DashboardNoPermissionAuth {
+            allow_connected: true,
+            allow_platform: true,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -162,7 +165,10 @@ pub async fn change_password(
         &http_req,
         json_payload.into_inner(),
         |state, user, req, _| user_core::change_password(state, req, user),
-        &auth::DashboardNoPermissionAuth,
+        &auth::DashboardNoPermissionAuth {
+            allow_connected: true,
+            allow_platform: true,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -191,6 +197,8 @@ pub async fn set_dashboard_metadata(
         user_core::dashboard_metadata::set_metadata,
         &auth::JWTAuth {
             permission: Permission::ProfileAccountWrite,
+            allow_connected: true,
+            allow_platform: true,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -217,7 +225,10 @@ pub async fn get_multiple_dashboard_metadata(
         &req,
         payload,
         user_core::dashboard_metadata::get_multiple_metadata,
-        &auth::DashboardNoPermissionAuth,
+        &auth::DashboardNoPermissionAuth {
+            allow_connected: true,
+            allow_platform: true,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -276,6 +287,8 @@ pub async fn create_platform(
         },
         &auth::JWTAuth {
             permission: Permission::OrganizationAccountWrite,
+            allow_connected: true,
+            allow_platform: true,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -299,6 +312,8 @@ pub async fn user_org_create(
         },
         &auth::JWTAuth {
             permission: Permission::TenantAccountWrite,
+            allow_connected: true,
+            allow_platform: true,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -321,6 +336,8 @@ pub async fn user_merchant_account_create(
         },
         &auth::JWTAuth {
             permission: Permission::OrganizationAccountWrite,
+            allow_connected: true,
+            allow_platform: true,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -344,6 +361,8 @@ pub async fn generate_sample_data(
         sample_data::generate_sample_data_for_user,
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentWrite,
+            allow_connected: true,
+            allow_platform: true,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -367,6 +386,8 @@ pub async fn delete_sample_data(
         sample_data::delete_sample_data_for_user,
         &auth::JWTAuth {
             permission: Permission::MerchantAccountWrite,
+            allow_connected: true,
+            allow_platform: true,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -387,6 +408,8 @@ pub async fn list_user_roles_details(
         user_core::list_user_roles_details,
         &auth::JWTAuth {
             permission: Permission::ProfileUserRead,
+            allow_connected: true,
+            allow_platform: true,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -476,6 +499,8 @@ pub async fn invite_multiple_user(
         },
         &auth::JWTAuth {
             permission: Permission::ProfileUserWrite,
+            allow_connected: true,
+            allow_platform: true,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -501,6 +526,8 @@ pub async fn resend_invite(
         },
         &auth::JWTAuth {
             permission: Permission::ProfileUserWrite,
+            allow_connected: true,
+            allow_platform: true,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -616,7 +643,10 @@ pub async fn update_user_account_details(
         &req,
         json_payload.into_inner(),
         user_core::update_user_details,
-        &auth::DashboardNoPermissionAuth,
+        &auth::DashboardNoPermissionAuth {
+            allow_connected: true,
+            allow_platform: true,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -663,7 +693,10 @@ pub async fn totp_reset(state: web::Data<AppState>, req: HttpRequest) -> HttpRes
         &req,
         (),
         |state, user, _, _| user_core::reset_totp(state, user),
-        &auth::DashboardNoPermissionAuth,
+        &auth::DashboardNoPermissionAuth {
+            allow_connected: true,
+            allow_platform: true,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -768,7 +801,10 @@ pub async fn check_two_factor_auth_status(
         &req,
         (),
         |state, user, _, _| user_core::check_two_factor_auth_status(state, user),
-        &auth::DashboardNoPermissionAuth,
+        &auth::DashboardNoPermissionAuth {
+            allow_connected: true,
+            allow_platform: true,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -940,7 +976,10 @@ pub async fn list_orgs_for_user(state: web::Data<AppState>, req: HttpRequest) ->
         &req,
         (),
         |state, user_from_token, _, _| user_core::list_orgs_for_user(state, user_from_token),
-        &auth::DashboardNoPermissionAuth,
+        &auth::DashboardNoPermissionAuth {
+            allow_connected: true,
+            allow_platform: true,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -960,7 +999,10 @@ pub async fn list_merchants_for_user_in_org(
         |state, user_from_token, _, _| {
             user_core::list_merchants_for_user_in_org(state, user_from_token)
         },
-        &auth::DashboardNoPermissionAuth,
+        &auth::DashboardNoPermissionAuth {
+            allow_connected: true,
+            allow_platform: true,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -980,7 +1022,10 @@ pub async fn list_profiles_for_user_in_org_and_merchant(
         |state, user_from_token, _, _| {
             user_core::list_profiles_for_user_in_org_and_merchant_account(state, user_from_token)
         },
-        &auth::DashboardNoPermissionAuth,
+        &auth::DashboardNoPermissionAuth {
+            allow_connected: true,
+            allow_platform: true,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -998,7 +1043,10 @@ pub async fn switch_org_for_user(
         &http_req,
         json_payload.into_inner(),
         |state, user, req, _| user_core::switch_org_for_user(state, req, user),
-        &auth::DashboardNoPermissionAuth,
+        &auth::DashboardNoPermissionAuth {
+            allow_connected: true,
+            allow_platform: true,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -1016,7 +1064,10 @@ pub async fn switch_merchant_for_user_in_org(
         &http_req,
         json_payload.into_inner(),
         |state, user, req, _| user_core::switch_merchant_for_user_in_org(state, req, user),
-        &auth::DashboardNoPermissionAuth,
+        &auth::DashboardNoPermissionAuth {
+            allow_connected: true,
+            allow_platform: true,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -1036,7 +1087,10 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
         |state, user, req, _| {
             user_core::switch_profile_for_user_in_org_and_merchant(state, req, user)
         },
-        &auth::DashboardNoPermissionAuth,
+        &auth::DashboardNoPermissionAuth {
+            allow_connected: true,
+            allow_platform: true,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -1058,6 +1112,8 @@ pub async fn clone_connector(
         |state, _: auth::UserFromToken, req, _| user_core::clone_connector(state, req),
         &auth::JWTAuth {
             permission: Permission::MerchantInternalConnectorWrite,
+            allow_connected: true,
+            allow_platform: true,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -1075,7 +1131,7 @@ pub async fn issue_embedded_token(
         state.clone(),
         &http_req,
         (),
-        |state, auth_data, _, _| {
+        |state, auth_data: auth::AuthenticationData, _, _| {
             user_core::issue_embedded_token(
                 state,
                 auth_data.platform.get_processor().clone(),
@@ -1112,6 +1168,8 @@ pub async fn embedded_token_info(
         &auth::JWTAndEmbeddedAuth {
             merchant_id_from_route: None,
             permission: None,
+            allow_connected: true,
+            allow_platform: true,
         },
         api_locking::LockAction::NotApplicable,
     ))

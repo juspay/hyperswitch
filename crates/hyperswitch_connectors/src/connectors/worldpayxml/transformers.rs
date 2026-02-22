@@ -1014,7 +1014,7 @@ impl TryFrom<&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>> for PaymentSe
 
         let is_three_ds = item.router_data.is_three_ds();
         let (additional_threeds_data, session, accept_header, user_agent_header) =
-            if is_three_ds {
+            if is_three_ds && item.router_data.request.is_card() {
                 let additional_threeds_data = Some(AdditionalThreeDSData {
                     df_reference_id: None,
                     javascript_enabled: false,
