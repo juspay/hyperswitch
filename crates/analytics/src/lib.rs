@@ -1159,6 +1159,7 @@ pub enum AnalyticsFlow {
     GetDisputeMetrics,
     GetSankey,
     GetRoutingEvents,
+    GetPaymentListFromOpenSearch,
 }
 
 impl FlowMetric for AnalyticsFlow {}

@@ -15,22 +15,35 @@ pub struct SearchFilters {
     pub card_last_4: Option<Vec<String>>,
     pub payment_id: Option<Vec<String>>,
     pub amount: Option<Vec<u64>>,
+    pub amount_filter: Option<super::super::payments::AmountFilter>,
     pub customer_id: Option<Vec<String>>,
+    pub authentication_type: Option<Vec<String>>,
+    pub card_discovery: Option<Vec<String>>,
+    pub merchant_order_reference_id: Option<Vec<String>>,
 }
 impl SearchFilters {
     pub fn is_all_none(&self) -> bool {
-        self.payment_method.is_none()
-            && self.currency.is_none()
-            && self.status.is_none()
-            && self.customer_email.is_none()
-            && self.search_tags.is_none()
-            && self.connector.is_none()
-            && self.payment_method_type.is_none()
-            && self.card_network.is_none()
-            && self.card_last_4.is_none()
-            && self.payment_id.is_none()
-            && self.amount.is_none()
-            && self.customer_id.is_none()
+        matches!(
+            self,
+            Self {
+                payment_method: None,
+                currency: None,
+                status: None,
+                customer_email: None,
+                search_tags: None,
+                connector: None,
+                payment_method_type: None,
+                card_network: None,
+                card_last_4: None,
+                payment_id: None,
+                amount: None,
+                amount_filter: None,
+                customer_id: None,
+                authentication_type: None,
+                card_discovery: None,
+                merchant_order_reference_id: None,
+            }
+        )
     }
 }
 
@@ -54,6 +67,8 @@ pub struct GetSearchRequest {
     pub filters: Option<SearchFilters>,
     #[serde(default)]
     pub time_range: Option<TimeRange>,
+    #[serde(default)]
+    pub order: Option<crate::payments::Order>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]

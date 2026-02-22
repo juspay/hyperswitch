@@ -8930,6 +8930,8 @@ pub struct PaymentListFilterConstraints {
     pub merchant_order_reference_id: Option<String>,
     /// Indicates the method by which a card is discovered during a payment
     pub card_discovery: Option<Vec<enums::CardDiscovery>>,
+    /// The list of customer emails to filter payments list
+    pub customer_email: Option<Email>,
 }
 
 #[cfg(feature = "v1")]
@@ -8942,6 +8944,7 @@ impl PaymentListFilterConstraints {
             && self.merchant_connector_id.is_none()
             && self.card_network.is_none()
             && self.card_discovery.is_none()
+            && self.customer_email.is_none()
     }
 }
 
