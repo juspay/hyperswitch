@@ -199,6 +199,7 @@ pub mod models {
             // Keep vault metadata header for processing in make_http_request
 
             // Store backup proxy for make_http_request to use as fallback
+            connection_config.proxy_url = proxy_url.clone();
             connection_config.backup_proxy_url = proxy_url;
             connection_config.client_cert = connection_config.client_cert.or(client_cert);
             connection_config.client_key = connection_config.client_key.or(client_key);
