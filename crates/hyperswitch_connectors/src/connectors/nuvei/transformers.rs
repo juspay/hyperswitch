@@ -49,6 +49,7 @@ use hyperswitch_interfaces::{
     errors::{self},
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
+use router_env::env::{self, Env};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -126,11 +127,14 @@ impl TryFrom<(&types::PaymentsPreAuthenticateRouterData, String)>
             .clone()
             .ok_or_else(missing_field_err("browser_info"))?;
 
-        let return_url = item
-            .request
-            .router_return_url
-            .clone()
-            .ok_or_else(missing_field_err("return_url"))?;
+        let return_url = match env::which() {
+            Env::Development => "https://example.com".to_string(),
+            _ => item
+                .request
+                .router_return_url
+                .clone()
+                .ok_or_else(missing_field_err("return_url"))?,
+        };
 
         let billing_address = item.get_billing().ok().map(|billing| billing.into());
 
@@ -188,11 +192,14 @@ impl TryFrom<(&types::PaymentsPreProcessingRouterData, String)> for NuveiThreeDS
             .clone()
             .ok_or_else(missing_field_err("browser_info"))?;
 
-        let return_url = item
-            .request
-            .router_return_url
-            .clone()
-            .ok_or_else(missing_field_err("return_url"))?;
+        let return_url = match env::which() {
+            Env::Development => "https://example.com".to_string(),
+            _ => item
+                .request
+                .router_return_url
+                .clone()
+                .ok_or_else(missing_field_err("return_url"))?,
+        };
 
         let billing_address = item.get_billing().ok().map(|billing| billing.into());
 
@@ -1085,7 +1092,11 @@ where
         let (item, session_token) = data;
         let base = NuveiPaymentBaseRequest::try_from((item, session_token))?;
 
-        let return_url = item.request.get_return_url_required()?;
+        let return_url = match env::which() {
+            Env::Development => "https://example.com".to_string(),
+            _ => item.request.get_return_url_required()?,
+        };
+
         let address = {
             let mut billing_address = item.get_billing()?.clone();
             billing_address.email = Some(

@@ -31,7 +31,7 @@ pub enum VaultError {
     #[error("The card vault returned an unexpected response: {0:?}")]
     UnexpectedResponseError(bytes::Bytes),
     #[error("Failed to update in PMD table")]
-    UpdateInPaymentMethodDataTableFailed,
+    UpdateInPaymentMethodTableFailed,
     #[error("Failed to fetch payment method in vault")]
     FetchPaymentMethodFailed,
     #[error("Failed to save payment method in vault")]
@@ -46,4 +46,16 @@ pub enum VaultError {
     VaultAPIError,
     #[error("Failed while calling locker API")]
     ApiError,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum ModularPaymentMethodError {
+    #[error("Failed to create payment method")]
+    CreateFailed,
+    #[error("Failed to retrieve payment method")]
+    RetrieveFailed,
+    #[error("Failed to update payment method")]
+    UpdateFailed,
+    #[error("Internal Server Error")]
+    InternalServerError,
 }

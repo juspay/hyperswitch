@@ -112,6 +112,7 @@ impl
                     .get_connector_payment_id()
                     .map(ToString::to_string),
                 connector: self.payment_attempt.connector.clone(),
+                frm_transaction_id: self.fraud_check.frm_transaction_id.clone(),
             }, // self.order_details
             response: Ok(FraudCheckResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId("".to_string()),
@@ -155,6 +156,13 @@ impl
             l2_l3_data: None,
             minor_amount_capturable: None,
             authorized_amount: None,
+            customer_document_details: self
+                .payment_intent
+                .get_customer_document_details()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Failed to extract customer document details from payment_intent",
+                )?,
         };
 
         Ok(router_data)

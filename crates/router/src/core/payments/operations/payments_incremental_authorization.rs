@@ -10,6 +10,7 @@ use router_env::{instrument, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
+        configs::dimension_state::DimensionsWithMerchantId,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{
             self, helpers, operations, CustomerDetails, IncrementalAuthorizationDetails,
@@ -47,6 +48,7 @@ impl<F: Send + Clone + Sync>
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _payment_method_wrapper: Option<operations::PaymentMethodWithRawData>,
     ) -> RouterResult<
         operations::GetTrackerResponse<
             'a,
@@ -133,7 +135,6 @@ impl<F: Send + Clone + Sync>
             payment_attempt,
             currency,
             amount: amount.into(),
-            email: None,
             mandate_id: None,
             mandate_connector: None,
             setup_mandate: None,
@@ -246,6 +247,7 @@ impl<F: Clone + Sync>
             error_message: None,
             connector_authorization_id: None,
             previously_authorized_amount: payment_data.payment_attempt.get_total_amount(),
+            processor_merchant_id: Some(payment_data.payment_intent.processor_merchant_id.clone()),
         };
         let authorization = state
             .store
@@ -320,10 +322,11 @@ impl<F: Clone + Send + Sync>
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
-        _state: &SessionState,
-        _payment_data: &mut payments::PaymentData<F>,
-        _request: Option<CustomerDetails>,
-        _provider: &domain::Provider,
+        state: &SessionState,
+        payment_data: &mut payments::PaymentData<F>,
+        request: Option<CustomerDetails>,
+        provider: &domain::Provider,
+        _dimensions: DimensionsWithMerchantId,
     ) -> CustomResult<
         (
             BoxedOperation<
@@ -336,7 +339,18 @@ impl<F: Clone + Send + Sync>
         ),
         errors::StorageError,
     > {
-        Ok((Box::new(self), None))
+        // Fetching customer here to ensure customer has not been redacted
+        // We do not allow incremental authorization in case the customer has been redacted as it
+        // would be starting new money movement
+        let customer = helpers::get_customer_if_exists(
+            state,
+            request.as_ref().and_then(|r| r.customer_id.as_ref()),
+            payment_data.payment_intent.customer_id.as_ref(),
+            provider,
+        )
+        .await?;
+
+        Ok((Box::new(self), customer))
     }
 
     #[instrument(skip_all)]
