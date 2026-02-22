@@ -119,13 +119,14 @@ impl ForeignFrom<&AccessToken> for ConnectorState {
 fn get_grpc_payment_method_token(
     value: &hyperswitch_domain_models::router_data::PaymentMethodToken,
 ) -> Option<unified_connector_service_masking::Secret<String>> {
-    value
-        .get_payment_method_token()
-        .map(ExposeInterface::expose)
-        .and_then(|token| {
+    match value {
+        hyperswitch_domain_models::router_data::PaymentMethodToken::Token(secret_token) => {
+            let token = secret_token.clone().expose();
             (!token.trim().is_empty())
                 .then(|| unified_connector_service_masking::Secret::new(token))
-        })
+        }
+        _ => None,
+    }
 }
 
 impl
