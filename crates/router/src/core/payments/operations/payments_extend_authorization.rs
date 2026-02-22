@@ -258,7 +258,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsExtendAuthorizationRequest, 
 
     async fn get_connector<'a>(
         &'a self,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         state: &SessionState,
         _request: &api::PaymentsExtendAuthorizationRequest,
         _payment_intent: &storage::PaymentIntent,

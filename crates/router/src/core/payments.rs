@@ -714,7 +714,7 @@ where
         .and_then(|customer| customer.connector_customer.as_ref());
 
     let authentication_type =
-        call_decision_manager(state, platform, &business_profile, &payment_data).await?;
+        call_decision_manager(state, platform.get_processor(), &business_profile, &payment_data).await?;
 
     payment_data.set_authentication_type_in_attempt(authentication_type);
 
@@ -727,7 +727,7 @@ where
         &operation,
         state,
         &req,
-        platform,
+        platform.get_processor(),
         &business_profile,
         &mut payment_data,
         eligible_connectors,
@@ -1510,7 +1510,7 @@ where
     let connector_choice = operation
         .to_domain()?
         .get_connector(
-            &platform,
+            platform.get_processor(),
             &state.clone(),
             &req,
             payment_data.get_payment_intent(),
@@ -2014,7 +2014,7 @@ where
 #[cfg(feature = "v1")]
 pub async fn call_decision_manager<F, D>(
     state: &SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     _business_profile: &domain::Profile,
     payment_data: &D,
 ) -> RouterResult<Option<enums::AuthenticationType>>
@@ -2033,8 +2033,7 @@ where
         payment_data.get_recurring_details(),
         payment_data.get_currency(),
     );
-    let algorithm_ref: api::routing::RoutingAlgorithmRef = platform
-        .get_processor()
+    let algorithm_ref: api::routing::RoutingAlgorithmRef = processor
         .get_account()
         .routing_algorithm
         .clone()
@@ -2047,7 +2046,7 @@ where
     let output = perform_decision_management(
         state,
         algorithm_ref,
-        platform.get_processor().get_account().get_id(),
+        processor.get_account().get_id(),
         &payment_dsl_data,
     )
     .await
@@ -9005,7 +9004,7 @@ pub async fn get_connector_choice<F, Req, D>(
     operation: &BoxedOperation<'_, F, Req, D>,
     state: &SessionState,
     req: &Req,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     business_profile: &domain::Profile,
     payment_data: &mut D,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
@@ -9018,7 +9017,7 @@ where
     let connector_choice = operation
         .to_domain()?
         .get_connector(
-            platform,
+            processor,
             &state.clone(),
             req,
             payment_data.get_payment_intent(),
@@ -9030,7 +9029,7 @@ where
             api::ConnectorChoice::SessionMultiple(connectors) => {
                 let routing_output = perform_session_token_routing(
                     state.clone(),
-                    platform,
+                    processor,
                     business_profile,
                     payment_data,
                     connectors,
@@ -9042,7 +9041,7 @@ where
             api::ConnectorChoice::StraightThrough(straight_through) => {
                 connector_selection(
                     state,
-                    platform,
+                    processor,
                     business_profile,
                     payment_data,
                     Some(straight_through),
@@ -9055,7 +9054,7 @@ where
             api::ConnectorChoice::Decide => {
                 connector_selection(
                     state,
-                    platform,
+                    processor,
                     business_profile,
                     payment_data,
                     None,
@@ -9243,7 +9242,7 @@ where
 #[allow(clippy::too_many_arguments)]
 pub async fn connector_selection<F, D>(
     state: &SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     business_profile: &domain::Profile,
     payment_data: &mut D,
     request_straight_through: Option<serde_json::Value>,
@@ -9286,7 +9285,7 @@ where
 
     let decided_connector = decide_connector(
         state.clone(),
-        platform,
+        processor,
         business_profile,
         payment_data,
         request_straight_through,
@@ -9477,7 +9476,7 @@ pub async fn decide_connector(
 #[cfg(feature = "v1")]
 pub async fn decide_connector<F, D>(
     state: SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     business_profile: &domain::Profile,
     payment_data: &mut D,
     request_straight_through: Option<api::routing::StraightThroughAlgorithm>,
@@ -9581,7 +9580,7 @@ where
             #[cfg(feature = "retry")]
             let should_do_retry = retry::config_should_call_gsm(
                 &*state.store,
-                platform.get_processor().get_account().get_id(),
+                processor.get_account().get_id(),
                 business_profile,
             )
             .await;
@@ -9593,7 +9592,7 @@ where
             {
                 let retryable_connector_data = helpers::get_apple_pay_retryable_connectors(
                     &state,
-                    platform,
+                    processor,
                     payment_data,
                     &pre_routing_connector_data_list,
                     first_routable_connector
@@ -9651,7 +9650,7 @@ where
 
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 &state.clone(),
-                platform.get_processor().get_key_store(),
+                processor.get_key_store(),
                 connectors,
                 &TransactionData::Payment(transaction_data),
                 eligible_connectors,
@@ -9711,7 +9710,7 @@ where
 
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 &state,
-                platform.get_processor().get_key_store(),
+                processor.get_key_store(),
                 connectors,
                 &TransactionData::Payment(transaction_data),
                 eligible_connectors,
@@ -9763,7 +9762,7 @@ where
 
     route_connector_v1_for_payments(
         &state,
-        platform,
+        processor,
         business_profile,
         payment_data,
         transaction_data,
@@ -10390,7 +10389,7 @@ pub fn should_add_task_to_process_tracker<F: Clone, D: OperationSessionGetters<F
 #[cfg(feature = "v1")]
 pub async fn perform_session_token_routing<F, D>(
     state: SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     business_profile: &domain::Profile,
     payment_data: &mut D,
     connectors: api::SessionConnectorDatas,
@@ -10407,8 +10406,8 @@ where
             .get_payment_method_billing()
             .and_then(|address| address.address.as_ref())
             .and_then(|details| details.country),
-        key_store: platform.get_processor().get_key_store(),
-        merchant_account: platform.get_processor().get_account(),
+        key_store: processor.get_key_store(),
+        merchant_account: processor.get_account(),
         payment_attempt: payment_data.get_payment_attempt(),
         payment_intent: payment_data.get_payment_intent(),
         chosen,
@@ -10533,7 +10532,7 @@ pub async fn route_connector_v2_for_payments(
 #[allow(clippy::too_many_arguments)]
 pub async fn route_connector_v1_for_payments<F, D>(
     state: &SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     business_profile: &domain::Profile,
     payment_data: &mut D,
     transaction_data: core_routing::PaymentsDslInput<'_>,
@@ -10559,7 +10558,7 @@ where
 
     let (connectors, routing_approach) = routing::perform_static_routing_v1(
         state,
-        platform.get_processor().get_account().get_id(),
+        processor.get_account().get_id(),
         routing_algorithm_id.as_ref(),
         business_profile,
         &TransactionData::Payment(transaction_data.clone()),
@@ -10574,7 +10573,7 @@ where
 
     let connectors = routing::perform_eligibility_analysis_with_fallback(
         &state.clone(),
-        platform.get_processor().get_key_store(),
+        processor.get_key_store(),
         connectors,
         &TransactionData::Payment(transaction_data),
         eligible_connectors,
@@ -10662,7 +10661,7 @@ where
 #[allow(clippy::too_many_arguments)]
 pub async fn route_connector_v1_for_payouts(
     state: &SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     business_profile: &domain::Profile,
     transaction_data: &payouts::PayoutData,
     routing_data: &mut storage::RoutingData,
@@ -10676,7 +10675,7 @@ pub async fn route_connector_v1_for_payouts(
 #[allow(clippy::too_many_arguments)]
 pub async fn route_connector_v1_for_payouts(
     state: &SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     business_profile: &domain::Profile,
     transaction_data: &payouts::PayoutData,
     routing_data: &mut storage::RoutingData,
@@ -10696,7 +10695,7 @@ pub async fn route_connector_v1_for_payouts(
 
     let (connectors, _) = routing::perform_static_routing_v1(
         state,
-        platform.get_processor().get_account().get_id(),
+        processor.get_account().get_id(),
         routing_algorithm_id.as_ref(),
         business_profile,
         &TransactionData::Payout(transaction_data),
@@ -10705,7 +10704,7 @@ pub async fn route_connector_v1_for_payouts(
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let connectors = routing::perform_eligibility_analysis_with_fallback(
         &state.clone(),
-        platform.get_processor().get_key_store(),
+        processor.get_key_store(),
         connectors,
         &TransactionData::Payout(transaction_data),
         eligible_connectors,
