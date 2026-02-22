@@ -82,7 +82,16 @@ pub async fn get_access_token_from_ucs_response(
 ) -> Option<AccessToken> {
     let ucs_access_token = ucs_state
         .and_then(|state| state.access_token.as_ref())
-        .map(AccessToken::foreign_from)?;
+        .map(AccessToken::foreign_try_from)
+        .transpose()
+        .inspect_err(|err| {
+            logger::warn!(
+                error = ?err,
+                "Invalid access token received from UCS connector state"
+            )
+        })
+        .ok()
+        .flatten()?;
 
     let merchant_id = processor.get_account().get_id();
 
