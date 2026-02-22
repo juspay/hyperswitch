@@ -36,12 +36,9 @@ use crate::{
     core::{
         errors::{self, ConnectorErrorExt, RouterResult, StorageErrorExt},
         mandate,
-        payment_methods::{
-            self,
-            cards::{create_encrypted_data, PmCards},
-            network_tokenization,
-        },
+        payment_methods::{self, cards::PmCards, network_tokenization},
         payments::{self, gateway::context as gateway_context},
+        utils::create_encrypted_data,
     },
     logger,
     routes::{metrics, SessionState},
@@ -323,6 +320,9 @@ where
                                 &key_manager_state,
                                 platform.get_provider().get_key_store(),
                                 pm,
+                                common_utils::type_name!(
+                                    diesel_models::payment_method::PaymentMethod
+                                ),
                             )
                         })
                         .await
@@ -346,6 +346,9 @@ where
                                     &key_manager_state,
                                     platform.get_provider().get_key_store(),
                                     pm_card,
+                                    common_utils::type_name!(
+                                        diesel_models::payment_method::PaymentMethod
+                                    ),
                                 )
                             })
                             .await
@@ -364,6 +367,7 @@ where
                             &key_manager_state,
                             platform.get_provider().get_key_store(),
                             address.clone(),
+                            common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
                         )
                     })
                     .await
@@ -379,6 +383,7 @@ where
                             &key_manager_state,
                             platform.get_processor().get_key_store(),
                             customer_details,
+                            common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
                         )
                     })
                     .await
@@ -725,6 +730,9 @@ where
                                             &key_manager_state,
                                             platform.get_provider().get_key_store(),
                                             pmd,
+                                            common_utils::type_name!(
+                                                diesel_models::payment_method::PaymentMethod
+                                            ),
                                         )
                                     })
                                     .await

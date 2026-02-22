@@ -367,10 +367,11 @@ pub async fn create_profile_from_merchant_account(
     let outgoing_webhook_custom_http_headers = request
         .outgoing_webhook_custom_http_headers
         .async_map(|headers| {
-            core::payment_methods::cards::create_encrypted_data(
+            core::utils::create_encrypted_data(
                 &key_manager_state,
                 key_store,
                 headers,
+                common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
             )
         })
         .await

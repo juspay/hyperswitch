@@ -13,7 +13,7 @@ use rdkafka::message::ToBytes;
 use router_env::logger;
 
 use crate::{
-    core::{errors::StorageErrorExt, payment_methods::cards::create_encrypted_data},
+    core::{errors::StorageErrorExt, utils::create_encrypted_data},
     routes::SessionState,
 };
 type PmMigrationResult<T> = CustomResult<ApplicationResponse<T>, errors::ApiErrorResponse>;
@@ -104,6 +104,9 @@ pub async fn update_payment_method_record(
                                 &key_manager_state,
                                 platform.get_provider().get_key_store(),
                                 pm_api::PaymentMethodsData::Card(card_data),
+                                common_utils::type_name!(
+                                    diesel_models::payment_method::PaymentMethod
+                                ),
                             )
                             .await
                             .change_context(errors::ApiErrorResponse::InternalServerError)

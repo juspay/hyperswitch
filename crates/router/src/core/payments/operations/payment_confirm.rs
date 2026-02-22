@@ -26,7 +26,7 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 #[cfg(feature = "v1")]
 use crate::{
     consts,
-    core::payment_methods::cards::create_encrypted_data,
+    core::utils::create_encrypted_data,
     events::audit_events::{AuditEvent, AuditEventType},
 };
 use crate::{
@@ -2427,7 +2427,12 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let key_manager_state = state.into();
         let billing_details = billing_address
             .async_map(|billing_details| {
-                create_encrypted_data(&key_manager_state, key_store, billing_details)
+                create_encrypted_data(
+                    &key_manager_state,
+                    key_store,
+                    billing_details,
+                    common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+                )
             })
             .await
             .transpose()
@@ -2437,7 +2442,12 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let shipping_address = payment_data.address.get_shipping();
         let shipping_details = shipping_address
             .async_map(|shipping_details| {
-                create_encrypted_data(&key_manager_state, key_store, shipping_details)
+                create_encrypted_data(
+                    &key_manager_state,
+                    key_store,
+                    shipping_details,
+                    common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+                )
             })
             .await
             .transpose()

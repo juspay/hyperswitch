@@ -15,7 +15,10 @@ use common_utils::{crypto::Encryptable, pii::Email};
 use common_utils::{
     errors::CustomResult,
     ext_traits::{AsyncExt, Encode},
-    types::{ConnectorTransactionIdTrait, MinorUnit},
+    types::{
+        keymanager::{Identifier, KeyManagerState},
+        ConnectorTransactionIdTrait, MinorUnit,
+    },
 };
 use diesel_models::refund as diesel_refund;
 use error_stack::{report, ResultExt};
@@ -38,6 +41,7 @@ use masking::{ExposeInterface, PeekInterface};
 use maud::{html, PreEscaped};
 use regex::Regex;
 use router_env::{instrument, tracing};
+use storage_impl::StorageError;
 
 use super::payments::helpers;
 #[cfg(feature = "payouts")]
@@ -2802,38 +2806,56 @@ pub(crate) async fn update_intent_customer_documents(
                 details.customer_document_details = decrypted_document_details;
             }
 
-            let key_manager_state: common_utils::types::keymanager::KeyManagerState = state.into();
+            let key_manager_state: KeyManagerState = state.into();
             let encrypted_customer_details = existing_intent_customer_details
-                .async_map(|value| async move {
-                    let encoded_value = value
-                        .encode_to_value()
-                        .map(Secret::<serde_json::Value, masking::WithType>::new)
-                        .change_context(common_utils::errors::CryptoError::EncodingFailed)
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to encode customer details for encryption")?;
-
-                    hyperswitch_domain_models::type_encryption::crypto_operation(
-                    &key_manager_state,
-                    common_utils::type_name!(diesel_models::PaymentIntent),
-                    hyperswitch_domain_models::type_encryption::CryptoOperation::EncryptOptional(
-                        Some(encoded_value),
-                    ),
-                    common_utils::types::keymanager::Identifier::Merchant(
-                        platform.get_processor().get_account().get_id().to_owned(),
-                    ),
-                    platform.get_processor().get_key_store().key.peek(),
-                )
-                .await
-                .and_then(|val| val.try_into_optionaloperation())
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Encryption operation failed")
+                .async_map(|value| {
+                    create_encrypted_data(
+                        &key_manager_state,
+                        platform.get_processor().get_key_store(),
+                        value,
+                        common_utils::type_name!(diesel_models::PaymentIntent),
+                    )
                 })
                 .await
-                .transpose()?
-                .flatten();
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to encrypt customer details")?;
 
             Ok(encrypted_customer_details)
         }
         Some(api::MandateTransactionType::RecurringMandateTransaction) => Ok(None),
     }
+}
+
+pub async fn create_encrypted_data<T>(
+    key_manager_state: &KeyManagerState,
+    key_store: &domain::MerchantKeyStore,
+    data: T,
+    table_type: &str,
+) -> Result<Encryptable<Secret<serde_json::Value>>, error_stack::Report<StorageError>>
+where
+    T: std::fmt::Debug + serde::Serialize,
+{
+    let key = key_store.key.get_inner().peek();
+    let identifier = Identifier::Merchant(key_store.merchant_id.clone());
+
+    let encoded_data = Encode::encode_to_value(&data)
+        .change_context(StorageError::SerializationFailed)
+        .attach_printable("Unable to encode data")?;
+
+    let secret_data = Secret::<_, masking::WithType>::new(encoded_data);
+
+    let encrypted_data = domain::types::crypto_operation(
+        key_manager_state,
+        table_type,
+        domain::types::CryptoOperation::Encrypt(secret_data),
+        identifier.clone(),
+        key,
+    )
+    .await
+    .and_then(|val| val.try_into_operation())
+    .change_context(StorageError::EncryptionError)
+    .attach_printable_lazy(|| format!("Unable to encrypt data for table: {}", table_type))?;
+
+    Ok(encrypted_data)
 }

@@ -12,9 +12,12 @@ use masking::{ExposeInterface, Secret};
 use router_env::logger;
 
 use crate::{
-    core::payment_methods::{
-        cards::{add_card_to_vault, create_encrypted_data, tokenize_card_flow},
-        network_tokenization, transformers as pm_transformers,
+    core::{
+        payment_methods::{
+            cards::{add_card_to_vault, tokenize_card_flow},
+            network_tokenization, transformers as pm_transformers,
+        },
+        utils::create_encrypted_data,
     },
     errors::{self, RouterResult},
     services,
@@ -279,10 +282,15 @@ where
                 .map(|data| data.into()),
         });
 
-        create_encrypted_data(&self.state.into(), self.key_store, pm_data)
-            .await
-            .inspect_err(|err| logger::info!("Error encrypting payment method data: {:?}", err))
-            .change_context(errors::ApiErrorResponse::InternalServerError)
+        create_encrypted_data(
+            &self.state.into(),
+            self.key_store,
+            pm_data,
+            common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+        )
+        .await
+        .inspect_err(|err| logger::info!("Error encrypting payment method data: {:?}", err))
+        .change_context(errors::ApiErrorResponse::InternalServerError)
     }
     async fn encrypt_network_token(
         &self,
@@ -306,10 +314,15 @@ where
             saved_to_locker,
             co_badged_card_data: None,
         });
-        create_encrypted_data(&self.state.into(), self.key_store, token_data)
-            .await
-            .inspect_err(|err| logger::info!("Error encrypting network token data: {:?}", err))
-            .change_context(errors::ApiErrorResponse::InternalServerError)
+        create_encrypted_data(
+            &self.state.into(),
+            self.key_store,
+            token_data,
+            common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+        )
+        .await
+        .inspect_err(|err| logger::info!("Error encrypting network token data: {:?}", err))
+        .change_context(errors::ApiErrorResponse::InternalServerError)
     }
     async fn fetch_bin_details_and_validate_card_network(
         &self,

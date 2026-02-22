@@ -21,9 +21,8 @@ use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
-        payment_methods::cards::create_encrypted_data,
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
-        utils as core_utils,
+        utils::{self as core_utils, create_encrypted_data},
     },
     events::audit_events::{AuditEvent, AuditEventType},
     routes::{app::ReqState, SessionState},
@@ -971,7 +970,12 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .address
             .get_payment_billing()
             .async_map(|billing_details| {
-                create_encrypted_data(&key_manager_state, key_store, billing_details)
+                create_encrypted_data(
+                    &key_manager_state,
+                    key_store,
+                    billing_details,
+                    common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+                )
             })
             .await
             .transpose()
@@ -982,7 +986,12 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .address
             .get_shipping()
             .async_map(|shipping_details| {
-                create_encrypted_data(&key_manager_state, key_store, shipping_details)
+                create_encrypted_data(
+                    &key_manager_state,
+                    key_store,
+                    shipping_details,
+                    common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+                )
             })
             .await
             .transpose()

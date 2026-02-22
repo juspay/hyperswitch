@@ -44,8 +44,7 @@ use crate::{
     core::{
         card_testing_guard::utils as card_testing_guard_utils,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        mandate,
-        payment_methods::{self, cards::create_encrypted_data},
+        mandate, payment_methods,
         payments::{
             helpers::{
                 self as payments_helpers,
@@ -1075,10 +1074,13 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpd
                         let shipping_details = shipping_address
                             .clone()
                             .async_map(|shipping_details| {
-                                create_encrypted_data(
+                                core_utils::create_encrypted_data(
                                     &key_manager_state,
                                     processor.get_key_store(),
                                     shipping_details,
+                                    common_utils::type_name!(
+                                        diesel_models::payment_method::PaymentMethod
+                                    ),
                                 )
                             })
                             .await
