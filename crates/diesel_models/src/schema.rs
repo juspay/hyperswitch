@@ -975,6 +975,7 @@ diesel::table! {
         version -> ApiVersion,
         #[max_length = 64]
         id -> Nullable<Varchar>,
+        connector_webhook_registration_details -> Nullable<Jsonb>,
     }
 }
 
@@ -1352,6 +1353,8 @@ diesel::table! {
         #[max_length = 255]
         last_modified_by -> Nullable<Varchar>,
         customer_details -> Nullable<Bytea>,
+        #[max_length = 64]
+        locker_fingerprint_id -> Nullable<Varchar>,
     }
 }
 

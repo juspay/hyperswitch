@@ -66,6 +66,8 @@ pub struct ModularPMRetrieveResponse {
     pub storage_type: Option<common_enums::StorageType>,
     pub card_cvc_token_storage: Option<CardCVCTokenStorageDetails>,
     pub raw_payment_method_data: Option<RawPaymentMethodData>,
+    pub billing: Option<hyperswitch_domain_models::address::Address>,
+    pub network_transaction_id: Option<String>,
 }
 /// V2 RawPaymentMethodData enum
 #[derive(Clone, Debug, Deserialize)]

@@ -1314,6 +1314,7 @@ impl webhooks::IncomingWebhook for Payme {
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let resource =
             serde_urlencoded::from_bytes::<payme::WebhookEventDataResourceEvent>(request.body)
@@ -1348,6 +1349,7 @@ impl webhooks::IncomingWebhook for Payme {
     fn get_dispute_details(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<DisputePayload, errors::ConnectorError> {
         let webhook_object =
             serde_urlencoded::from_bytes::<payme::WebhookEventDataResource>(request.body)

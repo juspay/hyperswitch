@@ -24,6 +24,14 @@ impl GlobalCustomerId {
         let global_id = super::GlobalId::generate(cell_id, super::GlobalEntity::Customer);
         Self(global_id)
     }
+
+    /// Create a new GlobalCustomerId without validation
+    /// WARNING: This should only be used when the input is already trusted/validated
+    pub fn new_unchecked(input_string: String) -> Self {
+        let alphanumeric_id = crate::id_type::AlphaNumericId::new_unchecked(input_string);
+        let length_id = crate::id_type::LengthId::new_unchecked(alphanumeric_id);
+        Self(super::GlobalId(length_id))
+    }
 }
 
 impl TryFrom<GlobalCustomerId> for crate::id_type::CustomerId {

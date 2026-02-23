@@ -937,6 +937,7 @@ impl webhooks::IncomingWebhook for Dwolla {
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let details: dwolla::DwollaWebhookDetails = request
             .body
