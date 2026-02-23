@@ -33,7 +33,7 @@ use hyperswitch_domain_models::merchant_connector_account::{
 };
 use hyperswitch_domain_models::{
     platform::Processor,
-    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
     router_flow_types::refunds,
     router_request_types::RefundsData,
     router_response_types::{PaymentsResponseData, RefundsResponseData},
@@ -71,6 +71,41 @@ use crate::{
 };
 
 pub mod transformers;
+/// Returns Apple Pay data from payment method token when it has decrypt data,
+/// otherwise returns the original payment data.
+fn get_apple_pay_payment_data(
+    payment_data: &common_types::payments::ApplePayPaymentData,
+    payment_method_token: Option<&PaymentMethodToken>,
+) -> common_types::payments::ApplePayPaymentData {
+    match (payment_data, payment_method_token) {
+        (
+            common_types::payments::ApplePayPaymentData::Encrypted(_),
+            Some(PaymentMethodToken::ApplePayDecrypt(apple_pay_decrypt_data)),
+        ) => common_types::payments::ApplePayPaymentData::Decrypted(
+            apple_pay_decrypt_data.as_ref().clone(),
+        ),
+        // Fallback: keep original payload for non-matching token cases.
+        _ => payment_data.clone(),
+    }
+}
+
+/// Returns Google Pay tokenization data from payment method token when it has decrypt data,
+/// otherwise returns the original tokenization data.
+fn get_google_pay_tokenization_data(
+    tokenization_data: &common_types::payments::GpayTokenizationData,
+    payment_method_token: Option<&PaymentMethodToken>,
+) -> common_types::payments::GpayTokenizationData {
+    match (tokenization_data, payment_method_token) {
+        (
+            common_types::payments::GpayTokenizationData::Encrypted(_),
+            Some(PaymentMethodToken::GooglePayDecrypt(google_pay_decrypt_data)),
+        ) => common_types::payments::GpayTokenizationData::Decrypted(
+            google_pay_decrypt_data.as_ref().clone(),
+        ),
+        // Fallback: keep original payload for non-matching token cases.
+        _ => tokenization_data.clone(),
+    }
+}
 
 pub async fn get_access_token_from_ucs_response(
     session_state: &SessionState,
@@ -657,7 +692,7 @@ pub async fn should_call_unified_connector_service_for_webhooks(
 pub fn build_unified_connector_service_payment_method(
     payment_method_data: hyperswitch_domain_models::payment_method_data::PaymentMethodData,
     payment_method_type: Option<PaymentMethodType>,
-    payment_method_token: Option<&hyperswitch_domain_models::router_data::PaymentMethodToken>,
+    payment_method_token: Option<&PaymentMethodToken>,
 ) -> CustomResult<payments_grpc::PaymentMethod, UnifiedConnectorServiceError> {
     match payment_method_data {
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(card) => {
@@ -1088,11 +1123,15 @@ pub fn build_unified_connector_service_payment_method(
                 hyperswitch_domain_models::payment_method_data::WalletData::ApplePay(
                     apple_pay_wallet_data
                 ) => {
+                    let apple_pay_payment_data = get_apple_pay_payment_data(
+                        &apple_pay_wallet_data.payment_data,
+                        payment_method_token,
+                    );
+
                     let payment_data =
-                        payments_grpc::apple_wallet::payment_data::PaymentData::foreign_try_from((
-                            &apple_pay_wallet_data.payment_data,
-                            payment_method_token,
-                        ))?;
+                        payments_grpc::apple_wallet::payment_data::PaymentData::foreign_try_from(
+                            &apple_pay_payment_data,
+                        )?;
 
                     Ok(payments_grpc::PaymentMethod {
                         payment_method: Some(PaymentMethod::ApplePay(payments_grpc::AppleWallet {
@@ -1111,11 +1150,15 @@ pub fn build_unified_connector_service_payment_method(
                 hyperswitch_domain_models::payment_method_data::WalletData::GooglePay(
                     google_pay_wallet_data,
                 ) => {
+                    let google_pay_tokenization_data = get_google_pay_tokenization_data(
+                        &google_pay_wallet_data.tokenization_data,
+                        payment_method_token,
+                    );
+
                     let tokenization_data =
-                        payments_grpc::google_wallet::tokenization_data::TokenizationData::foreign_try_from((
-                            &google_pay_wallet_data.tokenization_data,
-                            payment_method_token,
-                        ))?;
+                        payments_grpc::google_wallet::tokenization_data::TokenizationData::foreign_try_from(
+                            &google_pay_tokenization_data,
+                        )?;
 
                     Ok(payments_grpc::PaymentMethod {
                         payment_method: Some(PaymentMethod::GooglePay(payments_grpc::GoogleWallet {
