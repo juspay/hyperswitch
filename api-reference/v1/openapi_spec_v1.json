@@ -14036,31 +14036,6 @@
           "click_to_pay"
         ]
       },
-      "CardInstallmentOption": {
-        "type": "object",
-        "description": "A single installment plan option accepted in request payloads",
-        "required": [
-          "number_of_installments",
-          "billing_frequency",
-          "interest_rate"
-        ],
-        "properties": {
-          "number_of_installments": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Number of installments (e.g., 2, 4, 6)",
-            "minimum": 0
-          },
-          "billing_frequency": {
-            "$ref": "#/components/schemas/BillingFrequency"
-          },
-          "interest_rate": {
-            "type": "number",
-            "format": "double",
-            "description": "Interest rate applied per installment as a percentage"
-          }
-        }
-      },
       "CardNetwork": {
         "type": "string",
         "description": "Indicates the card network.",
@@ -20896,9 +20871,33 @@
           "installments": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/CardInstallmentOption"
+              "$ref": "#/components/schemas/InstallmentOptionData"
             },
             "description": "List of available installment configurations"
+          }
+        }
+      },
+      "InstallmentOptionData": {
+        "type": "object",
+        "description": "A single installment plan option accepted in request payloads",
+        "required": [
+          "number_of_installments",
+          "billing_frequency",
+          "interest_rate"
+        ],
+        "properties": {
+          "number_of_installments": {
+            "type": "string",
+            "format": "binary",
+            "description": "Number of installments (e.g., [3, 6, 12])"
+          },
+          "billing_frequency": {
+            "$ref": "#/components/schemas/BillingFrequency"
+          },
+          "interest_rate": {
+            "type": "number",
+            "format": "double",
+            "description": "Interest rate applied per installment as a percentage"
           }
         }
       },
