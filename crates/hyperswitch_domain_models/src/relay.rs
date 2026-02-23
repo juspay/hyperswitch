@@ -88,8 +88,8 @@ impl From<api_models::relay::RelayData> for RelayData {
                 currency: relay_incremental_authorization_request.currency,
             }),
             api_models::relay::RelayData::Void(relay_void_request) => Self::Void(RelayVoidData {
-                void_amount: relay_void_request.void_amount,
-                void_currency: relay_void_request.void_currency,
+                amount: relay_void_request.amount,
+                currency: relay_void_request.currency,
                 cancellation_reason: relay_void_request.cancellation_reason,
             }),
         }
@@ -132,8 +132,8 @@ impl From<api_models::relay::RelayIncrementalAuthorizationRequestData>
 impl From<api_models::relay::RelayVoidRequestData> for RelayVoidData {
     fn from(relay: api_models::relay::RelayVoidRequestData) -> Self {
         Self {
-            void_amount: relay.void_amount,
-            void_currency: relay.void_currency,
+            amount: relay.amount,
+            currency: relay.currency,
             cancellation_reason: relay.cancellation_reason,
         }
     }
@@ -164,11 +164,23 @@ impl RelayUpdate {
         ),
     ) -> CustomResult<Self, ApiErrorResponse> {
         match response {
-            Err(error) => Ok(Self::ErrorUpdate {
-                error_code: error.code,
-                error_message: error.reason.unwrap_or(error.message),
-                status: common_enums::RelayStatus::Failure,
-            }),
+            Err(error) => {
+                let relay_status = common_enums::RelayStatus::from(status);
+
+                match relay_status {
+                    common_enums::RelayStatus::Failure => Ok(Self::ErrorUpdate {
+                        error_code: error.code,
+                        error_message: error.reason.unwrap_or(error.message),
+                        status: relay_status,
+                    }),
+                    common_enums::RelayStatus::Created
+                    | common_enums::RelayStatus::Pending
+                    | common_enums::RelayStatus::Success => Ok(Self::StatusUpdate {
+                        connector_reference_id: None,
+                        status: relay_status,
+                    }),
+                }
+            }
             Ok(response) => match response {
                 router_response_types::PaymentsResponseData::TransactionResponse {
                     resource_id,
@@ -303,8 +315,8 @@ impl From<RelayData> for api_models::relay::RelayData {
             }
             RelayData::Void(relay_void_request) => {
                 Self::Void(api_models::relay::RelayVoidRequestData {
-                    void_amount: relay_void_request.void_amount,
-                    void_currency: relay_void_request.void_currency,
+                    amount: relay_void_request.amount,
+                    currency: relay_void_request.currency,
                     cancellation_reason: relay_void_request.cancellation_reason,
                 })
             }
@@ -352,8 +364,8 @@ impl From<Relay> for api_models::relay::RelayResponse {
             }
             RelayData::Void(relay_void_request) => {
                 api_models::relay::RelayData::Void(api_models::relay::RelayVoidRequestData {
-                    void_amount: relay_void_request.void_amount,
-                    void_currency: relay_void_request.void_currency,
+                    amount: relay_void_request.amount,
+                    currency: relay_void_request.currency,
                     cancellation_reason: relay_void_request.cancellation_reason,
                 })
             }
@@ -373,7 +385,7 @@ impl From<Relay> for api_models::relay::RelayResponse {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(rename_all = "snake_case", untagged)]
+#[serde(rename_all = "snake_case")]
 pub enum RelayData {
     Refund(RelayRefundData),
     Capture(RelayCaptureData),
@@ -451,8 +463,8 @@ pub struct RelayIncrementalAuthorizationData {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RelayVoidData {
-    pub void_amount: Option<MinorUnit>,
-    pub void_currency: Option<enums::Currency>,
+    pub amount: Option<MinorUnit>,
+    pub currency: Option<enums::Currency>,
     pub cancellation_reason: Option<String>,
 }
 

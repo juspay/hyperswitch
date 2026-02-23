@@ -76,10 +76,10 @@ pub struct RelayIncrementalAuthorizationRequestData {
 pub struct RelayVoidRequestData {
     /// The amount of the transaction that is being voided
     #[schema(value_type = i64 , example = 6540)]
-    pub void_amount: Option<MinorUnit>,
+    pub amount: Option<MinorUnit>,
     /// The currency in which the amount is being voided
     #[schema(value_type = Option<Currency>)]
-    pub void_currency: Option<api_enums::Currency>,
+    pub currency: Option<api_enums::Currency>,
     /// The cancellation reason for voiding the transaction
     #[schema(example = "Requested by merchant")]
     pub cancellation_reason: Option<String>,
