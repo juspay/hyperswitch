@@ -1557,18 +1557,18 @@ impl
 }
 
 impl
-    transformers::ForeignTryFrom<
+    transformers::ForeignTryFrom<(
         &RouterData<ExternalVaultProxy, ExternalVaultProxyPaymentsData, PaymentsResponseData>,
-    > for payments_grpc::PaymentServiceAuthorizeRequest
+        bool,
+    )> for payments_grpc::PaymentServiceAuthorizeRequest
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        router_data: &RouterData<
-            ExternalVaultProxy,
-            ExternalVaultProxyPaymentsData,
-            PaymentsResponseData,
-        >,
+        (router_data, is_network_tokenization_enabled): (
+            &RouterData<ExternalVaultProxy, ExternalVaultProxyPaymentsData, PaymentsResponseData>,
+            bool,
+        ),
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
@@ -1576,6 +1576,7 @@ impl
             unified_connector_service::build_unified_connector_service_payment_method_for_external_proxy(
                 router_data.request.payment_method_data.clone(),
                 router_data.request.payment_method_type,
+                is_network_tokenization_enabled,
             )?
         );
 

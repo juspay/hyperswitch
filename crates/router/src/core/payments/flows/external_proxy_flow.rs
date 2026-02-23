@@ -358,6 +358,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         external_vault_merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         processor: &domain::Processor,
         unified_connector_service_execution_mode: enums::ExecutionMode,
+        is_network_tokenization_enabled: bool,
     ) -> RouterResult<()> {
         let client = state
             .grpc_client
@@ -367,7 +368,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             .attach_printable("Failed to fetch Unified Connector Service client")?;
 
         let payment_authorize_request =
-            payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from(&*self) //change to authorize only
+            payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from((&*self, is_network_tokenization_enabled)) //change to authorize only
                 .change_context(ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to construct Payment Authorize Request")?;
 
