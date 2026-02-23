@@ -84,12 +84,22 @@ pub fn build_upi_wait_screen_data(
         .attach_printable("Failed to serialize WaitScreenInstructions to JSON value")
 }
 
-impl ForeignFrom<&payments_grpc::AccessToken> for AccessToken {
-    fn foreign_from(grpc_token: &payments_grpc::AccessToken) -> Self {
-        Self {
-            token: Secret::new(grpc_token.token.clone()),
+impl transformers::ForeignTryFrom<&payments_grpc::AccessToken> for AccessToken {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(grpc_token: &payments_grpc::AccessToken) -> Result<Self, Self::Error> {
+        let token = grpc_token
+            .token
+            .clone()
+            .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
+                field_name: "token",
+            })
+            .attach_printable("Missing token in AccessToken response")?;
+
+        Ok(Self {
+            token: token.expose().into(),
             expires: grpc_token.expires_in_seconds.unwrap_or_default(),
-        }
+        })
     }
 }
 
@@ -97,7 +107,7 @@ impl ForeignFrom<&AccessToken> for ConnectorState {
     fn foreign_from(access_token: &AccessToken) -> Self {
         Self {
             access_token: Some(payments_grpc::AccessToken {
-                token: access_token.token.peek().to_string(),
+                token: Some(access_token.token.clone().expose().into()),
                 expires_in_seconds: Some(access_token.expires),
                 token_type: None,
             }),
@@ -604,6 +614,14 @@ impl
             .as_ref()
             .map(ConnectorState::foreign_from);
 
+        let merchant_account_metadata = router_data
+            .connector_meta_data
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()
+            .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
+            .map(|s| s.into());
+
         Ok(Self {
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
@@ -615,8 +633,9 @@ impl
             metadata: None,
             webhook_url: None,
             connector_metadata: None,
-            merchant_account_metadata: None,
+            merchant_account_metadata,
             state,
+            test_mode: router_data.test_mode,
         })
     }
 }
@@ -645,11 +664,20 @@ impl
     ) -> Result<Self, Self::Error> {
         let request_ref_id = router_data.connector_request_reference_id.clone();
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
+
+        let merchant_account_metadata = router_data
+            .connector_meta_data
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()
+            .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
+            .map(|s| s.into());
+
         Ok(Self {
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(request_ref_id)),
             }),
-            merchant_account_metadata: None,
+            merchant_account_metadata,
             customer_name: router_data
                 .request
                 .name
@@ -672,6 +700,7 @@ impl
             address: Some(address),
             metadata: None,
             connector_metadata: None,
+            test_mode: router_data.test_mode,
         })
     }
 }
@@ -779,7 +808,27 @@ impl
             merchant_account_metadata,
             metadata: None,
             test_mode: router_data.test_mode,
+            payment_experience: router_data
+                .request
+                .payment_experience
+                .map(payments_grpc::PaymentExperience::foreign_from)
+                .map(Into::into),
         })
+    }
+}
+
+impl ForeignFrom<common_enums::PaymentExperience> for payments_grpc::PaymentExperience {
+    fn foreign_from(tokenization: common_enums::PaymentExperience) -> Self {
+        match tokenization {
+            common_enums::PaymentExperience::RedirectToUrl => Self::RedirectToUrl,
+            common_enums::PaymentExperience::InvokeSdkClient => Self::InvokeSdkClient,
+            common_enums::PaymentExperience::DisplayQrCode => Self::DisplayQrCode,
+            common_enums::PaymentExperience::OneClick => Self::OneClick,
+            common_enums::PaymentExperience::LinkWallet => Self::LinkWallet,
+            common_enums::PaymentExperience::InvokePaymentApp => Self::InvokePaymentApp,
+            common_enums::PaymentExperience::DisplayWaitScreen => Self::DisplayWaitScreen,
+            common_enums::PaymentExperience::CollectOtp => Self::CollectOtp,
+        }
     }
 }
 
@@ -801,6 +850,15 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
+
+        let merchant_account_metadata = router_data
+            .connector_meta_data
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()
+            .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
+            .map(|s| s.into());
+
         Ok(Self {
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
@@ -820,7 +878,8 @@ impl
             state: None,
             browser_info: None,
             connector_metadata: None,
-            merchant_account_metadata: None,
+            merchant_account_metadata,
+            test_mode: router_data.test_mode,
         })
     }
 }
@@ -2869,8 +2928,15 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateAccessToken
                 connector_metadata: None,
             })
         } else {
+            let token = response
+                .access_token
+                .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
+                    field_name: "access_token",
+                })
+                .attach_printable("Missing access_token in CreateAccessToken response")?;
+
             Ok(AccessToken {
-                token: Secret::new(response.access_token),
+                token: token.expose().into(),
                 expires: response.expires_in_seconds.unwrap_or_default(),
             })
         };
@@ -3068,6 +3134,10 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_method_data
                 Ok(Self::UpiAccount)
             }
             hyperswitch_domain_models::payment_method_data::UpiSource::UpiCcCl => Ok(Self::UpiCcCl),
+            hyperswitch_domain_models::payment_method_data::UpiSource::UpiPpi => Ok(Self::UpiPpi),
+            hyperswitch_domain_models::payment_method_data::UpiSource::UpiVoucher => {
+                Ok(Self::UpiVoucher)
+            }
         }
     }
 }
@@ -5678,15 +5748,24 @@ impl
     ) -> Result<Self, Self::Error> {
         let request_ref_id = router_data.connector_request_reference_id.clone();
 
+        let merchant_account_metadata = router_data
+            .connector_meta_data
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()
+            .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
+            .map(|s| s.into());
+
         Ok(Self {
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(request_ref_id)),
             }),
-            merchant_account_metadata: None,
+            merchant_account_metadata,
             // depricated field we have to remove this/ Default to unspecified connector
             connector: 0_i32,
             metadata: None,
             connector_metadata: None,
+            test_mode: router_data.test_mode,
         })
     }
 }

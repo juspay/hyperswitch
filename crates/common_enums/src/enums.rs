@@ -2164,6 +2164,8 @@ pub enum PaymentMethodStatus {
     Processing,
     /// Indicates that the payment method is awaiting some data before changing state to active
     AwaitingData,
+    /// Indicates that the payment method is in new state
+    New,
 }
 
 impl From<AttemptStatus> for PaymentMethodStatus {
@@ -2954,6 +2956,7 @@ pub enum RelayType {
     Refund,
     Capture,
     IncrementalAuthorization,
+    Void,
 }
 
 #[derive(
@@ -10556,6 +10559,27 @@ pub enum StorageType {
     Volatile,
     #[default]
     Persistent,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Copy,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum AcknowledgementStatus {
+    Authenticated,
+    Failed,
 }
 
 /// Represents the type of retry for a payment attempt

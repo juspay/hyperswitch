@@ -12,18 +12,24 @@ use hyperswitch_domain_models::payment_method_data::NetworkTokenDetails;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use crate::types::api;
 #[cfg(feature = "v2")]
+use crate::types::storage;
 use crate::{
     consts,
-    types::{domain, storage},
+    types::{api, domain},
 };
 
-#[cfg(feature = "v2")]
 pub trait VaultingInterface {
     fn get_vaulting_request_url() -> &'static str;
 
     fn get_vaulting_flow_name() -> &'static str;
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct VaultFingerprintRequest {
+    pub data: String,
+    pub key: hyperswitch_domain_models::vault::V1VaultEntityId,
 }
 
 #[cfg(feature = "v2")]
@@ -33,13 +39,21 @@ pub struct VaultFingerprintRequest {
     pub key: String,
 }
 
-#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultFingerprintResponse {
     pub fingerprint_id: String,
 }
 
-#[cfg(any(feature = "v2", feature = "tokenization_v2"))]
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct AddVaultRequest<D> {
+    pub entity_id: hyperswitch_domain_models::vault::V1VaultEntityId,
+    pub vault_id: domain::VaultId,
+    pub data: D,
+    pub ttl: i64,
+}
+
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AddVaultRequest<D> {
     pub entity_id: id_type::GlobalCustomerId,
@@ -61,63 +75,63 @@ pub struct AddVaultResponse {
     pub fingerprint_id: Option<String>,
 }
 
-#[cfg(feature = "v2")]
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct InternalAddVaultResponse {
+    pub entity_id: Option<hyperswitch_domain_models::vault::V1VaultEntityId>,
+    pub vault_id: domain::VaultId,
+    pub fingerprint_id: Option<String>,
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AddVault;
 
-#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct GetVaultFingerprint;
 
-#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultRetrieve;
 
-#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultDelete;
 
-#[cfg(feature = "v2")]
 impl VaultingInterface for AddVault {
     fn get_vaulting_request_url() -> &'static str {
-        consts::ADD_VAULT_REQUEST_URL
+        consts::V2_ADD_VAULT_REQUEST_URL
     }
 
     fn get_vaulting_flow_name() -> &'static str {
-        consts::VAULT_ADD_FLOW_TYPE
+        consts::V2_VAULT_ADD_FLOW_TYPE
     }
 }
 
-#[cfg(feature = "v2")]
 impl VaultingInterface for GetVaultFingerprint {
     fn get_vaulting_request_url() -> &'static str {
-        consts::VAULT_FINGERPRINT_REQUEST_URL
+        consts::V2_VAULT_FINGERPRINT_REQUEST_URL
     }
 
     fn get_vaulting_flow_name() -> &'static str {
-        consts::VAULT_GET_FINGERPRINT_FLOW_TYPE
+        consts::V2_VAULT_GET_FINGERPRINT_FLOW_TYPE
     }
 }
 
-#[cfg(feature = "v2")]
 impl VaultingInterface for VaultRetrieve {
     fn get_vaulting_request_url() -> &'static str {
-        consts::VAULT_RETRIEVE_REQUEST_URL
+        consts::V2_VAULT_RETRIEVE_REQUEST_URL
     }
 
     fn get_vaulting_flow_name() -> &'static str {
-        consts::VAULT_RETRIEVE_FLOW_TYPE
+        consts::V2_VAULT_RETRIEVE_FLOW_TYPE
     }
 }
 
-#[cfg(feature = "v2")]
 impl VaultingInterface for VaultDelete {
     fn get_vaulting_request_url() -> &'static str {
-        consts::VAULT_DELETE_REQUEST_URL
+        consts::V2_VAULT_DELETE_REQUEST_URL
     }
 
     fn get_vaulting_flow_name() -> &'static str {
-        consts::VAULT_DELETE_FLOW_TYPE
+        consts::V2_VAULT_DELETE_FLOW_TYPE
     }
 }
 
@@ -130,6 +144,13 @@ pub struct SavedPMLPaymentsInfo {
     pub is_connector_agnostic_mit_enabled: bool,
 }
 
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct VaultRetrieveRequest {
+    pub entity_id: hyperswitch_domain_models::vault::V1VaultEntityId,
+    pub vault_id: domain::VaultId,
+}
+
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultRetrieveRequest {
@@ -137,10 +158,9 @@ pub struct VaultRetrieveRequest {
     pub vault_id: domain::VaultId,
 }
 
-#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultRetrieveResponse {
-    pub data: domain::PaymentMethodVaultingData,
+    pub data: hyperswitch_domain_models::vault::PaymentMethodVaultingData,
 }
 
 #[cfg(feature = "v2")]
@@ -428,4 +448,13 @@ pub struct NetworkTokenMetaDataUpdateBody {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PanMetadataUpdateBody {
     pub card: NetworkTokenRequestorData,
+}
+
+#[cfg(feature = "v2")]
+pub struct PaymentMethodUpdateHandler<'a> {
+    pub platform: &'a hyperswitch_domain_models::platform::Platform,
+    pub profile: &'a hyperswitch_domain_models::business_profile::Profile,
+    pub request: hyperswitch_domain_models::payment_methods::PaymentMethodUpdate,
+    pub payment_method: hyperswitch_domain_models::payment_methods::PaymentMethod,
+    pub state: &'a crate::routes::app::SessionState,
 }

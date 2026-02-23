@@ -1,4 +1,6 @@
 use api_models::customers::CustomerDocumentDetails;
+#[cfg(feature = "v2")]
+use api_models::payment_methods::PaymentMethodId;
 use common_types::primitive_wrappers::CustomerListLimit;
 use common_utils::{
     crypto::Encryptable,
@@ -20,6 +22,8 @@ use router_env::{instrument, tracing};
 
 #[cfg(feature = "v2")]
 use crate::core::payment_methods::cards::create_encrypted_data;
+#[cfg(feature = "v2")]
+use crate::core::payment_methods::delete_payment_method_by_record;
 #[cfg(feature = "v1")]
 use crate::utils::CustomerAddress;
 use crate::{
@@ -700,13 +704,20 @@ pub async fn list_customers_with_count(
 #[instrument(skip_all)]
 pub async fn delete_customer(
     state: SessionState,
-    provider: domain::Provider,
+    platform: domain::Platform,
     id: id_type::GlobalCustomerId,
+    profile: domain::Profile,
 ) -> errors::CustomerResponse<customers::CustomerDeleteResponse> {
     let db = &*state.store;
     let key_manager_state = &(&state).into();
-    id.redact_customer_details_and_generate_response(db, &provider, key_manager_state, &state)
-        .await
+    id.redact_customer_details_and_generate_response(
+        db,
+        &platform,
+        key_manager_state,
+        &state,
+        profile,
+    )
+    .await
 }
 
 #[cfg(feature = "v2")]
@@ -715,10 +726,12 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
     async fn redact_customer_details_and_generate_response<'a>(
         &'a self,
         db: &'a dyn StorageInterface,
-        provider: &'a domain::Provider,
+        platform: &'a domain::Platform,
         key_manager_state: &'a KeyManagerState,
         state: &'a SessionState,
+        profile: domain::Profile,
     ) -> errors::CustomerResponse<customers::CustomerDeleteResponse> {
+        let provider = platform.get_provider();
         let customer_orig = db
             .find_customer_by_global_id(
                 self,
@@ -742,27 +755,11 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
             .find_payment_method_list_by_global_customer_id(provider.get_key_store(), self, None)
             .await
         {
-            // check this in review
             Ok(customer_payment_methods) => {
                 for pm in customer_payment_methods.into_iter() {
-                    if pm.get_payment_method_type() == Some(enums::PaymentMethod::Card) {
-                        cards::delete_card_by_locker_id(
-                            state,
-                            self,
-                            provider.get_account().get_id(),
-                        )
+                    delete_payment_method_by_record(db, state, platform, &profile, pm)
                         .await
                         .switch()?;
-                    }
-                    // No solution as of now, need to discuss this further with payment_method_v2
-
-                    // db.delete_payment_method(
-                    //     key_manager_state,
-                    //     key_store,
-                    //     pm,
-                    // )
-                    // .await
-                    // .switch()?;
                 }
             }
             Err(error) => {
@@ -839,7 +836,7 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
         Ok(services::ApplicationResponse::Json(response))
     }
 }
-
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 trait CustomerDeleteBridge {
     async fn redact_customer_details_and_generate_response<'a>(
@@ -848,6 +845,18 @@ trait CustomerDeleteBridge {
         provider: &'a domain::Provider,
         key_manager_state: &'a KeyManagerState,
         state: &'a SessionState,
+    ) -> errors::CustomerResponse<customers::CustomerDeleteResponse>;
+}
+#[cfg(feature = "v2")]
+#[async_trait::async_trait]
+trait CustomerDeleteBridge {
+    async fn redact_customer_details_and_generate_response<'a>(
+        &'a self,
+        db: &'a dyn StorageInterface,
+        platform: &'a domain::Platform,
+        key_manager_state: &'a KeyManagerState,
+        state: &'a SessionState,
+        profile: domain::Profile,
     ) -> errors::CustomerResponse<customers::CustomerDeleteResponse>;
 }
 
