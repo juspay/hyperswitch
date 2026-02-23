@@ -89,9 +89,7 @@ pub async fn get_access_token_from_ucs_response(
                 error = ?err,
                 "Invalid access token received from UCS connector state"
             )
-        })
-        .ok()
-        .flatten()?;
+        })?;
 
     let merchant_id = processor.get_account().get_id();
 

@@ -799,7 +799,6 @@ impl
             request_ref_id,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             handle_response,
-            payment_experience: None,
             setup_future_usage: setup_future_usage.map(|s| s.into()),
             connector_order_reference_id,
             amount: router_data.request.amount.get_amount_as_i64(),
@@ -3504,19 +3503,16 @@ impl
     ) -> Result<Self, Self::Error> {
         let mut converted_paze_data = Self::foreign_try_from(wallet_data)?;
 
-        match (&converted_paze_data, payment_method_token) {
-            (
-                payments_grpc::paze_wallet::PazeData::CompleteResponse(_),
-                Some(hyperswitch_domain_models::router_data::PaymentMethodToken::PazeDecrypt(
-                    paze_decrypted_data,
-                )),
-            ) => {
-                converted_paze_data =
-                    Self::DecryptedData(payments_grpc::PazeDecryptedData::foreign_try_from(
-                        paze_decrypted_data.as_ref(),
-                    )?);
-            }
-            _ => {}
+        if let (
+            Self::CompleteResponse(_),
+            Some(hyperswitch_domain_models::router_data::PaymentMethodToken::PazeDecrypt(
+                paze_decrypted_data,
+            )),
+        ) = (&converted_paze_data, payment_method_token)
+        {
+            converted_paze_data = Self::DecryptedData(
+                payments_grpc::PazeDecryptedData::foreign_try_from(paze_decrypted_data.as_ref())?,
+            );
         }
 
         Ok(converted_paze_data)
@@ -3539,19 +3535,17 @@ impl
     ) -> Result<Self, Self::Error> {
         let mut converted_payment_data = Self::foreign_try_from(payment_data)?;
 
-        match (&converted_payment_data, payment_method_token) {
-            (
-                payments_grpc::apple_wallet::payment_data::PaymentData::EncryptedData(_),
-                Some(hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(
-                    apple_pay_decrypt_data,
-                )),
-            ) => {
-                let token_payment_data = common_types::payments::ApplePayPaymentData::Decrypted(
-                    apple_pay_decrypt_data.as_ref().clone(),
-                );
-                converted_payment_data = Self::foreign_try_from(&token_payment_data)?;
-            }
-            _ => {}
+        if let (
+            Self::EncryptedData(_),
+            Some(hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(
+                apple_pay_decrypt_data,
+            )),
+        ) = (&converted_payment_data, payment_method_token)
+        {
+            let token_payment_data = common_types::payments::ApplePayPaymentData::Decrypted(
+                apple_pay_decrypt_data.as_ref().clone(),
+            );
+            converted_payment_data = Self::foreign_try_from(&token_payment_data)?;
         }
 
         Ok(converted_payment_data)
@@ -3615,21 +3609,18 @@ impl
     ) -> Result<Self, Self::Error> {
         let mut converted_tokenization_data = Self::foreign_try_from(tokenization_data)?;
 
-        match (&converted_tokenization_data, payment_method_token) {
-            (
-                payments_grpc::google_wallet::tokenization_data::TokenizationData::EncryptedData(_),
-                Some(hyperswitch_domain_models::router_data::PaymentMethodToken::GooglePayDecrypt(
-                    google_pay_decrypt_data,
-                )),
-            ) => {
-                let tokenization_data_from_token =
-                    common_types::payments::GpayTokenizationData::Decrypted(
-                        google_pay_decrypt_data.as_ref().clone(),
-                    );
-                converted_tokenization_data =
-                    Self::foreign_try_from(&tokenization_data_from_token)?;
-            }
-            _ => {}
+        if let (
+            Self::EncryptedData(_),
+            Some(hyperswitch_domain_models::router_data::PaymentMethodToken::GooglePayDecrypt(
+                google_pay_decrypt_data,
+            )),
+        ) = (&converted_tokenization_data, payment_method_token)
+        {
+            let tokenization_data_from_token =
+                common_types::payments::GpayTokenizationData::Decrypted(
+                    google_pay_decrypt_data.as_ref().clone(),
+                );
+            converted_tokenization_data = Self::foreign_try_from(&tokenization_data_from_token)?;
         }
 
         Ok(converted_tokenization_data)
