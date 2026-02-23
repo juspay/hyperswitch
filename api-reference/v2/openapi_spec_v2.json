@@ -17565,6 +17565,11 @@
           },
           "saved_to_locker": {
             "type": "boolean"
+          },
+          "par": {
+            "type": "string",
+            "example": "522134KAVJ1JPZ8L77N0Z2LRYZS7J",
+            "nullable": true
           }
         }
       },
@@ -21702,6 +21707,14 @@
           "keep_alive": {
             "type": "boolean",
             "description": "Whether the card with new status should be listed in the session"
+          },
+          "network_token": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokenResponse"
+              }
+            ],
+            "nullable": true
           }
         }
       },
