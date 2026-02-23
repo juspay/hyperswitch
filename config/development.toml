@@ -532,6 +532,9 @@ debit = { currency = "INR,USD,GBP,EUR" }
 [pm_filters.truelayer]
 open_banking_uk = { currency = "GBP,EUR" }
 
+[payout_method_filters.truelayer]
+open_banking_uk = { currency = "GBP,EUR,PLN" }
+
 [pm_filters.plaid]
 open_banking_pis = { currency = "EUR,GBP" }
 
@@ -1131,7 +1134,7 @@ connectors_with_delayed_session_response = "trustpay,payme"
 pay_later = "klarna,affirm,afterpay_clearpay"
 
 [webhook_source_verification_call]
-connectors_with_webhook_source_verification_call = "paypal"
+connectors_with_webhook_source_verification_call = "paypal, truelayer"
 
 [billing_connectors_payment_sync]
 billing_connectors_which_require_payment_sync = "stripebilling, recurly"
@@ -1433,7 +1436,7 @@ enabled = "true"
 [grpc_client.unified_connector_service]
 base_url = "http://localhost:8000"
 connection_timeout = 10
-ucs_only_connectors = "paytm, phonepe, hyperpg, truelayer"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "paytm, phonepe, hyperpg"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode"    # Comma-separated list of connectors to disable UCS PSync call
 
 [revenue_recovery]
