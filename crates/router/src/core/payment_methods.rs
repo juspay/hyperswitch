@@ -4580,7 +4580,7 @@ pub async fn payment_methods_session_create(
         sdk_authorization,
         None,
         None,
-        Some(request.storage_type),
+        request.storage_type,
         None,
         None,
     );
@@ -4643,12 +4643,12 @@ pub async fn payment_methods_session_update(
         .attach_printable("Failed to update payment methods session in db")?;
 
     let response = transformers::generate_payment_method_session_response(
-        update_state_change,
+        update_state_change.clone(),
         Secret::new("CLIENT_SECRET_REDACTED".to_string()),
         None, // sdk_authorization is not returned for non-create flows
         None, // TODO: send associated payments response based on the expandable param
         None,
-        None,
+        update_state_change.storage_type,
         None,
         None,
     );
@@ -4700,12 +4700,12 @@ pub async fn payment_methods_session_retrieve(
         .flatten();
 
     let response = transformers::generate_payment_method_session_response(
-        payment_method_session_domain_model,
+        payment_method_session_domain_model.clone(),
         Secret::new("CLIENT_SECRET_REDACTED".to_string()),
         None, // sdk_authorization is not returned for non-create flows
         None, // TODO: send associated payments response based on the expandable param
         None,
-        None,
+        payment_method_session_domain_model.storage_type,
         expiry.map(|time| {
             payment_methods::CardCVCTokenStorageDetails::generate_expiry_timestamp(time)
         }),
@@ -4803,12 +4803,12 @@ pub async fn payment_methods_session_update_payment_method(
     .attach_printable("Failed to update saved payment method")?;
 
     let response = transformers::generate_payment_method_session_response(
-        updated_payment_method_session,
+        updated_payment_method_session.clone(),
         Secret::new("CLIENT_SECRET_REDACTED".to_string()),
         None, // sdk_authorization is not returned for non-create flows
         None, // TODO: send associated payments response based on the expandable param
         None,
-        None,
+        updated_payment_method_session.storage_type,
         update_response.card_cvc_token_storage,
         update_response.payment_method_data.clone(),
     );
@@ -5003,10 +5003,7 @@ pub async fn payment_methods_session_confirm(
         })
         .or_else(|| payment_method_session_billing.clone());
 
-    let storage_type = get_storage_type_for_payment_method_create(
-        request.storage_type,
-        payment_method_session.storage_type,
-    )?;
+    let storage_type = payment_method_session.storage_type;
 
     let create_payment_method_request = get_payment_method_create_request(
         request
@@ -5142,7 +5139,7 @@ pub async fn payment_methods_session_confirm(
         None, // sdk_authorization is not returned for non-create flows
         payments_response,
         (tokenization_response.flatten()),
-        Some(payment_method_response.storage_type),
+        payment_method_response.storage_type,
         payment_method_response.card_cvc_token_storage,
         None,
     );
@@ -5150,25 +5147,6 @@ pub async fn payment_methods_session_confirm(
     Ok(services::ApplicationResponse::Json(
         payment_method_session_response,
     ))
-}
-
-#[cfg(feature = "v2")]
-pub fn get_storage_type_for_payment_method_create(
-    request_storage_type: Option<enums::StorageType>,
-    session_storage_type: enums::StorageType,
-) -> RouterResult<enums::StorageType> {
-    match session_storage_type {
-        // If volatile return Volatile
-        enums::StorageType::Volatile => Ok(enums::StorageType::Volatile),
-
-        // If persistent, validate that request_storage_type exists
-        enums::StorageType::Persistent => request_storage_type.ok_or(
-            errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "storage_type",
-            }
-            .into(),
-        ),
-    }
 }
 
 #[cfg(feature = "v2")]

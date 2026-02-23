@@ -378,6 +378,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Tokenio => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Tokenio::new())))
                 }
+                // enums::Connector::Truelayer => {
+                //     Ok(ConnectorEnum::Old(Box::new(connector::Truelayer::new())))
+                // }
                 enums::Connector::Trustpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Trustpay::new())))
                 }
