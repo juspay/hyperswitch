@@ -713,8 +713,13 @@ where
         .as_ref()
         .and_then(|customer| customer.connector_customer.as_ref());
 
-    let authentication_type =
-        call_decision_manager(state, platform.get_processor(), &business_profile, &payment_data).await?;
+    let authentication_type = call_decision_manager(
+        state,
+        platform.get_processor(),
+        &business_profile,
+        &payment_data,
+    )
+    .await?;
 
     payment_data.set_authentication_type_in_attempt(authentication_type);
 
