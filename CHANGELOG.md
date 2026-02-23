@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.02.0-hotfix3
+
+### Features
+
+- **connector:** [Worldpayxml] Implement mandates for ApplePay and GooglePay ([#11356](https://github.com/juspay/hyperswitch/pull/11356)) ([`5d6dd50`](https://github.com/juspay/hyperswitch/commit/5d6dd50e4eeedea56021a28580ea4d1a46c0a3f5))
+
+### Bug Fixes
+
+- **connector:** [WorldpayWPG] Mandates Flow for Wallets When Authentication Type is three_ds ([#11357](https://github.com/juspay/hyperswitch/pull/11357)) ([`4898d2e`](https://github.com/juspay/hyperswitch/commit/4898d2ed75d2c48c380aff9d9bed3a6e29153857))
+
+**Full Changelog:** [`2026.02.02.0-hotfix2...2026.02.02.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2026.02.02.0-hotfix2...2026.02.02.0-hotfix3)
+
+- - -
+
 ## 2026.02.02.0-hotfix2
 
 ### Bug Fixes
