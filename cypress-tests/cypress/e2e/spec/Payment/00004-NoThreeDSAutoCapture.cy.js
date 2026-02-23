@@ -20,31 +20,35 @@ describe("Card - NoThreeDS payment flow test", () => {
       "PaymentIntent"
     ];
 
-    cy.task("cli_log", "Create Payment Intent");
-    cy.createPaymentIntentTest(
-      fixtures.createPaymentBody,
-      data,
-      "no_three_ds",
-      "automatic",
-      globalState
+    cy.step("Create Payment Intent", () =>
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      )
     );
 
     if (!utils.should_continue_further(data)) return;
 
-    cy.task("cli_log", "Payment Methods Call");
-    cy.paymentMethodsCallTest(globalState);
+    cy.step("Payment Methods Call", () =>
+      cy.paymentMethodsCallTest(globalState)
+    );
 
     const confirmData = getConnectorDetails(globalState.get("connectorId"))[
       "card_pm"
     ]["No3DSAutoCapture"];
 
-    cy.task("cli_log", "Confirm Payment");
-    cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+    cy.step("Confirm Payment", () =>
+      cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState) 
+    );
 
     if (!utils.should_continue_further(confirmData)) return;
 
-    cy.task("cli_log", "Retrieve Payment");
-    cy.retrievePaymentCallTest({ globalState, data: confirmData });
+    cy.step("Retrieve Payment", () =>
+      cy.retrievePaymentCallTest({ globalState, data: confirmData })
+    );
   });
 
   it("Card-NoThreeDS payment flow test Create+Confirm", () => {
@@ -52,19 +56,21 @@ describe("Card - NoThreeDS payment flow test", () => {
       "No3DSAutoCapture"
     ];
 
-    cy.task("cli_log", "Create and Confirm Payment");
-    cy.createConfirmPaymentTest(
-      fixtures.createConfirmPaymentBody,
-      data,
-      "no_three_ds",
-      "automatic",
-      globalState
+    cy.step("Create and Confirm Payment", () =>
+      cy.createConfirmPaymentTest(
+        fixtures.createConfirmPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      )
     );
 
     if (!utils.should_continue_further(data)) return;
 
-    cy.task("cli_log", "Retrieve Payment");
-    cy.retrievePaymentCallTest({ globalState, data });
+    cy.step("Retrieve Payment", () =>
+      cy.retrievePaymentCallTest({ globalState, data })
+    );
   });
 
   it("Card-NoThreeDS payment with shipping cost", () => {
@@ -72,30 +78,34 @@ describe("Card - NoThreeDS payment flow test", () => {
       "PaymentIntentWithShippingCost"
     ];
 
-    cy.task("cli_log", "Create Payment Intent");
-    cy.createPaymentIntentTest(
-      fixtures.createPaymentBody,
-      data,
-      "no_three_ds",
-      "automatic",
-      globalState
+    cy.step("Create Payment Intent with shipping cost", () =>
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      )
     );
 
     if (!utils.should_continue_further(data)) return;
 
-    cy.task("cli_log", "Payment Methods Call");
-    cy.paymentMethodsCallTest(globalState);
+    cy.step("Payment Methods Call", () =>
+      cy.paymentMethodsCallTest(globalState)
+    );
 
     const confirmData = getConnectorDetails(globalState.get("connectorId"))[
       "card_pm"
     ]["PaymentConfirmWithShippingCost"];
 
-    cy.task("cli_log", "Confirm Payment");
-    cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+    cy.step("Confirm Payment with shipping cost", () =>
+      cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState)
+    );
 
     if (!utils.should_continue_further(confirmData)) return;
 
-    cy.task("cli_log", "Retrieve Payment");
-    cy.retrievePaymentCallTest({ globalState, data: confirmData });
+    cy.step("Retrieve Payment with shipping cost", () =>
+      cy.retrievePaymentCallTest({ globalState, data: confirmData })
+    );
   });
 });
