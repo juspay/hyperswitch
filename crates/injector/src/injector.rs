@@ -808,7 +808,7 @@ pub mod core {
             &self,
             request: &InjectorRequest,
         ) -> error_stack::Result<String, InjectorError> {
-            let vault_data = request.token_data.specific_token_data.expose().clone();
+            let vault_data = request.token_data.specific_token_data.clone().expose().clone();
 
             logger::debug!("Extracting token (card_number) from vault data for v2/proxy flow");
 
