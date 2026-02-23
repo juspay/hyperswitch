@@ -55,13 +55,13 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
     ]["Capture"];
 
     cy.step("Capture Payment", () =>
-    cy.captureCallTest(fixtures.captureBody, captureData, globalState)
+      cy.captureCallTest(fixtures.captureBody, captureData, globalState)
     );
 
     if (!utils.should_continue_further(captureData)) return;
 
     cy.step("Retrieve Payment after Capture", () =>
-    cy.retrievePaymentCallTest({ globalState, data: captureData })
+      cy.retrievePaymentCallTest({ globalState, data: captureData })
     );
   });
 
@@ -156,13 +156,13 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
       "No3DSManualCapture"
     ];
     cy.step("Create and Confirm Payment Intent", () =>
-    cy.createConfirmPaymentTest(
-      fixtures.createConfirmPaymentBody,
-      data,
-      "no_three_ds",
-      "manual",
-      globalState
-    )
+      cy.createConfirmPaymentTest(
+        fixtures.createConfirmPaymentBody,
+        data,
+        "no_three_ds",
+        "manual",
+        globalState
+      )
     );
 
     if (!utils.should_continue_further(data)) return;
@@ -182,7 +182,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
     if (!utils.should_continue_further(partialCaptureData)) return;
 
     cy.step("Retrieve Payment after Partial Capture", () =>
-      cy.retrievePaymentCallTest({ globalState, data: partialCaptureData }) 
+      cy.retrievePaymentCallTest({ globalState, data: partialCaptureData })
     );
   });
 });

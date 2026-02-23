@@ -20,20 +20,20 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
       "PaymentIntent"
     ];
 
-    cy.step("Create Payment Intent", () => 
-    cy.createPaymentIntentTest(
-      fixtures.createPaymentBody,
-      data,
-      "no_three_ds",
-      "manual",
-      globalState
-    )
+    cy.step("Create Payment Intent", () =>
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "manual",
+        globalState
+      )
     );
 
     if (!utils.should_continue_further(data)) return;
 
     cy.step("Payment Methods Call", () =>
-    cy.paymentMethodsCallTest(globalState)
+      cy.paymentMethodsCallTest(globalState)
     );
 
     const confirmData = getConnectorDetails(globalState.get("connectorId"))[
@@ -41,13 +41,13 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
     ]["No3DSManualCapture"];
 
     cy.step("Confirm Payment Intent", () =>
-    cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState)
+      cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState)
     );
 
     if (!utils.should_continue_further(confirmData)) return;
 
-    cy.step("Retrieve Payment after Confirmation",() =>
-    cy.retrievePaymentCallTest({ globalState, data: confirmData })
+    cy.step("Retrieve Payment after Confirmation", () =>
+      cy.retrievePaymentCallTest({ globalState, data: confirmData })
     );
 
     const voidData = getConnectorDetails(globalState.get("connectorId"))[
@@ -55,7 +55,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
     ]["VoidAfterConfirm"];
 
     cy.step("Void Payment without Capture", () =>
-    cy.voidCallTest(fixtures.voidBody, voidData, globalState)
+      cy.voidCallTest(fixtures.voidBody, voidData, globalState)
     );
   });
 
@@ -65,13 +65,13 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
     ];
 
     cy.step("Create Payment Intent", () =>
-    cy.createPaymentIntentTest(
-      fixtures.createPaymentBody,
-      data,
-      "no_three_ds",
-      "manual",
-      globalState
-    )
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "manual",
+        globalState
+      )
     );
 
     if (!utils.should_continue_further(data)) return;
@@ -115,7 +115,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
     ]["No3DSManualCapture"];
 
     cy.step("Confirm Payment Intent", () =>
-    cy.confirmCallTest(fixtures.confirmBody, confirmData, false, globalState)
+      cy.confirmCallTest(fixtures.confirmBody, confirmData, false, globalState)
     );
 
     if (!utils.should_continue_further(confirmData)) return;

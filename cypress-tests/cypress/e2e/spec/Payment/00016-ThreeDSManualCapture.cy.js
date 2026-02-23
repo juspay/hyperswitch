@@ -51,7 +51,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
       cy.handleRedirection(globalState, expected_redirection)
     );
 
-    cy.step("Retrieve Payment after Confirmation",() =>
+    cy.step("Retrieve Payment after Confirmation", () =>
       cy.retrievePaymentCallTest({ globalState, data: confirmData })
     );
 
@@ -138,7 +138,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
       cy.handleRedirection(globalState, expected_redirection)
     );
 
-    cy.step("Retrieve Payment after Confirmation",() =>
+    cy.step("Retrieve Payment after Confirmation", () =>
       cy.retrievePaymentCallTest({ globalState, data: confirmData })
     );
 

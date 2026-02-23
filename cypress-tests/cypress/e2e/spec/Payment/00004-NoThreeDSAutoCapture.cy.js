@@ -41,7 +41,7 @@ describe("Card - NoThreeDS payment flow test", () => {
     ]["No3DSAutoCapture"];
 
     cy.step("Confirm Payment", () =>
-      cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState) 
+      cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState)
     );
 
     if (!utils.should_continue_further(confirmData)) return;

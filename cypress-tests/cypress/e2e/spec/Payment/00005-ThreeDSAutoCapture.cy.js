@@ -40,7 +40,6 @@ describe("Card - ThreeDS payment flow test", () => {
       "card_pm"
     ]["3DSAutoCapture"];
 
-
     cy.step("confirm payment intent", () =>
       cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState)
     );
