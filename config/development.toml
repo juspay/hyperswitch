@@ -49,10 +49,12 @@ default_hash_ttl = 900
 use_legacy_version = false
 stream_read_count = 1
 auto_pipeline = true
+broadcast_channel_capacity = 32 
 disable_auto_backpressure = false
 max_in_flight_commands = 5000
 default_command_timeout = 30
 unresponsive_timeout = 10
+unresponsive_check_interval = 2
 max_feed_count = 200
 
 [trace_header]
@@ -1433,7 +1435,7 @@ enabled = "true"
 [grpc_client.unified_connector_service]
 base_url = "http://localhost:8000"
 connection_timeout = 10
-ucs_only_connectors = "paytm, phonepe, hyperpg, truelayer"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "paytm, phonepe, hyperpg"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode"    # Comma-separated list of connectors to disable UCS PSync call
 
 [revenue_recovery]
