@@ -122,6 +122,7 @@ mod taxjar;
 mod tesouro;
 mod tokenex;
 mod tokenio;
+mod truelayer;
 mod trustpay;
 mod trustpayments;
 mod tsys;

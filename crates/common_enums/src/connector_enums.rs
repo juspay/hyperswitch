@@ -179,6 +179,7 @@ pub enum Connector {
     Tesouro,
     Tokenex,
     Tokenio,
+    // Truelayer,
     Trustpay,
     Trustpayments,
     Tsys,
@@ -381,6 +382,7 @@ impl Connector {
             | Self::Taxjar
             | Self::Tesouro
             // | Self::Thunes
+            // | Self::Truelayer
             | Self::Trustpay
             | Self::Trustpayments
             // | Self::Tokenio

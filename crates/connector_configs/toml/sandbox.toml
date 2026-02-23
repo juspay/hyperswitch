@@ -8105,6 +8105,11 @@ options=["Connector"]
 [[payjustnowinstore.pay_later]]
   payment_method_type = "payjustnow"
 
+[truelayer]
+[truelayer.connector_auth.BodyKey]
+  api_key = "Client ID"
+  key1 = "Client Secret"
+
 
 [revolv3]
 [[revolv3.credit]]
