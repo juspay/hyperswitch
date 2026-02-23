@@ -384,6 +384,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::GooglePayCardFundingSource,
         api_models::enums::VaultTokenType,
         api_models::enums::StorageType,
+        api_models::enums::AcknowledgementStatus,
         api_models::admin::MerchantConnectorCreate,
         api_models::admin::AdditionalMerchantData,
         api_models::admin::CardTestingGuardConfig,
@@ -902,6 +903,8 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::payments::CustomTerms,
         common_types::payments::CustomMessage,
         common_types::payments::SdkDisplayMode,
+        common_types::payments::TokenSource,
+        common_types::payments::NetworkTransactionIdAndDecryptedWalletTokenDetails,
     )),
     modifiers(&SecurityAddon)
 )]

@@ -39,6 +39,8 @@ pub struct UpdatePaymentMethodV1Payload {
     pub connector_token_details: Option<ConnectorTokenDetails>,
     /// Network transaction ID for off-session updates.
     pub network_transaction_id: Option<Secret<String>>,
+
+    pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
 }
 
 /// Modular service update request payload.
@@ -50,6 +52,8 @@ pub struct ModularPMUpdateRequest {
     pub connector_token_details: Option<ConnectorTokenDetails>,
     /// Network transaction ID for off-session updates.
     pub network_transaction_id: Option<Secret<String>>,
+
+    pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
 }
 
 /// Payment method update data.
@@ -112,6 +116,7 @@ impl TryFrom<&UpdatePaymentMethodV1Request> for ModularPMUpdateRequest {
             payment_method_data: value.payload.payment_method_data.clone(),
             connector_token_details: value.payload.connector_token_details.clone(),
             network_transaction_id: value.payload.network_transaction_id.clone(),
+            acknowledgement_status: value.payload.acknowledgement_status,
         })
     }
 }

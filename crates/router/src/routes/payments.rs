@@ -105,6 +105,8 @@ pub async fn payments_create(
             })),
             &auth::InternalMerchantIdProfileIdAuth(auth::JWTAuth {
                 permission: Permission::ProfilePaymentWrite,
+                allow_connected: true,
+                allow_platform: false,
             }),
             req.headers(),
         ),
@@ -218,6 +220,8 @@ pub async fn payments_create_intent(
                 },
                 &auth::JWTAuth {
                     permission: Permission::ProfilePaymentWrite,
+                    allow_connected: false,
+                    allow_platform: false,
                 },
                 req.headers(),
             ),
@@ -284,6 +288,8 @@ pub async fn payments_get_intent(
             )),
             &auth::JWTAuth {
                 permission: Permission::ProfileRevenueRecoveryRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -342,6 +348,8 @@ pub async fn revenue_recovery_get_intent(
             )),
             &auth::JWTAuth {
                 permission: Permission::ProfileRevenueRecoveryRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -403,6 +411,8 @@ pub async fn list_payment_attempts(
             },
             &auth::JWTAuth {
                 permission: Permission::ProfilePaymentRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -441,6 +451,8 @@ pub async fn payments_create_and_confirm_intent(
                 },
                 &auth::JWTAuth {
                     permission: Permission::ProfilePaymentWrite,
+                    allow_connected: false,
+                    allow_platform: false,
                 },
                 req.headers(),
             ),
@@ -668,6 +680,8 @@ pub async fn payments_retrieve(
             &*auth_type,
             &auth::JWTAuth {
                 permission: Permission::ProfilePaymentRead,
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -688,10 +702,11 @@ pub async fn payments_retrieve_with_gateway_creds(
         allow_platform_self_operation: false,
     };
 
-    let (auth_type, _auth_flow) = match auth::get_auth_type_and_flow(req.headers(), api_auth) {
-        Ok(auth) => auth,
-        Err(err) => return api::log_and_return_error_response(report!(err)),
-    };
+    let (auth_type, _auth_flow) =
+        match auth::check_authorization_header_or_get_auth(req.headers(), api_auth) {
+            Ok(auth) => auth,
+            Err(err) => return api::log_and_return_error_response(report!(err)),
+        };
 
     tracing::Span::current().record("payment_id", json_payload.payment_id.get_string_repr());
 
@@ -717,7 +732,10 @@ pub async fn payments_retrieve_with_gateway_creds(
         state,
         &req,
         payload,
-        |state, auth, req, req_state| {
+        |state, auth, mut req, req_state| {
+            if let Some(client_secret) = auth.client_secret {
+                req.client_secret = Some(client_secret);
+            }
             payments::payments_core::<
                 api_types::PSync,
                 payment_types::PaymentsResponse,
@@ -1743,6 +1761,8 @@ pub async fn payments_cancel(
             },
             &auth::JWTAuth {
                 permission: Permission::ProfilePaymentWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -1827,6 +1847,8 @@ pub async fn payments_list(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantPaymentRead,
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -1859,6 +1881,8 @@ pub async fn revenue_recovery_invoices_list(
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantPaymentRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -1890,6 +1914,8 @@ pub async fn payments_list(
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantPaymentRead,
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -1927,6 +1953,8 @@ pub async fn profile_payments_list(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfilePaymentRead,
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -1954,6 +1982,8 @@ pub async fn payments_list_by_filter(
         },
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentRead,
+            allow_connected: true,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -1984,6 +2014,8 @@ pub async fn profile_payments_list_by_filter(
         },
         &auth::JWTAuth {
             permission: Permission::ProfilePaymentRead,
+            allow_connected: true,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -2009,6 +2041,8 @@ pub async fn get_filters_for_payments(
         },
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentRead,
+            allow_connected: true,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -2032,6 +2066,8 @@ pub async fn get_payment_filters(
         },
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentRead,
+            allow_connected: true,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -2059,6 +2095,8 @@ pub async fn get_payment_filters_profile(
         },
         &auth::JWTAuth {
             permission: Permission::ProfilePaymentRead,
+            allow_connected: true,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -2086,6 +2124,8 @@ pub async fn get_payment_filters_profile(
         },
         &auth::JWTAuth {
             permission: Permission::ProfilePaymentRead,
+            allow_connected: true,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -2111,6 +2151,8 @@ pub async fn get_payments_aggregates(
         },
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentRead,
+            allow_connected: true,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -2177,6 +2219,8 @@ pub async fn payments_approve(
                 }),
                 &auth::JWTAuth {
                     permission: Permission::ProfilePaymentWrite,
+                    allow_connected: true,
+                    allow_platform: false,
                 },
                 http_req.headers(),
             ),
@@ -2247,6 +2291,8 @@ pub async fn payments_reject(
                 }),
                 &auth::JWTAuth {
                     permission: Permission::ProfilePaymentWrite,
+                    allow_connected: true,
+                    allow_platform: false,
                 },
                 http_req.headers(),
             ),
@@ -3120,6 +3166,8 @@ pub async fn get_payments_aggregates_profile(
         },
         &auth::JWTAuth {
             permission: Permission::ProfilePaymentRead,
+            allow_connected: true,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -3149,6 +3197,8 @@ pub async fn get_payments_aggregates_profile(
         },
         &auth::JWTAuth {
             permission: Permission::ProfilePaymentRead,
+            allow_connected: true,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -3604,6 +3654,8 @@ pub async fn payment_status(
             },
             &auth::JWTAuth {
                 permission: Permission::ProfilePaymentRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -3660,6 +3712,8 @@ pub async fn payments_status_with_gateway_creds(
                 },
                 &auth::JWTAuth {
                     permission: Permission::ProfilePaymentWrite,
+                    allow_connected: false,
+                    allow_platform: false,
                 },
                 req.headers(),
             ),
@@ -3868,6 +3922,8 @@ pub async fn payments_capture(
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAccountWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),

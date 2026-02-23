@@ -24,7 +24,7 @@ pub struct CreatePaymentMethodV1Request {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub customer_id: id_type::CustomerId, // Payment method data will be saved when customer acceptance is given, hence customer id will always be present
     pub payment_method_data: PaymentMethodData,
-    pub billing: Option<payments::Address>,
+    pub billing: Option<hyperswitch_domain_models::address::Address>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     pub storage_type: Option<common_enums::StorageType>,
     pub modular_service_prefix: String,
@@ -82,6 +82,7 @@ pub struct ModularPaymentMethodResponse {
     pub connector_tokens: Option<Vec<ConnectorTokenDetails>>,
     pub network_token: Option<api_models::payment_methods::NetworkTokenResponse>,
     pub storage_type: Option<common_enums::StorageType>,
+    pub billing: Option<hyperswitch_domain_models::address::Address>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
@@ -104,6 +105,7 @@ pub struct CreatePaymentMethodResponse {
     pub payment_method_data: Option<PaymentMethodResponseData>,
     pub connector_tokens: Option<Vec<ConnectorTokenDetails>>,
     pub network_token: Option<api_models::payment_methods::NetworkTokenResponse>,
+    pub billing: Option<hyperswitch_domain_models::address::Address>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -160,7 +162,10 @@ impl TryFrom<&CreatePaymentMethodV1Request> for ModularPMCreateRequest {
             metadata: request.metadata.clone(),
             customer_id: request.customer_id.clone(),
             payment_method_data,
-            billing: request.billing.clone(),
+            billing: request
+                .billing
+                .as_ref()
+                .map(|billing| billing.clone().into()),
             psp_tokenization: None,
             network_tokenization: request.network_tokenization.clone(),
             storage_type: request.storage_type,
@@ -184,6 +189,7 @@ impl TryFrom<ModularPaymentMethodResponse> for CreatePaymentMethodResponse {
             payment_method_data: response.payment_method_data,
             connector_tokens: response.connector_tokens,
             network_token: response.network_token,
+            billing: response.billing,
         })
     }
 }

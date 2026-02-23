@@ -1142,3 +1142,56 @@ pub struct InteracCustomerInfoDetails {
     #[schema(value_type = Option<String>)]
     pub customer_bank_name: Option<Secret<String>>,
 }
+
+/// Network Transaction ID and Decrypted Wallet Token Details
+#[derive(
+    Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct NetworkTransactionIdAndDecryptedWalletTokenDetails {
+    /// The Decrypted Token
+    #[schema(value_type = String, example = "4604000460040787")]
+    #[smithy(value_type = "String")]
+    pub decrypted_token: cards::NetworkToken,
+
+    /// The token's expiry month
+    #[schema(value_type = String, example = "05")]
+    #[smithy(value_type = "String")]
+    pub token_exp_month: Secret<String>,
+
+    /// The token's expiry year
+    #[schema(value_type = String, example = "24")]
+    #[smithy(value_type = "String")]
+    pub token_exp_year: Secret<String>,
+
+    /// The card holder's name
+    #[schema(value_type = String, example = "John Test")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)
+    /// when `setup_future_usage` is set to `off_session`.
+    #[schema(value_type = String)]
+    #[smithy(value_type = "String")]
+    pub network_transaction_id: Secret<String>,
+
+    /// ECI indicator of the card
+    pub eci: Option<String>,
+
+    /// Source of the token
+    #[schema(value_type = Option<TokenSource>, example = "googlepay")]
+    pub token_source: Option<TokenSource>,
+}
+
+#[derive(
+    Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
+)]
+#[schema(example = "google_pay, apple_pay")]
+#[serde(rename_all = "snake_case")]
+/// Source of the token
+pub enum TokenSource {
+    /// Google Pay
+    GooglePay,
+    /// Apple Pay
+    ApplePay,
+}
