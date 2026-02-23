@@ -243,6 +243,26 @@ impl PaymentMethod {
             .await
     }
 
+    pub async fn find_by_global_customer_id_merchant_id_statuses(
+        conn: &PgPooledConn,
+        customer_id: &common_utils::id_type::GlobalCustomerId,
+        merchant_id: &common_utils::id_type::MerchantId,
+        statuses: Vec<storage_enums::PaymentMethodStatus>,
+        limit: Option<i64>,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            dsl::customer_id
+                .eq(customer_id.to_owned())
+                .and(dsl::merchant_id.eq(merchant_id.to_owned()))
+                .and(dsl::status.eq_any(statuses)),
+            limit,
+            None,
+            Some(dsl::last_used_at.desc()),
+        )
+        .await
+    }
+
     pub async fn find_by_global_customer_id_merchant_id_status(
         conn: &PgPooledConn,
         customer_id: &common_utils::id_type::GlobalCustomerId,

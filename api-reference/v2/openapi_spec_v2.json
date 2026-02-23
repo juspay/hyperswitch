@@ -5364,6 +5364,13 @@
           }
         }
       },
+      "AcknowledgementStatus": {
+        "type": "string",
+        "enum": [
+          "authenticated",
+          "failed"
+        ]
+      },
       "AdditionalMerchantData": {
         "oneOf": [
           {
@@ -15827,6 +15834,10 @@
             "description": "Indicates the limit of last used payment methods",
             "example": 1,
             "nullable": true
+          },
+          "include_new": {
+            "type": "boolean",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -19770,6 +19781,36 @@
           }
         }
       },
+      "PaymentIntentStateMetadata": {
+        "type": "object",
+        "description": "Additional metadata for payment intent state containing refunded and disputed amounts",
+        "properties": {
+          "total_refunded_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "total_disputed_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "post_capture_void": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PostCaptureVoidResponse"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "PaymentLinkBackgroundImageConfig": {
         "type": "object",
         "required": [
@@ -21296,6 +21337,14 @@
               }
             ],
             "nullable": true
+          },
+          "acknowledgement_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AcknowledgementStatus"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -21445,14 +21494,6 @@
             "type": "string",
             "description": "The return url to which the customer should be redirected to after adding the payment method",
             "nullable": true
-          },
-          "storage_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/StorageType"
-              }
-            ],
-            "nullable": true
           }
         }
       },
@@ -21525,6 +21566,11 @@
           },
           "storage_type": {
             "$ref": "#/components/schemas/StorageType"
+          },
+          "keep_alive": {
+            "type": "boolean",
+            "description": "Whether the card with new status should be listed in the session",
+            "nullable": true
           }
         }
       },
@@ -21533,7 +21579,9 @@
         "required": [
           "id",
           "expires_at",
-          "client_secret"
+          "client_secret",
+          "storage_type",
+          "keep_alive"
         ],
         "properties": {
           "id": {
@@ -21622,12 +21670,7 @@
             "nullable": true
           },
           "storage_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/StorageType"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/StorageType"
           },
           "card_cvc_token_storage": {
             "allOf": [
@@ -21650,6 +21693,10 @@
             "description": "SDK authorization token for client SDK usage\nContains encoded authentication details for subsequent API calls",
             "example": "cHJvZmlsZV9pZD0uLi4=",
             "nullable": true
+          },
+          "keep_alive": {
+            "type": "boolean",
+            "description": "Whether the card with new status should be listed in the session"
           }
         }
       },
@@ -21687,7 +21734,8 @@
           "active",
           "inactive",
           "processing",
-          "awaiting_data"
+          "awaiting_data",
+          "new"
         ]
       },
       "PaymentMethodSubtypeSpecificData": {
@@ -21864,6 +21912,14 @@
           "network_transaction_id": {
             "type": "string",
             "description": "The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)\nwhen `setup_future_usage` is set to `off_session`.",
+            "nullable": true
+          },
+          "acknowledgement_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AcknowledgementStatus"
+              }
+            ],
             "nullable": true
           }
         },
@@ -25398,6 +25454,47 @@
           "pending",
           "completed",
           "not_found"
+        ]
+      },
+      "PostCaptureVoidResponse": {
+        "type": "object",
+        "description": "Additional metadata for payment intent state containing refunded and disputed amounts",
+        "required": [
+          "updated_at"
+        ],
+        "properties": {
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PostCaptureVoidStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "connector_reference_id": {
+            "type": "string",
+            "description": "Connector reference id for post capture void",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "Description or message related to the post capture void",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the post capture void was last updated"
+          }
+        }
+      },
+      "PostCaptureVoidStatus": {
+        "type": "string",
+        "description": "The status of a post-capture void operation",
+        "enum": [
+          "succeeded",
+          "pending",
+          "failed"
         ]
       },
       "PresenceOfCustomerDuringPayment": {

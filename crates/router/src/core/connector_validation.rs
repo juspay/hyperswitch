@@ -518,6 +518,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 tesouro::transformers::TesouroAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            // api_enums::Connector::Truelayer => {
+            //     truelayer::transformers::TruelayerAuthType::try_from(self.auth_type)?;
+            //     Ok(())
+            // }
             api_enums::Connector::Trustpay => {
                 trustpay::transformers::TrustpayAuthType::try_from(self.auth_type)?;
                 Ok(())
