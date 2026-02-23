@@ -22,7 +22,7 @@ use smithy::SmithyModel;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::domain::{AdyenSplitData, XenditSplitSubMerchantData};
+use crate::domain::{AdyenSplitData, PostCaptureVoidData, XenditSplitSubMerchantData};
 #[derive(
     Serialize,
     Deserialize,
@@ -992,6 +992,25 @@ pub struct PaymentIntentStateMetadata {
     pub total_refunded_amount: Option<MinorUnit>,
     /// Shows up the total disputed amount across all disputes for a particular payment
     pub total_disputed_amount: Option<MinorUnit>,
+    /// Post capture void response details
+    pub post_capture_void: Option<PostCaptureVoidResponse>,
+}
+
+/// Additional metadata for payment intent state containing refunded and disputed amounts
+#[derive(
+    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, AsExpression, FromSqlRow, utoipa::ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct PostCaptureVoidResponse {
+    /// Status of post capture void
+    #[schema(value_type = Option<PostCaptureVoidStatus>)]
+    pub status: enums::PostCaptureVoidStatus,
+    /// Connector reference id for post capture void
+    pub connector_reference_id: Option<String>,
+    /// Description or message related to the post capture void
+    pub description: Option<String>,
+    /// Timestamp when the post capture void was last updated
+    pub updated_at: PrimitiveDateTime,
 }
 
 impl PaymentIntentStateMetadata {
@@ -1017,6 +1036,45 @@ impl PaymentIntentStateMetadata {
                 .get_amount_as_i64();
 
         MinorUnit::new(blocked_amount)
+    }
+
+    /// Check if post capture void is pending for the payment intent
+    pub fn is_post_capture(&self) -> bool {
+        matches!(
+            self.post_capture_void
+                .as_ref()
+                .map(|post_capture_void| post_capture_void.status),
+            Some(common_enums::PostCaptureVoidStatus::Pending)
+        )
+    }
+
+    /// Check if post capture void is issued for the payment intent
+    pub fn is_post_capture_void_issued(&self) -> bool {
+        self.post_capture_void.is_some()
+    }
+
+    /// Check if post capture void is applied for the payment intent
+    pub fn is_post_capture_void_successful(&self) -> bool {
+        matches!(
+            self.post_capture_void
+                .as_ref()
+                .map(|post_capture_void| post_capture_void.status),
+            Some(common_enums::PostCaptureVoidStatus::Succeeded)
+        )
+    }
+
+    /// Builder method to set post_capture_void data
+    pub fn set_post_capture_void_data(
+        mut self,
+        post_capture_void_data: PostCaptureVoidData,
+    ) -> Self {
+        self.post_capture_void = Some(PostCaptureVoidResponse {
+            status: post_capture_void_data.status,
+            connector_reference_id: post_capture_void_data.connector_reference_id,
+            description: post_capture_void_data.description,
+            updated_at: date_time::now(),
+        });
+        self
     }
 }
 
@@ -1141,4 +1199,57 @@ pub struct InteracCustomerInfoDetails {
     /// Customer Bank Name
     #[schema(value_type = Option<String>)]
     pub customer_bank_name: Option<Secret<String>>,
+}
+
+/// Network Transaction ID and Decrypted Wallet Token Details
+#[derive(
+    Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct NetworkTransactionIdAndDecryptedWalletTokenDetails {
+    /// The Decrypted Token
+    #[schema(value_type = String, example = "4604000460040787")]
+    #[smithy(value_type = "String")]
+    pub decrypted_token: cards::NetworkToken,
+
+    /// The token's expiry month
+    #[schema(value_type = String, example = "05")]
+    #[smithy(value_type = "String")]
+    pub token_exp_month: Secret<String>,
+
+    /// The token's expiry year
+    #[schema(value_type = String, example = "24")]
+    #[smithy(value_type = "String")]
+    pub token_exp_year: Secret<String>,
+
+    /// The card holder's name
+    #[schema(value_type = String, example = "John Test")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)
+    /// when `setup_future_usage` is set to `off_session`.
+    #[schema(value_type = String)]
+    #[smithy(value_type = "String")]
+    pub network_transaction_id: Secret<String>,
+
+    /// ECI indicator of the card
+    pub eci: Option<String>,
+
+    /// Source of the token
+    #[schema(value_type = Option<TokenSource>, example = "googlepay")]
+    pub token_source: Option<TokenSource>,
+}
+
+#[derive(
+    Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
+)]
+#[schema(example = "google_pay, apple_pay")]
+#[serde(rename_all = "snake_case")]
+/// Source of the token
+pub enum TokenSource {
+    /// Google Pay
+    GooglePay,
+    /// Apple Pay
+    ApplePay,
 }

@@ -3,6 +3,7 @@ use std::collections::HashMap;
 
 #[cfg(feature = "olap")]
 use api_models::admin::MerchantConnectorInfo;
+use api_models::enums as api_enums;
 use common_enums::ExecutionMode;
 use common_utils::{
     ext_traits::{AsyncExt, StringExt},
@@ -96,6 +97,8 @@ pub async fn refund_create_core(
             err.change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)
                 .attach_printable("refund amount validation against payment intent failed")
         })?;
+
+    payment_intent.prevent_refund_after_post_capture_void()?;
 
     // Amount is not passed in request refer from payment intent.
     amount = req
@@ -1640,8 +1643,14 @@ pub async fn refund_manual_update(
         .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
     let refund_update = diesel_refund::RefundUpdate::ManualUpdate {
         refund_status: req.status.map(common_enums::RefundStatus::from),
-        refund_error_message: req.error_message,
-        refund_error_code: req.error_code,
+        refund_error_message: req.error_message.map(|msg| match msg {
+            api_enums::SetOrUnset::Set(value) => Some(value),
+            api_enums::SetOrUnset::Unset => None,
+        }),
+        refund_error_code: req.error_code.map(|code| match code {
+            api_enums::SetOrUnset::Set(value) => Some(value),
+            api_enums::SetOrUnset::Unset => None,
+        }),
         updated_by: merchant_account.storage_scheme.to_string(),
     };
     state

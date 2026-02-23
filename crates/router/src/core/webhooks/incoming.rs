@@ -1747,8 +1747,10 @@ async fn process_payout_incoming_webhook(
     metrics::INCOMING_PAYOUT_WEBHOOK_METRIC.add(1, &[]);
 
     let action_req =
-        payout_models::PayoutRequest::PayoutActionRequest(payout_models::PayoutActionRequest {
+        payout_models::PayoutRequest::PayoutRetrieveRequest(payout_models::PayoutRetrieveRequest {
             payout_id,
+            force_sync: None,
+            merchant_id: Some(platform.get_processor().get_account().get_id().clone()),
         });
 
     let mut payout_data = Box::pin(payouts::make_payout_data(

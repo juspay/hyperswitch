@@ -16,6 +16,12 @@ pub trait ForeignTryFrom<F>: Sized {
     fn foreign_try_from(from: F) -> Result<Self, Self::Error>;
 }
 
+/// Trait for infallibly converting from one foreign type to another
+pub trait ForeignFrom<F>: Sized {
+    /// Convert from a foreign type to the current type
+    fn foreign_from(from: F) -> Self;
+}
+
 /// Data structure to hold comparison data between Hyperswitch and UCS
 #[derive(serde::Serialize, Debug)]
 pub struct ComparisonData {

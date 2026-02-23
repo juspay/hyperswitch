@@ -725,6 +725,10 @@ pub enum AdditionalPaymentMethodConnectorResponse {
     BankRedirect {
         interac: Option<InteracCustomerInfo>,
     },
+    Upi {
+        /// UPI mode detected from the connector response
+        upi_mode: Option<payment_method_data::UpiSource>,
+    },
     GooglePay {
         auth_code: Option<String>,
     },
@@ -962,6 +966,10 @@ impl
                             connector_response_reference_id: connector_response_reference_id
                                 .clone(),
                             amount_captured,
+                            payment_method_data: payment_data
+                                .payment_attempt
+                                .payment_method_data
+                                .clone(),
                         },
                     ))
                 }
@@ -997,6 +1005,9 @@ impl
                 router_response_types::PaymentsResponseData::PaymentsCreateOrderResponse {
                     ..
                 } => todo!(),
+                router_response_types::PaymentsResponseData::PostCaptureVoidResponse { .. } => {
+                    todo!()
+                }
             },
             Err(ref error_response) => {
                 let ErrorResponse {
@@ -1034,11 +1045,12 @@ impl
 
                 PaymentAttemptUpdate::ErrorUpdate {
                     status: attempt_status,
-                    error: error_details,
+                    error: Box::new(error_details),
                     amount_capturable,
                     connector_payment_id: connector_transaction_id,
                     connector_response_reference_id,
                     updated_by: storage_scheme.to_string(),
+                    payment_method_data: payment_data.payment_attempt.payment_method_data.clone(),
                 }
             }
         }
@@ -1324,6 +1336,9 @@ impl
                 router_response_types::PaymentsResponseData::PaymentsCreateOrderResponse {
                     ..
                 } => todo!(),
+                router_response_types::PaymentsResponseData::PostCaptureVoidResponse { .. } => {
+                    todo!()
+                }
             },
             Err(ref error_response) => {
                 let ErrorResponse {
@@ -1354,11 +1369,12 @@ impl
 
                 PaymentAttemptUpdate::ErrorUpdate {
                     status: attempt_status,
-                    error: error_details,
+                    error: Box::new(error_details),
                     amount_capturable,
                     connector_payment_id: connector_transaction_id,
                     connector_response_reference_id,
                     updated_by: storage_scheme.to_string(),
+                    payment_method_data: payment_data.payment_attempt.payment_method_data.clone(),
                 }
             }
         }
@@ -1600,11 +1616,19 @@ impl
                 router_response_types::PaymentsResponseData::TransactionResponse { .. } => {
                     let attempt_status = self.get_attempt_status_for_db_update(payment_data);
 
+                    // Extract payment_method_data from payment_attempt (already updated with connector response data in PostUpdateTracker)
+                    let payment_method_data = payment_data
+                        .payment_attempt
+                        .payment_method_data
+                        .as_ref()
+                        .map(|data| data.clone().expose());
+
                     PaymentAttemptUpdate::SyncUpdate {
                         status: attempt_status,
                         amount_capturable,
                         updated_by: storage_scheme.to_string(),
                         amount_captured,
+                        payment_method_data,
                     }
                 }
                 router_response_types::PaymentsResponseData::MultipleCaptureResponse { .. } => {
@@ -1639,6 +1663,9 @@ impl
                 router_response_types::PaymentsResponseData::PaymentsCreateOrderResponse {
                     ..
                 } => todo!(),
+                router_response_types::PaymentsResponseData::PostCaptureVoidResponse { .. } => {
+                    todo!()
+                }
             },
             Err(ref error_response) => {
                 let ErrorResponse {
@@ -1677,11 +1704,12 @@ impl
 
                 PaymentAttemptUpdate::ErrorUpdate {
                     status: attempt_status,
-                    error: error_details,
+                    error: Box::new(error_details),
                     amount_capturable,
                     connector_payment_id: connector_transaction_id,
                     connector_response_reference_id,
                     updated_by: storage_scheme.to_string(),
+                    payment_method_data: payment_data.payment_attempt.payment_method_data.clone(),
                 }
             }
         }
@@ -1890,6 +1918,10 @@ impl
                             connector_response_reference_id: connector_response_reference_id
                                 .clone(),
                             amount_captured,
+                            payment_method_data: payment_data
+                                .payment_attempt
+                                .payment_method_data
+                                .clone(),
                         },
                     ))
                 }
@@ -1925,6 +1957,9 @@ impl
                 router_response_types::PaymentsResponseData::PaymentsCreateOrderResponse {
                     ..
                 } => todo!(),
+                router_response_types::PaymentsResponseData::PostCaptureVoidResponse { .. } => {
+                    todo!()
+                }
             },
             Err(ref error_response) => {
                 let ErrorResponse {
@@ -1962,11 +1997,12 @@ impl
 
                 PaymentAttemptUpdate::ErrorUpdate {
                     status: attempt_status,
-                    error: error_details,
+                    error: Box::new(error_details),
                     amount_capturable,
                     connector_payment_id: connector_transaction_id,
                     connector_response_reference_id,
                     updated_by: storage_scheme.to_string(),
+                    payment_method_data: payment_data.payment_attempt.payment_method_data.clone(),
                 }
             }
         }
@@ -2139,6 +2175,10 @@ impl
                                 ),
                             connector_response_reference_id: None,
                             amount_captured,
+                            payment_method_data: payment_data
+                                .payment_attempt
+                                .payment_method_data
+                                .clone(),
                         },
                     ))
                 }
@@ -2174,6 +2214,9 @@ impl
                 router_response_types::PaymentsResponseData::PaymentsCreateOrderResponse {
                     ..
                 } => todo!(),
+                router_response_types::PaymentsResponseData::PostCaptureVoidResponse { .. } => {
+                    todo!()
+                }
             },
             Err(ref error_response) => {
                 let ErrorResponse {
@@ -2204,11 +2247,12 @@ impl
 
                 PaymentAttemptUpdate::ErrorUpdate {
                     status: attempt_status,
-                    error: error_details,
+                    error: Box::new(error_details),
                     amount_capturable,
                     connector_payment_id: connector_transaction_id,
                     connector_response_reference_id,
                     updated_by: storage_scheme.to_string(),
+                    payment_method_data: payment_data.payment_attempt.payment_method_data.clone(),
                 }
             }
         }
@@ -2387,10 +2431,11 @@ impl
                 PaymentAttemptUpdate::ErrorUpdate {
                     status,
                     amount_capturable: Some(MinorUnit::zero()),
-                    error: error_details,
+                    error: Box::new(error_details),
                     updated_by: storage_scheme.to_string(),
                     connector_payment_id: connector_transaction_id,
                     connector_response_reference_id,
+                    payment_method_data: payment_data.payment_attempt.payment_method_data.clone(),
                 }
             }
             Ok(ref _response) => PaymentAttemptUpdate::VoidUpdate {
