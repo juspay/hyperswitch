@@ -1,6 +1,6 @@
 //! Payment related types
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use common_enums::enums;
 use common_utils::{
@@ -1193,9 +1193,9 @@ pub enum BillingFrequency {
 
 /// A single installment plan option accepted in request payloads
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq)]
-pub struct CardInstallmentOption {
-    /// Number of installments (e.g., 2, 4, 6)
-    pub number_of_installments: u32,
+pub struct InstallmentOptionData {
+    /// Number of installments (e.g., [3, 6, 12])
+    pub number_of_installments: Vec<u8>,
     /// Billing frequency for each installment cycle
     pub billing_frequency: BillingFrequency,
     /// Interest rate applied per installment as a percentage
@@ -1209,7 +1209,56 @@ pub struct InstallmentOption {
     #[schema(value_type = PaymentMethod)]
     pub payment_method: common_enums::PaymentMethod,
     /// List of available installment configurations
-    pub installments: Vec<CardInstallmentOption>,
+    pub installments: Vec<InstallmentOptionData>,
+}
+
+/// A list of installment options stored as a single JSONB column value.
+#[derive(
+    Debug,
+    Clone,
+    serde::Serialize,
+    serde::Deserialize,
+    ToSchema,
+    PartialEq,
+    FromSqlRow,
+    AsExpression,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct InstallmentOptions(pub Vec<InstallmentOption>);
+impl_to_sql_from_sql_json!(InstallmentOptions);
+
+impl InstallmentOption {
+    /// Validates that each installment plan has at least one count, all counts are >= 2, and no duplicates exist.
+    pub fn validate(&self) -> errors::CustomResult<(), errors::ValidationError> {
+        for installment in &self.installments {
+            if installment.number_of_installments.is_empty() {
+                return Err(errors::ValidationError::InvalidValue {
+                    message: "number_of_installments must not be empty.".to_string(),
+                }
+                .into());
+            }
+
+            if installment.number_of_installments.iter().any(|&n| n < 2) {
+                return Err(errors::ValidationError::InvalidValue {
+                    message: "each value in number_of_installments must be at least 2.".to_string(),
+                }
+                .into());
+            }
+
+            let mut seen = HashSet::new();
+            if installment
+                .number_of_installments
+                .iter()
+                .any(|n| !seen.insert(n))
+            {
+                return Err(errors::ValidationError::InvalidValue {
+                    message: "number_of_installments must contain unique values.".to_string(),
+                }
+                .into());
+            }
+        }
+        Ok(())
+    }
 }
 
 #[derive(

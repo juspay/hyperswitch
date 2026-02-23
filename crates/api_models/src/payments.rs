@@ -1561,7 +1561,6 @@ pub struct PaymentsRequest {
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
 
     /// Installment payment options grouped by payment method. When provided, the payment is treated as an installment payment.
-    #[schema(value_type = Option<Vec<InstallmentOption>>)]
     pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
 }
 
@@ -1764,6 +1763,35 @@ impl PaymentsRequest {
             .into());
         }
 
+        Ok(())
+    }
+
+    pub fn validate_installment_options(
+        &self,
+    ) -> common_utils::errors::CustomResult<(), ValidationError> {
+        if let Some(installment_options) = &self.installment_options {
+            let mut seen_methods = HashSet::new();
+            for option in installment_options {
+                if !matches!(option.payment_method, common_enums::PaymentMethod::Card) {
+                    return Err(ValidationError::InvalidValue {
+                        message: "installment_options is only supported for payment method card."
+                            .to_string(),
+                    }
+                    .into());
+                }
+                if !seen_methods.insert(option.payment_method) {
+                    return Err(ValidationError::InvalidValue {
+                        message: format!(
+                            "duplicate payment_method '{}' in installment_options.",
+                            option.payment_method
+                        ),
+                    }
+                    .into());
+                }
+                // Validates that each installment plan has at least one count, all counts are >= 2, and no duplicates exist.
+                option.validate()?;
+            }
+        }
         Ok(())
     }
 }
@@ -7653,7 +7681,6 @@ pub struct PaymentsResponse {
     pub payment_method_tokenization_details: Option<PaymentMethodTokenizationDetails>,
 
     /// Installment payment options associated with this payment, grouped by payment method
-    #[schema(value_type = Option<Vec<InstallmentOption>>)]
     pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
 }
 

@@ -1165,6 +1165,11 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
             })
             .attach_printable("Invalid straight through routing rules format")?;
 
+        request.validate_installment_options().map_err(|err| {
+            let message = format!("invalid installment options: {err}");
+            err.change_context(errors::ApiErrorResponse::InvalidRequestData { message })
+        })?;
+
         Ok((
             Box::new(self),
             operations::ValidateResult {

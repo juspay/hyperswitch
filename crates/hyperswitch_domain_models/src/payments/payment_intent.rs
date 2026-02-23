@@ -1373,6 +1373,9 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     enable_partial_authorization: value.enable_partial_authorization,
                     enable_overcapture: value.enable_overcapture,
                     shipping_cost: value.shipping_cost,
+                    installment_options: value
+                        .installment_options
+                        .map(common_types::payments::InstallmentOptions),
                 }))
             }
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -1598,7 +1601,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             shipping_cost,
             state_metadata,
             installment_options: installment_options
-                .and_then(|opts| serde_json::to_value(opts).ok()),
+                .map(common_types::payments::InstallmentOptions),
         }
     }
 }
@@ -2443,7 +2446,7 @@ impl behaviour::Conversion for PaymentIntent {
             state_metadata: self.state_metadata,
             installment_options: self
                 .installment_options
-                .and_then(|opts| serde_json::to_value(opts).ok()),
+                .map(common_types::payments::InstallmentOptions),
         })
     }
 
@@ -2559,9 +2562,7 @@ impl behaviour::Conversion for PaymentIntent {
                 partner_merchant_identifier_details: storage_model
                     .partner_merchant_identifier_details,
                 state_metadata: storage_model.state_metadata,
-                installment_options: storage_model
-                    .installment_options
-                    .and_then(|v| serde_json::from_value(v).ok()),
+                installment_options: storage_model.installment_options.map(|o| o.0),
             })
         }
         .await
@@ -2650,7 +2651,7 @@ impl behaviour::Conversion for PaymentIntent {
             state_metadata: self.state_metadata,
             installment_options: self
                 .installment_options
-                .and_then(|opts| serde_json::to_value(opts).ok()),
+                .map(common_types::payments::InstallmentOptions),
         })
     }
 }
