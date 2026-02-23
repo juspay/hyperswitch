@@ -30,7 +30,7 @@ import * as IncomingWebhookBody from "./webhooks/import";
 import customerCreate from "./modularPmService/modularPmServiceCustomerCreate.json";
 import merchantConfig from "./modularPmService/modular-pm-service-merchant-config-create.json";
 import orgConfig from "./modularPmService/modular-pm-service-org-config-create.json";
-import paymentMethodCreate from "./modularPmService/modular-pm-service-pm-craete.json";
+import paymentMethodCreate from "./modularPmService/modular-pm-service-pm-create.json";
 import paymentMethodUpdate from "./modularPmService/modular-pm-service-pm-update.json";
 import paymentMethodSessionCreate from "./modularPmService/modular-pm-service-pms-create.json";
 import paymentMethodSessionUpadte from "./modularPmService/modular-pm-service-update-pms-saved-pm.json";

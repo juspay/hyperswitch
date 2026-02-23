@@ -5214,6 +5214,10 @@ Cypress.Commands.add(
           `Merchant config create call failed with status: ${response.status} and message: ${response.body?.error?.message}`
         );
       }
+      else {
+        expect(response.body).to.have.property("key").to.equal(req_data.key);
+        expect(response.body).to.have.property("value").to.equal(req_data.value);
+      }
     });
   }
 );
@@ -5237,6 +5241,10 @@ Cypress.Commands.add("orgConfigCreateCall", (globalState, orgConfigBody) => {
         `Org config create call failed with status: ${response.status} and message: ${response.body?.error?.message}`
       );
     }
+    else {
+      expect(response.body).to.have.property("key").to.equal(reqData.key);
+      expect(response.body).to.have.property("value").to.equal(reqData.value);
+    }
   });
 });
 
@@ -5259,6 +5267,31 @@ Cypress.Commands.add(
     }).then((response) => {
       if (response.status === 200) {
         globalState.set("customerId", response.body.id);
+        expect(response.body.id, "customer_id").to.not.be.empty;
+        expect(customerCreateBody.email, "email").to.equal(
+          response.body.email
+        );
+        expect(customerCreateBody.name, "name").to.equal(response.body.name);
+        expect(customerCreateBody.phone, "phone").to.equal(
+          response.body.phone
+        );
+        expect(customerCreateBody.metadata, "metadata").to.deep.equal(
+          response.body.metadata
+        );
+        expect(customerCreateBody.address, "address").to.deep.equal(
+          response.body.address
+        );
+        expect(
+          customerCreateBody.phone_country_code,
+          "phone_country_code"
+        ).to.equal(response.body.phone_country_code);
+      } else if (response.status === 400) {
+        if (response.body.error.message.includes("already exists")) {
+          expect(response.body.error.code).to.equal("IR_12");
+          expect(response.body.error.message).to.equal(
+            "Customer with the given `customer_id` already exists"
+          );
+        }
       } else {
         throw new Error(
           `Customer create call failed with status: ${response.status} and message: ${response.body?.error?.message}`
@@ -5293,6 +5326,22 @@ Cypress.Commands.add("paymentMethodCreateCall", (globalState, pmData) => {
   }).then((response) => {
     if (response.status === 200) {
       globalState.set("paymentMethodId", response.body.id);
+      expect(
+          requestBody.customer_id,
+          "customer_id"
+        ).to.equal(response.body.customer_id);
+       expect(
+          requestBody.payment_method_type,
+          "payment_method_type"
+        ).to.equal(response.body.payment_method_type);
+        expect(
+          requestBody.payment_method_subtype,
+          "payment_method_subtype"
+        ).to.equal(response.body.payment_method_subtype);
+        expect(
+          requestBody.storage_type,
+          "storage_type"
+        ).to.equal(response.body.storage_type);
     } else {
       throw new Error(
         `Payment method create failed with status ${response.status}: ${JSON.stringify(response.body)}`
@@ -5502,6 +5551,7 @@ Cypress.Commands.add("pmSessionConfirmCall", (globalState, confirmData) => {
         "paymentMethodToken",
         response.body.associated_payment_methods[0].payment_method_token.data
       );
+      expect(response.body).to.have.property("id");
     } else {
       throw new Error(
         `PM session confirm failed with status ${response.status}: ${JSON.stringify(response.body)}`
