@@ -1049,6 +1049,26 @@ pub fn build_unified_connector_service_payment_method(
                     payments_grpc::AfterpayClearpay {  }
                 )),
             }),
+            hyperswitch_domain_models::payment_method_data::PayLaterData::PayBrightRedirect {  } => Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::PayBright(
+                    payments_grpc::PayBright {  }
+                )),
+            }),
+            hyperswitch_domain_models::payment_method_data::PayLaterData::WalleyRedirect {  } => Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::Walley(
+                    payments_grpc::Walley {  }
+                )),
+            }),
+            hyperswitch_domain_models::payment_method_data::PayLaterData::AlmaRedirect {  } => Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::Alma(
+                    payments_grpc::Alma {  }
+                )),
+            }),
+            hyperswitch_domain_models::payment_method_data::PayLaterData::AtomeRedirect {  } => Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::Atome(
+                    payments_grpc::Atome {  }
+                )),
+            }),
             _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
                 "Unimplemented payment method subtype: {payment_method_type:?}"
             ))
