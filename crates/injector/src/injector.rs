@@ -781,6 +781,204 @@ pub mod core {
         }
     }
 
+    /// Represents the request body sent to the `/v2/proxy` endpoint
+    #[derive(Debug, serde::Serialize, serde::Deserialize)]
+    pub struct V2ProxyRequest {
+        /// The original connector request body (with token placeholders intact)
+        pub request_body: Value,
+        /// The destination URL where the proxy should forward the request
+        pub destination_url: String,
+        /// Headers to forward to the destination
+        pub headers: HashMap<String, String>,
+        /// The vault token value (e.g., payment_method_id)
+        pub token: String,
+        /// The type of token — hardcoded to "payment_method_id"
+        pub token_type: String,
+        /// HTTP method — hardcoded to "POST"
+        pub method: String,
+    }
+
+    impl Injector {
+        /// Extracts the token value from the vault/token data in the request.
+        ///
+        /// For the v2/proxy flow, the token is the `card_number` field from
+        /// `specific_token_data`, which represents a payment_method_id.
+        #[instrument(skip_all)]
+        pub fn extract_token_from_request(
+            &self,
+            request: &InjectorRequest,
+        ) -> error_stack::Result<String, InjectorError> {
+            let vault_data = request.token_data.specific_token_data.expose().clone();
+
+            logger::debug!("Extracting token (card_number) from vault data for v2/proxy flow");
+
+            match &vault_data {
+                Value::Object(obj) => {
+                    let token_value =
+                        find_field_recursively_in_vault_data(obj, "card_number").ok_or_else(
+                            || {
+                                error_stack::Report::new(InjectorError::TokenReplacementFailed(
+                                    "Field 'card_number' not found in token data".to_string(),
+                                ))
+                            },
+                        )?;
+
+                    match token_value {
+                        Value::String(s) => {
+                            logger::debug!("Successfully extracted token from vault data");
+                            Ok(s)
+                        }
+                        other => Ok(serde_json::to_string(&other).unwrap_or_default()),
+                    }
+                }
+                _ => Err(error_stack::Report::new(
+                    InjectorError::TokenReplacementFailed(
+                        "Token data is not a valid JSON object".to_string(),
+                    ),
+                )),
+            }
+        }
+
+        /// Constructs a [`V2ProxyRequest`] from the given [`InjectorRequest`].
+        ///
+        /// This builds the JSON payload expected by the `/v2/proxy` endpoint:
+        /// - `request_body` — the connector template parsed as JSON (with `{{$...}}` placeholders)
+        /// - `destination_url` — from `ConnectionConfig.endpoint`
+        /// - `headers` — from `ConnectionConfig.headers` (secrets exposed)
+        /// - `token` — the `card_number` value extracted from `specific_token_data`
+        /// - `token_type` — hardcoded to `"payment_method_id"`
+        /// - `method` — hardcoded to `"POST"`
+        #[instrument(skip_all)]
+        pub fn construct_proxy_request(
+            &self,
+            request: &InjectorRequest,
+        ) -> error_stack::Result<V2ProxyRequest, InjectorError> {
+            logger::info!("Constructing v2/proxy request from injector request");
+
+            // 1. Extract the token (card_number / payment_method_id)
+            let token = self.extract_token_from_request(request)?;
+
+            // 2. Parse the connector_payload template as JSON for request_body
+            let request_body: Value = serde_json::from_str(
+                &request.connector_payload.template,
+            )
+            .map_err(|e| {
+                error_stack::Report::new(InjectorError::SerializationError(format!(
+                    "Failed to parse connector template as JSON: {e}"
+                )))
+            })?;
+
+            // 3. Destination URL from ConnectionConfig
+            let destination_url = request.connection_config.endpoint.clone();
+
+            // 4. Headers from ConnectionConfig (expose the Secret<String> values)
+            let headers: HashMap<String, String> = request
+                .connection_config
+                .headers
+                .iter()
+                .map(|(k, v)| (k.clone(), v.clone().expose()))
+                .collect();
+
+            let proxy_request = V2ProxyRequest {
+                request_body,
+                destination_url,
+                headers,
+                token,
+                token_type: "payment_method_id".to_string(),
+                method: "POST".to_string(),
+            };
+
+            logger::info!(
+                destination = %proxy_request.destination_url,
+                token_type = %proxy_request.token_type,
+                method = %proxy_request.method,
+                "v2/proxy request constructed successfully"
+            );
+
+            Ok(proxy_request)
+        }
+    }
+
+    /// The base URL for the local hyperswitch proxy endpoint
+    const PROXY_BASE_URL: &str = "http://localhost:8082/v2/proxy";
+
+    impl Injector {
+        /// Calls the `/v2/proxy` endpoint with the constructed proxy request body.
+        ///
+        /// This sends the request to the hyperswitch proxy which handles vault token
+        /// resolution and forwards the request to the actual connector destination.
+        #[instrument(skip_all)]
+        async fn call_connector_api_via_proxy(
+            &self,
+            proxy_request: &V2ProxyRequest,
+            api_key: &str,
+            profile_id: &str,
+        ) -> error_stack::Result<InjectorResponse, InjectorError> {
+            logger::info!(
+                destination_url = %proxy_request.destination_url,
+                token_type = %proxy_request.token_type,
+                method = %proxy_request.method,
+                "Calling /v2/proxy endpoint"
+            );
+
+            // Serialize the V2ProxyRequest to JSON
+            let proxy_body = serde_json::to_string(&proxy_request).map_err(|e| {
+                error_stack::Report::new(InjectorError::SerializationError(format!(
+                    "Failed to serialize V2ProxyRequest: {e}"
+                )))
+            })?;
+
+            // Build the request to /v2/proxy
+            let proxy_headers: Vec<(String, masking::Maskable<String>)> = vec![
+                (
+                    "Content-Type".to_string(),
+                    masking::Maskable::new_normal("application/json".to_string()),
+                ),
+                (
+                    "Accept".to_string(),
+                    masking::Maskable::new_normal("application/json".to_string()),
+                ),
+                (
+                    "x-profile-id".to_string(),
+                    masking::Maskable::new_normal(profile_id.to_string()),
+                ),
+                (
+                    "Authorization".to_string(),
+                    masking::Maskable::new_masked(masking::Secret::new(format!(
+                        "api-key={api_key}"
+                    ))),
+                ),
+                (
+                    "api-key".to_string(),
+                    masking::Maskable::new_masked(masking::Secret::new(api_key.to_string())),
+                ),
+            ];
+
+            let request = RequestBuilder::new()
+                .method(Method::Post)
+                .url(PROXY_BASE_URL)
+                .headers(proxy_headers)
+                .set_body(RequestContent::Json(Box::new(
+                    serde_json::from_str::<Value>(&proxy_body).map_err(|e| {
+                        error_stack::Report::new(InjectorError::SerializationError(format!(
+                            "Failed to re-parse proxy body as JSON Value: {e}"
+                        )))
+                    })?,
+                )))
+                .build();
+
+            // Send request to /v2/proxy using the standalone HTTP client
+            let proxy = Proxy::default();
+            let response = send_request(&proxy, request, None).await?;
+
+            // Convert to InjectorResponse
+            response
+                .into_injector_response()
+                .await
+                .map_err(|e| error_stack::Report::new(e))
+        }
+    }
+
     #[async_trait]
     impl TokenInjector for Injector {
         #[instrument(skip_all)]
@@ -790,63 +988,79 @@ pub mod core {
         ) -> error_stack::Result<InjectorResponse, InjectorError> {
             let start_time = std::time::Instant::now();
 
-            // Extract token data from SecretSerdeValue for vault data lookup
-            let vault_data = request.token_data.specific_token_data.expose().clone();
-            println!("Vaultdataa: {:?}", vault_data);
-
             logger::debug!(
                 template_length = request.connector_payload.template.len(),
                 vault_connector = ?request.token_data.vault_connector,
                 "Processing token injection request"
             );
 
-            logger::debug!(
-                "connector templatee: {:?}",
-                request.connector_payload.template.clone(),
-            );
+            let response = match request.token_data.vault_connector {
+                // HyperswitchVault flow: construct proxy request and call /v2/proxy
+                injector_types::VaultConnectors::HyperswitchVault => {
+                    logger::info!("Using HyperswitchVault flow — routing through /v2/proxy");
 
-            // Process template string directly with vault-specific logic
-            let processed_payload = self.interpolate_string_template_with_vault_data(
-                request.connector_payload.template,
-                &vault_data,
-                &request.token_data.vault_connector,
-            )?;
+                    // Construct the proxy request body
+                    let proxy_request = self.construct_proxy_request(&request)?;
 
-            logger::debug!(
-                "Processed payload: {:?}",
-                processed_payload.clone(),
-            );
+                    logger::debug!(
+                        "Constructed v2/proxy request: {:?}",
+                        serde_json::to_string_pretty(&proxy_request).unwrap_or_default(),
+                    );
 
-            logger::debug!(
-                processed_payload_length = processed_payload.len(),
-                "Token replacement completed"
-            );
+                    // TODO: Read api_key and profile_id from config/request context.
+                    // Hardcoded for local demo purposes.
+                    let api_key = "dev_v76EHqBZJlHFQBAtIOvcKHMrmEvToGN02MUv0CmzmxIcSi3rvCSDAZwL2iITiTFP";
+                    let profile_id = "pro_VIoFXUiTbedxunCaRK8R";
 
-            // Determine content type from headers or default to form-urlencoded
-            let content_type = request
-                .connection_config
-                .headers
-                .get("Content-Type")
-                .and_then(|ct| match ct.clone().expose().as_str() {
-                    "application/json" => Some(ContentType::ApplicationJson),
-                    "application/x-www-form-urlencoded" => {
-                        Some(ContentType::ApplicationXWwwFormUrlencoded)
-                    }
-                    "application/xml" => Some(ContentType::ApplicationXml),
-                    "text/xml" => Some(ContentType::TextXml),
-                    "text/plain" => Some(ContentType::TextPlain),
-                    _ => None,
-                })
-                .unwrap_or(ContentType::ApplicationXWwwFormUrlencoded);
+                    // Call /v2/proxy which handles vault token resolution + connector forwarding
+                    self.call_connector_api_via_proxy(&proxy_request, api_key, profile_id)
+                        .await?
+                }
 
-            // Make HTTP request to connector and return enhanced response
-            let response = self
-                .make_http_request(
-                    &request.connection_config,
-                    &processed_payload,
-                    &content_type,
-                )
-                .await?;
+                // VGS flow: interpolate tokens locally and call connector directly
+                injector_types::VaultConnectors::VGS => {
+                    logger::info!("Using VGS flow — direct token interpolation and connector call");
+
+                    let vault_data = request.token_data.specific_token_data.expose().clone();
+
+                    // Process template string directly with vault-specific logic
+                    let processed_payload = self.interpolate_string_template_with_vault_data(
+                        request.connector_payload.template.clone(),
+                        &vault_data,
+                        &request.token_data.vault_connector,
+                    )?;
+
+                    logger::debug!(
+                        processed_payload_length = processed_payload.len(),
+                        "Token replacement completed"
+                    );
+
+                    // Determine content type from headers or default to form-urlencoded
+                    let content_type = request
+                        .connection_config
+                        .headers
+                        .get("Content-Type")
+                        .and_then(|ct| match ct.clone().expose().as_str() {
+                            "application/json" => Some(ContentType::ApplicationJson),
+                            "application/x-www-form-urlencoded" => {
+                                Some(ContentType::ApplicationXWwwFormUrlencoded)
+                            }
+                            "application/xml" => Some(ContentType::ApplicationXml),
+                            "text/xml" => Some(ContentType::TextXml),
+                            "text/plain" => Some(ContentType::TextPlain),
+                            _ => None,
+                        })
+                        .unwrap_or(ContentType::ApplicationXWwwFormUrlencoded);
+
+                    // Make HTTP request to connector directly
+                    self.make_http_request(
+                        &request.connection_config,
+                        &processed_payload,
+                        &content_type,
+                    )
+                    .await?
+                }
+            };
 
             let elapsed = start_time.elapsed();
             logger::info!(
