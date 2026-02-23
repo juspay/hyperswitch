@@ -5213,10 +5213,11 @@ Cypress.Commands.add(
         throw new Error(
           `Merchant config create call failed with status: ${response.status} and message: ${response.body?.error?.message}`
         );
-      }
-      else {
+      } else {
         expect(response.body).to.have.property("key").to.equal(req_data.key);
-        expect(response.body).to.have.property("value").to.equal(req_data.value);
+        expect(response.body)
+          .to.have.property("value")
+          .to.equal(req_data.value);
       }
     });
   }
@@ -5240,8 +5241,7 @@ Cypress.Commands.add("orgConfigCreateCall", (globalState, orgConfigBody) => {
       throw new Error(
         `Org config create call failed with status: ${response.status} and message: ${response.body?.error?.message}`
       );
-    }
-    else {
+    } else {
       expect(response.body).to.have.property("key").to.equal(reqData.key);
       expect(response.body).to.have.property("value").to.equal(reqData.value);
     }
@@ -5268,13 +5268,9 @@ Cypress.Commands.add(
       if (response.status === 200) {
         globalState.set("customerId", response.body.id);
         expect(response.body.id, "customer_id").to.not.be.empty;
-        expect(customerCreateBody.email, "email").to.equal(
-          response.body.email
-        );
+        expect(customerCreateBody.email, "email").to.equal(response.body.email);
         expect(customerCreateBody.name, "name").to.equal(response.body.name);
-        expect(customerCreateBody.phone, "phone").to.equal(
-          response.body.phone
-        );
+        expect(customerCreateBody.phone, "phone").to.equal(response.body.phone);
         expect(customerCreateBody.metadata, "metadata").to.deep.equal(
           response.body.metadata
         );
@@ -5326,22 +5322,19 @@ Cypress.Commands.add("paymentMethodCreateCall", (globalState, pmData) => {
   }).then((response) => {
     if (response.status === 200) {
       globalState.set("paymentMethodId", response.body.id);
+      expect(requestBody.customer_id, "customer_id").to.equal(
+        response.body.customer_id
+      );
+      expect(requestBody.payment_method_type, "payment_method_type").to.equal(
+        response.body.payment_method_type
+      );
       expect(
-          requestBody.customer_id,
-          "customer_id"
-        ).to.equal(response.body.customer_id);
-       expect(
-          requestBody.payment_method_type,
-          "payment_method_type"
-        ).to.equal(response.body.payment_method_type);
-        expect(
-          requestBody.payment_method_subtype,
-          "payment_method_subtype"
-        ).to.equal(response.body.payment_method_subtype);
-        expect(
-          requestBody.storage_type,
-          "storage_type"
-        ).to.equal(response.body.storage_type);
+        requestBody.payment_method_subtype,
+        "payment_method_subtype"
+      ).to.equal(response.body.payment_method_subtype);
+      expect(requestBody.storage_type, "storage_type").to.equal(
+        response.body.storage_type
+      );
     } else {
       throw new Error(
         `Payment method create failed with status ${response.status}: ${JSON.stringify(response.body)}`
