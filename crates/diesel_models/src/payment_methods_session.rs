@@ -17,6 +17,7 @@ pub struct PaymentMethodSession {
     pub associated_payment: Option<common_utils::id_type::GlobalPaymentId>,
     pub associated_token_id: Option<common_utils::id_type::GlobalTokenId>,
     pub storage_type: common_enums::StorageType,
+    pub keep_alive: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -35,6 +36,7 @@ impl PaymentMethodSession {
             associated_payment,
             associated_token_id,
             storage_type,
+            keep_alive,
         } = self;
 
         Self {
@@ -50,6 +52,7 @@ impl PaymentMethodSession {
             associated_payment,
             associated_token_id,
             storage_type,
+            keep_alive,
         }
     }
 }
