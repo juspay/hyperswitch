@@ -2624,15 +2624,16 @@ pub async fn fulfill_payout(
 
     // add payout sync task to process tracker
     if payout_data.should_add_task_to_process_tracker() {
-        let scheduled_time = payout_sync::get_payout_sync_process_schedule_time(
-            db,
-            &connector_data.connector_name.to_string(),
-            &payout_data.payouts.merchant_id,
-            0,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed while getting process schedule time")?;
+        let scheduled_time =
+            payout_sync::PayoutSyncWorkFlow::get_payout_sync_process_schedule_time(
+                db,
+                &connector_data.connector_name.to_string(),
+                &payout_data.payouts.merchant_id,
+                0,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed while getting process schedule time")?;
 
         add_payout_sync_task_to_process_tracker(
             db,
