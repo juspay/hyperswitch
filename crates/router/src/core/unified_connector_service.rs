@@ -43,7 +43,7 @@ use router_env::{instrument, logger, tracing};
 use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments::{
     self as payments_grpc, payment_method::PaymentMethod, CardDetails, ClassicReward, ProxyCardDetails,
-    CryptoCurrency, EVoucher, OpenBanking, PaymentServiceAuthorizeResponse,
+    ProxyNetworkTokenData, CryptoCurrency, EVoucher, OpenBanking, PaymentServiceAuthorizeResponse,
 };
 
 #[cfg(feature = "v2")]
@@ -1203,6 +1203,7 @@ pub fn build_unified_connector_service_payment_method(
 pub fn build_unified_connector_service_payment_method_for_external_proxy(
     payment_method_data: hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData,
     payment_method_type: Option<PaymentMethodType>,
+    is_network_tokenization_enabled: bool,
 ) -> CustomResult<payments_grpc::PaymentMethod, UnifiedConnectorServiceError> {
     match payment_method_data {
         hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(
@@ -1212,22 +1213,41 @@ pub fn build_unified_connector_service_payment_method_for_external_proxy(
                 .card_network
                 .clone()
                 .map(payments_grpc::CardNetwork::foreign_from);
-            let card_details = ProxyCardDetails {
-                card_number: Some(external_vault_card.card_number.expose().into()),
-                card_exp_month: Some(external_vault_card.card_exp_month.expose().into()),
-                card_exp_year: Some(external_vault_card.card_exp_year.expose().into()),
-                card_cvc: Some(external_vault_card.card_cvc.expose().into()),
-                card_holder_name: external_vault_card.card_holder_name.map(|name| name.expose().into()),
-                card_issuer: external_vault_card.card_issuer.clone(),
-                card_network: card_network.map(|card_network| card_network.into()),
-                card_type: external_vault_card.card_type.clone(),
-                bank_code: external_vault_card.bank_code.clone(),
-                nick_name: external_vault_card.nick_name.map(|n| n.expose()),
-                card_issuing_country_alpha2: external_vault_card.card_issuing_country.clone(),
-            };
-            Ok(payments_grpc::PaymentMethod {
-                payment_method: Some(PaymentMethod::CardProxy(card_details)),
-            })
+
+            if is_network_tokenization_enabled {
+                let token_details = ProxyNetworkTokenData {
+                    network_token: Some(external_vault_card.card_number.expose().into()),
+                    network_token_exp_month: Some(external_vault_card.card_exp_month.expose().into()),
+                    network_token_exp_year: Some(external_vault_card.card_exp_year.expose().into()),
+                    cryptogram: None,
+                    card_issuer: external_vault_card.card_issuer.clone(),
+                    card_network: card_network.map(|card_network| card_network.into()),
+                    card_type: external_vault_card.card_type.clone(),
+                    card_issuing_country_alpha2: external_vault_card.card_issuing_country.clone(),
+                    card_holder_name: external_vault_card.card_holder_name.map(|name| name.expose().into()),
+                    nick_name: external_vault_card.nick_name.map(|n| n.expose()),
+                };
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::ProxyNetworkToken(token_details)),
+                })
+            } else {
+                let card_details = ProxyCardDetails {
+                    card_number: Some(external_vault_card.card_number.expose().into()),
+                    card_exp_month: Some(external_vault_card.card_exp_month.expose().into()),
+                    card_exp_year: Some(external_vault_card.card_exp_year.expose().into()),
+                    card_cvc: Some(external_vault_card.card_cvc.expose().into()),
+                    card_holder_name: external_vault_card.card_holder_name.map(|name| name.expose().into()),
+                    card_issuer: external_vault_card.card_issuer.clone(),
+                    card_network: card_network.map(|card_network| card_network.into()),
+                    card_type: external_vault_card.card_type.clone(),
+                    bank_code: external_vault_card.bank_code.clone(),
+                    nick_name: external_vault_card.nick_name.map(|n| n.expose()),
+                    card_issuing_country_alpha2: external_vault_card.card_issuing_country.clone(),
+                };
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::CardProxy(card_details)),
+                })
+            }
         }
         hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::VaultToken(_) => {
             Err(UnifiedConnectorServiceError::NotImplemented(format!(

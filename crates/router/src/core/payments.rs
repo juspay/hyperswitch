@@ -5571,6 +5571,7 @@ where
                 external_vault_merchant_connector_account_type_details.clone(),
                 processor,
                 ExecutionMode::Primary, //UCS is called in primary mode
+                business_profile.is_network_tokenization_enabled
             )
             .await?;
 
