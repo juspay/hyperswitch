@@ -68,7 +68,6 @@ where
         let connector_enum = common_enums::connector_enums::Connector::from_str(&connector_name)
             .change_context(ConnectorError::InvalidConnectorName)?;
         let merchant_connector_account = context.merchant_connector_account;
-        let creds_identifier = context.creds_identifier;
         let processor = &context.processor;
         let lineage_ids = context.lineage_ids;
         let header_payload = context.header_payload;
@@ -105,8 +104,6 @@ where
         .change_context(ConnectorError::RequestEncodingFailed)
         .attach_printable("Failed to construct Payment Get Request")?;
 
-        let merchant_connector_id = merchant_connector_account.get_mca_id();
-
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
                 merchant_connector_account,
@@ -136,7 +133,7 @@ where
             .merchant_reference_id(merchant_reference_id)
             .resource_id(resource_id)
             .lineage_ids(lineage_ids);
-        let connector_name = router_data.connector.clone();
+
         Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
             router_data.clone(),
             state,
@@ -157,37 +154,6 @@ where
                         router_data.status,
                     )
                     .attach_printable("Failed to deserialize UCS response")?;
-
-                // Extract and store access token if present
-                if let Some(access_token) =
-                    unified_connector_service::get_access_token_from_ucs_response(
-                        state,
-                        processor,
-                        &connector_name,
-                        merchant_connector_id.as_ref(),
-                        creds_identifier.clone(),
-                        payment_get_response.state.as_ref(),
-                    )
-                    .await
-                {
-                    if let Err(error) = unified_connector_service::set_access_token_for_ucs(
-                        state,
-                        processor,
-                        &connector_name,
-                        access_token,
-                        merchant_connector_id.as_ref(),
-                        creds_identifier,
-                    )
-                    .await
-                    {
-                        logger::error!(
-                            ?error,
-                            "Failed to store UCS access token from psync response"
-                        );
-                    } else {
-                        logger::debug!("Successfully stored access token from UCS psync response");
-                    }
-                }
 
                 let router_data_response = match router_data_response {
                     Ok((response, status)) => {
