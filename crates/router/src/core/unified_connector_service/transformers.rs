@@ -636,6 +636,11 @@ impl
             merchant_account_metadata,
             state,
             test_mode: router_data.test_mode,
+            payment_method_type: router_data
+                .payment_method_type
+                .map(payments_grpc::PaymentMethodType::foreign_try_from)
+                .transpose()?
+                .map(|payment_method_type| payment_method_type.into()),
         })
     }
 }
@@ -4231,23 +4236,37 @@ impl ForeignFrom<common_enums::PaymentMethodType> for payments_grpc::PaymentMeth
     }
 }
 
-impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateOrderResponse>
-    for Result<PaymentsResponseData, ErrorResponse>
+impl
+    transformers::ForeignTryFrom<(
+        payments_grpc::PaymentServiceCreateOrderResponse,
+        AttemptStatus,
+    )> for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        response: payments_grpc::PaymentServiceCreateOrderResponse,
+        (response, prev_status): (
+            payments_grpc::PaymentServiceCreateOrderResponse,
+            AttemptStatus,
+        ),
     ) -> Result<Self, Self::Error> {
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
         let response = if response.error_code.is_some() {
+            let attempt_status = match response.status() {
+                payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
+                _ => Some(AttemptStatus::foreign_try_from((
+                    response.status(),
+                    prev_status,
+                ))?),
+            };
+
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
                 message: response.error_message().to_owned(),
                 reason: Some(response.error_message().to_owned()),
                 status_code,
-                attempt_status: None,
+                attempt_status,
                 connector_transaction_id: None,
                 connector_response_reference_id: None,
                 network_decline_code: None,
@@ -4258,6 +4277,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateOrderRespon
         } else {
             let order_id = response
                 .order_id
+                .clone()
                 .and_then(|id| id.id_type)
                 .and_then(|id_type| match id_type {
                     payments_grpc::identifier::IdType::Id(id) => Some(id),
@@ -4268,9 +4288,22 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateOrderRespon
                 })
                 .ok_or(UnifiedConnectorServiceError::ResponseDeserializationFailed)?;
 
+            let status = AttemptStatus::foreign_try_from((response.status(), prev_status))?;
+
+            let session_token = response
+                .session_token
+                .map(SessionToken::foreign_try_from)
+                .transpose()?;
+
             // For order creation, we typically return a successful response with the order_id
             // Since this is not a standard payment response, we'll create a simple success response
-            Ok(PaymentsResponseData::PaymentsCreateOrderResponse { order_id })
+            Ok((
+                PaymentsResponseData::PaymentsCreateOrderResponse {
+                    order_id,
+                    session_token,
+                },
+                status,
+            ))
         };
 
         Ok(response)

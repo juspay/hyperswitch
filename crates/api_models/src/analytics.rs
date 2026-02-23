@@ -151,6 +151,9 @@ pub struct RefundDistributionBody {
 pub struct ReportRequest {
     pub time_range: TimeRange,
     pub emails: Option<Vec<Secret<String, EmailStrategy>>>,
+    #[cfg(feature = "v2")]
+    #[serde(default)]
+    pub report_type: ReportType,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -546,4 +549,13 @@ pub struct AuthEventMetricsResponse<T> {
 #[derive(Debug, serde::Serialize)]
 pub struct AuthEventsAnalyticsMetadata {
     pub total_error_message_count: Option<u64>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReportType {
+    #[default]
+    V2Payments,
+    RevenueRecovery,
 }
