@@ -792,11 +792,17 @@ pub mod core {
 
             // Extract token data from SecretSerdeValue for vault data lookup
             let vault_data = request.token_data.specific_token_data.expose().clone();
+            println!("Vaultdataa: {:?}", vault_data);
 
             logger::debug!(
                 template_length = request.connector_payload.template.len(),
                 vault_connector = ?request.token_data.vault_connector,
                 "Processing token injection request"
+            );
+
+            logger::debug!(
+                "connector templatee: {:?}",
+                request.connector_payload.template.clone(),
             );
 
             // Process template string directly with vault-specific logic
@@ -805,6 +811,11 @@ pub mod core {
                 &vault_data,
                 &request.token_data.vault_connector,
             )?;
+
+            logger::debug!(
+                "Processed payload: {:?}",
+                processed_payload.clone(),
+            );
 
             logger::debug!(
                 processed_payload_length = processed_payload.len(),
