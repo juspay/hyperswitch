@@ -7169,6 +7169,10 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<String>")]
     pub connector: Option<String>,
 
+    /// The current state metadata of the payment intent, providing additional context about its status.
+    #[schema(value_type = Option<PaymentIntentStateMetadata>)]
+    pub state_metadata: Option<common_types::payments::PaymentIntentStateMetadata>,
+
     /// A secret token unique to this payment intent. It is primarily used by client-side applications (e.g., Hyperswitch SDKs) to authenticate actions like confirming the payment or handling next actions. This secret should be handled carefully and not exposed publicly beyond its intended client-side use.
     #[schema(value_type = Option<String>, example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
     #[smithy(value_type = "Option<String>")]
