@@ -21464,14 +21464,6 @@
             "type": "string",
             "description": "The return url to which the customer should be redirected to after adding the payment method",
             "nullable": true
-          },
-          "storage_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/StorageType"
-              }
-            ],
-            "nullable": true
           }
         }
       },
@@ -21558,6 +21550,7 @@
           "id",
           "expires_at",
           "client_secret",
+          "storage_type",
           "keep_alive"
         ],
         "properties": {
@@ -21647,12 +21640,7 @@
             "nullable": true
           },
           "storage_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/StorageType"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/StorageType"
           },
           "card_cvc_token_storage": {
             "allOf": [
