@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.02.0-hotfix2
+
+### Bug Fixes
+
+- **router:** Made payment account reference optional for visa click to pay ([#11350](https://github.com/juspay/hyperswitch/pull/11350)) ([`c874a5a`](https://github.com/juspay/hyperswitch/commit/c874a5ae14a9ac0528fc454a2696e9a26c2109e6))
+
+**Full Changelog:** [`2026.02.02.0-hotfix1...2026.02.02.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2026.02.02.0-hotfix1...2026.02.02.0-hotfix2)
+
+- - -
+
 ## 2026.02.02.0-hotfix1
 
 ### Bug Fixes
