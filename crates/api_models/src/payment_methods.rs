@@ -755,7 +755,7 @@ pub struct CardDetail {
 }
 
 // This struct is for collecting Proxy Card Data
-// All card related data present in this struct are tokenzied
+// All card related data present in this struct are tokenized
 // No strict type is present to accept tokenized data
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
