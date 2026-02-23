@@ -20,7 +20,7 @@ describe("Bank Redirect tests", () => {
       "bank_redirect_pm"
     ]["PaymentIntent"]("Blik");
 
-    cy.step("Create Payment Intent", () => 
+    cy.step("Create Payment Intent", () =>
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
         data,
@@ -90,11 +90,11 @@ describe("Bank Redirect tests", () => {
     const payment_method_type = globalState.get("paymentMethodType");
 
     cy.step("Handle Bank Redirect Redirection", () =>
-    cy.handleBankRedirectRedirection(
-      globalState,
-      payment_method_type,
-      expected_redirection
-    )
+      cy.handleBankRedirectRedirection(
+        globalState,
+        payment_method_type,
+        expected_redirection
+      )
     );
   });
 
@@ -104,19 +104,19 @@ describe("Bank Redirect tests", () => {
     ]["PaymentIntent"]("Ideal");
 
     cy.step("Create Payment Intent", () =>
-    cy.createPaymentIntentTest(
-      fixtures.createPaymentBody,
-      data,
-      "three_ds",
-      "automatic",
-      globalState
-    )
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "three_ds",
+        "automatic",
+        globalState
+      )
     );
 
     if (!utils.should_continue_further(data)) return;
 
     cy.step("List Merchant Payment Methods", () =>
-    cy.paymentMethodsCallTest(globalState)
+      cy.paymentMethodsCallTest(globalState)
     );
 
     const confirmData = getConnectorDetails(globalState.get("connectorId"))[
@@ -124,12 +124,12 @@ describe("Bank Redirect tests", () => {
     ]["Ideal"];
 
     cy.step("Confirm Payment", () =>
-    cy.confirmBankRedirectCallTest(
-      fixtures.confirmBody,
-      confirmData,
-      true,
-      globalState
-    )
+      cy.confirmBankRedirectCallTest(
+        fixtures.confirmBody,
+        confirmData,
+        true,
+        globalState
+      )
     );
 
     if (!utils.should_continue_further(confirmData)) return;
@@ -138,11 +138,11 @@ describe("Bank Redirect tests", () => {
     const payment_method_type = globalState.get("paymentMethodType");
 
     cy.step("Handle Bank Redirect Redirection", () =>
-    cy.handleBankRedirectRedirection(
-      globalState,
-      payment_method_type,
-      expected_redirection
-    )
+      cy.handleBankRedirectRedirection(
+        globalState,
+        payment_method_type,
+        expected_redirection
+      )
     );
   });
 
@@ -152,19 +152,19 @@ describe("Bank Redirect tests", () => {
     ]["PaymentIntent"]("Sofort");
 
     cy.step("Create Payment Intent", () =>
-    cy.createPaymentIntentTest(
-      fixtures.createPaymentBody,
-      data,
-      "three_ds",
-      "automatic",
-      globalState
-    )
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "three_ds",
+        "automatic",
+        globalState
+      )
     );
 
     if (!utils.should_continue_further(data)) return;
 
     cy.step("List Merchant Payment Methods", () =>
-    cy.paymentMethodsCallTest(globalState)
+      cy.paymentMethodsCallTest(globalState)
     );
 
     const confirmData = getConnectorDetails(globalState.get("connectorId"))[
@@ -172,12 +172,12 @@ describe("Bank Redirect tests", () => {
     ]["Sofort"];
 
     cy.step("Confirm Payment", () =>
-    cy.confirmBankRedirectCallTest(
-      fixtures.confirmBody,
-      confirmData,
-      true,
-      globalState
-    )
+      cy.confirmBankRedirectCallTest(
+        fixtures.confirmBody,
+        confirmData,
+        true,
+        globalState
+      )
     );
 
     if (!utils.should_continue_further(confirmData)) return;
@@ -186,11 +186,11 @@ describe("Bank Redirect tests", () => {
     const payment_method_type = globalState.get("paymentMethodType");
 
     cy.step("Handle Bank Redirect Redirection", () =>
-    cy.handleBankRedirectRedirection(
-      globalState,
-      payment_method_type,
-      expected_redirection
-    )
+      cy.handleBankRedirectRedirection(
+        globalState,
+        payment_method_type,
+        expected_redirection
+      )
     );
   });
 
@@ -200,19 +200,19 @@ describe("Bank Redirect tests", () => {
     ]["PaymentIntent"]("Przelewy24");
 
     cy.step("Create Payment Intent", () =>
-    cy.createPaymentIntentTest(
-      fixtures.createPaymentBody,
-      data,
-      "three_ds",
-      "automatic",
-      globalState
-    )
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "three_ds",
+        "automatic",
+        globalState
+      )
     );
 
     if (!utils.should_continue_further(data)) return;
 
     cy.step("List Merchant Payment Methods", () =>
-    cy.paymentMethodsCallTest(globalState)
+      cy.paymentMethodsCallTest(globalState)
     );
 
     const confirmData = getConnectorDetails(globalState.get("connectorId"))[
@@ -220,12 +220,12 @@ describe("Bank Redirect tests", () => {
     ]["Przelewy24"];
 
     cy.step("Confirm Payment", () =>
-    cy.confirmBankRedirectCallTest(
-      fixtures.confirmBody,
-      confirmData,
-      true,
-      globalState
-    )
+      cy.confirmBankRedirectCallTest(
+        fixtures.confirmBody,
+        confirmData,
+        true,
+        globalState
+      )
     );
 
     if (!utils.should_continue_further(confirmData)) return;
@@ -234,11 +234,11 @@ describe("Bank Redirect tests", () => {
     const payment_method_type = globalState.get("paymentMethodType");
 
     cy.step("Handle Bank Redirect Redirection", () =>
-    cy.handleBankRedirectRedirection(
-      globalState,
-      payment_method_type,
-      expected_redirection
-    )
+      cy.handleBankRedirectRedirection(
+        globalState,
+        payment_method_type,
+        expected_redirection
+      )
     );
   });
 
@@ -248,19 +248,19 @@ describe("Bank Redirect tests", () => {
     ]["PaymentIntent"]("OpenBankingUk");
 
     cy.step("Create Payment Intent", () =>
-    cy.createPaymentIntentTest(
-      fixtures.createPaymentBody,
-      data,
-      "three_ds",
-      "automatic",
-      globalState
-    )
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "three_ds",
+        "automatic",
+        globalState
+      )
     );
 
     if (!utils.should_continue_further(data)) return;
 
     cy.step("List Merchant Payment Methods", () =>
-    cy.paymentMethodsCallTest(globalState)
+      cy.paymentMethodsCallTest(globalState)
     );
 
     const confirmData = getConnectorDetails(globalState.get("connectorId"))[
@@ -268,12 +268,12 @@ describe("Bank Redirect tests", () => {
     ]["OpenBankingUk"];
 
     cy.step("Confirm Payment", () =>
-    cy.confirmBankRedirectCallTest(
-      fixtures.confirmBody,
-      confirmData,
-      true,
-      globalState
-    )
+      cy.confirmBankRedirectCallTest(
+        fixtures.confirmBody,
+        confirmData,
+        true,
+        globalState
+      )
     );
 
     if (!utils.should_continue_further(confirmData)) return;
@@ -282,15 +282,15 @@ describe("Bank Redirect tests", () => {
     const payment_method_type = globalState.get("paymentMethodType");
 
     cy.step("Handle Bank Redirect Redirection", () =>
-    cy.handleBankRedirectRedirection(
-      globalState,
-      payment_method_type,
-      expected_redirection
-    )
+      cy.handleBankRedirectRedirection(
+        globalState,
+        payment_method_type,
+        expected_redirection
+      )
     );
 
     cy.step("Retrieve Payment", () =>
-    cy.retrievePaymentCallTest({ globalState, data: confirmData })
+      cy.retrievePaymentCallTest({ globalState, data: confirmData })
     );
   });
 
@@ -300,19 +300,19 @@ describe("Bank Redirect tests", () => {
     ]["PaymentIntent"]("OnlineBankingFpx");
 
     cy.step("Create Payment Intent", () =>
-    cy.createPaymentIntentTest(
-      fixtures.createPaymentBody,
-      data,
-      "three_ds",
-      "automatic",
-      globalState
-    )
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "three_ds",
+        "automatic",
+        globalState
+      )
     );
 
     if (!utils.should_continue_further(data)) return;
 
     cy.step("List Merchant Payment Methods", () =>
-    cy.paymentMethodsCallTest(globalState)
+      cy.paymentMethodsCallTest(globalState)
     );
 
     const confirmData = getConnectorDetails(globalState.get("connectorId"))[
@@ -320,12 +320,12 @@ describe("Bank Redirect tests", () => {
     ]["OnlineBankingFpx"];
 
     cy.step("Confirm Payment", () =>
-    cy.confirmBankRedirectCallTest(
-      fixtures.confirmBody,
-      confirmData,
-      true,
-      globalState
-    )
+      cy.confirmBankRedirectCallTest(
+        fixtures.confirmBody,
+        confirmData,
+        true,
+        globalState
+      )
     );
 
     if (!utils.should_continue_further(confirmData)) return;
@@ -334,15 +334,15 @@ describe("Bank Redirect tests", () => {
     const payment_method_type = globalState.get("paymentMethodType");
 
     cy.step("Handle Bank Redirect Redirection", () =>
-    cy.handleBankRedirectRedirection(
-      globalState,
-      payment_method_type,
-      expected_redirection
-    )
+      cy.handleBankRedirectRedirection(
+        globalState,
+        payment_method_type,
+        expected_redirection
+      )
     );
 
     cy.step("Retrieve Payment", () =>
-    cy.retrievePaymentCallTest({ globalState, data: confirmData })
+      cy.retrievePaymentCallTest({ globalState, data: confirmData })
     );
   });
 
@@ -352,19 +352,19 @@ describe("Bank Redirect tests", () => {
     ]["PaymentIntent"]("Interac");
 
     cy.step("Create Payment Intent", () =>
-    cy.createPaymentIntentTest(
-      fixtures.createPaymentBody,
-      data,
-      "three_ds",
-      "automatic",
-      globalState
-    )
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "three_ds",
+        "automatic",
+        globalState
+      )
     );
 
     if (!utils.should_continue_further(data)) return;
 
     cy.step("List Merchant Payment Methods", () =>
-    cy.paymentMethodsCallTest(globalState)
+      cy.paymentMethodsCallTest(globalState)
     );
 
     const confirmData = getConnectorDetails(globalState.get("connectorId"))[
@@ -372,12 +372,12 @@ describe("Bank Redirect tests", () => {
     ]["Interac"];
 
     cy.step("Confirm Payment", () =>
-    cy.confirmBankRedirectCallTest(
-      fixtures.confirmBody,
-      confirmData,
-      true,
-      globalState
-    )
+      cy.confirmBankRedirectCallTest(
+        fixtures.confirmBody,
+        confirmData,
+        true,
+        globalState
+      )
     );
 
     if (!utils.should_continue_further(confirmData)) return;
@@ -386,15 +386,15 @@ describe("Bank Redirect tests", () => {
     const payment_method_type = globalState.get("paymentMethodType");
 
     cy.step("Handle Bank Redirect Redirection", () =>
-    cy.handleBankRedirectRedirection(
-      globalState,
-      payment_method_type,
-      expected_redirection
-    )
+      cy.handleBankRedirectRedirection(
+        globalState,
+        payment_method_type,
+        expected_redirection
+      )
     );
 
     cy.step("Retrieve Payment", () =>
-    cy.retrievePaymentCallTest({ globalState, data: confirmData })
+      cy.retrievePaymentCallTest({ globalState, data: confirmData })
     );
   });
 });
