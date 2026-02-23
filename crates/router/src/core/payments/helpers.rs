@@ -1991,6 +1991,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         .get_implicit_customer_update(
                             state.store.as_ref(),
                             state.superposition_service.as_deref(),
+                            Some(&customer_id),
                         )
                         .await;
 
@@ -2948,7 +2949,11 @@ pub async fn fetch_card_details_from_external_vault(
         }
         hyperswitch_domain_models::vault::PaymentMethodVaultingData::NetworkToken(_) => {
             Err(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Network Token not supproted")
+                .attach_printable("Network Token not supported")
+        }
+        hyperswitch_domain_models::vault::PaymentMethodVaultingData::BankDebit(_) => {
+            Err(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Bank Debit not supported")
         }
     }
 }

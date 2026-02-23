@@ -7181,6 +7181,8 @@ api_key = "API Key"
 [payload.connector_auth.CurrencyAuthKey.auth_key_map.CAD]
 processing_account_id = "processing_account_id"
 api_key = "API Key"
+[payload.connector_webhook_details]
+merchant_secret = "Source verification key"
 
 [silverflow]
 [[silverflow.credit]]
@@ -8131,3 +8133,8 @@ options=["Connector"]
   key1 = "Merchant Terminal Id"
 [[payjustnowinstore.pay_later]]
   payment_method_type = "payjustnow"
+
+[truelayer]
+[truelayer.connector_auth.BodyKey]
+  api_key = "Client ID"
+  key1 = "Client Secret"
