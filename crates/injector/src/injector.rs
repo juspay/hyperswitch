@@ -679,24 +679,27 @@ pub mod core {
 
             // Extract vault metadata directly from headers using existing functions
 
-            let (vault_proxy_url, vault_ca_cert) = if config
-                .headers
-                .contains_key(crate::consts::EXTERNAL_VAULT_METADATA_HEADER)
-            {
-                let mut temp_config = injector_types::ConnectionConfig::new(
-                    config.endpoint.clone(),
-                    config.http_method,
-                );
+            // let (vault_proxy_url, vault_ca_cert) = if config
+            //     .headers
+            //     .contains_key(crate::consts::EXTERNAL_VAULT_METADATA_HEADER)
+            // {
+            //     let mut temp_config = injector_types::ConnectionConfig::new(
+            //         config.endpoint.clone(),
+            //         config.http_method,
+            //     );
 
-                // Use existing vault metadata extraction with fallback
-                if temp_config.extract_and_apply_vault_metadata_with_fallback(&config.headers) {
-                    (temp_config.proxy_url, temp_config.ca_cert)
-                } else {
-                    (None, None)
-                }
-            } else {
-                (None, None)
-            };
+            //     // Use existing vault metadata extraction with fallback
+            //     if temp_config.extract_and_apply_vault_metadata_with_fallback(&config.headers) {
+            //         (temp_config.proxy_url, temp_config.ca_cert)
+            //     } else {
+            //         (None, None)
+            //     }
+            // } else {
+            //     (None, None)
+            // };
+
+            let vault_proxy_url = config.proxy_url.clone();
+            let vault_ca_cert = config.ca_cert.clone();
 
             // Build request safely with certificate configuration
             let mut request_builder = RequestBuilder::new()
