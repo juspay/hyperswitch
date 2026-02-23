@@ -107,6 +107,22 @@ fn get_google_pay_tokenization_data(
     }
 }
 
+/// Returns Paze data from payment method token when it has decrypt data,
+/// otherwise returns data from wallet payload.
+fn get_paze_wallet_data(
+    wallet_data: &hyperswitch_domain_models::payment_method_data::PazeWalletData,
+    payment_method_token: Option<&PaymentMethodToken>,
+) -> CustomResult<payments_grpc::paze_wallet::PazeData, UnifiedConnectorServiceError> {
+    match payment_method_token {
+        Some(PaymentMethodToken::PazeDecrypt(paze_decrypted_data)) => {
+            Ok(payments_grpc::paze_wallet::PazeData::DecryptedData(
+                payments_grpc::PazeDecryptedData::foreign_try_from(paze_decrypted_data.as_ref())?,
+            ))
+        }
+        _ => payments_grpc::paze_wallet::PazeData::foreign_try_from(wallet_data),
+    }
+}
+
 pub async fn get_access_token_from_ucs_response(
     session_state: &SessionState,
     processor: &Processor,
@@ -1263,10 +1279,7 @@ pub fn build_unified_connector_service_payment_method(
                     )),
                 }),
                 hyperswitch_domain_models::payment_method_data::WalletData::Paze(paze_data) => {
-                    let paze_wallet_data = payments_grpc::paze_wallet::PazeData::foreign_try_from((
-                        &paze_data,
-                        payment_method_token,
-                    ))?;
+                    let paze_wallet_data = get_paze_wallet_data(&paze_data, payment_method_token)?;
                     Ok(payments_grpc::PaymentMethod {
                         payment_method: Some(PaymentMethod::Paze(payments_grpc::PazeWallet {
                             paze_data: Some(paze_wallet_data),

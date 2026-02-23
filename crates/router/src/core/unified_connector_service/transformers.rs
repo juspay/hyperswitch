@@ -414,16 +414,18 @@ impl
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
-        let payment_method = match router_data.request.payment_method_data.clone() {
-            Some(payment_method_data) => Some(
+        let payment_method = router_data
+            .request
+            .payment_method_data
+            .clone()
+            .map(|payment_method_data| {
                 unified_connector_service::build_unified_connector_service_payment_method(
                     payment_method_data,
                     router_data.request.payment_method_type,
                     router_data.payment_method_token.as_ref(),
-                )?,
-            ),
-            None => None,
-        };
+                )
+            })
+            .transpose()?;
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
@@ -1278,16 +1280,18 @@ impl
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
-        let payment_method = match router_data.request.payment_method_data.clone() {
-            Some(payment_method_data) => Some(
+        let payment_method = router_data
+            .request
+            .payment_method_data
+            .clone()
+            .map(|payment_method_data| {
                 unified_connector_service::build_unified_connector_service_payment_method(
                     payment_method_data,
                     router_data.request.payment_method_type,
                     router_data.payment_method_token.as_ref(),
-                )?,
-            ),
-            None => None,
-        };
+                )
+            })
+            .transpose()?;
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
@@ -2006,16 +2010,15 @@ impl
             }
             payment_method_data => Some(payment_method_data),
         };
-        let payment_method = match payment_method_data {
-            Some(payment_method_data) => Some(
+        let payment_method = payment_method_data
+            .map(|payment_method_data| {
                 unified_connector_service::build_unified_connector_service_payment_method(
                     payment_method_data,
                     router_data.request.payment_method_type,
                     router_data.payment_method_token.as_ref(),
-                )?,
-            ),
-            None => None,
-        };
+                )
+            })
+            .transpose()?;
 
         let authentication_data = router_data
             .request
@@ -3484,38 +3487,6 @@ impl transformers::ForeignTryFrom<&hyperswitch_domain_models::payment_method_dat
         Ok(Self::CompleteResponse(
             value.complete_response.clone().expose().into(),
         ))
-    }
-}
-
-impl
-    transformers::ForeignTryFrom<(
-        &hyperswitch_domain_models::payment_method_data::PazeWalletData,
-        Option<&hyperswitch_domain_models::router_data::PaymentMethodToken>,
-    )> for payments_grpc::paze_wallet::PazeData
-{
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(
-        (wallet_data, payment_method_token): (
-            &hyperswitch_domain_models::payment_method_data::PazeWalletData,
-            Option<&hyperswitch_domain_models::router_data::PaymentMethodToken>,
-        ),
-    ) -> Result<Self, Self::Error> {
-        let mut converted_paze_data = Self::foreign_try_from(wallet_data)?;
-
-        if let (
-            Self::CompleteResponse(_),
-            Some(hyperswitch_domain_models::router_data::PaymentMethodToken::PazeDecrypt(
-                paze_decrypted_data,
-            )),
-        ) = (&converted_paze_data, payment_method_token)
-        {
-            converted_paze_data = Self::DecryptedData(
-                payments_grpc::PazeDecryptedData::foreign_try_from(paze_decrypted_data.as_ref())?,
-            );
-        }
-
-        Ok(converted_paze_data)
     }
 }
 
