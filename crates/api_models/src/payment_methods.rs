@@ -1395,6 +1395,8 @@ pub struct NetworkTokenDetailsPaymentMethod {
     pub card_type: Option<String>,
     #[serde(default = "saved_in_locker_default")]
     pub saved_to_locker: bool,
+    #[schema(value_type = Option<String>, example = "522134KAVJ1JPZ8L77N0Z2LRYZS7J")]
+    pub par: Option<masking::Secret<String>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -3773,6 +3775,9 @@ pub struct PaymentMethodSessionResponse {
 
     /// Whether the card with new status should be listed in the session
     pub keep_alive: bool,
+
+    /// Network token details if available
+    pub network_token: Option<NetworkTokenResponse>,
 }
 
 #[cfg(feature = "v2")]

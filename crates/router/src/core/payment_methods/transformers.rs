@@ -587,6 +587,7 @@ pub fn generate_payment_method_response(
     raw_payment_method_data: Option<api_models::payment_methods::RawPaymentMethodData>,
     billing: Option<api::Address>,
     acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
+    network_token_details: Option<crate::core::payment_methods::NetworkTokenPaymentMethodDetails>,
 ) -> errors::RouterResult<api::PaymentMethodResponse> {
     let pmd = payment_method
         .payment_method_data
@@ -621,7 +622,7 @@ pub fn generate_payment_method_response(
         Some(connector_tokens)
     };
 
-    let network_token_pmd = payment_method
+    let mut network_token_pmd = payment_method
         .network_token_payment_method_data
         .clone()
         .map(|data| data.into_inner())
@@ -631,6 +632,11 @@ pub fn generate_payment_method_response(
             }
             _ => None,
         });
+    network_token_pmd.as_mut().map(|pmd| {
+        pmd.par = network_token_details
+            .as_ref()
+            .and_then(|details| details.par.clone());
+    });
 
     let network_token = network_token_pmd.map(|pmd| api::NetworkTokenResponse {
         payment_method_data: pmd,
@@ -1016,6 +1022,7 @@ pub fn generate_payment_method_session_response(
     storage_type: common_enums::StorageType,
     card_cvc_token_storage: Option<api_models::payment_methods::CardCVCTokenStorageDetails>,
     payment_method_data: Option<api_models::payment_methods::PaymentMethodResponseData>,
+    network_tokenization_response: Option<api_models::payment_methods::NetworkTokenResponse>,
 ) -> api_models::payment_methods::PaymentMethodSessionResponse {
     let next_action = associated_payment
         .as_ref()
@@ -1057,6 +1064,7 @@ pub fn generate_payment_method_session_response(
         payment_method_data,
         sdk_authorization,
         keep_alive: payment_method_session.keep_alive,
+        network_token: network_tokenization_response,
     }
 }
 

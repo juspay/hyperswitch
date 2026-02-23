@@ -1402,6 +1402,7 @@ pub struct NetworkTokenData {
     pub card_holder_name: Option<Secret<String>>,
     pub nick_name: Option<Secret<String>>,
     pub eci: Option<String>,
+    pub par: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
@@ -1416,6 +1417,7 @@ pub struct NetworkTokenDetails {
     pub card_issuing_country: Option<api_enums::CountryAlpha2>,
     pub card_holder_name: Option<Secret<String>>,
     pub nick_name: Option<Secret<String>>,
+    pub par: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
@@ -2616,6 +2618,7 @@ impl From<api_models::payments::NetworkTokenData> for NetworkTokenData {
             card_holder_name: network_token_data.card_holder_name,
             nick_name: network_token_data.nick_name,
             eci: network_token_data.eci,
+            par: network_token_data.par,
         }
     }
 }
@@ -3340,6 +3343,7 @@ impl From<NetworkTokenDetailsPaymentMethod> for payment_methods::NetworkTokenDet
             card_network: item.card_network,
             card_type: item.card_type,
             saved_to_locker: item.saved_to_locker,
+            par: None,
         }
     }
 }
@@ -3433,6 +3437,7 @@ impl From<NetworkTokenData> for AdditionalNetworkTokenInfo {
             card_holder_name: network_token_data.card_holder_name.to_owned(),
             last4: Some(network_token_data.network_token.get_last4().clone()),
             token_isin: Some(network_token_data.network_token.get_card_isin().clone()),
+            par: network_token_data.par.clone(),
         }
     }
 }

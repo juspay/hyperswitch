@@ -1449,6 +1449,7 @@ impl PaymentMethodResolver {
                     None,
                     billing,
                     None,
+                    None,
                 )?;
 
                 Ok((resp, *existing_pm))
@@ -1612,7 +1613,7 @@ async fn execute_payment_method_create(
                 &payment_method,
                 None,
                 None,
-                network_tokenization_resp,
+                network_tokenization_resp.clone(),
                 Some(req.payment_method_type),
                 payment_method_subtype,
                 external_vault_source,
@@ -1661,6 +1662,7 @@ async fn execute_payment_method_create(
                 None,
                 payment_method_billing_address.map(|add| add.get_inner().clone().into()),
                 None,
+                network_tokenization_resp,
             )?;
 
             Ok((resp, payment_method))
@@ -1819,6 +1821,7 @@ pub async fn create_volatile_payment_method_card_core(
                 None,
                 None,
                 None,
+                None,
             )?;
 
             Ok((resp, domain_payment_method))
@@ -1938,6 +1941,7 @@ pub async fn create_payment_method_proxy_card_core(
         None,
         None,
         None,
+        None,
     )?;
 
     Ok((payment_method_response, payment_method))
@@ -1949,6 +1953,7 @@ pub struct NetworkTokenPaymentMethodDetails {
     network_token_requestor_reference_id: String,
     network_token_locker_id: String,
     network_token_pmd: Encryptable<Secret<serde_json::Value>>,
+    par: Option<Secret<String>>,
 }
 
 #[cfg(feature = "v2")]
@@ -1999,6 +2004,8 @@ pub async fn network_tokenize_and_vault_the_pmd(
             )
             .await?;
 
+        let par = resp.par.clone();
+
         let network_token_vaulting_data = domain::PaymentMethodVaultingData::NetworkToken(resp);
         let vaulting_resp = vault::add_payment_method_to_vault(
             state,
@@ -2025,6 +2032,7 @@ pub async fn network_tokenize_and_vault_the_pmd(
             network_token_requestor_reference_id: network_token_req_ref_id,
             network_token_locker_id: vaulting_resp.vault_id.get_string_repr().clone(),
             network_token_pmd,
+            par,
         })
     }
     .await;
@@ -2353,6 +2361,7 @@ pub async fn payment_method_intent_create(
         common_enums::StorageType::Persistent,
         None,
         Some(customer_id),
+        None,
         None,
         None,
         None,
@@ -3879,6 +3888,7 @@ pub async fn retrieve_payment_method(
         raw_payment_method_data,
         billing,
         None,
+        None,
     )
     .map(services::ApplicationResponse::Json)
 }
@@ -4583,6 +4593,7 @@ pub async fn payment_methods_session_create(
         request.storage_type,
         None,
         None,
+        None,
     );
 
     Ok(services::ApplicationResponse::Json(response))
@@ -4651,6 +4662,7 @@ pub async fn payment_methods_session_update(
         update_state_change.storage_type,
         None,
         None,
+        None,
     );
 
     Ok(services::ApplicationResponse::Json(response))
@@ -4709,6 +4721,7 @@ pub async fn payment_methods_session_retrieve(
         expiry.map(|time| {
             payment_methods::CardCVCTokenStorageDetails::generate_expiry_timestamp(time)
         }),
+        None,
         None,
     );
 
@@ -4811,6 +4824,7 @@ pub async fn payment_methods_session_update_payment_method(
         updated_payment_method_session.storage_type,
         update_response.card_cvc_token_storage,
         update_response.payment_method_data.clone(),
+        None,
     );
 
     Ok(services::ApplicationResponse::Json(response))
@@ -5142,6 +5156,7 @@ pub async fn payment_methods_session_confirm(
         payment_method_response.storage_type,
         payment_method_response.card_cvc_token_storage,
         None,
+        payment_method_response.network_token,
     );
 
     Ok(services::ApplicationResponse::Json(
@@ -5795,6 +5810,7 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
                 .clone()
                 .map(|billing| billing.get_inner().clone().into()),
             self.request.acknowledgement_status,
+            None,
         )?;
 
         Ok(response)
