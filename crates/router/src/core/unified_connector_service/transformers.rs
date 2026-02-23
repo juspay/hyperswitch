@@ -641,11 +641,6 @@ impl
             merchant_account_metadata,
             state,
             test_mode: router_data.test_mode,
-            payment_method_type: router_data
-                .payment_method_type
-                .map(payments_grpc::PaymentMethodType::foreign_try_from)
-                .transpose()?
-                .map(|payment_method_type| payment_method_type.into()),
         })
     }
 }
@@ -4472,17 +4467,12 @@ impl
 
             let status = AttemptStatus::foreign_try_from((response.status(), prev_status))?;
 
-            let session_token = response
-                .session_token
-                .map(SessionToken::foreign_try_from)
-                .transpose()?;
-
             // For order creation, we typically return a successful response with the order_id
             // Since this is not a standard payment response, we'll create a simple success response
             Ok((
                 PaymentsResponseData::PaymentsCreateOrderResponse {
                     order_id,
-                    session_token,
+                    session_token: None,
                 },
                 status,
             ))
