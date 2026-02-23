@@ -1,4 +1,4 @@
-use api_models::payments::{QrCodeInformation, VoucherNextStepData};
+use api_models::payments::{QrCodeInformation, SantanderData, VoucherNextStepData};
 use common_enums::{
     enums, AttemptStatus, BoletoDocumentKind, BoletoPaymentType, ExpiryType, PixKey,
 };
@@ -802,13 +802,16 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                     _ => {
                         let connector_metadata = pix_data
                             .pix
-                            .ok_or_else(|| errors::ConnectorError::ParsingFailed)?
-                            .first()
+                            .as_ref()
+                            .and_then(|pix_list| pix_list.first())
                             .map(|pix| {
-                                serde_json::json!({
-                                    "end_to_end_id": pix.end_to_end_id.clone().expose()
-                                })
-                            });
+                                let data = SantanderData {
+                                    end_to_end_id: Some(pix.end_to_end_id.clone().expose()),
+                                };
+                                serde_json::to_value(data)
+                                    .change_context(errors::ConnectorError::ParsingFailed)
+                            })
+                            .transpose()?;
                         Ok(Self {
                             status: AttemptStatus::from(pix_data.status),
                             response: Ok(PaymentsResponseData::TransactionResponse {
