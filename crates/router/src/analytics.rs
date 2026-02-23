@@ -35,7 +35,7 @@ pub mod routes {
         analytics_validator::request_validator,
         consts::opensearch::SEARCH_INDEXES,
         core::{api_locking, errors::user::UserErrors, verification::utils},
-        db::{user_role::ListUserRolesByUserIdPayload},
+        db::user_role::ListUserRolesByUserIdPayload,
         routes::AppState,
         services::{
             api,
@@ -1875,10 +1875,10 @@ pub mod routes {
 
                         let user_email = Email::try_from(
                             UserEmail::from_pii_email(user.email)
-                            .change_context(AnalyticsError::UnknownError)?
-                            .get_secret()
-                            .expose()
-                            .to_string(),
+                                .change_context(AnalyticsError::UnknownError)?
+                                .get_secret()
+                                .expose()
+                                .to_string(),
                         )
                         .change_context(AnalyticsError::MissingEmail)?;
 
@@ -1968,15 +1968,15 @@ pub mod routes {
 
                         let user_email = Email::try_from(
                             UserEmail::from_pii_email(user.email)
-                            .change_context(AnalyticsError::UnknownError)?
-                            .get_secret()
-                            .expose()
-                            .to_string(),
+                                .change_context(AnalyticsError::UnknownError)?
+                                .get_secret()
+                                .expose()
+                                .to_string(),
                         )
                         .change_context(AnalyticsError::MissingEmail)?;
 
                         (user_email, payload.emails)
-                    } 
+                    }
                     None => {
                         let (primary_email, other_emails) = payload
                             .emails
@@ -2059,15 +2059,15 @@ pub mod routes {
 
                         let user_email = Email::try_from(
                             UserEmail::from_pii_email(user.email)
-                            .change_context(AnalyticsError::UnknownError)?
-                            .get_secret()
-                            .expose()
-                            .to_string(),
+                                .change_context(AnalyticsError::UnknownError)?
+                                .get_secret()
+                                .expose()
+                                .to_string(),
                         )
                         .change_context(AnalyticsError::MissingEmail)?;
 
                         (user_email, payload.emails)
-                    } 
+                    }
                     None => {
                         let (primary_email, other_emails) = payload
                             .emails
@@ -2158,15 +2158,15 @@ pub mod routes {
 
                         let user_email = Email::try_from(
                             UserEmail::from_pii_email(user.email)
-                            .change_context(AnalyticsError::UnknownError)?
-                            .get_secret()
-                            .expose()
-                            .to_string(),
+                                .change_context(AnalyticsError::UnknownError)?
+                                .get_secret()
+                                .expose()
+                                .to_string(),
                         )
                         .change_context(AnalyticsError::MissingEmail)?;
 
                         (user_email, payload.emails)
-                    } 
+                    }
                     None => {
                         let (primary_email, other_emails) = payload
                             .emails
@@ -2250,15 +2250,15 @@ pub mod routes {
 
                         let user_email = Email::try_from(
                             UserEmail::from_pii_email(user.email)
-                            .change_context(AnalyticsError::UnknownError)?
-                            .get_secret()
-                            .expose()
-                            .to_string(),
+                                .change_context(AnalyticsError::UnknownError)?
+                                .get_secret()
+                                .expose()
+                                .to_string(),
                         )
                         .change_context(AnalyticsError::MissingEmail)?;
 
                         (user_email, payload.emails)
-                    } 
+                    }
                     None => {
                         let (primary_email, other_emails) = payload
                             .emails
@@ -2341,15 +2341,15 @@ pub mod routes {
 
                         let user_email = Email::try_from(
                             UserEmail::from_pii_email(user.email)
-                            .change_context(AnalyticsError::UnknownError)?
-                            .get_secret()
-                            .expose()
-                            .to_string(),
+                                .change_context(AnalyticsError::UnknownError)?
+                                .get_secret()
+                                .expose()
+                                .to_string(),
                         )
                         .change_context(AnalyticsError::MissingEmail)?;
 
                         (user_email, payload.emails)
-                    } 
+                    }
                     None => {
                         let (primary_email, other_emails) = payload
                             .emails
@@ -2441,15 +2441,15 @@ pub mod routes {
 
                         let user_email = Email::try_from(
                             UserEmail::from_pii_email(user.email)
-                            .change_context(AnalyticsError::UnknownError)?
-                            .get_secret()
-                            .expose()
-                            .to_string(),
+                                .change_context(AnalyticsError::UnknownError)?
+                                .get_secret()
+                                .expose()
+                                .to_string(),
                         )
                         .change_context(AnalyticsError::MissingEmail)?;
 
                         (user_email, payload.emails)
-                    } 
+                    }
                     None => {
                         let (primary_email, other_emails) = payload
                             .emails
@@ -2534,15 +2534,15 @@ pub mod routes {
 
                         let user_email = Email::try_from(
                             UserEmail::from_pii_email(user.email)
-                            .change_context(AnalyticsError::UnknownError)?
-                            .get_secret()
-                            .expose()
-                            .to_string(),
+                                .change_context(AnalyticsError::UnknownError)?
+                                .get_secret()
+                                .expose()
+                                .to_string(),
                         )
                         .change_context(AnalyticsError::MissingEmail)?;
 
                         (user_email, payload.emails)
-                    } 
+                    }
                     None => {
                         let (primary_email, other_emails) = payload
                             .emails
@@ -2625,15 +2625,15 @@ pub mod routes {
 
                         let user_email = Email::try_from(
                             UserEmail::from_pii_email(user.email)
-                            .change_context(AnalyticsError::UnknownError)?
-                            .get_secret()
-                            .expose()
-                            .to_string(),
+                                .change_context(AnalyticsError::UnknownError)?
+                                .get_secret()
+                                .expose()
+                                .to_string(),
                         )
                         .change_context(AnalyticsError::MissingEmail)?;
 
                         (user_email, payload.emails)
-                    } 
+                    }
                     None => {
                         let (primary_email, other_emails) = payload
                             .emails
@@ -2723,15 +2723,15 @@ pub mod routes {
 
                         let user_email = Email::try_from(
                             UserEmail::from_pii_email(user.email)
-                            .change_context(AnalyticsError::UnknownError)?
-                            .get_secret()
-                            .expose()
-                            .to_string(),
+                                .change_context(AnalyticsError::UnknownError)?
+                                .get_secret()
+                                .expose()
+                                .to_string(),
                         )
                         .change_context(AnalyticsError::MissingEmail)?;
 
                         (user_email, payload.emails)
-                    } 
+                    }
                     None => {
                         let (primary_email, other_emails) = payload
                             .emails
@@ -2815,15 +2815,15 @@ pub mod routes {
 
                         let user_email = Email::try_from(
                             UserEmail::from_pii_email(user.email)
-                            .change_context(AnalyticsError::UnknownError)?
-                            .get_secret()
-                            .expose()
-                            .to_string(),
+                                .change_context(AnalyticsError::UnknownError)?
+                                .get_secret()
+                                .expose()
+                                .to_string(),
                         )
                         .change_context(AnalyticsError::MissingEmail)?;
 
                         (user_email, payload.emails)
-                    } 
+                    }
                     None => {
                         let (primary_email, other_emails) = payload
                             .emails
@@ -2905,15 +2905,15 @@ pub mod routes {
 
                         let user_email = Email::try_from(
                             UserEmail::from_pii_email(user.email)
-                            .change_context(AnalyticsError::UnknownError)?
-                            .get_secret()
-                            .expose()
-                            .to_string(),
+                                .change_context(AnalyticsError::UnknownError)?
+                                .get_secret()
+                                .expose()
+                                .to_string(),
                         )
                         .change_context(AnalyticsError::MissingEmail)?;
 
                         (user_email, payload.emails)
-                    } 
+                    }
                     None => {
                         let (primary_email, other_emails) = payload
                             .emails
@@ -3012,15 +3012,15 @@ pub mod routes {
 
                         let user_email = Email::try_from(
                             UserEmail::from_pii_email(user.email)
-                            .change_context(AnalyticsError::UnknownError)?
-                            .get_secret()
-                            .expose()
-                            .to_string(),
+                                .change_context(AnalyticsError::UnknownError)?
+                                .get_secret()
+                                .expose()
+                                .to_string(),
                         )
                         .change_context(AnalyticsError::MissingEmail)?;
 
                         (user_email, payload.emails)
-                    } 
+                    }
                     None => {
                         let (primary_email, other_emails) = payload
                             .emails
@@ -3105,15 +3105,15 @@ pub mod routes {
 
                         let user_email = Email::try_from(
                             UserEmail::from_pii_email(user.email)
-                            .change_context(AnalyticsError::UnknownError)?
-                            .get_secret()
-                            .expose()
-                            .to_string(),
+                                .change_context(AnalyticsError::UnknownError)?
+                                .get_secret()
+                                .expose()
+                                .to_string(),
                         )
                         .change_context(AnalyticsError::MissingEmail)?;
 
                         (user_email, payload.emails)
-                    } 
+                    }
                     None => {
                         let (primary_email, other_emails) = payload
                             .emails
@@ -3196,15 +3196,15 @@ pub mod routes {
 
                         let user_email = Email::try_from(
                             UserEmail::from_pii_email(user.email)
-                            .change_context(AnalyticsError::UnknownError)?
-                            .get_secret()
-                            .expose()
-                            .to_string(),
+                                .change_context(AnalyticsError::UnknownError)?
+                                .get_secret()
+                                .expose()
+                                .to_string(),
                         )
                         .change_context(AnalyticsError::MissingEmail)?;
 
                         (user_email, payload.emails)
-                    } 
+                    }
                     None => {
                         let (primary_email, other_emails) = payload
                             .emails

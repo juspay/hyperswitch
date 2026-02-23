@@ -822,7 +822,8 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationDataWithUserId, AuthenticationType)> {
-        let (auth_data, auth_type): (AuthenticationData, AuthenticationType) = self.authenticate_and_fetch(request_headers, state).await?;
+        let (auth_data, auth_type): (AuthenticationData, AuthenticationType) =
+            self.authenticate_and_fetch(request_headers, state).await?;
 
         Ok(((auth_data, None), auth_type))
     }

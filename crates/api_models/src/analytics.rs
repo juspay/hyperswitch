@@ -1,11 +1,7 @@
 use std::collections::HashSet;
 
 pub use common_utils::types::TimeRange;
-use common_utils::{
-    events::ApiEventMetric,
-    pii::Email,
-    types::authentication::AuthInfo,
-};
+use common_utils::{events::ApiEventMetric, pii::Email, types::authentication::AuthInfo};
 
 use self::{
     active_payments::ActivePaymentsMetrics,
