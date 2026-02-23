@@ -35582,16 +35582,16 @@
       "RelayVoidRequestData": {
         "type": "object",
         "required": [
-          "void_amount"
+          "amount"
         ],
         "properties": {
-          "void_amount": {
+          "amount": {
             "type": "integer",
             "format": "int64",
             "description": "The amount of the transaction that is being voided",
             "example": 6540
           },
-          "void_currency": {
+          "currency": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/Currency"
