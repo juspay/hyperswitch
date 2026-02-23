@@ -22,6 +22,7 @@ pub struct InterestPercentage {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Discount {
     #[serde(rename = "type")]
     pub discount_type: SantanderDiscountType,
@@ -31,9 +32,9 @@ pub struct Discount {
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[serde(rename_all = "camelCase")]
 pub struct DiscountObject {
-    pub value: Option<FloatMajorUnit>,
+    pub value: Option<StringMajorUnit>,
     #[serde(default, with = "common_utils::custom_serde::date_only_optional")]
     pub limit_date: Option<time::PrimitiveDateTime>,
 }

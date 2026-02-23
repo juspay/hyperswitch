@@ -28,7 +28,7 @@ use common_utils::{
     id_type,
     new_type::MaskedBankAccount,
     pii::{self, Email},
-    types::{AmountConvertor, FloatMajorUnit, MinorUnit, SemanticVersion, StringMajorUnit},
+    types::{AmountConvertor, MinorUnit, SemanticVersion, StringMajorUnit},
 };
 use error_stack::ResultExt;
 
@@ -13152,9 +13152,9 @@ pub enum DiscountType {
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct DiscountTier {
     /// The discount value (e.g., "5.50").
-    #[schema(value_type = Option<f64>, example = 38.02)]
-    #[smithy(value_type = "Option<f64>")]
-    pub amount: Option<FloatMajorUnit>,
+    #[schema(value_type = Option<String>, example = "5.50")]
+    #[smithy(value_type = "Option<String>")]
+    pub amount: Option<StringMajorUnit>,
     /// The ISO-8601 date until which this discount is valid
     #[schema(value_type = Option<String>, example="2027-12-31")]
     #[serde(default, with = "common_utils::custom_serde::date_only_optional")]
