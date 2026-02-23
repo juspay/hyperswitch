@@ -1321,7 +1321,6 @@ pub struct InstallmentOption {
 pub struct InstallmentOptions(pub Vec<InstallmentOption>);
 impl_to_sql_from_sql_json!(InstallmentOptions);
 
-
 #[derive(
     Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
 )]
