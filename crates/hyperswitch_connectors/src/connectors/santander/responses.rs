@@ -147,7 +147,7 @@ pub struct SantanderBoletoPaymentsResponse {
     pub fine_quantity_days: Option<String>,
     pub interest_percentage: Option<String>,
     pub deduction_value: Option<String>,
-    pub protest_type: Option<requests::ProtestType>,
+    pub protest_type: Option<requests::SantanderProtestType>,
     pub protest_quantity_days: Option<String>,
     pub write_off_quantity_days: Option<String>,
     pub payment_type: SantanderBoletoPaymentType,

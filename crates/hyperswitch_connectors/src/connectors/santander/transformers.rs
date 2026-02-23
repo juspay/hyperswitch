@@ -1,7 +1,9 @@
-use api_models::payments::{QrCodeInformation, VoucherNextStepData};
-use common_enums::{
-    enums, AttemptStatus, BoletoDocumentKind, BoletoPaymentType, ExpiryType, PixKey,
+use api_models::payments::{
+    BeneficiaryDetails, BoletoPaymentTypeConstraints, CalculationType, ConnectorMetadata,
+    DiscountTier, DiscountType, ProtestType, QrCodeInformation, SantanderPaymentDiscountRules,
+    VoucherNextStepData,
 };
+use common_enums::{enums, AttemptStatus, BoletoDocumentKind, ExpiryType, PixKey};
 use common_utils::{
     errors::CustomResult,
     ext_traits::{Encode, ValueExt},
@@ -31,23 +33,23 @@ use url::Url;
 use crate::{
     connectors::santander::{
         requests::{
-            Environment, SantanderAuthRequest, SantanderAuthType, SantanderBoletoCancelOperation,
-            SantanderBoletoCancelRequest, SantanderBoletoPaymentRequest,
-            SantanderBoletoUpdateRequest, SantanderDebtor, SantanderGrantType,
-            SantanderMetadataObject, SantanderPaymentRequest, SantanderPaymentsCancelRequest,
-            SantanderPixCancelRequest, SantanderPixDueDateCalendarRequest,
-            SantanderPixImmediateCalendarRequest, SantanderPixQRPaymentRequest,
-            SantanderPixRequestCalendar, SantanderRefundRequest, SantanderRouterData,
-            SantanderValue,
+            BoletoAdditionalFields, Discount, DiscountObject, Environment, SantanderAuthRequest,
+            SantanderAuthType, SantanderBoletoCancelOperation, SantanderBoletoCancelRequest,
+            SantanderBoletoPaymentRequest, SantanderBoletoUpdateRequest, SantanderDebtor,
+            SantanderDiscountType, SantanderGrantType, SantanderMetadataObject,
+            SantanderPaymentRequest, SantanderPaymentsCancelRequest, SantanderPixCancelRequest,
+            SantanderPixDueDateCalendarRequest, SantanderPixImmediateCalendarRequest,
+            SantanderPixQRPaymentRequest, SantanderPixRequestCalendar, SantanderProtestType,
+            SantanderRefundRequest, SantanderRouterData, SantanderValue, SantanderValueType,
         },
         responses::{
-            Key, NsuComposite, Payer, SanatanderAccessTokenResponse, SanatanderTokenResponse,
-            SantanderAdditionalInfo, SantanderBoletoDocumentKind, SantanderBoletoPaymentType,
-            SantanderBoletoStatus, SantanderDocumentKind, SantanderPaymentStatus,
-            SantanderPaymentsResponse, SantanderPaymentsSyncResponse, SantanderPixKeyType,
-            SantanderPixQRCodePaymentsResponse, SantanderPixQRCodeSyncResponse,
-            SantanderRefundResponse, SantanderRefundStatus, SantanderUpdateMetadataResponse,
-            SantanderVoidResponse, SantanderVoidStatus,
+            Beneficiary, Key, NsuComposite, Payer, SanatanderAccessTokenResponse,
+            SanatanderTokenResponse, SantanderAdditionalInfo, SantanderBoletoDocumentKind,
+            SantanderBoletoPaymentType, SantanderBoletoStatus, SantanderDocumentKind,
+            SantanderPaymentStatus, SantanderPaymentsResponse, SantanderPaymentsSyncResponse,
+            SantanderPixKeyType, SantanderPixQRCodePaymentsResponse,
+            SantanderPixQRCodeSyncResponse, SantanderRefundResponse, SantanderRefundStatus,
+            SantanderUpdateMetadataResponse, SantanderVoidResponse, SantanderVoidStatus,
         },
     },
     types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
@@ -376,36 +378,19 @@ impl
 
         let bank_number = nsu_code.clone();
 
-        let (due_date, payment_type, document_kind) = {
-            let details = value
+        let due_date = Some(
+            value
                 .0
                 .router_data
                 .request
                 .feature_metadata
                 .as_ref()
                 .and_then(|fm| fm.boleto_additional_details.as_ref())
-                .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                    field_name: "feature_metadata.boleto_additional_details",
-                })?;
-
-            (
-                Some(details.due_date.as_ref().copied().ok_or_else(|| {
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "feature_metadata.boleto_additional_details.due_date",
-                    }
-                })?),
-                Some(details.payment_type.as_ref().copied().ok_or_else(|| {
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "feature_metadata.boleto_additional_details.payment_type",
-                    }
-                })?),
-                Some(details.document_kind.as_ref().copied().ok_or_else(|| {
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "feature_metadata.boleto_additional_details.document_kind",
-                    }
-                })?),
-            )
-        };
+                .and_then(|details| details.due_date)
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "feature_metadata.boleto_additional_details.due_date",
+                })?,
+        );
 
         let covenant_code = value
             .0
@@ -501,6 +486,142 @@ impl
             zip_code: Some(value.0.router_data.get_billing_zip()?),
         });
 
+        let (
+            (beneficiary, discount, document_kind),
+            (fine_percentage, fine_quantity_days, interest_percentage, iof_percentage),
+            (protest_type, protest_quantity_days, write_off_quantity_days),
+            (
+                payment_type,
+                value_type,
+                parcels_quantity,
+                min_value_or_percentage,
+                max_value_or_percentage,
+            ),
+        ) = get_boleto_additional_fields_from_connector_metadata(
+            value.0.router_data.connector_intent_metadata.clone(),
+        );
+
+        // let (
+        //     beneficiary,
+        //     discount,
+        //     fine_percentage,
+        //     fine_quantity_days,
+        //     interest_percentage,
+        //     iof_percentage,
+        //     protest_type,
+        //     protest_quantity_days,
+        //     write_off_quantity_days,
+        //     min_value_or_percentage,
+        //     max_value_or_percentage,
+        //     parcels_quantity,
+        //     value_type,
+        //     payment_type,
+        //     document_kind,
+        // ) = value
+        //     .0
+        //     .router_data
+        //     .connector_intent_metadata
+        //     .clone()
+        //     .and_then(|m| m.santander)
+        //     .and_then(|s| s.boleto)
+        //     .map(|b| {
+        //         let fine = b.penalties.as_ref().and_then(|p| p.fixed_penalty.as_ref());
+        //         let fine_quantity_days =
+        //             fine.and_then(|f| f.grace_period_days.map(|d| d.to_string()));
+        //         let fine_percentage = fine.map(|f| f.value.clone());
+        //         let (interest_percentage, iof_percentage) = b
+        //             .penalties
+        //             .as_ref()
+        //             .and_then(|p| p.interest.as_ref())
+        //             .map(|i| {
+        //                 (
+        //                     Some(i.interest_percentage.clone()),
+        //                     i.iof_percentage.clone(),
+        //                 )
+        //             })
+        //             .unwrap_or((None, None));
+        //         let protest = b
+        //             .collection_actions
+        //             .as_ref()
+        //             .and_then(|c| c.legal_protest.as_ref());
+        //         let beneficiary = b.beneficiary.map(Beneficiary::from);
+        //         let discount = b.discount_rules.map(Discount::from);
+        //         let protest_type =
+        //             protest.map(|p| SantanderProtestType::from(p.protest_type.clone()));
+        //         let write_off_quantity_days = b
+        //             .collection_actions
+        //             .clone()
+        //             .and_then(|c| c.auto_write_off_days.map(|d| d.to_string()));
+        //         let protest_quantity_days = protest.map(|p| p.days_after_due_date.to_string());
+        //         let document_kind = b.document_kind.map(SantanderBoletoDocumentKind::from);
+
+        //         let (
+        //             payment_type,
+        //             value_type,
+        //             parcels_quantity,
+        //             min_value_or_percentage,
+        //             max_value_or_percentage,
+        //         ) = match b.payment_constraints {
+        //             Some(constraints) => match constraints {
+        //                 BoletoPaymentTypeConstraints::FixedAmount => (
+        //                     Some(SantanderBoletoPaymentType::from(constraints)),
+        //                     None,
+        //                     None,
+        //                     None,
+        //                     None,
+        //                 ),
+        //                 BoletoPaymentTypeConstraints::FlexibleAmount(ref details) => {
+        //                     let value_type =
+        //                         Some(SantanderValueType::from(details.value_type.clone()));
+        //                     let min_value_or_percentage = Some(details.min_value.clone());
+        //                     let max_value_or_percentage = Some(details.max_value.clone());
+        //                     (
+        //                         Some(SantanderBoletoPaymentType::from(constraints)),
+        //                         value_type,
+        //                         None,
+        //                         min_value_or_percentage,
+        //                         max_value_or_percentage,
+        //                     )
+        //                 }
+        //                 BoletoPaymentTypeConstraints::Installment(ref details) => {
+        //                     let value_type =
+        //                         Some(SantanderValueType::from(details.value_type.clone()));
+        //                     let max_installments = details.max_partial_payments;
+        //                     (
+        //                         Some(SantanderBoletoPaymentType::from(constraints)),
+        //                         value_type,
+        //                         Some(max_installments),
+        //                         None,
+        //                         None,
+        //                     )
+        //                 }
+        //             },
+        //             None => (None, None, None, None, None),
+        //         };
+
+        //         (
+        //             beneficiary,
+        //             discount,
+        //             fine_percentage,
+        //             fine_quantity_days,
+        //             interest_percentage,
+        //             iof_percentage,
+        //             protest_type,
+        //             protest_quantity_days,
+        //             write_off_quantity_days,
+        //             min_value_or_percentage,
+        //             max_value_or_percentage,
+        //             parcels_quantity,
+        //             value_type,
+        //             payment_type,
+        //             document_kind,
+        //         )
+        //     })
+        //     .unwrap_or((
+        //         None, None, None, None, None, None, None, None, None, None, None, None, None, None,
+        //         None,
+        //     ));
+
         Ok(Self::Boleto(Box::new(SantanderBoletoPaymentRequest {
             environment: Some(Environment::Producao),
             nsu_code,
@@ -523,22 +644,22 @@ impl
             nominal_value: Some(value.0.amount.to_owned()),
             participant_code: order_id,
             payer,
-            beneficiary: None,
-            document_kind: document_kind.map(SantanderBoletoDocumentKind::from),
-            discount: None,
-            fine_percentage: None,
-            fine_quantity_days: None,
-            interest_percentage: None,
+            beneficiary,
+            document_kind,
+            discount,
+            fine_percentage,
+            fine_quantity_days,
+            interest_percentage,
+            protest_type,
+            protest_quantity_days,
+            write_off_quantity_days,
+            payment_type,
+            parcels_quantity,
+            value_type,
+            min_value_or_percentage,
+            max_value_or_percentage,
+            iof_percentage,
             deduction_value: None,
-            protest_type: None,
-            protest_quantity_days: None,
-            write_off_quantity_days: None,
-            payment_type: payment_type.map(SantanderBoletoPaymentType::from),
-            parcels_quantity: None,
-            value_type: None,
-            min_value_or_percentage: None,
-            max_value_or_percentage: None,
-            iof_percentage: None,
             sharing: None,
             tx_id: None,
             key,
@@ -750,16 +871,6 @@ impl From<BoletoDocumentKind> for SantanderBoletoDocumentKind {
             BoletoDocumentKind::Cheque => Self::Cheque,
             BoletoDocumentKind::DirectPromissoryNote => Self::NotaPromissoriaDireta,
             BoletoDocumentKind::Other => Self::Outros,
-        }
-    }
-}
-
-impl From<BoletoPaymentType> for SantanderBoletoPaymentType {
-    fn from(item: BoletoPaymentType) -> Self {
-        match item {
-            BoletoPaymentType::FixedAmount => Self::Registro,
-            BoletoPaymentType::FlexibleAmount => Self::Divergente,
-            BoletoPaymentType::Installment => Self::Parcial,
         }
     }
 }
@@ -1430,4 +1541,171 @@ pub fn format_as_date_only(
     let format = time::macros::format_description!("[year]-[month]-[day]");
     dt.format(&format)
         .map_err(|_| errors::ConnectorError::ParsingFailed)
+}
+
+impl From<BeneficiaryDetails> for Beneficiary {
+    fn from(b: BeneficiaryDetails) -> Self {
+        Self {
+            name: b.name.map(Secret::new),
+            document_type: b.document_type.map(Into::into),
+            document_number: b.document_number.map(Secret::new),
+        }
+    }
+}
+
+impl From<SantanderPaymentDiscountRules> for Discount {
+    fn from(rules: SantanderPaymentDiscountRules) -> Self {
+        let mut tiers = rules.tiers.into_iter();
+        let map_tier = |tier: DiscountTier| -> DiscountObject {
+            DiscountObject {
+                value: tier.amount,
+                limit_date: tier.end_date,
+            }
+        };
+        Self {
+            discount_type: SantanderDiscountType::from(rules.discount_type.unwrap_or_default()),
+            discount_one: tiers.next().map(map_tier),
+            discount_two: tiers.next().map(map_tier),
+            discount_three: tiers.next().map(map_tier),
+        }
+    }
+}
+
+impl From<DiscountType> for SantanderDiscountType {
+    fn from(value: DiscountType) -> Self {
+        match value {
+            DiscountType::Standard => Self::Isento,
+            DiscountType::FixedDate => Self::ValorDataFixa,
+            DiscountType::DailyCalendar => Self::ValorDiaCorrido,
+            DiscountType::DailyBusiness => Self::ValorDiaUtil,
+        }
+    }
+}
+
+impl From<ProtestType> for SantanderProtestType {
+    fn from(value: ProtestType) -> Self {
+        match value {
+            ProtestType::Disabled => Self::SemProtesto,
+            ProtestType::CalendarDays => Self::DiasCorridos,
+            ProtestType::BusinessDays => Self::DiasUteis,
+            ProtestType::ContractDefault => Self::CadastroConvenio,
+        }
+    }
+}
+
+impl From<CalculationType> for SantanderValueType {
+    fn from(calc_type: CalculationType) -> Self {
+        match calc_type {
+            CalculationType::Percentage => Self::Percentual,
+            CalculationType::FlatAmount => Self::Valor,
+        }
+    }
+}
+
+impl From<BoletoPaymentTypeConstraints> for SantanderBoletoPaymentType {
+    fn from(internal_type: BoletoPaymentTypeConstraints) -> Self {
+        match internal_type {
+            BoletoPaymentTypeConstraints::FixedAmount => Self::Registro,
+            BoletoPaymentTypeConstraints::FlexibleAmount(_) => Self::Divergente,
+            BoletoPaymentTypeConstraints::Installment(_) => Self::Parcial,
+        }
+    }
+}
+
+fn get_boleto_additional_fields_from_connector_metadata(
+    metadata: Option<ConnectorMetadata>,
+) -> BoletoAdditionalFields {
+    metadata
+        .and_then(|m| m.santander)
+        .and_then(|s| s.boleto)
+        .map(|b| {
+            let fine = b.penalties.as_ref().and_then(|p| p.fixed_penalty.as_ref());
+            let fine_quantity_days = fine.and_then(|f| f.grace_period_days.map(|d| d.to_string()));
+            let fine_percentage = fine.and_then(|f| f.value.clone());
+
+            let (interest_percentage, iof_percentage) = b
+                .penalties
+                .as_ref()
+                .and_then(|p| p.interest.as_ref())
+                .map(|i| (i.interest_percentage.clone(), i.iof_percentage.clone()))
+                .unwrap_or((None, None));
+
+            let protest = b
+                .collection_actions
+                .as_ref()
+                .and_then(|c| c.legal_protest.as_ref());
+
+            let beneficiary = b.beneficiary.map(Beneficiary::from);
+            let discount = b.discount_rules.map(Discount::from);
+            let protest_type = protest.and_then(|p| {
+                p.protest_type
+                    .as_ref()
+                    .map(|pt| SantanderProtestType::from(pt.clone()))
+            });
+            let write_off_quantity_days = b
+                .collection_actions
+                .as_ref()
+                .and_then(|c| c.auto_write_off_days.map(|d| d.to_string()));
+            let protest_quantity_days =
+                protest.and_then(|p| p.days_after_due_date.map(|d| d.to_string()));
+            let document_kind = b.document_kind.map(SantanderBoletoDocumentKind::from);
+
+            let (
+                payment_type,
+                value_type,
+                parcels_quantity,
+                min_value_or_percentage,
+                max_value_or_percentage,
+            ) = match b.payment_constraints {
+                Some(ref constraints) => match constraints {
+                    BoletoPaymentTypeConstraints::FixedAmount => (
+                        Some(SantanderBoletoPaymentType::from(constraints.clone())),
+                        None,
+                        None,
+                        None,
+                        None,
+                    ),
+                    BoletoPaymentTypeConstraints::FlexibleAmount(ref details) => (
+                        Some(SantanderBoletoPaymentType::from(constraints.clone())),
+                        details
+                            .value_type
+                            .as_ref()
+                            .map(|vt| SantanderValueType::from(vt.clone())),
+                        None,
+                        details.min_value.clone(),
+                        details.max_value.clone(),
+                    ),
+                    BoletoPaymentTypeConstraints::Installment(ref details) => (
+                        Some(SantanderBoletoPaymentType::from(constraints.clone())),
+                        details
+                            .value_type
+                            .as_ref()
+                            .map(|vt| SantanderValueType::from(vt.clone())),
+                        details.max_partial_payments,
+                        None,
+                        None,
+                    ),
+                },
+                None => (None, None, None, None, None),
+            };
+
+            (
+                (beneficiary, discount, document_kind),
+                (
+                    fine_percentage,
+                    fine_quantity_days,
+                    interest_percentage,
+                    iof_percentage,
+                ),
+                (protest_type, protest_quantity_days, write_off_quantity_days),
+                (
+                    payment_type,
+                    value_type,
+                    parcels_quantity,
+                    min_value_or_percentage,
+                    max_value_or_percentage,
+                ),
+            )
+        })
+        .unwrap_or_default()
 }
