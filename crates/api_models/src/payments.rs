@@ -1789,8 +1789,6 @@ impl PaymentsRequest {
                     }
                     .into());
                 }
-                // Validates that each installment plan has at least one count, all counts are >= 2, and no duplicates exist.
-                option.validate()?;
             }
         }
         Ok(())

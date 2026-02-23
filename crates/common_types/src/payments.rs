@@ -1191,11 +1191,47 @@ pub enum BillingFrequency {
     Month,
 }
 
+/// A non-empty list of installment counts where each value is >= 2 and all values are unique.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
+#[serde(try_from = "Vec<u8>", into = "Vec<u8>")]
+pub struct InstallmentCounts(Vec<u8>);
+
+impl TryFrom<Vec<u8>> for InstallmentCounts {
+    type Error = errors::ValidationError;
+
+    fn try_from(counts: Vec<u8>) -> std::result::Result<Self, Self::Error> {
+        if counts.is_empty() {
+            return Err(errors::ValidationError::InvalidValue {
+                message: "number_of_installments must not be empty.".to_string(),
+            });
+        }
+        if counts.iter().any(|&n| n < 2) {
+            return Err(errors::ValidationError::InvalidValue {
+                message: "each value in number_of_installments must be at least 2.".to_string(),
+            });
+        }
+        let mut seen = HashSet::new();
+        if counts.iter().any(|n| !seen.insert(n)) {
+            return Err(errors::ValidationError::InvalidValue {
+                message: "number_of_installments must contain unique values.".to_string(),
+            });
+        }
+        Ok(Self(counts))
+    }
+}
+
+impl From<InstallmentCounts> for Vec<u8> {
+    fn from(c: InstallmentCounts) -> Self {
+        c.0
+    }
+}
+
 /// A single installment plan option accepted in request payloads
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq)]
 pub struct InstallmentOptionData {
     /// Number of installments (e.g., [3, 6, 12])
-    pub number_of_installments: Vec<u8>,
+    #[schema(value_type = Vec<u8>)]
+    pub number_of_installments: InstallmentCounts,
     /// Billing frequency for each installment cycle
     pub billing_frequency: BillingFrequency,
     /// Interest rate applied per installment as a percentage
@@ -1227,39 +1263,6 @@ pub struct InstallmentOption {
 pub struct InstallmentOptions(pub Vec<InstallmentOption>);
 impl_to_sql_from_sql_json!(InstallmentOptions);
 
-impl InstallmentOption {
-    /// Validates that each installment plan has at least one count, all counts are >= 2, and no duplicates exist.
-    pub fn validate(&self) -> errors::CustomResult<(), errors::ValidationError> {
-        for installment in &self.installments {
-            if installment.number_of_installments.is_empty() {
-                return Err(errors::ValidationError::InvalidValue {
-                    message: "number_of_installments must not be empty.".to_string(),
-                }
-                .into());
-            }
-
-            if installment.number_of_installments.iter().any(|&n| n < 2) {
-                return Err(errors::ValidationError::InvalidValue {
-                    message: "each value in number_of_installments must be at least 2.".to_string(),
-                }
-                .into());
-            }
-
-            let mut seen = HashSet::new();
-            if installment
-                .number_of_installments
-                .iter()
-                .any(|n| !seen.insert(n))
-            {
-                return Err(errors::ValidationError::InvalidValue {
-                    message: "number_of_installments must contain unique values.".to_string(),
-                }
-                .into());
-            }
-        }
-        Ok(())
-    }
-}
 
 #[derive(
     Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
