@@ -24,33 +24,33 @@ describe("Crypto Payment", () => {
       "crypto_pm"
     ]["PaymentIntent"];
 
-    cy.step("Create Payment Intent",() => 
-    cy.createPaymentIntentTest(
-      fixtures.createPaymentBody,
-      data,
-      "no_three_ds",
-      "automatic",
-      globalState
-    )
+    cy.step("Create Payment Intent", () =>
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      )
     );
 
     if (!utils.should_continue_further(data)) return;
 
-    cy.step("Payment Methods Call",() => 
-    cy.paymentMethodsCallTest(globalState)
+    cy.step("Payment Methods Call", () =>
+      cy.paymentMethodsCallTest(globalState)
     );
 
     const confirmData = getConnectorDetails(globalState.get("connectorId"))[
       "crypto_pm"
     ]["CryptoCurrency"];
 
-    cy.step("Confirm Crypto Currency Payment",() => 
-    cy.confirmRewardCallTest(
-      fixtures.confirmBody,
-      confirmData,
-      true,
-      globalState
-    )
+    cy.step("Confirm Crypto Currency Payment", () =>
+      cy.confirmRewardCallTest(
+        fixtures.confirmBody,
+        confirmData,
+        true,
+        globalState
+      )
     );
 
     if (!utils.should_continue_further(confirmData)) return;
@@ -58,16 +58,16 @@ describe("Crypto Payment", () => {
     const expected_redirection = fixtures.confirmBody["return_url"];
     const payment_method_type = globalState.get("paymentMethodType");
 
-    cy.step("Handle Redirection",() => 
-    cy.handleCryptoRedirection(
-      globalState,
-      payment_method_type,
-      expected_redirection
-    )
+    cy.step("Handle Redirection", () =>
+      cy.handleCryptoRedirection(
+        globalState,
+        payment_method_type,
+        expected_redirection
+      )
     );
 
-    cy.step("Retrieve Payment",() => 
-    cy.retrievePaymentCallTest({ globalState })
+    cy.step("Retrieve Payment", () =>
+      cy.retrievePaymentCallTest({ globalState })
     );
   });
 
@@ -76,33 +76,33 @@ describe("Crypto Payment", () => {
       "crypto_pm"
     ]["PaymentIntent"];
 
-    cy.step("Create Payment Intent (Manual)",() => 
-    cy.createPaymentIntentTest(
-      fixtures.createPaymentBody,
-      data,
-      "no_three_ds",
-      "manual",
-      globalState
-    )
+    cy.step("Create Payment Intent (Manual)", () =>
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "manual",
+        globalState
+      )
     );
 
     if (!utils.should_continue_further(data)) return;
 
-    cy.step("Payment Methods Call",() => 
-    cy.paymentMethodsCallTest(globalState)
+    cy.step("Payment Methods Call", () =>
+      cy.paymentMethodsCallTest(globalState)
     );
 
     const confirmData = getConnectorDetails(globalState.get("connectorId"))[
       "crypto_pm"
     ]["CryptoCurrencyManualCapture"];
 
-    cy.step("Confirm Crypto Currency Payment (Manual Capture)",() => 
-    cy.confirmRewardCallTest(
-      fixtures.confirmBody,
-      confirmData,
-      true,
-      globalState
-    )
+    cy.step("Confirm Crypto Currency Payment (Manual Capture)", () =>
+      cy.confirmRewardCallTest(
+        fixtures.confirmBody,
+        confirmData,
+        true,
+        globalState
+      )
     );
 
     if (!utils.should_continue_further(confirmData)) return;
@@ -110,16 +110,16 @@ describe("Crypto Payment", () => {
     const expected_redirection = fixtures.confirmBody["return_url"];
     const payment_method_type = globalState.get("paymentMethodType");
 
-    cy.step("Handle Redirection",() => 
-    cy.handleCryptoRedirection(
-      globalState,
-      payment_method_type,
-      expected_redirection
-    )
+    cy.step("Handle Redirection", () =>
+      cy.handleCryptoRedirection(
+        globalState,
+        payment_method_type,
+        expected_redirection
+      )
     );
 
-    cy.step("Retrieve Payment",() => 
-    cy.retrievePaymentCallTest({ globalState })
+    cy.step("Retrieve Payment", () =>
+      cy.retrievePaymentCallTest({ globalState })
     );
   });
 });
