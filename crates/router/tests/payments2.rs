@@ -241,6 +241,7 @@ async fn payments_create_core() {
         payment_method_tokenization_details: None,
         error_details: None,
         installment_options: None,
+        state_metadata: None,
     };
 
     let expected_response =
@@ -549,6 +550,7 @@ async fn payments_create_core_adyen_no_redirect() {
             payment_method_tokenization_details: None,
             error_details: None,
             installment_options: None,
+            state_metadata: None,
         },
         vec![],
     ));
