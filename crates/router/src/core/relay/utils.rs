@@ -77,7 +77,7 @@ pub async fn construct_relay_refund_router_data<F>(
         connector: connector_name.to_string(),
         payment_id: IRRELEVANT_PAYMENT_INTENT_ID.to_string(),
         attempt_id: IRRELEVANT_PAYMENT_ATTEMPT_ID.to_string(),
-        status: common_enums::AttemptStatus::Charged,
+        status: common_enums::AttemptStatus::Pending,
         payment_method: common_enums::PaymentMethod::default(),
         payment_method_type: None,
         connector_auth_type,
