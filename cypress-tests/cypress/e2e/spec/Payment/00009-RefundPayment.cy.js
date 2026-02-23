@@ -20,38 +20,43 @@ describe("Card - Refund flow - No 3DS", () => {
       "PaymentIntent"
     ];
 
-    cy.task("cli_log", "Create Payment Intent");
+    cy.step("Create Payment Intent", () =>
     cy.createPaymentIntentTest(
       fixtures.createPaymentBody,
       data,
       "no_three_ds",
       "automatic",
       globalState
+    )
     );
 
     if (!utils.should_continue_further(data)) return;
 
-    cy.task("cli_log", "Payment Methods Call");
-    cy.paymentMethodsCallTest(globalState);
+    cy.step("Payment Methods Call", () =>
+    cy.paymentMethodsCallTest(globalState)
+    );  
 
     const confirmData = getConnectorDetails(globalState.get("connectorId"))[
       "card_pm"
     ]["No3DSAutoCapture"];
 
-    cy.task("cli_log", "Confirm Payment Intent");
-    cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+    cy.step("Confirm Payment Intent", () =>
+    cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState)
+    );
 
     if (!utils.should_continue_further(confirmData)) return;
 
-    cy.task("cli_log", "Retrieve Payment after Confirmation");
-    cy.retrievePaymentCallTest({ globalState, data: confirmData });
+    cy.step("Retrieve Payment after Confirmation", () =>
+    cy.retrievePaymentCallTest({ globalState, data: confirmData })
+    );
 
     const refundData = getConnectorDetails(globalState.get("connectorId"))[
       "card_pm"
     ]["Refund"];
 
-    cy.task("cli_log", "Refund Payment");
-    cy.refundCallTest(fixtures.refundBody, refundData, globalState);
+    cy.step("Refund Payment", () =>
+    cy.refundCallTest(fixtures.refundBody, refundData, globalState)
+    );
 
     if (!utils.should_continue_further(refundData)) return;
 
@@ -59,8 +64,9 @@ describe("Card - Refund flow - No 3DS", () => {
       "card_pm"
     ]["SyncRefund"];
 
-    cy.task("cli_log", "Sync Refund Payment");
-    cy.syncRefundCallTest(syncRefundData, globalState);
+    cy.step("Sync Refund Payment", () =>
+    cy.syncRefundCallTest(syncRefundData, globalState)
+    );
   });
 
   it("Card - Partial Refund flow test for No-3DS", () => {
@@ -68,43 +74,49 @@ describe("Card - Refund flow - No 3DS", () => {
       "PaymentIntent"
     ];
 
-    cy.task("cli_log", "Create Payment Intent");
+    cy.step("Create Payment Intent", () =>
     cy.createPaymentIntentTest(
       fixtures.createPaymentBody,
       data,
       "no_three_ds",
       "automatic",
       globalState
+    )
     );
 
     if (!utils.should_continue_further(data)) return;
 
-    cy.task("cli_log", "Payment Methods Call");
-    cy.paymentMethodsCallTest(globalState);
+    cy.step("Payment Methods Call", () =>
+    cy.paymentMethodsCallTest(globalState)
+    );
 
     const confirmData = getConnectorDetails(globalState.get("connectorId"))[
       "card_pm"
     ]["No3DSAutoCapture"];
 
-    cy.task("cli_log", "Confirm Payment Intent");
-    cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+    cy.step("Confirm Payment Intent", () =>
+    cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState)
+    );
 
     if (!utils.should_continue_further(confirmData)) return;
 
-    cy.task("cli_log", "Retrieve Payment after Confirmation");
-    cy.retrievePaymentCallTest({ globalState, data: confirmData });
+    cy.step("Retrieve Payment after Confirmation", () =>
+    cy.retrievePaymentCallTest({ globalState, data: confirmData })
+    );
 
     const partialRefundData = getConnectorDetails(
       globalState.get("connectorId")
     )["card_pm"]["PartialRefund"];
 
-    cy.task("cli_log", "Partial Refund Payment");
-    cy.refundCallTest(fixtures.refundBody, partialRefundData, globalState);
+    cy.step("Partial Refund Payment", () =>
+    cy.refundCallTest(fixtures.refundBody, partialRefundData, globalState)
+    );
 
     if (!utils.should_continue_further(partialRefundData)) return;
 
-    cy.task("cli_log", "Partial Refund Payment - 2nd Attempt");
-    cy.refundCallTest(fixtures.refundBody, partialRefundData, globalState);
+    cy.step("Partial Refund Payment - 2nd Attempt", () =>
+    cy.refundCallTest(fixtures.refundBody, partialRefundData, globalState)
+    );
 
     if (!utils.should_continue_further(partialRefundData)) return;
 
@@ -112,8 +124,9 @@ describe("Card - Refund flow - No 3DS", () => {
       "card_pm"
     ]["SyncRefund"];
 
-    cy.task("cli_log", "Sync Refund Payment");
-    cy.syncRefundCallTest(syncRefundData, globalState);
+    cy.step("Sync Refund Payment", () =>
+    cy.syncRefundCallTest(syncRefundData, globalState)
+    );
   });
 
   it("Fully Refund Card-NoThreeDS payment flow test Create+Confirm", () => {
@@ -121,26 +134,29 @@ describe("Card - Refund flow - No 3DS", () => {
       "No3DSAutoCapture"
     ];
 
-    cy.task("cli_log", "Create and Confirm Payment");
+    cy.step("Create and Confirm Payment", () =>
     cy.createConfirmPaymentTest(
       fixtures.createConfirmPaymentBody,
       data,
       "no_three_ds",
       "automatic",
       globalState
+    )
     );
 
     if (!utils.should_continue_further(data)) return;
 
-    cy.task("cli_log", "Retrieve Payment after Confirmation");
-    cy.retrievePaymentCallTest({ globalState, data });
+    cy.step("Retrieve Payment after Confirmation", () =>
+    cy.retrievePaymentCallTest({ globalState, data })
+    );
 
     const refundData = getConnectorDetails(globalState.get("connectorId"))[
       "card_pm"
     ]["Refund"];
 
-    cy.task("cli_log", "Refund Payment");
-    cy.refundCallTest(fixtures.refundBody, refundData, globalState);
+    cy.step("Refund Payment", () =>
+    cy.refundCallTest(fixtures.refundBody, refundData, globalState)
+    );
 
     if (!utils.should_continue_further(refundData)) return;
 
@@ -148,8 +164,9 @@ describe("Card - Refund flow - No 3DS", () => {
       "card_pm"
     ]["SyncRefund"];
 
-    cy.task("cli_log", "Sync Refund Payment");
-    cy.syncRefundCallTest(syncRefundData, globalState);
+    cy.step("Sync Refund Payment", () =>
+    cy.syncRefundCallTest(syncRefundData, globalState)
+    );
   });
 
   it("Partially Refund Card-NoThreeDS payment flow test Create+Confirm", () => {
@@ -157,31 +174,35 @@ describe("Card - Refund flow - No 3DS", () => {
       "No3DSAutoCapture"
     ];
 
-    cy.task("cli_log", "Create and Confirm Payment");
+    cy.step("Create and Confirm Payment", () =>
     cy.createConfirmPaymentTest(
       fixtures.createConfirmPaymentBody,
       data,
       "no_three_ds",
       "automatic",
       globalState
+    )
     );
 
     if (!utils.should_continue_further(data)) return;
 
-    cy.task("cli_log", "Retrieve Payment after Confirmation");
-    cy.retrievePaymentCallTest({ globalState, data });
+    cy.step("Retrieve Payment after Confirmation", () =>
+    cy.retrievePaymentCallTest({ globalState, data })
+    );
 
     const partialRefundData = getConnectorDetails(
       globalState.get("connectorId")
     )["card_pm"]["PartialRefund"];
 
-    cy.task("cli_log", "Partial Refund Payment");
-    cy.refundCallTest(fixtures.refundBody, partialRefundData, globalState);
+    cy.step("Partial Refund Payment", () =>
+    cy.refundCallTest(fixtures.refundBody, partialRefundData, globalState)
+    );
 
     if (!utils.should_continue_further(partialRefundData)) return;
 
-    cy.task("cli_log", "Partial Refund Payment - 2nd Attempt");
-    cy.refundCallTest(fixtures.refundBody, partialRefundData, globalState);
+    cy.step("Partial Refund Payment - 2nd Attempt", () =>
+    cy.refundCallTest(fixtures.refundBody, partialRefundData, globalState)
+    );
 
     if (!utils.should_continue_further(partialRefundData)) return;
 
@@ -194,8 +215,9 @@ describe("Card - Refund flow - No 3DS", () => {
       Response: syncRefundData.ResponseCustom || syncRefundData.Response,
     };
 
-    cy.task("cli_log", "Sync Refund Payment");
-    cy.refundCallTest(fixtures.refundBody, newData, globalState);
+    cy.step("Sync Refund Payment", () =>
+    cy.refundCallTest(fixtures.refundBody, newData, globalState)
+      );
   });
 
   it("Card - Full Refund for fully captured No-3DS payment", () => {
@@ -203,43 +225,49 @@ describe("Card - Refund flow - No 3DS", () => {
       "PaymentIntent"
     ];
 
-    cy.task("cli_log", "Create Payment Intent");
+    cy.step("Create Payment Intent", () =>
     cy.createPaymentIntentTest(
       fixtures.createPaymentBody,
       data,
       "no_three_ds",
       "manual",
       globalState
-    );
+    )
+      );
 
     if (!utils.should_continue_further(data)) return;
 
-    cy.task("cli_log", "Payment Methods Call");
-    cy.paymentMethodsCallTest(globalState);
+    cy.step("Payment Methods Call", () =>
+    cy.paymentMethodsCallTest(globalState)
+    );
 
     const confirmData = getConnectorDetails(globalState.get("connectorId"))[
       "card_pm"
     ]["No3DSManualCapture"];
 
-    cy.task("cli_log", "Confirm Payment Intent");
-    cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+    cy.step("Confirm Payment Intent", () =>
+    cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState)
+    );
 
     if (!utils.should_continue_further(confirmData)) return;
 
-    cy.task("cli_log", "Retrieve Payment after Confirmation");
-    cy.retrievePaymentCallTest({ globalState, data: confirmData });
+    cy.step("Retrieve Payment after Confirmation", () =>
+    cy.retrievePaymentCallTest({ globalState, data: confirmData })
+    );
 
     const captureData = getConnectorDetails(globalState.get("connectorId"))[
       "card_pm"
     ]["Capture"];
 
-    cy.task("cli_log", "Capture Payment");
-    cy.captureCallTest(fixtures.captureBody, captureData, globalState);
+    cy.step("Capture Payment", () =>
+    cy.captureCallTest(fixtures.captureBody, captureData, globalState)
+    );
 
     if (!utils.should_continue_further(captureData)) return;
 
-    cy.task("cli_log", "Retrieve Payment after Capture");
-    cy.retrievePaymentCallTest({ globalState, data: captureData });
+    cy.step("Retrieve Payment after Capture", () =>
+    cy.retrievePaymentCallTest({ globalState, data: captureData })
+    );
 
     const refundData = getConnectorDetails(globalState.get("connectorId"))[
       "card_pm"
@@ -250,8 +278,9 @@ describe("Card - Refund flow - No 3DS", () => {
       Response: refundData.ResponseCustom || refundData.Response,
     };
 
-    cy.task("cli_log", "Refund Payment");
-    cy.refundCallTest(fixtures.refundBody, newRefundData, globalState);
+    cy.step("Refund Payment", () =>
+    cy.refundCallTest(fixtures.refundBody, newRefundData, globalState)
+    );
 
     if (!utils.should_continue_further(refundData)) return;
 
@@ -259,8 +288,9 @@ describe("Card - Refund flow - No 3DS", () => {
       "card_pm"
     ]["SyncRefund"];
 
-    cy.task("cli_log", "Sync Refund Payment");
-    cy.syncRefundCallTest(syncRefundData, globalState);
+    cy.step("Sync Refund Payment", () =>
+    cy.syncRefundCallTest(syncRefundData, globalState)
+    );
   });
 
   it("Card - Partial Refund for fully captured No-3DS payment", () => {
@@ -268,43 +298,49 @@ describe("Card - Refund flow - No 3DS", () => {
       "PaymentIntent"
     ];
 
-    cy.task("cli_log", "Create Payment Intent");
+    cy.step("Create Payment Intent", () =>
     cy.createPaymentIntentTest(
       fixtures.createPaymentBody,
       data,
       "no_three_ds",
       "manual",
       globalState
-    );
+    )
+      );
 
     if (!utils.should_continue_further(data)) return;
 
-    cy.task("cli_log", "Payment Methods Call");
-    cy.paymentMethodsCallTest(globalState);
+    cy.step("Payment Methods Call", () =>
+    cy.paymentMethodsCallTest(globalState)
+    );
 
     const confirmData = getConnectorDetails(globalState.get("connectorId"))[
       "card_pm"
     ]["No3DSManualCapture"];
 
-    cy.task("cli_log", "Confirm Payment Intent");
-    cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+    cy.step("Confirm Payment Intent", () =>
+    cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState)
+    );
 
     if (!utils.should_continue_further(confirmData)) return;
 
-    cy.task("cli_log", "Retrieve Payment after Confirmation");
-    cy.retrievePaymentCallTest({ globalState, data: confirmData });
+    cy.step("Retrieve Payment after Confirmation", () =>
+    cy.retrievePaymentCallTest({ globalState, data: confirmData })
+    );
 
     const captureData = getConnectorDetails(globalState.get("connectorId"))[
       "card_pm"
     ]["Capture"];
 
-    cy.task("cli_log", "Capture Payment");
-    cy.captureCallTest(fixtures.captureBody, captureData, globalState);
+    cy.step("Capture Payment", () =>
+    cy.captureCallTest(fixtures.captureBody, captureData, globalState)
+    );
 
     if (!utils.should_continue_further(captureData)) return;
 
-    cy.task("cli_log", "Retrieve Payment after Capture");
-    cy.retrievePaymentCallTest({ globalState, data: captureData });
+    cy.step("Retrieve Payment after Capture", () =>
+    cy.retrievePaymentCallTest({ globalState, data: captureData })
+    );
 
     const partialRefundData = getConnectorDetails(
       globalState.get("connectorId")
@@ -315,13 +351,15 @@ describe("Card - Refund flow - No 3DS", () => {
       Response: partialRefundData.ResponseCustom || partialRefundData.Response,
     };
 
-    cy.task("cli_log", "Partial Refund Payment");
-    cy.refundCallTest(fixtures.refundBody, newPartialRefundData, globalState);
+    cy.step("Partial Refund Payment", () =>
+    cy.refundCallTest(fixtures.refundBody, newPartialRefundData, globalState)
+    );
 
     if (!utils.should_continue_further(partialRefundData)) return;
 
-    cy.task("cli_log", "Partial Refund Payment - 2nd Attempt");
-    cy.refundCallTest(fixtures.refundBody, newPartialRefundData, globalState);
+    cy.step("Partial Refund Payment - 2nd Attempt", () =>
+    cy.refundCallTest(fixtures.refundBody, newPartialRefundData, globalState)
+    );
 
     if (!utils.should_continue_further(partialRefundData)) return;
 
@@ -329,11 +367,13 @@ describe("Card - Refund flow - No 3DS", () => {
       "card_pm"
     ]["SyncRefund"];
 
-    cy.task("cli_log", "Sync Refund Payment");
-    cy.syncRefundCallTest(syncRefundData, globalState);
+    cy.step("Sync Refund Payment", () =>
+    cy.syncRefundCallTest(syncRefundData, globalState)
+    );
 
-    cy.task("cli_log", "List Refunds");
-    cy.listRefundCallTest(fixtures.listRefundCall, globalState);
+    cy.step("List Refunds", () =>
+    cy.listRefundCallTest(fixtures.listRefundCall, globalState)
+    );
   });
 
   it("Card - Full Refund for partially captured No-3DS payment", () => {
@@ -341,43 +381,49 @@ describe("Card - Refund flow - No 3DS", () => {
       "PaymentIntent"
     ];
 
-    cy.task("cli_log", "Create Payment Intent");
+    cy.step("Create Payment Intent", () =>
     cy.createPaymentIntentTest(
       fixtures.createPaymentBody,
       data,
       "no_three_ds",
       "manual",
       globalState
+    )
     );
 
     if (!utils.should_continue_further(data)) return;
 
-    cy.task("cli_log", "Payment Methods Call");
-    cy.paymentMethodsCallTest(globalState);
+    cy.step("Payment Methods Call", () =>
+    cy.paymentMethodsCallTest(globalState)
+    );
 
     const confirmData = getConnectorDetails(globalState.get("connectorId"))[
       "card_pm"
     ]["No3DSManualCapture"];
 
-    cy.task("cli_log", "Confirm Payment Intent");
-    cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+    cy.step("Confirm Payment Intent", () =>
+    cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState)
+    );
 
     if (!utils.should_continue_further(confirmData)) return;
 
-    cy.task("cli_log", "Retrieve Payment after Confirmation");
-    cy.retrievePaymentCallTest({ globalState, data: confirmData });
+    cy.step("Retrieve Payment after Confirmation", () =>
+    cy.retrievePaymentCallTest({ globalState, data: confirmData })
+    );
 
     const partialCaptureData = getConnectorDetails(
       globalState.get("connectorId")
     )["card_pm"]["PartialCapture"];
 
-    cy.task("cli_log", "Partial Capture Payment");
-    cy.captureCallTest(fixtures.captureBody, partialCaptureData, globalState);
+    cy.step("Partial Capture Payment", () =>
+    cy.captureCallTest(fixtures.captureBody, partialCaptureData, globalState)
+    );
 
     if (!utils.should_continue_further(partialCaptureData)) return;
 
-    cy.task("cli_log", "Retrieve Payment after Partial Capture");
-    cy.retrievePaymentCallTest({ globalState, data: partialCaptureData });
+    cy.step("Retrieve Payment after Partial Capture", () =>
+    cy.retrievePaymentCallTest({ globalState, data: partialCaptureData })
+    );
 
     const partialRefundData = getConnectorDetails(
       globalState.get("connectorId")
@@ -388,8 +434,9 @@ describe("Card - Refund flow - No 3DS", () => {
       Response: partialRefundData.ResponseCustom || partialRefundData.Response,
     };
 
-    cy.task("cli_log", "Refund Payment");
-    cy.refundCallTest(fixtures.refundBody, newPartialRefundData, globalState);
+    cy.step("Refund Payment", () =>
+    cy.refundCallTest(fixtures.refundBody, newPartialRefundData, globalState)
+    );
 
     if (!utils.should_continue_further(partialRefundData)) return;
 
@@ -397,8 +444,9 @@ describe("Card - Refund flow - No 3DS", () => {
       "card_pm"
     ]["SyncRefund"];
 
-    cy.task("cli_log", "Sync Refund Payment");
-    cy.syncRefundCallTest(syncRefundData, globalState);
+    cy.step("Sync Refund Payment", () =>
+    cy.syncRefundCallTest(syncRefundData, globalState)
+    );
   });
 
   it("Card - Partial Refund for partially captured No-3DS payment", () => {
@@ -406,43 +454,49 @@ describe("Card - Refund flow - No 3DS", () => {
       "PaymentIntent"
     ];
 
-    cy.task("cli_log", "Create Payment Intent");
+    cy.step("Create Payment Intent", () =>
     cy.createPaymentIntentTest(
       fixtures.createPaymentBody,
       data,
       "no_three_ds",
       "manual",
       globalState
+    )
     );
 
     if (!utils.should_continue_further(data)) return;
 
-    cy.task("cli_log", "Payment Methods Call");
-    cy.paymentMethodsCallTest(globalState);
+    cy.step("Payment Methods Call", () =>
+    cy.paymentMethodsCallTest(globalState)
+    );
 
     const confirmData = getConnectorDetails(globalState.get("connectorId"))[
       "card_pm"
     ]["No3DSManualCapture"];
 
-    cy.task("cli_log", "Confirm Payment Intent");
-    cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+    cy.step("Confirm Payment Intent", () =>
+    cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState)
+    );
 
     if (!utils.should_continue_further(confirmData)) return;
 
-    cy.task("cli_log", "Retrieve Payment after Confirmation");
-    cy.retrievePaymentCallTest({ globalState, data: confirmData });
+    cy.step("Retrieve Payment after Confirmation", () =>
+    cy.retrievePaymentCallTest({ globalState, data: confirmData })
+    );
 
     const partialCaptureData = getConnectorDetails(
       globalState.get("connectorId")
     )["card_pm"]["PartialCapture"];
 
-    cy.task("cli_log", "Partial Capture Payment");
-    cy.captureCallTest(fixtures.captureBody, partialCaptureData, globalState);
+    cy.step("Partial Capture Payment", () =>
+    cy.captureCallTest(fixtures.captureBody, partialCaptureData, globalState)
+    );
 
     if (!utils.should_continue_further(partialCaptureData)) return;
 
-    cy.task("cli_log", "Retrieve Payment after Partial Capture");
-    cy.retrievePaymentCallTest({ globalState, data: partialCaptureData });
+    cy.step("Retrieve Payment after Partial Capture", () =>
+    cy.retrievePaymentCallTest({ globalState, data: partialCaptureData })
+    );
 
     const partialRefundData = getConnectorDetails(
       globalState.get("connectorId")
@@ -453,8 +507,9 @@ describe("Card - Refund flow - No 3DS", () => {
       Response: partialRefundData.ResponseCustom || partialRefundData.Response,
     };
 
-    cy.task("cli_log", "Refund Payment");
-    cy.refundCallTest(fixtures.refundBody, newPartialRefundData, globalState);
+    cy.step("Refund Payment", () =>
+    cy.refundCallTest(fixtures.refundBody, newPartialRefundData, globalState)
+    );
 
     if (!utils.should_continue_further(partialRefundData)) return;
 
@@ -462,8 +517,9 @@ describe("Card - Refund flow - No 3DS", () => {
       "card_pm"
     ]["SyncRefund"];
 
-    cy.task("cli_log", "Sync Refund Payment");
-    cy.syncRefundCallTest(syncRefundData, globalState);
+    cy.step("Sync Refund Payment", () =>
+    cy.syncRefundCallTest(syncRefundData, globalState)
+    );
   });
 
   it("Card - Full Refund for Create + Confirm Automatic CIT and MIT payment flow test", () => {
@@ -471,7 +527,7 @@ describe("Card - Refund flow - No 3DS", () => {
       "card_pm"
     ]["MandateMultiUseNo3DSAutoCapture"];
 
-    cy.task("cli_log", "CIT for Mandates Call");
+    cy.step("CIT for Mandates Call", () =>
     cy.citForMandatesCallTest(
       fixtures.citConfirmBody,
       citData,
@@ -480,6 +536,7 @@ describe("Card - Refund flow - No 3DS", () => {
       "automatic",
       "new_mandate",
       globalState
+    )
     );
 
     if (!utils.should_continue_further(citData)) return;
@@ -488,7 +545,7 @@ describe("Card - Refund flow - No 3DS", () => {
       "card_pm"
     ]["MITAutoCapture"];
 
-    cy.task("cli_log", "MIT for Mandates Call");
+    cy.step("MIT for Mandates Call", () =>
     cy.mitForMandatesCallTest(
       fixtures.mitConfirmBody,
       mitData,
@@ -496,11 +553,12 @@ describe("Card - Refund flow - No 3DS", () => {
       true,
       "automatic",
       globalState
+    )
     );
 
     if (!utils.should_continue_further(mitData)) return;
 
-    cy.task("cli_log", "MIT for Mandates Call - 2nd Attempt");
+    cy.step("MIT for Mandates Call - 2nd Attempt", () =>
     cy.mitForMandatesCallTest(
       fixtures.mitConfirmBody,
       mitData,
@@ -508,6 +566,7 @@ describe("Card - Refund flow - No 3DS", () => {
       true,
       "automatic",
       globalState
+    )
     );
 
     if (!utils.should_continue_further(mitData)) return;
@@ -516,8 +575,9 @@ describe("Card - Refund flow - No 3DS", () => {
       "card_pm"
     ]["Refund"];
 
-    cy.task("cli_log", "Refund Payment");
-    cy.refundCallTest(fixtures.refundBody, refundData, globalState);
+    cy.step("Refund Payment", () =>
+    cy.refundCallTest(fixtures.refundBody, refundData, globalState)
+    );
 
     if (!utils.should_continue_further(refundData)) return;
 
@@ -525,8 +585,9 @@ describe("Card - Refund flow - No 3DS", () => {
       "card_pm"
     ]["SyncRefund"];
 
-    cy.task("cli_log", "Sync Refund Payment");
-    cy.syncRefundCallTest(syncRefundData, globalState);
+    cy.step("Sync Refund Payment", () =>
+    cy.syncRefundCallTest(syncRefundData, globalState)
+    );
   });
 });
 
@@ -546,41 +607,46 @@ describe("Card - Refund flow - 3DS", () => {
       "PaymentIntent"
     ];
 
-    cy.task("cli_log", "Create Payment Intent");
+    cy.step("Create Payment Intent", () =>
     cy.createPaymentIntentTest(
       fixtures.createPaymentBody,
       data,
       "three_ds",
       "automatic",
       globalState
+    )
     );
 
     if (!utils.should_continue_further(data)) return;
 
-    cy.task("cli_log", "Payment Methods Call");
-    cy.paymentMethodsCallTest(globalState);
+    cy.step("Payment Methods Call", () =>
+    cy.paymentMethodsCallTest(globalState)
+    );
 
     const confirmData = getConnectorDetails(globalState.get("connectorId"))[
       "card_pm"
     ]["3DSAutoCapture"];
 
-    cy.task("cli_log", "Confirm Payment Intent");
-    cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+    cy.step("Confirm Payment Intent", () =>
+    cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState)
+    );
 
     if (!utils.should_continue_further(confirmData)) return;
 
     const expected_redirection = fixtures.confirmBody["return_url"];
     cy.handleRedirection(globalState, expected_redirection);
 
-    cy.task("cli_log", "Retrieve Payment after Confirmation");
-    cy.retrievePaymentCallTest({ globalState, data: confirmData });
+    cy.step("Retrieve Payment after Confirmation", () =>
+    cy.retrievePaymentCallTest({ globalState, data: confirmData })
+    );
 
     const refundData = getConnectorDetails(globalState.get("connectorId"))[
       "card_pm"
     ]["Refund"];
 
-    cy.task("cli_log", "Refund Payment");
-    cy.refundCallTest(fixtures.refundBody, refundData, globalState);
+    cy.step("Refund Payment", () =>
+    cy.refundCallTest(fixtures.refundBody, refundData, globalState)
+    );
 
     if (!utils.should_continue_further(refundData)) return;
 
@@ -588,8 +654,9 @@ describe("Card - Refund flow - 3DS", () => {
       "card_pm"
     ]["SyncRefund"];
 
-    cy.task("cli_log", "Sync Refund Payment");
-    cy.syncRefundCallTest(syncRefundData, globalState);
+    cy.step("Sync Refund Payment", () =>
+    cy.syncRefundCallTest(syncRefundData, globalState)
+    );
   });
 
   it("Card - Partial Refund flow test for 3DS", () => {
@@ -597,54 +664,63 @@ describe("Card - Refund flow - 3DS", () => {
       "PaymentIntent"
     ];
 
-    cy.task("cli_log", "Create Payment Intent");
+    cy.step("Create Payment Intent", () =>
     cy.createPaymentIntentTest(
       fixtures.createPaymentBody,
       data,
       "three_ds",
       "automatic",
       globalState
+    )
     );
 
     if (!utils.should_continue_further(data)) return;
 
-    cy.task("cli_log", "Payment Methods Call");
-    cy.paymentMethodsCallTest(globalState);
+    cy.step("Payment Methods Call", () =>
+    cy.paymentMethodsCallTest(globalState)
+    );
 
     const confirmData = getConnectorDetails(globalState.get("connectorId"))[
       "card_pm"
     ]["3DSAutoCapture"];
 
-    cy.task("cli_log", "Confirm Payment Intent");
-    cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+    cy.step("Confirm Payment Intent", () =>
+    cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState)
+    );
 
     if (!utils.should_continue_further(confirmData)) return;
 
     const expected_redirection = fixtures.confirmBody["return_url"];
-    cy.handleRedirection(globalState, expected_redirection);
+    cy.step("Handle Redirection", () =>
+    cy.handleRedirection(globalState, expected_redirection)
+    );
 
-    cy.task("cli_log", "Retrieve Payment after Confirmation");
-    cy.retrievePaymentCallTest({ globalState, data: confirmData });
+    cy.step("Retrieve Payment after Confirmation", () =>
+    cy.retrievePaymentCallTest({ globalState, data: confirmData })
+    );
 
     const partialRefundData = getConnectorDetails(
       globalState.get("connectorId")
     )["card_pm"]["PartialRefund"];
 
-    cy.task("cli_log", "Partial Refund Payment");
-    cy.refundCallTest(fixtures.refundBody, partialRefundData, globalState);
+    cy.step("Partial Refund Payment", () =>
+    cy.refundCallTest(fixtures.refundBody, partialRefundData, globalState)
+    );
 
     if (!utils.should_continue_further(partialRefundData)) return;
 
-    cy.task("cli_log", "Partial Refund Payment - 2nd Attempt");
-    cy.refundCallTest(fixtures.refundBody, partialRefundData, globalState);
+    cy.step("Partial Refund Payment - 2nd Attempt", () =>
+    cy.refundCallTest(fixtures.refundBody, partialRefundData, globalState)
+    );
 
     if (!utils.should_continue_further(partialRefundData)) return;
     const syncRefundData = getConnectorDetails(globalState.get("connectorId"))[
       "card_pm"
     ]["SyncRefund"];
 
-    cy.task("cli_log", "Sync Refund Payment");
-    cy.syncRefundCallTest(syncRefundData, globalState);
+    cy.step("Sync Refund Payment", () =>
+    cy.syncRefundCallTest(syncRefundData, globalState)
+    );
   });
 
   it("Fully Refund Card-ThreeDS payment flow test Create+Confirm", () => {
@@ -652,38 +728,45 @@ describe("Card - Refund flow - 3DS", () => {
       "3DSAutoCapture"
     ];
 
-    cy.task("cli_log", "Create and Confirm Payment");
+    cy.step("Create and Confirm Payment", () =>
     cy.createConfirmPaymentTest(
       fixtures.createConfirmPaymentBody,
       data,
       "three_ds",
       "automatic",
       globalState
+    )
     );
 
     if (!utils.should_continue_further(data)) return;
 
     const expected_redirection = fixtures.confirmBody["return_url"];
-    cy.handleRedirection(globalState, expected_redirection);
+    cy.step("Handle Redirection", () =>
+    cy.handleRedirection(globalState, expected_redirection)
+    );
 
-    cy.task("cli_log", "Retrieve Payment after Confirmation");
-    cy.retrievePaymentCallTest({ globalState, data });
+    cy.step("Retrieve Payment after Confirmation", () =>
+    cy.retrievePaymentCallTest({ globalState, data })
+    );
 
     const refundData = getConnectorDetails(globalState.get("connectorId"))[
       "card_pm"
     ]["Refund"];
 
-    cy.task("cli_log", "Refund Payment");
-    cy.refundCallTest(fixtures.refundBody, refundData, globalState);
+    cy.step("Refund Payment", () =>
+    cy.refundCallTest(fixtures.refundBody, refundData, globalState)
+    );
 
     if (!utils.should_continue_further(refundData)) return;
 
-    cy.task("cli_log", "Sync Refund Payment");
     const syncRefundData = getConnectorDetails(globalState.get("connectorId"))[
       "card_pm"
-    ]["SyncRefund"];
+    ]["SyncRefund"]
 
-    cy.syncRefundCallTest(syncRefundData, globalState);
+    cy.step("Sync Refund Payment", () =>
+    cy.syncRefundCallTest(syncRefundData, globalState)
+    );
+
   });
 
   it("Partially Refund Card-ThreeDS payment flow test Create+Confirm", () => {
@@ -691,34 +774,41 @@ describe("Card - Refund flow - 3DS", () => {
       "3DSAutoCapture"
     ];
 
-    cy.task("cli_log", "Create and Confirm Payment");
+    cy.step("Create and Confirm Payment", () =>
     cy.createConfirmPaymentTest(
       fixtures.createConfirmPaymentBody,
       data,
       "three_ds",
       "automatic",
       globalState
+    )
     );
 
     if (!utils.should_continue_further(data)) return;
 
     const expected_redirection = fixtures.confirmBody["return_url"];
-    cy.handleRedirection(globalState, expected_redirection);
 
-    cy.task("cli_log", "Retrieve Payment after Confirmation");
-    cy.retrievePaymentCallTest({ globalState, data });
+    cy.step("Handle Redirection", () =>
+    cy.handleRedirection(globalState, expected_redirection)
+    );
+
+    cy.step("Retrieve Payment after Confirmation", () =>
+    cy.retrievePaymentCallTest({ globalState, data })
+    );
 
     const partialRefundData = getConnectorDetails(
       globalState.get("connectorId")
     )["card_pm"]["PartialRefund"];
 
-    cy.task("cli_log", "Partial Refund Payment");
-    cy.refundCallTest(fixtures.refundBody, partialRefundData, globalState);
+    cy.step("Partial Refund Payment", () =>
+    cy.refundCallTest(fixtures.refundBody, partialRefundData, globalState)
+    );
 
     if (!utils.should_continue_further(partialRefundData)) return;
 
-    cy.task("cli_log", "Partial Refund Payment - 2nd Attempt");
-    cy.refundCallTest(fixtures.refundBody, partialRefundData, globalState);
+    cy.step("Partial Refund Payment - 2nd Attempt", () =>
+    cy.refundCallTest(fixtures.refundBody, partialRefundData, globalState)
+    );
 
     if (!utils.should_continue_further(partialRefundData)) return;
 
@@ -726,8 +816,9 @@ describe("Card - Refund flow - 3DS", () => {
       "card_pm"
     ]["SyncRefund"];
 
-    cy.task("cli_log", "Sync Refund Payment");
-    cy.syncRefundCallTest(syncRefundData, globalState);
+    cy.step("Sync Refund Payment", () =>
+    cy.syncRefundCallTest(syncRefundData, globalState)
+    );
   });
 
   it("Card - Full Refund for fully captured 3DS payment", () => {
@@ -735,53 +826,60 @@ describe("Card - Refund flow - 3DS", () => {
       "PaymentIntent"
     ];
 
-    cy.task("cli_log", "Create Payment Intent");
+    cy.step("Create Payment Intent", () =>
     cy.createPaymentIntentTest(
       fixtures.createPaymentBody,
       data,
       "three_ds",
       "manual",
       globalState
+    )
     );
 
     if (!utils.should_continue_further(data)) return;
 
-    cy.task("cli_log", "Payment Methods Call");
-    cy.paymentMethodsCallTest(globalState);
+    cy.step("Payment Methods Call", () =>
+    cy.paymentMethodsCallTest(globalState)
+    );
 
     const confirmData = getConnectorDetails(globalState.get("connectorId"))[
       "card_pm"
     ]["3DSManualCapture"];
 
-    cy.task("cli_log", "Confirm Payment Intent");
-    cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+    cy.step("Confirm Payment Intent", () =>
+    cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState)
+    );
 
     if (!utils.should_continue_further(confirmData)) return;
 
     const expected_redirection = fixtures.confirmBody["return_url"];
     cy.handleRedirection(globalState, expected_redirection);
 
-    cy.task("cli_log", "Retrieve Payment after Confirmation");
-    cy.retrievePaymentCallTest({ globalState, data: confirmData });
+    cy.step("Retrieve Payment after Confirmation", () =>
+    cy.retrievePaymentCallTest({ globalState, data: confirmData })
+    );
 
     const captureData = getConnectorDetails(globalState.get("connectorId"))[
       "card_pm"
     ]["Capture"];
 
-    cy.task("cli_log", "Capture Payment");
-    cy.captureCallTest(fixtures.captureBody, captureData, globalState);
+    cy.step("Capture Payment", () =>
+    cy.captureCallTest(fixtures.captureBody, captureData, globalState)
+    );
 
     if (!utils.should_continue_further(captureData)) return;
 
-    cy.task("cli_log", "Retrieve Payment after Capture");
-    cy.retrievePaymentCallTest({ globalState, data: captureData });
+    cy.step("Retrieve Payment after Capture", () =>
+    cy.retrievePaymentCallTest({ globalState, data: captureData })
+    );
 
     const refundData = getConnectorDetails(globalState.get("connectorId"))[
       "card_pm"
     ]["manualPaymentRefund"];
 
-    cy.task("cli_log", "Refund Payment");
-    cy.refundCallTest(fixtures.refundBody, refundData, globalState);
+    cy.step("Refund Payment", () =>
+    cy.refundCallTest(fixtures.refundBody, refundData, globalState)
+    );
 
     if (!utils.should_continue_further(refundData)) return;
 
@@ -789,8 +887,9 @@ describe("Card - Refund flow - 3DS", () => {
       "card_pm"
     ]["SyncRefund"];
 
-    cy.task("cli_log", "Sync Refund Payment");
-    cy.syncRefundCallTest(syncRefundData, globalState);
+    cy.step("Sync Refund Payment", () =>
+    cy.syncRefundCallTest(syncRefundData, globalState)
+    );
   });
 
   it("Card - Partial Refund for fully captured 3DS payment", () => {
@@ -798,58 +897,68 @@ describe("Card - Refund flow - 3DS", () => {
       "PaymentIntent"
     ];
 
-    cy.task("cli_log", "Create Payment Intent");
+    cy.step("Create Payment Intent", () =>
     cy.createPaymentIntentTest(
       fixtures.createPaymentBody,
       data,
       "three_ds",
       "manual",
       globalState
+    )
     );
 
     if (!utils.should_continue_further(data)) return;
 
-    cy.task("cli_log", "Payment Methods Call");
-    cy.paymentMethodsCallTest(globalState);
+    cy.step("Payment Methods Call", () =>
+    cy.paymentMethodsCallTest(globalState)
+    );
 
     const confirmData = getConnectorDetails(globalState.get("connectorId"))[
       "card_pm"
     ]["3DSManualCapture"];
 
-    cy.task("cli_log", "Confirm Payment Intent");
-    cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+    cy.step("Confirm Payment Intent", () =>
+    cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState)
+    );
 
     if (!utils.should_continue_further(confirmData)) return;
 
     const expected_redirection = fixtures.confirmBody["return_url"];
-    cy.handleRedirection(globalState, expected_redirection);
+    cy.step("Handle Redirection", () => 
+    cy.handleRedirection(globalState, expected_redirection)
+    );
 
-    cy.task("cli_log", "Retrieve Payment after Confirmation");
-    cy.retrievePaymentCallTest({ globalState, data: confirmData });
+    cy.step("Retrieve Payment after Confirmation", () =>
+    cy.retrievePaymentCallTest({ globalState, data: confirmData })
+    );
 
     const captureData = getConnectorDetails(globalState.get("connectorId"))[
       "card_pm"
     ]["Capture"];
 
-    cy.task("cli_log", "Capture Payment");
-    cy.captureCallTest(fixtures.captureBody, captureData, globalState);
+    cy.step("Capture Payment", () =>
+    cy.captureCallTest(fixtures.captureBody, captureData, globalState)
+    );
 
     if (!utils.should_continue_further(captureData)) return;
 
-    cy.task("cli_log", "Retrieve Payment after Capture");
-    cy.retrievePaymentCallTest({ globalState, data: captureData });
+    cy.step("Retrieve Payment after Capture", () =>
+    cy.retrievePaymentCallTest({ globalState, data: captureData })
+    );
 
     const partialRefundData = getConnectorDetails(
       globalState.get("connectorId")
     )["card_pm"]["manualPaymentPartialRefund"];
 
-    cy.task("cli_log", "Partial Refund Payment");
-    cy.refundCallTest(fixtures.refundBody, partialRefundData, globalState);
+    cy.step("Partial Refund Payment", () =>
+    cy.refundCallTest(fixtures.refundBody, partialRefundData, globalState)
+    );
 
     if (!utils.should_continue_further(partialRefundData)) return;
 
-    cy.task("cli_log", "Partial Refund Payment - 2nd Attempt");
-    cy.refundCallTest(fixtures.refundBody, partialRefundData, globalState);
+    cy.step("Partial Refund Payment - 2nd Attempt", () =>
+    cy.refundCallTest(fixtures.refundBody, partialRefundData, globalState)
+    );
 
     if (!utils.should_continue_further(partialRefundData)) return;
 
@@ -857,8 +966,9 @@ describe("Card - Refund flow - 3DS", () => {
       "card_pm"
     ]["SyncRefund"];
 
-    cy.task("cli_log", "Sync Refund Payment");
-    cy.syncRefundCallTest(syncRefundData, globalState);
+    cy.step("Sync Refund Payment", () =>
+    cy.syncRefundCallTest(syncRefundData, globalState)
+    );
   });
 
   it("Card - Full Refund for partially captured 3DS payment", () => {
@@ -866,53 +976,62 @@ describe("Card - Refund flow - 3DS", () => {
       "PaymentIntent"
     ];
 
-    cy.task("cli_log", "Create Payment Intent");
+    cy.step("Create Payment Intent", () =>
     cy.createPaymentIntentTest(
       fixtures.createPaymentBody,
       data,
       "three_ds",
       "manual",
       globalState
+    )
     );
 
     if (!utils.should_continue_further(data)) return;
 
-    cy.task("cli_log", "Payment Methods Call");
-    cy.paymentMethodsCallTest(globalState);
+    cy.step("Payment Methods Call", () =>
+    cy.paymentMethodsCallTest(globalState)
+    );
 
     const confirmData = getConnectorDetails(globalState.get("connectorId"))[
       "card_pm"
     ]["3DSManualCapture"];
 
-    cy.task("cli_log", "Confirm Payment Intent");
-    cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+    cy.step("Confirm Payment Intent", () =>
+    cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState)
+    );
 
     if (!utils.should_continue_further(confirmData)) return;
 
     const expected_redirection = fixtures.confirmBody["return_url"];
-    cy.handleRedirection(globalState, expected_redirection);
+    cy.step("Handle Redirection", () =>
+    cy.handleRedirection(globalState, expected_redirection)
+    );
 
-    cy.task("cli_log", "Retrieve Payment after Confirmation");
-    cy.retrievePaymentCallTest({ globalState, data: confirmData });
+    cy.step("Retrieve Payment after Confirmation", () =>
+    cy.retrievePaymentCallTest({ globalState, data: confirmData })
+    );
 
     const partialCaptureData = getConnectorDetails(
       globalState.get("connectorId")
     )["card_pm"]["PartialCapture"];
 
-    cy.task("cli_log", "Partial Capture Payment");
-    cy.captureCallTest(fixtures.captureBody, partialCaptureData, globalState);
+    cy.step("Partial Capture Payment", () =>
+    cy.captureCallTest(fixtures.captureBody, partialCaptureData, globalState)
+    );
 
     if (!utils.should_continue_further(partialCaptureData)) return;
 
-    cy.task("cli_log", "Retrieve Payment after Partial Capture");
-    cy.retrievePaymentCallTest({ globalState, data: partialCaptureData });
+    cy.step("Retrieve Payment after Partial Capture", () =>
+    cy.retrievePaymentCallTest({ globalState, data: partialCaptureData })
+    );
 
     const partialRefundData = getConnectorDetails(
       globalState.get("connectorId")
     )["card_pm"]["manualPaymentPartialRefund"];
 
-    cy.task("cli_log", "Refund Payment");
-    cy.refundCallTest(fixtures.refundBody, partialRefundData, globalState);
+    cy.step("Refund Payment", () =>
+    cy.refundCallTest(fixtures.refundBody, partialRefundData, globalState)
+    );
 
     if (!utils.should_continue_further(partialRefundData)) return;
 
@@ -920,8 +1039,9 @@ describe("Card - Refund flow - 3DS", () => {
       "card_pm"
     ]["SyncRefund"];
 
-    cy.task("cli_log", "Sync Refund Payment");
-    cy.syncRefundCallTest(syncRefundData, globalState);
+    cy.step("Sync Refund Payment", () =>
+    cy.syncRefundCallTest(syncRefundData, globalState)
+    );
   });
 
   it("Card - Partial Refund for partially captured 3DS payment", () => {
@@ -929,46 +1049,52 @@ describe("Card - Refund flow - 3DS", () => {
       "PaymentIntent"
     ];
 
-    cy.task("cli_log", "Create Payment Intent");
+    cy.step("Create Payment Intent", () =>
     cy.createPaymentIntentTest(
       fixtures.createPaymentBody,
       data,
       "three_ds",
       "manual",
       globalState
+    )
     );
 
     if (!utils.should_continue_further(data)) return;
 
-    cy.task("cli_log", "Payment Methods Call");
-    cy.paymentMethodsCallTest(globalState);
+    cy.step("Payment Methods Call", () =>
+    cy.paymentMethodsCallTest(globalState)
+    );
 
     const confirmData = getConnectorDetails(globalState.get("connectorId"))[
       "card_pm"
     ]["3DSManualCapture"];
 
-    cy.task("cli_log", "Confirm Payment Intent");
-    cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+    cy.step("Confirm Payment Intent", () =>
+    cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState)
+    );
 
     if (!utils.should_continue_further(confirmData)) return;
 
     const expected_redirection = fixtures.confirmBody["return_url"];
     cy.handleRedirection(globalState, expected_redirection);
 
-    cy.task("cli_log", "Retrieve Payment after Confirmation");
-    cy.retrievePaymentCallTest({ globalState, data: confirmData });
+    cy.step("Retrieve Payment after Confirmation", () =>
+    cy.retrievePaymentCallTest({ globalState, data: confirmData })
+    );
 
     const partialCaptureData = getConnectorDetails(
       globalState.get("connectorId")
     )["card_pm"]["PartialCapture"];
 
-    cy.task("cli_log", "Partial Capture Payment");
-    cy.captureCallTest(fixtures.captureBody, partialCaptureData, globalState);
+    cy.step("Partial Capture Payment", () =>
+    cy.captureCallTest(fixtures.captureBody, partialCaptureData, globalState)
+    );
 
     if (!utils.should_continue_further(partialCaptureData)) return;
 
-    cy.task("cli_log", "Retrieve Payment after Partial Capture");
-    cy.retrievePaymentCallTest({ globalState, data: partialCaptureData });
+    cy.step("Retrieve Payment after Partial Capture", () =>
+    cy.retrievePaymentCallTest({ globalState, data: partialCaptureData })
+    );
 
     const partialRefundData = getConnectorDetails(
       globalState.get("connectorId")
@@ -979,8 +1105,9 @@ describe("Card - Refund flow - 3DS", () => {
       Request: { amount: partialRefundData.Request.amount / 2 },
     };
 
-    cy.task("cli_log", "Partial Refund Payment");
-    cy.refundCallTest(fixtures.refundBody, newPartialRefundData, globalState);
+    cy.step("Partial Refund Payment", () =>
+    cy.refundCallTest(fixtures.refundBody, newPartialRefundData, globalState)
+    );
 
     if (!utils.should_continue_further(partialRefundData)) return;
 
@@ -988,7 +1115,8 @@ describe("Card - Refund flow - 3DS", () => {
       "card_pm"
     ]["SyncRefund"];
 
-    cy.task("cli_log", "Sync Refund Payment");
-    cy.syncRefundCallTest(syncRefundData, globalState);
+    cy.step("Sync Refund Payment", () =>
+    cy.syncRefundCallTest(syncRefundData, globalState)
+    );
   });
 });
