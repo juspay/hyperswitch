@@ -330,6 +330,7 @@ pub enum RoutableConnectors {
     Stripebilling,
     Tesouro,
     // Taxjar,
+    // Truelayer,
     Trustpay,
     Trustpayments,
     // Thunes
@@ -475,6 +476,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Stripebilling => Ok(Self::Stripebilling),
             Connector::Tokenio => Ok(Self::Tokenio),
             Connector::Tesouro => Ok(Self::Tesouro),
+            // Connector::Truelayer => Ok(Self::Truelayer),
             Connector::Trustpay => Ok(Self::Trustpay),
             Connector::Trustpayments => Ok(Self::Trustpayments),
             Connector::Tsys => Ok(Self::Tsys),
@@ -634,6 +636,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Stripebilling => Self::Stripebilling,
             RoutableConnectors::Tesouro => Self::Tesouro,
             RoutableConnectors::Tokenio => Self::Tokenio,
+            // RoutableConnectors::Truelayer => Self::Truelayer,
             RoutableConnectors::Trustpay => Self::Trustpay,
             RoutableConnectors::Trustpayments => Self::Trustpayments,
             // RoutableConnectors::Tokenio => Self::Tokenio,
