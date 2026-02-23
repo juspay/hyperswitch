@@ -19,37 +19,49 @@ describe("UPI Payments - Hyperswitch", () => {
     const createPaymentData = getConnectorDetails(
       globalState.get("connectorId")
     )["upi_pm"]["PaymentIntent"];
-    cy.createPaymentIntentTest(
-      fixtures.createPaymentBody,
-      createPaymentData,
-      "three_ds",
-      "automatic",
-      globalState
+    cy.step("Create Payment Intent", () =>
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        createPaymentData,
+        "three_ds",
+        "automatic",
+        globalState
+      )
     );
 
-    cy.paymentMethodsCallTest(globalState);
+    cy.step("Fetch Payment Methods", () =>
+      cy.paymentMethodsCallTest(globalState)
+    );
 
     const confirmData = getConnectorDetails(globalState.get("connectorId"))[
       "upi_pm"
     ]["UpiCollect"];
-    cy.confirmUpiCall(fixtures.confirmBody, confirmData, true, globalState);
+    cy.step("Confirm UPI Collect Payment", () =>
+      cy.confirmUpiCall(fixtures.confirmBody, confirmData, true, globalState)
+    );
 
     if (!utils.should_continue_further(confirmData)) return;
 
     const expected_redirection = fixtures.confirmBody["return_url"];
     const payment_method_type = globalState.get("paymentMethodType");
-    cy.handleUpiRedirection(
-      globalState,
-      payment_method_type,
-      expected_redirection
+    cy.step("Handle UPI Redirection", () =>
+      cy.handleUpiRedirection(
+        globalState,
+        payment_method_type,
+        expected_redirection
+      )
     );
 
-    cy.retrievePaymentCallTest({ globalState, data: confirmData });
+    cy.step("Retrieve Payment", () =>
+      cy.retrievePaymentCallTest({ globalState, data: confirmData })
+    );
 
     const refundData = getConnectorDetails(globalState.get("connectorId"))[
       "upi_pm"
     ]["Refund"];
-    cy.refundCallTest(fixtures.refundBody, refundData, globalState);
+    cy.step("Refund Payment", () =>
+      cy.refundCallTest(fixtures.refundBody, refundData, globalState)
+    );
   });
 
   // Skipping UPI Intent intentionally as connector is throwing 5xx during redirection
@@ -57,32 +69,42 @@ describe("UPI Payments - Hyperswitch", () => {
     const createPaymentData = getConnectorDetails(
       globalState.get("connectorId")
     )["upi_pm"]["PaymentIntent"];
-    cy.createPaymentIntentTest(
-      fixtures.createPaymentBody,
-      createPaymentData,
-      "three_ds",
-      "automatic",
-      globalState
+    cy.step("Create Payment Intent", () =>
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        createPaymentData,
+        "three_ds",
+        "automatic",
+        globalState
+      )
     );
 
-    cy.paymentMethodsCallTest(globalState);
+    cy.step("Fetch Payment Methods", () =>
+      cy.paymentMethodsCallTest(globalState)
+    );
 
     const confirmData = getConnectorDetails(globalState.get("connectorId"))[
       "upi_pm"
     ]["UpiIntent"];
-    cy.confirmUpiCall(fixtures.confirmBody, confirmData, true, globalState);
+    cy.step("Confirm UPI Intent Payment", () =>
+      cy.confirmUpiCall(fixtures.confirmBody, confirmData, true, globalState)
+    );
 
     if (!utils.should_continue_further(confirmData)) return;
 
     const expected_redirection = fixtures.confirmBody["return_url"];
     const payment_method_type = globalState.get("paymentMethodType");
-    cy.handleUpiRedirection(
-      globalState,
-      payment_method_type,
-      expected_redirection
+    cy.step("Handle UPI Redirection", () =>
+      cy.handleUpiRedirection(
+        globalState,
+        payment_method_type,
+        expected_redirection
+      )
     );
 
-    cy.retrievePaymentCallTest({ globalState, data: confirmData });
+    cy.step("Retrieve Payment", () =>
+      cy.retrievePaymentCallTest({ globalState, data: confirmData })
+    );
   });
 });
 

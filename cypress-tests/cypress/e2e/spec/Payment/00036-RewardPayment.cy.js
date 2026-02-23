@@ -24,30 +24,33 @@ describe("Reward Payment - Cashtocode", () => {
       "reward_pm"
     ]["PaymentIntentUSD"];
 
-    cy.task("cli_log", "Create Payment Intent for Evoucher");
+    cy.step("Create Payment Intent for Evoucher", ()=>
     cy.createPaymentIntentTest(
       fixtures.createPaymentBody,
       data,
       "no_three_ds",
       "automatic",
       globalState
+    )
     );
 
     if (!utils.should_continue_further(data)) return;
 
-    cy.task("cli_log", "Payment Methods Call");
-    cy.paymentMethodsCallTest(globalState);
+    cy.step("Payment Methods Call", ()=>
+    cy.paymentMethodsCallTest(globalState)
+    );
 
     const confirmData = getConnectorDetails(globalState.get("connectorId"))[
       "reward_pm"
     ]["Evoucher"];
 
-    cy.task("cli_log", "Confirm Evoucher Payment");
+    cy.step("Confirm Evoucher Payment", ()=>
     cy.confirmRewardCallTest(
       fixtures.confirmBody,
       confirmData,
       true,
       globalState
+    )
     );
 
     if (!utils.should_continue_further(confirmData)) return;
@@ -55,15 +58,17 @@ describe("Reward Payment - Cashtocode", () => {
     const expected_redirection = fixtures.confirmBody["return_url"];
     const payment_method_type = globalState.get("paymentMethodType");
 
-    cy.task("cli_log", "Handle Redirection");
+    cy.step("Handle Redirection", ()=>
     cy.handleRewardRedirection(
       globalState,
       payment_method_type,
       expected_redirection
+    )
     );
 
-    cy.task("cli_log", "Retrieve Payment");
-    cy.retrievePaymentCallTest({ globalState, data: confirmData });
+    cy.step("Retrieve Payment", ()=>
+    cy.retrievePaymentCallTest({ globalState, data: confirmData })
+    );
   });
 
   it("Classic payment method flow", () => {
@@ -71,30 +76,33 @@ describe("Reward Payment - Cashtocode", () => {
       "reward_pm"
     ]["PaymentIntentEUR"];
 
-    cy.task("cli_log", "Create Payment Intent for Classic");
+    cy.step("Create Payment Intent for Classic", ()=>
     cy.createPaymentIntentTest(
       fixtures.createPaymentBody,
       data,
       "no_three_ds",
       "automatic",
       globalState
+    )
     );
 
     if (!utils.should_continue_further(data)) return;
 
-    cy.task("cli_log", "Payment Methods Call");
-    cy.paymentMethodsCallTest(globalState);
+    cy.step("Payment Methods Call", ()=>
+    cy.paymentMethodsCallTest(globalState)
+    );
 
     const confirmData = getConnectorDetails(globalState.get("connectorId"))[
       "reward_pm"
     ]["Classic"];
 
-    cy.task("cli_log", "Confirm Classic Payment");
+    cy.step("Confirm Classic Payment", ()=>
     cy.confirmRewardCallTest(
       fixtures.confirmBody,
       confirmData,
       true,
       globalState
+    )
     );
 
     if (!utils.should_continue_further(confirmData)) return;
@@ -102,14 +110,16 @@ describe("Reward Payment - Cashtocode", () => {
     const expected_redirection = fixtures.confirmBody["return_url"];
     const payment_method_type = globalState.get("paymentMethodType");
 
-    cy.task("cli_log", "Handle Redirection for Classic");
+    cy.step("Handle Redirection for Classic", ()=>
     cy.handleRewardRedirection(
       globalState,
       payment_method_type,
       expected_redirection
+    )
     );
 
-    cy.task("cli_log", "Retrieve Payment");
-    cy.retrievePaymentCallTest({ globalState, data: confirmData });
+    cy.step("Retrieve Payment", ()=>
+    cy.retrievePaymentCallTest({ globalState, data: confirmData })
+    );
   });
 });
