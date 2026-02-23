@@ -110,7 +110,7 @@ use crate::core::card_testing_guard::utils as card_testing_guard_utils;
 use crate::core::debit_routing;
 #[cfg(feature = "frm")]
 use crate::core::fraud_check as frm_core;
-#[cfg(feature = "v2")]
+
 use crate::core::payment_methods::vault;
 #[cfg(feature = "v2")]
 use crate::core::revenue_recovery::get_workflow_entries;
@@ -766,6 +766,7 @@ where
         &validate_result,
         platform,
         &business_profile,
+        &feature_config,
     )
     .await?;
 
@@ -7894,6 +7895,20 @@ where
                     } else {
                         logger::debug!("Organization is eligible for PM Modular service, skipping make_pm_data call since raw payment method data fetch is done");
                         //Merchant enabled for PM Modular service
+                        let payment_token = helpers::store_payment_method_data_in_vault(
+                            state,
+                            payment_data.get_payment_attempt(),
+                            payment_data.get_payment_intent(),
+                            enums::PaymentMethod::Card,
+                            payment_data
+                                .get_payment_method_data()
+                                .get_required_value("payment_method_dataaaaaaa")?,
+                            platform.get_provider().get_key_store(),
+                            Some(business_profile),
+                        )
+                        .await
+                        .attach_printable("Failed to store payment method data in vault in modular payment method flow")?;
+                        payment_token.map(|data| payment_data.set_token(data));
                         let pm_id = payment_data
                             .get_payment_method_info()
                             .map(|pm| pm.payment_method_id.clone());
@@ -7975,6 +7990,7 @@ pub async fn tokenize_in_router_when_confirm_false_or_external_authentication<F,
     validate_result: &operations::ValidateResult,
     platform: &domain::Platform,
     business_profile: &domain::Profile,
+    feature_config: &core_utils::FeatureConfig,
 ) -> RouterResult<D>
 where
     F: Send + Clone,
@@ -7986,26 +8002,82 @@ where
         .request_external_three_ds_authentication;
     let payment_data =
         if !is_operation_confirm(operation) || is_external_authentication_requested == Some(true) {
-            let (_operation, payment_method_data, pm_id) = operation
-                .to_domain()?
-                .make_pm_data(
+            if !feature_config.is_payment_method_modular_allowed {
+                let (_operation, payment_method_data, pm_id) = operation
+                    .to_domain()?
+                    .make_pm_data(
+                        state,
+                        payment_data,
+                        validate_result.storage_scheme,
+                        platform,
+                        business_profile,
+                        false,
+                    )
+                    .await?;
+                payment_data.set_payment_method_data(payment_method_data);
+                if let Some(payment_method_id) = pm_id {
+                    payment_data.set_payment_method_id_in_attempt(Some(payment_method_id));
+                }
+            } else {
+                set_payment_method_from_token_for_modular_payment_method_flow(
                     state,
                     payment_data,
-                    validate_result.storage_scheme,
                     platform,
-                    business_profile,
-                    false,
                 )
-                .await?;
-            payment_data.set_payment_method_data(payment_method_data);
-            if let Some(payment_method_id) = pm_id {
-                payment_data.set_payment_method_id_in_attempt(Some(payment_method_id));
+                .await;
             }
             payment_data
         } else {
             payment_data
         };
     Ok(payment_data.to_owned())
+}
+
+async fn set_payment_method_from_token_for_modular_payment_method_flow<F, D>(
+    state: &SessionState,
+    payment_data: &mut D,
+    platform: &domain::Platform,
+) where
+    F: Send + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+{
+    let payment_method = match payment_data.get_token_data() {
+        Some(storage::PaymentTokenData::TemporaryGeneric(generic_token_data)) => {
+            logger::debug!("Using temporary token data");
+
+            vault::Vault::get_payment_method_data_from_locker(
+                state,
+                &generic_token_data.token,
+                platform.get_provider().get_key_store(),
+            )
+            .await
+            .map(|(pm, _)| {
+                logger::debug!("Found payment method: {:?}", pm);
+                pm
+            })
+            .unwrap_or_else(|err| {
+                logger::error!("Failed to fetch payment method from locker: {:?}", err);
+                None
+            })
+        }
+        Some(
+            storage::PaymentTokenData::Temporary(_)
+            | storage::PaymentTokenData::Permanent(_)
+            | storage::PaymentTokenData::PermanentCard(_)
+            | storage::PaymentTokenData::AuthBankDebit(_)
+            | storage::PaymentTokenData::WalletToken(_)
+            | storage::PaymentTokenData::BankDebit(_),
+        )
+        | None => {
+            logger::debug!(
+                "No valid token data found: {:?}",
+                payment_data.get_token_data()
+            );
+            None
+        }
+    };
+
+    payment_data.set_payment_method_data(payment_method);
 }
 
 #[derive(Clone)]
@@ -11665,6 +11737,7 @@ pub trait OperationSessionSetters<F> {
     fn set_payment_method_info(&mut self, payment_method_info: Option<domain::PaymentMethod>);
     fn set_payment_method_id_in_attempt(&mut self, payment_method_id: Option<String>);
     fn set_pm_token(&mut self, token: String);
+    fn set_token(&mut self, token: String);
     fn set_connector_customer_id(&mut self, customer_id: Option<String>);
     fn push_sessions_token(&mut self, token: api::SessionToken);
     fn set_surcharge_details(&mut self, surcharge_details: Option<types::SurchargeDetails>);
@@ -11934,6 +12007,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
 
     fn set_pm_token(&mut self, token: String) {
         self.pm_token = Some(token);
+    }
+
+    fn set_token(&mut self, token: String) {
+        self.token = Some(token);
     }
 
     fn set_connector_customer_id(&mut self, customer_id: Option<String>) {
