@@ -139,6 +139,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsUpdateMe
             );
         }
 
+        if let Some(connector_metadata) = request.connector_metadata.clone() {
+            payment_intent.connector_metadata = Some(
+                serde_json::to_value(connector_metadata)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to serialize connector metadata")?,
+            );
+        }
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
