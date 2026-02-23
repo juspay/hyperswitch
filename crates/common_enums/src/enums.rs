@@ -181,7 +181,6 @@ impl AttemptStatus {
             | Self::Charged
             | Self::AutoRefunded
             | Self::Voided
-            | Self::VoidedPostCharge
             | Self::VoidFailed
             | Self::CaptureFailed
             | Self::Failure
@@ -204,7 +203,8 @@ impl AttemptStatus {
             | Self::PaymentMethodAwaited
             | Self::ConfirmationAwaited
             | Self::DeviceDataCollectionPending
-            | Self::IntegrityFailure => false,
+            | Self::IntegrityFailure
+            | Self::VoidedPostCharge => false,
         }
     }
 
@@ -10755,4 +10755,44 @@ pub enum WebhookRegistrationStatus {
     Success,
     // Webhook registration has failed
     Failure,
+}
+
+/// The status of a post-capture void operation
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    SmithyModel,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum PostCaptureVoidStatus {
+    Succeeded,
+    #[default]
+    Pending,
+    Failed,
+}
+
+impl PostCaptureVoidStatus {
+    pub fn is_post_capture_void_failure(self) -> bool {
+        match self {
+            Self::Failed => true,
+            Self::Pending | Self::Succeeded => false,
+        }
+    }
 }
