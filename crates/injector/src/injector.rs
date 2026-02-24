@@ -1166,12 +1166,12 @@ pub mod core {
                         .api_key
                         .as_ref()
                         .map(|s| s.clone().expose())
-                        .unwrap_or("snd_kxZvpjxPOPIxo4MlsVRHXL2FjRjHgT8xnAWPPqai3YED6UD4FogLsuZDe86csNGo".to_string());
+                        .unwrap_or("dev_yf91Hm51gK0Z8TsWZaaFK9gzDTExwJDgcsy97fj6lQ3e9VKzCduh1IfKhsVi9bkG".to_string());
                     let profile_id = request
                         .connection_config
                         .profile_id
                         .as_deref()
-                        .unwrap_or("pro_9NhkULOb4YWN56pFsz7E");
+                        .unwrap_or("pro_hCdnxhjWaXfGxDBAkOvU");
 
                     // Call /v2/proxy which handles vault token resolution + connector forwarding
                     self.call_connector_api_via_proxy(&proxy_request, &api_key, profile_id)

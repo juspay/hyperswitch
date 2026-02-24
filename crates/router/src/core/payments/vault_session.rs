@@ -99,7 +99,7 @@ where
         //     &merchant_connector_account,
         // )
         // .await?;
-        let connector_customer_id = Some("12345_cus_019c910672e37d22bf4382912fb8f58b".to_string());
+        let connector_customer_id = Some("12345_cus_019c915bd73e74a39bd200afda1d8396".to_string());
         router_env::logger::info!("SESSION_DEBUG: vault_session - vault customer created: {:?}", connector_customer_id);
         payment_data.set_connector_customer_id(connector_customer_id.clone());
 

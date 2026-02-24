@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use async_trait::async_trait;
 use common_enums as enums;
-use common_utils::{id_type, ucs_types, ucs_types::UcsReferenceId};
+use common_utils::{ext_traits::BytesExt, id_type, request::RequestBuilder, ucs_types, ucs_types::UcsReferenceId};
 use error_stack::ResultExt;
 use external_services::grpc_client;
 #[cfg(feature = "v2")]
@@ -367,6 +367,30 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             .ok_or(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to fetch Unified Connector Service client")?;
 
+        //do get token - extract card_number (which is a vault token) and fetch PM details
+        let card_token = match &self.request.payment_method_data {
+            hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(card) => {
+                Some(card.card_number.clone().expose())
+            }
+            hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::VaultToken(_) => {
+                None
+            }
+        };
+
+        if let Some(token) = &card_token {
+            // Hardcoded keys for demo — matching the working curl
+            let pm_api_key = "dev_yf91Hm51gK0Z8TsWZaaFK9gzDTExwJDgcsy97fj6lQ3e9VKzCduh1IfKhsVi9bkG";
+            let pm_profile_id = "pro_hCdnxhjWaXfGxDBAkOvU";
+
+            let pm_details = fetch_pm_id_from_token(state, token, pm_api_key, pm_profile_id).await?;
+            logger::info!(
+                "EXTERNAL_VAULT_PROXY: fetched pm_id={}, pm_token={} for card_token={}",
+                pm_details.id,
+                pm_details.payment_method_token,
+                token
+            );
+        }
+
         let payment_authorize_request =
             payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from((&*self, is_network_tokenization_enabled)) //change to authorize only
                 .change_context(ApiErrorResponse::InternalServerError)
@@ -453,4 +477,96 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         *self = updated_router_data;
         Ok(())
     }
+}
+
+/// Response from the payment method token details endpoint
+#[derive(serde::Deserialize, Debug)]
+struct PmTokenDetailsResponse {
+    id: String,
+    payment_method_token: String,
+}
+
+/// Fetch payment method ID by calling the token details endpoint.
+///
+/// Given a vault token (e.g. `token_9w0gEw6TwMfCjkHvG8Ke`), calls
+/// `GET /v2/payment-methods/token/{token}/details` on the local hyperswitch
+/// instance to retrieve the associated `payment_method_id` and `payment_method_token`.
+#[cfg(feature = "v2")]
+async fn fetch_pm_id_from_token(
+    state: &SessionState,
+    token: &str,
+    api_key: &str,
+    profile_id: &str,
+) -> RouterResult<PmTokenDetailsResponse> {
+    use common_utils::request::Method;
+
+    let url = format!(
+        "http://localhost:8082/v2/payment-methods/token/{}/details",
+        token
+    );
+
+    logger::info!(
+        "EXTERNAL_VAULT_PROXY: fetch_pm_id_from_token - url={}, token={}",
+        url,
+        token
+    );
+
+    // NOTE: Do NOT use attach_default_headers() — it adds `Via: HyperSwitch`
+    // which can cause CloudFront/proxy issues.
+    let request = RequestBuilder::new()
+        .method(Method::Get)
+        .url(&url)
+        .headers(vec![
+            (
+                "Content-Type".to_string(),
+                "application/json".to_string().into(),
+            ),
+            (
+                "Authorization".to_string(),
+                format!("api-key={}", api_key).into(),
+            ),
+            (
+                "x-profile-id".to_string(),
+                profile_id.to_string().into(),
+            ),
+        ])
+        .build();
+
+    let response = services::call_connector_api(state, request, "fetch_pm_token_details")
+        .await
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to call pm token details API")?;
+
+    let response = match response {
+        Ok(res) => {
+            logger::info!(
+                "EXTERNAL_VAULT_PROXY: fetch_pm_id_from_token - success status={}, body={:?}",
+                res.status_code,
+                String::from_utf8_lossy(&res.response)
+            );
+            res
+        }
+        Err(err_res) => {
+            logger::error!(
+                "EXTERNAL_VAULT_PROXY: fetch_pm_id_from_token - error status={}, body={:?}",
+                err_res.status_code,
+                String::from_utf8_lossy(&err_res.response)
+            );
+            return Err(ApiErrorResponse::InternalServerError.into());
+        }
+    };
+
+    let pm_details: PmTokenDetailsResponse = response
+        .response
+        .parse_struct("PmTokenDetailsResponse")
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to parse pm token details response")?;
+
+    logger::info!(
+        "EXTERNAL_VAULT_PROXY: fetch_pm_id_from_token - pm_id={}, pm_token={}",
+        pm_details.id,
+        pm_details.payment_method_token
+    );
+
+    Ok(pm_details)
 }
