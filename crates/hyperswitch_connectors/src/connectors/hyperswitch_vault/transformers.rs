@@ -16,6 +16,10 @@ use crate::{types::ResponseRouterData, utils};
 #[derive(Default, Debug, Serialize)]
 pub struct HyperswitchVaultCreateRequest {
     customer_id: String,
+    storage_type: String,
+    keep_alive: bool,
+    // "storage_type": "persistent",
+    // "keep_alive": true
 }
 
 impl TryFrom<&VaultRouterData<ExternalVaultCreateFlow>> for HyperswitchVaultCreateRequest {
@@ -26,7 +30,9 @@ impl TryFrom<&VaultRouterData<ExternalVaultCreateFlow>> for HyperswitchVaultCrea
             .connector_customer_id
             .clone()
             .ok_or_else(utils::missing_field_err("connector_customer"))?;
-        Ok(Self { customer_id })
+        let storage_type = "persistent".to_string();
+        let keep_alive = true;
+        Ok(Self { customer_id, storage_type, keep_alive })
     }
 }
 

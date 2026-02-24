@@ -134,6 +134,7 @@ where
         .to_validate_request()?
         .validate_request(&req, &platform)?;
 
+    router_env::logger::info!("SESSION_DEBUG: Starting get_trackers");
     let operations::GetTrackerResponse { mut payment_data } = operation
         .to_get_tracker()?
         .get_trackers(
@@ -145,7 +146,9 @@ where
             &header_payload,
         )
         .await?;
+    router_env::logger::info!("SESSION_DEBUG: get_trackers completed");
 
+    router_env::logger::info!("SESSION_DEBUG: Starting get_customer_details");
     let (_operation, customer) = operation
         .to_domain()?
         .get_customer_details(
@@ -157,7 +160,9 @@ where
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
+    router_env::logger::info!("SESSION_DEBUG: get_customer_details completed");
 
+    router_env::logger::info!("SESSION_DEBUG: Starting populate_vault_session_details");
     vault_session::populate_vault_session_details(
         state,
         req_state.clone(),
@@ -169,11 +174,14 @@ where
         header_payload.clone(),
     )
     .await?;
+    router_env::logger::info!("SESSION_DEBUG: populate_vault_session_details completed");
 
+    router_env::logger::info!("SESSION_DEBUG: Starting perform_routing");
     let connector = operation
         .to_domain()?
         .perform_routing(&platform, &profile, &state.clone(), &mut payment_data)
         .await?;
+    router_env::logger::info!("SESSION_DEBUG: perform_routing completed");
 
     let payment_data = match connector {
         api::ConnectorCallType::PreDetermined(_connector) => {
@@ -182,6 +190,7 @@ where
         api::ConnectorCallType::Retryable(_connectors) => todo!(),
         api::ConnectorCallType::Skip => todo!(),
         api::ConnectorCallType::SessionMultiple(connectors) => {
+            router_env::logger::info!("SESSION_DEBUG: Starting update_trackers");
             operation
                 .to_update_tracker()?
                 .update_trackers(
@@ -193,8 +202,9 @@ where
                     header_payload.clone(),
                 )
                 .await?;
+            router_env::logger::info!("SESSION_DEBUG: update_trackers completed, calling {} connectors", connectors.len());
             // todo: call surcharge manager for session token call.
-            Box::pin(call_multiple_connectors_service(
+            let result = Box::pin(call_multiple_connectors_service(
                 state,
                 platform.get_processor(),
                 connectors,
@@ -206,7 +216,9 @@ where
                 header_payload.clone(),
                 None,
             ))
-            .await?
+            .await?;
+            router_env::logger::info!("SESSION_DEBUG: call_multiple_connectors_service completed");
+            result
         }
     };
 
