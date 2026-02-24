@@ -31,7 +31,6 @@ use crate::{
     },
     types::domain,
 };
-
 #[cfg(feature = "email")]
 use crate::{
     services::{authentication as auth, email::types as email_types},
