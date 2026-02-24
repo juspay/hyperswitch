@@ -3056,6 +3056,7 @@ pub struct NetworkTokenDetailsPaymentMethod {
     pub card_type: Option<String>,
     #[serde(default = "saved_in_locker_default")]
     pub saved_to_locker: bool,
+    pub par: Option<Secret<String>>,
 }
 
 fn saved_in_locker_default() -> bool {
@@ -3305,6 +3306,7 @@ impl From<NetworkTokenDetails> for NetworkTokenDetailsPaymentMethod {
             card_network: item.card_network,
             card_type: item.card_type.map(|card| card.to_string()),
             saved_to_locker: true,
+            par: item.par,
         }
     }
 }
@@ -3343,7 +3345,7 @@ impl From<NetworkTokenDetailsPaymentMethod> for payment_methods::NetworkTokenDet
             card_network: item.card_network,
             card_type: item.card_type,
             saved_to_locker: item.saved_to_locker,
-            par: None,
+            par: item.par,
         }
     }
 }

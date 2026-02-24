@@ -21708,7 +21708,7 @@
             "type": "boolean",
             "description": "Whether the card with new status should be listed in the session"
           },
-          "network_token": {
+          "network_tokenization_data": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/NetworkTokenResponse"

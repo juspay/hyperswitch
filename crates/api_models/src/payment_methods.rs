@@ -3777,7 +3777,7 @@ pub struct PaymentMethodSessionResponse {
     pub keep_alive: bool,
 
     /// Network token details if available
-    pub network_token: Option<NetworkTokenResponse>,
+    pub network_tokenization_data: Option<NetworkTokenResponse>,
 }
 
 #[cfg(feature = "v2")]

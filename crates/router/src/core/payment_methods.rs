@@ -1449,7 +1449,6 @@ impl PaymentMethodResolver {
                     None,
                     billing,
                     None,
-                    None,
                 )?;
 
                 Ok((resp, *existing_pm))
@@ -1662,7 +1661,6 @@ async fn execute_payment_method_create(
                 None,
                 payment_method_billing_address.map(|add| add.get_inner().clone().into()),
                 None,
-                network_tokenization_resp,
             )?;
 
             Ok((resp, payment_method))
@@ -1821,7 +1819,6 @@ pub async fn create_volatile_payment_method_card_core(
                 None,
                 None,
                 None,
-                None,
             )?;
 
             Ok((resp, domain_payment_method))
@@ -1938,7 +1935,6 @@ pub async fn create_payment_method_proxy_card_core(
         req.storage_type,
         None,
         req.customer_id,
-        None,
         None,
         None,
         None,
@@ -2361,7 +2357,6 @@ pub async fn payment_method_intent_create(
         common_enums::StorageType::Persistent,
         None,
         Some(customer_id),
-        None,
         None,
         None,
         None,
@@ -3887,7 +3882,6 @@ pub async fn retrieve_payment_method(
         payment_method.customer_id.clone(),
         raw_payment_method_data,
         billing,
-        None,
         None,
     )
     .map(services::ApplicationResponse::Json)
@@ -5810,7 +5804,6 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
                 .clone()
                 .map(|billing| billing.get_inner().clone().into()),
             self.request.acknowledgement_status,
-            None,
         )?;
 
         Ok(response)
