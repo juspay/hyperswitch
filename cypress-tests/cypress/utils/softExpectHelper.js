@@ -10,7 +10,6 @@ export function softExpect(globalState, name, assertionFn, description = "") {
       assertionFn();
     } catch (error) {
       // Initialize errors array if not exists
-      cy.task("cli_log",error);
       const errors = globalState.get("softAssertErrors") || [];
       errors.push({
         description,
@@ -42,34 +41,56 @@ export function softExpect(globalState, name, assertionFn, description = "") {
     if (errors.length > 0) {
       const errorMessage = [
         "",
-        "╔══════════════════════════════════════════════════════════════╗",
-        "║               SOFT ASSERTION FAILURES                       ║",
-        "╚══════════════════════════════════════════════════════════════╝",
+        `  SOFT ASSERTION FAILURES — ${testName} (${errors.length} failure${errors.length > 1 ? "s" : ""})`,
         "",
-        `  Test   : ${testName}`,
-        `  Failures: ${errors.length}`,
-        "",
-        "──────────────────────────────────────────────────────────────",
-        "",
-        ...errors.map((e, i) => [
-          `  ${i + 1}. ${e.name}`,
-          `     Description : ${e.description}`,
-          `     Message     : ${e.message}`,
-          ...(e.actual !== undefined
-            ? [
-                `     Actual      : ${e.actual.split("\n").join("\n" + " ".repeat(19))}`,
-                `     Expected    : ${e.expected.split("\n").join("\n" + " ".repeat(19))}`,
-              ]
-            : []),
-          "",
-          "  ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄",
-          "",
-        ].join("\n")),
-        "══════════════════════════════════════════════════════════════",
-        "",
+        ...errors.map((e, i) => {
+          const diffBlock =
+            e.actual !== undefined && e.expected !== undefined
+              ? buildDiff(e.actual, e.expected, e.description)
+              : "";
+      
+          return [
+            `  ${i + 1}. [${e.name}]`,
+            `     ${e.message}`,
+            "",
+            diffBlock,
+            "",
+          ].join("\n");
+        }),
       ].join("\n");
       // Clear errors after reporting
       globalState.set("softAssertErrors", []);
       throw new Error(errorMessage);
     }
+  }
+
+  const GREEN = "\x1b[32m";
+  const RED = "\x1b[31m";
+  const RESET = "\x1b[0m";
+  
+  function buildDiff(actual, expected, label = "") {
+    const actualLines = actual.trim().split("\n");
+    const expectedLines = expected.trim().split("\n");
+  
+    const diffLines = [];
+    const maxLen = Math.max(actualLines.length, expectedLines.length);
+  
+    for (let i = 0; i < maxLen; i++) {
+      const aLine = actualLines[i];
+      const eLine = expectedLines[i];
+  
+      if (aLine !== eLine) {
+        if (aLine !== undefined) diffLines.push(`${RED}  -   ${aLine.trim()}${RESET}`);
+        if (eLine !== undefined) diffLines.push(`${GREEN}  +   ${eLine.trim()}${RESET}`);
+      }
+    }
+  
+    return [
+      label ? `      ${label}` : "",
+     `      ${GREEN}+ expected${RESET} - actual`,
+      "",
+      ...diffLines,
+    ]
+      .filter((line, i) => i !== 0 || label)
+      .join("\n");
   }

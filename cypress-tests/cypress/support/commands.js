@@ -2072,7 +2072,7 @@ Cypress.Commands.add(
           expect(merchantConnectorId, "connector_id").to.equal(
             response.body.merchant_connector_id
           );
-          expect(response.body.customer, "customer").to.not.be.empty;
+          softExpect(globalState, name, ()=> expect(response.body.customer, "customer").to.not.be.empty, `Customer object is empty in response`);
           expect(response.body.billing, "billing_address").to.not.be.empty;
           expect(response.body.profile_id, "profile_id").to.equal(profileId).and
             .to.not.be.null;
