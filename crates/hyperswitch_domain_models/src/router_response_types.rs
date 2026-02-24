@@ -67,6 +67,11 @@ pub enum PaymentsResponseData {
         authentication_data: Option<Box<UcsAuthenticationData>>,
         charges: Option<common_types::payments::ConnectorChargeResponseData>,
     },
+    PostCaptureVoidResponse {
+        post_capture_void_status: common_enums::PostCaptureVoidStatus,
+        connector_reference_id: Option<String>,
+        description: Option<String>,
+    },
     MultipleCaptureResponse {
         // pending_capture_id_list: Vec<String>,
         capture_sync_response_list: HashMap<String, CaptureSyncResponse>,
@@ -113,6 +118,7 @@ pub enum PaymentsResponseData {
     },
     PaymentsCreateOrderResponse {
         order_id: String,
+        session_token: Option<api_models::payments::SessionToken>,
     },
 }
 

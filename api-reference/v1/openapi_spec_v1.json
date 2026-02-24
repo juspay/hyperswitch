@@ -1124,7 +1124,14 @@
         },
         "responses": {
           "200": {
-            "description": "Payment canceled post capture"
+            "description": "Payment canceled post capture",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Missing mandatory fields",
@@ -1687,7 +1694,7 @@
         },
         "responses": {
           "200": {
-            "description": "Eligbility submit is successful",
+            "description": "Eligibility submit is successful",
             "content": {
               "application/json": {
                 "schema": {
@@ -8697,7 +8704,7 @@
             ],
             "properties": {
               "Passthrough": {
-                "$ref": "#/components/schemas/PassthroughAddtionalData"
+                "$ref": "#/components/schemas/PassthroughAdditionalData"
               }
             }
           }
@@ -11493,6 +11500,26 @@
                   },
                   "routing_number": {
                     "type": "string"
+                  },
+                  "bank_account_holder_name": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "bank_type": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankType"
+                      }
+                    ],
+                    "nullable": true
+                  },
+                  "bank_holder_type": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankHolderType"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -24786,7 +24813,7 @@
           }
         }
       },
-      "PassthroughAddtionalData": {
+      "PassthroughAdditionalData": {
         "type": "object",
         "description": "additional payout method details for passthrough payout method",
         "required": [
@@ -25520,6 +25547,36 @@
             "type": "string",
             "description": "Card Issuer Identification Number (first 6 digits of card)",
             "example": "424242"
+          }
+        }
+      },
+      "PaymentIntentStateMetadata": {
+        "type": "object",
+        "description": "Additional metadata for payment intent state containing refunded and disputed amounts",
+        "properties": {
+          "total_refunded_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "total_disputed_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "post_capture_void": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PostCaptureVoidResponse"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -28803,6 +28860,14 @@
             "example": "stripe",
             "nullable": true
           },
+          "state_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentIntentStateMetadata"
+              }
+            ],
+            "nullable": true
+          },
           "client_secret": {
             "type": "string",
             "description": "A secret token unique to this payment intent. It is primarily used by client-side applications (e.g., Hyperswitch SDKs) to authenticate actions like confirming the payment or handling next actions. This secret should be handled carefully and not exposed publicly beyond its intended client-side use.",
@@ -30395,6 +30460,14 @@
             "type": "string",
             "description": "The name of the payment connector (e.g., 'stripe', 'adyen') that processed or is processing this payment.",
             "example": "stripe",
+            "nullable": true
+          },
+          "state_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentIntentStateMetadata"
+              }
+            ],
             "nullable": true
           },
           "client_secret": {
@@ -32767,7 +32840,7 @@
             ],
             "properties": {
               "passthrough": {
-                "$ref": "#/components/schemas/PassthroughAddtionalData"
+                "$ref": "#/components/schemas/PassthroughAdditionalData"
               }
             }
           }
@@ -33868,6 +33941,47 @@
             "$ref": "#/components/schemas/AuthenticationPaymentMethodData"
           }
         }
+      },
+      "PostCaptureVoidResponse": {
+        "type": "object",
+        "description": "Additional metadata for payment intent state containing refunded and disputed amounts",
+        "required": [
+          "updated_at"
+        ],
+        "properties": {
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PostCaptureVoidStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "connector_reference_id": {
+            "type": "string",
+            "description": "Connector reference id for post capture void",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "Description or message related to the post capture void",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the post capture void was last updated"
+          }
+        }
+      },
+      "PostCaptureVoidStatus": {
+        "type": "string",
+        "description": "The status of a post-capture void operation",
+        "enum": [
+          "succeeded",
+          "pending",
+          "failed"
+        ]
       },
       "PrimaryBusinessDetails": {
         "type": "object",
@@ -38564,7 +38678,7 @@
               },
               "consume_post_message_for_three_ds_method_completion": {
                 "type": "boolean",
-                "description": "Indicates whethere to wait for Post message after 3DS method data submission"
+                "description": "Indicates whether to wait for Post message after 3DS method data submission"
               }
             }
           }
