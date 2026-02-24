@@ -43,7 +43,7 @@ const multiUseMandateData = {
 const payment_method_data_no3ds = {
   card: {
     last4: "4242",
-    card_type: "Credit",
+    card_type: "CREDIT",
     card_network: "Visa",
     card_issuer: "STRIPE PAYMENTS UK LIMITED",
     card_issuing_country: "UNITEDKINGDOM",
