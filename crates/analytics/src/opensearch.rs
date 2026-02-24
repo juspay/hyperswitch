@@ -506,6 +506,7 @@ const ACTIVE_ATTEMPT_FILTER_SCRIPT: &str = r#"
     def active = doc['active_attempt_id.keyword'].value;
     def ids = doc['attempts_list.attempt_id.keyword'];
     def values = doc[params.field_name];
+    if (values.size() == 0) return false;
 
     for (int i = 0; i < ids.size(); i++) {
         if (ids[i] == active) {
