@@ -607,8 +607,10 @@ pub enum BankDebitDetail {
         #[schema(value_type = Option<String>)]
         #[serde(default)]
         bank_account_holder_name: Option<masking::Secret<String>>,
+        #[schema(value_type = Option<BankType>)]
         #[serde(default)]
         bank_type: Option<common_enums::BankType>,
+        #[schema(value_type = Option<BankHolderType>)]
         #[serde(default)]
         bank_holder_type: Option<common_enums::BankHolderType>,
     },

@@ -11508,7 +11508,7 @@
                   "bank_type": {
                     "allOf": [
                       {
-                        "$ref": "#/components/schemas/common_enums.BankType"
+                        "$ref": "#/components/schemas/BankType"
                       }
                     ],
                     "nullable": true
@@ -11516,7 +11516,7 @@
                   "bank_holder_type": {
                     "allOf": [
                       {
-                        "$ref": "#/components/schemas/common_enums.BankHolderType"
+                        "$ref": "#/components/schemas/BankHolderType"
                       }
                     ],
                     "nullable": true
