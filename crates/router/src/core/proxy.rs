@@ -24,7 +24,9 @@ pub async fn proxy_core(
         )
         .await?;
 
-    let vault_data = proxy_record.get_vault_data(&state, platform).await?;
+    let vault_data = proxy_record
+        .get_vault_data(&state, platform, req.use_network_token)
+        .await?;
 
     let processed_body =
         interpolate_token_references_with_vault_data(req.request_body.clone(), &vault_data)?;
@@ -88,6 +90,7 @@ async fn execute_proxy_request(
     req_wrapper: &utils::ProxyRequestWrapper,
     processed_body: Value,
 ) -> RouterResult<Response> {
+    println!("Processed body after interpolation: {:?}", processed_body.clone());
     let request = RequestBuilder::new()
         .method(req_wrapper.get_method())
         .attach_default_headers()

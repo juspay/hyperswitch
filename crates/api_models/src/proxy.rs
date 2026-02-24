@@ -45,6 +45,10 @@ pub struct ProxyRequest {
     /// The type of token that is used to fetch sensitive data from the vault
     #[schema(value_type = TokenType, example = "payment_method_id")]
     pub token_type: TokenType,
+    /// Whether to use the network token instead of the card data from the vault.
+    /// When true, the network token locker id will be used to fetch network token data.
+    #[serde(default)]
+    pub use_network_token: bool,
 }
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]

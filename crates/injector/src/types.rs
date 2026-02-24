@@ -90,6 +90,10 @@ pub mod models {
         pub cert_format: Option<String>,
         /// Maximum response size in bytes (defaults to 10MB if not specified)
         pub max_response_size: Option<usize>,
+        /// API key for authenticating with the hyperswitch proxy endpoint
+        pub api_key: Option<Secret<String>>,
+        /// Profile ID for the hyperswitch proxy endpoint
+        pub profile_id: Option<String>,
     }
 
     /// Complete request structure for the injector service
@@ -230,6 +234,8 @@ pub mod models {
                 cert_password: None,
                 cert_format: None,
                 max_response_size: None,
+                api_key: None,
+                profile_id: None,
             }
         }
     }

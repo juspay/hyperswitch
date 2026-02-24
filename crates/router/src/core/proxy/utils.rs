@@ -164,6 +164,35 @@ impl ProxyRecord {
         }
     }
 
+    fn get_network_token_vault_id(&self) -> RouterResult<payment_methods::VaultId> {
+        match self {
+            Self::PaymentMethodRecord(payment_method) => {
+                let nt_locker_id = payment_method
+                    .network_token_locker_id
+                    .clone()
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Network token locker id not present in Payment Method Entry",
+                    )?;
+                Ok(payment_methods::VaultId::generate(nt_locker_id))
+            }
+            Self::TokenizationRecord(_) => Err(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Network token vault id not supported for Tokenization Record",
+                ),
+            Self::VolatilePaymentMethodRecord(payment_method) => {
+                let nt_locker_id = payment_method
+                    .network_token_locker_id
+                    .clone()
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Network token locker id not present in Volatile Payment Method Entry",
+                    )?;
+                Ok(payment_methods::VaultId::generate(nt_locker_id))
+            }
+        }
+    }
+
     fn get_customer_id(&self) -> RouterResult<Option<id_type::GlobalCustomerId>> {
         match self {
             Self::PaymentMethodRecord(payment_method) => {
@@ -188,29 +217,83 @@ impl ProxyRecord {
         &self,
         state: &SessionState,
         platform: domain::Platform,
+        use_network_token: bool,
     ) -> RouterResult<Value> {
         match self {
-            Self::PaymentMethodRecord(_) => {
+            Self::PaymentMethodRecord(payment_method) => {
                 let customer_id = self
                     .get_customer_id()?
                     .get_required_value("customer_id")
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Locker id not present in Payment Method Entry")?;
-                let vault_resp = vault::retrieve_payment_method_from_vault_internal(
-                    state,
-                    &platform,
-                    &self.get_vault_id()?,
-                    &customer_id,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error while fetching data from vault")?;
 
-                Ok(vault_resp
-                    .data
-                    .encode_to_value()
+                if use_network_token {
+                    println!("Using network token locker id to fetch vault data");
+                    // Fetch network token data using network_token_locker_id
+                    let network_token_vault_id = self.get_network_token_vault_id()?;
+                    let vault_resp = vault::retrieve_payment_method_from_vault_internal(
+                        state,
+                        &platform,
+                        &network_token_vault_id,
+                        &customer_id,
+                    )
+                    .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to serialize vault data")?)
+                    .attach_printable(
+                        "Error while fetching network token data from vault",
+                    )?;
+                    println!("Successfully fetched network token data from vault: {:?}", vault_resp);
+
+                    // vault_resp.data should be PaymentMethodVaultingData::NetworkToken
+                    Ok(vault_resp
+                        .data
+                        .encode_to_value()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to serialize network token vault data")?)
+                } else {
+                    // Fetch card data using locker_id
+                    let vault_resp = vault::retrieve_payment_method_from_vault_internal(
+                        state,
+                        &platform,
+                        &self.get_vault_id()?,
+                        &customer_id,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Error while fetching data from vault")?;
+
+                    let mut vault_data = vault_resp.data;
+
+                    // If vault data is card, try to retrieve CVC from redis and attach it
+                    if vault_data.get_card().is_some() {
+                        let payment_method_id_str =
+                            payment_method.get_id().get_string_repr().to_string();
+                        let key_store = platform.get_provider().get_key_store();
+
+                        match vault::retrieve_and_delete_cvc_from_payment_token(
+                            state,
+                            &payment_method_id_str,
+                            key_store,
+                        )
+                        .await
+                        {
+                            Ok(card_cvc) => {
+                                vault_data.set_card_cvc(card_cvc);
+                            }
+                            Err(err) => {
+                                router_env::logger::warn!(
+                                    "Failed to retrieve CVC from redis: {:?}",
+                                    err
+                                );
+                            }
+                        }
+                    }
+
+                    Ok(vault_data
+                        .encode_to_value()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to serialize vault data")?)
+                }
             }
             Self::TokenizationRecord(_) => {
                 let customer_id = self

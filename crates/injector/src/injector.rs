@@ -796,6 +796,9 @@ pub mod core {
         pub token_type: String,
         /// HTTP method — hardcoded to "POST"
         pub method: String,
+        /// Whether to use network token instead of card data from the vault
+        #[serde(default)]
+        pub use_network_token: bool,
     }
 
     impl Injector {
@@ -889,6 +892,7 @@ pub mod core {
                 token,
                 token_type: "payment_method_id".to_string(),
                 method: "POST".to_string(),
+                use_network_token: false,
             };
 
             logger::info!(
@@ -1155,13 +1159,21 @@ pub mod core {
                         serde_json::to_string_pretty(&proxy_request).unwrap_or_default(),
                     );
 
-                    // TODO: Read api_key and profile_id from config/request context.
-                    // Hardcoded for local demo purposes.
-                    let api_key = "dev_LikxVWM569dHLj7NG96oJkihkFGvt3AC78jJCuLH2VjtCKQfUBwrdJwuehctyjPK";
-                    let profile_id = "pro_YC2ncgpE2HV0ini6KYcw";
+                    // Read api_key and profile_id from connection_config
+                    let api_key = request
+                        .connection_config
+                        .api_key
+                        .as_ref()
+                        .map(|s| s.clone().expose())
+                        .unwrap_or_default();
+                    let profile_id = request
+                        .connection_config
+                        .profile_id
+                        .as_deref()
+                        .unwrap_or_default();
 
                     // Call /v2/proxy which handles vault token resolution + connector forwarding
-                    self.call_connector_api_via_proxy(&proxy_request, api_key, profile_id)
+                    self.call_connector_api_via_proxy(&proxy_request, &api_key, profile_id)
                         .await?
                 }
 
@@ -1301,6 +1313,8 @@ mod tests {
                 cert_password: None,
                 cert_format: None,
                 max_response_size: None, // Use default
+                api_key: None,
+                profile_id: None,
             },
         };
 
@@ -1381,6 +1395,8 @@ mod tests {
                 cert_password: None,
                 cert_format: None,
                 max_response_size: None,
+                api_key: None,
+                profile_id: None,
             },
         };
 

@@ -66,7 +66,7 @@ impl VaultMetadataError {
 #[serde(untagged)]
 pub enum ExternalVaultProxyMetadata {
     /// VGS proxy data variant
-    VgsMetadata(VgsMetadata),
+    VgsMetadata(VgsMetadata), // ?
 }
 
 /// VGS proxy data (moved from external_services)
