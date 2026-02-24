@@ -636,6 +636,7 @@ impl
             merchant_account_metadata,
             state,
             test_mode: router_data.test_mode,
+            payment_method_type: None,
         })
     }
 }
