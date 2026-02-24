@@ -1,7 +1,6 @@
 use common_utils::{hashing::HashedString, types::TimeRange};
-use masking::WithType;
+use masking::{ExposeInterface, WithType};
 use serde_json::Value;
-use masking::ExposeInterface;
 
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct SearchFilters {
@@ -76,9 +75,10 @@ impl From<&crate::payments::PaymentListFilterConstraints> for SearchFilters {
                 .merchant_order_reference_id
                 .as_ref()
                 .map(|merchant_order_reference_id| vec![merchant_order_reference_id.clone()]),
-            customer_email: constraints.customer_email.as_ref().map(|customer_email| {
-                vec![HashedString::from(customer_email.clone().expose())]
-            }),
+            customer_email: constraints
+                .customer_email
+                .as_ref()
+                .map(|customer_email| vec![HashedString::from(customer_email.clone().expose())]),
             search_tags: None,
             card_last_4: None,
             amount: None,
