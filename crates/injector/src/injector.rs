@@ -817,14 +817,15 @@ pub mod core {
 
             match &vault_data {
                 Value::Object(obj) => {
-                    let token_value =
-                        find_field_recursively_in_vault_data(obj, "card_number").ok_or_else(
-                            || {
-                                error_stack::Report::new(InjectorError::TokenReplacementFailed(
-                                    "Field 'card_number' not found in token data".to_string(),
-                                ))
-                            },
-                        )?;
+                    // Try all known card number field name variants (including serde-renamed forms)
+                    let token_value = CARD_NUMBER_FIELDS
+                        .iter()
+                        .find_map(|field_name| find_field_recursively_in_vault_data(obj, field_name))
+                        .ok_or_else(|| {
+                            error_stack::Report::new(InjectorError::TokenReplacementFailed(
+                                "No card number field found in token data (tried: card_number, number, card[number])".to_string(),
+                            ))
+                        })?;
 
                     match token_value {
                         Value::String(s) => {
@@ -882,6 +883,11 @@ pub mod core {
 
             // 3. Transform the request body: replace token values with {{$...}} placeholders
             let request_body = transform_request_body_for_proxy(raw_request_body, &token);
+
+            logger::debug!(
+                "request_bodyyy {:?}",
+                request_bodyyy.clone()
+            );
 
             // 4. Destination URL from ConnectionConfig
             let destination_url = request.connection_config.endpoint.clone();
