@@ -1376,9 +1376,7 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
     external_vault_merchant_connector_account: MerchantConnectorAccountTypeDetails,
 ) -> CustomResult<Option<String>, UnifiedConnectorServiceError> {
     let external_vault_metadata = external_vault_merchant_connector_account
-        .get_metadata()
-        .ok_or(UnifiedConnectorServiceError::ParsingFailed)
-        .attach_printable("Failed to obtain ConnectorMetadata")?;
+        .get_metadata();
 
     let connector = external_vault_merchant_connector_account.get_connector_name();
 
@@ -1391,6 +1389,8 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
     let unified_service_vault_metdata = match external_vault_connector {
         api_enums::VaultConnectors::Vgs => {
             let vgs_metadata: ExternalVaultConnectorMetadata = external_vault_metadata
+                .ok_or(UnifiedConnectorServiceError::ParsingFailed)
+        .attach_printable("Failed to obtain ConnectorMetadata")?
                 .expose()
                 .parse_value("ExternalVaultConnectorMetadata")
                 .change_context(UnifiedConnectorServiceError::ParsingFailed)

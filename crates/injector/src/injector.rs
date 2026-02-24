@@ -1052,7 +1052,8 @@ pub mod core {
     }
 
     /// The base URL for the local hyperswitch proxy endpoint
-    const PROXY_BASE_URL: &str = "https://app.hyperswitch.io/api/v2/proxy";
+    // const PROXY_BASE_URL: &str = "https://app.hyperswitch.io/api/v1/proxy";
+    const PROXY_BASE_URL: &str = "http://localhost:8082/api/v2/proxy";
 
     impl Injector {
         /// Calls the `/v2/proxy` endpoint with the constructed proxy request body.
@@ -1165,12 +1166,12 @@ pub mod core {
                         .api_key
                         .as_ref()
                         .map(|s| s.clone().expose())
-                        .unwrap_or_default();
+                        .unwrap_or("snd_kxZvpjxPOPIxo4MlsVRHXL2FjRjHgT8xnAWPPqai3YED6UD4FogLsuZDe86csNGo".to_string());
                     let profile_id = request
                         .connection_config
                         .profile_id
                         .as_deref()
-                        .unwrap_or_default();
+                        .unwrap_or("pro_9NhkULOb4YWN56pFsz7E");
 
                     // Call /v2/proxy which handles vault token resolution + connector forwarding
                     self.call_connector_api_via_proxy(&proxy_request, &api_key, profile_id)
