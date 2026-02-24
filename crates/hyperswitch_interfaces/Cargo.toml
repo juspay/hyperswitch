@@ -30,8 +30,8 @@ strum = { version = "0.26", features = ["derive"] }
 thiserror = "1.0.69"
 time = "0.3.41"
 url = { version = "2.5.4", features = ["serde"] }
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "3d00700e96d57e6c03a4820bf9d3e88dacbbc1bc", package = "rust-grpc-client" }
-unified-connector-service-masking = { git = "https://github.com/juspay/hyperswitch", tag = "2025.11.24.0", package = "masking" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "d2eae6007d50628035a21719b77f5c2c494df717", package = "rust-grpc-client" }
+unified-connector-service-masking = { git = "https://github.com/juspay/hyperswitch", rev = "d88a79b231d748bc8ed21d297e4e8b3cf200a9a6", package = "masking" }
 tokio = { version = "1.45.1", features = ["macros", "rt-multi-thread"] }
 
 # First party crates

@@ -2129,7 +2129,7 @@ dependencies = [
 [[package]]
 name = "config_patch_derive"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=3d00700e96d57e6c03a4820bf9d3e88dacbbc1bc#3d00700e96d57e6c03a4820bf9d3e88dacbbc1bc"
+source = "git+https://github.com/juspay/connector-service?rev=d2eae6007d50628035a21719b77f5c2c494df717#d2eae6007d50628035a21719b77f5c2c494df717"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3800,14 +3800,14 @@ dependencies = [
 [[package]]
 name = "grpc-api-types"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=3d00700e96d57e6c03a4820bf9d3e88dacbbc1bc#3d00700e96d57e6c03a4820bf9d3e88dacbbc1bc"
+source = "git+https://github.com/juspay/connector-service?rev=d2eae6007d50628035a21719b77f5c2c494df717#d2eae6007d50628035a21719b77f5c2c494df717"
 dependencies = [
  "axum 0.8.4",
  "error-stack 0.5.0",
  "g2h",
  "heck 0.5.0",
  "http 1.3.1",
- "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2025.11.24.0)",
+ "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?rev=d88a79b231d748bc8ed21d297e4e8b3cf200a9a6)",
  "prost",
  "prost-build",
  "prost-types",
@@ -4414,7 +4414,7 @@ dependencies = [
  "http 0.2.12",
  "hyperswitch_domain_models",
  "masking 0.1.0",
- "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2025.11.24.0)",
+ "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?rev=d88a79b231d748bc8ed21d297e4e8b3cf200a9a6)",
  "mime",
  "reqwest 0.11.27",
  "router_env",
@@ -5174,7 +5174,7 @@ dependencies = [
 [[package]]
 name = "masking"
 version = "0.1.0"
-source = "git+https://github.com/juspay/hyperswitch?tag=2025.11.24.0#19723f8c9c6c89057624061fef429f6f574dd358"
+source = "git+https://github.com/juspay/hyperswitch?rev=d88a79b231d748bc8ed21d297e4e8b3cf200a9a6#d88a79b231d748bc8ed21d297e4e8b3cf200a9a6"
 dependencies = [
  "bytes 1.10.1",
  "diesel",
@@ -7337,7 +7337,7 @@ dependencies = [
  "jsonwebtoken",
  "kgraph_utils",
  "masking 0.1.0",
- "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2025.11.24.0)",
+ "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?rev=d88a79b231d748bc8ed21d297e4e8b3cf200a9a6)",
  "maud",
  "mimalloc",
  "mime",
@@ -7473,7 +7473,7 @@ dependencies = [
 [[package]]
 name = "rust-grpc-client"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=3d00700e96d57e6c03a4820bf9d3e88dacbbc1bc#3d00700e96d57e6c03a4820bf9d3e88dacbbc1bc"
+source = "git+https://github.com/juspay/connector-service?rev=d2eae6007d50628035a21719b77f5c2c494df717#d2eae6007d50628035a21719b77f5c2c494df717"
 dependencies = [
  "grpc-api-types",
 ]
@@ -10263,11 +10263,11 @@ checksum = "ed646292ffc8188ef8ea4d1e0e0150fb15a5c2e12ad9b8fc191ae7a8a7f3c4b9"
 [[package]]
 name = "ucs_cards"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=3d00700e96d57e6c03a4820bf9d3e88dacbbc1bc#3d00700e96d57e6c03a4820bf9d3e88dacbbc1bc"
+source = "git+https://github.com/juspay/connector-service?rev=d2eae6007d50628035a21719b77f5c2c494df717#d2eae6007d50628035a21719b77f5c2c494df717"
 dependencies = [
  "bytes 1.10.1",
  "error-stack 0.4.1",
- "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2025.11.24.0)",
+ "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?rev=d88a79b231d748bc8ed21d297e4e8b3cf200a9a6)",
  "prost",
  "regex",
  "serde",
@@ -10279,7 +10279,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_enums"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=3d00700e96d57e6c03a4820bf9d3e88dacbbc1bc#3d00700e96d57e6c03a4820bf9d3e88dacbbc1bc"
+source = "git+https://github.com/juspay/connector-service?rev=d2eae6007d50628035a21719b77f5c2c494df717#d2eae6007d50628035a21719b77f5c2c494df717"
 dependencies = [
  "serde",
  "strum 0.26.3",
@@ -10290,7 +10290,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_utils"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=3d00700e96d57e6c03a4820bf9d3e88dacbbc1bc#3d00700e96d57e6c03a4820bf9d3e88dacbbc1bc"
+source = "git+https://github.com/juspay/connector-service?rev=d2eae6007d50628035a21719b77f5c2c494df717#d2eae6007d50628035a21719b77f5c2c494df717"
 dependencies = [
  "anyhow",
  "base64 0.21.7",
@@ -10301,7 +10301,7 @@ dependencies = [
  "error-stack 0.4.1",
  "hex",
  "http 1.3.1",
- "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2025.11.24.0)",
+ "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?rev=d88a79b231d748bc8ed21d297e4e8b3cf200a9a6)",
  "md5",
  "nanoid",
  "once_cell",
