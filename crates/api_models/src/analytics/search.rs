@@ -1,6 +1,7 @@
 use common_utils::{hashing::HashedString, types::TimeRange};
 use masking::WithType;
 use serde_json::Value;
+use masking::ExposeInterface;
 
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct SearchFilters {
@@ -21,6 +22,71 @@ pub struct SearchFilters {
     pub card_discovery: Option<Vec<String>>,
     pub merchant_order_reference_id: Option<Vec<String>>,
 }
+
+#[cfg(feature = "v1")]
+pub fn convert_to_strings<T: ToString>(items: Vec<T>) -> Vec<String> {
+    items.into_iter().map(|item| item.to_string()).collect()
+}
+
+#[cfg(feature = "v1")]
+impl From<&crate::payments::PaymentListFilterConstraints> for SearchFilters {
+    fn from(constraints: &crate::payments::PaymentListFilterConstraints) -> Self {
+        Self {
+            payment_method: constraints
+                .payment_method
+                .as_ref()
+                .map(|payment_method| convert_to_strings(payment_method.clone())),
+            currency: constraints
+                .currency
+                .as_ref()
+                .map(|currency| convert_to_strings(currency.clone())),
+            status: constraints
+                .status
+                .as_ref()
+                .map(|status| convert_to_strings(status.clone())),
+            payment_method_type: constraints
+                .payment_method_type
+                .as_ref()
+                .map(|pmt| convert_to_strings(pmt.clone())),
+            authentication_type: constraints
+                .authentication_type
+                .as_ref()
+                .map(|at| convert_to_strings(at.clone())),
+            card_network: constraints
+                .card_network
+                .as_ref()
+                .map(|cn| convert_to_strings(cn.clone())),
+            connector: constraints
+                .connector
+                .as_ref()
+                .map(|connector| convert_to_strings(connector.clone())),
+            card_discovery: constraints
+                .card_discovery
+                .as_ref()
+                .map(|cd| convert_to_strings(cd.clone())),
+            customer_id: constraints
+                .customer_id
+                .as_ref()
+                .map(|customer_id| vec![customer_id.get_string_repr().to_string()]),
+            payment_id: constraints
+                .payment_id
+                .as_ref()
+                .map(|payment_id| vec![payment_id.get_string_repr().to_string()]),
+            merchant_order_reference_id: constraints
+                .merchant_order_reference_id
+                .as_ref()
+                .map(|merchant_order_reference_id| vec![merchant_order_reference_id.clone()]),
+            customer_email: constraints.customer_email.as_ref().map(|customer_email| {
+                vec![HashedString::from(customer_email.clone().expose())]
+            }),
+            search_tags: None,
+            card_last_4: None,
+            amount: None,
+            amount_filter: constraints.amount_filter.clone(),
+        }
+    }
+}
+
 impl SearchFilters {
     pub fn is_all_none(&self) -> bool {
         matches!(

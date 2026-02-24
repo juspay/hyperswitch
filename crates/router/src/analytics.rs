@@ -16,7 +16,8 @@ pub mod routes {
     use api_models::analytics::{
         api_event::QueryType,
         search::{
-            GetGlobalSearchRequest, GetSearchRequest, GetSearchRequestWithIndex, SearchIndex,
+            GetGlobalSearchRequest, GetSearchRequest, GetSearchRequestWithIndex, SearchFilters,
+            SearchIndex,
         },
         AnalyticsRequest, GenerateReportRequest, GetActivePaymentsMetricRequest,
         GetApiEventFiltersRequest, GetApiEventMetricRequest, GetAuthEventFilterRequest,
@@ -2842,8 +2843,7 @@ pub mod routes {
                             merchant_ids: vec![merchant_id.clone()],
                         }];
 
-                        let filters =
-                            analytics::search::get_payment_list_search_filters(&constraints);
+                        let filters: SearchFilters = (&constraints).into();
 
                         let search_req = GetSearchRequestWithIndex {
                             index: SearchIndex::SessionizerPaymentIntents,
@@ -2923,8 +2923,7 @@ pub mod routes {
                             profile_ids: vec![profile_id.clone()],
                         }];
 
-                        let filters =
-                            analytics::search::get_payment_list_search_filters(&constraints);
+                        let filters: SearchFilters = (&constraints).into();
 
                         let search_req = GetSearchRequestWithIndex {
                             index: SearchIndex::SessionizerPaymentIntents,

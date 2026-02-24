@@ -4,8 +4,6 @@ use api_models::analytics::search::{
 };
 use common_utils::errors::{CustomResult, ReportSwitchExt};
 use error_stack::ResultExt;
-#[cfg(feature = "v1")]
-use masking::ExposeInterface;
 use router_env::tracing;
 use serde_json::Value;
 
@@ -16,71 +14,6 @@ use crate::{
 
 pub fn convert_to_value<T: Into<Value>>(items: Vec<T>) -> Vec<Value> {
     items.into_iter().map(|item| item.into()).collect()
-}
-
-pub fn convert_to_strings<T: ToString>(items: Vec<T>) -> Vec<String> {
-    items.into_iter().map(|item| item.to_string()).collect()
-}
-
-#[cfg(feature = "v1")]
-pub fn get_payment_list_search_filters(
-    constraints: &api_models::payments::PaymentListFilterConstraints,
-) -> api_models::analytics::search::SearchFilters {
-    api_models::analytics::search::SearchFilters {
-        payment_method: constraints
-            .payment_method
-            .as_ref()
-            .map(|payment_method| convert_to_strings(payment_method.clone())),
-        currency: constraints
-            .currency
-            .as_ref()
-            .map(|currency| convert_to_strings(currency.clone())),
-        status: constraints
-            .status
-            .as_ref()
-            .map(|status| convert_to_strings(status.clone())),
-        payment_method_type: constraints
-            .payment_method_type
-            .as_ref()
-            .map(|pmt| convert_to_strings(pmt.clone())),
-        authentication_type: constraints
-            .authentication_type
-            .as_ref()
-            .map(|at| convert_to_strings(at.clone())),
-        card_network: constraints
-            .card_network
-            .as_ref()
-            .map(|cn| convert_to_strings(cn.clone())),
-        connector: constraints
-            .connector
-            .as_ref()
-            .map(|connector| convert_to_strings(connector.clone())),
-        card_discovery: constraints
-            .card_discovery
-            .as_ref()
-            .map(|cd| convert_to_strings(cd.clone())),
-        customer_id: constraints
-            .customer_id
-            .as_ref()
-            .map(|customer_id| vec![customer_id.get_string_repr().to_string()]),
-        payment_id: constraints
-            .payment_id
-            .as_ref()
-            .map(|payment_id| vec![payment_id.get_string_repr().to_string()]),
-        merchant_order_reference_id: constraints
-            .merchant_order_reference_id
-            .as_ref()
-            .map(|merchant_order_reference_id| vec![merchant_order_reference_id.clone()]),
-        customer_email: constraints.customer_email.as_ref().map(|customer_email| {
-            vec![common_utils::hashing::HashedString::from(
-                customer_email.clone().expose(),
-            )]
-        }),
-        search_tags: None,
-        card_last_4: None,
-        amount: None,
-        amount_filter: constraints.amount_filter.clone(),
-    }
 }
 
 pub async fn msearch_results(
