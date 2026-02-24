@@ -33,6 +33,7 @@ import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { isoTimeTomorrow, validateEnv } from "../utils/RequestBodyUtils.js";
 import { handleRedirection } from "./redirectionHandler";
+import { softExpect } from "../utils/softExpectHelper.js";
 
 // Helper function for creating individual rollout config
 function createIndividualRolloutConfig(
@@ -2031,6 +2032,7 @@ Cypress.Commands.add(
     confirmBody.client_secret = globalState.get("clientSecret");
     confirmBody.confirm = confirm;
     confirmBody.profile_id = profileId;
+    const name = 'confirmCallTest';
 
     for (const key in reqData) {
       confirmBody[key] = reqData[key];
@@ -2093,9 +2095,9 @@ Cypress.Commands.add(
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
+                softExpect(globalState, name, () => expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
-                );
+              ), `Mismatch in field ${key} for no_three_ds and automatic capture method`);
                 if (
                   response.body.setup_future_usage === "off_session" &&
                   response.body.status === "succeeded"
