@@ -742,16 +742,13 @@ impl EmailData for RoleDeleted {
             Some(name) => format!("Organization: {}", name),
             None => format!(
                 "Organization Id: {}",
-                self.org.get_organization_id().get_string_repr().to_string()
+                self.org.get_organization_id().get_string_repr()
             ),
         };
 
         let merchant_info = match self.merchant.merchant_name.clone() {
             Some(name) => format!("Merchant: {}", name.into_inner().expose()),
-            None => format!(
-                "Merchant Id: {}",
-                self.merchant.get_id().get_string_repr().to_string()
-            ),
+            None => format!("Merchant Id: {}", self.merchant.get_id().get_string_repr()),
         };
 
         let profile_info = format!("Profile: {}", self.profile.profile_name);
