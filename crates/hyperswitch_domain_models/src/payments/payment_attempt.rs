@@ -1843,9 +1843,11 @@ impl PaymentAttempt {
             .and_then(|metadata| match connector {
                 Connector::Santander => metadata
                     .parse_value::<api_models::payments::SantanderData>("SantanderData")
-                    .attach_printable(
-                        "Failed to parse payment_attempt.connector_metadata to SantanderData",
-                    )
+                    .map_err(|_| {
+                        router_env::logger::warn!(
+                            "Failed to parse payment_attempt.connector_metadata to SantanderData"
+                        )
+                    })
                     .ok()
                     .map(api_models::payments::ConnectorMetadataResponse::Santander),
                 _ => None,

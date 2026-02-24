@@ -9810,6 +9810,7 @@ pub enum ConnectorMetadataResponse {
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(deny_unknown_fields)]
 pub struct SantanderData {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub end_to_end_id: Option<String>,

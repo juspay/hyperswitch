@@ -10,9 +10,7 @@ use api_models::payments::{
     Address, ConnectorMandateReferenceId, CustomerDetails, CustomerDetailsResponse, FrmMessage,
     MandateIds, NetworkDetails, RequestSurchargeDetails,
 };
-use common_enums::{
-    connector_enums::Connector, Currency, MerchantAccountType, RequestIncrementalAuthorization,
-};
+use common_enums::{Currency, MerchantAccountType, RequestIncrementalAuthorization};
 #[cfg(feature = "v1")]
 use common_utils::{
     consts::X_HS_LATENCY,
@@ -1764,7 +1762,7 @@ where
         .conf
         .multiple_api_version_supported_connectors
         .supported_connectors;
-    let connector_enum = Connector::from_str(connector_id)
+    let connector_enum = api_models::enums::Connector::from_str(connector_id)
         .change_context(errors::ConnectorError::InvalidConnectorName)
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "connector",
@@ -2071,7 +2069,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         .conf
         .multiple_api_version_supported_connectors
         .supported_connectors;
-    let connector_enum = Connector::from_str(connector_id)
+    let connector_enum = api_models::enums::Connector::from_str(connector_id)
         .change_context(errors::ConnectorError::InvalidConnectorName)
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "connector",
@@ -2405,7 +2403,7 @@ where
         let connector = payment_attempt
             .connector
             .as_ref()
-            .and_then(|conn| Connector::from_str(conn).ok());
+            .and_then(|conn| api_enums::Connector::from_str(conn).ok());
         let error = payment_attempt
             .error
             .as_ref()
@@ -4306,7 +4304,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
     fn foreign_from((pi, pa): (storage::PaymentIntent, storage::PaymentAttempt)) -> Self {
         let connector_transaction_id = pa.get_connector_payment_id().map(ToString::to_string);
         Self {
-            connector_response_metadata: pa.clone().get_connector_response_metadata_from_attempt_metadata(),
+            connector_response_metadata: pa.get_connector_response_metadata_from_attempt_metadata(),
             payment_id: pi.payment_id,
             merchant_id: pi.merchant_id,
             status: pi.status,
@@ -4321,7 +4319,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             metadata: pi.metadata,
             order_details: pi.order_details,
             customer_id: pi.customer_id.clone(),
-            connector: pa.connector.clone(),
+            connector: pa.connector,
             payment_method: pa.payment_method,
             payment_method_type: pa.payment_method_type,
             business_label: pi.business_label,
@@ -4981,7 +4979,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .clone();
         let shipping_cost = payment_data.payment_intent.shipping_cost;
 
-        let connector = Connector::from_str(connector_name)
+        let connector = api_models::enums::Connector::from_str(connector_name)
             .change_context(errors::ConnectorError::InvalidConnectorName)
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "connector",
@@ -4992,7 +4990,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
 
         let connector_testing_data = connector_metadata
             .and_then(|cm| match connector {
-                Connector::Adyen => cm
+                api_models::enums::Connector::Adyen => cm
                     .adyen
                     .map(|adyen_cm| adyen_cm.testing)
                     .map(|testing_data| {
@@ -6060,7 +6058,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             payment_data.creds_identifier.as_deref(),
         ));
 
-        let connector = Connector::from_str(connector_name)
+        let connector = api_models::enums::Connector::from_str(connector_name)
             .change_context(errors::ConnectorError::InvalidConnectorName)
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "connector",
@@ -6081,7 +6079,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             })
             .transpose()?
             .and_then(|cm| match connector {
-                Connector::Adyen => cm
+                api_models::enums::Connector::Adyen => cm
                     .adyen
                     .map(|adyen_cm| adyen_cm.testing)
                     .map(|testing_data| {
