@@ -220,6 +220,17 @@ impl PaymentMethod {
             result => result,
         }
     }
+
+    pub async fn find_by_fingerprint_id(
+        conn: &PgPooledConn,
+        fingerprint_id: &str,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::locker_fingerprint_id.eq(fingerprint_id.to_owned()),
+        )
+        .await
+    }
 }
 
 #[cfg(feature = "v2")]
