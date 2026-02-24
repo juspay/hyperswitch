@@ -37112,7 +37112,8 @@
             "type": "string",
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "ScaExemptionType": {
         "type": "string",
