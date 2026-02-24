@@ -23,7 +23,7 @@ pub fn convert_to_strings<T: ToString>(items: Vec<T>) -> Vec<String> {
 }
 
 #[cfg(feature = "v1")]
-pub fn get_search_filters(
+pub fn get_payment_list_search_filters(
     constraints: &api_models::payments::PaymentListFilterConstraints,
 ) -> api_models::analytics::search::SearchFilters {
     api_models::analytics::search::SearchFilters {
@@ -421,38 +421,27 @@ pub async fn search_results(
         };
         if let Some(connector) = filters.connector {
             if !connector.is_empty() {
-                let connector_strings: Vec<String> =
-                    connector.iter().map(|c| c.to_string()).collect();
                 query_builder
-                    .add_filter_clause(
-                        "connector.keyword".to_string(),
-                        convert_to_value(connector_strings),
-                    )
+                    .add_filter_clause("connector.keyword".to_string(), convert_to_value(connector))
                     .switch()?;
             }
         };
         if let Some(payment_method_type) = filters.payment_method_type {
             if !payment_method_type.is_empty() {
-                let payment_method_type_strings: Vec<String> = payment_method_type
-                    .iter()
-                    .map(|pmt| pmt.to_string())
-                    .collect();
                 query_builder
                     .add_filter_clause(
                         "payment_method_type.keyword".to_string(),
-                        convert_to_value(payment_method_type_strings),
+                        convert_to_value(payment_method_type),
                     )
                     .switch()?;
             }
         };
         if let Some(card_network) = filters.card_network {
             if !card_network.is_empty() {
-                let card_network_strings: Vec<String> =
-                    card_network.iter().map(|cn| cn.to_string()).collect();
                 query_builder
                     .add_filter_clause(
                         "card_network.keyword".to_string(),
-                        convert_to_value(card_network_strings),
+                        convert_to_value(card_network),
                     )
                     .switch()?;
             }

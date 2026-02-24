@@ -2842,7 +2842,8 @@ pub mod routes {
                             merchant_ids: vec![merchant_id.clone()],
                         }];
 
-                        let filters = analytics::search::get_search_filters(&constraints);
+                        let filters =
+                            analytics::search::get_payment_list_search_filters(&constraints);
 
                         let search_req = GetSearchRequestWithIndex {
                             index: SearchIndex::SessionizerPaymentIntents,
@@ -2874,21 +2875,16 @@ pub mod routes {
                             ApplicationResponse::Json(response)
                         })
                     }),
-                    &metrics::PAYMENT_LIST_LATENCY,
+                    &metrics::PAYMENT_LIST_OPENSEARCH_LATENCY,
                     router_env::metric_attributes!(("merchant_id", req_merchant_id.clone())),
                 )
                 .await
             },
-            auth::auth_type(
-                &auth::HeaderAuth(auth::ApiKeyAuth {
-                    allow_connected_scope_operation: true,
-                    allow_platform_self_operation: false,
-                }),
-                &auth::JWTAuth {
-                    permission: Permission::MerchantPaymentRead,
-                },
-                req.headers(),
-            ),
+            &auth::JWTAuth {
+                permission: Permission::MerchantPaymentRead,
+                allow_connected: true,
+                allow_platform: false,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -2927,10 +2923,8 @@ pub mod routes {
                             profile_ids: vec![profile_id.clone()],
                         }];
 
-                        let mut constraints = constraints;
-                        constraints.profile_id = Some(profile_id);
-
-                        let filters = analytics::search::get_search_filters(&constraints);
+                        let filters =
+                            analytics::search::get_payment_list_search_filters(&constraints);
 
                         let search_req = GetSearchRequestWithIndex {
                             index: SearchIndex::SessionizerPaymentIntents,
@@ -2962,21 +2956,16 @@ pub mod routes {
                             ApplicationResponse::Json(response)
                         })
                     }),
-                    &metrics::PAYMENT_LIST_LATENCY,
+                    &metrics::PAYMENT_LIST_OPENSEARCH_LATENCY,
                     router_env::metric_attributes!(("merchant_id", req_merchant_id.clone())),
                 )
                 .await
             },
-            auth::auth_type(
-                &auth::HeaderAuth(auth::ApiKeyAuth {
-                    allow_connected_scope_operation: false,
-                    allow_platform_self_operation: false,
-                }),
-                &auth::JWTAuth {
-                    permission: Permission::ProfilePaymentRead,
-                },
-                req.headers(),
-            ),
+            &auth::JWTAuth {
+                permission: Permission::ProfilePaymentRead,
+                allow_connected: true,
+                allow_platform: false,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await

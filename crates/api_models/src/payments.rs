@@ -9017,6 +9017,7 @@ pub enum SortOn {
     /// Sort by the created_at field
     #[default]
     Created,
+    Modified,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]

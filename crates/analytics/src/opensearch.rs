@@ -501,26 +501,15 @@ pub struct OpenSearchQueryBuilder {
     case_sensitive_fields: HashSet<&'static str>,
     pub order: Option<Order>,
 }
+
 const ACTIVE_ATTEMPT_FILTER_SCRIPT: &str = r#"
-    if (doc['active_attempt_id.keyword'].size() == 0) return false;
     def active = doc['active_attempt_id.keyword'].value;
-
-    if (doc['attempts_list.attempt_id.keyword'].size() == 0) return false;
     def ids = doc['attempts_list.attempt_id.keyword'];
-
-    if (doc[params.field_name].size() == 0) return false;
-    def target_values = doc[params.field_name];
-
-    if (ids.size() != target_values.size()) return false;
-
-    def allowed = new HashSet();
-    for (def v : params.values) {
-        allowed.add(v);
-    }
+    def values = doc[params.field_name];
 
     for (int i = 0; i < ids.size(); i++) {
         if (ids[i] == active) {
-            return allowed.contains(target_values[i]);
+            return params.values.contains(values[i]);
         }
     }
 
@@ -551,7 +540,6 @@ impl OpenSearchQueryBuilder {
                 "amount",
                 "customer_id.keyword",
                 "merchant_order_reference_id.keyword",
-                "card_discovery.keyword",
             ]),
             order,
         }
@@ -595,16 +583,71 @@ impl OpenSearchQueryBuilder {
     }
 
     fn make_active_attempt_script_filter(&self, field_name: &str, values: &Vec<Value>) -> Value {
+        let root_field = field_name.replace("attempts_list.", "");
+        let root_exists_field = root_field.replace(".keyword", "");
+
         json!({
-            "script": {
-                "script": {
-                    "lang": "painless",
-                    "source": ACTIVE_ATTEMPT_FILTER_SCRIPT,
-                    "params": {
-                        "field_name": field_name,
-                        "values": values
+            "bool": {
+                "should": [
+                    {
+                        "terms": {
+                            root_field.clone(): values
+                        }
+                    },
+                    {
+                        "bool": {
+                            "must": [
+                                {
+                                    "term": {
+                                        "attempt_count": 1
+                                    }
+                                },
+                                {
+                                    "terms": {
+                                        field_name: values
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "bool": {
+                            "must": [
+                                {
+                                    "range": {
+                                        "attempt_count": {
+                                            "gt": 1
+                                        }
+                                    }
+                                },
+                                {
+                                    "bool": {
+                                        "must_not": [
+                                            {
+                                                "exists": {
+                                                    "field": root_exists_field
+                                                }
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "script": {
+                                        "script": {
+                                            "lang": "painless",
+                                            "source": ACTIVE_ATTEMPT_FILTER_SCRIPT,
+                                            "params": {
+                                                "field_name": field_name,
+                                                "values": values
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
                     }
-                }
+                ],
+                "minimum_should_match": 1
             }
         })
     }
@@ -628,19 +671,12 @@ impl OpenSearchQueryBuilder {
         let case_sensitive_json_filters = case_sensitive_filters
             .into_iter()
             .map(|(k, v)| {
-                if *k == "card_discovery.keyword" {
-                    self.make_active_attempt_script_filter(
-                        "attempts_list.card_discovery.keyword",
-                        v,
-                    )
+                let key = if *k == "amount" {
+                    self.get_amount_field(index).to_string()
                 } else {
-                    let key = if *k == "amount" {
-                        self.get_amount_field(index).to_string()
-                    } else {
-                        k.clone()
-                    };
-                    json!({"terms": {key: v}})
-                }
+                    k.clone()
+                };
+                json!({"terms": {key: v}})
             })
             .collect::<Vec<Value>>();
 
@@ -678,6 +714,12 @@ impl OpenSearchQueryBuilder {
         let mut must_array = case_insensitive_filters
             .iter()
             .map(|(k, v)| {
+                if *k == "card_discovery.keyword" {
+                    return self.make_active_attempt_script_filter(
+                        "attempts_list.card_discovery.keyword",
+                        v,
+                    );
+                }
                 let key = if *k == "status.keyword" {
                     self.get_status_field(index).to_string()
                 } else {
@@ -838,6 +880,7 @@ impl OpenSearchQueryBuilder {
                         .get_amount_field(*indexes.first().unwrap_or(&SearchIndex::PaymentIntents))
                         .to_string(),
                     SortOn::Created => "@timestamp".to_string(),
+                    SortOn::Modified => "modified_at".to_string(),
                 };
                 let sort_by = match order.by {
                     SortBy::Asc => "asc",
