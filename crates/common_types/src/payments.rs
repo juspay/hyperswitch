@@ -1267,10 +1267,10 @@ impl InstallmentCounts {
         counts
             .iter()
             .try_fold(HashSet::new(), |mut seen, &n| {
-                (n >= 2)
+                (n >= 1)
                     .then_some(())
                     .ok_or_else(|| errors::ValidationError::InvalidValue {
-                        message: "each value in number_of_installments must be at least 2."
+                        message: "each value in number_of_installments must be at least 1."
                             .to_string(),
                     })?;
                 seen.insert(n).then_some(seen).ok_or_else(|| {
