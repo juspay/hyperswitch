@@ -111,7 +111,7 @@ pub use crate::{
 use crate::{
     configs::{secrets_transformers, Settings},
     db::kafka_store::{KafkaStore, TenantID},
-    routes::{hypersense as hypersense_routes, superposition_sdk_config, three_ds_decision_rule},
+    routes::{hypersense as hypersense_routes, three_ds_decision_rule},
 };
 
 #[derive(Clone)]
