@@ -50,7 +50,26 @@ pub mod routes {
     impl Analytics {
         #[cfg(feature = "v2")]
         pub fn server(state: AppState) -> Scope {
-            web::scope("/analytics").app_data(web::Data::new(state))
+            web::scope("/v2/analytics")
+                .app_data(web::Data::new(state))
+                .service(
+                    web::scope("/profile").service(
+                        web::resource("report/payments")
+                            .route(web::post().to(generate_profile_payment_report)),
+                    ),
+                )
+                .service(
+                    web::scope("/merchant").service(
+                        web::resource("report/payments")
+                            .route(web::post().to(generate_merchant_payment_report)),
+                    ),
+                )
+                .service(
+                    web::scope("/org").service(
+                        web::resource("report/payments")
+                            .route(web::post().to(generate_org_payment_report)),
+                    ),
+                )
         }
         #[cfg(feature = "v1")]
         pub fn server(state: AppState) -> Scope {
@@ -2330,7 +2349,6 @@ pub mod routes {
         .await
     }
 
-    #[cfg(feature = "v1")]
     pub async fn generate_merchant_payment_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -2384,7 +2402,6 @@ pub mod routes {
         .await
     }
 
-    #[cfg(feature = "v1")]
     pub async fn generate_org_payment_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -2436,7 +2453,6 @@ pub mod routes {
         .await
     }
 
-    #[cfg(feature = "v1")]
     pub async fn generate_profile_payment_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -2459,12 +2475,20 @@ pub mod routes {
                     .get_secret();
                 let org_id = auth.platform.get_processor().get_account().get_org_id();
                 let merchant_id = auth.platform.get_processor().get_account().get_id();
-                let profile_id = auth
-                    .profile
-                    .ok_or(report!(UserErrors::JwtProfileIdMissing))
-                    .change_context(AnalyticsError::AccessForbiddenError)?
-                    .get_id()
-                    .clone();
+                let profile_id = {
+                    #[cfg(feature = "v1")]
+                    {
+                        auth.profile
+                            .ok_or(report!(UserErrors::JwtProfileIdMissing))
+                            .change_context(AnalyticsError::AccessForbiddenError)?
+                            .get_id()
+                            .clone()
+                    }
+                    #[cfg(feature = "v2")]
+                    {
+                        auth.profile.get_id().clone()
+                    }
+                };
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: Some(merchant_id.clone()),
