@@ -4,6 +4,23 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.02.0-hotfix4
+
+### Features
+
+- **core:** Add webhook context support for event type determination ([#11363](https://github.com/juspay/hyperswitch/pull/11363)) ([`25c7443`](https://github.com/juspay/hyperswitch/commit/25c7443e0081d2eeb9a340ce8b1f37dd879d7fc2))
+- **payload:** Add merchant_secret to connector_webhook_details for all environments ([#11364](https://github.com/juspay/hyperswitch/pull/11364)) ([`7594c13`](https://github.com/juspay/hyperswitch/commit/7594c1341f0132482a583c682ad9f2b302b03c8b))
+- **payment_methods:** Support bank_type, bank_holder_type, and bank_account_holder_name in ACH migration ([#11375](https://github.com/juspay/hyperswitch/pull/11375)) ([`7f0b4d6`](https://github.com/juspay/hyperswitch/commit/7f0b4d6c90318df9efb34211ebed952a912630f4))
+- **router:** Introduce duplication check for bank debit ([#11371](https://github.com/juspay/hyperswitch/pull/11371)) ([`429dbac`](https://github.com/juspay/hyperswitch/commit/429dbacbeef051af7f242f94f8cda4813bdd7061))
+
+### Bug Fixes
+
+- **router:** Use V1VaultEntityId to create fingerprint request ([#11372](https://github.com/juspay/hyperswitch/pull/11372)) ([`e1f1023`](https://github.com/juspay/hyperswitch/commit/e1f10230a0b9b376f4d2c593416aeca977dec046))
+
+**Full Changelog:** [`2026.02.02.0-hotfix3...2026.02.02.0-hotfix4`](https://github.com/juspay/hyperswitch/compare/2026.02.02.0-hotfix3...2026.02.02.0-hotfix4)
+
+- - -
+
 ## 2026.02.02.0-hotfix3
 
 ### Features
