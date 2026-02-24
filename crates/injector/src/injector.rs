@@ -1120,6 +1120,8 @@ pub mod core {
                 )))
                 .build();
 
+            pritln!("Final proxyyy: {:?}", request);
+
             // Send request to /v2/proxy using the standalone HTTP client
             let proxy = Proxy::default();
             let response = send_request(&proxy, request, None).await?;
