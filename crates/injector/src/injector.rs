@@ -857,9 +857,18 @@ pub mod core {
             request: &InjectorRequest,
         ) -> error_stack::Result<V2ProxyRequest, InjectorError> {
             logger::info!("Constructing v2/proxy request from injector request");
+            logger::debug!(
+                "injectorr reqq: {:?}",
+                request.clone()
+            );
 
             // 1. Extract the token (card_number / payment_method_id)
             let token = self.extract_token_from_request(request)?;
+            logger::debug!("Successfully extracted token from request {:?}", token);
+            logger::debug!(
+                "Connector payload template before transformationnnnn: {}",
+                request.connector_payload.template.clone()
+            );
 
             // 2. Parse the connector_payload template as JSON for request_body
             let raw_request_body: Value = serde_json::from_str(
