@@ -8033,6 +8033,7 @@ where
     Ok(payment_data.to_owned())
 }
 
+#[cfg(feature = "v1")]
 async fn set_payment_method_from_token_for_modular_payment_method_flow<F, D>(
     state: &SessionState,
     payment_data: &mut D,
@@ -12367,6 +12368,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
+    fn set_token(&mut self, token: String) {
+        todo!()
+    }
+
     fn set_connector_customer_id(&mut self, customer_id: Option<String>) {
         self.connector_customer_id = customer_id;
     }
@@ -12659,6 +12664,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
     }
 
     fn set_pm_token(&mut self, _token: String) {
+        todo!()
+    }
+
+    fn set_token(&mut self, token: String) {
         todo!()
     }
 
@@ -12976,6 +12985,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
         todo!()
     }
 
+    fn set_token(&mut self, token: String) {
+        todo!()
+    }
+
     fn set_connector_customer_id(&mut self, _customer_id: Option<String>) {
         // TODO: handle this case. Should we add connector_customer_id in paymentConfirmData?
     }
@@ -13277,6 +13290,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
     }
 
     fn set_pm_token(&mut self, _token: String) {
+        todo!()
+    }
+
+    fn set_token(&mut self, token: String) {
         todo!()
     }
 
@@ -13727,6 +13744,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCancelData<F> {
 
     fn set_pm_token(&mut self, _token: String) {
         !todo!()
+    }
+
+    fn set_token(&mut self, token: String) {
+        todo!()
     }
 
     fn set_connector_customer_id(&mut self, _customer_id: Option<String>) {
