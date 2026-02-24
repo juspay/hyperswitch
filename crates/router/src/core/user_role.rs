@@ -697,27 +697,24 @@ pub async fn delete_user_role(
             .attach_printable("Error while deleting user role")?;
     }
 
-    if deleted_user_role_info.is_none() {
+    let Some(deleted_user_role_info) = deleted_user_role_info else {
         return Err(report!(UserErrors::InvalidDeleteOperation))
             .attach_printable("User is not associated with the merchant");
-    }
+    };
 
     #[cfg(feature = "email")]
-    let is_email_sent = match &deleted_user_role_info {
-        Some(role_info) => utils::user_role::send_role_deletion_email_using_db(
-            &state,
-            &user_from_db,
-            role_info,
-            &user_from_token,
-        )
-        .await
-        .map_err(|err| {
-            logger::error!("Failed to send role deletion email: {}", err);
-            err
-        })
-        .is_ok(),
-        None => false,
-    };
+    let is_email_sent = utils::user_role::send_role_deletion_email_using_db(
+        &state,
+        &user_from_db,
+        &deleted_user_role_info,
+        &user_from_token,
+    )
+    .await
+    .map_err(|err| {
+        logger::error!("Failed to send role deletion email: {}", err);
+        err
+    })
+    .is_ok();
 
     #[cfg(not(feature = "email"))]
     let is_email_sent = false;
