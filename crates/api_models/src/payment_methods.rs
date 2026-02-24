@@ -588,16 +588,22 @@ pub enum BankDebitDetail {
         account_number: masking::Secret<String>,
         #[schema(value_type = String)]
         routing_number: masking::Secret<String>,
+        #[schema(value_type = Option<String>)]
+        #[serde(default)]
+        bank_account_holder_name: Option<masking::Secret<String>>,
+        #[schema(value_type = Option<BankType>)]
+        #[serde(default)]
+        bank_type: Option<common_enums::BankType>,
+        #[schema(value_type = Option<BankHolderType>)]
+        #[serde(default)]
+        bank_holder_type: Option<common_enums::BankHolderType>,
     },
 }
 
 impl BankDebitDetail {
     pub fn get_masked_account_number(&self) -> String {
         match self {
-            Self::Ach {
-                account_number,
-                routing_number: _,
-            } => account_number
+            Self::Ach { account_number, .. } => account_number
                 .peek()
                 .chars()
                 .rev()
@@ -611,10 +617,7 @@ impl BankDebitDetail {
 
     pub fn get_masked_routing_number(&self) -> String {
         match self {
-            Self::Ach {
-                account_number: _,
-                routing_number,
-            } => routing_number
+            Self::Ach { routing_number, .. } => routing_number
                 .peek()
                 .chars()
                 .rev()
@@ -623,6 +626,29 @@ impl BankDebitDetail {
                 .chars()
                 .rev()
                 .collect::<String>(),
+        }
+    }
+
+    pub fn get_bank_account_holder_name(&self) -> Option<masking::Secret<String>> {
+        match self {
+            Self::Ach {
+                bank_account_holder_name,
+                ..
+            } => bank_account_holder_name.clone(),
+        }
+    }
+
+    pub fn get_bank_type(&self) -> Option<common_enums::BankType> {
+        match self {
+            Self::Ach { bank_type, .. } => *bank_type,
+        }
+    }
+
+    pub fn get_bank_holder_type(&self) -> Option<common_enums::BankHolderType> {
+        match self {
+            Self::Ach {
+                bank_holder_type, ..
+            } => *bank_holder_type,
         }
     }
 }
@@ -1264,6 +1290,7 @@ pub enum PaymentMethodsData {
     Card(CardDetailsPaymentMethod),
     BankDetails(PaymentMethodDataBankCreds),
     WalletDetails(PaymentMethodDataWalletInfo),
+    BankDebit(BankDebitDetailsPaymentMethod),
 }
 
 impl PaymentMethodsData {
@@ -1297,6 +1324,20 @@ pub struct CardDetailsPaymentMethod {
     #[serde(default = "saved_in_locker_default")]
     pub saved_to_locker: bool,
     pub co_badged_card_data: Option<CoBadgedCardDataToBeSaved>,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum BankDebitDetailsPaymentMethod {
+    AchBankDebit {
+        masked_account_number: String,
+        masked_routing_number: String,
+        card_holder_name: Option<masking::Secret<String>>,
+        bank_account_holder_name: Option<masking::Secret<String>>,
+        bank_name: Option<common_enums::BankNames>,
+        bank_type: Option<common_enums::BankType>,
+        bank_holder_type: Option<common_enums::BankHolderType>,
+    },
 }
 
 impl From<&CoBadgedCardData> for CoBadgedCardDataToBeSaved {
@@ -3043,6 +3084,40 @@ pub struct PaymentMethodRecord {
     pub network_token_expiry_month: Option<masking::Secret<String>>,
     pub network_token_expiry_year: Option<masking::Secret<String>>,
     pub network_token_requestor_ref_id: Option<String>,
+    #[serde(default)]
+    pub account_number: Option<masking::Secret<String>>,
+    #[serde(default)]
+    pub routing_number: Option<masking::Secret<String>>,
+    #[serde(default)]
+    pub bank_account_holder_name: Option<masking::Secret<String>>,
+    #[serde(default)]
+    pub bank_type: Option<common_enums::BankType>,
+    #[serde(default)]
+    pub bank_holder_type: Option<common_enums::BankHolderType>,
+}
+
+#[cfg(feature = "v1")]
+impl PaymentMethodRecord {
+    /// Constructs `PaymentMethodCreateData` from the CSV record fields.
+    /// Returns `None` for card records (cards are handled via `MigrateCardDetail`).
+    /// Extend the match arms here to support additional payment method types
+    /// (e.g., SEPA, BACS, wallets) in the future.
+    pub fn get_payment_method_data(&self) -> Option<PaymentMethodCreateData> {
+        match (self.account_number.as_ref(), self.routing_number.as_ref()) {
+            (Some(account_number), Some(routing_number))
+                if !account_number.peek().is_empty() && !routing_number.peek().is_empty() =>
+            {
+                Some(PaymentMethodCreateData::BankDebit(BankDebitDetail::Ach {
+                    account_number: account_number.clone(),
+                    routing_number: routing_number.clone(),
+                    bank_account_holder_name: self.bank_account_holder_name.clone(),
+                    bank_type: self.bank_type,
+                    bank_holder_type: self.bank_holder_type,
+                }))
+            }
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
