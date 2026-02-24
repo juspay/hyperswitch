@@ -2776,7 +2776,7 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            auth::auth_type(
+            auth::auth_type::<auth::AuthenticationDataWithUserId, _>(
                 &auth::ApiKeyAuth {
                     allow_connected_scope_operation: true,
                     allow_platform_self_operation: false,
@@ -2866,7 +2866,7 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            auth::auth_type(
+            auth::auth_type::<auth::AuthenticationDataWithUserId, _>(
                 &auth::ApiKeyAuth {
                     allow_connected_scope_operation: true,
                     allow_platform_self_operation: false,
@@ -2972,7 +2972,7 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            auth::auth_type(
+            auth::auth_type::<auth::AuthenticationDataWithUserId, _>(
                 &auth::ApiKeyAuth {
                     allow_connected_scope_operation: true,
                     allow_platform_self_operation: false,

@@ -811,7 +811,6 @@ where
     }
 }
 
-#[cfg(feature = "v1")]
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationDataWithUserId, A> for ApiKeyAuth
 where
@@ -5133,7 +5132,7 @@ where
         };
 
         Ok((
-            (auth.clone(), payload.user_id.clone()),
+            (auth.clone(), Some(payload.user_id.clone())),
             AuthenticationType::MerchantJwt {
                 merchant_id: payload.merchant_id,
                 user_id: Some(payload.user_id),
