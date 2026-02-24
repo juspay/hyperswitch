@@ -460,7 +460,7 @@ fn build_rollout_keys(
     // Detect if this is a refund flow based on flow name
     let is_refund_flow = matches!(flow_name, "Execute" | "RSync");
 
-    let rollout_key = if is_refund_flow {
+    if is_refund_flow {
         // Refund flows: UCS_merchant_connector_flow (e.g., UCS_merchant123_stripe_Execute)
         format!(
             "{}_{}_{}_{}",
@@ -480,8 +480,7 @@ fn build_rollout_keys(
             payment_method_str,
             flow_name
         )
-    };
-    rollout_key
+    }
 }
 
 /// Extracts the gateway system from the payment intent's feature metadata

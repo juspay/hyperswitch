@@ -2807,7 +2807,7 @@ pub async fn fetch_card_details_from_locker(
         domain::PaymentMethodVaultSourceDetails::ExternalVault {
             ref external_vault_source,
         } => {
-            fetch_card_details_from_external_vault(
+            Box::pin(fetch_card_details_from_external_vault(
                 state,
                 platform.get_processor().get_account().get_id(),
                 card_token_data,
@@ -2815,7 +2815,7 @@ pub async fn fetch_card_details_from_locker(
                 payment_method_info,
                 platform.get_processor().get_key_store(),
                 external_vault_source,
-            )
+            ))
             .await
         }
         domain::PaymentMethodVaultSourceDetails::InternalVault => {

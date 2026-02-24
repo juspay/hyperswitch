@@ -1279,14 +1279,14 @@ pub async fn create_payment_method_card_core(
             .populate_bin_details_for_payment_method(state)
             .await;
 
-    let vaulting_result = vault_payment_method(
+    let vaulting_result = Box::pin(vault_payment_method(
         state,
         &payment_method_data,
         platform,
         profile,
         None,
         customer_id,
-    )
+    ))
     .await;
 
     let network_tokenization_resp = network_tokenize_and_vault_the_pmd(
@@ -3151,12 +3151,12 @@ pub async fn vault_payment_method(
             let payment_method_custom_data =
                 get_payment_method_custom_data(pmd.clone(), vault_token_selector)?;
 
-            vault_payment_method_external(
+            Box::pin(vault_payment_method_external(
                 state,
                 &payment_method_custom_data,
                 platform.get_provider().get_account(),
                 merchant_connector_account,
-            )
+            ))
             .await
             .map(|value| (value, Some(external_vault_source)))
         }
@@ -3908,7 +3908,7 @@ pub async fn update_payment_method_core(
                 // cannot use async map because of problems related to lifetimes
                 // to overcome this, we will have to use a move closure and add some clones
                 Some(ref vault_request_data) => {
-                    let (vault_response, _) = vault_payment_method(
+                    let (vault_response, _) = Box::pin(vault_payment_method(
                         state,
                         vault_request_data,
                         platform,
@@ -3920,7 +3920,7 @@ pub async fn update_payment_method_core(
                             .customer_id
                             .clone()
                             .get_required_value("GlobalCustomerId")?,
-                    )
+                    ))
                     .await
                     .attach_printable("Failed to add payment method in vault")?;
 
