@@ -1124,7 +1124,14 @@
         },
         "responses": {
           "200": {
-            "description": "Payment canceled post capture"
+            "description": "Payment canceled post capture",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Missing mandatory fields",
@@ -25523,6 +25530,36 @@
           }
         }
       },
+      "PaymentIntentStateMetadata": {
+        "type": "object",
+        "description": "Additional metadata for payment intent state containing refunded and disputed amounts",
+        "properties": {
+          "total_refunded_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "total_disputed_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "post_capture_void": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PostCaptureVoidResponse"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "PaymentLinkBackgroundImageConfig": {
         "type": "object",
         "required": [
@@ -28803,6 +28840,14 @@
             "example": "stripe",
             "nullable": true
           },
+          "state_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentIntentStateMetadata"
+              }
+            ],
+            "nullable": true
+          },
           "client_secret": {
             "type": "string",
             "description": "A secret token unique to this payment intent. It is primarily used by client-side applications (e.g., Hyperswitch SDKs) to authenticate actions like confirming the payment or handling next actions. This secret should be handled carefully and not exposed publicly beyond its intended client-side use.",
@@ -30395,6 +30440,14 @@
             "type": "string",
             "description": "The name of the payment connector (e.g., 'stripe', 'adyen') that processed or is processing this payment.",
             "example": "stripe",
+            "nullable": true
+          },
+          "state_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentIntentStateMetadata"
+              }
+            ],
             "nullable": true
           },
           "client_secret": {
@@ -33868,6 +33921,47 @@
             "$ref": "#/components/schemas/AuthenticationPaymentMethodData"
           }
         }
+      },
+      "PostCaptureVoidResponse": {
+        "type": "object",
+        "description": "Additional metadata for payment intent state containing refunded and disputed amounts",
+        "required": [
+          "updated_at"
+        ],
+        "properties": {
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PostCaptureVoidStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "connector_reference_id": {
+            "type": "string",
+            "description": "Connector reference id for post capture void",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "Description or message related to the post capture void",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the post capture void was last updated"
+          }
+        }
+      },
+      "PostCaptureVoidStatus": {
+        "type": "string",
+        "description": "The status of a post-capture void operation",
+        "enum": [
+          "succeeded",
+          "pending",
+          "failed"
+        ]
       },
       "PrimaryBusinessDetails": {
         "type": "object",
