@@ -2089,9 +2089,10 @@ Cypress.Commands.add(
                 response.body.next_action.redirect_to_url
               );
               for (const key in resData.body) {
+                softExpect(globalState, name, () =>
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
-                );
+                ), `Mismatch in field ${key} for three_ds and automatic capture method`);
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
@@ -5214,6 +5215,7 @@ Cypress.Commands.add("IncomingWebhookTest", (globalState, webhookPayload) => {
 });
 
 Cypress.Commands.add('step', (stepName, fn) => {
+  collapseLastGroup()
 
   cy.task("cli_log", `\nSTEP: ${stepName}`);
 
@@ -5244,3 +5246,13 @@ Cypress.Commands.add('step', (stepName, fn) => {
     Cypress.log({ groupEnd: true, emitOnly: true });
   });
 });
+
+function collapseLastGroup() {
+  const openExpanders = window.top.document.getElementsByClassName(
+    'command-expander-is-open',
+  )
+  const numExpanders = openExpanders.length
+  const el = openExpanders[numExpanders - 1]
+
+  if (el) el.parentElement.click()
+}
