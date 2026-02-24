@@ -604,16 +604,20 @@ pub enum BankDebitDetail {
         account_number: masking::Secret<String>,
         #[schema(value_type = String)]
         routing_number: masking::Secret<String>,
+        #[schema(value_type = Option<String>)]
+        #[serde(default)]
+        bank_account_holder_name: Option<masking::Secret<String>>,
+        #[serde(default)]
+        bank_type: Option<common_enums::BankType>,
+        #[serde(default)]
+        bank_holder_type: Option<common_enums::BankHolderType>,
     },
 }
 
 impl BankDebitDetail {
     pub fn get_masked_account_number(&self) -> String {
         match self {
-            Self::Ach {
-                account_number,
-                routing_number: _,
-            } => account_number
+            Self::Ach { account_number, .. } => account_number
                 .peek()
                 .chars()
                 .rev()
@@ -627,10 +631,7 @@ impl BankDebitDetail {
 
     pub fn get_masked_routing_number(&self) -> String {
         match self {
-            Self::Ach {
-                account_number: _,
-                routing_number,
-            } => routing_number
+            Self::Ach { routing_number, .. } => routing_number
                 .peek()
                 .chars()
                 .rev()
@@ -639,6 +640,29 @@ impl BankDebitDetail {
                 .chars()
                 .rev()
                 .collect::<String>(),
+        }
+    }
+
+    pub fn get_bank_account_holder_name(&self) -> Option<masking::Secret<String>> {
+        match self {
+            Self::Ach {
+                bank_account_holder_name,
+                ..
+            } => bank_account_holder_name.clone(),
+        }
+    }
+
+    pub fn get_bank_type(&self) -> Option<common_enums::BankType> {
+        match self {
+            Self::Ach { bank_type, .. } => *bank_type,
+        }
+    }
+
+    pub fn get_bank_holder_type(&self) -> Option<common_enums::BankHolderType> {
+        match self {
+            Self::Ach {
+                bank_holder_type, ..
+            } => *bank_holder_type,
         }
     }
 }
@@ -3100,6 +3124,12 @@ pub struct PaymentMethodRecord {
     pub account_number: Option<masking::Secret<String>>,
     #[serde(default)]
     pub routing_number: Option<masking::Secret<String>>,
+    #[serde(default)]
+    pub bank_account_holder_name: Option<masking::Secret<String>>,
+    #[serde(default)]
+    pub bank_type: Option<common_enums::BankType>,
+    #[serde(default)]
+    pub bank_holder_type: Option<common_enums::BankHolderType>,
 }
 
 #[cfg(feature = "v1")]
@@ -3116,6 +3146,9 @@ impl PaymentMethodRecord {
                 Some(PaymentMethodCreateData::BankDebit(BankDebitDetail::Ach {
                     account_number: account_number.clone(),
                     routing_number: routing_number.clone(),
+                    bank_account_holder_name: self.bank_account_holder_name.clone(),
+                    bank_type: self.bank_type,
+                    bank_holder_type: self.bank_holder_type,
                 }))
             }
             _ => None,
