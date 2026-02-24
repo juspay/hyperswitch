@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.01.28.1-hotfix6
+
+### Bug Fixes
+
+- **docker-compose:** Pin diesel_cli version for migration_runner ([#11368](https://github.com/juspay/hyperswitch/pull/11368)) ([`1664aaf`](https://github.com/juspay/hyperswitch/commit/1664aafccbd338a684021fcc0ef1a6637f4ba10c))
+
+**Full Changelog:** [`2026.01.28.1-hotfix5...2026.01.28.1-hotfix6`](https://github.com/juspay/hyperswitch/compare/2026.01.28.1-hotfix5...2026.01.28.1-hotfix6)
+
+- - -
+
 ## 2026.01.28.1-hotfix5
 
 ### Bug Fixes
