@@ -533,7 +533,6 @@ impl PaymentMethodsController for PmCards<'_> {
             network_token_locker_id,
             network_token_payment_method_data,
             vault_source_details,
-            None,
             locker_fingerprint_id,
         )
         .await
