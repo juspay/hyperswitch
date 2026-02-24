@@ -859,7 +859,7 @@ pub mod core {
             let token = self.extract_token_from_request(request)?;
 
             // 2. Parse the connector_payload template as JSON for request_body
-            let request_body: Value = serde_json::from_str(
+            let raw_request_body: Value = serde_json::from_str(
                 &request.connector_payload.template,
             )
             .map_err(|e| {
@@ -868,10 +868,13 @@ pub mod core {
                 )))
             })?;
 
-            // 3. Destination URL from ConnectionConfig
+            // 3. Transform the request body: replace token values with {{$...}} placeholders
+            let request_body = transform_request_body_for_proxy(raw_request_body, &token);
+
+            // 4. Destination URL from ConnectionConfig
             let destination_url = request.connection_config.endpoint.clone();
 
-            // 4. Headers from ConnectionConfig (expose the Secret<String> values)
+            // 5. Headers from ConnectionConfig (expose the Secret<String> values)
             let headers: HashMap<String, String> = request
                 .connection_config
                 .headers
@@ -896,6 +899,140 @@ pub mod core {
             );
 
             Ok(proxy_request)
+        }
+    }
+
+    /// Field name variants that map to each card data placeholder.
+    const CARD_NUMBER_FIELDS: &[&str] = &["card_number", "number"];
+    const CARD_EXP_MONTH_FIELDS: &[&str] = &[
+        "card_expiry_month",
+        "card_exp_month",
+        "exp_month",
+        "expiry_month",
+    ];
+    const CARD_EXP_YEAR_FIELDS: &[&str] = &[
+        "card_expiry_year",
+        "card_exp_year",
+        "exp_year",
+        "expiry_year",
+    ];
+
+    /// Wrapper function that transforms a connector request body for the `/v2/proxy` endpoint.
+    ///
+    /// 1. Walks the JSON tree and collects every field whose value equals `token`.
+    /// 2. For each such field, replaces the token value with the appropriate
+    ///    `{{$card_number}}`, `{{$card_exp_month}}`, or `{{$card_exp_year}}` placeholder.
+    /// 3. Fields that do **not** contain the token are left unchanged.
+    fn transform_request_body_for_proxy(body: Value, token: &str) -> Value {
+        // Step 1 — collect all field names whose value is the token
+        let token_fields = find_fields_with_token_value(&body, token);
+
+        logger::debug!(
+            token_field_count = token_fields.len(),
+            "Fields that contain the token value: {:?}",
+            token_fields,
+        );
+
+        // Step 2 — replace those token values with the appropriate {{$...}} placeholders
+        replace_token_values_with_placeholders(body, token, &token_fields)
+    }
+
+    /// Recursively walks a JSON value and returns the names of every leaf-level
+    /// string field whose value exactly equals `token`.
+    fn find_fields_with_token_value(value: &Value, token: &str) -> Vec<String> {
+        let mut fields = Vec::new();
+        match value {
+            Value::Object(map) => {
+                for (key, val) in map {
+                    if let Value::String(s) = val {
+                        if s == token {
+                            fields.push(key.clone());
+                        }
+                    }
+                    // Recurse into nested objects / arrays
+                    fields.extend(find_fields_with_token_value(val, token));
+                }
+            }
+            Value::Array(arr) => {
+                for item in arr {
+                    fields.extend(find_fields_with_token_value(item, token));
+                }
+            }
+            _ => {}
+        }
+        fields
+    }
+
+    /// Determines the proxy placeholder for a given field name, e.g.
+    /// `"number"` → `"{{$card_number}}"`, `"expiry_month"` → `"{{$card_exp_month}}"`.
+    ///
+    /// Returns `None` if the field name doesn't match any known card-data field.
+    fn placeholder_for_field(field_name: &str) -> Option<&'static str> {
+        let lower = field_name.to_lowercase();
+        let name = lower.as_str();
+
+        if CARD_NUMBER_FIELDS.contains(&name) {
+            Some("{{$card_number}}")
+        } else if CARD_EXP_MONTH_FIELDS.contains(&name) {
+            Some("{{$card_exp_month}}")
+        } else if CARD_EXP_YEAR_FIELDS.contains(&name) {
+            Some("{{$card_exp_year}}")
+        } else {
+            None
+        }
+    }
+
+    /// Recursively walks a JSON value and, for every field whose name is in
+    /// `token_fields` and whose value equals `token`, replaces the value with
+    /// the matching `{{$...}}` placeholder. All other values stay untouched.
+    fn replace_token_values_with_placeholders(
+        value: Value,
+        token: &str,
+        token_fields: &[String],
+    ) -> Value {
+        match value {
+            Value::Object(map) => {
+                let new_map = map
+                    .into_iter()
+                    .map(|(key, val)| {
+                        let new_val = if token_fields.contains(&key) {
+                            // Only replace if the value is the token string
+                            if let Value::String(ref s) = val {
+                                if s == token {
+                                    if let Some(placeholder) = placeholder_for_field(&key) {
+                                        logger::debug!(
+                                            field = %key,
+                                            placeholder = placeholder,
+                                            "Replacing token value with placeholder"
+                                        );
+                                        Value::String(placeholder.to_string())
+                                    } else {
+                                        // Field has the token but name is unrecognised — leave as-is
+                                        val
+                                    }
+                                } else {
+                                    val
+                                }
+                            } else {
+                                val
+                            }
+                        } else {
+                            // Recurse into nested structures
+                            replace_token_values_with_placeholders(val, token, token_fields)
+                        };
+                        (key, new_val)
+                    })
+                    .collect();
+                Value::Object(new_map)
+            }
+            Value::Array(arr) => {
+                let new_arr = arr
+                    .into_iter()
+                    .map(|item| replace_token_values_with_placeholders(item, token, token_fields))
+                    .collect();
+                Value::Array(new_arr)
+            }
+            other => other,
         }
     }
 
