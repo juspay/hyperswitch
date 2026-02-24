@@ -28645,7 +28645,8 @@
         "type": "string",
         "enum": [
           "amount",
-          "created"
+          "created",
+          "modified"
         ]
       },
       "SplitPaymentMethodDataRequest": {
