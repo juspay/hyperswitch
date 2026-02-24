@@ -8,6 +8,7 @@ use router_env::{instrument, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
+        configs::dimension_state::DimensionsWithMerchantId,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{self, helpers, operations, PaymentData},
     },
@@ -74,7 +75,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
             &[
                 enums::IntentStatus::Succeeded,
                 enums::IntentStatus::PartiallyCaptured,
-                enums::IntentStatus::PartiallyCapturedAndCapturable,
             ],
             "cancel_post_capture",
         )?;
@@ -150,7 +150,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
             payment_attempt,
             currency,
             amount,
-            email: None,
             mandate_id: None,
             mandate_connector: None,
             setup_mandate: None,
@@ -210,6 +209,30 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
 
         Ok(get_trackers_response)
     }
+
+    async fn validate_request_with_state(
+        &self,
+        _state: &SessionState,
+        _request: &api::PaymentsCancelPostCaptureRequest,
+        payment_data: &mut PaymentData<F>,
+        _business_profile: &domain::Profile,
+    ) -> RouterResult<()> {
+        // Validates that no refunds have been issued against the payment before allowing post-capture void
+        let is_refund_issued = payment_data
+            .refunds
+            .iter()
+            .any(|refund| refund.is_refund_applied());
+        crate::utils::when(is_refund_issued, || {
+            Err(error_stack::report!(
+                errors::ApiErrorResponse::PreconditionFailed {
+                    message: "Post-capture void cannot be performed after a refund has been issued"
+                        .into()
+                }
+            ))
+        })?;
+
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -223,6 +246,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCancelPostCaptureRequest, Pa
         _payment_data: &mut PaymentData<F>,
         _request: Option<payments::CustomerDetails>,
         _provider: &domain::Provider,
+        _dimensions: DimensionsWithMerchantId,
     ) -> errors::CustomResult<
         (
             PaymentCancelPostCaptureOperation<'a, F>,

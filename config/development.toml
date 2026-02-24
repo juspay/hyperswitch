@@ -49,10 +49,12 @@ default_hash_ttl = 900
 use_legacy_version = false
 stream_read_count = 1
 auto_pipeline = true
+broadcast_channel_capacity = 32 
 disable_auto_backpressure = false
 max_in_flight_commands = 5000
 default_command_timeout = 30
 unresponsive_timeout = 10
+unresponsive_check_interval = 2
 max_feed_count = 200
 
 [trace_header]
@@ -358,6 +360,7 @@ threedsecureio.base_url = "https://service.sandbox.3dsecure.io"
 thunes.base_url = "https://api.limonetikqualif.com/"
 tokenex.base_url = "https://test-api.tokenex.com"
 tokenio.base_url = "https://api.sandbox.token.io"
+truelayer.base_url = "https://api.truelayer-sandbox.com"
 stripe.base_url_file_upload = "https://files.stripe.com/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
@@ -835,6 +838,9 @@ interac = { currency = "CAD"}
 [pm_filters.loonio]
 interac = { currency = "CAD"}
 
+[pm_filters.dlocal]
+oxxo = { currency = "MXN" }
+
 [pm_filters.mollie]
 eps = { country = "AT", currency = "EUR" }
 ideal = { country = "NL", currency = "EUR" }
@@ -1204,8 +1210,8 @@ payout_eligibility = true
 [applepay_decrypt_keys]
 apple_pay_ppc = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE"
 apple_pay_ppc_key = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY"
-apple_pay_merchant_cert = "APPLE_PAY_MERCHNAT_CERTIFICATE"
-apple_pay_merchant_cert_key = "APPLE_PAY_MERCHNAT_CERTIFICATE_KEY"
+apple_pay_merchant_cert = "APPLE_PAY_MERCHANT_CERTIFICATE"
+apple_pay_merchant_cert_key = "APPLE_PAY_MERCHANT_CERTIFICATE_KEY"
 
 [paze_decrypt_keys]
 paze_private_key = "PAZE_PRIVATE_KEY"
@@ -1517,4 +1523,3 @@ polling_interval = 15 # Polling interval in seconds for configuration updates
 [micro_services]
 payment_methods_base_url = "http://localhost:8082"
 payment_methods_prefix = "v2"
-
