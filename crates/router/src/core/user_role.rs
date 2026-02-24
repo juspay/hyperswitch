@@ -509,7 +509,7 @@ pub async fn delete_user_role(
     user_from_token: auth::UserFromToken,
     request: user_role_api::DeleteUserRoleRequest,
     _req_state: ReqState,
-) -> UserResponse<()> {
+) -> UserResponse<user_role_api::DeleteUserRoleResponse> {
     let user_from_db: domain::UserFromStorage = state
         .global_store
         .find_user_by_email(&domain::UserEmail::from_pii_email(request.email)?)
@@ -541,7 +541,7 @@ pub async fn delete_user_role(
     .await
     .change_context(UserErrors::InternalServerError)?;
 
-    let mut user_role_deleted_flag = false;
+    let mut deleted_user_role_info: Option<roles::RoleInfo> = None;
 
     // Find in V2
     let user_role_v2 = match state
@@ -599,7 +599,7 @@ pub async fn delete_user_role(
             ));
         }
 
-        user_role_deleted_flag = true;
+        deleted_user_role_info = Some(target_role_info.clone());
         state
             .global_store
             .delete_user_role_by_user_id_and_lineage(
@@ -674,7 +674,9 @@ pub async fn delete_user_role(
             ));
         }
 
-        user_role_deleted_flag = true;
+        if deleted_user_role_info.is_none() {
+            deleted_user_role_info = Some(target_role_info.clone());
+        }
         state
             .global_store
             .delete_user_role_by_user_id_and_lineage(
@@ -693,10 +695,26 @@ pub async fn delete_user_role(
             .attach_printable("Error while deleting user role")?;
     }
 
-    if !user_role_deleted_flag {
+    if deleted_user_role_info.is_none() {
         return Err(report!(UserErrors::InvalidDeleteOperation))
             .attach_printable("User is not associated with the merchant");
     }
+
+    #[cfg(feature = "email")]
+    let is_email_sent = if let Some(role_info) = &deleted_user_role_info {
+        utils::user_role::send_role_deletion_email(
+            &state,
+            &user_from_db,
+            role_info,
+            &user_from_token,
+        )
+        .await?
+    } else {
+        false
+    };
+
+    #[cfg(not(feature = "email"))]
+    let is_email_sent = false;
 
     // Check if user has any more role associations
     let remaining_roles = state
@@ -730,7 +748,12 @@ pub async fn delete_user_role(
     }
 
     auth::blacklist::insert_user_in_blacklist(&state, user_from_db.get_user_id()).await?;
-    Ok(ApplicationResponse::StatusOk)
+    Ok(ApplicationResponse::Json(
+        user_role_api::DeleteUserRoleResponse {
+            deleted: true,
+            is_email_sent,
+        },
+    ))
 }
 
 pub async fn list_users_in_lineage(
