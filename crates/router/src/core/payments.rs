@@ -714,7 +714,7 @@ where
         if raw_customer_details_from_request.customer_id.is_some()
             && raw_customer_details_from_request.document_details.is_none()
         {
-            if let Some(doc_details) = customer.clone().map(|doc| doc.document_details) {
+            if let Some(doc_details) = customer.as_ref().map(|doc| doc.document_details.clone()) {
                 let encrypted_customer_details = core_utils::update_intent_customer_documents(
                     payment_data.get_payment_intent(),
                     doc_details,
