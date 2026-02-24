@@ -915,14 +915,16 @@ pub mod core {
         }
     }
 
+
     /// Field name variants that map to each card data placeholder.
-    const CARD_NUMBER_FIELDS: &[&str] = &["card_number", "number"];
+    const CARD_NUMBER_FIELDS: &[&str] = &["card_number", "number", "card[number]"];
     const CARD_EXP_MONTH_FIELDS: &[&str] = &[
         "card_expiry_month",
         "card_exp_month",
         "exp_month",
         "expiry_month",
         "expirationmonth",
+        "card[expiry_month]"
     ];
     const CARD_EXP_YEAR_FIELDS: &[&str] = &[
         "card_expiry_year",
@@ -930,6 +932,7 @@ pub mod core {
         "exp_year",
         "expiry_year",
         "expirationyear",
+        "card[expiry_year]"
     ];
     const CARD_CVV_FIELDS: &[&str] = &[
         "cvv",
@@ -937,6 +940,7 @@ pub mod core {
         "securitycode",
         "security_code",
         "card_cvc",
+        "card[cvv]"
     ];
 
     /// Wrapper function that transforms a connector request body for the `/v2/proxy` endpoint.
