@@ -886,7 +886,7 @@ pub mod core {
 
             logger::debug!(
                 "request_bodyyy {:?}",
-                request_bodyyy.clone()
+                request_body.clone()
             );
 
             // 4. Destination URL from ConnectionConfig
