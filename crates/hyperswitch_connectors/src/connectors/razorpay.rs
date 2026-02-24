@@ -825,6 +825,10 @@ lazy_static! {
 }
 
 impl ConnectorSpecifications for Razorpay {
+    fn is_order_create_flow_required(&self, _current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        true
+    }
+
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&*RAZORPAY_CONNECTOR_INFO)
     }

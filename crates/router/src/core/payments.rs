@@ -4937,13 +4937,17 @@ where
     // if we do not want to proceed further, then the function will return Ok(None, false)
     let (connector_request, should_continue_further) = match should_continue {
         Some(_) => {
-            router_data
-                .build_flow_specific_connector_request(
-                    state,
-                    &connector,
-                    call_connector_action.clone(),
-                )
-                .await?
+            if gateway_context.execution_path.is_direct_gateway() {
+                router_data
+                    .build_flow_specific_connector_request(
+                        state,
+                        &connector,
+                        call_connector_action.clone(),
+                    )
+                    .await?
+            } else {
+                (None, should_continue_further)
+            }
         }
         None => (None, false),
     };
