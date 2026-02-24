@@ -172,6 +172,14 @@ type UnifiedConnectorServiceResult = CustomResult<
 type UnifiedConnectorServiceRefundResult =
     CustomResult<(Result<RefundsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>;
 
+type UnifiedConnectorServiceCreateOrderResult = CustomResult<
+    (
+        Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>,
+        u16,
+    ),
+    UnifiedConnectorServiceError,
+>;
+
 /// Checks if the Unified Connector Service (UCS) is available for use
 async fn check_ucs_availability(state: &SessionState) -> UcsAvailability {
     let is_client_available = state.grpc_client.unified_connector_service_client.is_some();
@@ -1395,14 +1403,14 @@ pub fn build_unified_connector_service_payment_method(
                 iban,
                 bank_account_holder_name,
             } => {
-                let sepa_guaranteed_debit = payments_grpc::SepaGuaranteedBankDebit {
+                let sepa_guaranteed_debit = payments_grpc::SepaGuaranteedDebit {
                     iban: Some(iban.expose().into()),
                     bank_account_holder_name: bank_account_holder_name
                         .map(|name| name.expose().into()),
                 };
 
                 Ok(payments_grpc::PaymentMethod {
-                    payment_method: Some(PaymentMethod::SepaGuaranteedBankDebit(sepa_guaranteed_debit)),
+                    payment_method: Some(PaymentMethod::SepaGuaranteedDebit(sepa_guaranteed_debit)),
                 })
             }
         },
@@ -1655,12 +1663,15 @@ pub fn handle_unified_connector_service_response_for_create_connector_customer(
 
 pub fn handle_unified_connector_service_response_for_create_order(
     response: payments_grpc::PaymentServiceCreateOrderResponse,
-) -> CustomResult<(Result<PaymentsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>
-{
+    prev_status: AttemptStatus,
+) -> UnifiedConnectorServiceCreateOrderResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((
+            response,
+            prev_status,
+        ))?;
 
     Ok((router_data_response, status_code))
 }

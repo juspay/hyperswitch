@@ -488,8 +488,6 @@ impl ForeignTryFrom<payments_grpc::Ach>
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(ach: payments_grpc::Ach) -> Result<Self, Self::Error> {
-        use unified_connector_service_masking::ExposeInterface;
-
         let bank_name = payments_grpc::BankNames::try_from(ach.bank_name)
             .ok()
             .and_then(|bn| common_enums::BankNames::foreign_try_from(bn).ok());
@@ -536,8 +534,6 @@ impl ForeignTryFrom<payments_grpc::Sepa>
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(sepa: payments_grpc::Sepa) -> Result<Self, Self::Error> {
-        use unified_connector_service_masking::ExposeInterface;
-
         Ok(Self::SepaBankDebit {
             iban: masking::Secret::new(
                 sepa.iban
@@ -559,8 +555,6 @@ impl ForeignTryFrom<payments_grpc::Bacs>
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(bacs: payments_grpc::Bacs) -> Result<Self, Self::Error> {
-        use unified_connector_service_masking::ExposeInterface;
-
         Ok(Self::BacsBankDebit {
             account_number: masking::Secret::new(
                 bacs.account_number
@@ -589,8 +583,6 @@ impl ForeignTryFrom<payments_grpc::Becs>
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(becs: payments_grpc::Becs) -> Result<Self, Self::Error> {
-        use unified_connector_service_masking::ExposeInterface;
-
         Ok(Self::BecsBankDebit {
             account_number: masking::Secret::new(
                 becs.account_number

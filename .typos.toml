@@ -5,6 +5,29 @@ extend-ignore-identifiers-re = [
 ]
 
 [default.extend-identifiers]
+# Would have to break the api contract for fixing this. Not worth the fix.
+sepa_guarenteed_debit = "sepa_guarenteed_debit"
+sepa_guarenteed_bank_debit = "sepa_guarenteed_bank_debit"
+SepaGuarenteedDebit = "SepaGuarenteedDebit"
+SepaGuarenteedBankDebit = "SepaGuarenteedBankDebit"
+ThreedsInvokeAndCompleteAutorize = "ThreedsInvokeAndCompleteAutorize"
+
+whe = "whe" # this is a prefix identifier webhook endpoint id
+SiSaKet = "SiSaKet" # thailand state abbreviation
+Tak = "Tak" # thailand state abbreviation
+AGS = "AGS" # philippines state abbreviation
+AgusanDelSur = "AgusanDelSur" # philippines state abbreviation
+CamarinesSur = "CamarinesSur" # philippines state abbreviation
+DavaoDelSur = "DavaoDelSur" # philippines state abbreviation
+IlocosSur = "IlocosSur" # philippines state abbreviation
+LanaoDelSur = "LanaoDelSur" # philippines state abbreviation
+MaguindanaoDelSur = "MaguindanaoDelSur" # philippines state abbreviation
+SurigaoDelSur = "SurigaoDelSur" # philippines state abbreviation
+GES = "GES" # france state abbreviation
+VOR = "VOR" # russia state abbreviation
+Arges = "Arges" # Romania state abbreviation
+
+pro_aMoPnEkgCVnh2WVsFe32 = "pro_aMoPnEkgCVnh2WVsFe32" # an example for profile_id in api reference
 ABD = "ABD"  # Aberdeenshire, UK ISO 3166-2 code
 ACTIVITE = "ACTIVITE" # French translation of activity
 AER = "AER" # An alias to Api Error Response
