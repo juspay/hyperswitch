@@ -4,6 +4,27 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.24.0
+
+### Features
+
+- **revenue_recovery:** Generate report functionality for payments v1,v2 and revenue recovery payments ([#11060](https://github.com/juspay/hyperswitch/pull/11060)) ([`9d7b436`](https://github.com/juspay/hyperswitch/commit/9d7b4365e8ac78aec4c521da406d9324c380fdf8))
+- **ucs:**
+  - Bumped UCS Client dependency to bring latest changes ([#11229](https://github.com/juspay/hyperswitch/pull/11229)) ([`9ae4bb6`](https://github.com/juspay/hyperswitch/commit/9ae4bb6ae506f855d1f9dfc435e8e9fb8264d5de))
+  - Add TrustPay wallet support (Apple Pay & Google Pay) ([#11282](https://github.com/juspay/hyperswitch/pull/11282)) ([`326bd13`](https://github.com/juspay/hyperswitch/commit/326bd130f1b48c562a8c505dc625853d197b43c3))
+
+### Bug Fixes
+
+- **core:** Fix step-up retries when authentication_type is not passed ([#11181](https://github.com/juspay/hyperswitch/pull/11181)) ([`e248052`](https://github.com/juspay/hyperswitch/commit/e2480528a44e7a764173e66d960e24fb82c35e51))
+
+### Refactors
+
+- **router:** [worldpayvantiv][nuvei] refactor post capture void ([#10923](https://github.com/juspay/hyperswitch/pull/10923)) ([`2b7ae13`](https://github.com/juspay/hyperswitch/commit/2b7ae137cfa13679276985bec17e551fe11e2d38))
+
+**Full Changelog:** [`2026.02.23.0...2026.02.24.0`](https://github.com/juspay/hyperswitch/compare/2026.02.23.0...2026.02.24.0)
+
+- - -
+
 ## 2026.02.23.0
 
 ### Features
