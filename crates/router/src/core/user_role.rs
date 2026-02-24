@@ -14,6 +14,8 @@ use diesel_models::{
 };
 use error_stack::{report, ResultExt};
 use masking::Secret;
+#[cfg(feature = "email")]
+use router_env::logger;
 
 use crate::{
     core::errors::{StorageErrorExt, UserErrors, UserResponse},
@@ -702,13 +704,20 @@ pub async fn delete_user_role(
 
     #[cfg(feature = "email")]
     let is_email_sent = if let Some(role_info) = &deleted_user_role_info {
-        utils::user_role::send_role_deletion_email(
+        match utils::user_role::send_role_deletion_email(
             &state,
             &user_from_db,
             role_info,
             &user_from_token,
         )
-        .await?
+        .await
+        {
+            Ok(_) => true,
+            Err(e) => {
+                logger::error!("Failed to send role deletion email: {}", e);
+                false
+            }
+        }
     } else {
         false
     };

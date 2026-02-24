@@ -609,7 +609,7 @@ pub async fn send_role_deletion_email(
     user_from_db: &domain::UserFromStorage,
     role_info: &roles::RoleInfo,
     user_from_token: &auth::UserFromToken,
-) -> UserResult<bool> {
+) -> UserResult<()> {
     let theme = theme_utils::get_most_specific_theme_using_token_and_min_entity(
         state,
         user_from_token,
@@ -660,20 +660,15 @@ pub async fn send_role_deletion_email(
         theme_config,
     };
 
-    let send_email_result = state
+    state
         .email_client
         .compose_and_send_email(
             user_utils::get_base_url(state),
             Box::new(email_contents),
             state.conf.proxy.https_url.as_ref(),
         )
-        .await;
+        .await
+        .change_context(UserErrors::InternalServerError)?;
 
-    Ok(match send_email_result {
-        Ok(_) => true,
-        Err(e) => {
-            logger::error!("Failed to send role deletion email: {}", e);
-            false
-        }
-    })
+    Ok(())
 }
