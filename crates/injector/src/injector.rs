@@ -1157,8 +1157,8 @@ pub mod core {
 
                     // TODO: Read api_key and profile_id from config/request context.
                     // Hardcoded for local demo purposes.
-                    let api_key = "dev_jfyZvMIRQ7u6k2PE3eQQximjVqz2GPz5lNhodoZpZ4ahYyxugUQhWzJGG4BURBRX";
-                    let profile_id = "pro_IZa61s2OfgXUVQQiOevr";
+                    let api_key = "dev_LikxVWM569dHLj7NG96oJkihkFGvt3AC78jJCuLH2VjtCKQfUBwrdJwuehctyjPK";
+                    let profile_id = "pro_YC2ncgpE2HV0ini6KYcw";
 
                     // Call /v2/proxy which handles vault token resolution + connector forwarding
                     self.call_connector_api_via_proxy(&proxy_request, api_key, profile_id)
