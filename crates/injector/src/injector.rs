@@ -1037,7 +1037,7 @@ pub mod core {
     }
 
     /// The base URL for the local hyperswitch proxy endpoint
-    const PROXY_BASE_URL: &str = "http://localhost:8082/v2/proxy";
+    const PROXY_BASE_URL: &str = "http://localhost:8080/v2/proxy";
 
     impl Injector {
         /// Calls the `/v2/proxy` endpoint with the constructed proxy request body.
