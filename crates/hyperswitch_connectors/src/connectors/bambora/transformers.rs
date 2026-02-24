@@ -24,8 +24,8 @@ use crate::{
         PaymentsSyncResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
     },
     utils::{
-        self, AddressDetailsData, BrowserInformationData, CardData as _,
-        PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
+        self, deserialize_option_empty_string_to_none, AddressDetailsData, BrowserInformationData,
+        CardData as _, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
         PaymentsSyncRequestData, RouterData as _,
     },
 };
@@ -379,6 +379,7 @@ pub struct AddressData {
     address_line2: Option<Secret<String>>,
     city: Option<String>,
     province: Option<Secret<String>>,
+    #[serde(deserialize_with = "deserialize_option_empty_string_to_none")]
     country: Option<enums::CountryAlpha2>,
     postal_code: Option<Secret<String>>,
     phone_number: Option<Secret<String>>,

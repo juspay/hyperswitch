@@ -79,10 +79,11 @@ pub async fn get_access_token_from_ucs_response(
     merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
     creds_identifier: Option<String>,
     ucs_state: Option<&unified_connector_service_client::payments::ConnectorState>,
-) -> Option<AccessToken> {
+) -> CustomResult<Option<AccessToken>, UnifiedConnectorServiceError> {
     let ucs_access_token = ucs_state
         .and_then(|state| state.access_token.as_ref())
-        .map(AccessToken::foreign_from)?;
+        .map(AccessToken::foreign_try_from)
+        .transpose()?;
 
     let merchant_id = processor.get_account().get_id();
 
@@ -97,12 +98,14 @@ pub async fn get_access_token_from_ucs_response(
     );
 
     if let Ok(Some(cached_token)) = session_state.store.get_access_token(key).await {
-        if cached_token.token.peek() == ucs_access_token.token.peek() {
-            return None;
+        if let Some(ref ucs_token) = ucs_access_token {
+            if cached_token.token.peek() == ucs_token.token.peek() {
+                return Ok(None);
+            }
         }
     }
 
-    Some(ucs_access_token)
+    Ok(ucs_access_token)
 }
 
 pub async fn set_access_token_for_ucs(
@@ -168,6 +171,14 @@ type UnifiedConnectorServiceResult = CustomResult<
 /// Type alias for return type used by unified connector service refund response handlers
 type UnifiedConnectorServiceRefundResult =
     CustomResult<(Result<RefundsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>;
+
+type UnifiedConnectorServiceCreateOrderResult = CustomResult<
+    (
+        Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>,
+        u16,
+    ),
+    UnifiedConnectorServiceError,
+>;
 
 /// Checks if the Unified Connector Service (UCS) is available for use
 async fn check_ucs_availability(state: &SessionState) -> UcsAvailability {
@@ -258,6 +269,7 @@ where
         connector_name,
         &flow_name,
         router_data.payment_method,
+        router_data.payment_method_type,
     );
 
     // Determine connector integration type
@@ -456,6 +468,7 @@ fn build_rollout_keys(
     connector_name: &str,
     flow_name: &str,
     payment_method: common_enums::PaymentMethod,
+    payment_method_type: Option<PaymentMethodType>,
 ) -> String {
     // Detect if this is a refund flow based on flow name
     let is_refund_flow = matches!(flow_name, "Execute" | "RSync");
@@ -470,17 +483,51 @@ fn build_rollout_keys(
             flow_name
         )
     } else {
-        // Payment flows: UCS_merchant_connector_paymentmethod_flow (e.g., UCS_merchant123_stripe_card_Authorize)
-        let payment_method_str = payment_method.to_string();
-        format!(
-            "{}_{}_{}_{}_{}",
-            consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
-            merchant_id,
-            connector_name,
-            payment_method_str,
-            flow_name
-        )
+        match payment_method {
+            common_enums::PaymentMethod::Wallet
+            | common_enums::PaymentMethod::BankRedirect
+            | common_enums::PaymentMethod::Voucher
+            | common_enums::PaymentMethod::PayLater => {
+                let payment_method_str = payment_method.to_string();
+                let payment_method_type_str = payment_method_type
+                    .map(|pmt| pmt.to_string())
+                    .unwrap_or_else(|| "unknown".to_string());
+                format!(
+                    "{}_{}_{}_{}_{}_{}",
+                    consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
+                    merchant_id,
+                    connector_name,
+                    payment_method_str,
+                    payment_method_type_str,
+                    flow_name
+                )
+            }
+            common_enums::PaymentMethod::Card
+            | common_enums::PaymentMethod::CardRedirect
+            | common_enums::PaymentMethod::Upi
+            | common_enums::PaymentMethod::Crypto
+            | common_enums::PaymentMethod::Reward
+            | common_enums::PaymentMethod::BankDebit
+            | common_enums::PaymentMethod::RealTimePayment
+            | common_enums::PaymentMethod::BankTransfer
+            | common_enums::PaymentMethod::GiftCard
+            | common_enums::PaymentMethod::MobilePayment
+            | common_enums::PaymentMethod::NetworkToken
+            | common_enums::PaymentMethod::OpenBanking => {
+                // For other payment methods, use a generic format without specific payment method type details
+                let payment_method_str = payment_method.to_string();
+                format!(
+                    "{}_{}_{}_{}_{}",
+                    consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
+                    merchant_id,
+                    connector_name,
+                    payment_method_str,
+                    flow_name
+                )
+            }
+        }
     };
+
     rollout_key
 }
 
@@ -1522,12 +1569,15 @@ pub fn handle_unified_connector_service_response_for_create_connector_customer(
 
 pub fn handle_unified_connector_service_response_for_create_order(
     response: payments_grpc::PaymentServiceCreateOrderResponse,
-) -> CustomResult<(Result<PaymentsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>
-{
+    prev_status: AttemptStatus,
+) -> UnifiedConnectorServiceCreateOrderResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((
+            response,
+            prev_status,
+        ))?;
 
     Ok((router_data_response, status_code))
 }
