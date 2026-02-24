@@ -5213,12 +5213,13 @@ Cypress.Commands.add("IncomingWebhookTest", (globalState, webhookPayload) => {
     });
 });
 
-Cypress.Commands.add("step", (stepName, fn) => {
+Cypress.Commands.add('step', (stepName, fn) => {
+
   cy.task("cli_log", `\nSTEP: ${stepName}`);
 
   const log = Cypress.log({
-    name: "step",
-    displayName: "⬡ STEP",
+    name: 'step',
+    displayName: '⬡ STEP',
     message: `**${stepName}**`,
     groupStart: true,
     consoleProps: () => ({ Step: stepName }),
@@ -5236,9 +5237,9 @@ Cypress.Commands.add("step", (stepName, fn) => {
 
   cy.then(() => {
     if (failed) {
-      log.set({ displayName: "✗ STEP", message: stepName });
+      log.set({ displayName: '✗ STEP', message: stepName });
     } else {
-      log.set({ displayName: "✓ STEP", message: stepName, collapsed: true });
+      log.set({ displayName: '✓ STEP', message: stepName, collapsed: true }); 
     }
     Cypress.log({ groupEnd: true, emitOnly: true });
   });
