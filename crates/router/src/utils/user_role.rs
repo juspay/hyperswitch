@@ -604,7 +604,7 @@ pub fn resources_to_description(
 }
 
 #[cfg(feature = "email")]
-pub async fn send_role_deletion_email(
+pub async fn send_role_deletion_email_using_db(
     state: &SessionState,
     user_from_db: &domain::UserFromStorage,
     role_info: &roles::RoleInfo,

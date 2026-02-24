@@ -703,23 +703,20 @@ pub async fn delete_user_role(
     }
 
     #[cfg(feature = "email")]
-    let is_email_sent = if let Some(role_info) = &deleted_user_role_info {
-        match utils::user_role::send_role_deletion_email(
+    let is_email_sent = match &deleted_user_role_info {
+        Some(role_info) => utils::user_role::send_role_deletion_email_using_db(
             &state,
             &user_from_db,
             role_info,
             &user_from_token,
         )
         .await
-        {
-            Ok(_) => true,
-            Err(e) => {
-                logger::error!("Failed to send role deletion email: {}", e);
-                false
-            }
-        }
-    } else {
-        false
+        .map_err(|err| {
+            logger::error!("Failed to send role deletion email: {}", err);
+            err
+        })
+        .is_ok(),
+        None => false,
     };
 
     #[cfg(not(feature = "email"))]
@@ -758,10 +755,7 @@ pub async fn delete_user_role(
 
     auth::blacklist::insert_user_in_blacklist(&state, user_from_db.get_user_id()).await?;
     Ok(ApplicationResponse::Json(
-        user_role_api::DeleteUserRoleResponse {
-            deleted: true,
-            is_email_sent,
-        },
+        user_role_api::DeleteUserRoleResponse { is_email_sent },
     ))
 }
 

@@ -746,8 +746,8 @@ impl EmailData for RoleDeleted {
             ),
         };
 
-        let merchant_info = match self.merchant.merchant_name.clone() {
-            Some(name) => format!("Merchant: {}", name.into_inner().expose()),
+        let merchant_info = match &self.merchant.merchant_name {
+            Some(name) => format!("Merchant: {}", name.get_inner().peek().clone()),
             None => format!("Merchant Id: {}", self.merchant.get_id().get_string_repr()),
         };
 

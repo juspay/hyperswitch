@@ -47,7 +47,6 @@ pub struct DeleteUserRoleRequest {
 
 #[derive(Debug, serde::Serialize)]
 pub struct DeleteUserRoleResponse {
-    pub deleted: bool,
     pub is_email_sent: bool,
 }
 
