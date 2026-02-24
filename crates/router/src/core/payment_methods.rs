@@ -3042,6 +3042,7 @@ fn convert_from_saved_payment_method_data(
             )))
         }
         payment_methods::PaymentMethodsData::BankDetails(_)
+        | payment_methods::PaymentMethodsData::BankDebit(_)
         | payment_methods::PaymentMethodsData::WalletDetails(_) => {
             Err(errors::ApiErrorResponse::UnprocessableEntity {
                 message: "External vaulting is not supported for this payment method type"
@@ -3641,16 +3642,16 @@ fn get_pm_list_context(
                 }
             })
         }
-        Some(payment_methods::PaymentMethodsData::WalletDetails(_)) | None => {
-            Some(PaymentMethodListContext::TemporaryToken {
-                token_data: is_payment_associated.then_some(
-                    storage::PaymentTokenData::temporary_generic(generate_id(
-                        consts::ID_LENGTH,
-                        "token",
-                    )),
-                ),
-            })
-        }
+        Some(payment_methods::PaymentMethodsData::BankDebit(_))
+        | Some(payment_methods::PaymentMethodsData::WalletDetails(_))
+        | None => Some(PaymentMethodListContext::TemporaryToken {
+            token_data: is_payment_associated.then_some(
+                storage::PaymentTokenData::temporary_generic(generate_id(
+                    consts::ID_LENGTH,
+                    "token",
+                )),
+            ),
+        }),
     };
 
     Ok(payment_method_retrieval_context)
