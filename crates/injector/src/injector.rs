@@ -909,12 +909,21 @@ pub mod core {
         "card_exp_month",
         "exp_month",
         "expiry_month",
+        "expirationmonth",
     ];
     const CARD_EXP_YEAR_FIELDS: &[&str] = &[
         "card_expiry_year",
         "card_exp_year",
         "exp_year",
         "expiry_year",
+        "expirationyear",
+    ];
+    const CARD_CVV_FIELDS: &[&str] = &[
+        "cvv",
+        "cvc",
+        "securitycode",
+        "security_code",
+        "card_cvc",
     ];
 
     /// Wrapper function that transforms a connector request body for the `/v2/proxy` endpoint.
@@ -964,7 +973,7 @@ pub mod core {
     }
 
     /// Determines the proxy placeholder for a given field name, e.g.
-    /// `"number"` → `"{{$card_number}}"`, `"expiry_month"` → `"{{$card_exp_month}}"`.
+    /// `"number"` → `"{{$card_number}}"`, `"expirationMonth"` → `"{{$card_exp_month}}"`.
     ///
     /// Returns `None` if the field name doesn't match any known card-data field.
     fn placeholder_for_field(field_name: &str) -> Option<&'static str> {
@@ -977,6 +986,8 @@ pub mod core {
             Some("{{$card_exp_month}}")
         } else if CARD_EXP_YEAR_FIELDS.contains(&name) {
             Some("{{$card_exp_year}}")
+        } else if CARD_CVV_FIELDS.contains(&name) {
+            Some("{{$card_cvc}}")
         } else {
             None
         }
