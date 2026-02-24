@@ -1771,25 +1771,26 @@ impl PaymentsRequest {
         &self,
     ) -> common_utils::errors::CustomResult<(), ValidationError> {
         if let Some(installment_options) = &self.installment_options {
-            let mut seen_methods = HashSet::new();
-            for option in installment_options {
-                if !matches!(option.payment_method, common_enums::PaymentMethod::Card) {
-                    return Err(ValidationError::InvalidValue {
-                        message: "installment_options is only supported for payment method card."
-                            .to_string(),
-                    }
-                    .into());
-                }
-                if !seen_methods.insert(option.payment_method) {
-                    return Err(ValidationError::InvalidValue {
-                        message: format!(
-                            "duplicate payment_method '{}' in installment_options.",
-                            option.payment_method
-                        ),
-                    }
-                    .into());
-                }
-            }
+            installment_options
+                .iter()
+                .try_fold(HashSet::new(), |mut seen, opt| {
+                    opt.payment_method
+                        .supports_installments()
+                        .then_some(())
+                        .ok_or_else(|| ValidationError::InvalidValue {
+                            message:
+                                "installment_options is only supported for payment method card."
+                                    .to_string(),
+                        })?;
+                    seen.insert(opt.payment_method)
+                        .then_some(seen)
+                        .ok_or_else(|| ValidationError::InvalidValue {
+                            message: format!(
+                                "duplicate payment_method '{}' in installment_options.",
+                                opt.payment_method
+                            ),
+                        })
+                })?;
         }
         Ok(())
     }

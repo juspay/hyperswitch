@@ -1254,26 +1254,41 @@ pub enum BillingFrequency {
 #[serde(try_from = "Vec<u8>", into = "Vec<u8>")]
 pub struct InstallmentCounts(Vec<u8>);
 
+impl InstallmentCounts {
+    fn validate_not_empty(counts: &[u8]) -> std::result::Result<(), errors::ValidationError> {
+        (!counts.is_empty())
+            .then_some(())
+            .ok_or_else(|| errors::ValidationError::InvalidValue {
+                message: "number_of_installments must not be empty.".to_string(),
+            })
+    }
+
+    fn validate_values(counts: &[u8]) -> std::result::Result<(), errors::ValidationError> {
+        counts
+            .iter()
+            .try_fold(HashSet::new(), |mut seen, &n| {
+                (n >= 2)
+                    .then_some(())
+                    .ok_or_else(|| errors::ValidationError::InvalidValue {
+                        message: "each value in number_of_installments must be at least 2."
+                            .to_string(),
+                    })?;
+                seen.insert(n).then_some(seen).ok_or_else(|| {
+                    errors::ValidationError::InvalidValue {
+                        message: "number_of_installments must contain unique values.".to_string(),
+                    }
+                })
+            })
+            .map(|_| ())
+    }
+}
+
 impl TryFrom<Vec<u8>> for InstallmentCounts {
     type Error = errors::ValidationError;
 
     fn try_from(counts: Vec<u8>) -> std::result::Result<Self, Self::Error> {
-        if counts.is_empty() {
-            return Err(errors::ValidationError::InvalidValue {
-                message: "number_of_installments must not be empty.".to_string(),
-            });
-        }
-        if counts.iter().any(|&n| n < 2) {
-            return Err(errors::ValidationError::InvalidValue {
-                message: "each value in number_of_installments must be at least 2.".to_string(),
-            });
-        }
-        let mut seen = HashSet::new();
-        if counts.iter().any(|n| !seen.insert(n)) {
-            return Err(errors::ValidationError::InvalidValue {
-                message: "number_of_installments must contain unique values.".to_string(),
-            });
-        }
+        Self::validate_not_empty(&counts)?;
+        Self::validate_values(&counts)?;
         Ok(Self(counts))
     }
 }
