@@ -87,8 +87,29 @@ pub struct PayoutData {
 }
 
 impl PayoutData {
-    pub fn should_add_task_to_process_tracker(&self) -> bool {
-        self.payout_attempt.status.is_non_terminal_status()
+    pub fn should_add_task_to_process_tracker(
+        &self,
+        state: &SessionState,
+        connector_name: common_enums::connector_enums::Connector,
+    ) -> bool {
+        match self.payouts.payout_type {
+            Some(payout_type) => {
+                self.payout_attempt.status.is_non_terminal_status()
+                    && state
+                        .conf
+                        .payout_sync_process_tracker
+                        .supported_payout_methods
+                        .0
+                        .get(&payout_type)
+                        .map(|supported_connectors_for_payouts| {
+                            supported_connectors_for_payouts
+                                .connector_list
+                                .contains(&connector_name)
+                        })
+                        .unwrap_or(false)
+            }
+            None => false,
+        }
     }
 }
 
@@ -2623,7 +2644,7 @@ pub async fn fulfill_payout(
     };
 
     // add payout sync task to process tracker
-    if payout_data.should_add_task_to_process_tracker() {
+    if payout_data.should_add_task_to_process_tracker(state, connector_data.connector_name) {
         let scheduled_time =
             payout_sync::PayoutSyncWorkFlow::get_payout_sync_process_schedule_time(
                 db,

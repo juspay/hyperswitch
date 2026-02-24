@@ -473,3 +473,7 @@ private_key = ""  # RSA private key used for signing ID tokens (Generate using: 
 client_id = ""     # OIDC client identifier for the relying party (Generate using: openssl rand -hex 8)
 client_secret = "" # Client secret used to authenticate the client (Generate using: openssl rand -hex 32)
 redirect_uri = ""  # Redirect URI registered for the OIDC client 
+
+# Configuration to decide whether to add payout sync process tracker for the following payemnt_method and connector
+[payout_sync_process_tracker.supported_payout_methods]
+wallet.connector_list = "paypal"
