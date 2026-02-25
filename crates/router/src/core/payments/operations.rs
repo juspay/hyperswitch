@@ -274,6 +274,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
         _dimensions: DimensionsWithMerchantId,
+        _mandate_type: Option<api::MandateTransactionType>,
     ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError>;
 
     #[cfg(feature = "v2")]
@@ -663,6 +664,7 @@ where
         _request: Option<CustomerDetails>,
         _provider: &domain::Provider,
         _dimensions: DimensionsWithMerchantId,
+        _mandate_type: Option<api::MandateTransactionType>,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRetrieveRequest, D>,
@@ -732,6 +734,7 @@ where
         _request: Option<CustomerDetails>,
         _provider: &domain::Provider,
         _dimensions: DimensionsWithMerchantId,
+        _mandate_type: Option<api::MandateTransactionType>,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsCaptureRequest, D>,
@@ -819,6 +822,7 @@ where
         _request: Option<CustomerDetails>,
         _provider: &domain::Provider,
         _dimensions: DimensionsWithMerchantId,
+        _mandate_type: Option<api::MandateTransactionType>,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsCancelRequest, D>,
@@ -906,6 +910,7 @@ where
         _request: Option<CustomerDetails>,
         _provider: &domain::Provider,
         _dimensions: DimensionsWithMerchantId,
+        _mandate_type: Option<api::MandateTransactionType>,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRejectRequest, D>,

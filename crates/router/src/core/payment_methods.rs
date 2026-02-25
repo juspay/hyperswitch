@@ -1421,21 +1421,17 @@ impl PaymentMethodResolver {
                     logger::debug!(
                         "No CVC found in the payment method request, trying to retrieve from redis"
                     );
-                    let existing_cvc_expiry_details =
-                        vault::retrieve_key_and_ttl_for_cvc_from_payment_method_id(
-                            state,
-                            existing_pm.id.to_owned(),
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to retrieve cvc from redis")
-                        .ok()
-                        .map(|time| {
-                            payment_methods::CardCVCTokenStorageDetails::generate_expiry_timestamp(
-                                time,
-                            )
-                        });
-                    existing_cvc_expiry_details
+                    vault::retrieve_key_and_ttl_for_cvc_from_payment_method_id(
+                        state,
+                        existing_pm.id.to_owned(),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to retrieve cvc from redis")
+                    .ok()
+                    .map(|time| {
+                        payment_methods::CardCVCTokenStorageDetails::generate_expiry_timestamp(time)
+                    })
                 };
                 let billing = billing_address
                     .clone()

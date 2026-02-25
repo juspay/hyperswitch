@@ -1,8 +1,10 @@
 use std::marker::PhantomData;
 
 use api_models::{
-    customers::CustomerDocumentDetails, enums::FrmSuggestion, mandates::RecurringDetails,
-    payments::RequestSurchargeDetails,
+    customers::CustomerDocumentDetails,
+    enums::FrmSuggestion,
+    mandates::RecurringDetails,
+    payments::{MandateTransactionType, RequestSurchargeDetails},
 };
 use async_trait::async_trait;
 use common_utils::{
@@ -582,6 +584,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
         dimensions: DimensionsWithMerchantId,
+        _mandate_type: Option<MandateTransactionType>,
     ) -> CustomResult<(PaymentUpdateOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
     {
         match provider.get_account().merchant_account_type {

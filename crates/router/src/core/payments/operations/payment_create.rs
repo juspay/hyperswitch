@@ -1,8 +1,10 @@
 use std::marker::PhantomData;
 
 use api_models::{
-    enums::FrmSuggestion, mandates::RecurringDetails, payment_methods::PaymentMethodsData,
-    payments::GetAddressFromPaymentMethodData,
+    enums::FrmSuggestion,
+    mandates::RecurringDetails,
+    payment_methods::PaymentMethodsData,
+    payments::{GetAddressFromPaymentMethodData, MandateTransactionType},
 };
 use async_trait::async_trait;
 use common_types::payments as common_payments_types;
@@ -36,7 +38,10 @@ use crate::{
         mandate::helpers as m_helpers,
         payment_link,
         payment_methods::transformers as pm_transformers,
-        payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
+        payments::{
+            self, helpers, operations, CustomerDetails, OperationSessionGetters,
+            OperationSessionSetters, PaymentAddress, PaymentData,
+        },
         utils as core_utils,
     },
     db::StorageInterface,
@@ -698,15 +703,16 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
         dimensions: DimensionsWithMerchantId,
+        mandate_type: Option<MandateTransactionType>,
     ) -> CustomResult<(PaymentCreateOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
     {
-        match provider.get_account().merchant_account_type {
+        let (operation, customer) = match provider.get_account().merchant_account_type {
             common_enums::MerchantAccountType::Standard => {
                 helpers::create_customer_if_not_exist(
                     state,
                     Box::new(self),
                     payment_data,
-                    request,
+                    request.clone(),
                     provider,
                     dimensions,
                 )
@@ -723,8 +729,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 .inspect(|cust| {
                     payment_data.payment_intent.customer_id = Some(cust.customer_id.clone());
                 });
-
-                Ok((Box::new(self), customer))
+                let op: PaymentCreateOperation<'a, F> = Box::new(self);
+                Ok((op, customer))
             }
             common_enums::MerchantAccountType::Connected => {
                 Err(errors::StorageError::ValueNotFound(
@@ -732,7 +738,32 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 )
                 .into())
             }
+        }?;
+        // When no document details is passed in request but customer_id is passed, use that customers document details from customers table
+        if let Some(raw_customer_details_from_request) = request {
+            if raw_customer_details_from_request.customer_id.is_some()
+                && raw_customer_details_from_request.document_details.is_none()
+            {
+                if let Some(doc_details) = customer.as_ref().map(|doc| doc.document_details.clone())
+                {
+                    let encrypted_customer_details = core_utils::update_intent_customer_documents(
+                        payment_data.get_payment_intent(),
+                        doc_details,
+                        mandate_type,
+                        state,
+                        provider.get_key_store(),
+                        payment_data
+                            .payment_method_info
+                            .as_ref()
+                            .and_then(|pm| pm.customer_details.clone()),
+                    )
+                    .await
+                    .change_context(errors::StorageError::EncryptionError)?;
+                    payment_data.set_document_details_in_intent(encrypted_customer_details);
+                }
+            }
         }
+        return Ok((operation, customer));
     }
 
     async fn payments_dynamic_tax_calculation<'a>(

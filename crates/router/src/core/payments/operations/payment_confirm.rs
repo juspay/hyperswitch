@@ -5,7 +5,10 @@ use api_models::payment_methods::PaymentMethodsData;
 use api_models::{
     admin::ExtendedCardInfoConfig,
     enums::FrmSuggestion,
-    payments::{ConnectorMandateReferenceId, ExtendedCardInfo, GetAddressFromPaymentMethodData},
+    payments::{
+        ConnectorMandateReferenceId, ExtendedCardInfo, GetAddressFromPaymentMethodData,
+        MandateTransactionType,
+    },
 };
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, StringExt, ValueExt};
@@ -45,8 +48,8 @@ use crate::{
         payments::{
             self, helpers, operations,
             operations::payment_confirm::unified_authentication_service::ThreeDsMetaData,
-            populate_surcharge_details, CustomerDetails, OperationSessionSetters, PaymentAddress,
-            PaymentData,
+            populate_surcharge_details, CustomerDetails, OperationSessionGetters,
+            OperationSessionSetters, PaymentAddress, PaymentData,
         },
         three_ds_decision_rule,
         unified_authentication_service::{
@@ -995,17 +998,18 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
         dimensions: DimensionsWithMerchantId,
+        mandate_type: Option<MandateTransactionType>,
     ) -> CustomResult<
         (PaymentConfirmOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,
     > {
-        match provider.get_account().merchant_account_type {
+        let (operation, customer) = match provider.get_account().merchant_account_type {
             common_enums::MerchantAccountType::Standard => {
                 helpers::create_customer_if_not_exist(
                     state,
                     Box::new(self),
                     payment_data,
-                    request,
+                    request.clone(),
                     provider,
                     dimensions,
                 )
@@ -1033,8 +1037,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 })
                 .transpose()
                 .map_err(|e: errors::StorageError| report!(e))?;
-
-                Ok((Box::new(self), customer))
+                let op: PaymentConfirmOperation<'a, F> = Box::new(self);
+                Ok((op, customer))
             }
             common_enums::MerchantAccountType::Connected => {
                 Err(errors::StorageError::ValueNotFound(
@@ -1042,7 +1046,32 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 )
                 .into())
             }
+        }?;
+        // When no document details is passed in request but customer_id is passed, use that customers document details from customers table
+        if let Some(raw_customer_details_from_request) = request {
+            if raw_customer_details_from_request.customer_id.is_some()
+                && raw_customer_details_from_request.document_details.is_none()
+            {
+                if let Some(doc_details) = customer.as_ref().map(|doc| doc.document_details.clone())
+                {
+                    let encrypted_customer_details = core_utils::update_intent_customer_documents(
+                        payment_data.get_payment_intent(),
+                        doc_details,
+                        mandate_type,
+                        state,
+                        provider.get_key_store(),
+                        payment_data
+                            .payment_method_info
+                            .as_ref()
+                            .and_then(|pm| pm.customer_details.clone()),
+                    )
+                    .await
+                    .change_context(errors::StorageError::EncryptionError)?;
+                    payment_data.set_document_details_in_intent(encrypted_customer_details);
+                }
+            }
         }
+        return Ok((operation, customer));
     }
 
     #[cfg(feature = "v1")]
@@ -1354,7 +1383,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         connector_call_type: &ConnectorCallType,
         business_profile: &domain::Profile,
         processor: &domain::Processor,
-        mandate_type: Option<api_models::payments::MandateTransactionType>,
+        mandate_type: Option<MandateTransactionType>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         let external_authentication_flow =
             helpers::get_payment_external_authentication_flow_during_confirm(
@@ -1627,7 +1656,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         connector_call_type: &ConnectorCallType,
         business_profile: &domain::Profile,
         platform: &domain::Platform,
-        mandate_type: Option<api_models::payments::MandateTransactionType>,
+        mandate_type: Option<MandateTransactionType>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         let unified_authentication_service_flow =
             helpers::decide_action_for_unified_authentication_service(

@@ -669,7 +669,7 @@ where
             platform,
             auth_flow,
             &header_payload,
-            payment_method_info,
+            payment_method_info.clone(),
         )
         .await?;
 
@@ -704,29 +704,11 @@ where
             customer_details.clone(), // TODO: Remove this field after implicit customer update is removed
             platform.get_provider(),
             dimensions,
+            mandate_type,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
-
-    // When no document details is passed in request but customer_id is passed, use that customers document details from customers table
-    if let Some(raw_customer_details_from_request) = customer_details.as_ref() {
-        if raw_customer_details_from_request.customer_id.is_some()
-            && raw_customer_details_from_request.document_details.is_none()
-        {
-            if let Some(doc_details) = customer.as_ref().map(|doc| doc.document_details.clone()) {
-                let encrypted_customer_details = core_utils::update_intent_customer_documents(
-                    payment_data.get_payment_intent(),
-                    doc_details,
-                    mandate_type,
-                    state,
-                    platform,
-                )
-                .await?;
-                payment_data.set_document_details_in_intent(encrypted_customer_details);
-            }
-        }
-    }
 
     let connector_customer_map = customer
         .as_ref()
@@ -1571,6 +1553,7 @@ where
             customer_details,
             platform.get_provider(),
             dimensions,
+            None,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)

@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::enums::FrmSuggestion;
+use api_models::{enums::FrmSuggestion, payments::MandateTransactionType};
 use async_trait::async_trait;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, ResultExt};
@@ -410,6 +410,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         _request: Option<CustomerDetails>,
         provider: &domain::Provider,
         _dimensions: DimensionsWithMerchantId,
+        _mandate_type: Option<MandateTransactionType>,
     ) -> CustomResult<
         (CompleteAuthorizeOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,

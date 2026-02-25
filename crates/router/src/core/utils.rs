@@ -2779,52 +2779,53 @@ pub(crate) async fn update_intent_customer_documents(
     document_details: common_utils::crypto::OptionalEncryptableValue,
     mandate_type: Option<api::MandateTransactionType>,
     state: &SessionState,
-    platform: &domain::Platform,
+    key_store: &domain::MerchantKeyStore,
+    pm_document_details: common_utils::crypto::OptionalEncryptableValue,
 ) -> CustomResult<common_utils::crypto::OptionalEncryptableValue, errors::ApiErrorResponse> {
-    match mandate_type {
-        Some(api::MandateTransactionType::NewMandateTransaction) | None => {
-            let mut existing_intent_customer_details = payment_intent
-                .get_intent_customer_details()
+    let mut existing_intent_customer_details = payment_intent
+        .get_intent_customer_details()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to parse customer details from PaymentIntent")?;
+
+    let doc_details = match mandate_type {
+        Some(api::MandateTransactionType::NewMandateTransaction) | None => document_details,
+        Some(api::MandateTransactionType::RecurringMandateTransaction) => pm_document_details,
+    };
+
+    let decrypted_document_details = doc_details
+        .as_ref()
+        .map(|encryptable| {
+            encryptable
+                .clone()
+                .into_inner()
+                .parse_value::<CustomerDocumentDetails>("CustomerDocumentDetails")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to parse customer details from PaymentIntent")?;
+                .attach_printable(
+                    "Failed to deserialize CustomerDocumentDetails from encrypted storage",
+                )
+        })
+        .transpose()?;
 
-            let decrypted_document_details = document_details
-                .as_ref()
-                .map(|encryptable| {
-                    encryptable
-                        .clone()
-                        .into_inner()
-                        .parse_value::<CustomerDocumentDetails>("CustomerDocumentDetails")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable(
-                            "Failed to deserialize CustomerDocumentDetails from encrypted storage",
-                        )
-                })
-                .transpose()?;
-
-            if let Some(ref mut details) = existing_intent_customer_details {
-                details.customer_document_details = decrypted_document_details;
-            }
-
-            let key_manager_state: KeyManagerState = state.into();
-            let encrypted_customer_details = existing_intent_customer_details
-                .async_map(|value| {
-                    create_encrypted_data(
-                        &key_manager_state,
-                        platform.get_processor().get_key_store(),
-                        value,
-                        common_utils::type_name!(diesel_models::PaymentIntent),
-                    )
-                })
-                .await
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to encrypt customer details")?;
-
-            Ok(encrypted_customer_details)
-        }
-        Some(api::MandateTransactionType::RecurringMandateTransaction) => Ok(None),
+    if let Some(ref mut details) = existing_intent_customer_details {
+        details.customer_document_details = decrypted_document_details;
     }
+
+    let key_manager_state: KeyManagerState = state.into();
+    let encrypted_customer_details = existing_intent_customer_details
+        .async_map(|value| {
+            create_encrypted_data(
+                &key_manager_state,
+                key_store,
+                value,
+                common_utils::type_name!(diesel_models::PaymentIntent),
+            )
+        })
+        .await
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to encrypt customer details")?;
+
+    Ok(encrypted_customer_details)
 }
 
 pub async fn create_encrypted_data<T>(
