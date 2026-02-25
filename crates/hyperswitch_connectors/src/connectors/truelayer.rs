@@ -924,7 +924,9 @@ impl
             .to_str()
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
         let parts: Vec<&str> = tl_signature.splitn(3, '.').collect();
-        let header_b64 = parts.first().ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
+        let header_b64 = parts
+            .first()
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
         let header_json = URL_SAFE_NO_PAD
             .decode(header_b64)
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;

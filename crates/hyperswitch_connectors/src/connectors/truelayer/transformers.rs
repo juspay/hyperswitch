@@ -9,11 +9,6 @@ use common_enums::enums;
 use common_utils::pii;
 use common_utils::types::MinorUnit;
 use error_stack::{report, ResultExt};
-#[cfg(feature = "payouts")]
-use hyperswitch_domain_models::{
-    router_flow_types::payouts::PoFulfill,
-    router_response_types::PayoutsResponseData, types::PayoutsRouterData,
-};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
@@ -30,6 +25,11 @@ use hyperswitch_domain_models::{
         PaymentsAuthorizeRouterData, RefreshTokenRouterData, RefundsRouterData,
         VerifyWebhookSourceRouterData,
     },
+};
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::{
+    router_flow_types::payouts::PoFulfill, router_response_types::PayoutsResponseData,
+    types::PayoutsRouterData,
 };
 use hyperswitch_interfaces::errors;
 use josekit::jws::{JwsHeader, ES512};
@@ -754,8 +754,12 @@ impl
             .map_err(|_| errors::ConnectorError::WebhookSignatureNotFound)?;
         let parts: Vec<&str> = tl_signature.splitn(3, '.').collect();
 
-        let header_b64 = parts.first().ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        let signature_b64 = parts.get(2).ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        let header_b64 = parts
+            .first()
+            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        let signature_b64 = parts
+            .get(2)
+            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         let header_json = URL_SAFE_NO_PAD
             .decode(header_b64)
@@ -830,10 +834,18 @@ impl
             ));
         }
 
-        let r = BigNum::from_slice(sig_bytes.get(0..66).ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        let s = BigNum::from_slice(sig_bytes.get(66..).ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        let r = BigNum::from_slice(
+            sig_bytes
+                .get(0..66)
+                .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?,
+        )
+        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        let s = BigNum::from_slice(
+            sig_bytes
+                .get(66..)
+                .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?,
+        )
+        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let der_sig = EcdsaSig::from_private_components(r, s)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?
             .to_der()
