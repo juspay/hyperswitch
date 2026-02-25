@@ -7891,21 +7891,28 @@ where
                         payment_data.set_payment_method_data(payment_method_data);
                         payment_data.set_payment_method_id_in_attempt(pm_id);
                     } else {
-                        logger::debug!("Organization is eligible for PM Modular service, skipping make_pm_data call since raw payment method data fetch is done");
                         //Merchant enabled for PM Modular service
-                        let payment_token = helpers::store_payment_method_data_in_vault(
-                            state,
-                            payment_data.get_payment_attempt(),
-                            payment_data.get_payment_intent(),
-                            enums::PaymentMethod::Card,
-                            payment_data
-                                .get_payment_method_data()
-                                .get_required_value("payment_method_dataaaaaaa")?,
-                            platform.get_provider().get_key_store(),
-                            Some(business_profile),
-                        )
-                        .await
-                        .attach_printable("Failed to store payment method data in vault in modular payment method flow")?;
+                        logger::debug!("Organization is eligible for PM Modular service, skipping make_pm_data call since raw payment method data fetch is done");
+                        let payment_token = payment_data
+                            .get_payment_method_data()
+                            .async_map(|payment_method_data| async {
+                                helpers::store_payment_method_data_in_vault(
+                                    state,
+                                    payment_data.get_payment_attempt(),
+                                    payment_data.get_payment_intent(),
+                                    enums::PaymentMethod::Card,
+                                    payment_method_data,
+                                    platform.get_provider().get_key_store(),
+                                    Some(business_profile),
+                                )
+                                .await
+                                .attach_printable(
+                                    "Failed to store payment method data in vault in modular payment method flow",
+                                )
+                            })
+                            .await
+                            .transpose()?
+                            .flatten();
                         payment_token.map(|data| payment_data.set_token(data));
                         let pm_id = payment_data
                             .get_payment_method_info()
@@ -7936,6 +7943,27 @@ where
                     } else {
                         //Merchant enabled for PM Modular service
                         logger::debug!("Organization is eligible for PM Modular service, skipping make_pm_data call since raw payment method data fetch is done");
+                        let payment_token = payment_data
+                            .get_payment_method_data()
+                            .async_map(|payment_method_data| async {
+                                helpers::store_payment_method_data_in_vault(
+                                    state,
+                                    payment_data.get_payment_attempt(),
+                                    payment_data.get_payment_intent(),
+                                    enums::PaymentMethod::Card,
+                                    payment_method_data,
+                                    platform.get_provider().get_key_store(),
+                                    Some(business_profile),
+                                )
+                                .await
+                                .attach_printable(
+                                    "Failed to store payment method data in vault in modular payment method flow",
+                                )
+                            })
+                            .await
+                            .transpose()?
+                            .flatten();
+                        payment_token.map(|data| payment_data.set_token(data));
                         let pm_id = payment_data
                             .get_payment_method_info()
                             .map(|pm| pm.payment_method_id.clone());
