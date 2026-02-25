@@ -3854,6 +3854,7 @@ dependencies = [
 [[package]]
 name = "grpc-api-types"
 version = "0.1.0"
+source = "git+https://github.com/juspay/connector-service?rev=bb898deefab57b6100ca07754c1427a8035cfe50#bb898deefab57b6100ca07754c1427a8035cfe50"
 source = "git+https://github.com/juspay/connector-service?rev=84493fefd9acfa016d380683a7a8c5e2e32d6b1f#84493fefd9acfa016d380683a7a8c5e2e32d6b1f"
 dependencies = [
  "axum 0.8.4",
