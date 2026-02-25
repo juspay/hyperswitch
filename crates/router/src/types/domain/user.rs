@@ -860,7 +860,7 @@ impl NewUser {
                     })
                     .transpose()?;
                 db.reactivate_user_by_user_id(
-                    &user_from_db.get_user_id(),
+                    user_from_db.get_user_id(),
                     storage_user::ReactivateUserUpdate {
                         new_name: Some(self.get_name().expose()),
                         new_password: hashed_password,
