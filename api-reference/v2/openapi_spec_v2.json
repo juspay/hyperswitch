@@ -5439,7 +5439,7 @@
             ],
             "properties": {
               "Passthrough": {
-                "$ref": "#/components/schemas/PassthroughAddtionalData"
+                "$ref": "#/components/schemas/PassthroughAdditionalData"
               }
             }
           }
@@ -19095,7 +19095,7 @@
           }
         }
       },
-      "PassthroughAddtionalData": {
+      "PassthroughAdditionalData": {
         "type": "object",
         "description": "additional payout method details for passthrough payout method",
         "required": [
@@ -19778,6 +19778,36 @@
               "stripe",
               "adyen"
             ]
+          }
+        }
+      },
+      "PaymentIntentStateMetadata": {
+        "type": "object",
+        "description": "Additional metadata for payment intent state containing refunded and disputed amounts",
+        "properties": {
+          "total_refunded_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "total_disputed_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "post_capture_void": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PostCaptureVoidResponse"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -21464,14 +21494,6 @@
             "type": "string",
             "description": "The return url to which the customer should be redirected to after adding the payment method",
             "nullable": true
-          },
-          "storage_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/StorageType"
-              }
-            ],
-            "nullable": true
           }
         }
       },
@@ -21558,6 +21580,7 @@
           "id",
           "expires_at",
           "client_secret",
+          "storage_type",
           "keep_alive"
         ],
         "properties": {
@@ -21647,12 +21670,7 @@
             "nullable": true
           },
           "storage_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/StorageType"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/StorageType"
           },
           "card_cvc_token_storage": {
             "allOf": [
@@ -22132,7 +22150,8 @@
           "normal",
           "new_mandate",
           "setup_mandate",
-          "recurring_mandate"
+          "recurring_mandate",
+          "installment"
         ]
       },
       "PaymentsCancelRequest": {
@@ -24841,7 +24860,7 @@
             ],
             "properties": {
               "passthrough": {
-                "$ref": "#/components/schemas/PassthroughAddtionalData"
+                "$ref": "#/components/schemas/PassthroughAdditionalData"
               }
             }
           }
@@ -25436,6 +25455,47 @@
           "pending",
           "completed",
           "not_found"
+        ]
+      },
+      "PostCaptureVoidResponse": {
+        "type": "object",
+        "description": "Additional metadata for payment intent state containing refunded and disputed amounts",
+        "required": [
+          "updated_at"
+        ],
+        "properties": {
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PostCaptureVoidStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "connector_reference_id": {
+            "type": "string",
+            "description": "Connector reference id for post capture void",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "Description or message related to the post capture void",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the post capture void was last updated"
+          }
+        }
+      },
+      "PostCaptureVoidStatus": {
+        "type": "string",
+        "description": "The status of a post-capture void operation",
+        "enum": [
+          "succeeded",
+          "pending",
+          "failed"
         ]
       },
       "PresenceOfCustomerDuringPayment": {
@@ -29422,7 +29482,7 @@
           },
           "three_ds_connector": {
             "type": "string",
-            "description": "Prefered 3ds Connector",
+            "description": "Preferred 3ds Connector",
             "nullable": true
           }
         }
@@ -29460,7 +29520,7 @@
               },
               "consume_post_message_for_three_ds_method_completion": {
                 "type": "boolean",
-                "description": "Indicates whethere to wait for Post message after 3DS method data submission"
+                "description": "Indicates whether to wait for Post message after 3DS method data submission"
               }
             }
           }
