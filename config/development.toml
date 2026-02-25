@@ -1524,7 +1524,7 @@ polling_interval = 15 # Polling interval in seconds for configuration updates
 payment_methods_base_url = "http://localhost:8082"
 payment_methods_prefix = "v2"
 
-# Configuration to decide whether to add payout sync process tracker for the following payemnt_method and connector
+# Configuration to decide whether to add payout sync process tracker for the following payout_method and connector
 [payout_sync_process_tracker.supported_payout_methods]
 wallet.connector_list = "paypal"
 
