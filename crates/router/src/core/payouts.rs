@@ -643,9 +643,7 @@ pub async fn payouts_cancel_core(
         .attach_printable("Payout cancellation failed for given Payout request")?;
     }
 
-    Ok(services::ApplicationResponse::Json(
-        response_handler(&state, &platform, &payout_data).await?,
-    ))
+    trigger_webhook_and_handle_response(&state, &platform, &payout_data).await
 }
 
 #[instrument(skip_all)]
