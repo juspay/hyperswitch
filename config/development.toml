@@ -1313,7 +1313,7 @@ forex_enabled = false
 
 [analytics.clickhouse]
 username = "default"
-# password = ""
+password = "Clickhouse@123"
 host = "http://localhost:8123"
 database_name = "default"
 
