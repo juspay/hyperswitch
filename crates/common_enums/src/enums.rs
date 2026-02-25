@@ -2596,6 +2596,27 @@ impl PaymentMethod {
         }
     }
 
+    pub fn supports_installments(&self) -> bool {
+        match self {
+            Self::Card => true,
+            Self::CardRedirect
+            | Self::PayLater
+            | Self::Wallet
+            | Self::BankRedirect
+            | Self::BankTransfer
+            | Self::Crypto
+            | Self::BankDebit
+            | Self::Reward
+            | Self::RealTimePayment
+            | Self::Upi
+            | Self::Voucher
+            | Self::GiftCard
+            | Self::OpenBanking
+            | Self::MobilePayment
+            | Self::NetworkToken => false,
+        }
+    }
+
     pub fn is_additional_payment_method_data_sensitive(&self) -> bool {
         match self {
             Self::BankTransfer | Self::BankRedirect => true,
@@ -2788,6 +2809,7 @@ pub enum PaymentType {
     NewMandate,
     SetupMandate,
     RecurringMandate,
+    Installment,
 }
 
 /// SCA Exemptions types available for authentication

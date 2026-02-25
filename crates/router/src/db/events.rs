@@ -1529,6 +1529,7 @@ mod tests {
             partner_merchant_identifier_details: None,
             payment_method_tokenization_details: None,
             error_details: None,
+            installment_options: None,
             state_metadata: None,
         };
         let content =
