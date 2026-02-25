@@ -2832,7 +2832,7 @@ pub async fn create_encrypted_data<T>(
     key_manager_state: &KeyManagerState,
     key_store: &domain::MerchantKeyStore,
     data: T,
-    table_type: &str,
+    table_name: &str,
 ) -> Result<Encryptable<Secret<serde_json::Value>>, error_stack::Report<StorageError>>
 where
     T: std::fmt::Debug + serde::Serialize,
@@ -2848,7 +2848,7 @@ where
 
     let encrypted_data = domain::types::crypto_operation(
         key_manager_state,
-        table_type,
+        table_name,
         domain::types::CryptoOperation::Encrypt(secret_data),
         identifier.clone(),
         key,
@@ -2856,7 +2856,7 @@ where
     .await
     .and_then(|val| val.try_into_operation())
     .change_context(StorageError::EncryptionError)
-    .attach_printable_lazy(|| format!("Unable to encrypt data for table: {}", table_type))?;
+    .attach_printable_lazy(|| format!("Unable to encrypt data for table: {}", table_name))?;
 
     Ok(encrypted_data)
 }

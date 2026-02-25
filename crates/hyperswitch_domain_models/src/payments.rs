@@ -398,7 +398,7 @@ impl PaymentIntent {
     }
     pub fn get_intent_customer_details(
         &self,
-    ) -> Result<Option<CustomerData>, common_utils::errors::ParsingError> {
+    ) -> CustomResult<Option<CustomerData>, common_utils::errors::ParsingError> {
         self.customer_details
             .as_ref()
             .map(|details| {
@@ -406,7 +406,6 @@ impl PaymentIntent {
                 ValueExt::parse_value::<CustomerData>(decrypted_value, "CustomerData")
             })
             .transpose()
-            .map_err(|report| (*report.current_context()).clone())
     }
     #[cfg(feature = "v1")]
     pub fn get_optional_feature_metadata(
