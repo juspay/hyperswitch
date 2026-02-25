@@ -21,9 +21,11 @@ impl User {
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
-            users_dsl::email
-                .eq(user_email.to_owned())
-                .and(users_dsl::is_active.eq(true)),
+            users_dsl::email.eq(user_email.to_owned()).and(
+                users_dsl::is_active
+                    .is_null()
+                    .or(users_dsl::is_active.eq(true)),
+            ),
         )
         .await
     }
@@ -42,9 +44,11 @@ impl User {
     pub async fn find_active_by_user_id(conn: &PgPooledConn, user_id: &str) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
-            users_dsl::user_id
-                .eq(user_id.to_owned())
-                .and(users_dsl::is_active.eq(true)),
+            users_dsl::user_id.eq(user_id.to_owned()).and(
+                users_dsl::is_active
+                    .is_null()
+                    .or(users_dsl::is_active.eq(true)),
+            ),
         )
         .await
     }
@@ -61,9 +65,11 @@ impl User {
             _,
         >(
             conn,
-            users_dsl::user_id
-                .eq(user_id.to_owned())
-                .and(users_dsl::is_active.eq(true)),
+            users_dsl::user_id.eq(user_id.to_owned()).and(
+                users_dsl::is_active
+                    .is_null()
+                    .or(users_dsl::is_active.eq(true)),
+            ),
             UserUpdateInternal::from(user_update),
         )
         .await
@@ -81,9 +87,11 @@ impl User {
             _,
         >(
             conn,
-            users_dsl::email
-                .eq(user_email.to_owned())
-                .and(users_dsl::is_active.eq(true)),
+            users_dsl::email.eq(user_email.to_owned()).and(
+                users_dsl::is_active
+                    .is_null()
+                    .or(users_dsl::is_active.eq(true)),
+            ),
             UserUpdateInternal::from(user_update),
         )
         .await
@@ -100,9 +108,11 @@ impl User {
             _,
         >(
             conn,
-            users_dsl::user_id
-                .eq_any(user_ids)
-                .and(users_dsl::is_active.eq(true)),
+            users_dsl::user_id.eq_any(user_ids).and(
+                users_dsl::is_active
+                    .is_null()
+                    .or(users_dsl::is_active.eq(true)),
+            ),
             None,
             None,
             None,

@@ -184,7 +184,7 @@ impl UserInterface for MockDb {
             totp_recovery_codes: user_data.totp_recovery_codes,
             last_password_modified_at: user_data.last_password_modified_at,
             lineage_context: user_data.lineage_context,
-            is_active: user_data.is_active,
+            is_active: Some(user_data.is_active),
         };
         users.push(user.clone());
         Ok(user)
@@ -197,7 +197,7 @@ impl UserInterface for MockDb {
         let users = self.users.lock().await;
         users
             .iter()
-            .find(|user| user.email.eq(user_email.get_inner()) && user.is_active)
+            .find(|user| user.email.eq(user_email.get_inner()) && user.is_active.unwrap_or(true))
             .cloned()
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
@@ -231,7 +231,7 @@ impl UserInterface for MockDb {
         let users = self.users.lock().await;
         users
             .iter()
-            .find(|user| user.user_id == user_id && user.is_active)
+            .find(|user| user.user_id == user_id && user.is_active.unwrap_or(true))
             .cloned()
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
@@ -250,7 +250,7 @@ impl UserInterface for MockDb {
 
         let user = users
             .iter_mut()
-            .find(|user| user.user_id == user_id && user.is_active)
+            .find(|user| user.user_id == user_id && user.is_active.unwrap_or(true))
             .ok_or_else(|| {
                 errors::StorageError::ValueNotFound(format!(
                     "No Active user available for user_id = {user_id}"
@@ -306,7 +306,7 @@ impl UserInterface for MockDb {
                 totp_recovery_codes: None,
                 is_verified: false,
                 lineage_context: None,
-                is_active: false,
+                is_active: Some(false),
                 ..user.to_owned()
             },
         };
@@ -323,7 +323,7 @@ impl UserInterface for MockDb {
 
         let user = users
             .iter_mut()
-            .find(|user| user.email.eq(user_email.get_inner()) && user.is_active)
+            .find(|user| user.email.eq(user_email.get_inner()) && user.is_active.unwrap_or(true))
             .ok_or_else(|| {
                 errors::StorageError::ValueNotFound(format!(
                     "No Active user available for user_email = {user_email:?}"
@@ -380,7 +380,7 @@ impl UserInterface for MockDb {
                 totp_recovery_codes: None,
                 is_verified: false,
                 lineage_context: None,
-                is_active: false,
+                is_active: Some(false),
                 ..user.to_owned()
             },
         };
@@ -405,7 +405,7 @@ impl UserInterface for MockDb {
         let last_modified_at = common_utils::date_time::now();
         users
             .iter_mut()
-            .find(|user| user.user_id.eq(user_id) && !user.is_active)
+            .find(|user| user.user_id.eq(user_id) && !user.is_active.unwrap_or(true))
             .map(|user| {
                 *user = storage::User {
                     user_id: user.user_id.clone(),
@@ -423,7 +423,7 @@ impl UserInterface for MockDb {
                     totp_recovery_codes: None,
                     last_password_modified_at: Some(last_modified_at),
                     lineage_context: None,
-                    is_active: true,
+                    is_active: Some(true),
                 };
                 user.to_owned()
             })

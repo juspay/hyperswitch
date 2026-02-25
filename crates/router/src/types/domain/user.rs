@@ -837,7 +837,7 @@ impl NewUser {
         db: &dyn GlobalStorageInterface,
     ) -> UserResult<UserFromStorage> {
         let existing_user = match db.find_user_by_user_email(&self.get_email()).await {
-            Ok(user) => Some(user),
+            Ok(user) => Some(UserFromStorage::from(user)),
             Err(e) => {
                 if e.current_context().is_db_not_found() {
                     None
@@ -847,7 +847,7 @@ impl NewUser {
             }
         };
 
-        if existing_user.as_ref().is_some_and(|user| user.is_active) {
+        if existing_user.as_ref().is_some_and(|user| user.is_active()) {
             return Err(report!(UserErrors::UserExists));
         }
 
@@ -860,7 +860,7 @@ impl NewUser {
                     })
                     .transpose()?;
                 db.reactivate_user_by_user_id(
-                    &user_from_db.user_id,
+                    &user_from_db.get_user_id(),
                     storage_user::ReactivateUserUpdate {
                         new_name: Some(self.get_name().expose()),
                         new_password: hashed_password,
@@ -1297,7 +1297,7 @@ impl UserFromStorage {
     }
 
     pub fn is_active(&self) -> bool {
-        self.0.is_active
+        self.0.is_active.unwrap_or(true)
     }
 
     pub async fn decrypt_and_get_totp_secret(

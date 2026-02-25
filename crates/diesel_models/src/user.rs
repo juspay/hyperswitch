@@ -25,7 +25,7 @@ pub struct User {
     pub totp_recovery_codes: Option<Vec<Secret<String>>>,
     pub last_password_modified_at: Option<PrimitiveDateTime>,
     pub lineage_context: Option<LineageContext>,
-    pub is_active: bool,
+    pub is_active: Option<bool>,
 }
 
 #[derive(
