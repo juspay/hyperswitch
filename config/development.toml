@@ -1210,8 +1210,8 @@ payout_eligibility = true
 [applepay_decrypt_keys]
 apple_pay_ppc = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE"
 apple_pay_ppc_key = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY"
-apple_pay_merchant_cert = "APPLE_PAY_MERCHNAT_CERTIFICATE"
-apple_pay_merchant_cert_key = "APPLE_PAY_MERCHNAT_CERTIFICATE_KEY"
+apple_pay_merchant_cert = "APPLE_PAY_MERCHANT_CERTIFICATE"
+apple_pay_merchant_cert_key = "APPLE_PAY_MERCHANT_CERTIFICATE_KEY"
 
 [paze_decrypt_keys]
 paze_private_key = "PAZE_PRIVATE_KEY"
@@ -1523,4 +1523,3 @@ polling_interval = 15 # Polling interval in seconds for configuration updates
 [micro_services]
 payment_methods_base_url = "http://localhost:8082"
 payment_methods_prefix = "v2"
-
