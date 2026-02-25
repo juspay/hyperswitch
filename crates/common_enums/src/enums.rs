@@ -2493,7 +2493,7 @@ impl PaymentMethodType {
             Self::RedPagos => "RedPagos",
             Self::SamsungPay => "Samsung Pay",
             Self::Sepa => "SEPA Direct Debit",
-            Self::SepaGuarenteedDebit => "SEPA Guarenteed Direct Debit",
+            Self::SepaGuarenteedDebit => "SEPA Guaranteed Direct Debit",
             Self::SepaBankTransfer => "SEPA Bank Transfer",
             Self::Sofort => "Sofort",
             Self::Skrill => "Skrill",
@@ -2590,6 +2590,27 @@ impl PaymentMethod {
             | Self::RealTimePayment
             | Self::Upi
             | Self::Voucher
+            | Self::OpenBanking
+            | Self::MobilePayment
+            | Self::NetworkToken => false,
+        }
+    }
+
+    pub fn supports_installments(&self) -> bool {
+        match self {
+            Self::Card => true,
+            Self::CardRedirect
+            | Self::PayLater
+            | Self::Wallet
+            | Self::BankRedirect
+            | Self::BankTransfer
+            | Self::Crypto
+            | Self::BankDebit
+            | Self::Reward
+            | Self::RealTimePayment
+            | Self::Upi
+            | Self::Voucher
+            | Self::GiftCard
             | Self::OpenBanking
             | Self::MobilePayment
             | Self::NetworkToken => false,
@@ -2788,6 +2809,7 @@ pub enum PaymentType {
     NewMandate,
     SetupMandate,
     RecurringMandate,
+    Installment,
 }
 
 /// SCA Exemptions types available for authentication
@@ -9985,6 +10007,12 @@ pub enum ConnectorIntegrationStatus {
 pub enum FeatureStatus {
     NotSupported,
     Supported,
+}
+
+impl FeatureStatus {
+    pub fn is_supported(&self) -> bool {
+        matches!(self, Self::Supported)
+    }
 }
 
 /// The type of tokenization to use for the payment method
