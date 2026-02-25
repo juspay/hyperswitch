@@ -22150,7 +22150,8 @@
           "normal",
           "new_mandate",
           "setup_mandate",
-          "recurring_mandate"
+          "recurring_mandate",
+          "installment"
         ]
       },
       "PaymentsCancelRequest": {
