@@ -385,7 +385,7 @@ impl From<Relay> for api_models::relay::RelayResponse {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case", untagged)]
 pub enum RelayData {
     Refund(RelayRefundData),
     Capture(RelayCaptureData),
@@ -394,6 +394,57 @@ pub enum RelayData {
 }
 
 impl RelayData {
+    pub fn parse_relay_data(
+        value: Option<pii::SecretSerdeValue>,
+        relay_type: enums::RelayType,
+    ) -> CustomResult<Option<Self>, ValidationError> {
+        match value {
+            Some(data) => match relay_type {
+                enums::RelayType::Capture => {
+                    let relay_capture_data: RelayCaptureData = serde_json::from_value(
+                        data.expose(),
+                    )
+                    .change_context(ValidationError::InvalidValue {
+                        message: "Failed while deserializing RelayCaptureData".to_string(),
+                    })?;
+
+                    Ok(Some(Self::Capture(relay_capture_data)))
+                }
+                enums::RelayType::Refund => {
+                    let relay_refund_data: RelayRefundData = serde_json::from_value(data.expose())
+                        .change_context(ValidationError::InvalidValue {
+                            message: "Failed while deserializing RelayRefundData".to_string(),
+                        })?;
+
+                    Ok(Some(Self::Refund(relay_refund_data)))
+                }
+                enums::RelayType::IncrementalAuthorization => {
+                    let relay_incremental_auth_data: RelayIncrementalAuthorizationData =
+                        serde_json::from_value(data.expose()).change_context(
+                            ValidationError::InvalidValue {
+                                message:
+                                    "Failed while deserializing RelayIncrementalAuthorizationData"
+                                        .to_string(),
+                            },
+                        )?;
+
+                    Ok(Some(Self::IncrementalAuthorization(
+                        relay_incremental_auth_data,
+                    )))
+                }
+                enums::RelayType::Void => {
+                    let relay_void_data: RelayVoidData = serde_json::from_value(data.expose())
+                        .change_context(ValidationError::InvalidValue {
+                            message: "Failed while deserializing RelayVoidData".to_string(),
+                        })?;
+
+                    Ok(Some(Self::Void(relay_void_data)))
+                }
+            },
+            None => Ok(None),
+        }
+    }
+
     pub fn get_refund_data(&self) -> CustomResult<RelayRefundData, ApiErrorResponse> {
         match self.clone() {
             Self::Refund(refund_data) => Ok(refund_data),
@@ -554,16 +605,7 @@ impl super::behaviour::Conversion for Relay {
             profile_id: item.profile_id,
             merchant_id: item.merchant_id,
             relay_type: item.relay_type,
-            request_data: item
-                .request_data
-                .map(|data| {
-                    serde_json::from_value(data.expose()).change_context(
-                        ValidationError::InvalidValue {
-                            message: "Failed while decrypting business profile data".to_string(),
-                        },
-                    )
-                })
-                .transpose()?,
+            request_data: RelayData::parse_relay_data(item.request_data, item.relay_type)?,
             status: item.status,
             connector_reference_id: item.connector_reference_id,
             error_code: item.error_code,
