@@ -1697,6 +1697,7 @@ pub async fn create_payment_method_in_modular_service(
     payment_method_data: domain::PaymentMethodData,
     billing_address: Option<hyperswitch_domain_models::address::Address>,
     customer_id: id_type::CustomerId,
+    is_network_tokenization_enabled: bool,
 ) -> CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
     let payment_method_request = CreatePaymentMethodV1Request {
         merchant_id: provider_merchant_id.clone(),
@@ -1706,7 +1707,11 @@ pub async fn create_payment_method_in_modular_service(
         customer_id,
         payment_method_data,
         billing: billing_address,
-        network_tokenization: None,
+        network_tokenization: is_network_tokenization_enabled.then_some(
+            common_types::payment_methods::NetworkTokenization {
+                enable: common_enums::NetworkTokenizationToggle::Enable,
+            },
+        ),
         storage_type: Some(common_enums::StorageType::Persistent),
         modular_service_prefix: state.conf.micro_services.payment_methods_prefix.0.clone(),
     };
