@@ -136,12 +136,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsStartReq
             feature_config.is_payment_method_modular_allowed,
         ) {
             (Some(token), false) => Some(
-                helpers::retrieve_payment_token_data(
-                    state,
-                    token,
-                    payment_attempt.payment_method,
-                )
-                .await?,
+                helpers::retrieve_payment_token_data(state, token, payment_attempt.payment_method)
+                    .await?,
             ),
             _ => {
                 logger::debug!("skipping token data retrieval in payment start");
