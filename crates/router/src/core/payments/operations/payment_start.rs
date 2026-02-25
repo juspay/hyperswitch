@@ -139,7 +139,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsStartReq
                 helpers::retrieve_payment_token_data(
                     state,
                     token,
-                    payment_attempt.payment_method.clone(),
+                    payment_attempt.payment_method,
                 )
                 .await?,
             ),
