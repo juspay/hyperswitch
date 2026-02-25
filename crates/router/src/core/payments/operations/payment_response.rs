@@ -123,6 +123,10 @@ where
                                 logger::error!("Missing required Param merchant_connector_id");
                                 ::payment_methods::errors::ModularPaymentMethodError::RetrieveFailed
                             })?;
+                            let connector_customer_id = resp
+                                .connector_customer
+                                .clone()
+                                .or_else(|| payment_data.get_connector_customer_id());
                             update_connector_mandate_details_for_the_flow(
                                 mandate_reference.connector_mandate_id.clone(),
                                 mandate_reference.mandate_metadata.clone(),
@@ -153,6 +157,7 @@ where
                                             .payment_attempt
                                             .currency,
                                         metadata: mandate_reference.mandate_metadata,
+                                        connector_customer_id: connector_customer_id.clone(),
                                         token: masking::Secret::new(connector_mandate_id),
                                     }
                                 })
@@ -3621,6 +3626,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
                         original_payment_authorized_amount: Some(net_amount),
                         original_payment_authorized_currency: Some(currency),
                         metadata: None,
+                        connector_customer_id: None,
                         token: masking::Secret::new(token),
                         token_type: common_enums::TokenizationType::MultiUse,
                     };

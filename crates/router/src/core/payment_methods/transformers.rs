@@ -1073,6 +1073,7 @@ impl transformers::ForeignFrom<api_models::payment_methods::ConnectorTokenDetail
             original_payment_authorized_amount,
             original_payment_authorized_currency,
             metadata,
+            connector_customer_id,
             token,
             ..
         } = item;
@@ -1086,6 +1087,7 @@ impl transformers::ForeignFrom<api_models::payment_methods::ConnectorTokenDetail
             metadata,
             connector_token_status: status,
             connector_token_request_reference_id,
+            connector_customer_id,
         }
     }
 }
@@ -1108,6 +1110,7 @@ impl
             original_payment_authorized_amount,
             original_payment_authorized_currency,
             metadata,
+            connector_customer_id,
             connector_token,
             connector_token_status,
             ..
@@ -1120,6 +1123,7 @@ impl
             original_payment_authorized_amount,
             original_payment_authorized_currency,
             metadata,
+            connector_customer_id,
             token: Secret::new(connector_token),
             // Token that is derived from payments mandate reference will always be multi use token
             token_type: common_enums::TokenizationType::MultiUse,
@@ -1140,6 +1144,7 @@ impl transformers::ForeignFrom<&payment_method_data::SingleUsePaymentMethodToken
             original_payment_authorized_amount: None,
             original_payment_authorized_currency: None,
             metadata: None,
+            connector_customer_id: None,
             token: token.clone().token,
         }
     }
@@ -1235,7 +1240,7 @@ impl DomainPaymentMethodWrapper {
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt payment method billing address")?;
-        let _connector_mandate_details = response
+        let connector_mandate_details = response
             .connector_tokens
             .as_ref()
             .map(|connector_tokens| {
@@ -1267,7 +1272,7 @@ impl DomainPaymentMethodWrapper {
                                 connector_mandate_request_reference_id: token_detail
                                     .connector_token_request_reference_id
                                     .clone(),
-                                connector_customer_id: None,
+                                connector_customer_id: token_detail.connector_customer_id.clone(),
                             },
                         )
                     })
@@ -1323,10 +1328,10 @@ impl DomainPaymentMethodWrapper {
             last_used_at: response
                 .last_used_at
                 .unwrap_or_else(common_utils::date_time::now),
-            connector_mandate_details: None,
+            connector_mandate_details,
             customer_acceptance: None,
             status: common_enums::PaymentMethodStatus::Active, //should be sent from PM service
-            network_transaction_id: None,
+            network_transaction_id: response.network_transaction_id.clone(),
             client_secret: None,
             payment_method_billing_address: encrypted_payment_method_billing_address,
             updated_by: None,
@@ -1693,7 +1698,7 @@ pub async fn create_payment_method_in_modular_service(
     processor_merchant_id: &id_type::MerchantId,
     profile_id: &id_type::ProfileId,
     payment_method: common_enums::PaymentMethod,
-    payment_method_type: common_enums::PaymentMethodType,
+    payment_method_type: Option<common_enums::PaymentMethodType>,
     payment_method_data: domain::PaymentMethodData,
     billing_address: Option<hyperswitch_domain_models::address::Address>,
     customer_id: id_type::CustomerId,
