@@ -213,6 +213,7 @@ pub struct ApiPayload {
     pub card_data: Secret<String>, //encrypted card data
     pub order_data: OrderData,
     pub should_send_token: bool,
+    pub key_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
