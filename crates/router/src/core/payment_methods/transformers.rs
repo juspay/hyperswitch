@@ -11,8 +11,6 @@ use common_utils::{
     pii::{Email, SecretSerdeValue},
     request::RequestContent,
 };
-#[cfg(feature = "v2")]
-use diesel_models::schema::mandate::network_transaction_id;
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{payment_method_data, sdk_auth::SdkAuthorization};
