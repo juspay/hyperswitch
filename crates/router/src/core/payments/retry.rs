@@ -297,9 +297,13 @@ pub async fn get_retries(
 ) -> Option<i32> {
     match retries {
         Some(retries) => Some(retries),
-        None => get_merchant_max_auto_retries_enabled(state.store.as_ref(), merchant_id)
-            .await
-            .or(profile.max_auto_retries_enabled.map(i32::from)),
+        None => {
+            if let Some(value) = profile.max_auto_retries_enabled {
+                Some(i32::from(value))
+            } else {
+                get_merchant_max_auto_retries_enabled(state.store.as_ref(), merchant_id).await
+            }
+        }
     }
 }
 
@@ -893,9 +897,7 @@ pub async fn config_should_call_gsm(
     merchant_id: &common_utils::id_type::MerchantId,
     profile: &domain::Profile,
 ) -> bool {
-    let merchant_config_gsm = get_merchant_config_for_gsm(db, merchant_id).await;
-    let profile_config_gsm = profile.is_auto_retries_enabled;
-    merchant_config_gsm || profile_config_gsm
+    profile.is_auto_retries_enabled || get_merchant_config_for_gsm(db, merchant_id).await
 }
 
 pub trait GsmValidation<F: Send + Clone + Sync, FData: Send + Sync, Resp> {
