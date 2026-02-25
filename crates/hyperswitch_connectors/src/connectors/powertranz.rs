@@ -53,6 +53,7 @@ use transformers as powertranz;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
+    utils as connector_utils,
     utils::{
         convert_amount, PaymentsAuthorizeRequestData as _,
         PaymentsCompleteAuthorizeRequestData as _,
@@ -266,13 +267,29 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .parse_struct("Powertranz PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        let integrity_object = match (response.total_amount, response.currency_code.as_ref()) {
+            (Some(amount), Some(currency)) => {
+                Some(connector_utils::get_authorise_integrity_object(
+                    self.amount_convertor,
+                    amount,
+                    currency.clone(),
+                )?)
+            }
+            _ => None,
+        };
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        });
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = integrity_object;
+            router_data
         })
     }
 
@@ -444,13 +461,29 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             .parse_struct("Powertranz PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        let integrity_object = match (response.total_amount, response.currency_code.as_ref()) {
+            (Some(amount), Some(currency)) => {
+                Some(connector_utils::get_capture_integrity_object(
+                    self.amount_convertor,
+                    Some(amount),
+                    currency.clone(),
+                )?)
+            }
+            _ => None,
+        };
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        });
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = integrity_object;
+            router_data
         })
     }
 
@@ -598,13 +631,29 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Powertr
             .parse_struct("powertranz RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        let integrity_object = match (response.total_amount, response.currency_code.as_ref()) {
+            (Some(amount), Some(currency)) => {
+                Some(connector_utils::get_refund_integrity_object(
+                    self.amount_convertor,
+                    amount,
+                    currency.clone(),
+                )?)
+            }
+            _ => None,
+        };
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        });
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = integrity_object;
+            router_data
         })
     }
 
