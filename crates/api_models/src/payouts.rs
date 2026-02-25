@@ -405,7 +405,7 @@ pub struct Interac {
 pub struct OpenBankingUk {
     /// Account holder name
     #[schema(value_type = String, example = "John Doe")]
-    pub account_holder_name: String,
+    pub account_holder_name: Secret<String>,
     /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
     #[schema(value_type = String, example = "DE89370400440532013000")]
     pub iban: Secret<String>,

@@ -582,7 +582,11 @@ impl TryFrom<&LoonioRouterData<&PayoutsRouterData<PoFulfill>>> for LoonioPayoutF
                     webhook_url: item.router_data.request.webhook_url.clone(),
                 })
             }
-            _ => Err(errors::ConnectorError::NotSupported {
+            PayoutMethodData::Card(_)
+            | PayoutMethodData::Bank(_)
+            | PayoutMethodData::Wallet(_)
+            | PayoutMethodData::BankRedirect(_)
+            | PayoutMethodData::Passthrough(_) => Err(errors::ConnectorError::NotSupported {
                 message: "Payment Method Not Supported".to_string(),
                 connector: "Loonio",
             })?,

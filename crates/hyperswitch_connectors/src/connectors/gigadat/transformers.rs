@@ -499,7 +499,11 @@ impl TryFrom<&GigadatRouterData<&PayoutsRouterData<PoQuote>>> for GigadatPayoutQ
                     sandbox,
                 })
             }
-            _ => Err(errors::ConnectorError::NotSupported {
+            PayoutMethodData::Card(_)
+            | PayoutMethodData::BankRedirect(_)
+            | PayoutMethodData::Bank(_)
+            | PayoutMethodData::Wallet(_)
+            | PayoutMethodData::Passthrough(_) => Err(errors::ConnectorError::NotSupported {
                 message: "Payment Method Not Supported".to_string(),
                 connector: "Gigadat",
             })?,

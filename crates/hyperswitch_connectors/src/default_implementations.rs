@@ -3349,7 +3349,6 @@ default_imp_for_webhook_source_verification!(
     connectors::Thunes,
     connectors::Tokenex,
     connectors::Tokenio,
-    // connectors::Truelayer,
     connectors::Trustpay,
     connectors::Trustpayments,
     connectors::Tsys,

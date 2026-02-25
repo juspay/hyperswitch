@@ -1121,7 +1121,7 @@ impl Vaultable for api::PassthroughPayout {
 pub struct TokenizedBankRedirectSensitiveValues {
     pub email: Option<Email>,
     pub iban: Option<masking::Secret<String>>,
-    pub account_holder_name: Option<String>,
+    pub account_holder_name: Option<masking::Secret<String>>,
     pub bank_redirect_type: PaymentMethodType,
 }
 

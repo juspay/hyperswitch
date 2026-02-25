@@ -377,7 +377,7 @@ impl TryFrom<&TruelayerRouterData<&PayoutsRouterData<PoFulfill>>> for TruelayerP
                         reference: normalize_payment_id(
                             item.router_data.request.payout_id.get_string_repr(),
                         ),
-                        account_holder_name: Secret::new(open_banking_uk_data.account_holder_name),
+                        account_holder_name: open_banking_uk_data.account_holder_name,
                         account_identifier: TruelayerAccountIdentifier {
                             _type: "iban".to_string(),
                             iban: open_banking_uk_data.iban,
@@ -802,7 +802,7 @@ impl
         ec_key
             .check_key()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        let webhook_uri = item.data.request.webhook_uri.clone();
+        let webhook_uri = item.data.request.webhook_uri.to_string();
 
         let tl_headers_str = jws_header.tl_headers.unwrap_or_default();
         let mut payload: Vec<u8> =
