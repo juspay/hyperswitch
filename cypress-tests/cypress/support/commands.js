@@ -2072,7 +2072,7 @@ Cypress.Commands.add(
           expect(merchantConnectorId, "connector_id").to.equal(
             response.body.merchant_connector_id
           );
-          softExpect(globalState, name, ()=> expect(response.body.customer, "customer").to.not.be.empty, `Customer object is empty in response`);
+          softExpect(globalState, name, ()=> expect(response.body.customer, "customer").to.not.be.empty);
           expect(response.body.billing, "billing_address").to.not.be.empty;
           expect(response.body.profile_id, "profile_id").to.equal(profileId).and
             .to.not.be.null;
@@ -2092,13 +2092,13 @@ Cypress.Commands.add(
                 softExpect(globalState, name, () =>
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
-                ), `Mismatch in field ${key} for three_ds and automatic capture method`);
+                ));
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
                 softExpect(globalState, name, () => expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
-              ), `Mismatch in field ${key} for no_three_ds and automatic capture method`);
+              ));
                 if (
                   response.body.setup_future_usage === "off_session" &&
                   response.body.status === "succeeded"

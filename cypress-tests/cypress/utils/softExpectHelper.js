@@ -3,16 +3,15 @@
 
 /**
  * Wraps an assertion in try-catch and stores failures in globalState
- * Usage: softExpect(globalState, () => expect(actual).to.equal(expected), "description")
+ * Usage: softExpect(globalState, () => expect(actual).to.equal(expected))
  */
-export function softExpect(globalState, name, assertionFn, description = "") {
+export function softExpect(globalState, name, assertionFn) {
     try {
       assertionFn();
     } catch (error) {
       // Initialize errors array if not exists
       const errors = globalState.get("softAssertErrors") || [];
       errors.push({
-        description,
         message: error.message,
         name,
         actual: error.actual,
@@ -21,7 +20,7 @@ export function softExpect(globalState, name, assertionFn, description = "") {
       globalState.set("softAssertErrors", errors);
       
       // Log the failure but don't throw
-      cy.task("cli_log", `⚠️ SOFT ASSERT FAILED: [${description}] ${error.message}`);
+      cy.task("cli_log", `${RED} EXPECT FAILED: ${error.message} ${RESET}`);
     }
   }
   
@@ -46,7 +45,7 @@ export function softExpect(globalState, name, assertionFn, description = "") {
         ...errors.map((e, i) => {
           const diffBlock =
             e.actual !== undefined && e.expected !== undefined
-              ? buildDiff(e.actual, e.expected, e.description)
+              ? buildDiff(e.actual, e.expected)
               : "";
       
           return [
@@ -68,7 +67,7 @@ export function softExpect(globalState, name, assertionFn, description = "") {
   const RED = "\x1b[31m";
   const RESET = "\x1b[0m";
   
-  function buildDiff(actual, expected, label = "") {
+  function buildDiff(actual, expected) {
     const actualLines = actual.trim().split("\n");
     const expectedLines = expected.trim().split("\n");
   
@@ -86,11 +85,10 @@ export function softExpect(globalState, name, assertionFn, description = "") {
     }
   
     return [
-      label ? `      ${label}` : "",
      `      ${GREEN}+ expected${RESET} - actual`,
       "",
       ...diffLines,
     ]
-      .filter((line, i) => i !== 0 || label)
+      // .filter((line, i) => i !== 0 || label)
       .join("\n");
   }
