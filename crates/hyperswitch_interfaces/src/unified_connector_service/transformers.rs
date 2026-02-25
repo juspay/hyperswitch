@@ -17,6 +17,7 @@ use crate::{
     helpers::{ForeignFrom, ForeignTryFrom},
     unified_connector_service::payments_grpc,
 };
+
 /// Unified Connector Service error variants
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum UnifiedConnectorServiceError {
