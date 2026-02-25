@@ -1032,7 +1032,8 @@ impl Vaultable for api::BankRedirectPayout {
         let bank_redirect = match value1.bank_redirect_type {
             PaymentMethodType::Interac => match value1.email {
                 Some(email) => Self::Interac(api_models::payouts::Interac { email }),
-                _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
+                _ => Err(errors::VaultError::ResponseDeserializationFailed)
+                    .attach_printable("Failed to deserialize into Interac")?,
             },
             PaymentMethodType::OpenBankingUk => match (value1.account_holder_name, value1.iban) {
                 (Some(account_holder_name), Some(iban)) => {
@@ -1041,7 +1042,8 @@ impl Vaultable for api::BankRedirectPayout {
                         iban,
                     })
                 }
-                _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
+                _ => Err(errors::VaultError::ResponseDeserializationFailed)
+                    .attach_printable("Failed to deserialize into OpenBankingUk")?,
             },
             _ => Err(errors::VaultError::PayoutMethodNotSupported)
                 .attach_printable("Payout method not supported")?,
