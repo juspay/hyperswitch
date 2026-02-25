@@ -554,8 +554,8 @@ we_chat_pay = { country = "CN", currency = "CNY,AUD,CAD,EUR,GBP,HKD,JPY,SGD,USD,
 ali_pay = {country = "CN", currency = "AUD,CAD,CNY,EUR,GBP,HKD,JPY,MYR,NZD,SGD,USD"}
 
 [pm_filters.cybersource]
-credit = { currency = "USD,GBP,EUR,PLN,SEK,XOF,CAD,KWD" }
-debit = { currency = "USD,GBP,EUR,PLN,SEK,XOF,CAD,KWD" }
+credit = { currency = "USD,GBP,EUR,PLN,SEK,XOF,CAD,KWD,QAR" }
+debit = { currency = "USD,GBP,EUR,PLN,SEK,XOF,CAD,KWD,QAR" }
 apple_pay = { currency = "ARS, CAD, CLP, COP, CNY, EUR, HKD, KWD, MYR, MXN, NZD, PEN, QAR, SAR, SGD, ZAR, UAH, GBP, AED, USD, PLN, SEK" }
 google_pay = { currency = "ARS, AUD, CAD, CLP, COP, EUR, HKD, INR, KWD, MYR, MXN, NZD, PEN, QAR, SAR, SGD, ZAR, UAH, AED, GBP, USD, PLN, SEK" }
 samsung_pay = { currency = "USD,GBP,EUR,SEK" }
