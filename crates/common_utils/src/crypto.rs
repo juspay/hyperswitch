@@ -534,7 +534,7 @@ impl VerifySignature for RsaSha256 {
 
         let verifying_key = rsa::pkcs1v15::VerifyingKey::<rsa::sha2::Sha256>::new(rsa_public_key);
 
-        // transfrom the signature
+        // transform the signature
         let decoded_signature = BASE64_ENGINE
             .decode(signature)
             .change_context(errors::CryptoError::SignatureVerificationFailed)
