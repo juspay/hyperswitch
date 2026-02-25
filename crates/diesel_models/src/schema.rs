@@ -1253,6 +1253,7 @@ diesel::table! {
         tokenization -> Nullable<Varchar>,
         partner_merchant_identifier_details -> Nullable<Jsonb>,
         state_metadata -> Nullable<Jsonb>,
+        installment_options -> Nullable<Jsonb>,
     }
 }
 
