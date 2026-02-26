@@ -46,15 +46,15 @@ impl From<&crate::payments::PaymentListFilterConstraints> for SearchFilters {
             payment_method_type: constraints
                 .payment_method_type
                 .as_ref()
-                .map(|pmt| convert_to_strings(pmt.clone())),
+                .map(|payment_method_type| convert_to_strings(payment_method_type.clone())),
             authentication_type: constraints
                 .authentication_type
                 .as_ref()
-                .map(|at| convert_to_strings(at.clone())),
+                .map(|authentication_type| convert_to_strings(authentication_type.clone())),
             card_network: constraints
                 .card_network
                 .as_ref()
-                .map(|cn| convert_to_strings(cn.clone())),
+                .map(|card_network| convert_to_strings(card_network.clone())),
             connector: constraints
                 .connector
                 .as_ref()
@@ -62,7 +62,7 @@ impl From<&crate::payments::PaymentListFilterConstraints> for SearchFilters {
             card_discovery: constraints
                 .card_discovery
                 .as_ref()
-                .map(|cd| convert_to_strings(cd.clone())),
+                .map(|card_discovery| convert_to_strings(card_discovery.clone())),
             customer_id: constraints
                 .customer_id
                 .as_ref()
