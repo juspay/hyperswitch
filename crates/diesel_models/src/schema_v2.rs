@@ -348,6 +348,7 @@ diesel::table! {
         error_reason -> Nullable<Varchar>,
         tax_amount -> Nullable<Int8>,
         installment_interest -> Nullable<Int8>,
+        installment_data -> Nullable<Jsonb>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
         #[max_length = 64]

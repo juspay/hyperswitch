@@ -1553,6 +1553,7 @@ impl PaymentCreate {
                 encrypted_payment_method_data: None,
                 error_details: None,
                 retry_type: None,
+                installment_data: None,
             },
             additional_pm_data,
 

@@ -1420,6 +1420,8 @@ pub struct PaymentAttempt {
     pub error_details: Option<PaymentAttemptErrorDetails>,
     /// Indicates the type of retry for this payment attempt (None for initial attempt)
     pub retry_type: Option<storage_enums::RetryType>,
+    /// Installment data selected by the customer (number of installments and billing frequency)
+    pub installment_data: Option<common_types::payments::InstallmentData>,
 }
 
 #[cfg(feature = "v1")]
@@ -1922,6 +1924,7 @@ pub enum PaymentAttemptUpdate {
         client_source: Option<String>,
         client_version: Option<String>,
         customer_acceptance: Option<pii::SecretSerdeValue>,
+        installment_data: Option<common_types::payments::InstallmentData>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
         tokenization: Option<common_enums::Tokenization>,
         card_discovery: Option<common_enums::CardDiscovery>,
@@ -2231,6 +2234,7 @@ impl PaymentAttemptUpdate {
                 client_source,
                 client_version,
                 customer_acceptance,
+                installment_data,
                 connector_mandate_detail,
                 tokenization,
                 card_discovery,
@@ -2272,6 +2276,7 @@ impl PaymentAttemptUpdate {
                 shipping_cost: net_amount.get_shipping_cost(),
                 order_tax_amount: net_amount.get_order_tax_amount(),
                 installment_interest: net_amount.get_installment_interest(),
+                installment_data,
                 connector_mandate_detail,
                 tokenization,
                 card_discovery,
@@ -2852,6 +2857,7 @@ impl behaviour::Conversion for PaymentAttempt {
             order_tax_amount: self.net_amount.get_order_tax_amount(),
             shipping_cost: self.net_amount.get_shipping_cost(),
             installment_interest: self.net_amount.get_installment_interest(),
+            installment_data: self.installment_data,
             connector_mandate_detail: self.connector_mandate_detail,
             tokenization: self.tokenization,
             request_extended_authorization: self.request_extended_authorization,
@@ -3007,6 +3013,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 encrypted_payment_method_data,
                 error_details: storage_model.error_details.map(Into::into),
                 retry_type: storage_model.retry_type,
+                installment_data: storage_model.installment_data,
             })
         }
         .await
@@ -3107,6 +3114,7 @@ impl behaviour::Conversion for PaymentAttempt {
             encrypted_payment_method_data: self.encrypted_payment_method_data.map(Encryption::from),
             error_details: self.error_details.map(Into::into),
             retry_type: self.retry_type,
+            installment_data: self.installment_data,
         })
     }
 }

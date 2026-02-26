@@ -1408,7 +1408,18 @@ pub struct InstallmentOptions(pub Vec<InstallmentOption>);
 impl_to_sql_from_sql_json!(InstallmentOptions);
 
 /// Installment selection made by the customer during payment confirmation.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq)]
+#[derive(
+    Debug,
+    Clone,
+    serde::Serialize,
+    serde::Deserialize,
+    ToSchema,
+    PartialEq,
+    Eq,
+    FromSqlRow,
+    AsExpression,
+)]
+#[diesel(sql_type = Jsonb)]
 pub struct InstallmentData {
     /// Number of installments chosen by the customer
     #[schema(value_type = u8)]
@@ -1416,6 +1427,7 @@ pub struct InstallmentData {
     /// Billing frequency for the chosen installment plan
     pub billing_frequency: BillingFrequency,
 }
+impl_to_sql_from_sql_json!(InstallmentData);
 
 #[derive(
     Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,

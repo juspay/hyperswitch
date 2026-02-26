@@ -295,6 +295,7 @@ pub struct PaymentAttempt {
     /// Indicates the type of retry for this payment attempt (None for initial attempt)
     pub retry_type: Option<storage_enums::RetryType>,
     pub installment_interest: Option<MinorUnit>,
+    pub installment_data: Option<common_types::payments::InstallmentData>,
 }
 
 #[cfg(feature = "v1")]
@@ -541,6 +542,7 @@ pub struct PaymentAttemptNew {
     /// Indicates the type of retry for this payment attempt (None for initial attempt)
     pub retry_type: Option<storage_enums::RetryType>,
     pub installment_interest: Option<MinorUnit>,
+    pub installment_data: Option<common_types::payments::InstallmentData>,
 }
 
 #[cfg(feature = "v1")]
@@ -617,6 +619,7 @@ pub enum PaymentAttemptUpdate {
         shipping_cost: Option<MinorUnit>,
         order_tax_amount: Option<MinorUnit>,
         installment_interest: Option<MinorUnit>,
+        installment_data: Option<common_types::payments::InstallmentData>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
         tokenization: Option<common_enums::Tokenization>,
         card_discovery: Option<storage_enums::CardDiscovery>,
@@ -1199,6 +1202,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
     pub installment_interest: Option<MinorUnit>,
+    pub installment_data: Option<common_types::payments::InstallmentData>,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
     pub processor_transaction_data: Option<String>,
     pub card_discovery: Option<common_enums::CardDiscovery>,
@@ -1421,6 +1425,7 @@ impl PaymentAttemptUpdate {
             authorized_amount,
             error_details,
             installment_interest,
+            installment_data,
         } = PaymentAttemptUpdateInternal::from(self).populate_derived_fields(&source);
         PaymentAttempt {
             amount: amount.unwrap_or(source.amount),
@@ -1478,6 +1483,7 @@ impl PaymentAttemptUpdate {
             shipping_cost: shipping_cost.or(source.shipping_cost),
             order_tax_amount: order_tax_amount.or(source.order_tax_amount),
             installment_interest: installment_interest.or(source.installment_interest),
+            installment_data: installment_data.or(source.installment_data),
             processor_transaction_data: processor_transaction_data
                 .or(source.processor_transaction_data),
             connector_mandate_detail: connector_mandate_detail.or(source.connector_mandate_detail),
@@ -2868,6 +2874,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 request_extended_authorization: None,
                 authorized_amount: None,
                 installment_interest: None,
+                installment_data: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
             },
@@ -2943,6 +2950,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 request_extended_authorization: None,
                 authorized_amount: None,
                 installment_interest: None,
+                installment_data: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
             },
@@ -2979,6 +2987,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 shipping_cost,
                 order_tax_amount,
                 installment_interest,
+                installment_data,
                 connector_mandate_detail,
                 tokenization,
                 card_discovery,
@@ -3056,6 +3065,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 request_extended_authorization,
                 authorized_amount: None,
                 installment_interest,
+                installment_data,
                 encrypted_payment_method_data: None,
                 error_details: None,
             },
@@ -3134,6 +3144,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encrypted_payment_method_data: None,
                 error_details: None,
                 installment_interest: None,
+                installment_data: None,
             },
             PaymentAttemptUpdate::RejectUpdate {
                 status,
@@ -3211,6 +3222,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encrypted_payment_method_data: None,
                 error_details: None,
                 installment_interest: None,
+                installment_data: None,
             },
             PaymentAttemptUpdate::BlocklistUpdate {
                 status,
@@ -3288,6 +3300,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encrypted_payment_method_data: None,
                 error_details: None,
                 installment_interest: None,
+                installment_data: None,
             },
             PaymentAttemptUpdate::ConnectorMandateDetailUpdate {
                 connector_mandate_detail,
@@ -3364,6 +3377,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encrypted_payment_method_data: None,
                 error_details: None,
                 installment_interest: None,
+                installment_data: None,
             },
             PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
                 payment_method_id,
@@ -3439,6 +3453,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encrypted_payment_method_data: None,
                 error_details: None,
                 installment_interest: None,
+                installment_data: None,
             },
             PaymentAttemptUpdate::ResponseUpdate {
                 status,
@@ -3550,6 +3565,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     encrypted_payment_method_data,
                     error_details,
                     installment_interest: None,
+                    installment_data: None,
                 }
             }
             PaymentAttemptUpdate::ErrorUpdate {
@@ -3647,6 +3663,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     request_extended_authorization: None,
                     authorized_amount: None,
                     installment_interest: None,
+                    installment_data: None,
                     encrypted_payment_method_data,
                     error_details,
                 }
@@ -3720,6 +3737,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 request_extended_authorization: None,
                 authorized_amount: None,
                 installment_interest: None,
+                installment_data: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
             },
@@ -3803,6 +3821,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 request_extended_authorization: None,
                 authorized_amount: None,
                 installment_interest: None,
+                installment_data: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
             },
@@ -3893,6 +3912,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     request_extended_authorization: None,
                     authorized_amount: None,
                     installment_interest: None,
+                    installment_data: None,
                     encrypted_payment_method_data: None,
                     error_details,
                 }
@@ -3980,6 +4000,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     request_extended_authorization: None,
                     authorized_amount: None,
                     installment_interest: None,
+                    installment_data: None,
                     encrypted_payment_method_data: None,
                     error_details: None,
                 }
@@ -4057,6 +4078,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 request_extended_authorization: None,
                 authorized_amount: None,
                 installment_interest: None,
+                installment_data: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
             },
@@ -4133,6 +4155,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 request_extended_authorization: None,
                 authorized_amount: None,
                 installment_interest: None,
+                installment_data: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
             },
@@ -4218,6 +4241,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     request_extended_authorization: None,
                     authorized_amount: None,
                     installment_interest: None,
+                    installment_data: None,
                     encrypted_payment_method_data: None,
                     error_details: None,
                 }
@@ -4294,6 +4318,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 request_extended_authorization: None,
                 authorized_amount: None,
                 installment_interest: None,
+                installment_data: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
             },
@@ -4372,6 +4397,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 request_extended_authorization: None,
                 authorized_amount: None,
                 installment_interest: None,
+                installment_data: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
             },
@@ -4460,6 +4486,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     request_extended_authorization: None,
                     authorized_amount: None,
                     installment_interest: None,
+                    installment_data: None,
                     encrypted_payment_method_data: None,
                     error_details: None,
                 }
@@ -4536,6 +4563,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 request_extended_authorization: None,
                 authorized_amount: None,
                 installment_interest: None,
+                installment_data: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
             },

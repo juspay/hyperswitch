@@ -4454,7 +4454,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             partner_merchant_identifier_details: pi.partner_merchant_identifier_details,
             payment_method_tokenization_details: None,
             installment_options: pi.installment_options,
-            installment_data: None,
+            installment_data: pa.installment_data,
         }
     }
 }
