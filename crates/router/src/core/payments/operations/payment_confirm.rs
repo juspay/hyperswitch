@@ -13,9 +13,7 @@ use diesel_models::payment_attempt::ConnectorMandateReferenceId as DieselConnect
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
 #[cfg(feature = "v1")]
-use hyperswitch_domain_models::payments::{
-    self as domain_payments, payment_intent::PaymentIntentUpdateFields,
-};
+use hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdateFields;
 use hyperswitch_domain_models::{
     payment_method_data::RecurringDetails as domain_recurring_details,
     router_request_types::unified_authentication_service,
@@ -725,14 +723,15 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     request_payment_method_data.payment_method_data.clone()
                 });
 
-        let payment_method_data = payment_method_with_raw_data
+        let payment_method_data = payment_method_recurring_details
             .clone()
-            .and_then(|pm| pm.raw_payment_method_data)
             .or(payment_method_data_from_request.map(Into::into))
-            .or(payment_method_recurring_details.clone())
-            .zip(additional_pm_data)
-            .map(|(payment_method_data, additional_payment_data)| {
-                payment_method_data.apply_additional_payment_data(additional_payment_data)
+            .map(|payment_method_data| {
+                if let Some(additional_pm_data) = additional_pm_data {
+                    payment_method_data.apply_additional_payment_data(additional_pm_data)
+                } else {
+                    payment_method_data
+                }
             });
 
         payment_attempt.payment_method_billing_address_id = payment_method_billing
@@ -840,7 +839,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             address: unified_address,
             token_data,
             confirm: request.confirm,
-            payment_method_data: payment_method_data_after_card_bin_call.map(Into::into),
+            payment_method_data,
             payment_method_token: None,
             payment_method_info,
             force_sync: None,
