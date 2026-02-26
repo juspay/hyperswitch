@@ -1422,6 +1422,113 @@ impl CardData for CardDetailsForNetworkTransactionId {
     }
 }
 
+impl CardData for payment_method_data::DecryptedWalletTokenDetailsForNetworkTransactionId {
+    fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let binding = self.token_exp_year.clone();
+        let year = binding.peek();
+        Ok(Secret::new(
+            year.get(year.len() - 2..)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+        ))
+    }
+    fn get_card_expiry_month_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let exp_month = self
+            .token_exp_month
+            .peek()
+            .to_string()
+            .parse::<u8>()
+            .map_err(|_| errors::ConnectorError::InvalidDataFormat {
+                field_name: "recurring_details.data.token_exp_month",
+            })?;
+        let month = ::cards::CardExpirationMonth::try_from(exp_month).map_err(|_| {
+            errors::ConnectorError::InvalidDataFormat {
+                field_name: "recurring_details.data.token_exp_month",
+            }
+        })?;
+        Ok(Secret::new(month.two_digits()))
+    }
+    fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
+        get_card_issuer(self.decrypted_token.peek())
+    }
+    fn get_card_expiry_month_year_2_digit_with_delimiter(
+        &self,
+        delimiter: String,
+    ) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?;
+        Ok(Secret::new(format!(
+            "{}{}{}",
+            self.token_exp_month.peek(),
+            delimiter,
+            year.peek()
+        )))
+    }
+    fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String> {
+        let year = self.get_expiry_year_4_digit();
+        Secret::new(format!(
+            "{}{}{}",
+            year.peek(),
+            delimiter,
+            self.token_exp_month.peek()
+        ))
+    }
+    fn get_expiry_date_as_mmyyyy(&self, delimiter: &str) -> Secret<String> {
+        let year = self.get_expiry_year_4_digit();
+        Secret::new(format!(
+            "{}{}{}",
+            self.token_exp_month.peek(),
+            delimiter,
+            year.peek()
+        ))
+    }
+    fn get_expiry_year_4_digit(&self) -> Secret<String> {
+        let mut year = self.token_exp_year.peek().clone();
+        if year.len() == 2 {
+            year = format!("20{year}");
+        }
+        Secret::new(year)
+    }
+    fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?.expose();
+        let month = self.token_exp_month.clone().expose();
+        Ok(Secret::new(format!("{year}{month}")))
+    }
+    fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?.expose();
+        let month = self.token_exp_month.clone().expose();
+        Ok(Secret::new(format!("{month}{year}")))
+    }
+    fn get_expiry_month_as_i8(&self) -> Result<Secret<i8>, Error> {
+        self.token_exp_month
+            .peek()
+            .clone()
+            .parse::<i8>()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .map(Secret::new)
+    }
+    fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error> {
+        self.token_exp_year
+            .peek()
+            .clone()
+            .parse::<i32>()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .map(Secret::new)
+    }
+    fn get_expiry_year_as_4_digit_i32(&self) -> Result<Secret<i32>, Error> {
+        self.get_expiry_year_4_digit()
+            .peek()
+            .clone()
+            .parse::<i32>()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .map(Secret::new)
+    }
+    fn get_cardholder_name(&self) -> Result<Secret<String>, Error> {
+        self.card_holder_name
+            .clone()
+            .ok_or_else(missing_field_err("card.card_holder_name"))
+    }
+}
+
 #[cfg(feature = "payouts")]
 impl CardData for api_models::payouts::ApplePayDecrypt {
     fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
@@ -6340,7 +6447,7 @@ pub trait ForeignTryFrom<F>: Sized {
     fn foreign_try_from(from: F) -> Result<Self, Self::Error>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct QrImage {
     pub data: String,
 }
@@ -6638,6 +6745,7 @@ pub enum PaymentMethodDataType {
     NetworkToken,
     NetworkTransactionIdAndCardDetails,
     NetworkTransactionIdAndNetworkTokenDetails,
+    NetworkTransactionIdAndDecryptedWalletTokenDetails,
     DirectCarrierBilling,
     InstantBankTransfer,
     InstantBankTransferFinland,
@@ -6657,6 +6765,9 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
             PaymentMethodData::CardWithLimitedDetails(_) => Self::CardWithLimitedDetails,
             PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Self::NetworkTransactionIdAndNetworkTokenDetails
+            }
+            PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_) => {
+                Self::NetworkTransactionIdAndDecryptedWalletTokenDetails
             }
             PaymentMethodData::CardRedirect(card_redirect_data) => match card_redirect_data {
                 payment_method_data::CardRedirectData::Knet {} => Self::Knet,
@@ -7450,6 +7561,8 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
             .request
             .partner_merchant_identifier_details
             .clone(),
+        rrn: None,
+        feature_metadata: None,
     }
 }
 
@@ -7521,6 +7634,25 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
 pub fn generate_12_digit_number() -> u64 {
     let mut rng = rand::thread_rng();
     rng.gen_range(100_000_000_000..=999_999_999_999)
+}
+
+pub fn generate_random_string_containing_digits(min_len: usize, max_len: usize) -> String {
+    let mut rng = rand::thread_rng();
+    let len = rng.gen_range(min_len..=max_len);
+
+    (0..len)
+        .map(|_| char::from(rng.gen_range(b'0'..=b'9')))
+        .collect()
+}
+
+pub fn generate_alphanumeric_code(min_len: usize, max_len: usize) -> String {
+    let mut rng = rand::thread_rng();
+    let len = rng.gen_range(min_len..=max_len);
+
+    rng.sample_iter(&rand::distributions::Alphanumeric)
+        .take(len)
+        .map(char::from)
+        .collect()
 }
 
 /// Normalizes a string by converting to lowercase, performing NFKD normalization(https://unicode.org/reports/tr15/#Description_Norm),and removing special characters and spaces.
@@ -7899,6 +8031,26 @@ where
     match amount {
         Some(value) if value.get_amount_as_i64() == 0 => Ok(None),
         _ => Ok(amount),
+    }
+}
+
+/// Custom deserializer for `Option<T>` that treats empty strings or zero-minor amounts as `None`.
+pub fn deserialize_option_empty_string_to_none<'de, D, T>(
+    deserializer: D,
+) -> Result<Option<T>, D::Error>
+where
+    D: serde::de::Deserializer<'de>,
+    T: FromStr,
+    <T as FromStr>::Err: std::fmt::Display,
+{
+    let string_data: Option<String> = Option::deserialize(deserializer)?;
+    match string_data {
+        Some(value) if !value.trim().is_empty() => value.parse::<T>().map(Some).map_err(|e| {
+            serde::de::Error::custom(format!(
+                "Invalid value received from connector: {value} ({e})"
+            ))
+        }),
+        _ => Ok(None),
     }
 }
 

@@ -109,6 +109,9 @@ pub fn should_call_proxy_for_payments_core(payment_request: api::PaymentsRequest
                 || recurring_details
                     .clone()
                     .is_network_transaction_id_and_network_token_details_flow()
+                || recurring_details
+                    .clone()
+                    .is_network_transaction_id_and_decrypted_wallet_token_details_flow()
                 || recurring_details.clone().is_card_limited_details_flow()
         })
         .unwrap_or(false)

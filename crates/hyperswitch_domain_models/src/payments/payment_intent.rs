@@ -266,6 +266,7 @@ pub struct PaymentIntentUpdateFields {
     pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<primitive_wrappers::EnableOvercaptureBool>,
     pub shipping_cost: Option<MinorUnit>,
+    pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
 }
 
 #[cfg(feature = "v1")]
@@ -280,8 +281,9 @@ pub enum PaymentIntentUpdate {
         feature_metadata: Option<Secret<serde_json::Value>>,
     },
     MetadataUpdate {
-        metadata: serde_json::Value,
+        metadata: Option<serde_json::Value>,
         updated_by: String,
+        feature_metadata: Option<Secret<serde_json::Value>>,
     },
     Update(Box<PaymentIntentUpdateFields>),
     PaymentCreateUpdate {
@@ -484,6 +486,7 @@ pub struct PaymentIntentUpdateInternal {
     pub enable_overcapture: Option<primitive_wrappers::EnableOvercaptureBool>,
     pub shipping_cost: Option<MinorUnit>,
     pub state_metadata: Option<common_types::payments::PaymentIntentStateMetadata>,
+    pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
 }
 
 // This conversion is used in the `update_payment_intent` function
@@ -1016,10 +1019,12 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
             PaymentIntentUpdate::MetadataUpdate {
                 metadata,
                 updated_by,
+                feature_metadata,
             } => Self {
-                metadata: Some(metadata),
+                metadata,
                 modified_at: Some(common_utils::date_time::now()),
                 updated_by,
+                feature_metadata,
                 ..Default::default()
             },
             PaymentIntentUpdate::Update(value) => Self {
@@ -1056,6 +1061,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 order_date: value.order_date,
                 shipping_amount_tax: value.shipping_amount_tax,
                 duty_amount: value.duty_amount,
+                installment_options: value.installment_options,
                 ..Default::default()
             },
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -1263,6 +1269,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
+                installment_options: None,
             },
         }
     }
@@ -1311,9 +1318,11 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
             PaymentIntentUpdate::MetadataUpdate {
                 metadata,
                 updated_by,
+                feature_metadata,
             } => Self::MetadataUpdate {
                 metadata,
                 updated_by,
+                feature_metadata,
             },
             PaymentIntentUpdate::StateMetadataUpdate {
                 state_metadata,
@@ -1364,6 +1373,9 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     enable_partial_authorization: value.enable_partial_authorization,
                     enable_overcapture: value.enable_overcapture,
                     shipping_cost: value.shipping_cost,
+                    installment_options: value
+                        .installment_options
+                        .map(common_types::payments::InstallmentOptions),
                 }))
             }
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -1535,6 +1547,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             enable_overcapture,
             shipping_cost,
             state_metadata,
+            installment_options,
         } = value;
         Self {
             amount,
@@ -1587,6 +1600,8 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             enable_overcapture,
             shipping_cost,
             state_metadata,
+            installment_options: installment_options
+                .map(common_types::payments::InstallmentOptions),
         }
     }
 }
@@ -2076,6 +2091,7 @@ impl behaviour::Conversion for PaymentIntent {
             tokenization: None,
             partner_merchant_identifier_details: None,
             state_metadata: None,
+            installment_options: None,
         })
     }
     async fn convert_back(
@@ -2339,6 +2355,7 @@ impl behaviour::Conversion for PaymentIntent {
             active_attempt_id_type: Some(self.active_attempt_id_type),
             active_attempts_group_id: self.active_attempts_group_id,
             state_metadata: None,
+            installment_options: None,
         })
     }
 }
@@ -2427,6 +2444,9 @@ impl behaviour::Conversion for PaymentIntent {
             tokenization: self.tokenization,
             partner_merchant_identifier_details: self.partner_merchant_identifier_details,
             state_metadata: self.state_metadata,
+            installment_options: self
+                .installment_options
+                .map(common_types::payments::InstallmentOptions),
         })
     }
 
@@ -2542,6 +2562,7 @@ impl behaviour::Conversion for PaymentIntent {
                 partner_merchant_identifier_details: storage_model
                     .partner_merchant_identifier_details,
                 state_metadata: storage_model.state_metadata,
+                installment_options: storage_model.installment_options.map(|o| o.0),
             })
         }
         .await
@@ -2628,6 +2649,9 @@ impl behaviour::Conversion for PaymentIntent {
             tokenization: self.tokenization,
             partner_merchant_identifier_details: self.partner_merchant_identifier_details,
             state_metadata: self.state_metadata,
+            installment_options: self
+                .installment_options
+                .map(common_types::payments::InstallmentOptions),
         })
     }
 }

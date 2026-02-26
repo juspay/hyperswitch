@@ -482,10 +482,8 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 Ok(())
             }
             api_enums::Connector::Santander => {
-                santander::transformers::SantanderAuthType::try_from(self.auth_type)?;
-                santander::transformers::SantanderMetadataObject::try_from(
-                    self.connector_meta_data,
-                )?;
+                santander::requests::SantanderAuthType::try_from(self.auth_type)?;
+                santander::requests::SantanderMetadataObject::try_from(self.connector_meta_data)?;
                 Ok(())
             }
             api_enums::Connector::Shift4 => {
@@ -520,6 +518,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 tesouro::transformers::TesouroAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            // api_enums::Connector::Truelayer => {
+            //     truelayer::transformers::TruelayerAuthType::try_from(self.auth_type)?;
+            //     Ok(())
+            // }
             api_enums::Connector::Trustpay => {
                 trustpay::transformers::TrustpayAuthType::try_from(self.auth_type)?;
                 Ok(())

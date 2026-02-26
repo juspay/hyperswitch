@@ -79,8 +79,8 @@ where
 
     #[cfg(feature = "v1")]
     let is_no_three_ds_payment = matches!(
-        payment_data.get_payment_attempt().authentication_type,
-        Some(storage_enums::AuthenticationType::NoThreeDs)
+        router_data.auth_type,
+        storage_enums::AuthenticationType::NoThreeDs
     );
 
     #[cfg(feature = "v2")]
