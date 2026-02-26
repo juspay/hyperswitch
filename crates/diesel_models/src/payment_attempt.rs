@@ -1143,6 +1143,8 @@ impl PaymentAttemptUpdateInternal {
             encrypted_payment_method_data: source.encrypted_payment_method_data,
             error_details: source.error_details,
             retry_type: source.retry_type,
+            installment_interest: source.installment_interest,
+            installment_data: source.installment_data,
         }
     }
 }

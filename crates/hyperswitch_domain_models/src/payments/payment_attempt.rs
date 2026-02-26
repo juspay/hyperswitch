@@ -3298,6 +3298,8 @@ impl behaviour::Conversion for PaymentAttempt {
             encrypted_payment_method_data: None,
             error_details: None,
             retry_type: None,
+            installment_interest: None,
+            installment_data: None,
         })
     }
 
