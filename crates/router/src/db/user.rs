@@ -141,6 +141,7 @@ impl UserInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[instrument(skip_all)]
     async fn reactivate_user_by_user_id(
         &self,
         user_id: &str,
