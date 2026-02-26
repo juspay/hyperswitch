@@ -163,6 +163,8 @@ pub struct PaymentAttempt {
     pub encrypted_payment_method_data: Option<common_utils::encryption::Encryption>,
     pub error_details: Option<ErrorDetails>,
     pub retry_type: Option<storage_enums::RetryType>,
+    pub installment_interest: Option<MinorUnit>,
+    pub installment_data: Option<common_types::payments::InstallmentData>,
     #[diesel(deserialize_as = RequiredFromNullable<storage_enums::PaymentMethod>)]
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub connector_payment_id: Option<ConnectorTransactionId>,

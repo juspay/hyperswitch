@@ -96,7 +96,6 @@ pub struct PaymentIntent {
     pub prerouting_algorithm: Option<serde_json::Value>,
     pub surcharge_amount: Option<MinorUnit>,
     pub tax_on_surcharge: Option<MinorUnit>,
-    pub installment_interest: Option<MinorUnit>,
     // Denotes the action(approve or reject) taken by merchant in case of manual review.
     // Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment
     pub frm_merchant_decision: Option<common_enums::MerchantDecision>,
@@ -415,7 +414,6 @@ pub struct PaymentIntentNew {
     pub active_attempt_id_type: Option<common_enums::ActiveAttemptIDType>,
     pub state_metadata: Option<PaymentIntentStateMetadata>,
     pub installment_options: Option<common_types::payments::InstallmentOptions>,
-    pub installment_interest: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v1")]
@@ -868,7 +866,6 @@ impl PaymentIntentUpdateInternal {
             partner_merchant_identifier_details: source.partner_merchant_identifier_details,
             state_metadata,
             installment_options: source.installment_options,
-            installment_interest: source.installment_interest,
         }
     }
 }
