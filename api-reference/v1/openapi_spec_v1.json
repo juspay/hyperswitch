@@ -20942,7 +20942,7 @@
           },
           "interest_rate": {
             "type": "number",
-            "format": "float",
+            "format": "double",
             "description": "Interest rate per installment as a percentage max 2 decimal places\n"
           }
         }
