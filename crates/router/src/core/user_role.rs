@@ -725,14 +725,13 @@ pub async fn delete_user_role(
 
     // If user has no more role associated with him then deleting user
     if remaining_roles.is_empty() {
-        let delete_metadatas_result = state
+        let _ = state
             .store
             .delete_all_metadata_by_user_id(user_from_db.get_user_id())
-            .await;
-
-        if let Err(e) = delete_metadatas_result {
-            logger::error!("Error while deleting user metadata: {}", e);
-        }
+            .await
+            .inspect_err(|e| {
+                logger::error!("Error while deleting user metadata: {}", e);
+            });
 
         state
             .global_store
