@@ -811,6 +811,23 @@ where
     }
 }
 
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationDataWithUserId, A> for ApiKeyAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationDataWithUserId, AuthenticationType)> {
+        let (auth_data, auth_type): (AuthenticationData, AuthenticationType) =
+            self.authenticate_and_fetch(request_headers, state).await?;
+
+        Ok(((auth_data, None), auth_type))
+    }
+}
+
 #[derive(Debug)]
 pub struct ApiKeyAuthWithMerchantIdFromRoute(pub id_type::MerchantId);
 
@@ -4961,7 +4978,7 @@ where
     }
 }
 
-pub type AuthenticationDataWithUserId = (AuthenticationData, String);
+pub type AuthenticationDataWithUserId = (AuthenticationData, Option<String>);
 
 #[cfg(feature = "v1")]
 #[async_trait]
@@ -5037,7 +5054,7 @@ where
             client_secret: None,
         };
         Ok((
-            (auth.clone(), payload.user_id.clone()),
+            (auth.clone(), Some(payload.user_id.clone())),
             AuthenticationType::MerchantJwt {
                 merchant_id: payload.merchant_id,
                 user_id: None,
@@ -5115,7 +5132,7 @@ where
         };
 
         Ok((
-            (auth.clone(), payload.user_id.clone()),
+            (auth.clone(), Some(payload.user_id.clone())),
             AuthenticationType::MerchantJwt {
                 merchant_id: payload.merchant_id,
                 user_id: Some(payload.user_id),
