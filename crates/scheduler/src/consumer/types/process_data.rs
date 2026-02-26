@@ -9,6 +9,29 @@ pub struct RetryMapping {
     pub frequencies: Vec<(i32, i32)>, // (frequency, count)
 }
 
+impl Default for RetryMapping {
+    fn default() -> Self {
+        Self {
+            start_after: 60,
+            frequencies: vec![
+                (60 * 5, 2),      // 2nd and 3rd attempts at 5 min intervals
+                (60 * 10, 5),     // 4th-8th attempts at 10 min intervals
+                (60 * 60, 5),     // 9th-13th attempts at 1 hour intervals
+                (60 * 60 * 6, 3), // 14th-16th attempts at 6 hour intervals
+            ],
+        }
+    }
+}
+
+impl TryFrom<serde_json::Value> for RetryMapping {
+    type Error = String;
+
+    fn try_from(value: serde_json::Value) -> Result<Self, Self::Error> {
+        serde_json::from_value(value)
+            .map_err(|e| format!("Failed to deserialize RetryMapping: {:?}", e))
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct ConnectorPTMapping {
     pub default_mapping: RetryMapping,
