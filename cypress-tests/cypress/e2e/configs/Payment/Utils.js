@@ -533,6 +533,7 @@ export const CONNECTOR_LISTS = {
     ],
     EXTERNAL_THREE_DS: ["stripe"],
     BANK_DEBIT: ["novalnet"],
+    THREEDS_EXEMPTIONS: ["aci"],
     // Add more inclusion lists
   },
 };
@@ -543,7 +544,7 @@ export const shouldExcludeConnector = (connectorId, list) => {
 };
 
 export const shouldIncludeConnector = (connectorId, list) => {
-  return !list.includes(connectorId);
+  return list.includes(connectorId);
 };
 
 export function setNormalizedValue(

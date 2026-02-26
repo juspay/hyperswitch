@@ -46,13 +46,18 @@ describe("Card - ThreeDS payment with exemption indicators", () => {
 
     // Use regular function to allow this.skip()
     it("Confirm 3DS with Low Value Exemption", function () {
+      if (
+        !utils.shouldIncludeConnector(
+          globalState.get("connectorId"),
+          utils.CONNECTOR_LISTS.INCLUDE.THREEDS_EXEMPTIONS
+        )
+      ) {
+        this.skip();
+      }
+
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["3DSAutoCaptureWithLowValueExemption"];
-
-      if (data === undefined || data.Configs?.TRIGGER_SKIP === true) {
-        this.skip();
-      }
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
@@ -82,13 +87,18 @@ describe("Card - ThreeDS payment with exemption indicators", () => {
     });
 
     it("Confirm 3DS with TRA Exemption", function () {
+      if (
+        !utils.shouldIncludeConnector(
+          globalState.get("connectorId"),
+          utils.CONNECTOR_LISTS.INCLUDE.THREEDS_EXEMPTIONS
+        )
+      ) {
+        this.skip();
+      }
+
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["3DSAutoCaptureWithTRAExemption"];
-
-      if (data === undefined || data.Configs?.TRIGGER_SKIP === true) {
-        this.skip();
-      }
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
@@ -118,13 +128,18 @@ describe("Card - ThreeDS payment with exemption indicators", () => {
     });
 
     it("Confirm 3DS with Trusted Listing Exemption", function () {
+      if (
+        !utils.shouldIncludeConnector(
+          globalState.get("connectorId"),
+          utils.CONNECTOR_LISTS.INCLUDE.THREEDS_EXEMPTIONS
+        )
+      ) {
+        this.skip();
+      }
+
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["3DSAutoCaptureWithTrustedListingExemption"];
-
-      if (data === undefined || data.Configs?.TRIGGER_SKIP === true) {
-        this.skip();
-      }
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
@@ -154,13 +169,18 @@ describe("Card - ThreeDS payment with exemption indicators", () => {
     });
 
     it("Confirm 3DS with SCA Delegation Exemption", function () {
+      if (
+        !utils.shouldIncludeConnector(
+          globalState.get("connectorId"),
+          utils.CONNECTOR_LISTS.INCLUDE.THREEDS_EXEMPTIONS
+        )
+      ) {
+        this.skip();
+      }
+
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["3DSAutoCaptureWithScaDelegationExemption"];
-
-      if (data === undefined || data.Configs?.TRIGGER_SKIP === true) {
-        this.skip();
-      }
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
@@ -190,13 +210,18 @@ describe("Card - ThreeDS payment with exemption indicators", () => {
     });
 
     it("Confirm 3DS with Secure Corporate Exemption", function () {
+      if (
+        !utils.shouldIncludeConnector(
+          globalState.get("connectorId"),
+          utils.CONNECTOR_LISTS.INCLUDE.THREEDS_EXEMPTIONS
+        )
+      ) {
+        this.skip();
+      }
+
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["3DSAutoCaptureWithSecureCorporateExemption"];
-
-      if (data === undefined || data.Configs?.TRIGGER_SKIP === true) {
-        this.skip();
-      }
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
