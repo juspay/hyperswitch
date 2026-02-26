@@ -2079,6 +2079,7 @@ dependencies = [
  "error-stack 0.4.1",
  "euclid",
  "masking 0.1.0",
+ "pleme-brazilian-validators",
  "serde",
  "serde_json",
  "smithy",
@@ -6487,6 +6488,17 @@ name = "plain"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
+
+[[package]]
+name = "pleme-brazilian-validators"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "45e20adb94375815e1742f2b0e47b8ee0453190e0446dea4e62e1c643e850138"
+dependencies = [
+ "lazy_static",
+ "regex",
+ "thiserror 2.0.12",
+]
 
 [[package]]
 name = "plotters"
