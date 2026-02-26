@@ -1302,8 +1302,8 @@ impl TryFrom<Vec<NonZeroU8>> for InstallmentCounts {
 /// An interest rate with at most 2 decimal places.
 /// Serializes and deserializes as a plain float (e.g. `2.5`).
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq)]
-#[serde(try_from = "f32")]
-pub struct InstallmentInterestRate(f32);
+#[serde(try_from = "f64")]
+pub struct InstallmentInterestRate(f64);
 
 impl InstallmentInterestRate {
     /// apply the interest rate to amount and ceil the result
@@ -1311,23 +1311,22 @@ impl InstallmentInterestRate {
     pub fn apply_and_ceil_result(
         &self,
         amount: MinorUnit,
-    ) -> errors::CustomResult<MinorUnit, errors::PercentageError> {
+    ) -> errors::CustomResult<MinorUnit, errors::InstallmentInterestRateError> {
         let max_amount = i64::MAX / 10000;
         let amount = amount.get_amount_as_i64();
         if amount > max_amount {
             // value gets rounded off after i64::MAX/10000
             Err(error_stack::report!(
-                errors::PercentageError::UnableToApplyPercentage {
-                    percentage: self.0,
+                errors::InstallmentInterestRateError::UnableToApplyInterestRate {
+                    interest_rate: self.0,
                     amount: MinorUnit::new(amount),
                 }
             ))
             .attach_printable(format!(
-                "Cannot calculate percentage for amount greater than {max_amount}",
+                "Cannot calculate interest rate for amount greater than {max_amount}",
             ))
         } else {
-            let percentage_f64 = f64::from(self.0);
-            let result = (amount as f64 * (percentage_f64 / 100.0)).ceil() as i64;
+            let result = (amount as f64 * (self.0 / 100.0)).ceil() as i64;
             Ok(MinorUnit::new(result))
         }
     }
@@ -1349,15 +1348,15 @@ impl InstallmentInterestRate {
         }
     }
 
-    fn is_non_negative(rate: f32) -> bool {
+    fn is_non_negative(rate: f64) -> bool {
         rate >= 0.0
     }
 }
 
-impl TryFrom<f32> for InstallmentInterestRate {
+impl TryFrom<f64> for InstallmentInterestRate {
     type Error = Report<errors::ValidationError>;
 
-    fn try_from(rate: f32) -> Result<Self, errors::ValidationError> {
+    fn try_from(rate: f64) -> Result<Self, errors::ValidationError> {
         Self::is_non_negative(rate).then_some(()).ok_or_else(|| {
             error_stack::report!(errors::ValidationError::InvalidValue {
                 message: "interest_rate must not be negative.".to_string(),
@@ -1383,7 +1382,7 @@ pub struct InstallmentOptionData {
     pub billing_frequency: BillingFrequency,
     /// Interest rate per installment as a percentage max 2 decimal places
     ///
-    #[schema(value_type = f32)]
+    #[schema(value_type = f64)]
     pub interest_rate: InstallmentInterestRate,
 }
 
