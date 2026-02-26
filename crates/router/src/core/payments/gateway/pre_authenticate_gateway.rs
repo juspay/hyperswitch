@@ -62,11 +62,10 @@ where
         ConnectorError,
     > {
         let merchant_connector_account = context.merchant_connector_account;
-        let platform = context.platform;
+        let processor = &context.processor;
         let lineage_ids = context.lineage_ids;
         let header_payload = context.header_payload;
         let unified_connector_service_execution_mode = context.execution_mode;
-        let merchant_order_reference_id = header_payload.x_reference_id.clone();
         let connector_enum =
             common_enums::connector_enums::Connector::from_str(&router_data.connector)
                 .change_context(ConnectorError::InvalidConnectorName)
@@ -77,10 +76,9 @@ where
             &header_payload,
             lineage_ids,
             merchant_connector_account,
-            &platform,
+            processor,
             connector_enum,
             unified_connector_service_execution_mode,
-            merchant_order_reference_id,
         )
         .await
         .map(|(router_data, _)| router_data)

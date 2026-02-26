@@ -403,8 +403,37 @@ pub fn make_dsl_input(
             .as_ref()
             .and_then(|pm_data| match pm_data {
                 domain::PaymentMethodData::Card(card) => card.card_network.clone(),
-
-                _ => None,
+                domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
+                    card_details_for_ntid,
+                ) => card_details_for_ntid.card_network.clone(),
+                domain::PaymentMethodData::CardWithLimitedDetails(card_with_limited_details) => {
+                    card_with_limited_details.card_network.clone()
+                }
+                domain::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(
+                    network_token_details_for_ntid,
+                ) => network_token_details_for_ntid.card_network.clone(),
+                domain::PaymentMethodData::NetworkToken(network_token_details) => {
+                    network_token_details.card_network.clone()
+                }
+                domain::PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(
+                    _,
+                )
+                | domain::PaymentMethodData::CardRedirect(_)
+                | domain::PaymentMethodData::Wallet(_)
+                | domain::PaymentMethodData::PayLater(_)
+                | domain::PaymentMethodData::BankRedirect(_)
+                | domain::PaymentMethodData::BankDebit(_)
+                | domain::PaymentMethodData::BankTransfer(_)
+                | domain::PaymentMethodData::Crypto(_)
+                | domain::PaymentMethodData::MandatePayment
+                | domain::PaymentMethodData::Reward
+                | domain::PaymentMethodData::RealTimePayment(_)
+                | domain::PaymentMethodData::Upi(_)
+                | domain::PaymentMethodData::Voucher(_)
+                | domain::PaymentMethodData::GiftCard(_)
+                | domain::PaymentMethodData::CardToken(_)
+                | domain::PaymentMethodData::OpenBanking(_)
+                | domain::PaymentMethodData::MobilePayment(_) => None,
             }),
     };
 
@@ -414,7 +443,37 @@ pub fn make_dsl_input(
             .as_ref()
             .and_then(|pm_data| match pm_data {
                 domain::PaymentMethodData::Card(card) => card.card_issuer.clone(),
-                _ => None,
+                domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
+                    card_details_for_ntid,
+                ) => card_details_for_ntid.card_issuer.clone(),
+                domain::PaymentMethodData::CardWithLimitedDetails(card_with_limited_details) => {
+                    card_with_limited_details.card_issuer.clone()
+                }
+                domain::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(
+                    network_token_details_for_ntid,
+                ) => network_token_details_for_ntid.card_issuer.clone(),
+                domain::PaymentMethodData::NetworkToken(network_token_details) => {
+                    network_token_details.card_issuer.clone()
+                }
+                domain::PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(
+                    _,
+                )
+                | domain::PaymentMethodData::CardRedirect(_)
+                | domain::PaymentMethodData::Wallet(_)
+                | domain::PaymentMethodData::PayLater(_)
+                | domain::PaymentMethodData::BankRedirect(_)
+                | domain::PaymentMethodData::BankDebit(_)
+                | domain::PaymentMethodData::BankTransfer(_)
+                | domain::PaymentMethodData::Crypto(_)
+                | domain::PaymentMethodData::MandatePayment
+                | domain::PaymentMethodData::Reward
+                | domain::PaymentMethodData::RealTimePayment(_)
+                | domain::PaymentMethodData::Upi(_)
+                | domain::PaymentMethodData::Voucher(_)
+                | domain::PaymentMethodData::GiftCard(_)
+                | domain::PaymentMethodData::CardToken(_)
+                | domain::PaymentMethodData::OpenBanking(_)
+                | domain::PaymentMethodData::MobilePayment(_) => None,
             }),
         country: payments_dsl_input.payment_method_data.as_ref().and_then(
             |pm_data| match pm_data {
@@ -424,6 +483,26 @@ pub fn make_dsl_input(
                             .ok()
                             .map(common_enums::Country::from_alpha2)
                     })
+                }
+                domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
+                    card_details_for_ntid,
+                ) => card_details_for_ntid
+                    .card_issuing_country_code
+                    .clone()
+                    .and_then(|code| {
+                        CountryAlpha2::from_str(&code)
+                            .ok()
+                            .map(common_enums::Country::from_alpha2)
+                    }),
+                domain::PaymentMethodData::CardWithLimitedDetails(card_with_limited_details) => {
+                    card_with_limited_details
+                        .card_issuing_country_code
+                        .clone()
+                        .and_then(|code| {
+                            CountryAlpha2::from_str(&code)
+                                .ok()
+                                .map(common_enums::Country::from_alpha2)
+                        })
                 }
                 _ => None,
             },
@@ -435,48 +514,126 @@ pub fn make_dsl_input(
         _ => Some(issuer_data_input),
     };
 
-    let payment_input = dsl_inputs::PaymentInput {
-        amount: payments_dsl_input.payment_attempt.get_total_amount(),
-        card_bin: payments_dsl_input.payment_method_data.as_ref().and_then(
-            |pm_data| match pm_data {
-                domain::PaymentMethodData::Card(card) => {
-                    Some(card.card_number.peek().chars().take(6).collect())
-                }
-                _ => None,
+    let payment_input =
+        dsl_inputs::PaymentInput {
+            amount: payments_dsl_input.payment_attempt.get_total_amount(),
+            card_bin: {
+                let card_bin = payments_dsl_input.payment_method_data.as_ref().and_then(
+                    |pm_data| match pm_data {
+                        domain::PaymentMethodData::Card(card) => {
+                            let bin = card.card_number.peek().chars().take(6).collect::<String>();
+
+                            (!bin.is_empty()).then_some(bin)
+                        }
+                        domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
+                            card_details_for_ntid,
+                        ) => {
+                            let bin = card_details_for_ntid
+                                .card_number
+                                .peek()
+                                .chars()
+                                .take(6)
+                                .collect::<String>();
+
+                            (!bin.is_empty()).then_some(bin)
+                        }
+                        domain::PaymentMethodData::CardWithLimitedDetails(
+                            card_with_limited_details,
+                        ) => {
+                            let bin = card_with_limited_details
+                                .card_number
+                                .peek()
+                                .chars()
+                                .take(6)
+                                .collect::<String>();
+
+                            (!bin.is_empty()).then_some(bin)
+                        }
+                        _ => None,
+                    },
+                );
+
+                card_bin.or_else(|| {
+                    payments_dsl_input
+                        .payment_attempt
+                        .payment_method_data
+                        .as_ref()
+                        .and_then(|pm_data| pm_data.get("card"))
+                        .and_then(|card| card.get("card_isin"))
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string())
+                })
             },
-        ),
-        transaction_initiator: match payments_dsl_input.payment_intent.off_session {
-            Some(true) => Some(euclid_dir::enums::TransactionInitiator::Merchant),
-            _ => Some(euclid_dir::enums::TransactionInitiator::Customer),
-        },
-        extended_card_bin: payments_dsl_input
-            .payment_method_data
-            .as_ref()
-            .and_then(|pm_data| match pm_data {
-                domain::PaymentMethodData::Card(card) => {
-                    Some(card.card_number.peek().chars().take(8).collect())
-                }
-                _ => None,
-            }),
-        currency: payments_dsl_input.currency,
-        authentication_type: payments_dsl_input.payment_attempt.authentication_type,
-        capture_method: payments_dsl_input
-            .payment_attempt
-            .capture_method
-            .and_then(|cm| cm.foreign_into()),
-        business_country: payments_dsl_input
-            .payment_intent
-            .business_country
-            .map(api_enums::Country::from_alpha2),
-        billing_country: payments_dsl_input
-            .address
-            .get_payment_method_billing()
-            .and_then(|bic| bic.address.as_ref())
-            .and_then(|add| add.country)
-            .map(api_enums::Country::from_alpha2),
-        business_label: payments_dsl_input.payment_intent.business_label.clone(),
-        setup_future_usage: payments_dsl_input.payment_intent.setup_future_usage,
-    };
+            transaction_initiator: match payments_dsl_input.payment_intent.off_session {
+                Some(true) => Some(euclid_dir::enums::TransactionInitiator::Merchant),
+                _ => Some(euclid_dir::enums::TransactionInitiator::Customer),
+            },
+            extended_card_bin: {
+                let extended_bin = payments_dsl_input.payment_method_data.as_ref().and_then(
+                    |pm_data| match pm_data {
+                        domain::PaymentMethodData::Card(card) => {
+                            let bin = card.card_number.peek().chars().take(8).collect::<String>();
+
+                            (!bin.is_empty()).then_some(bin)
+                        }
+                        domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
+                            card_details_for_ntid,
+                        ) => {
+                            let bin = card_details_for_ntid
+                                .card_number
+                                .peek()
+                                .chars()
+                                .take(8)
+                                .collect::<String>();
+
+                            (!bin.is_empty()).then_some(bin)
+                        }
+                        domain::PaymentMethodData::CardWithLimitedDetails(
+                            card_with_limited_details,
+                        ) => {
+                            let bin = card_with_limited_details
+                                .card_number
+                                .peek()
+                                .chars()
+                                .take(8)
+                                .collect::<String>();
+
+                            (!bin.is_empty()).then_some(bin)
+                        }
+                        _ => None,
+                    },
+                );
+
+                extended_bin.or_else(|| {
+                    payments_dsl_input
+                        .payment_attempt
+                        .payment_method_data
+                        .as_ref()
+                        .and_then(|pm_data| pm_data.get("card"))
+                        .and_then(|card| card.get("card_extended_bin"))
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string())
+                })
+            },
+            currency: payments_dsl_input.currency,
+            authentication_type: payments_dsl_input.payment_attempt.authentication_type,
+            capture_method: payments_dsl_input
+                .payment_attempt
+                .capture_method
+                .and_then(|cm| cm.foreign_into()),
+            business_country: payments_dsl_input
+                .payment_intent
+                .business_country
+                .map(api_enums::Country::from_alpha2),
+            billing_country: payments_dsl_input
+                .address
+                .get_payment_method_billing()
+                .and_then(|bic| bic.address.as_ref())
+                .and_then(|add| add.country)
+                .map(api_enums::Country::from_alpha2),
+            business_label: payments_dsl_input.payment_intent.business_label.clone(),
+            setup_future_usage: payments_dsl_input.payment_intent.setup_future_usage,
+        };
 
     let metadata = payments_dsl_input
         .payment_intent

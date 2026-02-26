@@ -27,7 +27,7 @@ use hyperswitch_interfaces::{
     errors::ConnectorError,
     events::connector_api_logs::ConnectorEvent,
     types::*,
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 use masking::{Mask, Maskable};
 use transformers::*;
@@ -659,7 +659,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Worldpaym
         router_env::logger::info!(connector_response=?response);
         Ok(RefundSyncRouterData {
             response: Ok(RefundsResponseData {
-                connector_refund_id: data.request.refund_id.clone(),
+                connector_refund_id: data.request.get_connector_refund_id()?,
                 refund_status: enums::RefundStatus::from(response.last_event),
             }),
             ..data.clone()
@@ -742,6 +742,7 @@ impl IncomingWebhook for Worldpaymodular {
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
         let body: WorldpaymodularWebhookEventType = request
             .body

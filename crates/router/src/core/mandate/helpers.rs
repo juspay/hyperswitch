@@ -21,7 +21,7 @@ pub async fn get_profile_id_for_mandate(
     let profile_id = if let Some(ref payment_id) = mandate.original_payment_id {
         let pi = state
             .store
-            .find_payment_intent_by_payment_id_merchant_id(
+            .find_payment_intent_by_payment_id_processor_merchant_id(
                 payment_id,
                 platform.get_processor().get_account().get_id(),
                 platform.get_processor().get_key_store(),

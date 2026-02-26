@@ -60,6 +60,7 @@ const payment_method_data_no3ds = {
       card_verification: null,
     },
     authentication_data: null,
+    auth_code: null,
   },
   billing: null,
 };
@@ -69,8 +70,8 @@ const payment_method_data_3ds = {
     last4: "2701",
     card_type: "CREDIT",
     card_network: "Visa",
-    card_issuer: "INTL HDQTRS-CENTER OWNED",
-    card_issuing_country: "UNITEDSTATES",
+    card_issuer: "Intl Hdqtrs Center Owned",
+    card_issuing_country: "UNITED STATES OF AMERICA",
     card_isin: "400000",
     card_extended_bin: null,
     card_exp_month: "01",
@@ -78,6 +79,7 @@ const payment_method_data_3ds = {
     card_holder_name: "joseph Doe",
     payment_checks: null,
     authentication_data: null,
+    auth_code: null,
   },
   billing: null,
 };

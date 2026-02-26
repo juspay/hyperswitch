@@ -62,7 +62,7 @@ describe("Card - Customer Deletion and Psync", () => {
           "card_pm"
         ]["No3DSAutoCapture"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
 
       it("Delete Customer", () => {
@@ -74,7 +74,7 @@ describe("Card - Customer Deletion and Psync", () => {
           "card_pm"
         ]["No3DSAutoCapture"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
     });
 
@@ -139,7 +139,7 @@ describe("Card - Customer Deletion and Psync", () => {
           "card_pm"
         ]["No3DSAutoCapture"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
 
       it("Delete Customer", () => {
@@ -151,7 +151,7 @@ describe("Card - Customer Deletion and Psync", () => {
           "card_pm"
         ]["No3DSAutoCapture"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
     });
   });
@@ -203,7 +203,7 @@ describe("Card - Customer Deletion and Psync", () => {
           "card_pm"
         ]["No3DSManualCapture"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
 
       it("Capture Payment", () => {
@@ -222,7 +222,7 @@ describe("Card - Customer Deletion and Psync", () => {
           "card_pm"
         ]["Capture"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
 
       it("Delete Customer", () => {
@@ -234,7 +234,7 @@ describe("Card - Customer Deletion and Psync", () => {
           "card_pm"
         ]["No3DSManualCapture"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
     });
 
@@ -299,7 +299,7 @@ describe("Card - Customer Deletion and Psync", () => {
           "card_pm"
         ]["3DSManualCapture"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
 
       it("Capture Payment", () => {
@@ -318,7 +318,7 @@ describe("Card - Customer Deletion and Psync", () => {
           "card_pm"
         ]["Capture"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
 
       it("Delete Customer", () => {
@@ -330,7 +330,7 @@ describe("Card - Customer Deletion and Psync", () => {
           "card_pm"
         ]["3DSManualCapture"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
     });
   });

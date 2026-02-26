@@ -9,7 +9,8 @@ use super::{
 };
 #[cfg(feature = "v2")]
 use crate::payment_methods::{
-    ListMethodsForPaymentMethodsRequest, PaymentMethodListResponseForSession,
+    ListMethodsForPaymentMethodsRequest, PaymentMethodGetTokenDetailsResponse,
+    PaymentMethodListResponseForSession,
 };
 use crate::{
     payment_methods::{
@@ -599,6 +600,17 @@ impl ApiEventMetric for payments::PaymentsCaptureResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Payment {
             payment_id: self.id.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for payment_methods::PaymentMethodGetTokenDetailsResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::PaymentMethod {
+            payment_method_id: self.id.clone(),
+            payment_method_type: None,
+            payment_method_subtype: None,
         })
     }
 }

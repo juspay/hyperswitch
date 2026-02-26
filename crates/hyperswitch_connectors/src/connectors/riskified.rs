@@ -59,7 +59,7 @@ use hyperswitch_interfaces::{
     },
     events::connector_api_logs::ConnectorEvent,
     types::Response,
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 #[cfg(feature = "frm")]
 use masking::Maskable;
@@ -632,6 +632,7 @@ impl IncomingWebhook for Riskified {
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
         let resource: riskified::RiskifiedWebhookBody = request
             .body

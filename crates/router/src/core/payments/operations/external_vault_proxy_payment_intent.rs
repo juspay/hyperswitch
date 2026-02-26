@@ -337,8 +337,7 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
         _state: &'a SessionState,
         _payment_data: &mut PaymentConfirmData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
-        _key_store: &domain::MerchantKeyStore,
-        _customer: &Option<domain::Customer>,
+        _platform: &domain::Platform,
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
     ) -> RouterResult<(
@@ -375,14 +374,16 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
 
                 let req = api::PaymentMethodCreate {
                     payment_method_type: payment_data.payment_attempt.payment_method_type,
-                    payment_method_subtype: payment_data.payment_attempt.payment_method_subtype,
+                    payment_method_subtype: Some(
+                        payment_data.payment_attempt.payment_method_subtype,
+                    ),
                     metadata: None,
                     customer_id: Some(customer_id),
                     payment_method_data,
                     billing,
                     psp_tokenization: None,
                     network_tokenization: None,
-                    storage_type: None, //this field is currently not being used in storing payment methods via external vault
+                    storage_type: common_enums::StorageType::Persistent, //this field is currently not being used in storing payment methods via external vault
                 };
 
                 let (_pm_response, payment_method) = Box::pin(payment_methods::create_payment_method_core(
@@ -445,7 +446,7 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
         &'a self,
         _state: &SessionState,
         payment_data: &mut PaymentConfirmData<F>,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         _business_profile: &domain::Profile,
         connector_data: &api::ConnectorData,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -481,7 +482,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ExternalVaultProxy
         _req_state: ReqState,
         processor: &domain::Processor,
         mut payment_data: PaymentConfirmData<F>,
-        _customer: Option<domain::Customer>,
         _frm_suggestion: Option<api_models::enums::FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(BoxedConfirmOperation<'b, F>, PaymentConfirmData<F>)>

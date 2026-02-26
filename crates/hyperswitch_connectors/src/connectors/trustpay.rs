@@ -634,7 +634,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let req_currency = req.request.get_currency()?;
-        let req_amount = req.request.get_minor_amount()?;
+        let req_amount = req.request.get_minor_amount();
 
         let amount = utils::convert_amount(self.amount_converter, req_amount, req_currency)?;
 
@@ -1048,6 +1048,7 @@ impl webhooks::IncomingWebhook for Trustpay {
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let response: trustpay::TrustpayWebhookResponse = request
             .body
@@ -1142,6 +1143,7 @@ impl webhooks::IncomingWebhook for Trustpay {
     fn get_dispute_details(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<DisputePayload, errors::ConnectorError> {
         let trustpay_response: trustpay::TrustpayWebhookResponse = request
             .body
@@ -1459,6 +1461,7 @@ impl ConnectorSpecifications for Trustpay {
                 payment_method_data::PaymentMethodData::Wallet(_)
             ),
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+            api::CurrentFlowInfo::SetupMandate { .. } => false,
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

@@ -1,7 +1,10 @@
 pub use hyperswitch_domain_models::customer::update_connector_customer_in_customers;
 use hyperswitch_interfaces::api::{gateway, ConnectorSpecifications};
+use masking::PeekInterface;
 use router_env::{instrument, tracing};
 
+#[cfg(feature = "v2")]
+use crate::types::domain;
 use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
@@ -10,7 +13,7 @@ use crate::{
     logger,
     routes::{metrics, SessionState},
     services,
-    types::{self, api, domain},
+    types::{self, api},
 };
 
 #[instrument(skip_all)]
@@ -79,17 +82,19 @@ pub async fn create_connector_customer<F: Clone, T: Clone>(
 #[cfg(feature = "v1")]
 pub fn should_call_connector_create_customer<'a>(
     connector: &api::ConnectorData,
-    customer: &'a Option<domain::Customer>,
+    connector_customer_map: Option<&'a common_utils::pii::SecretSerdeValue>,
     payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     connector_label: &str,
 ) -> (bool, Option<&'a str>) {
     // Check if create customer is required for the connector
+
     let connector_needs_customer = connector
         .connector
         .should_call_connector_customer(payment_attempt);
-    let connector_customer_details = customer
-        .as_ref()
-        .and_then(|customer| customer.get_connector_customer_id(connector_label));
+    let connector_customer_details = connector_customer_map
+        .and_then(|connector_customer_map| connector_customer_map.peek().get(connector_label))
+        .and_then(|connector_customer| connector_customer.as_str());
+
     if connector_needs_customer {
         let should_call_connector = connector_customer_details.is_none();
         (should_call_connector, connector_customer_details)

@@ -149,7 +149,7 @@ mod merchant_connector_account_cache_tests {
             .unwrap();
         let db = MockDb::new(
             &redis_interface::RedisSettings::default(),
-            KeyManagerState::new(),
+            KeyManagerState::mock(),
         )
         .await
         .expect("Failed to create Mock store");
@@ -246,6 +246,7 @@ mod merchant_connector_account_cache_tests {
             ),
             additional_merchant_data: None,
             version: common_types::consts::API_VERSION,
+            connector_webhook_registration_details: None,
         };
 
         db.insert_merchant_connector_account(mca.clone(), &merchant_key)
@@ -330,7 +331,7 @@ mod merchant_connector_account_cache_tests {
             .unwrap();
         let db = MockDb::new(
             &redis_interface::RedisSettings::default(),
-            KeyManagerState::new(),
+            KeyManagerState::mock(),
         )
         .await
         .expect("Failed to create Mock store");

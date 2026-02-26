@@ -25,8 +25,8 @@ pub async fn execute_decision_rule(
             three_ds_decision_rule_core::execute_three_ds_decision_rule(state, auth.platform, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))

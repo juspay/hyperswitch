@@ -389,6 +389,7 @@ async fn payments_create_core() {
         net_amount: MinorUnit::new(6540),
         processor_merchant_id: merchant_id,
         initiator: None,
+        sdk_authorization: None,
         connector: None,
         customer: None,
         disputes: None,
@@ -478,6 +479,9 @@ async fn payments_create_core() {
         billing_descriptor: None,
         partner_merchant_identifier_details: None,
         payment_method_tokenization_details: None,
+        error_details: None,
+        installment_options: None,
+        state_metadata: None,
     };
     let expected_response =
         services::ApplicationResponse::JsonWithHeaders((expected_response, vec![]));
@@ -685,6 +689,7 @@ async fn payments_create_core_adyen_no_redirect() {
             net_amount: MinorUnit::new(6540),
             processor_merchant_id: merchant_id,
             initiator: None,
+            sdk_authorization: None,
             connector: None,
             customer: None,
             disputes: None,
@@ -774,6 +779,9 @@ async fn payments_create_core_adyen_no_redirect() {
             billing_descriptor: None,
             partner_merchant_identifier_details: None,
             payment_method_tokenization_details: None,
+            error_details: None,
+            installment_options: None,
+            state_metadata: None,
         },
         vec![],
     ));

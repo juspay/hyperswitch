@@ -73,7 +73,7 @@ describe("Reward Payment - Cashtocode", () => {
         "reward_pm"
       ]["Evoucher"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
   });
 
@@ -131,7 +131,7 @@ describe("Reward Payment - Cashtocode", () => {
         "reward_pm"
       ]["Classic"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
   });
 });

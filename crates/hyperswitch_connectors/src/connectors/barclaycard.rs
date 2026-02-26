@@ -64,8 +64,8 @@ use crate::{
     constants::{self, headers},
     types::ResponseRouterData,
     utils::{
-        convert_amount, PaymentsAuthorizeRequestData, RefundsRequestData,
-        RouterData as OtherRouterData,
+        convert_amount, PaymentsAuthorizeRequestData, PaymentsPreAuthenticateRequestData,
+        RefundsRequestData, RouterData as OtherRouterData,
     },
 };
 
@@ -384,13 +384,8 @@ impl ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, Payments
         req: &PaymentsPreAuthenticateRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let minor_amount = req.request.minor_amount;
-        let currency =
-            req.request
-                .currency
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
-                })?;
+        let minor_amount = req.request.get_minor_amount();
+        let currency = req.request.get_currency()?;
 
         let amount = convert_amount(self.amount_converter, minor_amount, currency)?;
 
@@ -679,11 +674,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         req: &PaymentsPreProcessingRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount_in_minor_unit = MinorUnit::new(req.request.amount.ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "amount",
-            },
-        )?);
+        let amount_in_minor_unit = MinorUnit::new(req.request.amount);
         let amount = convert_amount(
             self.amount_converter,
             amount_in_minor_unit,
@@ -1536,6 +1527,7 @@ impl webhooks::IncomingWebhook for Barclaycard {
     fn get_webhook_event_type(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
@@ -1652,6 +1644,7 @@ impl ConnectorSpecifications for Barclaycard {
             } => *auth_type == common_enums::AuthenticationType::ThreeDs && request_data.is_card(),
             // No alternate flow for complete authorize
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+            api::CurrentFlowInfo::SetupMandate { .. } => false,
         }
     }
     /// Check if authentication flow is required
@@ -1664,6 +1657,7 @@ impl ConnectorSpecifications for Barclaycard {
             api::CurrentFlowInfo::CompleteAuthorize {
                 request_data,
                 payment_method: _,
+                ..
             } => {
                 // TODO: add logic before deciding the pre processing flow Authenticate or PostAuthenticate
                 let redirection_params = request_data
@@ -1675,6 +1669,7 @@ impl ConnectorSpecifications for Barclaycard {
                     Some(_) | None => false,
                 }
             }
+            api::CurrentFlowInfo::SetupMandate { .. } => false,
         }
     }
     /// Check if post-authentication flow is required
@@ -1687,6 +1682,7 @@ impl ConnectorSpecifications for Barclaycard {
             api::CurrentFlowInfo::CompleteAuthorize {
                 request_data,
                 payment_method: _,
+                ..
             } => {
                 // TODO: add logic before deciding the pre processing flow Authenticate or PostAuthenticate
                 let redirection_params = request_data
@@ -1698,6 +1694,7 @@ impl ConnectorSpecifications for Barclaycard {
                     Some(_) | None => true,
                 }
             }
+            api::CurrentFlowInfo::SetupMandate { .. } => false,
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

@@ -435,7 +435,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         req: &PaymentsPreProcessingRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let req_amount = req.request.get_minor_amount()?;
+        let req_amount = req.request.get_minor_amount();
         let req_currency = req.request.get_currency()?;
         let amount = utils::convert_amount(self.amount_converter, req_amount, req_currency)?;
         let connector_router_data = payme::PaymeRouterData::try_from((amount, req))?;
@@ -475,7 +475,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
             .parse_struct("Payme GenerateSaleResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let req_amount = data.request.get_minor_amount()?;
+        let req_amount = data.request.get_minor_amount();
         let req_currency = data.request.get_currency()?;
 
         let apple_pay_amount = utils::convert_amount(
@@ -1314,6 +1314,7 @@ impl webhooks::IncomingWebhook for Payme {
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let resource =
             serde_urlencoded::from_bytes::<payme::WebhookEventDataResourceEvent>(request.body)
@@ -1348,6 +1349,7 @@ impl webhooks::IncomingWebhook for Payme {
     fn get_dispute_details(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<DisputePayload, errors::ConnectorError> {
         let webhook_object =
             serde_urlencoded::from_bytes::<payme::WebhookEventDataResource>(request.body)
@@ -1466,6 +1468,7 @@ impl ConnectorSpecifications for Payme {
                 PaymentMethodData::Card(_) | PaymentMethodData::Wallet(_)
             ),
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+            api::CurrentFlowInfo::SetupMandate { .. } => false,
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

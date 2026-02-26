@@ -223,7 +223,8 @@ pub fn mk_app(
                 .service(routes::ConnectorOnboarding::server(state.clone()))
                 .service(routes::Analytics::server(state.clone()))
                 .service(routes::WebhookEvents::server(state.clone()))
-                .service(routes::FeatureMatrix::server(state.clone()));
+                .service(routes::FeatureMatrix::server(state.clone()))
+                .service(routes::Embedded::server(state.clone()));
         }
 
         #[cfg(feature = "v2")]
@@ -233,7 +234,8 @@ pub fn mk_app(
                 .service(routes::ProcessTrackerDeprecated::server(state.clone()))
                 .service(routes::ProcessTracker::server(state.clone()))
                 .service(routes::Gsm::server(state.clone()))
-                .service(routes::RecoveryDataBackfill::server(state.clone()));
+                .service(routes::RecoveryDataBackfill::server(state.clone()))
+                .service(routes::Analytics::server(state.clone()));
         }
     }
 
@@ -291,7 +293,14 @@ pub async fn start_server(conf: settings::Settings<SecuredSecret>) -> Applicatio
         actix_web::HttpServer::new(move || mk_app(state.clone(), request_body_limit))
             .bind((server.host.as_str(), server.port))?
             .workers(server.workers)
-            .shutdown_timeout(server.shutdown_timeout);
+            .shutdown_timeout(server.shutdown_timeout)
+            .keep_alive(Some(std::time::Duration::from_secs(server.keep_alive)))
+            .client_request_timeout(std::time::Duration::from_millis(
+                server.client_request_timeout,
+            ))
+            .client_disconnect_timeout(std::time::Duration::from_millis(
+                server.client_disconnect_timeout,
+            ));
 
     #[cfg(feature = "tls")]
     let server = match server.tls {

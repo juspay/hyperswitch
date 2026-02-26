@@ -119,6 +119,7 @@ impl BillingHandler {
             description: None,
             phone: None,
             name: None,
+            metadata: None,
             preprocessing_id: None,
             split_payments: None,
             setup_future_usage: None,
@@ -128,6 +129,7 @@ impl BillingHandler {
                 .as_ref()
                 .and_then(|add| add.address.clone())
                 .and_then(|addr| addr.into()),
+            currency: None,
         };
         let router_data = self.build_router_data(
             state,

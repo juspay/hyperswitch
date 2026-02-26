@@ -1,5 +1,6 @@
 pub mod disputes;
 pub mod fraud_check;
+pub mod merchant_connector_webhook_management;
 pub mod revenue_recovery;
 pub mod subscriptions;
 use std::collections::HashMap;
@@ -15,7 +16,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     errors::api_error_response::ApiErrorResponse,
-    router_request_types::{authentication::AuthNFlowType, ResponseId},
+    router_request_types::{authentication::AuthNFlowType, ResponseId, UcsAuthenticationData},
     vault::PaymentMethodVaultingData,
 };
 
@@ -63,7 +64,13 @@ pub enum PaymentsResponseData {
         network_txn_id: Option<String>,
         connector_response_reference_id: Option<String>,
         incremental_authorization_allowed: Option<bool>,
+        authentication_data: Option<Box<UcsAuthenticationData>>,
         charges: Option<common_types::payments::ConnectorChargeResponseData>,
+    },
+    PostCaptureVoidResponse {
+        post_capture_void_status: common_enums::PostCaptureVoidStatus,
+        connector_reference_id: Option<String>,
+        description: Option<String>,
     },
     MultipleCaptureResponse {
         // pending_capture_id_list: Vec<String>,
@@ -111,6 +118,7 @@ pub enum PaymentsResponseData {
     },
     PaymentsCreateOrderResponse {
         order_id: String,
+        session_token: Option<api_models::payments::SessionToken>,
     },
 }
 
@@ -214,6 +222,7 @@ impl PaymentsResponseData {
                     network_txn_id: auth_network_txn_id,
                     connector_response_reference_id: auth_connector_response_reference_id,
                     incremental_authorization_allowed: auth_incremental_auth_allowed,
+                    authentication_data: auth_authentication_data,
                     charges: auth_charges,
                 },
                 Self::TransactionResponse {
@@ -224,6 +233,7 @@ impl PaymentsResponseData {
                     network_txn_id: capture_network_txn_id,
                     connector_response_reference_id: capture_connector_response_reference_id,
                     incremental_authorization_allowed: capture_incremental_auth_allowed,
+                    authentication_data: capture_authentication_data,
                     charges: capture_charges,
                 },
             ) => Ok(Self::TransactionResponse {
@@ -249,6 +259,9 @@ impl PaymentsResponseData {
                     .or(auth_connector_response_reference_id.clone()),
                 incremental_authorization_allowed: (*capture_incremental_auth_allowed)
                     .or(*auth_incremental_auth_allowed),
+                authentication_data: capture_authentication_data
+                    .clone()
+                    .or(auth_authentication_data.clone()),
                 charges: auth_charges.clone().or(capture_charges.clone()),
             }),
             _ => Err(ApiErrorResponse::NotSupported {
@@ -712,6 +725,12 @@ pub trait SupportedPaymentMethodsExt {
         payment_method_type: common_enums::PaymentMethodType,
         payment_method_details: PaymentMethodDetails,
     );
+
+    fn is_refund_supported(
+        &self,
+        payment_method: &common_enums::PaymentMethod,
+        payment_method_type: &common_enums::PaymentMethodType,
+    ) -> bool;
 }
 
 impl SupportedPaymentMethodsExt for SupportedPaymentMethods {
@@ -729,6 +748,23 @@ impl SupportedPaymentMethodsExt for SupportedPaymentMethods {
 
             self.insert(payment_method, payment_method_type_metadata);
         }
+    }
+
+    fn is_refund_supported(
+        &self,
+        payment_method: &common_enums::PaymentMethod,
+        payment_method_type: &common_enums::PaymentMethodType,
+    ) -> bool {
+        self.get(payment_method)
+            .and_then(|pm_types| pm_types.get(payment_method_type))
+            .map(|details| details.supports_refund())
+            .unwrap_or(true)
+    }
+}
+
+impl PaymentMethodDetails {
+    fn supports_refund(&self) -> bool {
+        self.refunds.is_supported()
     }
 }
 

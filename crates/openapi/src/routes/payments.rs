@@ -259,7 +259,7 @@
                   "off_session": true,
                   "recurring_details": {
                       "type": "payment_method_id",
-                      "data": "pm_123456789" 
+                      "data": "pm_123456789"
                   },
                   "split_payments": {
                       "stripe_split_payment": {
@@ -468,8 +468,8 @@
                         "customer_id": "cus_abcdefgh",
                         "customer": {
                             "id": "cus_abcdefgh",
-                            "name": "John Dough", 
-                            "email": "john@example.com", 
+                            "name": "John Dough",
+                            "email": "john@example.com",
                             "phone": "9123456789"
                         },
                         "billing": {
@@ -501,8 +501,8 @@
                       "connector_mandate_id": "pm_abcdefgh",
                       "customer": {
                           "id": "cus_abcdefgh",
-                          "name": "John Dough", 
-                          "email": "john@example.com", 
+                          "name": "John Dough",
+                          "email": "john@example.com",
                           "phone": "9123456789"
                       },
                       "billing": {
@@ -534,8 +534,8 @@
                     "connector_mandate_id": "pm_abcdefgh",
                     "customer": {
                         "id": "cus_abcdefgh",
-                        "name": "John Dough", 
-                        "email": "john@example.com", 
+                        "name": "John Dough",
+                        "email": "john@example.com",
                         "phone": "9123456789"
                     },
                     "billing": {
@@ -774,7 +774,7 @@ pub fn payments_connector_session() {}
     ),
     tag = "Payments",
     operation_id = "Create V2 Session tokens for a Payment",
-    security(("publishable_key" = []))
+    security(("publishable_key__client_secret" = []))
 )]
 pub fn payments_connector_session() {}
 
@@ -837,7 +837,7 @@ pub fn payments_cancel() {}
         ("payment_id" = String, Path, description = "The identifier for payment")
     ),
     responses(
-        (status = 200, description = "Payment canceled post capture"),
+        (status = 200, description = "Payment canceled post capture", body = PaymentsResponse),
         (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
@@ -1041,7 +1041,7 @@ pub fn payments_update_metadata() {}
     ),
     request_body=PaymentsEligibilityRequest,
     responses(
-        (status = 200, description = "Eligbility submit is successful", body = PaymentsEligibilityResponse),
+        (status = 200, description = "Eligibility submit is successful", body = PaymentsEligibilityResponse),
         (status = 400, description = "Bad Request", body = GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
@@ -1178,7 +1178,7 @@ pub fn payments_update_intent() {}
   ),
   tag = "Payments",
   operation_id = "Confirm Payment Intent",
-  security(("publishable_key" = [])),
+  security(("publishable_key__client_secret" = [])),
 )]
 #[cfg(feature = "v2")]
 pub fn payments_confirm_intent() {}
@@ -1285,7 +1285,7 @@ pub(crate) enum ForceSync {
     ),
     tag = "Payments",
     operation_id = "Retrieve Payment methods for a Payment",
-    security(("publishable_key" = []))
+    security(("publishable_key__client_secret" = []))
 )]
 pub fn list_payment_methods() {}
 
@@ -1330,6 +1330,6 @@ pub fn payments_list() {}
     ),
     tag = "Payments",
     operation_id = "Apply Payment Method Data",
-    security(("publishable_key" = []))
+    security(("publishable_key__client_secret" = []))
 )]
 pub fn payments_apply_pm_data() {}
