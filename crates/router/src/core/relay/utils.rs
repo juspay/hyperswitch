@@ -231,6 +231,7 @@ pub async fn construct_relay_capture_router_data(
             connector_transaction_id: relay_record.connector_resource_id.clone(),
             payment_amount: relay_capture_data.authorized_amount.get_amount_as_i64(),
             multiple_capture_data: Some(
+                // for relay, each manual multiple capture is a separate entity i.e not related
                 hyperswitch_domain_models::router_request_types::MultipleCaptureRequestData {
                     capture_sequence: 1,
                     capture_reference: relay_id_string.clone(),

@@ -2,6 +2,7 @@ use common_enums::enums;
 use common_utils::{
     self,
     errors::{CustomResult, ValidationError},
+    ext_traits::ValueExt,
     id_type::{self, GenerateId},
     pii,
     types::{keymanager, MinorUnit},
@@ -400,45 +401,19 @@ impl RelayData {
     ) -> CustomResult<Option<Self>, ValidationError> {
         match value {
             Some(data) => match relay_type {
-                enums::RelayType::Capture => {
-                    let relay_capture_data: RelayCaptureData = serde_json::from_value(
-                        data.expose(),
-                    )
-                    .change_context(ValidationError::InvalidValue {
-                        message: "Failed while deserializing RelayCaptureData".to_string(),
-                    })?;
-
-                    Ok(Some(Self::Capture(relay_capture_data)))
-                }
-                enums::RelayType::Refund => {
-                    let relay_refund_data: RelayRefundData = serde_json::from_value(data.expose())
-                        .change_context(ValidationError::InvalidValue {
-                            message: "Failed while deserializing RelayRefundData".to_string(),
-                        })?;
-
-                    Ok(Some(Self::Refund(relay_refund_data)))
-                }
+                enums::RelayType::Capture => Ok(Some(Self::Capture(RelayCaptureData::from_value(
+                    data.expose(),
+                )?))),
+                enums::RelayType::Refund => Ok(Some(Self::Refund(RelayRefundData::from_value(
+                    data.expose(),
+                )?))),
                 enums::RelayType::IncrementalAuthorization => {
-                    let relay_incremental_auth_data: RelayIncrementalAuthorizationData =
-                        serde_json::from_value(data.expose()).change_context(
-                            ValidationError::InvalidValue {
-                                message:
-                                    "Failed while deserializing RelayIncrementalAuthorizationData"
-                                        .to_string(),
-                            },
-                        )?;
-
                     Ok(Some(Self::IncrementalAuthorization(
-                        relay_incremental_auth_data,
+                        RelayIncrementalAuthorizationData::from_value(data.expose())?,
                     )))
                 }
                 enums::RelayType::Void => {
-                    let relay_void_data: RelayVoidData = serde_json::from_value(data.expose())
-                        .change_context(ValidationError::InvalidValue {
-                            message: "Failed while deserializing RelayVoidData".to_string(),
-                        })?;
-
-                    Ok(Some(Self::Void(relay_void_data)))
+                    Ok(Some(Self::Void(RelayVoidData::from_value(data.expose())?)))
                 }
             },
             None => Ok(None),
@@ -497,12 +472,32 @@ pub struct RelayRefundData {
     pub reason: Option<String>,
 }
 
+impl RelayRefundData {
+    pub fn from_value(value: serde_json::Value) -> CustomResult<Self, ValidationError> {
+        value
+            .parse_value("RelayRefundData")
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed while deserializing RelayRefundData".to_string(),
+            })
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RelayCaptureData {
     pub authorized_amount: MinorUnit,
     pub amount_to_capture: MinorUnit,
     pub currency: enums::Currency,
     pub capture_method: Option<enums::CaptureMethod>,
+}
+
+impl RelayCaptureData {
+    pub fn from_value(value: serde_json::Value) -> CustomResult<Self, ValidationError> {
+        value
+            .parse_value("RelayCaptureData")
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed while deserializing RelayCaptureData".to_string(),
+            })
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -512,11 +507,31 @@ pub struct RelayIncrementalAuthorizationData {
     pub currency: enums::Currency,
 }
 
+impl RelayIncrementalAuthorizationData {
+    pub fn from_value(value: serde_json::Value) -> CustomResult<Self, ValidationError> {
+        value
+            .parse_value("RelayIncrementalAuthorizationData")
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed while deserializing RelayIncrementalAuthorizationData".to_string(),
+            })
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RelayVoidData {
     pub amount: Option<MinorUnit>,
     pub currency: Option<enums::Currency>,
     pub cancellation_reason: Option<String>,
+}
+
+impl RelayVoidData {
+    pub fn from_value(value: serde_json::Value) -> CustomResult<Self, ValidationError> {
+        value
+            .parse_value("RelayVoidData")
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed while deserializing RelayVoidData".to_string(),
+            })
+    }
 }
 
 #[derive(Debug)]
