@@ -12,21 +12,21 @@ pub async fn get_superposition_sdk_config(
     state: SessionState,
     _platform: domain::Platform,
 ) -> RouterResponse<SuperPositionConfigResponse> {
-    let resolved_configs = state
-        .superposition_service
-        .as_ref()
-        .async_map(|sp| async move { sp.as_ref().resolve_full_config(None, None).await })
-        .await
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to resolve superposition sdk config")?;
+    // let resolved_configs = state
+    //     .superposition_service
+    //     .as_ref()
+    //     .async_map(|sp| async move { sp.as_ref().resolve_full_config(None, None).await })
+    //     .await
+    //     .transpose()
+    //     .change_context(errors::ApiErrorResponse::InternalServerError)
+    //     .attach_printable("Failed to resolve superposition sdk config")?;
 
     let cached_configs = state
         .superposition_service
         .as_ref()
         .async_map(|sp| async move {
             sp.as_ref()
-                .get_cached_config(Some(vec!["sdk.".to_string()]), None)
+                .get_cached_config(Some(vec!["dynamic_fields".to_string()]), None)
                 .await
         })
         .await
@@ -37,7 +37,7 @@ pub async fn get_superposition_sdk_config(
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         SuperPositionConfigResponse {
             raw_configs: cached_configs,
-            resolved_configs,
+            resolved_configs: None,
         },
     ))
 }
