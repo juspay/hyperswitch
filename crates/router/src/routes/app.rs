@@ -2027,6 +2027,10 @@ impl MerchantConnectorAccount {
                         .route(web::get().to(connector_retrieve))
                         .route(web::post().to(connector_update))
                         .route(web::delete().to(connector_delete)),
+                )
+                .service(
+                    web::resource("/{merchant_id}/connectors/webhooks/{merchant_connector_id}")
+                        .route(web::post().to(connector_webhook_register)),
                 );
         }
         #[cfg(feature = "oltp")]

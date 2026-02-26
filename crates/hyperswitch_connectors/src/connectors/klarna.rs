@@ -45,7 +45,7 @@ use hyperswitch_interfaces::{
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 use masking::{Mask, PeekInterface};
 use router_env::logger;
@@ -1085,6 +1085,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(report!(errors::ConnectorError::NotImplemented(
                     get_unimplemented_payment_method_error_message(req.connector.as_str(),),
@@ -1415,6 +1416,7 @@ impl IncomingWebhook for Klarna {
     fn get_webhook_event_type(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         Ok(IncomingWebhookEvent::EventNotSupported)
     }

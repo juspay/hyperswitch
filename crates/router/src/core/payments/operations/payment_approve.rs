@@ -155,7 +155,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCaptureR
             payment_attempt,
             currency,
             amount,
-            email: None,
             mandate_id: None,
             mandate_connector: None,
             setup_mandate: None,
