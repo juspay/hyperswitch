@@ -30,8 +30,8 @@ pub mod routes {
     use common_utils::{pii::Email, types::TimeRange};
     use error_stack::{report, ResultExt};
     use futures::{stream::FuturesUnordered, StreamExt};
-    use router_env::logger;
     use masking::ExposeInterface;
+    use router_env::logger;
 
     use crate::{
         analytics_validator::request_validator,
@@ -39,8 +39,6 @@ pub mod routes {
         core::{api_locking, errors::user::UserErrors, verification::utils},
         db::{user::UserInterface, user_role::ListUserRolesByUserIdPayload},
         routes::{metrics, AppState},
-        db::user_role::ListUserRolesByUserIdPayload,
-        routes::AppState,
         services::{
             api,
             authentication::{self as auth, AuthenticationData, UserFromToken},
