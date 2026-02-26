@@ -1239,6 +1239,11 @@ pub struct NetworkTransactionIdAndDecryptedWalletTokenDetails {
     /// Source of the token
     #[schema(value_type = Option<TokenSource>, example = "googlepay")]
     pub token_source: Option<TokenSource>,
+
+    /// The network that facilitates payment card transactions
+    #[schema(value_type = Option<CardNetwork>)]
+    #[smithy(value_type = "Option<CardNetwork>")]
+    pub card_network: Option<enums::CardNetwork>,
 }
 
 /// Billing frequency for a card installment plan
