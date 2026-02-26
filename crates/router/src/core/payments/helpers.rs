@@ -4226,6 +4226,22 @@ pub(crate) fn validate_payment_status_against_not_allowed_statuses(
     })
 }
 
+pub(crate) fn validate_installment_data_in_create(
+    installment_options: &Option<Vec<common_types::payments::InstallmentOption>>,
+    installment_data: &Option<common_types::payments::InstallmentData>,
+) -> Result<(), errors::ApiErrorResponse> {
+    utils::when(
+        installment_options.is_some() || installment_data.is_some(),
+        || {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message:
+                    "installment_options and installment_data are not supported when confirm is true."
+                        .to_string(),
+            })
+        },
+    )
+}
+
 #[instrument(skip_all)]
 pub(crate) fn validate_pm_or_token_given(
     payment_method: &Option<api_enums::PaymentMethod>,
