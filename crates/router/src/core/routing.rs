@@ -46,21 +46,18 @@ use super::{
             utils::*,
             {self as payments_routing},
         },
-        OperationSessionGetters,
+        OperationSessionGetters, OperationSessionSetters,
     },
 };
 #[cfg(feature = "v1")]
 use crate::utils::ValueExt;
 #[cfg(feature = "v2")]
-use crate::{core::admin, utils::ValueExt};
+use crate::{core::admin, db::StorageInterface, utils::ValueExt};
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResponse},
-        metrics,
-        payments::routing::get_active_mca_ids,
-        utils as core_utils,
+        metrics, utils as core_utils,
     },
-    db::StorageInterface,
     routes::SessionState,
     services::api as service_api,
     types::{
@@ -2353,22 +2350,31 @@ pub async fn contract_based_routing_update_configs(
 
 #[async_trait]
 pub trait GetRoutableConnectorsForChoice {
-    async fn get_routable_connectors(
+    async fn get_routable_connectors<F, D>(
         &self,
-        db: &dyn StorageInterface,
+        state: &SessionState,
         business_profile: &domain::Profile,
-    ) -> RouterResult<RoutableConnectors>;
+        payment_data: &mut D,
+    ) -> RouterResult<RoutableConnectors>
+    where
+        F: Send + Clone,
+        D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone;
 }
 
 pub struct StraightThroughAlgorithmTypeSingle(pub serde_json::Value);
 
 #[async_trait]
 impl GetRoutableConnectorsForChoice for StraightThroughAlgorithmTypeSingle {
-    async fn get_routable_connectors(
+    async fn get_routable_connectors<F, D>(
         &self,
-        _db: &dyn StorageInterface,
+        _state: &SessionState,
         _business_profile: &domain::Profile,
-    ) -> RouterResult<RoutableConnectors> {
+        _payment_data: &mut D,
+    ) -> RouterResult<RoutableConnectors>
+    where
+        F: Send + Clone,
+        D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+    {
         let straight_through_routing_algorithm = self
             .0
             .clone()
@@ -2397,19 +2403,40 @@ pub struct DecideConnector;
 
 #[async_trait]
 impl GetRoutableConnectorsForChoice for DecideConnector {
-    async fn get_routable_connectors(
+    async fn get_routable_connectors<F, D>(
         &self,
-        db: &dyn StorageInterface,
+        state: &SessionState,
         business_profile: &domain::Profile,
-    ) -> RouterResult<RoutableConnectors> {
-        let fallback_config = helpers::get_merchant_default_config(
-            db,
-            business_profile.get_id().get_string_repr(),
-            &common_enums::TransactionType::Payment,
+        payment_data: &mut D,
+    ) -> RouterResult<RoutableConnectors>
+    where
+        F: Send + Clone,
+        D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+    {
+        let transaction_data = PaymentsDslInput::new(
+            payment_data.get_setup_mandate(),
+            payment_data.get_payment_attempt(),
+            payment_data.get_payment_intent(),
+            payment_data.get_payment_method_data(),
+            payment_data.get_address(),
+            payment_data.get_recurring_details(),
+            payment_data.get_currency(),
+        );
+        let routing_algorithm_id = business_profile.get_payment_routing_algorithm_id()?;
+
+        let (connectors, routing_approach) = payments_routing::perform_static_routing_v1(
+            state,
+            &business_profile.merchant_id,
+            routing_algorithm_id.as_ref(),
+            business_profile,
+            &TransactionData::Payment(transaction_data),
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
-        Ok(RoutableConnectors(fallback_config))
+
+        payment_data.set_routing_approach_in_attempt(routing_approach);
+
+        Ok(RoutableConnectors(connectors))
     }
 }
 
@@ -2435,8 +2462,7 @@ impl RoutableConnectors {
         state: &SessionState,
         key_store: &domain::MerchantKeyStore,
         payment_data: &D,
-
-        profile_id: &common_utils::id_type::ProfileId,
+        business_profile: &domain::Profile,
     ) -> RouterResult<Vec<api::ConnectorData>>
     where
         F: Send + Clone,
@@ -2454,22 +2480,13 @@ impl RoutableConnectors {
 
         let routable_connector_choice = self.0.clone();
 
-        let backend_input = payments_routing::make_dsl_input(&payments_dsl_input)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to construct dsl input")?;
-
-        let active_mca_ids = get_active_mca_ids(state, key_store)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-        let connectors = payments_routing::perform_cgraph_filtering(
-            state,
+        let connectors = payments_routing::perform_eligibility_analysis_with_fallback(
+            &state.clone(),
             key_store,
             routable_connector_choice,
-            backend_input,
+            &TransactionData::Payment(payments_dsl_input),
             None,
-            profile_id,
-            &common_enums::TransactionType::Payment,
-            &active_mca_ids,
+            business_profile,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)

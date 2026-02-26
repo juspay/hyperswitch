@@ -1253,6 +1253,7 @@ diesel::table! {
         tokenization -> Nullable<Varchar>,
         partner_merchant_identifier_details -> Nullable<Jsonb>,
         state_metadata -> Nullable<Jsonb>,
+        installment_options -> Nullable<Jsonb>,
     }
 }
 
@@ -1353,6 +1354,8 @@ diesel::table! {
         #[max_length = 255]
         last_modified_by -> Nullable<Varchar>,
         customer_details -> Nullable<Bytea>,
+        #[max_length = 64]
+        locker_fingerprint_id -> Nullable<Varchar>,
     }
 }
 

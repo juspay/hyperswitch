@@ -416,6 +416,11 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             .and_then(|noon| noon.order_category.clone())
     });
 
+    let rrn = connector_metadata
+        .as_ref()
+        .and_then(|metadata| metadata.peachpayments.as_ref())
+        .and_then(|peachpaymentsdata| peachpaymentsdata.rrn.clone());
+
     // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsAuthorizeData {
         payment_method_data: payment_data
@@ -485,6 +490,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         is_stored_credential: None,
         billing_descriptor: None,
         partner_merchant_identifier_details: None,
+        rrn,
         feature_metadata: None,
     };
     let connector_mandate_request_reference_id = payment_data
@@ -3083,15 +3089,24 @@ where
                 .collect()
         });
 
-        let payment_method_data =
-            Some(api_models::payments::PaymentMethodDataResponseWithBilling {
-                payment_method_data: None,
-                billing: self
-                    .payment_address
-                    .get_request_payment_method_billing()
-                    .cloned()
-                    .map(From::from),
-            });
+        let additional_payment_method_data = payment_attempt.get_payment_method_data()?;
+
+        let payment_method_data_inner =
+            additional_payment_method_data.map(api::PaymentMethodDataResponse::from);
+
+        let payment_method_data = (payment_method_data_inner.is_some()
+            || self
+                .payment_address
+                .get_request_payment_method_billing()
+                .is_some())
+        .then_some(api_models::payments::PaymentMethodDataResponseWithBilling {
+            payment_method_data: payment_method_data_inner,
+            billing: self
+                .payment_address
+                .get_request_payment_method_billing()
+                .cloned()
+                .map(From::from),
+        });
 
         let raw_connector_response =
             connector_response_data.and_then(|data| data.raw_connector_response);
@@ -3962,7 +3977,10 @@ where
                 | domain::Initiator::Jwt { .. }
                 | domain::Initiator::EmbeddedToken { .. } => None,
             }),
-            client_secret: payment_intent.client_secret.clone(),
+            client_secret: payment_intent
+                .client_secret
+                .clone()
+                .get_required_value("client_secret")?,
             customer_id: payment_intent.customer_id.clone(),
         };
 
@@ -3989,6 +4007,7 @@ where
             initiator: initiator.and_then(|initiator| initiator.to_api_initiator()),
             sdk_authorization: Some(sdk_authorization),
             connector: routed_through,
+            state_metadata: payment_intent.state_metadata,
             client_secret: payment_intent.client_secret.map(Secret::new),
             created: Some(payment_intent.created_at),
             modified_at: Some(payment_intent.modified_at),
@@ -4117,6 +4136,7 @@ where
             billing_descriptor: payment_intent.billing_descriptor,
             partner_merchant_identifier_details: payment_intent.partner_merchant_identifier_details,
             payment_method_tokenization_details,
+            installment_options: payment_intent.installment_options,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -4286,6 +4306,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             status: pi.status,
             amount: pi.amount,
             amount_capturable: pa.amount_capturable,
+            state_metadata: pi.state_metadata,
             client_secret: pi.client_secret.map(|s| s.into()),
             created: Some(pi.created_at),
             modified_at: Some(pi.modified_at),
@@ -4430,6 +4451,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             billing_descriptor: pi.billing_descriptor,
             partner_merchant_identifier_details: pi.partner_merchant_identifier_details,
             payment_method_tokenization_details: None,
+            installment_options: pi.installment_options,
         }
     }
 }
@@ -4731,6 +4753,13 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
 
         let shipping_cost = payment_data.payment_intent.amount_details.shipping_cost;
 
+        let rrn = payment_data
+            .payment_intent
+            .connector_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.peachpayments.as_ref())
+            .and_then(|peachpaymentsdata| peachpaymentsdata.rrn.clone());
+
         Ok(Self {
             payment_method_data: payment_method_data
                 .unwrap_or(domain::PaymentMethodData::Card(domain::Card::default())),
@@ -4788,6 +4817,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             is_stored_credential: None,
             billing_descriptor: None,
             partner_merchant_identifier_details: None,
+            rrn,
             feature_metadata: None,
         })
     }
@@ -4858,6 +4888,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
         let merchant_config_currency =
             braintree_metadata.and_then(|braintree| braintree.merchant_config_currency);
 
+        let rrn = connector_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.peachpayments.as_ref())
+            .and_then(|peachpaymentsdata| peachpaymentsdata.rrn.clone());
+
         let order_details = additional_data
             .payment_data
             .payment_intent
@@ -4926,6 +4961,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .as_ref()
             .and_then(|customer_data| customer_data.name.clone());
 
+        let customer_email = additional_data
+            .customer_data
+            .as_ref()
+            .and_then(|customer_data| customer_data.email.clone());
+
         let customer_id = additional_data.customer_id.clone();
 
         let split_payments = payment_data.payment_intent.split_payments.clone();
@@ -4985,7 +5025,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             minor_amount: amount,
             currency: payment_data.currency,
             browser_info,
-            email: payment_data.email,
+            email: customer_email,
             customer_name,
             payment_experience: payment_data.payment_attempt.payment_experience,
             order_details,
@@ -5044,6 +5084,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             partner_merchant_identifier_details: payment_data
                 .payment_intent
                 .partner_merchant_identifier_details,
+            rrn,
             feature_metadata,
         })
     }
@@ -5749,7 +5790,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             ),
             order_details,
             surcharge_details: payment_data.surcharge_details,
-            email: payment_data.email,
+            email: additional_data.customer_data.and_then(|cust| cust.email),
             apple_pay_recurring_details,
             customer_name: None,
             metadata: payment_data.payment_intent.metadata,
@@ -5854,7 +5895,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
                 },
             ),
             order_details,
-            email: payment_data.email,
+            email: additional_data.customer_data.and_then(|cust| cust.email),
             surcharge_details: payment_data.surcharge_details,
             apple_pay_recurring_details,
             customer_name: None,
@@ -6072,7 +6113,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             setup_mandate_details: payment_data.setup_mandate,
             customer_acceptance: payment_data.customer_acceptance,
             router_return_url,
-            email: payment_data.email,
+            email: additional_data.customer_data.and_then(|cust| cust.email),
             customer_name,
             return_url: payment_data.payment_intent.return_url,
             browser_info,
@@ -6245,7 +6286,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
                     .request_incremental_authorization,
                 Some(RequestIncrementalAuthorization::True)
             ),
-            email: payment_data.email,
+            email: additional_data.customer_data.and_then(|cust| cust.email),
             payment_method_data: payment_data.payment_method_data,
             connector_transaction_id: payment_data
                 .payment_attempt
@@ -6354,7 +6395,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
         let amount = payment_data.payment_attempt.get_total_amount();
         Ok(Self {
             payment_method_data,
-            email: payment_data.email,
+            email: additional_data.customer_data.and_then(|cust| cust.email),
             currency: Some(payment_data.currency),
             amount: amount.get_amount_as_i64(), // need to change this once we move to connector module
             minor_amount: amount,

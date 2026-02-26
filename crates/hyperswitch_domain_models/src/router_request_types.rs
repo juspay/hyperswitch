@@ -102,6 +102,7 @@ pub struct PaymentsAuthorizeData {
     pub tokenization: Option<common_enums::Tokenization>,
     pub partner_merchant_identifier_details:
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
+    pub rrn: Option<String>,
     pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
 }
 
