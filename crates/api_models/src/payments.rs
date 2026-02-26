@@ -8930,7 +8930,7 @@ pub struct PaymentListFilterConstraints {
     pub merchant_order_reference_id: Option<String>,
     /// Indicates the method by which a card is discovered during a payment
     pub card_discovery: Option<Vec<enums::CardDiscovery>>,
-    /// The customer emails to filter payments list
+    /// The customer email to filter payments list
     pub customer_email: Option<Email>,
 }
 

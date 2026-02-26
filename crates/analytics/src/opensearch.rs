@@ -583,16 +583,13 @@ impl OpenSearchQueryBuilder {
         }
     }
 
-    fn make_active_attempt_script_filter(&self, field_name: &str, values: &Vec<Value>) -> Value {
-        let root_field = field_name.replace("attempts_list.", "");
-        let root_exists_field = root_field.replace(".keyword", "");
-
+    fn make_active_attempt_script_filter(&self, field: &str, values: &Vec<Value>) -> Value {
         json!({
             "bool": {
                 "should": [
                     {
                         "terms": {
-                            root_field.clone(): values
+                            format!("{}.keyword", field): values
                         }
                     },
                     {
@@ -605,7 +602,7 @@ impl OpenSearchQueryBuilder {
                                 },
                                 {
                                     "terms": {
-                                        field_name: values
+                                        format!("attempts_list.{}.keyword", field): values
                                     }
                                 }
                             ]
@@ -626,7 +623,7 @@ impl OpenSearchQueryBuilder {
                                         "must_not": [
                                             {
                                                 "exists": {
-                                                    "field": root_exists_field
+                                                    "field": field
                                                 }
                                             }
                                         ]
@@ -638,7 +635,7 @@ impl OpenSearchQueryBuilder {
                                             "lang": "painless",
                                             "source": ACTIVE_ATTEMPT_FILTER_SCRIPT,
                                             "params": {
-                                                "field_name": field_name,
+                                                "field_name": format!("attempts_list.{}.keyword", field),
                                                 "values": values
                                             }
                                         }
@@ -716,10 +713,7 @@ impl OpenSearchQueryBuilder {
             .iter()
             .map(|(k, v)| {
                 if *k == "card_discovery.keyword" {
-                    return self.make_active_attempt_script_filter(
-                        "attempts_list.card_discovery.keyword",
-                        v,
-                    );
+                    return self.make_active_attempt_script_filter("card_discovery", v);
                 }
                 let key = if *k == "status.keyword" {
                     self.get_status_field(index).to_string()
