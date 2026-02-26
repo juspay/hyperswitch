@@ -206,6 +206,8 @@ export const connectorDetails = {
     },
     // 3DS with External Authentication and Exemption Indicators
     // These tests validate exemption indicator mapping to ACI's exemptionFlag parameter.
+    // Note: ACI sandbox only supports TRA exemption for external 3DS pass-through.
+    // Other exemption types fall back to standard 3DS flow (requires_customer_action).
     "3DSAutoCaptureWithLowValueExemption": {
       Request: {
         payment_method: "card",
@@ -220,7 +222,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "requires_customer_action",
         },
       },
     },
@@ -256,7 +258,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "requires_customer_action",
         },
       },
     },
@@ -274,7 +276,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "requires_customer_action",
         },
       },
     },
@@ -292,7 +294,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "requires_customer_action",
         },
       },
     },

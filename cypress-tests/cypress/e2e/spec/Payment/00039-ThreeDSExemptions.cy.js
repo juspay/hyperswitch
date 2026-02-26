@@ -4,6 +4,23 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 
+// Helper to get PaymentIntent config with currency from exemption test
+function getPaymentIntentWithCurrency(connectorId, exemptionTestKey) {
+  const cardPm = getConnectorDetails(connectorId)["card_pm"];
+  const paymentIntent = { ...cardPm["PaymentIntent"] };
+  const exemptionTest = cardPm[exemptionTestKey];
+
+  // Override currency from exemption test config if specified
+  if (exemptionTest?.Request?.currency) {
+    paymentIntent.Request = {
+      ...paymentIntent.Request,
+      currency: exemptionTest.Request.currency,
+    };
+  }
+
+  return paymentIntent;
+}
+
 describe("Card - ThreeDS payment with exemption indicators", () => {
   let shouldContinue = true;
 
@@ -25,9 +42,10 @@ describe("Card - ThreeDS payment with exemption indicators", () => {
 
   context("3DS with Low Value Exemption", () => {
     it("create-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["PaymentIntent"];
+      const data = getPaymentIntentWithCurrency(
+        globalState.get("connectorId"),
+        "3DSAutoCaptureWithLowValueExemption"
+      );
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
@@ -44,7 +62,6 @@ describe("Card - ThreeDS payment with exemption indicators", () => {
       cy.paymentMethodsCallTest(globalState);
     });
 
-    // Use regular function to allow this.skip()
     it("Confirm 3DS with Low Value Exemption", function () {
       if (
         !utils.shouldIncludeConnector(
@@ -67,9 +84,10 @@ describe("Card - ThreeDS payment with exemption indicators", () => {
 
   context("3DS with Transaction Risk Assessment Exemption", () => {
     it("create-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["PaymentIntent"];
+      const data = getPaymentIntentWithCurrency(
+        globalState.get("connectorId"),
+        "3DSAutoCaptureWithTRAExemption"
+      );
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
@@ -108,9 +126,10 @@ describe("Card - ThreeDS payment with exemption indicators", () => {
 
   context("3DS with Trusted Listing Exemption", () => {
     it("create-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["PaymentIntent"];
+      const data = getPaymentIntentWithCurrency(
+        globalState.get("connectorId"),
+        "3DSAutoCaptureWithTrustedListingExemption"
+      );
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
@@ -149,9 +168,10 @@ describe("Card - ThreeDS payment with exemption indicators", () => {
 
   context("3DS with SCA Delegation Exemption", () => {
     it("create-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["PaymentIntent"];
+      const data = getPaymentIntentWithCurrency(
+        globalState.get("connectorId"),
+        "3DSAutoCaptureWithScaDelegationExemption"
+      );
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
@@ -190,9 +210,10 @@ describe("Card - ThreeDS payment with exemption indicators", () => {
 
   context("3DS with Secure Corporate Payment Exemption", () => {
     it("create-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["PaymentIntent"];
+      const data = getPaymentIntentWithCurrency(
+        globalState.get("connectorId"),
+        "3DSAutoCaptureWithSecureCorporateExemption"
+      );
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
