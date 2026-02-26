@@ -1,6 +1,7 @@
 pub mod transformers;
-use common_utils::errors::CustomResult;
 use std::sync::LazyLock;
+
+use common_utils::errors::CustomResult;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse},
     router_flow_types::{
@@ -16,7 +17,7 @@ use hyperswitch_domain_models::{
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
         SupportedPaymentMethods, SupportedPaymentMethodsExt,
-    }
+    },
 };
 use hyperswitch_interfaces::{
     api, configs::Connectors, errors, events::connector_api_logs::ConnectorEvent, types::Response,
@@ -188,4 +189,3 @@ impl api::ConnectorSpecifications for Revolv3 {
         Some(&REVOLV3_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
-
