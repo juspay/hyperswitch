@@ -9033,78 +9033,78 @@ where
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("euclid: failed to fetch fallback config")?;
 
-    let backend_input = match routing::make_dsl_input(&transaction_data).inspect_err(|err| {
+    let connector = match routing::make_dsl_input(&transaction_data).inspect_err(|err| {
         logger::error!(
             error=?err,
             "euclid: make_dsl_input failed, falling back"
         );
     }) {
-        Ok(input) => input,
+        Ok(backend_input) => {
+            let transaction_type = enums::TransactionType::Payment;
+
+            if should_call_connector(operation, payment_data) {
+                Some(match connector_choice {
+                    api::ConnectorChoice::SessionMultiple(connectors) => {
+                        let routing_output = perform_session_token_routing(
+                            state.clone(),
+                            platform,
+                            business_profile,
+                            payment_data,
+                            connectors,
+                            fallback_config,
+                            backend_input,
+                            transaction_type,
+                        )
+                        .await?;
+                        ConnectorCallType::SessionMultiple(routing_output)
+                    }
+
+                    api::ConnectorChoice::StraightThrough(straight_through) => {
+                        perform_routing_for_connector_selection(
+                            state,
+                            platform,
+                            business_profile,
+                            payment_data,
+                            Some(straight_through),
+                            eligible_connectors,
+                            mandate_type,
+                            fallback_config,
+                            backend_input,
+                        )
+                        .await?
+                    }
+
+                    api::ConnectorChoice::Decide => {
+                        perform_routing_for_connector_selection(
+                            state,
+                            platform,
+                            business_profile,
+                            payment_data,
+                            None,
+                            eligible_connectors,
+                            mandate_type,
+                            fallback_config,
+                            backend_input,
+                        )
+                        .await?
+                    }
+                })
+            } else if let api::ConnectorChoice::StraightThrough(algorithm) = connector_choice {
+                update_straight_through_routing(payment_data, algorithm)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to update straight through routing algorithm")?;
+
+                None
+            } else {
+                None
+            }
+        }
         Err(_) => {
             let fallback_routing_data =
                 core_routing::convert_fallback_to_connector_routing_data(state, &fallback_config)?;
 
-            return Ok(Some(ConnectorCallType::Retryable(fallback_routing_data)));
+            Some(ConnectorCallType::Retryable(fallback_routing_data))
         }
-    };
-
-    let transaction_type = enums::TransactionType::Payment;
-
-    let connector = if should_call_connector(operation, payment_data) {
-        Some(match connector_choice {
-            api::ConnectorChoice::SessionMultiple(connectors) => {
-                let routing_output = perform_session_token_routing(
-                    state.clone(),
-                    platform,
-                    business_profile,
-                    payment_data,
-                    connectors,
-                    fallback_config,
-                    backend_input,
-                    transaction_type,
-                )
-                .await?;
-                ConnectorCallType::SessionMultiple(routing_output)
-            }
-
-            api::ConnectorChoice::StraightThrough(straight_through) => {
-                perform_routing_for_connector_selection(
-                    state,
-                    platform,
-                    business_profile,
-                    payment_data,
-                    Some(straight_through),
-                    eligible_connectors,
-                    mandate_type,
-                    fallback_config,
-                    backend_input,
-                )
-                .await?
-            }
-
-            api::ConnectorChoice::Decide => {
-                perform_routing_for_connector_selection(
-                    state,
-                    platform,
-                    business_profile,
-                    payment_data,
-                    None,
-                    eligible_connectors,
-                    mandate_type,
-                    fallback_config,
-                    backend_input,
-                )
-                .await?
-            }
-        })
-    } else if let api::ConnectorChoice::StraightThrough(algorithm) = connector_choice {
-        update_straight_through_routing(payment_data, algorithm)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to update straight through routing algorithm")?;
-
-        None
-    } else {
-        None
     };
     Ok(connector)
 }
