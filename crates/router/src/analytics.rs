@@ -27,10 +27,11 @@ pub mod routes {
         GetRefundMetricRequest, GetSdkEventFiltersRequest, GetSdkEventMetricRequest, ReportRequest,
     };
     use common_enums::EntityType;
-    use common_utils::types::TimeRange;
+    use common_utils::{pii::Email, types::TimeRange};
     use error_stack::{report, ResultExt};
     use futures::{stream::FuturesUnordered, StreamExt};
     use router_env::logger;
+    use masking::ExposeInterface;
 
     use crate::{
         analytics_validator::request_validator,
@@ -38,6 +39,8 @@ pub mod routes {
         core::{api_locking, errors::user::UserErrors, verification::utils},
         db::{user::UserInterface, user_role::ListUserRolesByUserIdPayload},
         routes::{metrics, AppState},
+        db::user_role::ListUserRolesByUserIdPayload,
+        routes::AppState,
         services::{
             api,
             authentication::{self as auth, AuthenticationData, UserFromToken},
@@ -52,7 +55,26 @@ pub mod routes {
     impl Analytics {
         #[cfg(feature = "v2")]
         pub fn server(state: AppState) -> Scope {
-            web::scope("/analytics").app_data(web::Data::new(state))
+            web::scope("/v2/analytics")
+                .app_data(web::Data::new(state))
+                .service(
+                    web::scope("/profile").service(
+                        web::resource("report/payments")
+                            .route(web::post().to(generate_profile_payment_report)),
+                    ),
+                )
+                .service(
+                    web::scope("/merchant").service(
+                        web::resource("report/payments")
+                            .route(web::post().to(generate_merchant_payment_report)),
+                    ),
+                )
+                .service(
+                    web::scope("/org").service(
+                        web::resource("report/payments")
+                            .route(web::post().to(generate_org_payment_report)),
+                    ),
+                )
         }
         #[cfg(feature = "v1")]
         pub fn server(state: AppState) -> Scope {
@@ -1854,13 +1876,46 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
-                    .await
-                    .change_context(AnalyticsError::UnknownError)?;
+                let (user_email, optional_emails) = match user_id {
+                    Some(user_id) => {
+                        let user = state
+                            .global_store
+                            .find_user_by_id(&user_id)
+                            .await
+                            .change_context(AnalyticsError::UnknownError)?;
 
-                let user_email = UserEmail::from_pii_email(user.email)
-                    .change_context(AnalyticsError::UnknownError)?
-                    .get_secret();
+                        let user_email = Email::try_from(
+                            UserEmail::from_pii_email(user.email)
+                                .change_context(AnalyticsError::UnknownError)?
+                                .get_secret()
+                                .expose()
+                                .to_string(),
+                        )
+                        .change_context(AnalyticsError::MissingEmail)?;
+
+                        (user_email, payload.emails)
+                    }
+                    None => {
+                        let (primary_email, other_emails) = payload
+                            .emails
+                            .and_then(|mut emails| {
+                                if emails.is_empty() {
+                                    None
+                                } else {
+                                    let primary_email = emails.remove(0);
+                                    Some((primary_email, emails))
+                                }
+                            })
+                            .ok_or(AnalyticsError::MissingEmail)?;
+
+                        (primary_email, Some(other_emails))
+                    }
+                };
+
+                let payload = ReportRequest {
+                    emails: optional_emails,
+                    ..payload
+                };
 
                 let org_id = auth.platform.get_processor().get_account().get_org_id();
                 let merchant_id = auth.platform.get_processor().get_account().get_id();
@@ -1884,11 +1939,18 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth {
-                permission: Permission::MerchantReportRead,
-                allow_connected: true,
-                allow_platform: false,
-            },
+            auth::auth_type(
+                &auth::ApiKeyAuth {
+                    allow_connected_scope_operation: true,
+                    allow_platform_self_operation: false,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::MerchantReportRead,
+                    allow_connected: true,
+                    allow_platform: false,
+                },
+                req.headers(),
+            ),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -1907,13 +1969,46 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
-                    .await
-                    .change_context(AnalyticsError::UnknownError)?;
+                let (user_email, optional_emails) = match user_id {
+                    Some(user_id) => {
+                        let user = state
+                            .global_store
+                            .find_user_by_id(&user_id)
+                            .await
+                            .change_context(AnalyticsError::UnknownError)?;
 
-                let user_email = UserEmail::from_pii_email(user.email)
-                    .change_context(AnalyticsError::UnknownError)?
-                    .get_secret();
+                        let user_email = Email::try_from(
+                            UserEmail::from_pii_email(user.email)
+                                .change_context(AnalyticsError::UnknownError)?
+                                .get_secret()
+                                .expose()
+                                .to_string(),
+                        )
+                        .change_context(AnalyticsError::MissingEmail)?;
+
+                        (user_email, payload.emails)
+                    }
+                    None => {
+                        let (primary_email, other_emails) = payload
+                            .emails
+                            .and_then(|mut emails| {
+                                if emails.is_empty() {
+                                    None
+                                } else {
+                                    let primary_email = emails.remove(0);
+                                    Some((primary_email, emails))
+                                }
+                            })
+                            .ok_or(AnalyticsError::MissingEmail)?;
+
+                        (primary_email, Some(other_emails))
+                    }
+                };
+
+                let payload = ReportRequest {
+                    emails: optional_emails,
+                    ..payload
+                };
 
                 let org_id = auth.platform.get_processor().get_account().get_org_id();
                 let lambda_req = GenerateReportRequest {
@@ -1935,11 +2030,18 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth {
-                permission: Permission::OrganizationReportRead,
-                allow_connected: true,
-                allow_platform: false,
-            },
+            auth::auth_type(
+                &auth::ApiKeyAuth {
+                    allow_connected_scope_operation: true,
+                    allow_platform_self_operation: false,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::OrganizationReportRead,
+                    allow_connected: true,
+                    allow_platform: false,
+                },
+                req.headers(),
+            ),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -1958,13 +2060,46 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
-                    .await
-                    .change_context(AnalyticsError::UnknownError)?;
+                let (user_email, optional_emails) = match user_id {
+                    Some(user_id) => {
+                        let user = state
+                            .global_store
+                            .find_user_by_id(&user_id)
+                            .await
+                            .change_context(AnalyticsError::UnknownError)?;
 
-                let user_email = UserEmail::from_pii_email(user.email)
-                    .change_context(AnalyticsError::UnknownError)?
-                    .get_secret();
+                        let user_email = Email::try_from(
+                            UserEmail::from_pii_email(user.email)
+                                .change_context(AnalyticsError::UnknownError)?
+                                .get_secret()
+                                .expose()
+                                .to_string(),
+                        )
+                        .change_context(AnalyticsError::MissingEmail)?;
+
+                        (user_email, payload.emails)
+                    }
+                    None => {
+                        let (primary_email, other_emails) = payload
+                            .emails
+                            .and_then(|mut emails| {
+                                if emails.is_empty() {
+                                    None
+                                } else {
+                                    let primary_email = emails.remove(0);
+                                    Some((primary_email, emails))
+                                }
+                            })
+                            .ok_or(AnalyticsError::MissingEmail)?;
+
+                        (primary_email, Some(other_emails))
+                    }
+                };
+
+                let payload = ReportRequest {
+                    emails: optional_emails,
+                    ..payload
+                };
 
                 let org_id = auth.platform.get_processor().get_account().get_org_id();
                 let merchant_id = auth.platform.get_processor().get_account().get_id();
@@ -1995,11 +2130,18 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth {
-                permission: Permission::ProfileReportRead,
-                allow_connected: true,
-                allow_platform: false,
-            },
+            auth::auth_type(
+                &auth::ApiKeyAuth {
+                    allow_connected_scope_operation: true,
+                    allow_platform_self_operation: false,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::ProfileReportRead,
+                    allow_connected: true,
+                    allow_platform: false,
+                },
+                req.headers(),
+            ),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -2017,13 +2159,46 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
-                    .await
-                    .change_context(AnalyticsError::UnknownError)?;
+                let (user_email, optional_emails) = match user_id {
+                    Some(user_id) => {
+                        let user = state
+                            .global_store
+                            .find_user_by_id(&user_id)
+                            .await
+                            .change_context(AnalyticsError::UnknownError)?;
 
-                let user_email = UserEmail::from_pii_email(user.email)
-                    .change_context(AnalyticsError::UnknownError)?
-                    .get_secret();
+                        let user_email = Email::try_from(
+                            UserEmail::from_pii_email(user.email)
+                                .change_context(AnalyticsError::UnknownError)?
+                                .get_secret()
+                                .expose()
+                                .to_string(),
+                        )
+                        .change_context(AnalyticsError::MissingEmail)?;
+
+                        (user_email, payload.emails)
+                    }
+                    None => {
+                        let (primary_email, other_emails) = payload
+                            .emails
+                            .and_then(|mut emails| {
+                                if emails.is_empty() {
+                                    None
+                                } else {
+                                    let primary_email = emails.remove(0);
+                                    Some((primary_email, emails))
+                                }
+                            })
+                            .ok_or(AnalyticsError::MissingEmail)?;
+
+                        (primary_email, Some(other_emails))
+                    }
+                };
+
+                let payload = ReportRequest {
+                    emails: optional_emails,
+                    ..payload
+                };
 
                 let org_id = auth.platform.get_processor().get_account().get_org_id();
                 let merchant_id = auth.platform.get_processor().get_account().get_id();
@@ -2047,11 +2222,18 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth {
-                permission: Permission::MerchantReportRead,
-                allow_connected: true,
-                allow_platform: false,
-            },
+            auth::auth_type(
+                &auth::ApiKeyAuth {
+                    allow_connected_scope_operation: true,
+                    allow_platform_self_operation: false,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::MerchantReportRead,
+                    allow_connected: true,
+                    allow_platform: false,
+                },
+                req.headers(),
+            ),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -2069,13 +2251,46 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
-                    .await
-                    .change_context(AnalyticsError::UnknownError)?;
+                let (user_email, optional_emails) = match user_id {
+                    Some(user_id) => {
+                        let user = state
+                            .global_store
+                            .find_user_by_id(&user_id)
+                            .await
+                            .change_context(AnalyticsError::UnknownError)?;
 
-                let user_email = UserEmail::from_pii_email(user.email)
-                    .change_context(AnalyticsError::UnknownError)?
-                    .get_secret();
+                        let user_email = Email::try_from(
+                            UserEmail::from_pii_email(user.email)
+                                .change_context(AnalyticsError::UnknownError)?
+                                .get_secret()
+                                .expose()
+                                .to_string(),
+                        )
+                        .change_context(AnalyticsError::MissingEmail)?;
+
+                        (user_email, payload.emails)
+                    }
+                    None => {
+                        let (primary_email, other_emails) = payload
+                            .emails
+                            .and_then(|mut emails| {
+                                if emails.is_empty() {
+                                    None
+                                } else {
+                                    let primary_email = emails.remove(0);
+                                    Some((primary_email, emails))
+                                }
+                            })
+                            .ok_or(AnalyticsError::MissingEmail)?;
+
+                        (primary_email, Some(other_emails))
+                    }
+                };
+
+                let payload = ReportRequest {
+                    emails: optional_emails,
+                    ..payload
+                };
 
                 let org_id = auth.platform.get_processor().get_account().get_org_id();
                 let lambda_req = GenerateReportRequest {
@@ -2097,11 +2312,18 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth {
-                permission: Permission::OrganizationReportRead,
-                allow_connected: true,
-                allow_platform: false,
-            },
+            auth::auth_type(
+                &auth::ApiKeyAuth {
+                    allow_connected_scope_operation: true,
+                    allow_platform_self_operation: false,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::OrganizationReportRead,
+                    allow_connected: true,
+                    allow_platform: false,
+                },
+                req.headers(),
+            ),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -2120,13 +2342,46 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
-                    .await
-                    .change_context(AnalyticsError::UnknownError)?;
+                let (user_email, optional_emails) = match user_id {
+                    Some(user_id) => {
+                        let user = state
+                            .global_store
+                            .find_user_by_id(&user_id)
+                            .await
+                            .change_context(AnalyticsError::UnknownError)?;
 
-                let user_email = UserEmail::from_pii_email(user.email)
-                    .change_context(AnalyticsError::UnknownError)?
-                    .get_secret();
+                        let user_email = Email::try_from(
+                            UserEmail::from_pii_email(user.email)
+                                .change_context(AnalyticsError::UnknownError)?
+                                .get_secret()
+                                .expose()
+                                .to_string(),
+                        )
+                        .change_context(AnalyticsError::MissingEmail)?;
+
+                        (user_email, payload.emails)
+                    }
+                    None => {
+                        let (primary_email, other_emails) = payload
+                            .emails
+                            .and_then(|mut emails| {
+                                if emails.is_empty() {
+                                    None
+                                } else {
+                                    let primary_email = emails.remove(0);
+                                    Some((primary_email, emails))
+                                }
+                            })
+                            .ok_or(AnalyticsError::MissingEmail)?;
+
+                        (primary_email, Some(other_emails))
+                    }
+                };
+
+                let payload = ReportRequest {
+                    emails: optional_emails,
+                    ..payload
+                };
 
                 let org_id = auth.platform.get_processor().get_account().get_org_id();
                 let merchant_id = auth.platform.get_processor().get_account().get_id();
@@ -2157,11 +2412,18 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth {
-                permission: Permission::ProfileReportRead,
-                allow_connected: true,
-                allow_platform: false,
-            },
+            auth::auth_type(
+                &auth::ApiKeyAuth {
+                    allow_connected_scope_operation: true,
+                    allow_platform_self_operation: false,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::ProfileReportRead,
+                    allow_connected: true,
+                    allow_platform: false,
+                },
+                req.headers(),
+            ),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -2180,13 +2442,46 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
-                    .await
-                    .change_context(AnalyticsError::UnknownError)?;
+                let (user_email, optional_emails) = match user_id {
+                    Some(user_id) => {
+                        let user = state
+                            .global_store
+                            .find_user_by_id(&user_id)
+                            .await
+                            .change_context(AnalyticsError::UnknownError)?;
 
-                let user_email = UserEmail::from_pii_email(user.email)
-                    .change_context(AnalyticsError::UnknownError)?
-                    .get_secret();
+                        let user_email = Email::try_from(
+                            UserEmail::from_pii_email(user.email)
+                                .change_context(AnalyticsError::UnknownError)?
+                                .get_secret()
+                                .expose()
+                                .to_string(),
+                        )
+                        .change_context(AnalyticsError::MissingEmail)?;
+
+                        (user_email, payload.emails)
+                    }
+                    None => {
+                        let (primary_email, other_emails) = payload
+                            .emails
+                            .and_then(|mut emails| {
+                                if emails.is_empty() {
+                                    None
+                                } else {
+                                    let primary_email = emails.remove(0);
+                                    Some((primary_email, emails))
+                                }
+                            })
+                            .ok_or(AnalyticsError::MissingEmail)?;
+
+                        (primary_email, Some(other_emails))
+                    }
+                };
+
+                let payload = ReportRequest {
+                    emails: optional_emails,
+                    ..payload
+                };
 
                 let org_id = auth.platform.get_processor().get_account().get_org_id();
                 let merchant_id = auth.platform.get_processor().get_account().get_id();
@@ -2210,11 +2505,18 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth {
-                permission: Permission::MerchantReportRead,
-                allow_connected: true,
-                allow_platform: false,
-            },
+            auth::auth_type(
+                &auth::ApiKeyAuth {
+                    allow_connected_scope_operation: true,
+                    allow_platform_self_operation: false,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::MerchantReportRead,
+                    allow_connected: true,
+                    allow_platform: false,
+                },
+                req.headers(),
+            ),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -2233,13 +2535,46 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
-                    .await
-                    .change_context(AnalyticsError::UnknownError)?;
+                let (user_email, optional_emails) = match user_id {
+                    Some(user_id) => {
+                        let user = state
+                            .global_store
+                            .find_user_by_id(&user_id)
+                            .await
+                            .change_context(AnalyticsError::UnknownError)?;
 
-                let user_email = UserEmail::from_pii_email(user.email)
-                    .change_context(AnalyticsError::UnknownError)?
-                    .get_secret();
+                        let user_email = Email::try_from(
+                            UserEmail::from_pii_email(user.email)
+                                .change_context(AnalyticsError::UnknownError)?
+                                .get_secret()
+                                .expose()
+                                .to_string(),
+                        )
+                        .change_context(AnalyticsError::MissingEmail)?;
+
+                        (user_email, payload.emails)
+                    }
+                    None => {
+                        let (primary_email, other_emails) = payload
+                            .emails
+                            .and_then(|mut emails| {
+                                if emails.is_empty() {
+                                    None
+                                } else {
+                                    let primary_email = emails.remove(0);
+                                    Some((primary_email, emails))
+                                }
+                            })
+                            .ok_or(AnalyticsError::MissingEmail)?;
+
+                        (primary_email, Some(other_emails))
+                    }
+                };
+
+                let payload = ReportRequest {
+                    emails: optional_emails,
+                    ..payload
+                };
 
                 let org_id = auth.platform.get_processor().get_account().get_org_id();
                 let lambda_req = GenerateReportRequest {
@@ -2261,11 +2596,18 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth {
-                permission: Permission::OrganizationReportRead,
-                allow_connected: true,
-                allow_platform: false,
-            },
+            auth::auth_type(
+                &auth::ApiKeyAuth {
+                    allow_connected_scope_operation: true,
+                    allow_platform_self_operation: false,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::OrganizationReportRead,
+                    allow_connected: true,
+                    allow_platform: false,
+                },
+                req.headers(),
+            ),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -2284,13 +2626,46 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
-                    .await
-                    .change_context(AnalyticsError::UnknownError)?;
+                let (user_email, optional_emails) = match user_id {
+                    Some(user_id) => {
+                        let user = state
+                            .global_store
+                            .find_user_by_id(&user_id)
+                            .await
+                            .change_context(AnalyticsError::UnknownError)?;
 
-                let user_email = UserEmail::from_pii_email(user.email)
-                    .change_context(AnalyticsError::UnknownError)?
-                    .get_secret();
+                        let user_email = Email::try_from(
+                            UserEmail::from_pii_email(user.email)
+                                .change_context(AnalyticsError::UnknownError)?
+                                .get_secret()
+                                .expose()
+                                .to_string(),
+                        )
+                        .change_context(AnalyticsError::MissingEmail)?;
+
+                        (user_email, payload.emails)
+                    }
+                    None => {
+                        let (primary_email, other_emails) = payload
+                            .emails
+                            .and_then(|mut emails| {
+                                if emails.is_empty() {
+                                    None
+                                } else {
+                                    let primary_email = emails.remove(0);
+                                    Some((primary_email, emails))
+                                }
+                            })
+                            .ok_or(AnalyticsError::MissingEmail)?;
+
+                        (primary_email, Some(other_emails))
+                    }
+                };
+
+                let payload = ReportRequest {
+                    emails: optional_emails,
+                    ..payload
+                };
                 let org_id = auth.platform.get_processor().get_account().get_org_id();
                 let merchant_id = auth.platform.get_processor().get_account().get_id();
                 let profile_id = auth
@@ -2320,17 +2695,23 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth {
-                permission: Permission::ProfileReportRead,
-                allow_connected: true,
-                allow_platform: false,
-            },
+            auth::auth_type(
+                &auth::ApiKeyAuth {
+                    allow_connected_scope_operation: true,
+                    allow_platform_self_operation: false,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::ProfileReportRead,
+                    allow_connected: true,
+                    allow_platform: false,
+                },
+                req.headers(),
+            ),
             api_locking::LockAction::NotApplicable,
         ))
         .await
     }
 
-    #[cfg(feature = "v1")]
     pub async fn generate_merchant_payment_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -2343,13 +2724,46 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
-                    .await
-                    .change_context(AnalyticsError::UnknownError)?;
+                let (user_email, optional_emails) = match user_id {
+                    Some(user_id) => {
+                        let user = state
+                            .global_store
+                            .find_user_by_id(&user_id)
+                            .await
+                            .change_context(AnalyticsError::UnknownError)?;
 
-                let user_email = UserEmail::from_pii_email(user.email)
-                    .change_context(AnalyticsError::UnknownError)?
-                    .get_secret();
+                        let user_email = Email::try_from(
+                            UserEmail::from_pii_email(user.email)
+                                .change_context(AnalyticsError::UnknownError)?
+                                .get_secret()
+                                .expose()
+                                .to_string(),
+                        )
+                        .change_context(AnalyticsError::MissingEmail)?;
+
+                        (user_email, payload.emails)
+                    }
+                    None => {
+                        let (primary_email, other_emails) = payload
+                            .emails
+                            .and_then(|mut emails| {
+                                if emails.is_empty() {
+                                    None
+                                } else {
+                                    let primary_email = emails.remove(0);
+                                    Some((primary_email, emails))
+                                }
+                            })
+                            .ok_or(AnalyticsError::MissingEmail)?;
+
+                        (primary_email, Some(other_emails))
+                    }
+                };
+
+                let payload = ReportRequest {
+                    emails: optional_emails,
+                    ..payload
+                };
 
                 let org_id = auth.platform.get_processor().get_account().get_org_id();
                 let merchant_id = auth.platform.get_processor().get_account().get_id();
@@ -2373,17 +2787,23 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth {
-                permission: Permission::MerchantReportRead,
-                allow_connected: true,
-                allow_platform: false,
-            },
+            auth::auth_type::<auth::AuthenticationDataWithUserId, _>(
+                &auth::ApiKeyAuth {
+                    allow_connected_scope_operation: true,
+                    allow_platform_self_operation: false,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::MerchantReportRead,
+                    allow_connected: true,
+                    allow_platform: false,
+                },
+                req.headers(),
+            ),
             api_locking::LockAction::NotApplicable,
         ))
         .await
     }
 
-    #[cfg(feature = "v1")]
     pub async fn generate_org_payment_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -2396,13 +2816,46 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
-                    .await
-                    .change_context(AnalyticsError::UnknownError)?;
+                let (user_email, optional_emails) = match user_id {
+                    Some(user_id) => {
+                        let user = state
+                            .global_store
+                            .find_user_by_id(&user_id)
+                            .await
+                            .change_context(AnalyticsError::UnknownError)?;
 
-                let user_email = UserEmail::from_pii_email(user.email)
-                    .change_context(AnalyticsError::UnknownError)?
-                    .get_secret();
+                        let user_email = Email::try_from(
+                            UserEmail::from_pii_email(user.email)
+                                .change_context(AnalyticsError::UnknownError)?
+                                .get_secret()
+                                .expose()
+                                .to_string(),
+                        )
+                        .change_context(AnalyticsError::MissingEmail)?;
+
+                        (user_email, payload.emails)
+                    }
+                    None => {
+                        let (primary_email, other_emails) = payload
+                            .emails
+                            .and_then(|mut emails| {
+                                if emails.is_empty() {
+                                    None
+                                } else {
+                                    let primary_email = emails.remove(0);
+                                    Some((primary_email, emails))
+                                }
+                            })
+                            .ok_or(AnalyticsError::MissingEmail)?;
+
+                        (primary_email, Some(other_emails))
+                    }
+                };
+
+                let payload = ReportRequest {
+                    emails: optional_emails,
+                    ..payload
+                };
 
                 let org_id = auth.platform.get_processor().get_account().get_org_id();
                 let lambda_req = GenerateReportRequest {
@@ -2424,17 +2877,23 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth {
-                permission: Permission::OrganizationReportRead,
-                allow_connected: true,
-                allow_platform: false,
-            },
+            auth::auth_type::<auth::AuthenticationDataWithUserId, _>(
+                &auth::ApiKeyAuth {
+                    allow_connected_scope_operation: true,
+                    allow_platform_self_operation: false,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::OrganizationReportRead,
+                    allow_connected: true,
+                    allow_platform: false,
+                },
+                req.headers(),
+            ),
             api_locking::LockAction::NotApplicable,
         ))
         .await
     }
 
-    #[cfg(feature = "v1")]
     pub async fn generate_profile_payment_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -2447,21 +2906,62 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
-                    .await
-                    .change_context(AnalyticsError::UnknownError)?;
+                let (user_email, optional_emails) = match user_id {
+                    Some(user_id) => {
+                        let user = state
+                            .global_store
+                            .find_user_by_id(&user_id)
+                            .await
+                            .change_context(AnalyticsError::UnknownError)?;
 
-                let user_email = UserEmail::from_pii_email(user.email)
-                    .change_context(AnalyticsError::UnknownError)?
-                    .get_secret();
+                        let user_email = Email::try_from(
+                            UserEmail::from_pii_email(user.email)
+                                .change_context(AnalyticsError::UnknownError)?
+                                .get_secret()
+                                .expose()
+                                .to_string(),
+                        )
+                        .change_context(AnalyticsError::MissingEmail)?;
+
+                        (user_email, payload.emails)
+                    }
+                    None => {
+                        let (primary_email, other_emails) = payload
+                            .emails
+                            .and_then(|mut emails| {
+                                if emails.is_empty() {
+                                    None
+                                } else {
+                                    let primary_email = emails.remove(0);
+                                    Some((primary_email, emails))
+                                }
+                            })
+                            .ok_or(AnalyticsError::MissingEmail)?;
+
+                        (primary_email, Some(other_emails))
+                    }
+                };
+
+                let payload = ReportRequest {
+                    emails: optional_emails,
+                    ..payload
+                };
                 let org_id = auth.platform.get_processor().get_account().get_org_id();
                 let merchant_id = auth.platform.get_processor().get_account().get_id();
-                let profile_id = auth
-                    .profile
-                    .ok_or(report!(UserErrors::JwtProfileIdMissing))
-                    .change_context(AnalyticsError::AccessForbiddenError)?
-                    .get_id()
-                    .clone();
+                let profile_id = {
+                    #[cfg(feature = "v1")]
+                    {
+                        auth.profile
+                            .ok_or(report!(UserErrors::JwtProfileIdMissing))
+                            .change_context(AnalyticsError::AccessForbiddenError)?
+                            .get_id()
+                            .clone()
+                    }
+                    #[cfg(feature = "v2")]
+                    {
+                        auth.profile.get_id().clone()
+                    }
+                };
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: Some(merchant_id.clone()),
@@ -2483,11 +2983,18 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth {
-                permission: Permission::ProfileReportRead,
-                allow_connected: true,
-                allow_platform: false,
-            },
+            auth::auth_type::<auth::AuthenticationDataWithUserId, _>(
+                &auth::ApiKeyAuth {
+                    allow_connected_scope_operation: true,
+                    allow_platform_self_operation: false,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::ProfileReportRead,
+                    allow_connected: true,
+                    allow_platform: false,
+                },
+                req.headers(),
+            ),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -2506,13 +3013,46 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
-                    .await
-                    .change_context(AnalyticsError::UnknownError)?;
+                let (user_email, optional_emails) = match user_id {
+                    Some(user_id) => {
+                        let user = state
+                            .global_store
+                            .find_user_by_id(&user_id)
+                            .await
+                            .change_context(AnalyticsError::UnknownError)?;
 
-                let user_email = UserEmail::from_pii_email(user.email)
-                    .change_context(AnalyticsError::UnknownError)?
-                    .get_secret();
+                        let user_email = Email::try_from(
+                            UserEmail::from_pii_email(user.email)
+                                .change_context(AnalyticsError::UnknownError)?
+                                .get_secret()
+                                .expose()
+                                .to_string(),
+                        )
+                        .change_context(AnalyticsError::MissingEmail)?;
+
+                        (user_email, payload.emails)
+                    }
+                    None => {
+                        let (primary_email, other_emails) = payload
+                            .emails
+                            .and_then(|mut emails| {
+                                if emails.is_empty() {
+                                    None
+                                } else {
+                                    let primary_email = emails.remove(0);
+                                    Some((primary_email, emails))
+                                }
+                            })
+                            .ok_or(AnalyticsError::MissingEmail)?;
+
+                        (primary_email, Some(other_emails))
+                    }
+                };
+
+                let payload = ReportRequest {
+                    emails: optional_emails,
+                    ..payload
+                };
 
                 let org_id = auth.platform.get_processor().get_account().get_org_id();
                 let merchant_id = auth.platform.get_processor().get_account().get_id();
@@ -2536,11 +3076,18 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth {
-                permission: Permission::MerchantReportRead,
-                allow_connected: true,
-                allow_platform: false,
-            },
+            auth::auth_type(
+                &auth::ApiKeyAuth {
+                    allow_connected_scope_operation: true,
+                    allow_platform_self_operation: false,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::MerchantReportRead,
+                    allow_connected: true,
+                    allow_platform: false,
+                },
+                req.headers(),
+            ),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -2559,13 +3106,46 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
-                    .await
-                    .change_context(AnalyticsError::UnknownError)?;
+                let (user_email, optional_emails) = match user_id {
+                    Some(user_id) => {
+                        let user = state
+                            .global_store
+                            .find_user_by_id(&user_id)
+                            .await
+                            .change_context(AnalyticsError::UnknownError)?;
 
-                let user_email = UserEmail::from_pii_email(user.email)
-                    .change_context(AnalyticsError::UnknownError)?
-                    .get_secret();
+                        let user_email = Email::try_from(
+                            UserEmail::from_pii_email(user.email)
+                                .change_context(AnalyticsError::UnknownError)?
+                                .get_secret()
+                                .expose()
+                                .to_string(),
+                        )
+                        .change_context(AnalyticsError::MissingEmail)?;
+
+                        (user_email, payload.emails)
+                    }
+                    None => {
+                        let (primary_email, other_emails) = payload
+                            .emails
+                            .and_then(|mut emails| {
+                                if emails.is_empty() {
+                                    None
+                                } else {
+                                    let primary_email = emails.remove(0);
+                                    Some((primary_email, emails))
+                                }
+                            })
+                            .ok_or(AnalyticsError::MissingEmail)?;
+
+                        (primary_email, Some(other_emails))
+                    }
+                };
+
+                let payload = ReportRequest {
+                    emails: optional_emails,
+                    ..payload
+                };
 
                 let org_id = auth.platform.get_processor().get_account().get_org_id();
                 let lambda_req = GenerateReportRequest {
@@ -2587,11 +3167,18 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth {
-                permission: Permission::OrganizationReportRead,
-                allow_connected: true,
-                allow_platform: false,
-            },
+            auth::auth_type(
+                &auth::ApiKeyAuth {
+                    allow_connected_scope_operation: true,
+                    allow_platform_self_operation: false,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::OrganizationReportRead,
+                    allow_connected: true,
+                    allow_platform: false,
+                },
+                req.headers(),
+            ),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -2610,13 +3197,46 @@ pub mod routes {
             &req,
             json_payload.into_inner(),
             |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
-                let user = UserInterface::find_user_by_id(&*state.global_store, &user_id)
-                    .await
-                    .change_context(AnalyticsError::UnknownError)?;
+                let (user_email, optional_emails) = match user_id {
+                    Some(user_id) => {
+                        let user = state
+                            .global_store
+                            .find_user_by_id(&user_id)
+                            .await
+                            .change_context(AnalyticsError::UnknownError)?;
 
-                let user_email = UserEmail::from_pii_email(user.email)
-                    .change_context(AnalyticsError::UnknownError)?
-                    .get_secret();
+                        let user_email = Email::try_from(
+                            UserEmail::from_pii_email(user.email)
+                                .change_context(AnalyticsError::UnknownError)?
+                                .get_secret()
+                                .expose()
+                                .to_string(),
+                        )
+                        .change_context(AnalyticsError::MissingEmail)?;
+
+                        (user_email, payload.emails)
+                    }
+                    None => {
+                        let (primary_email, other_emails) = payload
+                            .emails
+                            .and_then(|mut emails| {
+                                if emails.is_empty() {
+                                    None
+                                } else {
+                                    let primary_email = emails.remove(0);
+                                    Some((primary_email, emails))
+                                }
+                            })
+                            .ok_or(AnalyticsError::MissingEmail)?;
+
+                        (primary_email, Some(other_emails))
+                    }
+                };
+
+                let payload = ReportRequest {
+                    emails: optional_emails,
+                    ..payload
+                };
                 let org_id = auth.platform.get_processor().get_account().get_org_id();
                 let merchant_id = auth.platform.get_processor().get_account().get_id();
                 let profile_id = auth
@@ -2646,11 +3266,18 @@ pub mod routes {
                 .await
                 .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth {
-                permission: Permission::ProfileReportRead,
-                allow_connected: true,
-                allow_platform: false,
-            },
+            auth::auth_type(
+                &auth::ApiKeyAuth {
+                    allow_connected_scope_operation: true,
+                    allow_platform_self_operation: false,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::ProfileReportRead,
+                    allow_connected: true,
+                    allow_platform: false,
+                },
+                req.headers(),
+            ),
             api_locking::LockAction::NotApplicable,
         ))
         .await
