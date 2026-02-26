@@ -360,7 +360,8 @@ where
             }
             (
                 PaymentMethodData::MandatePayment
-                | PaymentMethodData::CardDetailsForNetworkTransactionId(_),
+                | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_),
                 _,
             ) => (
                 Some(IsRebilling::True),
@@ -1163,6 +1164,9 @@ where
                 )
                 .into()),
             },
+            PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(
+                network_token_data,
+            ) => get_wallet_network_token_info(item, &network_token_data),
             _ => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("nuvei"),
             )
@@ -1267,6 +1271,49 @@ where
         ..Default::default()
     })
 }
+
+fn get_wallet_network_token_info<F, Req>(
+    item: &RouterData<F, Req, PaymentsResponseData>,
+    network_token_data: &payment_method_data::DecryptedWalletTokenDetailsForNetworkTransactionId,
+) -> Result<NuveiPaymentsRequest, error_stack::Report<errors::ConnectorError>>
+where
+    Req: NuveiAuthorizePreprocessingCommon,
+{
+    let card_type = match network_token_data.card_network.clone() {
+        Some(card_type) => NuveiCardType::try_from(card_type)?,
+        None => NuveiCardType::try_from(&network_token_data.get_card_issuer()?)?,
+    };
+
+    let external_scheme_details = Some(ExternalSchemeDetails {
+        transaction_id: item
+            .request
+            .get_ntid()
+            .ok_or_else(missing_field_err("network_transaction_id"))
+            .attach_printable("Nuvei unable to find NTID for MIT")?
+            .into(),
+        brand: Some(card_type),
+    });
+
+    Ok(NuveiPaymentsRequest {
+        device_details: DeviceDetails::foreign_try_from(&item.request.get_browser_info().clone())?,
+        payment_option: PaymentOption {
+            card: Some(Card {
+                card_number: Some(cards::CardNumber::from(
+                    network_token_data.decrypted_token.clone(),
+                )),
+                card_holder_name: network_token_data.card_holder_name.clone(),
+                expiration_month: Some(network_token_data.token_exp_month.clone()),
+                expiration_year: Some(network_token_data.token_exp_year.clone()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        },
+        external_scheme_details,
+        is_moto: item.request.get_is_moto(),
+        ..Default::default()
+    })
+}
+
 impl From<NuveiCardDetails> for PaymentOption {
     fn from(card_details: NuveiCardDetails) -> Self {
         let card = card_details.card;
