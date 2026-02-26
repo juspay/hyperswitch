@@ -503,14 +503,29 @@ pub struct OpenSearchQueryBuilder {
 }
 
 const ACTIVE_ATTEMPT_FILTER_SCRIPT: &str = r#"
-    def active = doc['active_attempt_id.keyword'].value;
-    def ids = doc['attempts_list.attempt_id.keyword'];
-    def values = doc[params.field_name];
-    if (values.size() == 0) return false;
+    if (!params.containsKey('_source')) return false;
 
-    for (int i = 0; i < ids.size(); i++) {
-        if (ids[i] == active) {
-            return params.values.contains(values[i]);
+    def source = params._source;
+    if (source == null) return false;
+
+    def activeAttemptId = source.active_attempt_id;
+    if (activeAttemptId == null) return false;
+
+    def attemptsList = source.attempts_list;
+    if (attemptsList == null) return false;
+
+    for (def attemptObject : attemptsList) {
+        if (attemptObject == null) continue;
+        if (!(attemptObject instanceof Map)) continue;
+
+        def attemptId = attemptObject.get("attempt_id");
+        if (attemptId == null) continue;
+
+        if (attemptId == activeAttemptId) {
+            def fieldValueForActiveAttempt = attemptObject.get(params.field);
+            if (fieldValueForActiveAttempt == null) return false;
+
+            return params.values.contains(fieldValueForActiveAttempt);
         }
     }
 
@@ -867,38 +882,35 @@ impl OpenSearchQueryBuilder {
 
         query_obj.insert("bool".to_string(), Value::Object(bool_obj.clone()));
 
-        let mut sort_list = Vec::new();
-        match &self.order {
-            Some(order) => {
-                let sort_on = match order.on {
-                    SortOn::Amount => self
-                        .get_amount_field(*indexes.first().unwrap_or(&SearchIndex::PaymentIntents))
-                        .to_string(),
-                    SortOn::Created => "@timestamp".to_string(),
-                    SortOn::Modified => "modified_at".to_string(),
-                };
-                let sort_by = match order.by {
-                    SortBy::Asc => "asc",
-                    SortBy::Desc => "desc",
-                };
-                sort_list.push(json!({
-                    sort_on: {
-                        "order": sort_by
-                    }
-                }));
-            }
-            None => {
-                sort_list.push(json!({
-                    "@timestamp": {
-                        "order": "desc"
-                    }
-                }));
-            }
-        }
-
         Ok(indexes
             .iter()
             .map(|index| {
+                let mut sort_list = Vec::new();
+                match &self.order {
+                    Some(order) => {
+                        let sort_on = match order.on {
+                            SortOn::Amount => self.get_amount_field(*index).to_string(),
+                            SortOn::Created => "@timestamp".to_string(),
+                            SortOn::Modified => "modified_at".to_string(),
+                        };
+                        let sort_by = match order.by {
+                            SortBy::Asc => "asc",
+                            SortBy::Desc => "desc",
+                        };
+                        sort_list.push(json!({
+                            sort_on: {
+                                "order": sort_by
+                            }
+                        }));
+                    }
+                    None => {
+                        sort_list.push(json!({
+                            "@timestamp": {
+                                "order": "desc"
+                            }
+                        }));
+                    }
+                }
                 let mut payload = json!({
                     "track_total_hits": true,
                     "query": query_obj.clone(),

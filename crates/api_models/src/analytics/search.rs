@@ -23,8 +23,8 @@ pub struct SearchFilters {
 }
 
 #[cfg(feature = "v1")]
-pub fn convert_to_strings<T: ToString>(items: Vec<T>) -> Vec<String> {
-    items.into_iter().map(|item| item.to_string()).collect()
+pub fn convert_to_strings<T: ToString>(items: &[T]) -> Vec<String> {
+    items.iter().map(|item| item.to_string()).collect()
 }
 
 #[cfg(feature = "v1")]
@@ -33,36 +33,24 @@ impl From<&crate::payments::PaymentListFilterConstraints> for SearchFilters {
         Self {
             payment_method: constraints
                 .payment_method
-                .as_ref()
-                .map(|payment_method| convert_to_strings(payment_method.clone())),
-            currency: constraints
-                .currency
-                .as_ref()
-                .map(|currency| convert_to_strings(currency.clone())),
-            status: constraints
-                .status
-                .as_ref()
-                .map(|status| convert_to_strings(status.clone())),
+                .as_deref()
+                .map(convert_to_strings),
+            currency: constraints.currency.as_deref().map(convert_to_strings),
+            status: constraints.status.as_deref().map(convert_to_strings),
             payment_method_type: constraints
                 .payment_method_type
-                .as_ref()
-                .map(|payment_method_type| convert_to_strings(payment_method_type.clone())),
+                .as_deref()
+                .map(convert_to_strings),
             authentication_type: constraints
                 .authentication_type
-                .as_ref()
-                .map(|authentication_type| convert_to_strings(authentication_type.clone())),
-            card_network: constraints
-                .card_network
-                .as_ref()
-                .map(|card_network| convert_to_strings(card_network.clone())),
-            connector: constraints
-                .connector
-                .as_ref()
-                .map(|connector| convert_to_strings(connector.clone())),
+                .as_deref()
+                .map(convert_to_strings),
+            card_network: constraints.card_network.as_deref().map(convert_to_strings),
+            connector: constraints.connector.as_deref().map(convert_to_strings),
             card_discovery: constraints
                 .card_discovery
-                .as_ref()
-                .map(|card_discovery| convert_to_strings(card_discovery.clone())),
+                .as_deref()
+                .map(convert_to_strings),
             customer_id: constraints
                 .customer_id
                 .as_ref()
