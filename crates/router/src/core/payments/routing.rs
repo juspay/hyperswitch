@@ -1203,6 +1203,95 @@ pub async fn perform_cgraph_filtering(
     Ok(final_selection)
 }
 
+fn is_installment_payment(payment_data: &routing::PaymentsDslInput<'_>) -> bool {
+    payment_data.payment_intent.installment_options.is_some()
+}
+
+fn get_payment_method_and_type_for_installment(
+    payment_data: &routing::PaymentsDslInput<'_>,
+) -> (
+    Option<api_enums::PaymentMethod>,
+    Option<api_enums::PaymentMethodType>,
+) {
+    (
+        payment_data.payment_attempt.payment_method,
+        payment_data.payment_attempt.payment_method_type,
+    )
+}
+
+fn get_payment_data_for_installments<'a>(
+    transaction_data: &'a routing::TransactionData<'a>,
+) -> Option<&'a routing::PaymentsDslInput<'a>> {
+    match transaction_data {
+        routing::TransactionData::Payment(payment_data) => Some(payment_data),
+        #[cfg(feature = "payouts")]
+        routing::TransactionData::Payout(_) => None,
+    }
+}
+
+fn get_installment_supported_connectors(
+    state: &SessionState,
+    transaction_data: &routing::TransactionData<'_>,
+) -> Option<Vec<api_enums::RoutableConnectors>> {
+    get_payment_data_for_installments(transaction_data)
+        .filter(|payment_data| is_installment_payment(payment_data))
+        .map(|payment_data| {
+            let (payment_method, payment_method_type) =
+                get_payment_method_and_type_for_installment(payment_data);
+
+            payment_method
+                .zip(payment_method_type)
+                .and_then(|(payment_method, payment_method_type)| {
+                    state
+                        .conf
+                        .installments
+                        .supported_payment_methods
+                        .0
+                        .get(&payment_method)
+                        .and_then(|supported_payment_method_types| {
+                            supported_payment_method_types.0.get(&payment_method_type)
+                        })
+                        .map(|supported_connectors| {
+                            supported_connectors
+                                .0
+                                .iter()
+                                .filter_map(|connector| {
+                                    api_enums::RoutableConnectors::from_str(
+                                        connector.to_string().as_str(),
+                                    )
+                                    .ok()
+                                })
+                                .collect::<Vec<_>>()
+                        })
+                })
+                .unwrap_or_default()
+        })
+}
+
+fn update_eligible_connectors_for_installments(
+    state: &SessionState,
+    transaction_data: &routing::TransactionData<'_>,
+    eligible_connectors: Option<Vec<api_enums::RoutableConnectors>>,
+) -> Option<Vec<api_enums::RoutableConnectors>> {
+    let installment_supported_connectors =
+        get_installment_supported_connectors(state, transaction_data);
+
+    eligible_connectors
+        .map(|existing_eligible_connectors| {
+            installment_supported_connectors.as_ref().map_or(
+                existing_eligible_connectors.clone(),
+                |installment_supported_connectors| {
+                    installment_supported_connectors
+                        .iter()
+                        .filter(|connector| existing_eligible_connectors.contains(connector))
+                        .copied()
+                        .collect()
+                },
+            )
+        })
+        .or(installment_supported_connectors)
+}
+
 pub async fn perform_eligibility_analysis(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -1290,6 +1379,9 @@ pub async fn perform_eligibility_analysis_with_fallback(
     business_profile: &domain::Profile,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     logger::debug!("euclid_routing: performing eligibility");
+    let eligible_connectors =
+        update_eligible_connectors_for_installments(state, transaction_data, eligible_connectors);
+
     let mut final_selection = perform_eligibility_analysis(
         state,
         key_store,
