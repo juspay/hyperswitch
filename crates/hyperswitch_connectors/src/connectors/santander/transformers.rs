@@ -941,7 +941,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
 
                 let voucher_data = VoucherNextStepData {
                     digitable_line: boleto_data.digitable_line.clone(),
-                    barcode: boleto_data.barcode.clone(),
+                    barcode: boleto_data.bar_code.clone(),
                     expires_at: None,
                     expiry_date: Some(boleto_data.due_date),
                     reference: boleto_data.nsu_code.clone(),
