@@ -1301,7 +1301,7 @@ impl TryFrom<Vec<NonZeroU8>> for InstallmentCounts {
 
 /// An interest rate with at most 2 decimal places.
 /// Serializes and deserializes as a plain float (e.g. `2.5`).
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, ToSchema, PartialEq)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq)]
 #[serde(try_from = "f32")]
 pub struct InstallmentInterestRate(f32);
 
@@ -1383,6 +1383,7 @@ pub struct InstallmentOptionData {
     pub billing_frequency: BillingFrequency,
     /// Interest rate per installment as a percentage max 2 decimal places
     ///
+    #[schema(value_type = f32)]
     pub interest_rate: InstallmentInterestRate,
 }
 
