@@ -8,7 +8,7 @@ use common_types::{
 };
 use common_utils::{
     collect_missing_value_keys,
-    errors::CustomResult,
+    errors::{CustomResult, ValidationError},
     ext_traits::{ByteSliceExt, Encode, OptionExt as _},
     pii::{self, Email},
     request::{Method, RequestContent},
@@ -647,6 +647,7 @@ pub enum StripeWallet {
     Cashapp(CashappPayment),
     RevolutPay(RevolutpayPayment),
     ApplePayPredecryptToken(Box<StripeApplePayPredecrypt>),
+    GooglePayPredecryptToken(Box<StripeGooglePayPredecrypt>),
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -659,6 +660,22 @@ pub struct StripeApplePayPredecrypt {
     exp_month: Secret<String>,
     #[serde(rename = "card[cryptogram]")]
     cryptogram: Secret<String>,
+    #[serde(rename = "card[eci]")]
+    eci: Option<String>,
+    #[serde(rename = "card[tokenization_method]")]
+    tokenization_method: String,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct StripeGooglePayPredecrypt {
+    #[serde(rename = "card[number]")]
+    number: cards::CardNumber,
+    #[serde(rename = "card[exp_year]")]
+    exp_year: Secret<String>,
+    #[serde(rename = "card[exp_month]")]
+    exp_month: Secret<String>,
+    #[serde(rename = "card[cryptogram]")]
+    cryptogram: Option<Secret<String>>,
     #[serde(rename = "card[eci]")]
     eci: Option<String>,
     #[serde(rename = "card[tokenization_method]")]
@@ -1696,7 +1713,9 @@ impl TryFrom<(&WalletData, Option<PaymentMethodToken>)> for StripePaymentMethodD
                     payment_method_types: StripePaymentMethodType::RevolutPay,
                 })))
             }
-            WalletData::GooglePay(gpay_data) => Ok(Self::try_from(gpay_data)?),
+            WalletData::GooglePay(gpay_data) => {
+                Ok(Self::try_from((gpay_data, payment_method_token))?)
+            }
             WalletData::PaypalRedirect(_) | WalletData::MobilePayRedirect(_) => Err(
                 ConnectorError::NotImplemented(get_unimplemented_payment_method_error_message(
                     "stripe",
@@ -1814,26 +1833,51 @@ impl TryFrom<&BankRedirectData> for StripePaymentMethodData {
     }
 }
 
-impl TryFrom<&GooglePayWalletData> for StripePaymentMethodData {
+impl TryFrom<(&GooglePayWalletData, Option<PaymentMethodToken>)> for StripePaymentMethodData {
     type Error = error_stack::Report<ConnectorError>;
-    fn try_from(gpay_data: &GooglePayWalletData) -> Result<Self, Self::Error> {
-        Ok(Self::Wallet(StripeWallet::GooglepayToken(GooglePayToken {
-            token: Secret::new(
-                gpay_data
-                    .tokenization_data
-                    .get_encrypted_google_pay_token()
-                    .change_context(ConnectorError::MissingRequiredField {
-                        field_name: "gpay wallet_token",
-                    })?
-                    .as_bytes()
-                    .parse_struct::<StripeGpayToken>("StripeGpayToken")
-                    .change_context(ConnectorError::InvalidWalletToken {
-                        wallet_name: "Google Pay".to_string(),
-                    })?
-                    .id,
-            ),
-            payment_type: StripePaymentMethodType::Card,
-        })))
+    fn try_from(
+        (gpay_data, payment_method_token): (&GooglePayWalletData, Option<PaymentMethodToken>),
+    ) -> Result<Self, error_stack::Report<ConnectorError>> {
+        // Check if we have predecrypted token data
+        if let Some(PaymentMethodToken::GooglePayDecrypt(predecrypted_data)) = payment_method_token
+        {
+            // Use predecrypted token flow
+            let expiry_year_4_digit = predecrypted_data
+                .get_four_digit_expiry_year()
+                .change_context(ConnectorError::InvalidDataFormat {
+                    field_name: "expiry_year_4_digit",
+                })?;
+
+            Ok(Self::Wallet(StripeWallet::GooglePayPredecryptToken(
+                Box::new(StripeGooglePayPredecrypt {
+                    number: predecrypted_data.application_primary_account_number.clone(),
+                    exp_year: expiry_year_4_digit,
+                    exp_month: predecrypted_data.card_exp_month.clone(),
+                    eci: predecrypted_data.eci_indicator.clone(),
+                    cryptogram: predecrypted_data.cryptogram.clone(),
+                    tokenization_method: "google_pay".to_string(),
+                }),
+            )))
+        } else {
+            // Use encrypted token flow
+            Ok(Self::Wallet(StripeWallet::GooglepayToken(GooglePayToken {
+                token: Secret::new(
+                    gpay_data
+                        .tokenization_data
+                        .get_encrypted_google_pay_token()
+                        .change_context(ConnectorError::MissingRequiredField {
+                            field_name: "gpay wallet_token",
+                        })?
+                        .as_bytes()
+                        .parse_struct::<StripeGpayToken>("StripeGpayToken")
+                        .change_context(ConnectorError::InvalidWalletToken {
+                            wallet_name: "Google Pay".to_string(),
+                        })?
+                        .id,
+                ),
+                payment_type: StripePaymentMethodType::Card,
+            })))
+        }
     }
 }
 
