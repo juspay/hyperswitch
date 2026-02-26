@@ -15,6 +15,7 @@ use diesel_models::{
 };
 use error_stack::{report, ResultExt};
 use masking::Secret;
+use router_env::logger;
 
 use crate::{
     core::errors::{StorageErrorExt, UserErrors, UserResponse},
@@ -724,11 +725,15 @@ pub async fn delete_user_role(
 
     // If user has no more role associated with him then deleting user
     if remaining_roles.is_empty() {
-        state
+        let delete_metadatas_result = state
             .store
             .delete_all_metadata_by_user_id(user_from_db.get_user_id())
-            .await
-            .change_context(UserErrors::InternalServerError)?;
+            .await;
+
+        if let Err(e) = delete_metadatas_result {
+            logger::error!("Error while deleting user metadata: {}", e);
+        }
+
         state
             .global_store
             .update_active_user_by_user_id(user_from_db.get_user_id(), UserUpdate::DeactivateUpdate)
