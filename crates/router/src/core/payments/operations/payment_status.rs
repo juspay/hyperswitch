@@ -564,6 +564,8 @@ async fn get_tracker_for_sync<
         is_manual_retry_enabled: business_profile.is_manual_retry_enabled,
         is_l2_l3_enabled: business_profile.is_l2_l3_enabled,
         external_authentication_data: None,
+        selected_installment: None,
+        installment_details: None,
     };
 
     let get_trackers_response = operations::GetTrackerResponse {

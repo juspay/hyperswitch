@@ -45,8 +45,8 @@ use crate::{
         payments::{
             self, helpers, operations,
             operations::payment_confirm::unified_authentication_service::ThreeDsMetaData,
-            populate_surcharge_details, CustomerDetails, OperationSessionSetters, PaymentAddress,
-            PaymentData,
+            populate_installment_details, populate_surcharge_details, CustomerDetails,
+            OperationSessionSetters, PaymentAddress, PaymentData,
         },
         three_ds_decision_rule,
         unified_authentication_service::{
@@ -938,6 +938,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             is_manual_retry_enabled: business_profile.is_manual_retry_enabled,
             is_l2_l3_enabled: business_profile.is_l2_l3_enabled,
             external_authentication_data: request.three_ds_data.clone(),
+            selected_installment: request.installment_data.clone(),
+            installment_details: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -1327,6 +1329,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         connector_data: &api::ConnectorData,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         populate_surcharge_details(state, payment_data).await?;
+        populate_installment_details(payment_data)?;
         payment_data.payment_attempt.request_extended_authorization = payment_data
             .payment_intent
             .get_request_extended_authorization_bool_if_connector_supports(
@@ -2457,6 +2460,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                                     .get_order_tax_amount(),
                                 surcharge_amount,
                                 tax_amount,
+                                payment_data
+                                    .payment_attempt
+                                    .net_amount
+                                    .get_installment_interest(),
                             ),
 
                         connector_mandate_detail: payment_data

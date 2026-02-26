@@ -2092,6 +2092,7 @@ impl behaviour::Conversion for PaymentIntent {
             partner_merchant_identifier_details: None,
             state_metadata: None,
             installment_options: None,
+            installment_interest: None,
         })
     }
     async fn convert_back(
@@ -2356,6 +2357,7 @@ impl behaviour::Conversion for PaymentIntent {
             active_attempts_group_id: self.active_attempts_group_id,
             state_metadata: None,
             installment_options: None,
+            installment_interest: None,
         })
     }
 }

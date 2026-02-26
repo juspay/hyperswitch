@@ -2179,6 +2179,85 @@ where
     Ok(())
 }
 
+/// Calculates the total installment interest to be added to the order amount.
+#[cfg(feature = "v1")]
+pub fn calculate_installment_interest(
+    order_amount: MinorUnit,
+    interest_rate: common_types::payments::InstallmentInterestRate,
+    number_of_installments: std::num::NonZeroU8,
+) -> RouterResult<MinorUnit> {
+    let interest = interest_rate
+        .apply_and_ceil_result(order_amount)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to calculate installment interest")?;
+    let total_interest = interest
+        .get_amount_as_i64()
+        .checked_mul(i64::from(number_of_installments.get()))
+        .ok_or_else(|| {
+            report!(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Overflow while calculating total installment interest")
+        })?;
+    Ok(MinorUnit::new(total_interest))
+}
+
+#[cfg(feature = "v1")]
+#[instrument(skip_all)]
+fn populate_installment_details<F>(payment_data: &mut PaymentData<F>) -> RouterResult<()>
+where
+    F: Send + Clone,
+{
+    if let Some(selected_installment) = payment_data.selected_installment.clone() {
+        // Customer sent installment_data but merchant never configured installment_options
+        let installment_options = payment_data
+            .payment_intent
+            .installment_options
+            .as_ref()
+            .ok_or_else(|| {
+                report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Installment options are not configured for this payment".to_string(),
+                })
+            })?;
+
+        if let Some(payment_method) = &payment_data.payment_attempt.payment_method.clone() {
+            let installment_option_data = installment_options
+                .iter()
+                .find(|opt| opt.payment_method == *payment_method)
+                .and_then(|option| {
+                    option.installments.iter().find(|data| {
+                        data.number_of_installments
+                            .contains(selected_installment.number_of_installments)
+                            && data.billing_frequency == selected_installment.billing_frequency
+                    })
+                })
+                .ok_or_else(|| {
+                    report!(errors::ApiErrorResponse::InvalidRequestData {
+                        message: format!(
+                            "No installment plan found for {} installments with {:?} billing frequency",
+                            selected_installment.number_of_installments,
+                            selected_installment.billing_frequency,
+                        ),
+                    })
+                })?;
+
+            let total_interest = calculate_installment_interest(
+                payment_data.payment_attempt.net_amount.get_order_amount(),
+                installment_option_data.interest_rate,
+                selected_installment.number_of_installments,
+            )?;
+
+            payment_data
+                .payment_attempt
+                .net_amount
+                .set_installment_interest(Some(total_interest));
+
+            // The connector only needs number_of_installments.
+            payment_data.installment_details = Some(selected_installment);
+        }
+    }
+
+    Ok(())
+}
+
 #[inline]
 pub fn get_connector_data(
     connectors: &mut IntoIter<api::ConnectorRoutingData>,
@@ -8068,6 +8147,8 @@ where
     pub is_manual_retry_enabled: Option<bool>,
     pub is_l2_l3_enabled: bool,
     pub external_authentication_data: Option<api_models::payments::ExternalThreeDsData>,
+    pub selected_installment: Option<common_types::payments::InstallmentData>,
+    pub installment_details: Option<common_types::payments::InstallmentData>,
 }
 
 #[cfg(feature = "v1")]
@@ -11652,6 +11733,9 @@ pub trait OperationSessionGetters<F> {
 
     #[cfg(feature = "v1")]
     fn get_is_manual_retry_enabled(&self) -> Option<bool>;
+
+    #[cfg(feature = "v1")]
+    fn get_installment_details(&self) -> Option<&common_types::payments::InstallmentData>;
 }
 
 pub trait OperationSessionSetters<F> {
@@ -11892,6 +11976,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
 
     fn get_is_manual_retry_enabled(&self) -> Option<bool> {
         self.is_manual_retry_enabled
+    }
+
+    fn get_installment_details(&self) -> Option<&common_types::payments::InstallmentData> {
+        self.installment_details.as_ref()
     }
 
     // #[cfg(feature = "v2")]
@@ -13871,5 +13959,50 @@ impl PaymentIntentStateMetadataExt {
             .attach_printable("Failed to update payment_intent.state metadata")?;
         }
         Ok(())
+    }
+}
+
+#[cfg(all(test, feature = "v1"))]
+mod tests {
+    use std::num::NonZeroU8;
+
+    use common_types::payments::InstallmentInterestRate;
+    use common_utils::types::MinorUnit;
+
+    use super::calculate_installment_interest;
+
+    #[test]
+    fn test_basic_interest() {
+        // 1.5% of 10000 = 150 per installment, * 6 = 900
+        let result = calculate_installment_interest(
+            MinorUnit::new(10000),
+            InstallmentInterestRate::try_from(1.5_f32).unwrap(),
+            NonZeroU8::new(6).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(result, MinorUnit::new(900));
+    }
+
+    #[test]
+    fn test_ceiling_applied_per_installment() {
+        // 1% of 101 = 1.01 → ceil → 2 per installment, * 3 = 6
+        let result = calculate_installment_interest(
+            MinorUnit::new(101),
+            InstallmentInterestRate::try_from(1.0_f32).unwrap(),
+            NonZeroU8::new(3).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(result, MinorUnit::new(6));
+    }
+
+    #[test]
+    fn test_zero_interest_rate() {
+        let result = calculate_installment_interest(
+            MinorUnit::new(10000),
+            InstallmentInterestRate::try_from(0.0_f32).unwrap(),
+            NonZeroU8::new(12).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(result, MinorUnit::new(0));
     }
 }

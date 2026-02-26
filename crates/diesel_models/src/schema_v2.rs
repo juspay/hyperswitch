@@ -347,6 +347,7 @@ diesel::table! {
         #[max_length = 255]
         error_reason -> Nullable<Varchar>,
         tax_amount -> Nullable<Int8>,
+        installment_interest -> Nullable<Int8>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
         #[max_length = 64]
@@ -1200,6 +1201,7 @@ diesel::table! {
         prerouting_algorithm -> Nullable<Jsonb>,
         surcharge_amount -> Nullable<Int8>,
         tax_on_surcharge -> Nullable<Int8>,
+        installment_interest -> Nullable<Int8>,
         #[max_length = 64]
         frm_merchant_decision -> Nullable<Varchar>,
         #[max_length = 255]

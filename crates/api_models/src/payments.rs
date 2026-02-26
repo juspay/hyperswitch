@@ -1563,6 +1563,10 @@ pub struct PaymentsRequest {
     /// Installment payment options grouped by payment method. When provided, the payment is treated as an installment payment.
     #[schema(value_type = Option<Vec<InstallmentOption>>)]
     pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
+
+    /// Installment data selected by the customer during payment confirmation. This is used to specify the chosen number of installments and billing frequency.
+    #[schema(value_type = Option<InstallmentData>)]
+    pub installment_data: Option<common_types::payments::InstallmentData>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -7687,6 +7691,10 @@ pub struct PaymentsResponse {
     /// Installment payment options associated with this payment, grouped by payment method
     #[schema(value_type = Option<Vec<InstallmentOption>>)]
     pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
+
+    /// Installment selection confirmed by the customer for this payment
+    #[schema(value_type = Option<InstallmentData>)]
+    pub installment_data: Option<common_types::payments::InstallmentData>,
 }
 
 #[cfg(feature = "v1")]
