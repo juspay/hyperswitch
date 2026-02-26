@@ -1,5 +1,6 @@
 pub mod transformers;
 use common_utils::errors::CustomResult;
+use std::sync::LazyLock;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse},
     router_flow_types::{
@@ -12,7 +13,10 @@ use hyperswitch_domain_models::{
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+    }
 };
 use hyperswitch_interfaces::{
     api, configs::Connectors, errors, events::connector_api_logs::ConnectorEvent, types::Response,
@@ -121,4 +125,67 @@ impl webhooks::IncomingWebhook for Revolv3 {
     }
 }
 
-impl api::ConnectorSpecifications for Revolv3 {}
+static REVOLV3_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+    let default_capture_methods = vec![
+        common_enums::CaptureMethod::Automatic,
+        common_enums::CaptureMethod::Manual,
+        common_enums::CaptureMethod::SequentialAutomatic,
+    ];
+
+    let supported_card_network = vec![
+        common_enums::CardNetwork::Visa,
+        common_enums::CardNetwork::Mastercard,
+        common_enums::CardNetwork::AmericanExpress,
+        common_enums::CardNetwork::Discover,
+        common_enums::CardNetwork::JCB,
+        common_enums::CardNetwork::DinersClub,
+        common_enums::CardNetwork::UnionPay,
+    ];
+
+    let mut revolv3_supported_payment_methods = SupportedPaymentMethods::new();
+
+    revolv3_supported_payment_methods.add(
+        common_enums::PaymentMethod::Card,
+        common_enums::PaymentMethodType::Credit,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::Supported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: default_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card(
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::NotSupported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    },
+                ),
+            ),
+        },
+    );
+
+    revolv3_supported_payment_methods
+});
+
+static REVOLV3_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Revolv3",
+    description: "Revolv3 is a payment platform that enables secure card processing and alternative payment solutions for merchants through a unified API.",
+    connector_type: common_enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: common_enums::ConnectorIntegrationStatus::Beta,
+};
+
+static REVOLV3_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 0] = [];
+
+impl api::ConnectorSpecifications for Revolv3 {
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&REVOLV3_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&*REVOLV3_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::EventClass]> {
+        Some(&REVOLV3_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}
+
