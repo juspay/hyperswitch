@@ -16,6 +16,7 @@ use masking::PeekInterface;
 use router_env::tracing::{self, instrument};
 use scheduler::{
     consumer::{self, workflows::ProcessTrackerWorkflow},
+    types::process_data,
     utils as scheduler_utils,
 };
 #[cfg(feature = "v1")]
@@ -25,10 +26,10 @@ use subscriptions::workflows::invoice_sync;
 use crate::core::payouts;
 use crate::{
     core::{
-        configs::dimension_state::DimensionWithMerchantIdAndProfileId,
         payments,
         webhooks::{self as webhooks_core, types::OutgoingWebhookTrackingData},
     },
+    db::StorageInterface,
     errors, logger,
     routes::{app::ReqState, SessionState},
     types::{domain, storage},
@@ -249,60 +250,96 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
 
 /// Get the schedule time for the specified retry count.
 ///
-/// The schedule time is fetched from Superposition with the key: `pt_mapping_outgoing_webhooks`.
-/// If not configured in Superposition, the application default is used.
+/// The schedule time can be configured in configs with this key: `pt_mapping_outgoing_webhooks`.
+///
+/// ```json
+/// {
+///   "default_mapping": {
+///     "start_after": 60,
+///     "frequency": [300],
+///     "count": [5]
+///   },
+///   "custom_merchant_mapping": {
+///     "merchant_id1": {
+///       "start_after": 30,
+///       "frequency": [300],
+///       "count": [2]
+///     }
+///   }
+/// }
+/// ```
+///
+/// This configuration value represents:
+/// - `default_mapping.start_after`: The first retry attempt should happen after 60 seconds by
+///   default.
+/// - `default_mapping.frequency` and `count`: The next 5 retries should have an interval of 300
+///   seconds between them by default.
+/// - `custom_merchant_mapping.merchant_id1`: Merchant-specific retry configuration for merchant
+///   with merchant ID `merchant_id1`.
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub(crate) async fn get_webhook_delivery_retry_schedule_time(
-    state: &SessionState,
-    dimensions: &DimensionWithMerchantIdAndProfileId,
+    db: &dyn StorageInterface,
+    merchant_id: &id_type::MerchantId,
     retry_count: i32,
 ) -> Option<time::PrimitiveDateTime> {
-    let merchant_id = dimensions.get_merchant_id()?;
+    let key = "pt_mapping_outgoing_webhooks";
 
-    let retry_mapping = dimensions
-        .get_pt_mapping_outgoing_webhooks(
-            state.store.as_ref(),
-            state.superposition_service.as_deref(),
-            // Targeting key is merchant_id since the retry mapping is generally expected to be same across all profiles of a merchant, and merchant_id is the common dimension across all profiles
-            Some(merchant_id),
-        )
-        .await;
+    let result = db
+        .find_config_by_key(key)
+        .await
+        .map(|value| value.config)
+        .and_then(|config| {
+            config
+                .parse_struct("OutgoingWebhookRetryProcessTrackerMapping")
+                .change_context(errors::StorageError::DeserializationFailed)
+        });
+    let mapping = result.map_or_else(
+        |error| {
+            if error.current_context().is_db_not_found() {
+                logger::debug!("Outgoing webhooks retry config `{key}` not found, ignoring");
+            } else {
+                logger::error!(
+                    ?error,
+                    "Failed to read outgoing webhooks retry config `{key}`"
+                );
+            }
+            process_data::OutgoingWebhookRetryProcessTrackerMapping::default()
+        },
+        |mapping| {
+            logger::debug!(?mapping, "Using custom outgoing webhooks retry config");
+            mapping
+        },
+    );
 
-    let time_delta = scheduler_utils::get_delay(retry_count, &retry_mapping.frequencies);
+    let time_delta = scheduler_utils::get_outgoing_webhook_retry_schedule_time(
+        mapping,
+        merchant_id,
+        retry_count,
+    );
 
-    // For first retry (retry_count == 1), use start_after; for subsequent retries, use calculated delay
-    if retry_count == 1 {
-        Some(retry_mapping.start_after)
-    } else {
-        time_delta
-    }
-    .and_then(|delta| scheduler_utils::get_time_from_delta(Some(delta)))
+    scheduler_utils::get_time_from_delta(time_delta)
 }
 
 /// Schedule the webhook delivery task for retry
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub(crate) async fn retry_webhook_delivery_task(
-    state: &SessionState,
-    dimensions: &DimensionWithMerchantIdAndProfileId,
+    db: &dyn StorageInterface,
+    merchant_id: &id_type::MerchantId,
     process: storage::ProcessTracker,
 ) -> errors::CustomResult<(), errors::StorageError> {
     let schedule_time =
-        get_webhook_delivery_retry_schedule_time(state, dimensions, process.retry_count + 1).await;
+        get_webhook_delivery_retry_schedule_time(db, merchant_id, process.retry_count + 1).await;
 
     match schedule_time {
         Some(schedule_time) => {
-            state
-                .store
-                .as_scheduler()
+            db.as_scheduler()
                 .retry_process(process, schedule_time)
                 .await
         }
         None => {
-            state
-                .store
-                .as_scheduler()
+            db.as_scheduler()
                 .finish_process_with_business_status(process, business_status::RETRIES_EXCEEDED)
                 .await
         }

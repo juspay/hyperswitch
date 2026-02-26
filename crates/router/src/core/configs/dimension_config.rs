@@ -1,5 +1,4 @@
 use external_services::superposition;
-use scheduler::types::process_data;
 
 use super::{
     dimension_state::{DimensionWithMerchantIdAndProfileId, DimensionsWithMerchantId},
@@ -62,7 +61,7 @@ macro_rules! config {
                 pub async fn [<get_ $key:lower>](
                     &self,
                     storage: &dyn StorageInterface,
-                    superposition_client: Option<&superposition::SuperpositionClient>,
+                    superposition_client: &superposition::SuperpositionClient,
                     targeting_key: Option<&$targeting_type>,
                 ) -> $output {
                     // Fetch JSON and convert to $output using the conversion function
@@ -105,7 +104,7 @@ macro_rules! config {
                 pub async fn [<get_ $key:lower>](
                     &self,
                     storage: &dyn StorageInterface,
-                    superposition_client: Option<&superposition::SuperpositionClient>,
+                    superposition_client: &superposition::SuperpositionClient,
                     targeting_key: Option<&$targeting_type>,
                 ) -> $output {
                     fetch_db_config_for_dimensions::<[<$key:camel>]>(storage, superposition_client, self, targeting_key).await
@@ -151,13 +150,4 @@ impl DatabaseBackedConfig for ImplicitCustomerUpdate {
             .unwrap_or_default();
         Some(format!("{}_{}", merchant_id, Self::KEY))
     }
-}
-
-config! {
-    superposition_key = PT_MAPPING_OUTGOING_WEBHOOKS,
-    output = process_data::RetryMapping,
-    default = process_data::RetryMapping::default(),
-    object = true,
-    requires = DimensionWithMerchantIdAndProfileId,
-    targeting_key = id_type::MerchantId
 }

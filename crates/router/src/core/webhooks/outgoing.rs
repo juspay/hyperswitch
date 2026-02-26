@@ -28,6 +28,7 @@ use crate::{
         errors::{self, CustomResult},
         metrics,
     },
+    db::StorageInterface,
     events::outgoing_webhook_logs::{
         OutgoingWebhookEvent, OutgoingWebhookEventContent, OutgoingWebhookEventMetric,
     },
@@ -192,7 +193,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     .await?;
 
     let process_tracker = add_outgoing_webhook_retry_task_to_process_tracker(
-        &state,
+        &*state.store,
         &business_profile,
         &event,
         state.conf.application_source,
@@ -340,7 +341,6 @@ async fn trigger_webhook_to_merchant(
                     state.clone(),
                     merchant_key_store.clone(),
                     &business_profile.merchant_id,
-                    business_profile.get_id(),
                     &event_id,
                     client_error,
                     delivery_attempt,
@@ -379,7 +379,6 @@ async fn trigger_webhook_to_merchant(
                     error_response_handler(
                         state.clone(),
                         &business_profile.merchant_id,
-                        business_profile.get_id(),
                         delivery_attempt,
                         status_code.as_u16(),
                         "Ignoring error when sending webhook to merchant",
@@ -400,7 +399,6 @@ async fn trigger_webhook_to_merchant(
                         state.clone(),
                         merchant_key_store.clone(),
                         &business_profile.merchant_id,
-                        business_profile.get_id(),
                         &event_id,
                         client_error,
                         delivery_attempt,
@@ -439,7 +437,6 @@ async fn trigger_webhook_to_merchant(
                         error_response_handler(
                             state.clone(),
                             &business_profile.merchant_id,
-                            business_profile.get_id(),
                             delivery_attempt,
                             status_code.as_u16(),
                             "An error occurred when sending webhook to merchant",
@@ -456,7 +453,6 @@ async fn trigger_webhook_to_merchant(
                     state.clone(),
                     merchant_key_store.clone(),
                     &business_profile.merchant_id,
-                    business_profile.get_id(),
                     &event_id,
                     client_error,
                     delivery_attempt,
@@ -481,7 +477,6 @@ async fn trigger_webhook_to_merchant(
                     error_response_handler(
                         state,
                         &business_profile.merchant_id,
-                        business_profile.get_id(),
                         delivery_attempt,
                         status_code.as_u16(),
                         "Ignoring error when sending webhook to merchant",
@@ -566,22 +561,21 @@ async fn raise_webhooks_analytics_event(
 }
 
 pub(crate) async fn add_outgoing_webhook_retry_task_to_process_tracker(
-    state: &SessionState,
+    db: &dyn StorageInterface,
     business_profile: &domain::Profile,
     event: &domain::Event,
     application_source: common_enums::ApplicationSource,
 ) -> CustomResult<storage::ProcessTracker, errors::StorageError> {
-    let dimensions = super::super::configs::dimension_state::Dimensions::new()
-        .with_merchant_id(business_profile.merchant_id.clone())
-        .with_profile_id(business_profile.get_id().to_owned());
-
-    let schedule_time =
-        outgoing_webhook_retry::get_webhook_delivery_retry_schedule_time(state, &dimensions, 0)
-            .await
-            .ok_or(errors::StorageError::ValueNotFound(
-                "Process tracker schedule time".into(), // Can raise a better error here
-            ))
-            .attach_printable("Failed to obtain initial process tracker schedule time")?;
+    let schedule_time = outgoing_webhook_retry::get_webhook_delivery_retry_schedule_time(
+        db,
+        &business_profile.merchant_id,
+        0,
+    )
+    .await
+    .ok_or(errors::StorageError::ValueNotFound(
+        "Process tracker schedule time".into(), // Can raise a better error here
+    ))
+    .attach_printable("Failed to obtain initial process tracker schedule time")?;
 
     let tracking_data = types::OutgoingWebhookTrackingData {
         merchant_id: business_profile.merchant_id.clone(),
@@ -616,7 +610,7 @@ pub(crate) async fn add_outgoing_webhook_retry_task_to_process_tracker(
     .map_err(errors::StorageError::from)?;
 
     let attributes = router_env::metric_attributes!(("flow", "OutgoingWebhookRetry"));
-    match state.store.insert_process(process_tracker_entry).await {
+    match db.insert_process(process_tracker_entry).await {
         Ok(process_tracker) => {
             crate::routes::metrics::TASKS_ADDED_COUNT.add(1, attributes);
             Ok(process_tracker)
@@ -775,7 +769,6 @@ async fn api_client_error_handler(
     state: SessionState,
     merchant_key_store: domain::MerchantKeyStore,
     merchant_id: &common_utils::id_type::MerchantId,
-    business_profile_id: &common_utils::id_type::ProfileId,
     event_id: &str,
     client_error: error_stack::Report<errors::ApiClientError>,
     delivery_attempt: enums::WebhookDeliveryAttempt,
@@ -800,14 +793,14 @@ async fn api_client_error_handler(
     );
 
     if let ScheduleWebhookRetry::WithProcessTracker(process_tracker) = schedule_webhook_retry {
-        let dimensions = super::super::configs::dimension_state::Dimensions::new()
-            .with_merchant_id(merchant_id.clone())
-            .with_profile_id(business_profile_id.clone());
-
         // Schedule a retry attempt for webhook delivery
-        outgoing_webhook_retry::retry_webhook_delivery_task(&state, &dimensions, *process_tracker)
-            .await
-            .change_context(errors::WebhooksFlowError::OutgoingWebhookRetrySchedulingFailed)?;
+        outgoing_webhook_retry::retry_webhook_delivery_task(
+            &*state.store,
+            merchant_id,
+            *process_tracker,
+        )
+        .await
+        .change_context(errors::WebhooksFlowError::OutgoingWebhookRetrySchedulingFailed)?;
     }
 
     Err(error)
@@ -958,7 +951,6 @@ async fn success_response_handler(
 async fn error_response_handler(
     state: SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
-    business_profile_id: &common_utils::id_type::ProfileId,
     delivery_attempt: enums::WebhookDeliveryAttempt,
     status_code: u16,
     log_message: &'static str,
@@ -973,14 +965,14 @@ async fn error_response_handler(
     logger::warn!(?error, ?delivery_attempt, status_code, %log_message);
 
     if let ScheduleWebhookRetry::WithProcessTracker(process_tracker) = schedule_webhook_retry {
-        let dimensions = super::super::configs::dimension_state::Dimensions::new()
-            .with_merchant_id(merchant_id.clone())
-            .with_profile_id(business_profile_id.clone());
-
         // Schedule a retry attempt for webhook delivery
-        outgoing_webhook_retry::retry_webhook_delivery_task(&state, &dimensions, *process_tracker)
-            .await
-            .change_context(errors::WebhooksFlowError::OutgoingWebhookRetrySchedulingFailed)?;
+        outgoing_webhook_retry::retry_webhook_delivery_task(
+            &*state.store,
+            merchant_id,
+            *process_tracker,
+        )
+        .await
+        .change_context(errors::WebhooksFlowError::OutgoingWebhookRetrySchedulingFailed)?;
     }
 
     Err(error)
