@@ -729,6 +729,7 @@ where
         &req,
         platform,
         &business_profile,
+        &feature_config,
         &mut payment_data,
         eligible_connectors,
         mandate_type,
@@ -9015,6 +9016,7 @@ pub async fn get_connector_choice<F, Req, D>(
     req: &Req,
     platform: &domain::Platform,
     business_profile: &domain::Profile,
+    feature_config: &core_utils::FeatureConfig,
     payment_data: &mut D,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     mandate_type: Option<api::MandateTransactionType>,
@@ -9052,6 +9054,7 @@ where
                     state,
                     platform,
                     business_profile,
+                    feature_config,
                     payment_data,
                     Some(straight_through),
                     eligible_connectors,
@@ -9065,6 +9068,7 @@ where
                     state,
                     platform,
                     business_profile,
+                    feature_config,
                     payment_data,
                     None,
                     eligible_connectors,
@@ -9253,6 +9257,7 @@ pub async fn connector_selection<F, D>(
     state: &SessionState,
     platform: &domain::Platform,
     business_profile: &domain::Profile,
+    feature_config: &core_utils::FeatureConfig,
     payment_data: &mut D,
     request_straight_through: Option<serde_json::Value>,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
@@ -9301,6 +9306,7 @@ where
         &mut routing_data,
         eligible_connectors,
         mandate_type,
+        feature_config.is_payment_method_modular_allowed,
     )
     .await?;
 
@@ -9492,6 +9498,7 @@ pub async fn decide_connector<F, D>(
     routing_data: &mut storage::RoutingData,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     mandate_type: Option<api::MandateTransactionType>,
+    is_payment_method_modular_allowed: bool,
 ) -> RouterResult<ConnectorCallType>
 where
     F: Send + Clone,
@@ -9692,6 +9699,7 @@ where
             routing_data,
             connector_data,
             mandate_type,
+            is_payment_method_modular_allowed,
             business_profile.is_connector_agnostic_mit_enabled,
             business_profile.is_network_tokenization_enabled,
         )
@@ -9752,6 +9760,7 @@ where
             routing_data,
             connector_data,
             mandate_type,
+            is_payment_method_modular_allowed,
             business_profile.is_connector_agnostic_mit_enabled,
             business_profile.is_network_tokenization_enabled,
         )
@@ -9778,6 +9787,7 @@ where
         routing_data,
         eligible_connectors,
         mandate_type,
+        is_payment_method_modular_allowed,
     )
     .await
 }
@@ -9790,6 +9800,7 @@ pub async fn decide_multiplex_connector_for_normal_or_recurring_payment<F: Clone
     routing_data: &mut storage::RoutingData,
     connectors: Vec<api::ConnectorRoutingData>,
     mandate_type: Option<api::MandateTransactionType>,
+    is_payment_method_modular_allowed: bool,
     is_connector_agnostic_mit_enabled: Option<bool>,
     is_network_tokenization_enabled: bool,
 ) -> RouterResult<ConnectorCallType>
@@ -9805,12 +9816,34 @@ where
     ) {
         (
             Some(storage_enums::FutureUsage::OffSession),
-            Some(_),
+            token_data,
             None,
             None,
             Some(api::MandateTransactionType::RecurringMandateTransaction),
-        )
-        | (
+        ) if token_data.is_some()
+            || (is_payment_method_modular_allowed
+                && payment_data.get_payment_attempt().payment_token.is_some()
+                && matches!(
+                    payment_data.get_payment_method_data(),
+                    Some(domain::PaymentMethodData::MandatePayment)
+                )
+                && payment_data.get_payment_method_info().is_some()) =>
+        {
+            if token_data.is_none() {
+                logger::debug!("euclid_routing: modular fallback token-MIT path selected");
+            }
+            logger::debug!("euclid_routing: performing routing for token-based MIT flow");
+            route_token_based_mit_connectors(
+                state,
+                payment_data,
+                routing_data,
+                connectors,
+                is_connector_agnostic_mit_enabled,
+                is_network_tokenization_enabled,
+            )
+            .await
+        }
+        (
             None,
             None,
             Some(RecurringDetails::PaymentMethodId(_)),
@@ -9819,70 +9852,15 @@ where
         )
         | (None, Some(_), None, Some(true), _) => {
             logger::debug!("euclid_routing: performing routing for token-based MIT flow");
-
-            let payment_method_info = payment_data
-                .get_payment_method_info()
-                .get_required_value("payment_method_info")?
-                .clone();
-
-            let retryable_connectors =
-                join_all(connectors.into_iter().map(|connector_routing_data| {
-                    let payment_method = payment_method_info.clone();
-                    async move {
-                        let action_types = get_all_action_types(
-                            state,
-                            is_connector_agnostic_mit_enabled,
-                            is_network_tokenization_enabled,
-                            &payment_method.clone(),
-                            connector_routing_data.connector_data.clone(),
-                        )
-                        .await;
-
-                        action_types
-                            .into_iter()
-                            .map(|action_type| api::ConnectorRoutingData {
-                                connector_data: connector_routing_data.connector_data.clone(),
-                                action_type: Some(action_type),
-                                network: connector_routing_data.network.clone(),
-                            })
-                            .collect::<Vec<_>>()
-                    }
-                }))
-                .await
-                .into_iter()
-                .flatten()
-                .collect::<Vec<_>>();
-
-            let chosen_connector_routing_data = retryable_connectors
-                .first()
-                .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
-                .attach_printable("no eligible connector found for token-based MIT payment")?;
-
-            let mandate_reference_id = get_mandate_reference_id(
-                chosen_connector_routing_data.action_type.clone(),
-                chosen_connector_routing_data.clone(),
+            route_token_based_mit_connectors(
+                state,
                 payment_data,
-                &payment_method_info,
-            )?;
-
-            routing_data.routed_through = Some(
-                chosen_connector_routing_data
-                    .connector_data
-                    .connector_name
-                    .to_string(),
-            );
-
-            routing_data.merchant_connector_id.clone_from(
-                &chosen_connector_routing_data
-                    .connector_data
-                    .merchant_connector_id,
-            );
-
-            payment_data.set_mandate_id(payments_api::MandateIds {
-                mandate_id: None,
-                mandate_reference_id,
-            });
-            Ok(ConnectorCallType::Retryable(retryable_connectors))
+                routing_data,
+                connectors,
+                is_connector_agnostic_mit_enabled,
+                is_network_tokenization_enabled,
+            )
+            .await
         }
         (
             None,
@@ -9930,6 +9908,82 @@ where
             Ok(ConnectorCallType::Retryable(connectors))
         }
     }
+}
+
+#[cfg(feature = "v1")]
+async fn route_token_based_mit_connectors<F: Clone, D>(
+    state: &SessionState,
+    payment_data: &mut D,
+    routing_data: &mut storage::RoutingData,
+    connectors: Vec<api::ConnectorRoutingData>,
+    is_connector_agnostic_mit_enabled: Option<bool>,
+    is_network_tokenization_enabled: bool,
+) -> RouterResult<ConnectorCallType>
+where
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+{
+    let payment_method_info = payment_data
+        .get_payment_method_info()
+        .get_required_value("payment_method_info")?
+        .clone();
+
+    let retryable_connectors = join_all(connectors.into_iter().map(|connector_routing_data| {
+        let payment_method = payment_method_info.clone();
+        async move {
+            let action_types = get_all_action_types(
+                state,
+                is_connector_agnostic_mit_enabled,
+                is_network_tokenization_enabled,
+                &payment_method.clone(),
+                connector_routing_data.connector_data.clone(),
+            )
+            .await;
+
+            action_types
+                .into_iter()
+                .map(|action_type| api::ConnectorRoutingData {
+                    connector_data: connector_routing_data.connector_data.clone(),
+                    action_type: Some(action_type),
+                    network: connector_routing_data.network.clone(),
+                })
+                .collect::<Vec<_>>()
+        }
+    }))
+    .await
+    .into_iter()
+    .flatten()
+    .collect::<Vec<_>>();
+
+    let chosen_connector_routing_data = retryable_connectors
+        .first()
+        .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
+        .attach_printable("no eligible connector found for token-based MIT payment")?;
+
+    let mandate_reference_id = get_mandate_reference_id(
+        chosen_connector_routing_data.action_type.clone(),
+        chosen_connector_routing_data.clone(),
+        payment_data,
+        &payment_method_info,
+    )?;
+
+    routing_data.routed_through = Some(
+        chosen_connector_routing_data
+            .connector_data
+            .connector_name
+            .to_string(),
+    );
+
+    routing_data.merchant_connector_id.clone_from(
+        &chosen_connector_routing_data
+            .connector_data
+            .merchant_connector_id,
+    );
+
+    payment_data.set_mandate_id(payments_api::MandateIds {
+        mandate_id: None,
+        mandate_reference_id,
+    });
+    Ok(ConnectorCallType::Retryable(retryable_connectors))
 }
 
 #[cfg(feature = "v1")]
@@ -10548,6 +10602,7 @@ pub async fn route_connector_v1_for_payments<F, D>(
     routing_data: &mut storage::RoutingData,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     mandate_type: Option<api::MandateTransactionType>,
+    is_payment_method_modular_allowed: bool,
 ) -> RouterResult<ConnectorCallType>
 where
     F: Send + Clone,
@@ -10659,6 +10714,7 @@ where
         routing_data,
         connector_data,
         mandate_type,
+        is_payment_method_modular_allowed,
         business_profile.is_connector_agnostic_mit_enabled,
         business_profile.is_network_tokenization_enabled,
     )
