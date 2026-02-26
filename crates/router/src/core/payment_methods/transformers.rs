@@ -877,6 +877,7 @@ impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)>
                     api_models::payment_methods::PaymentMethodListData::Card(card_details)
                 }
                 api_models::payment_methods::PaymentMethodsData::BankDetails(..) => todo!(),
+                api_models::payment_methods::PaymentMethodsData::BankDebit(..) => todo!(),
                 api_models::payment_methods::PaymentMethodsData::WalletDetails(..) => {
                     todo!()
                 }
@@ -943,6 +944,7 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for PaymentMethodRespon
                     api_models::payment_methods::PaymentMethodListData::Card(card_details)
                 }
                 api_models::payment_methods::PaymentMethodsData::BankDetails(..) => todo!(),
+                api_models::payment_methods::PaymentMethodsData::BankDebit(..) => todo!(),
                 api_models::payment_methods::PaymentMethodsData::WalletDetails(..) => {
                     todo!()
                 }

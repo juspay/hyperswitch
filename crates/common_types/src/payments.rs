@@ -1,6 +1,6 @@
 //! Payment related types
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use common_enums::enums;
 use common_utils::{
@@ -22,7 +22,7 @@ use smithy::SmithyModel;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::domain::{AdyenSplitData, XenditSplitSubMerchantData};
+use crate::domain::{AdyenSplitData, PostCaptureVoidData, XenditSplitSubMerchantData};
 #[derive(
     Serialize,
     Deserialize,
@@ -992,6 +992,25 @@ pub struct PaymentIntentStateMetadata {
     pub total_refunded_amount: Option<MinorUnit>,
     /// Shows up the total disputed amount across all disputes for a particular payment
     pub total_disputed_amount: Option<MinorUnit>,
+    /// Post capture void response details
+    pub post_capture_void: Option<PostCaptureVoidResponse>,
+}
+
+/// Additional metadata for payment intent state containing refunded and disputed amounts
+#[derive(
+    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, AsExpression, FromSqlRow, utoipa::ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct PostCaptureVoidResponse {
+    /// Status of post capture void
+    #[schema(value_type = Option<PostCaptureVoidStatus>)]
+    pub status: enums::PostCaptureVoidStatus,
+    /// Connector reference id for post capture void
+    pub connector_reference_id: Option<String>,
+    /// Description or message related to the post capture void
+    pub description: Option<String>,
+    /// Timestamp when the post capture void was last updated
+    pub updated_at: PrimitiveDateTime,
 }
 
 impl PaymentIntentStateMetadata {
@@ -1017,6 +1036,45 @@ impl PaymentIntentStateMetadata {
                 .get_amount_as_i64();
 
         MinorUnit::new(blocked_amount)
+    }
+
+    /// Check if post capture void is pending for the payment intent
+    pub fn is_post_capture(&self) -> bool {
+        matches!(
+            self.post_capture_void
+                .as_ref()
+                .map(|post_capture_void| post_capture_void.status),
+            Some(common_enums::PostCaptureVoidStatus::Pending)
+        )
+    }
+
+    /// Check if post capture void is issued for the payment intent
+    pub fn is_post_capture_void_issued(&self) -> bool {
+        self.post_capture_void.is_some()
+    }
+
+    /// Check if post capture void is applied for the payment intent
+    pub fn is_post_capture_void_successful(&self) -> bool {
+        matches!(
+            self.post_capture_void
+                .as_ref()
+                .map(|post_capture_void| post_capture_void.status),
+            Some(common_enums::PostCaptureVoidStatus::Succeeded)
+        )
+    }
+
+    /// Builder method to set post_capture_void data
+    pub fn set_post_capture_void_data(
+        mut self,
+        post_capture_void_data: PostCaptureVoidData,
+    ) -> Self {
+        self.post_capture_void = Some(PostCaptureVoidResponse {
+            status: post_capture_void_data.status,
+            connector_reference_id: post_capture_void_data.connector_reference_id,
+            description: post_capture_void_data.description,
+            updated_at: date_time::now(),
+        });
+        self
     }
 }
 
@@ -1181,7 +1239,107 @@ pub struct NetworkTransactionIdAndDecryptedWalletTokenDetails {
     /// Source of the token
     #[schema(value_type = Option<TokenSource>, example = "googlepay")]
     pub token_source: Option<TokenSource>,
+
+    /// The network that facilitates payment card transactions
+    #[schema(value_type = Option<CardNetwork>)]
+    #[smithy(value_type = "Option<CardNetwork>")]
+    pub card_network: Option<enums::CardNetwork>,
 }
+
+/// Billing frequency for a card installment plan
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum BillingFrequency {
+    /// Monthly billing
+    Month,
+}
+
+/// A non-empty list of installment counts where each value is >= 2 and all values are unique.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
+#[serde(try_from = "Vec<u8>", into = "Vec<u8>")]
+pub struct InstallmentCounts(Vec<u8>);
+
+impl InstallmentCounts {
+    fn validate_not_empty(counts: &[u8]) -> std::result::Result<(), errors::ValidationError> {
+        (!counts.is_empty())
+            .then_some(())
+            .ok_or_else(|| errors::ValidationError::InvalidValue {
+                message: "number_of_installments must not be empty.".to_string(),
+            })
+    }
+
+    fn validate_values(counts: &[u8]) -> std::result::Result<(), errors::ValidationError> {
+        counts
+            .iter()
+            .try_fold(HashSet::new(), |mut seen, &n| {
+                (n >= 1)
+                    .then_some(())
+                    .ok_or_else(|| errors::ValidationError::InvalidValue {
+                        message: "each value in number_of_installments must be at least 1."
+                            .to_string(),
+                    })?;
+                seen.insert(n).then_some(seen).ok_or_else(|| {
+                    errors::ValidationError::InvalidValue {
+                        message: "number_of_installments must contain unique values.".to_string(),
+                    }
+                })
+            })
+            .map(|_| ())
+    }
+}
+
+impl TryFrom<Vec<u8>> for InstallmentCounts {
+    type Error = errors::ValidationError;
+
+    fn try_from(counts: Vec<u8>) -> std::result::Result<Self, Self::Error> {
+        Self::validate_not_empty(&counts)?;
+        Self::validate_values(&counts)?;
+        Ok(Self(counts))
+    }
+}
+
+impl From<InstallmentCounts> for Vec<u8> {
+    fn from(c: InstallmentCounts) -> Self {
+        c.0
+    }
+}
+
+/// A single installment plan option accepted in request payloads
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq)]
+pub struct InstallmentOptionData {
+    /// Number of installments (e.g., [3, 6, 12])
+    #[schema(value_type = Vec<u8>)]
+    pub number_of_installments: InstallmentCounts,
+    /// Billing frequency for each installment cycle
+    pub billing_frequency: BillingFrequency,
+    /// Interest rate applied per installment as a percentage
+    pub interest_rate: f64,
+}
+
+/// Installment options grouped by payment method
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq)]
+pub struct InstallmentOption {
+    /// Payment method for which these installment plans apply (e.g., "card")
+    #[schema(value_type = PaymentMethod)]
+    pub payment_method: common_enums::PaymentMethod,
+    /// List of available installment configurations
+    pub installments: Vec<InstallmentOptionData>,
+}
+
+/// A list of installment options stored as a single JSONB column value.
+#[derive(
+    Debug,
+    Clone,
+    serde::Serialize,
+    serde::Deserialize,
+    ToSchema,
+    PartialEq,
+    FromSqlRow,
+    AsExpression,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct InstallmentOptions(pub Vec<InstallmentOption>);
+impl_to_sql_from_sql_json!(InstallmentOptions);
 
 #[derive(
     Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
