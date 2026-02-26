@@ -123,7 +123,7 @@ pub struct BankCodeResponse {
 }
 
 /// Passing this object creates a new customer or attaches an existing customer to the payment
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, PartialEq, SmithyModel)]
+#[derive(Debug, Default, serde::Deserialize, serde::Serialize, Clone, ToSchema, PartialEq, SmithyModel)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct CustomerDetails {
     /// The identifier for the customer.
