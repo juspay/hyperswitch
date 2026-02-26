@@ -2184,20 +2184,12 @@ where
 pub fn calculate_installment_interest(
     order_amount: MinorUnit,
     interest_rate: common_types::payments::InstallmentInterestRate,
-    number_of_installments: std::num::NonZeroU8,
 ) -> RouterResult<MinorUnit> {
     let interest = interest_rate
         .apply_and_ceil_result(order_amount)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to calculate installment interest")?;
-    let total_interest = interest
-        .get_amount_as_i64()
-        .checked_mul(i64::from(number_of_installments.get()))
-        .ok_or_else(|| {
-            report!(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Overflow while calculating total installment interest")
-        })?;
-    Ok(MinorUnit::new(total_interest))
+    Ok(interest)
 }
 
 #[cfg(feature = "v1")]
@@ -2242,7 +2234,6 @@ where
             let total_interest = calculate_installment_interest(
                 payment_data.payment_attempt.net_amount.get_order_amount(),
                 installment_option_data.interest_rate,
-                selected_installment.number_of_installments,
             )?;
 
             payment_data
@@ -13972,8 +13963,6 @@ impl PaymentIntentStateMetadataExt {
 
 #[cfg(all(test, feature = "v1"))]
 mod tests {
-    use std::num::NonZeroU8;
-
     use common_types::payments::InstallmentInterestRate;
     use common_utils::types::MinorUnit;
 
@@ -13981,26 +13970,24 @@ mod tests {
 
     #[test]
     fn test_basic_interest() {
-        // 1.5% of 10000 = 150 per installment, * 6 = 900
+        // 1.5% of 10000 = 150
         let result = calculate_installment_interest(
             MinorUnit::new(10000),
             InstallmentInterestRate::try_from(1.5_f32).unwrap(),
-            NonZeroU8::new(6).unwrap(),
         )
         .unwrap();
-        assert_eq!(result, MinorUnit::new(900));
+        assert_eq!(result, MinorUnit::new(150));
     }
 
     #[test]
-    fn test_ceiling_applied_per_installment() {
-        // 1% of 101 = 1.01 → ceil → 2 per installment, * 3 = 6
+    fn test_ceiling_applied() {
+        // 1% of 101 = 1.01 → ceil → 2
         let result = calculate_installment_interest(
             MinorUnit::new(101),
             InstallmentInterestRate::try_from(1.0_f32).unwrap(),
-            NonZeroU8::new(3).unwrap(),
         )
         .unwrap();
-        assert_eq!(result, MinorUnit::new(6));
+        assert_eq!(result, MinorUnit::new(2));
     }
 
     #[test]
@@ -14008,7 +13995,6 @@ mod tests {
         let result = calculate_installment_interest(
             MinorUnit::new(10000),
             InstallmentInterestRate::try_from(0.0_f32).unwrap(),
-            NonZeroU8::new(12).unwrap(),
         )
         .unwrap();
         assert_eq!(result, MinorUnit::new(0));
