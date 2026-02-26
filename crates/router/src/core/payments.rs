@@ -4463,12 +4463,20 @@ where
         (router_data, false)
     };
 
-    if let Ok(router_types::PaymentsResponseData::PreProcessingResponse {
-        session_token: Some(session_token),
-        ..
-    }) = router_data.response.to_owned()
-    {
-        payment_data.push_sessions_token(session_token);
+    let session_token = match router_data.response.to_owned() {
+        Ok(router_types::PaymentsResponseData::PreProcessingResponse {
+            session_token: Some(token),
+            ..
+        }) => Some(token),
+        Ok(router_types::PaymentsResponseData::PaymentsCreateOrderResponse {
+            session_token: Some(token),
+            ..
+        }) => Some(token),
+        _ => None,
+    };
+
+    if let Some(token) = session_token {
+        payment_data.push_sessions_token(token);
     };
 
     // In case of authorize flow, pre-task and post-tasks are being called in build request

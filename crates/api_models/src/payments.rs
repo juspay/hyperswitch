@@ -1559,6 +1559,10 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<PartnerMerchantIdentifierDetails>)]
     pub partner_merchant_identifier_details:
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
+
+    /// Installment payment options grouped by payment method. When provided, the payment is treated as an installment payment.
+    #[schema(value_type = Option<Vec<InstallmentOption>>)]
+    pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -1760,6 +1764,34 @@ impl PaymentsRequest {
             .into());
         }
 
+        Ok(())
+    }
+
+    pub fn validate_installment_options(
+        &self,
+    ) -> common_utils::errors::CustomResult<(), ValidationError> {
+        if let Some(installment_options) = &self.installment_options {
+            installment_options
+                .iter()
+                .try_fold(HashSet::new(), |mut seen, opt| {
+                    opt.payment_method
+                        .supports_installments()
+                        .then_some(())
+                        .ok_or_else(|| ValidationError::InvalidValue {
+                            message:
+                                "installment_options is only supported for payment method card."
+                                    .to_string(),
+                        })?;
+                    seen.insert(opt.payment_method)
+                        .then_some(seen)
+                        .ok_or_else(|| ValidationError::InvalidValue {
+                            message: format!(
+                                "duplicate payment_method '{}' in installment_options.",
+                                opt.payment_method
+                            ),
+                        })
+                })?;
+        }
         Ok(())
     }
 }
@@ -6722,7 +6754,7 @@ pub struct ThreeDsData {
     #[schema(value_type = Option<CardNetwork>, example = "Visa")]
     #[smithy(value_type = "Option<CardNetwork>")]
     pub card_network: Option<api_enums::CardNetwork>,
-    /// Prefered 3ds Connector
+    /// Preferred 3ds Connector
     #[smithy(value_type = "Option<String>")]
     pub three_ds_connector: Option<String>,
 }
@@ -6746,7 +6778,7 @@ pub enum ThreeDsMethodData {
         /// Three DS Method Key
         #[smithy(value_type = "Option<ThreeDsMethodKey>")]
         three_ds_method_key: Option<ThreeDsMethodKey>,
-        /// Indicates whethere to wait for Post message after 3DS method data submission
+        /// Indicates whether to wait for Post message after 3DS method data submission
         #[smithy(value_type = "bool")]
         consume_post_message_for_three_ds_method_completion: bool,
     },
@@ -7168,6 +7200,10 @@ pub struct PaymentsResponse {
     #[schema(example = "stripe")]
     #[smithy(value_type = "Option<String>")]
     pub connector: Option<String>,
+
+    /// The current state metadata of the payment intent, providing additional context about its status.
+    #[schema(value_type = Option<PaymentIntentStateMetadata>)]
+    pub state_metadata: Option<common_types::payments::PaymentIntentStateMetadata>,
 
     /// A secret token unique to this payment intent. It is primarily used by client-side applications (e.g., Hyperswitch SDKs) to authenticate actions like confirming the payment or handling next actions. This secret should be handled carefully and not exposed publicly beyond its intended client-side use.
     #[schema(value_type = Option<String>, example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
@@ -7647,6 +7683,10 @@ pub struct PaymentsResponse {
 
     /// Tokenization details of the payment method data
     pub payment_method_tokenization_details: Option<PaymentMethodTokenizationDetails>,
+
+    /// Installment payment options associated with this payment, grouped by payment method
+    #[schema(value_type = Option<Vec<InstallmentOption>>)]
+    pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
 }
 
 #[cfg(feature = "v1")]
@@ -8517,7 +8557,7 @@ pub struct PaymentsResponse {
     pub authentication_type: Option<api_enums::AuthenticationType>,
 
     /// The authentication type that was appliced for this order
-    /// This depeneds on the 3DS rules configured, If not a default authentication type will be applied
+    /// This depends on the 3DS rules configured, If not a default authentication type will be applied
     #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "no_three_ds")]
     pub authentication_type_applied: Option<api_enums::AuthenticationType>,
 
