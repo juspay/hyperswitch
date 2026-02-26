@@ -655,8 +655,8 @@ google_pay = { country = "AU,AT,BE,BR,CA,CL,CO,CR,CY,CZ,DK,DO,EC,EE,SV,FI,FR,DE,
 samsung_pay = { country = "AU,BH,BR,CA,CN,DK,FI,FR,DE,HK,IN,IT,JP,KZ,KR,KW,MY,NZ,NO,OM,QA,SA,SG,ZA,ES,SE,CH,TW,AE,GB,US", currency = "USD" }
 
 [pm_filters.cybersource]
-credit = { currency = "USD,GBP,EUR,PLN,SEK,XOF,CAD,KWD" }
-debit = { currency = "USD,GBP,EUR,PLN,SEK,XOF,CAD,KWD" }
+credit = { currency = "USD,GBP,EUR,PLN,SEK,XOF,CAD,KWD,QAR" }
+debit = { currency = "USD,GBP,EUR,PLN,SEK,XOF,CAD,KWD,QAR" }
 apple_pay = { currency = "ARS, CAD, CLP, COP, CNY, EUR, HKD, KWD, MYR, MXN, NZD, PEN, QAR, SAR, SGD, ZAR, UAH, GBP, AED, USD, PLN, SEK" }
 google_pay = { currency = "ARS, AUD, CAD, CLP, COP, EUR, HKD, INR, KWD, MYR, MXN, NZD, PEN, QAR, SAR, SGD, ZAR, UAH, AED, GBP, USD, PLN, SEK" }
 samsung_pay = { currency = "USD,GBP,EUR,SEK" }

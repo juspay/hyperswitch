@@ -30,7 +30,7 @@ strum = { version = "0.26", features = ["derive"] }
 thiserror = "1.0.69"
 time = "0.3.41"
 url = { version = "2.5.4", features = ["serde"] }
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "5976300a6eb3746990502970ca089b4eac4b4e24", package = "rust-grpc-client" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "bb898deefab57b6100ca07754c1427a8035cfe50", package = "rust-grpc-client" }
 unified-connector-service-masking = { git = "https://github.com/juspay/hyperswitch", tag = "2025.11.24.0", package = "masking" }
 tokio = { version = "1.45.1", features = ["macros", "rt-multi-thread"] }
 
