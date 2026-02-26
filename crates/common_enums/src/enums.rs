@@ -2493,7 +2493,7 @@ impl PaymentMethodType {
             Self::RedPagos => "RedPagos",
             Self::SamsungPay => "Samsung Pay",
             Self::Sepa => "SEPA Direct Debit",
-            Self::SepaGuarenteedDebit => "SEPA Guarenteed Direct Debit",
+            Self::SepaGuarenteedDebit => "SEPA Guaranteed Direct Debit",
             Self::SepaBankTransfer => "SEPA Bank Transfer",
             Self::Sofort => "Sofort",
             Self::Skrill => "Skrill",
@@ -10007,6 +10007,12 @@ pub enum ConnectorIntegrationStatus {
 pub enum FeatureStatus {
     NotSupported,
     Supported,
+}
+
+impl FeatureStatus {
+    pub fn is_supported(&self) -> bool {
+        matches!(self, Self::Supported)
+    }
 }
 
 /// The type of tokenization to use for the payment method

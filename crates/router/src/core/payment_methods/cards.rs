@@ -334,6 +334,7 @@ impl PaymentMethodsController for PmCards<'_> {
                         None,
                         None,
                         Default::default(),
+                        resp.locker_fingerprint_id.clone(),
                     )
                     .await
                 } else {
@@ -480,10 +481,31 @@ impl PaymentMethodsController for PmCards<'_> {
         network_token_locker_id: Option<String>,
         network_token_payment_method_data: crypto::OptionalEncryptableValue,
         vault_source_details: Option<domain::PaymentMethodVaultSourceDetails>,
+        locker_fingerprint_id: Option<String>,
     ) -> errors::RouterResult<domain::PaymentMethod> {
-        let pm_card_details = resp.card.clone().map(|card| {
-            PaymentMethodsData::Card(CardDetailsPaymentMethod::from((card.clone(), None)))
-        });
+        let pm_card_details = match &resp.card {
+            Some(card) => Some(PaymentMethodsData::Card(CardDetailsPaymentMethod::from((
+                card.clone(),
+                None,
+            )))),
+            None => match req.payment_method_data.clone() {
+                Some(api_models::payment_methods::PaymentMethodCreateData::BankDebit(
+                    bank_debit,
+                )) => Some(PaymentMethodsData::BankDebit(
+                    api_models::payment_methods::BankDebitDetailsPaymentMethod::AchBankDebit {
+                        masked_account_number: bank_debit.get_masked_account_number(),
+                        masked_routing_number: bank_debit.get_masked_routing_number(),
+                        card_holder_name: None,
+                        bank_account_holder_name: bank_debit.get_bank_account_holder_name(),
+                        bank_name: None,
+                        bank_type: bank_debit.get_bank_type(),
+                        bank_holder_type: bank_debit.get_bank_holder_type(),
+                    },
+                )),
+                _ => None,
+            },
+        };
+
         let key_manager_state = self.state.into();
         let pm_data_encrypted: crypto::OptionalEncryptableValue = pm_card_details
             .clone()
@@ -515,7 +537,7 @@ impl PaymentMethodsController for PmCards<'_> {
             network_token_payment_method_data,
             vault_source_details,
             None,
-            None,
+            locker_fingerprint_id,
         )
         .await
     }
@@ -1241,6 +1263,22 @@ impl PaymentMethodsController for PmCards<'_> {
                 }
                 _ => Ok(self.store_default_payment_method(req, &customer_id, merchant_id)),
             },
+            api_enums::PaymentMethod::BankDebit => match req.payment_method_data.clone() {
+                Some(api_models::payment_methods::PaymentMethodCreateData::BankDebit(
+                    bank_debit_data,
+                )) => Box::pin(self.add_bank_debit_to_locker(
+                    req.clone(),
+                    bank_debit_data,
+                    self.provider.get_key_store(),
+                    &customer_id,
+                ))
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Add BankDebit Failed"),
+                _ => Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "PaymentMethodData does not match PaymentMethod".to_string(),
+                })?,
+            },
             _ => Ok(self.store_default_payment_method(req, &customer_id, merchant_id)),
         };
 
@@ -1386,6 +1424,7 @@ impl PaymentMethodsController for PmCards<'_> {
 
                 let locker_id = if resp.payment_method == Some(api_enums::PaymentMethod::Card)
                     || resp.payment_method == Some(api_enums::PaymentMethod::BankTransfer)
+                    || resp.payment_method == Some(api_enums::PaymentMethod::BankDebit)
                 {
                     Some(resp.payment_method_id)
                 } else {
@@ -1409,6 +1448,7 @@ impl PaymentMethodsController for PmCards<'_> {
                         None,
                         None,
                         Default::default(), //Currently this method is used for adding payment method via PaymentMethodCreate API which doesn't support external vault. hence Default i.e. InternalVault is passed for vault source and type
+                        resp.locker_fingerprint_id.clone(),
                     )
                     .await?;
 
