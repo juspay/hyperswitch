@@ -205,19 +205,14 @@ export const connectorDetails = {
       },
     },
     // 3DS with External Authentication and Exemption Indicators
-    // Note: ACI does not support external 3DS pass-through (sending pre-authenticated CAVV/ECI).
-    // ACI performs its own 3DS authentication. These tests are skipped for ACI.
-    // The exemption indicator mapping logic is tested via unit tests in transformers.rs.
+    // These tests validate exemption indicator mapping to ACI's exemptionFlag parameter.
     "3DSAutoCaptureWithLowValueExemption": {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
         three_ds_data: externalThreeDsDataWithLowValueExemption,
@@ -230,15 +225,12 @@ export const connectorDetails = {
       },
     },
     "3DSAutoCaptureWithTRAExemption": {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
         three_ds_data: externalThreeDsDataWithTRAExemption,
@@ -251,15 +243,12 @@ export const connectorDetails = {
       },
     },
     "3DSAutoCaptureWithTrustedListingExemption": {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
         three_ds_data: externalThreeDsDataWithTrustedListingExemption,
@@ -272,15 +261,12 @@ export const connectorDetails = {
       },
     },
     "3DSAutoCaptureWithScaDelegationExemption": {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
         three_ds_data: externalThreeDsDataWithScaDelegationExemption,
@@ -293,15 +279,12 @@ export const connectorDetails = {
       },
     },
     "3DSAutoCaptureWithSecureCorporateExemption": {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
         three_ds_data: externalThreeDsDataWithSecureCorporateExemption,
