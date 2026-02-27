@@ -131,6 +131,15 @@ impl RedisConnectionPool {
                 max_timeout: Some(std::time::Duration::from_secs(conf.unresponsive_timeout)),
                 interval: std::time::Duration::from_secs(conf.unresponsive_check_interval),
             },
+            tcp: fred::types::config::TcpConfig {
+                keepalive: Some(
+                    fred::socket2::TcpKeepalive::new()
+                        .with_time(std::time::Duration::from_secs(conf.tcp_keepalive_time))
+                        .with_interval(std::time::Duration::from_secs(conf.tcp_keepalive_interval))
+                        .with_retries(conf.tcp_keepalive_retries),
+                ),
+                ..fred::types::config::TcpConfig::default()
+            },
             ..fred::types::config::ConnectionConfig::default()
         };
 

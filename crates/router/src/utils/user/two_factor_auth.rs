@@ -174,7 +174,11 @@ pub async fn get_totp_attempts_from_redis(state: &SessionState, user_id: &str) -
         .await
         .change_context(UserErrors::InternalServerError)
         // FIXME: This is only required because `fred` does not have a From<u8> impl for Value
-        .map(|v| u8::from(v.unwrap_or(0)))
+        .and_then(|v| {
+            u8::try_from(v.unwrap_or(0))
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Value exceeds u8::MAX")
+        })
 }
 
 pub async fn insert_recovery_code_attempts_in_redis(
@@ -204,7 +208,11 @@ pub async fn get_recovery_code_attempts_from_redis(
         .await
         .change_context(UserErrors::InternalServerError)
         // FIXME: This is only required because `fred` does not have a From<u8> impl for Value
-        .map(|v| u8::from(v.unwrap_or(0)))
+        .and_then(|v| {
+            u8::try_from(v.unwrap_or(0))
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Value exceeds u8::MAX")
+        })
 }
 
 pub async fn delete_totp_attempts_from_redis(

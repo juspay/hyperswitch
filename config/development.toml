@@ -53,6 +53,9 @@ default_command_timeout = 30
 unresponsive_timeout = 10
 unresponsive_check_interval = 2
 max_feed_count = 200
+tcp_keepalive_time = 5            # Time after which TCP keepalive probes will be sent in seconds
+tcp_keepalive_interval = 2        # Interval between TCP keepalive probes in seconds
+tcp_keepalive_retries = 3         # Number of times keepalive probes will be sent before connection is marked broken
 
 [trace_header]
 header_name = "x-request-id"

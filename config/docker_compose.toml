@@ -102,6 +102,9 @@ default_command_timeout = 30
 unresponsive_timeout = 10
 unresponsive_check_interval = 2   # The frequency at which the client checks for unresponsive connections. In seconds. This value should usually be less than half of `unresponsive_timeout` and always more than 1 ms.
 max_feed_count = 200
+tcp_keepalive_time = 5            # Time after which TCP keepalive probes will be sent in seconds
+tcp_keepalive_interval = 2        # Interval between TCP keepalive probes in seconds
+tcp_keepalive_retries = 3         # Number of times keepalive probes will be sent before connection is marked broken
 
 [key_manager]
 url = "http://localhost:5000"

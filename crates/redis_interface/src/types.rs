@@ -66,6 +66,11 @@ pub struct RedisSettings {
     pub unresponsive_timeout: u64,
     pub unresponsive_check_interval: u64,
     pub broadcast_channel_capacity: usize,
+    /// Time after which TCP keepalive probes will be sent in seconds
+    pub tcp_keepalive_time: u64,
+    /// Interval between TCP keepalive probes in seconds
+    pub tcp_keepalive_interval: u64,
+    pub tcp_keepalive_retries: u32,
 }
 
 impl RedisSettings {
@@ -116,6 +121,9 @@ impl Default for RedisSettings {
             unresponsive_timeout: 10,
             unresponsive_check_interval: 2,
             broadcast_channel_capacity: 32,
+            tcp_keepalive_time: 5,
+            tcp_keepalive_interval: 2,
+            tcp_keepalive_retries: 3,
         }
     }
 }
