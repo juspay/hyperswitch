@@ -291,7 +291,7 @@ where
         _payment_data: &mut PaymentData<F>,
         _request: Option<CustomerDetails>,
         _provider: &domain::Provider,
-        _dimensions: DimensionWithMerchantIdAndProfileId,
+        _dimensions: &DimensionWithMerchantIdAndProfileId,
     ) -> CustomResult<
         (PaymentSessionOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,

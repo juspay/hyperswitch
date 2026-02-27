@@ -354,6 +354,10 @@ pub mod superposition {
     pub const REQUIRES_CVV: &str = "requires_cvv";
     /// implicit customer update configuration key
     pub const IMPLICIT_CUSTOMER_UPDATE: &str = "implicit_customer_update";
+    /// GSM (Global Status Map) call configuration key
+    pub const SHOULD_CALL_GSM: &str = "should_call_gsm";
+    /// Eligibility check configuration key
+    pub const SHOULD_PERFORM_ELIGIBILITY: &str = "should_perform_eligibility";
 }
 
 #[cfg(test)]

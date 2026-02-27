@@ -61,11 +61,11 @@ impl Dimensions<NoMerchantId, NoOrgId, NoProfileId> {
 
 /// Can only add merchant_id if not already present
 impl<O, P> Dimensions<NoMerchantId, O, P> {
-    pub fn with_merchant_id(self, id: id_type::MerchantId) -> Dimensions<HasMerchantId, O, P> {
+    pub fn with_merchant_id(&self, id: id_type::MerchantId) -> Dimensions<HasMerchantId, O, P> {
         Dimensions {
             merchant_id: Some(id),
-            organization_id: self.organization_id,
-            profile_id: self.profile_id,
+            organization_id: self.organization_id.clone(),
+            profile_id: self.profile_id.clone(),
             _phantom: PhantomData,
         }
     }
@@ -73,11 +73,11 @@ impl<O, P> Dimensions<NoMerchantId, O, P> {
 
 /// Can only add organization_id if not already present
 impl<M, P> Dimensions<M, NoOrgId, P> {
-    pub fn with_organization_id(self, id: id_type::OrganizationId) -> Dimensions<M, HasOrgId, P> {
+    pub fn with_organization_id(&self, id: id_type::OrganizationId) -> Dimensions<M, HasOrgId, P> {
         Dimensions {
-            merchant_id: self.merchant_id,
+            merchant_id: self.merchant_id.clone(),
             organization_id: Some(id),
-            profile_id: self.profile_id,
+            profile_id: self.profile_id.clone(),
             _phantom: PhantomData,
         }
     }
@@ -85,10 +85,10 @@ impl<M, P> Dimensions<M, NoOrgId, P> {
 
 /// Can only add profile_id if not already present
 impl<M, O> Dimensions<M, O, NoProfileId> {
-    pub fn with_profile_id(self, id: id_type::ProfileId) -> Dimensions<M, O, HasProfileId> {
+    pub fn with_profile_id(&self, id: id_type::ProfileId) -> Dimensions<M, O, HasProfileId> {
         Dimensions {
-            merchant_id: self.merchant_id,
-            organization_id: self.organization_id,
+            merchant_id: self.merchant_id.clone(),
+            organization_id: self.organization_id.clone(),
             profile_id: Some(id),
             _phantom: PhantomData,
         }

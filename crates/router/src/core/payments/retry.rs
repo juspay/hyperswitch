@@ -20,6 +20,7 @@ use crate::{
         },
         routing::helpers as routing_helpers,
         utils as core_utils,
+        configs::{dimension_state, dimension_state::DimensionWithMerchantIdAndProfileId},
     },
     db::StorageInterface,
     routes::{
@@ -868,32 +869,21 @@ pub fn make_new_payment_attempt(
     todo!()
 }
 
-pub async fn get_merchant_config_for_gsm(
-    db: &dyn StorageInterface,
-    merchant_id: &common_utils::id_type::MerchantId,
-) -> bool {
-    let config = db
-        .find_config_by_key_unwrap_or(
-            &merchant_id.get_should_call_gsm_key(),
-            Some("false".to_string()),
-        )
-        .await;
-    match config {
-        Ok(conf) => conf.config == "true",
-        Err(error) => {
-            logger::error!(?error);
-            false
-        }
-    }
-}
 
 #[cfg(feature = "v1")]
 pub async fn config_should_call_gsm(
-    db: &dyn StorageInterface,
-    merchant_id: &common_utils::id_type::MerchantId,
+    state: &app::SessionState,
+    dimensions: &DimensionWithMerchantIdAndProfileId,
     profile: &domain::Profile,
+    customer_id: Option<&common_utils::id_type::CustomerId>,
 ) -> bool {
-    let merchant_config_gsm = get_merchant_config_for_gsm(db, merchant_id).await;
+    let merchant_config_gsm = dimensions
+        .get_should_call_gsm(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            customer_id,
+        )
+        .await;
     let profile_config_gsm = profile.is_auto_retries_enabled;
     merchant_config_gsm || profile_config_gsm
 }

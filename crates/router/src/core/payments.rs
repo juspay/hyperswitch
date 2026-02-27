@@ -121,7 +121,7 @@ use crate::core::routing::helpers as routing_helpers;
 #[cfg(feature = "v1")]
 use crate::core::{
     blocklist::utils as blocklist_utils,
-    configs::{self as configs, dimension_state::DimensionsWithMerchantId},
+    configs::{self as configs, dimension_state::DimensionsWithMerchantId, dimension_state::DimensionWithMerchantIdAndProfileId},
 };
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use crate::types::api::convert_connector_data_to_routable_connectors;
@@ -609,7 +609,7 @@ pub async fn payments_operation_core<'a, F, Req, Op, FData, D>(
     auth_flow: services::AuthFlow,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     header_payload: HeaderPayload,
-    dimensions: DimensionsWithMerchantId,
+    dimensions: &DimensionsWithMerchantId,
 ) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync + Debug + 'static,
@@ -704,7 +704,7 @@ where
             &mut payment_data,
             customer_details, // TODO: Remove this field after implicit customer update is removed
             platform.get_provider(),
-            dimensions,
+            &dimensions,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
@@ -733,6 +733,7 @@ where
         &mut payment_data,
         eligible_connectors,
         mandate_type,
+        &dimensions,
     )
     .await?;
 
@@ -1186,10 +1187,12 @@ where
                     #[cfg(all(feature = "retry", feature = "v1"))]
                     {
                         use crate::core::payments::retry::{self, GsmValidation};
+                        
                         let config_bool = retry::config_should_call_gsm(
-                            &*state.store,
-                            platform.get_processor().get_account().get_id(),
+                            state,
+                            &dimensions,
                             &business_profile,
+                            customer.as_ref().map(|c| c.get_id()),
                         )
                         .await;
 
@@ -1432,7 +1435,7 @@ pub async fn proxy_for_payments_operation_core<F, Req, Op, FData, D>(
     auth_flow: services::AuthFlow,
     header_payload: HeaderPayload,
     return_raw_connector_response: Option<bool>,
-    dimensions: DimensionsWithMerchantId,
+    dimensions: &DimensionsWithMerchantId,
 ) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync,
@@ -1553,7 +1556,7 @@ where
             &mut payment_data,
             customer_details,
             platform.get_provider(),
-            dimensions,
+            &dimensions,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
@@ -2412,7 +2415,7 @@ where
             auth_flow,
             eligible_routable_connectors,
             header_payload.clone(),
-            dimensions,
+            &dimensions,
         )
         .await?;
 
@@ -2475,7 +2478,7 @@ where
             auth_flow,
             header_payload.clone(),
             return_raw_connector_response,
-            dimensions,
+            &dimensions,
         )
         .await?;
 
@@ -9012,6 +9015,7 @@ pub async fn get_connector_choice<F, Req, D>(
     payment_data: &mut D,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     mandate_type: Option<api::MandateTransactionType>,
+    dimensions: &DimensionWithMerchantIdAndProfileId,
 ) -> RouterResult<Option<ConnectorCallType>>
 where
     F: Send + Clone,
@@ -9050,6 +9054,7 @@ where
                     Some(straight_through),
                     eligible_connectors,
                     mandate_type,
+                    dimensions,
                 )
                 .await?
             }
@@ -9063,6 +9068,7 @@ where
                     None,
                     eligible_connectors,
                     mandate_type,
+                    dimensions,
                 )
                 .await?
             }
@@ -9251,6 +9257,7 @@ pub async fn connector_selection<F, D>(
     request_straight_through: Option<serde_json::Value>,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     mandate_type: Option<api::MandateTransactionType>,
+    dimensions: &DimensionWithMerchantIdAndProfileId,
 ) -> RouterResult<ConnectorCallType>
 where
     F: Send + Clone,
@@ -9295,6 +9302,7 @@ where
         &mut routing_data,
         eligible_connectors,
         mandate_type,
+        dimensions,
     )
     .await?;
 
@@ -9486,6 +9494,7 @@ pub async fn decide_connector<F, D>(
     routing_data: &mut storage::RoutingData,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     mandate_type: Option<api::MandateTransactionType>,
+    dimensions: &DimensionWithMerchantIdAndProfileId,
 ) -> RouterResult<ConnectorCallType>
 where
     F: Send + Clone,
@@ -9582,9 +9591,10 @@ where
 
             #[cfg(feature = "retry")]
             let should_do_retry = retry::config_should_call_gsm(
-                &*state.store,
-                platform.get_processor().get_account().get_id(),
+                &state,
+                dimensions,
                 business_profile,
+                payment_data.get_payment_intent().customer_id.as_ref(),
             )
             .await;
 

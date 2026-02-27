@@ -151,3 +151,44 @@ impl DatabaseBackedConfig for ImplicitCustomerUpdate {
         Some(format!("{}_{}", merchant_id, Self::KEY))
     }
 }
+
+config! {
+    superposition_key = SHOULD_CALL_GSM,
+    output = bool,
+    default = false,
+    requires = DimensionWithMerchantIdAndProfileId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for ShouldCallGsm {
+    const KEY: &'static str = "should_call_gsm";
+
+    fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+        let merchant_id = dimensions
+            .get_merchant_id()
+            .map(|id| id.get_string_repr())
+            .unwrap_or_default();
+        Some(format!("{}_{}", merchant_id, Self::KEY))
+    }
+}
+
+config! {
+    superposition_key = SHOULD_PERFORM_ELIGIBILITY,
+    output = bool,
+    default = false,
+    requires = DimensionsWithMerchantId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for ShouldPerformEligibility {
+    const KEY: &'static str = "should_perform_eligibility";
+
+    fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+        let merchant_id = dimensions
+            .get_merchant_id()
+            .map(|id| id.get_string_repr())
+            .unwrap_or_default();
+        // Matches the existing key format: "should_perform_eligibility_{merchant_id}"
+        Some(format!("{}_{}", Self::KEY, merchant_id))
+    }
+}
