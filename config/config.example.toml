@@ -312,6 +312,7 @@ rapyd.base_url = "https://sandboxapi.rapyd.net"
 razorpay.base_url = "https://api.razorpay.com/"
 recurly.base_url = "https://v3.recurly.com"
 redsys.base_url = "https://sis-t.redsys.es:25443"
+revolv3.base_url = "https://api-sandbox.revolv3.com"
 riskified.base_url = "https://sandbox.riskified.com/api"
 santander.base_url = "https://trust-pix-h.santander.com.br/"
 santander.secondary_base_url = "https://trust-open-h.api.santander.com.br/"
@@ -1301,7 +1302,7 @@ url = "http://localhost:8080"           # Open Router URL
 [grpc_client.unified_connector_service]
 base_url = "http://localhost:8000"      # Unified Connector Service Base URL
 connection_timeout = 10                 # Connection Timeout Duration in Seconds
-ucs_only_connectors = "paytm, phonepe, hyperpg"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "paytm, phonepe, hyperpg, revolv3"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode"    # Comma-separated list of connectors to disable UCS PSync call
 
 [grpc_client.recovery_decider_client] # Revenue recovery client base url
