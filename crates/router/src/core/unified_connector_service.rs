@@ -1294,18 +1294,11 @@ pub fn build_unified_connector_service_payment_method(
                         })),
                     })
                 }
-                hyperswitch_domain_models::payment_method_data::WalletData::AliPayQr(
-                    _,
-                ) => Ok(payments_grpc::PaymentMethod {
-                    payment_method: Some(PaymentMethod::AliPayQr(
-                        payments_grpc::AliPayQrWallet {}
-                    )),
-                }),
                 hyperswitch_domain_models::payment_method_data::WalletData::AliPayHkRedirect(
                     _,
                 ) => Ok(payments_grpc::PaymentMethod {
-                    payment_method: Some(PaymentMethod::AliPayHkRedirect(
-                        payments_grpc::AliPayHkRedirectWallet {}
+                    payment_method: Some(PaymentMethod::AliPayHk(
+                        payments_grpc::AliPayHkWallet {}
                     )),
                 }),
                 hyperswitch_domain_models::payment_method_data::WalletData::DanaRedirect {} => Ok(payments_grpc::PaymentMethod {
@@ -1363,6 +1356,13 @@ pub fn build_unified_connector_service_payment_method(
                 hyperswitch_domain_models::payment_method_data::WalletData::VippsRedirect {} => Ok(payments_grpc::PaymentMethod {
                     payment_method: Some(PaymentMethod::VippsRedirect(
                         payments_grpc::VippsRedirectWallet {}
+                    )),
+                }),
+                hyperswitch_domain_models::payment_method_data::WalletData::WeChatPayRedirect(
+                    _,
+                ) => Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::WeChatPayRedirect(
+                        payments_grpc::WeChatPayRedirectWallet {}
                     )),
                 }),
                 hyperswitch_domain_models::payment_method_data::WalletData::SwishQr(
