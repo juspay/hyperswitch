@@ -928,6 +928,7 @@ where
     }
 }
 
+#[cfg(feature = "v1")]
 pub async fn try_pre_routing_connectors<F, D>(
     state: &SessionState,
     platform: &domain::Platform,
