@@ -14,6 +14,8 @@ pub enum AnalyticsError {
     AccessForbiddenError,
     #[error("Failed to fetch currency exchange rate")]
     ForexFetchFailed,
+    #[error("Missing email")]
+    MissingEmail,
 }
 
 impl ErrorSwitch<ApiErrorResponse> for AnalyticsError {
@@ -38,6 +40,12 @@ impl ErrorSwitch<ApiErrorResponse> for AnalyticsError {
                 "HE",
                 0,
                 "Failed to fetch currency exchange rate",
+                None,
+            )),
+            Self::MissingEmail => ApiErrorResponse::BadRequest(ApiError::new(
+                "IR",
+                6,
+                "Missing or invalid merchant email address.",
                 None,
             )),
         }
