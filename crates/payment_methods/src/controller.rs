@@ -80,6 +80,7 @@ pub trait PaymentMethodsController {
         network_token_locker_id: Option<String>,
         network_token_payment_method_data: crypto::OptionalEncryptableValue,
         vault_source_details: Option<PaymentMethodVaultSourceDetails>,
+        locker_fingerprint_id: Option<String>,
     ) -> errors::PmResult<payment_methods::PaymentMethod>;
 
     #[cfg(feature = "v2")]

@@ -1124,7 +1124,14 @@
         },
         "responses": {
           "200": {
-            "description": "Payment canceled post capture"
+            "description": "Payment canceled post capture",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Missing mandatory fields",
@@ -1687,7 +1694,7 @@
         },
         "responses": {
           "200": {
-            "description": "Eligbility submit is successful",
+            "description": "Eligibility submit is successful",
             "content": {
               "application/json": {
                 "schema": {
@@ -8697,7 +8704,7 @@
             ],
             "properties": {
               "Passthrough": {
-                "$ref": "#/components/schemas/PassthroughAddtionalData"
+                "$ref": "#/components/schemas/PassthroughAdditionalData"
               }
             }
           }
@@ -11493,6 +11500,26 @@
                   },
                   "routing_number": {
                     "type": "string"
+                  },
+                  "bank_account_holder_name": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "bank_type": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankType"
+                      }
+                    ],
+                    "nullable": true
+                  },
+                  "bank_holder_type": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankHolderType"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -13031,6 +13058,13 @@
             "nullable": true
           }
         }
+      },
+      "BillingFrequency": {
+        "type": "string",
+        "description": "Billing frequency for a card installment plan",
+        "enum": [
+          "month"
+        ]
       },
       "BlikBankRedirectAdditionalData": {
         "type": "object",
@@ -20851,6 +20885,50 @@
           "connected"
         ]
       },
+      "InstallmentOption": {
+        "type": "object",
+        "description": "Installment options grouped by payment method",
+        "required": [
+          "payment_method",
+          "installments"
+        ],
+        "properties": {
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "installments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InstallmentOptionData"
+            },
+            "description": "List of available installment configurations"
+          }
+        }
+      },
+      "InstallmentOptionData": {
+        "type": "object",
+        "description": "A single installment plan option accepted in request payloads",
+        "required": [
+          "number_of_installments",
+          "billing_frequency",
+          "interest_rate"
+        ],
+        "properties": {
+          "number_of_installments": {
+            "type": "string",
+            "format": "binary",
+            "description": "Number of installments (e.g., [3, 6, 12])"
+          },
+          "billing_frequency": {
+            "$ref": "#/components/schemas/BillingFrequency"
+          },
+          "interest_rate": {
+            "type": "number",
+            "format": "double",
+            "description": "Interest rate applied per installment as a percentage"
+          }
+        }
+      },
       "IntentStatus": {
         "type": "string",
         "description": "Represents the overall status of a payment intent.\nThe status transitions through various states depending on the payment method, confirmation, capture method, and any subsequent actions (like customer authentication or manual capture).",
@@ -23536,6 +23614,14 @@
               }
             ],
             "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -24787,7 +24873,7 @@
           }
         }
       },
-      "PassthroughAddtionalData": {
+      "PassthroughAdditionalData": {
         "type": "object",
         "description": "additional payout method details for passthrough payout method",
         "required": [
@@ -25521,6 +25607,36 @@
             "type": "string",
             "description": "Card Issuer Identification Number (first 6 digits of card)",
             "example": "424242"
+          }
+        }
+      },
+      "PaymentIntentStateMetadata": {
+        "type": "object",
+        "description": "Additional metadata for payment intent state containing refunded and disputed amounts",
+        "properties": {
+          "total_refunded_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "total_disputed_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "post_capture_void": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PostCaptureVoidResponse"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -27561,7 +27677,8 @@
           "normal",
           "new_mandate",
           "setup_mandate",
-          "recurring_mandate"
+          "recurring_mandate",
+          "installment"
         ]
       },
       "PaymentsCancelPostCaptureRequest": {
@@ -28178,6 +28295,14 @@
               }
             ],
             "nullable": true
+          },
+          "installment_options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InstallmentOption"
+            },
+            "description": "Installment payment options grouped by payment method. When provided, the payment is treated as an installment payment.",
+            "nullable": true
           }
         }
       },
@@ -28706,6 +28831,14 @@
               }
             ],
             "nullable": true
+          },
+          "installment_options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InstallmentOption"
+            },
+            "description": "Installment payment options grouped by payment method. When provided, the payment is treated as an installment payment.",
+            "nullable": true
           }
         }
       },
@@ -28802,6 +28935,14 @@
             "type": "string",
             "description": "The name of the payment connector (e.g., 'stripe', 'adyen') that processed or is processing this payment.",
             "example": "stripe",
+            "nullable": true
+          },
+          "state_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentIntentStateMetadata"
+              }
+            ],
             "nullable": true
           },
           "client_secret": {
@@ -29417,6 +29558,14 @@
                 "$ref": "#/components/schemas/PaymentMethodTokenizationDetails"
               }
             ],
+            "nullable": true
+          },
+          "installment_options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InstallmentOption"
+            },
+            "description": "Installment payment options associated with this payment, grouped by payment method",
             "nullable": true
           }
         }
@@ -30299,6 +30448,14 @@
               }
             ],
             "nullable": true
+          },
+          "installment_options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InstallmentOption"
+            },
+            "description": "Installment payment options grouped by payment method. When provided, the payment is treated as an installment payment.",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -30396,6 +30553,14 @@
             "type": "string",
             "description": "The name of the payment connector (e.g., 'stripe', 'adyen') that processed or is processing this payment.",
             "example": "stripe",
+            "nullable": true
+          },
+          "state_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentIntentStateMetadata"
+              }
+            ],
             "nullable": true
           },
           "client_secret": {
@@ -31036,6 +31201,14 @@
                 "$ref": "#/components/schemas/PaymentMethodTokenizationDetails"
               }
             ],
+            "nullable": true
+          },
+          "installment_options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InstallmentOption"
+            },
+            "description": "Installment payment options associated with this payment, grouped by payment method",
             "nullable": true
           }
         }
@@ -31722,6 +31895,14 @@
                 "$ref": "#/components/schemas/PartnerMerchantIdentifierDetails"
               }
             ],
+            "nullable": true
+          },
+          "installment_options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InstallmentOption"
+            },
+            "description": "Installment payment options grouped by payment method. When provided, the payment is treated as an installment payment.",
             "nullable": true
           }
         }
@@ -32768,7 +32949,7 @@
             ],
             "properties": {
               "passthrough": {
-                "$ref": "#/components/schemas/PassthroughAddtionalData"
+                "$ref": "#/components/schemas/PassthroughAdditionalData"
               }
             }
           }
@@ -33869,6 +34050,47 @@
             "$ref": "#/components/schemas/AuthenticationPaymentMethodData"
           }
         }
+      },
+      "PostCaptureVoidResponse": {
+        "type": "object",
+        "description": "Additional metadata for payment intent state containing refunded and disputed amounts",
+        "required": [
+          "updated_at"
+        ],
+        "properties": {
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PostCaptureVoidStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "connector_reference_id": {
+            "type": "string",
+            "description": "Connector reference id for post capture void",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "Description or message related to the post capture void",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the post capture void was last updated"
+          }
+        }
+      },
+      "PostCaptureVoidStatus": {
+        "type": "string",
+        "description": "The status of a post-capture void operation",
+        "enum": [
+          "succeeded",
+          "pending",
+          "failed"
+        ]
       },
       "PrimaryBusinessDetails": {
         "type": "object",
@@ -38566,7 +38788,7 @@
               },
               "consume_post_message_for_three_ds_method_completion": {
                 "type": "boolean",
-                "description": "Indicates whethere to wait for Post message after 3DS method data submission"
+                "description": "Indicates whether to wait for Post message after 3DS method data submission"
               }
             }
           }

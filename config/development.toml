@@ -656,8 +656,8 @@ google_pay = { country = "AU,AT,BE,BR,CA,CL,CO,CR,CY,CZ,DK,DO,EC,EE,SV,FI,FR,DE,
 samsung_pay = { country = "AU,BH,BR,CA,CN,DK,FI,FR,DE,HK,IN,IT,JP,KZ,KR,KW,MY,NZ,NO,OM,QA,SA,SG,ZA,ES,SE,CH,TW,AE,GB,US", currency = "USD" }
 
 [pm_filters.cybersource]
-credit = { currency = "USD,GBP,EUR,PLN,SEK,XOF,CAD,KWD" }
-debit = { currency = "USD,GBP,EUR,PLN,SEK,XOF,CAD,KWD" }
+credit = { currency = "USD,GBP,EUR,PLN,SEK,XOF,CAD,KWD,QAR" }
+debit = { currency = "USD,GBP,EUR,PLN,SEK,XOF,CAD,KWD,QAR" }
 apple_pay = { currency = "ARS, CAD, CLP, COP, CNY, EUR, HKD, KWD, MYR, MXN, NZD, PEN, QAR, SAR, SGD, ZAR, UAH, GBP, AED, USD, PLN, SEK" }
 google_pay = { currency = "ARS, AUD, CAD, CLP, COP, EUR, HKD, INR, KWD, MYR, MXN, NZD, PEN, QAR, SAR, SGD, ZAR, UAH, AED, GBP, USD, PLN, SEK" }
 samsung_pay = { currency = "USD,GBP,EUR,SEK" }
@@ -1211,8 +1211,8 @@ payout_eligibility = true
 [applepay_decrypt_keys]
 apple_pay_ppc = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE"
 apple_pay_ppc_key = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY"
-apple_pay_merchant_cert = "APPLE_PAY_MERCHNAT_CERTIFICATE"
-apple_pay_merchant_cert_key = "APPLE_PAY_MERCHNAT_CERTIFICATE_KEY"
+apple_pay_merchant_cert = "APPLE_PAY_MERCHANT_CERTIFICATE"
+apple_pay_merchant_cert_key = "APPLE_PAY_MERCHANT_CERTIFICATE_KEY"
 
 [paze_decrypt_keys]
 paze_private_key = "PAZE_PRIVATE_KEY"
@@ -1524,4 +1524,3 @@ polling_interval = 15 # Polling interval in seconds for configuration updates
 [micro_services]
 payment_methods_base_url = "http://localhost:8082"
 payment_methods_prefix = "v2"
-
