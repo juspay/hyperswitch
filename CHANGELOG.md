@@ -4,6 +4,24 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.02.0-hotfix5
+
+### Features
+
+- **core:**
+  - Add static routing to proxy payment core ([#11387](https://github.com/juspay/hyperswitch/pull/11387)) ([`816bd33`](https://github.com/juspay/hyperswitch/commit/816bd331d6563a110b8c97fb49cbb3b62e6430d1))
+  - Add Peachpayments Data Inside connector_metadata in Payments Request ([#11389](https://github.com/juspay/hyperswitch/pull/11389)) ([`9683d59`](https://github.com/juspay/hyperswitch/commit/9683d59f856641db7cb2f46633b8a4777da62f16))
+
+### Bug Fixes
+
+- **connector:**
+  - Fix PayJustNow In-Store Payments when merchant_order_reference_id is Same ([#11391](https://github.com/juspay/hyperswitch/pull/11391)) ([`f23fc8c`](https://github.com/juspay/hyperswitch/commit/f23fc8c205f88b053e2813b01a506d792dea2766))
+  - [Peachpayments] Omit ECI field in Network Token Passthrough when its None ([#11390](https://github.com/juspay/hyperswitch/pull/11390)) ([`67259bc`](https://github.com/juspay/hyperswitch/commit/67259bc8df83dcc756bba54cab4c10ac3bbcdf93))
+
+**Full Changelog:** [`2026.02.02.0-hotfix4...2026.02.02.0-hotfix5`](https://github.com/juspay/hyperswitch/compare/2026.02.02.0-hotfix4...2026.02.02.0-hotfix5)
+
+- - -
+
 ## 2026.02.02.0-hotfix4
 
 ### Features
