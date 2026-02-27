@@ -1267,6 +1267,11 @@ impl InstallmentCounts {
         self.0.contains(&count)
     }
 
+    /// Returns a slice of the installment counts.
+    pub fn as_slice(&self) -> &[NonZeroU8] {
+        &self.0
+    }
+
     fn validate_not_empty(counts: &[NonZeroU8]) -> Result<(), errors::ValidationError> {
         (!counts.is_empty()).then_some(()).ok_or_else(|| {
             error_stack::report!(errors::ValidationError::InvalidValue {

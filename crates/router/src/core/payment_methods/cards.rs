@@ -3784,7 +3784,7 @@ pub async fn list_payment_methods(
         .map(|payment_intent| payment_intent.customer_id.is_none())
         .unwrap_or(true);
     let merchant_surcharge_configs = if let Some((payment_attempt, payment_intent)) =
-        payment_attempt.as_ref().zip(payment_intent)
+        payment_attempt.as_ref().zip(payment_intent.clone())
     {
         Box::pin(call_surcharge_decision_management(
             state,
@@ -3819,6 +3819,10 @@ pub async fn list_payment_methods(
     };
 
     let is_tax_connector_enabled = business_profile.get_is_tax_connector_enabled();
+
+    let intent_data = payment_intent
+        .clone()
+        .map(api_models::payment_methods::PmlPaymentIntentResponse::foreign_from);
 
     Ok(services::ApplicationResponse::Json(
         api::PaymentMethodListResponse {
@@ -3865,6 +3869,7 @@ pub async fn list_payment_methods(
             is_tax_calculation_enabled: is_tax_connector_enabled && !skip_external_tax_calculation,
             sdk_next_action,
             is_guest_customer,
+            intent_data,
         },
     ))
 }

@@ -1,7 +1,9 @@
 use std::collections::{HashMap, HashSet};
+use std::num::NonZeroU8;
 #[cfg(feature = "v2")]
 use std::str::FromStr;
 
+use common_types::payments::{BillingFrequency, InstallmentInterestRate};
 use cards::CardNumber;
 #[cfg(feature = "v1")]
 use common_utils::crypto::OptionalEncryptableName;
@@ -2470,6 +2472,111 @@ pub struct PaymentMethodListResponse {
 
     /// indicates whether this is a guest customer flow
     pub is_guest_customer: bool,
+
+    /// Payment intent details associated with this payment method list request
+    pub intent_data: Option<PmlPaymentIntentResponse>,
+}
+
+/// Intent-only payment details returned as part of the Payment Method List response
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct PmlPaymentIntentResponse {
+    /// Unique identifier for the payment
+    pub payment_id:id_type::PaymentId,
+
+    /// The status of the payment
+    #[schema(value_type = IntentStatus)]
+    pub status: api_enums::IntentStatus,
+
+    /// The payment amount
+    pub amount: MinorUnit,
+
+    /// The currency of the payment
+    #[schema(example = "USD", value_type = Option<Currency>)]
+    pub currency: Option<api_enums::Currency>,
+
+    /// Client secret for client-side payment confirmation
+    pub client_secret: Option<masking::Secret<String>>,
+
+    /// A description for the payment
+    pub description: Option<String>,
+
+    /// The customer identifier
+    #[schema(value_type = Option<String>)]
+    pub customer_id: Option<id_type::CustomerId>,
+
+    /// The URL to redirect to after payment completion
+    pub return_url: Option<String>,
+
+    /// Whether to save payment method for future use
+    #[schema(value_type = Option<FutureUsage>)]
+    pub setup_future_usage: Option<api_enums::FutureUsage>,
+
+    /// The billing address for the payment
+    #[schema(value_type = Option<Address>)]
+    pub billing: Option<payments::Address>,
+
+    /// The shipping address for the payment
+    #[schema(value_type = Option<Address>)]
+    pub shipping: Option<payments::Address>,
+
+    /// Additional metadata
+    #[schema(value_type = Option<Object>)]
+    pub metadata: Option<serde_json::Value>,
+
+    /// Order details for the payment
+    pub order_details: Option<Vec<masking::Secret<serde_json::Value>>>,
+
+    /// Timestamp when the payment was created
+    pub created: Option<time::PrimitiveDateTime>,
+
+    /// Timestamp when the client secret expires
+    pub expires_on: Option<time::PrimitiveDateTime>,
+
+    /// The profile identifier
+    #[schema(value_type = Option<String>)]
+    pub profile_id: Option<id_type::ProfileId>,
+
+    /// Merchant-provided reference identifier
+    pub merchant_order_reference_id: Option<String>,
+
+    /// Number of payment attempts made
+    pub attempt_count: i16,
+
+    /// Installment options available for this payment
+    pub installment_options: Option<Vec<PmlInstallmentOption>>,
+}
+
+/// Installment options for a payment method, as returned in the PML response
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct PmlInstallmentOption {
+    /// The payment method these plans apply to
+    #[schema(value_type = PaymentMethod)]
+    pub payment_method: api_enums::PaymentMethod,
+    /// Individual installment plans with computed amounts
+    pub available_plans: Vec<PmlInstallmentPlan>,
+}
+
+/// A single installment plan with pre-computed amount breakdown
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct PmlInstallmentPlan {
+    /// Number of installments for this plan
+    pub number_of_installments: NonZeroU8,
+    /// Billing frequency
+    #[schema(value_type = BillingFrequency)]
+    pub billing_frequency: BillingFrequency,
+    /// Interest rate as a percentage
+    pub interest_rate: InstallmentInterestRate,
+    /// Pre-computed amount breakdown
+    pub amount_details: PmlInstallmentAmountDetails,
+}
+
+/// Amount breakdown for a single installment plan
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct PmlInstallmentAmountDetails {
+    /// Amount charged per installment in minor units
+    pub amount_per_installment: MinorUnit,
+    /// Total amount across all installments in minor units (may differ slightly from order amount due to ceiling)
+    pub total_amount: MinorUnit,
 }
 
 #[cfg(feature = "v1")]

@@ -1,4 +1,4 @@
-use std::{fmt::Debug, marker::PhantomData, str::FromStr};
+use std::{fmt::Debug, marker::PhantomData, num::NonZeroU8, str::FromStr};
 
 #[cfg(feature = "v2")]
 use api_models::enums as api_enums;
@@ -6,6 +6,10 @@ use api_models::enums as api_enums;
 use api_models::payments as api_payments;
 #[cfg(feature = "v2")]
 use api_models::payments::RevenueRecoveryGetIntentResponse;
+use api_models::payment_methods::{
+    PmlInstallmentAmountDetails, PmlInstallmentOption, PmlInstallmentPlan,
+    PmlPaymentIntentResponse,
+};
 use api_models::payments::{
     Address, ConnectorMandateReferenceId, CustomerDetails, CustomerDetailsResponse, FrmMessage,
     MandateIds, NetworkDetails, RequestSurchargeDetails,
@@ -4296,6 +4300,113 @@ pub fn construct_connector_invoke_hidden_frame(
     };
 
     Ok(api_models::payments::NextActionData::InvokeHiddenIframe { iframe_data })
+}
+
+#[cfg(feature = "v1")]
+impl ForeignFrom<storage::PaymentIntent> for PmlPaymentIntentResponse
+{
+    fn foreign_from(pi: storage::PaymentIntent) -> Self {
+        Self {
+            payment_id: pi.payment_id,
+            status: pi.status,
+            amount: pi.amount,
+            currency: pi.currency,
+            client_secret: pi.client_secret.map(|s| s.into()),
+            description: pi.description,
+            customer_id: pi.customer_id,
+            return_url: pi.return_url,
+            setup_future_usage: pi.setup_future_usage,
+            billing: pi.billing_details.and_then(|b| {
+                match b.into_inner().expose().parse_value::<Address>("Address") {
+                    Ok(parsed) => Some(parsed),
+                    Err(e) => {
+                        router_env::logger::error!("Failed to parse billing address: {e:?}");
+                        None
+                    }
+                }
+            }),
+            shipping: pi.shipping_details.and_then(|s| {
+                match s.into_inner().expose().parse_value::<Address>("Address") {
+                    Ok(parsed) => Some(parsed),
+                    Err(e) => {
+                        router_env::logger::error!("Failed to parse shipping address: {e:?}");
+                        None
+                    }
+                }
+            }),
+            metadata: pi.metadata,
+            order_details: pi.order_details,
+            created: Some(pi.created_at),
+            expires_on: pi.session_expiry,
+            profile_id: pi.profile_id,
+            merchant_order_reference_id: pi.merchant_order_reference_id,
+            attempt_count: pi.attempt_count,
+            installment_options: pi.installment_options.and_then(|opts| {
+                transform_installment_options_for_pml(
+                    common_types::payments::InstallmentOptions(opts),
+                    pi.amount,
+                )
+                    .map_err(|e| {
+                        router_env::logger::error!(
+                            "Failed to transform installment options for PML: {e:?}"
+                        )
+                    })
+                    .ok()
+            }),
+        }
+    }
+}
+
+fn compute_installment_plan_for_count(
+    count: NonZeroU8,
+    plan: &common_types::payments::InstallmentOptionData,
+    order_amount: MinorUnit,
+) -> RouterResult<PmlInstallmentPlan> {
+    let interest = plan
+        .interest_rate
+        .apply_and_ceil_result(order_amount)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to apply installment interest rate")?;
+    let total_with_interest = order_amount + interest;
+    let per_installment = total_with_interest / count;
+    Ok(PmlInstallmentPlan {
+        number_of_installments: count,
+        billing_frequency: plan.billing_frequency.clone(),
+        interest_rate: plan.interest_rate,
+        amount_details: PmlInstallmentAmountDetails {
+            amount_per_installment: per_installment,
+            total_amount: total_with_interest,
+        },
+    })
+}
+
+fn transform_installment_options_for_pml(
+    opts: common_types::payments::InstallmentOptions,
+    order_amount: MinorUnit,
+) -> RouterResult<Vec<PmlInstallmentOption>> {
+    opts.0
+        .into_iter()
+        .map(|opt| {
+            let available_plans = opt
+                .installments
+                .into_iter()
+                .map(|plan| {
+                    plan.number_of_installments
+                        .as_slice()
+                        .iter()
+                        .map(|&count| compute_installment_plan_for_count(count, &plan, order_amount))
+                        .collect::<RouterResult<Vec<_>>>()
+                })
+                .collect::<RouterResult<Vec<_>>>()?
+                .into_iter()
+                .flatten()
+                .collect();
+            Ok(PmlInstallmentOption {
+                payment_method: opt.payment_method,
+                available_plans,
+            })
+        })
+        .collect()
 }
 
 #[cfg(feature = "v1")]
