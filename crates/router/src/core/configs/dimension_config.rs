@@ -80,7 +80,7 @@ macro_rules! config {
         }
     };
 
-    // Primitive config variant (no helper function - use get_xxx() directly on Dimensions)
+    // Primitive config variant (no helper function - use get_{{key_name}}() directly on Dimensions)
     (
         superposition_key = $key:ident,
         output = $output:ty,
