@@ -121,7 +121,10 @@ use crate::core::routing::helpers as routing_helpers;
 #[cfg(feature = "v1")]
 use crate::core::{
     blocklist::utils as blocklist_utils,
-    configs::{self as configs, dimension_state::DimensionsWithMerchantId, dimension_state::DimensionWithMerchantIdAndProfileId},
+    configs::{
+        self as configs, dimension_state::DimensionWithMerchantIdAndProfileId,
+        dimension_state::DimensionsWithMerchantId,
+    },
 };
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use crate::types::api::convert_connector_data_to_routable_connectors;
@@ -1187,7 +1190,7 @@ where
                     #[cfg(all(feature = "retry", feature = "v1"))]
                     {
                         use crate::core::payments::retry::{self, GsmValidation};
-                        
+
                         let config_bool = retry::config_should_call_gsm(
                             state,
                             &dimensions,

@@ -18,7 +18,9 @@ use masking::ExposeInterface;
 use router_env::logger;
 use storage_impl::redis::cache::{CacheKey, PM_FILTERS_CGRAPH_CACHE};
 
-use crate::{configs::settings, db::StorageInterface, routes::SessionState, core::configs::dimension_state};
+use crate::{
+    configs::settings, core::configs::dimension_state, db::StorageInterface, routes::SessionState,
+};
 #[cfg(feature = "v2")]
 use crate::{
     db::{

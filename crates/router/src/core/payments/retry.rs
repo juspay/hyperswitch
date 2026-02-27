@@ -12,6 +12,7 @@ use router_env::{
 use crate::{
     consts,
     core::{
+        configs::{dimension_state, dimension_state::DimensionWithMerchantIdAndProfileId},
         errors::{self, RouterResult, StorageErrorExt},
         payments::{
             self, complete_connector_service,
@@ -20,7 +21,6 @@ use crate::{
         },
         routing::helpers as routing_helpers,
         utils as core_utils,
-        configs::{dimension_state, dimension_state::DimensionWithMerchantIdAndProfileId},
     },
     db::StorageInterface,
     routes::{
@@ -868,7 +868,6 @@ pub fn make_new_payment_attempt(
 ) -> storage::PaymentAttempt {
     todo!()
 }
-
 
 #[cfg(feature = "v1")]
 pub async fn config_should_call_gsm(
