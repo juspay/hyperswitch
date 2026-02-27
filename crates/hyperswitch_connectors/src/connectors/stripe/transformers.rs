@@ -641,6 +641,7 @@ pub enum StripeWallet {
     ApplepayToken(StripeApplePay),
     GooglepayToken(GooglePayToken),
     ApplepayPayment(ApplepayPayment),
+    GooglePayPayment(GooglePayPayment),
     AmazonpayPayment(AmazonpayPayment),
     WechatpayPayment(WechatpayPayment),
     AlipayPayment(AlipayPayment),
@@ -700,6 +701,14 @@ pub struct GooglePayToken {
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct ApplepayPayment {
+    #[serde(rename = "payment_method_data[card][token]")]
+    pub token: Secret<String>,
+    #[serde(rename = "payment_method_data[type]")]
+    pub payment_method_types: StripePaymentMethodType,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct GooglePayPayment {
     #[serde(rename = "payment_method_data[card][token]")]
     pub token: Secret<String>,
     #[serde(rename = "payment_method_data[type]")]
@@ -1855,8 +1864,16 @@ impl TryFrom<(&GooglePayWalletData, Option<PaymentMethodToken>)> for StripePayme
                     exp_month: predecrypted_data.card_exp_month.clone(),
                     eci: predecrypted_data.eci_indicator.clone(),
                     cryptogram: predecrypted_data.cryptogram.clone(),
-                    tokenization_method: "google_pay".to_string(),
+                    tokenization_method: "android_pay".to_string(),
                 }),
+            )))
+        } else if let Some(PaymentMethodToken::Token(gpay_token)) = payment_method_token {
+            // Use decrypted token flow
+            Ok(Self::Wallet(StripeWallet::GooglePayPayment(
+                GooglePayPayment {
+                    token: gpay_token,
+                    payment_method_types: StripePaymentMethodType::Card,
+                },
             )))
         } else {
             // Use encrypted token flow

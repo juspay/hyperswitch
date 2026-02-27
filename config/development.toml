@@ -1068,7 +1068,7 @@ payjustnow = { country = "ZA", currency = "ZAR" }
 payjustnow = { country = "ZA", currency = "ZAR" }
 
 [tokenization]
-stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
+stripe = { long_lived_token = false, payment_method = "wallet" }
 checkout = { long_lived_token = false, payment_method = "wallet", apple_pay_pre_decrypt_flow = "network_tokenization", google_pay_pre_decrypt_flow = "network_tokenization"  }
 stax = { long_lived_token = true, payment_method = "card,bank_debit" }
 mollie = { long_lived_token = false, payment_method = "card" }
