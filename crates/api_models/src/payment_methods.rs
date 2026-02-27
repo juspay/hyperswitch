@@ -2483,6 +2483,7 @@ pub struct PaymentMethodListResponse {
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct PmlPaymentIntentResponse {
     /// Unique identifier for the payment
+    #[schema(value_type = String)]
     pub payment_id: id_type::PaymentId,
 
     /// The status of the payment
