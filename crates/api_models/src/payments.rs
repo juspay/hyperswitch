@@ -6913,10 +6913,10 @@ pub struct VoucherNextStepData {
     #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub qr_code_url: Option<Url>,
-            /// The raw QR code data (EMV copy and paste) used for Brazilian payment methods like Pix
-        #[smithy(value_type = "Option<String>")]
-        #[schema(value_type = Option<String>)]
-        pub raw_qr_data: Option<String>,
+    /// The raw QR code data (EMV copy and paste) used for Brazilian payment methods like Pix
+    #[smithy(value_type = "Option<String>")]
+    #[schema(value_type = Option<String>)]
+    pub raw_qr_data: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
