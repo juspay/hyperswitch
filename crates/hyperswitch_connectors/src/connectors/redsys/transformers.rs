@@ -1935,21 +1935,21 @@ fn get_payments_response(
 
 #[derive(Debug, Serialize)]
 pub struct Messages {
+    #[serde(rename = "Version")]
+    version: VersionData,
     #[serde(rename = "Signature")]
     signature: String,
     #[serde(rename = "SignatureVersion")]
     signature_version: String,
-    #[serde(rename = "Version")]
-    version: VersionData,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename = "Version")]
 pub struct VersionData {
-    #[serde(rename = "Message")]
-    message: Message,
     #[serde(rename = "@Ds_Version")]
     ds_version: String,
+    #[serde(rename = "Message")]
+    message: Message,
 }
 
 #[derive(Debug, Serialize)]
@@ -1958,15 +1958,23 @@ pub struct Message {
     transaction: RedsysSyncRequest,
 }
 
+/// SOAP XML Transaction request for Redsys PSync/RSync operations
+///
+/// CRITICAL: Field ordering must match Redsys DTD exactly.
+/// Alphabetical sorting will cause XML0001 error (DTD validation failure).
+///
+/// Required DTD order: Ds_MerchantCode → Ds_Terminal → Ds_Order → Ds_TransactionType
+///
+/// Ref: RS.TE.CEL.MAN.0021 v1.4, Section 3.2.1 (Transaction simple)
 #[derive(Debug, Serialize)]
 #[serde(rename = "Transaction")]
 pub struct RedsysSyncRequest {
     #[serde(rename = "Ds_MerchantCode")]
     ds_merchant_code: Secret<String>,
-    #[serde(rename = "Ds_Order")]
-    ds_order: String,
     #[serde(rename = "Ds_Terminal")]
     ds_terminal: Secret<String>,
+    #[serde(rename = "Ds_Order")]
+    ds_order: String,
     #[serde(rename = "Ds_TransactionType")]
     ds_transaction_type: String,
 }
@@ -2018,15 +2026,15 @@ fn construct_sync_request(
 ) -> Result<Vec<u8>, Error> {
     let transaction_data = RedsysSyncRequest {
         ds_merchant_code: auth.merchant_id,
-        ds_order: order_id.clone(),
         ds_terminal: auth.terminal_id,
+        ds_order: order_id.clone(),
         ds_transaction_type: transaction_type,
     };
     let version = VersionData {
+        ds_version: DS_VERSION.to_owned(),
         message: Message {
             transaction: transaction_data,
         },
-        ds_version: DS_VERSION.to_owned(),
     };
     let version_data = quick_xml::se::to_string(&version)
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
@@ -2034,9 +2042,9 @@ fn construct_sync_request(
     let signature = get_signature(&order_id, &version_data, auth.sha256_pwd.peek())?;
 
     let messages = Messages {
+        version,
         signature,
         signature_version: SIGNATURE_VERSION.to_owned(),
-        version,
     };
 
     let cdata = quick_xml::se::to_string(&messages)

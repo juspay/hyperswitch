@@ -98,6 +98,8 @@ pub async fn refund_create_core(
                 .attach_printable("refund amount validation against payment intent failed")
         })?;
 
+    payment_intent.prevent_refund_after_post_capture_void()?;
+
     // Amount is not passed in request refer from payment intent.
     amount = req
         .amount
@@ -185,8 +187,6 @@ pub async fn trigger_refund_to_gateway(
             "Transaction in invalid. Missing field \"currency\" in payment_attempt.",
         )
     })?;
-
-    validator::validate_for_valid_refunds(payment_attempt, connector.connector_name)?;
 
     // Fetch merchant connector account
     let profile_id = payment_intent
@@ -1352,6 +1352,22 @@ pub async fn validate_and_create_refund(
         .clone()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("No connector populated in payment attempt")?;
+
+    // Get connector enum for validation
+    let connector_enum = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        &connector,
+        api::GetToken::Connector,
+        payment_attempt.merchant_connector_id.clone(),
+    )?;
+
+    // Validate refund support before creating the refund record
+    validator::validate_for_valid_refunds(
+        payment_attempt,
+        connector_enum.connector,
+        connector_enum.connector_name,
+    )?;
+
     let (connector_transaction_id, processor_transaction_data) =
         ConnectorTransactionId::form_id_and_data(connector_transaction_id);
     let refund_create_req = diesel_refund::RefundNew {

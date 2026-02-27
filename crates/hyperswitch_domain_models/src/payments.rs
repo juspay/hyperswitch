@@ -141,6 +141,7 @@ pub struct PaymentIntent {
     pub partner_merchant_identifier_details:
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
     pub state_metadata: Option<common_types::payments::PaymentIntentStateMetadata>,
+    pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
 }
 
 impl PaymentIntent {
@@ -338,6 +339,28 @@ impl PaymentIntent {
                     None
                 }
             })
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn prevent_refund_after_post_capture_void(
+        &self,
+    ) -> CustomResult<(), crate::errors::api_error_response::ApiErrorResponse> {
+        if self
+            .state_metadata
+            .as_ref()
+            .map(|state_metadata| state_metadata.is_post_capture_void_issued())
+            .unwrap_or(false)
+        {
+            Err(error_stack::report!(
+                crate::errors::api_error_response::ApiErrorResponse::PreconditionFailed {
+                    message:
+                        "Refund void cannot be performed after a post-capture void has been issued"
+                            .into()
+                }
+            ))
+        } else {
+            Ok(())
+        }
     }
 
     #[cfg(feature = "v1")]

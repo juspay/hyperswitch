@@ -550,31 +550,10 @@ pub struct PaymentMethodUpdate {
     /// when `setup_future_usage` is set to `off_session`.
     #[schema(value_type = Option<String>)]
     pub network_transaction_id: Option<masking::Secret<String>>,
-}
 
-#[cfg(feature = "v2")]
-impl PaymentMethodUpdate {
-    pub fn fetch_card_cvc_update(&self) -> Option<masking::Secret<String>> {
-        match &self.payment_method_data {
-            Some(PaymentMethodUpdateData::Card(card_update)) => card_update.card_cvc.clone(),
-            _ => None,
-        }
-    }
-
-    pub fn is_payment_method_metadata_update(&self) -> bool {
-        match &self.payment_method_data {
-            Some(PaymentMethodUpdateData::Card(card_update)) => {
-                card_update.card_holder_name.is_some() || card_update.nick_name.is_some()
-            }
-            _ => false,
-        }
-    }
-
-    pub fn is_payment_method_update_required(&self) -> bool {
-        self.is_payment_method_metadata_update()
-            || self.connector_token_details.is_some()
-            || self.network_transaction_id.is_some()
-    }
+    /// The acknowledgement status of the payment method update, this is used to determine the status of the payment method update
+    #[schema(value_type = Option<AcknowledgementStatus>)]
+    pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
 }
 
 #[cfg(feature = "v2")]
@@ -625,16 +604,22 @@ pub enum BankDebitDetail {
         account_number: masking::Secret<String>,
         #[schema(value_type = String)]
         routing_number: masking::Secret<String>,
+        #[schema(value_type = Option<String>)]
+        #[serde(default)]
+        bank_account_holder_name: Option<masking::Secret<String>>,
+        #[schema(value_type = Option<BankType>)]
+        #[serde(default)]
+        bank_type: Option<common_enums::BankType>,
+        #[schema(value_type = Option<BankHolderType>)]
+        #[serde(default)]
+        bank_holder_type: Option<common_enums::BankHolderType>,
     },
 }
 
 impl BankDebitDetail {
     pub fn get_masked_account_number(&self) -> String {
         match self {
-            Self::Ach {
-                account_number,
-                routing_number: _,
-            } => account_number
+            Self::Ach { account_number, .. } => account_number
                 .peek()
                 .chars()
                 .rev()
@@ -648,10 +633,7 @@ impl BankDebitDetail {
 
     pub fn get_masked_routing_number(&self) -> String {
         match self {
-            Self::Ach {
-                account_number: _,
-                routing_number,
-            } => routing_number
+            Self::Ach { routing_number, .. } => routing_number
                 .peek()
                 .chars()
                 .rev()
@@ -660,6 +642,29 @@ impl BankDebitDetail {
                 .chars()
                 .rev()
                 .collect::<String>(),
+        }
+    }
+
+    pub fn get_bank_account_holder_name(&self) -> Option<masking::Secret<String>> {
+        match self {
+            Self::Ach {
+                bank_account_holder_name,
+                ..
+            } => bank_account_holder_name.clone(),
+        }
+    }
+
+    pub fn get_bank_type(&self) -> Option<common_enums::BankType> {
+        match self {
+            Self::Ach { bank_type, .. } => *bank_type,
+        }
+    }
+
+    pub fn get_bank_holder_type(&self) -> Option<common_enums::BankHolderType> {
+        match self {
+            Self::Ach {
+                bank_holder_type, ..
+            } => *bank_holder_type,
         }
     }
 }
@@ -776,7 +781,7 @@ pub struct CardDetail {
 }
 
 // This struct is for collecting Proxy Card Data
-// All card related data present in this struct are tokenzied
+// All card related data present in this struct are tokenized
 // No strict type is present to accept tokenized data
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -1273,6 +1278,10 @@ pub struct PaymentMethodResponse {
     /// Billing details of the payment method
     #[schema(value_type = Option<Address>)]
     pub billing: Option<payments::Address>,
+
+    /// The acknowledgement status of the payment method update
+    #[schema(value_type = Option<AcknowledgementStatus>)]
+    pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
 }
 
 #[cfg(feature = "v2")]
@@ -1305,6 +1314,7 @@ pub enum PaymentMethodsData {
     Card(CardDetailsPaymentMethod),
     BankDetails(PaymentMethodDataBankCreds),
     WalletDetails(PaymentMethodDataWalletInfo),
+    BankDebit(BankDebitDetailsPaymentMethod),
 }
 
 impl PaymentMethodsData {
@@ -1338,6 +1348,20 @@ pub struct CardDetailsPaymentMethod {
     #[serde(default = "saved_in_locker_default")]
     pub saved_to_locker: bool,
     pub co_badged_card_data: Option<CoBadgedCardDataToBeSaved>,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum BankDebitDetailsPaymentMethod {
+    AchBankDebit {
+        masked_account_number: String,
+        masked_routing_number: String,
+        card_holder_name: Option<masking::Secret<String>>,
+        bank_account_holder_name: Option<masking::Secret<String>>,
+        bank_name: Option<common_enums::BankNames>,
+        bank_type: Option<common_enums::BankType>,
+        bank_holder_type: Option<common_enums::BankHolderType>,
+    },
 }
 
 impl From<&CoBadgedCardData> for CoBadgedCardDataToBeSaved {
@@ -2299,6 +2323,8 @@ pub struct ListMethodsForPaymentMethodsRequest {
     /// Indicates the limit of last used payment methods
     #[schema(example = 1)]
     pub limit: Option<i64>,
+
+    pub include_new: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -2363,6 +2389,13 @@ impl<'de> serde::Deserialize<'de> for ListMethodsForPaymentMethodsRequest {
                         },
                         "limit" => {
                             set_or_reject_duplicate(&mut output.limit, "limit", map.next_value()?)?;
+                        }
+                        "include_new" => {
+                            set_or_reject_duplicate(
+                                &mut output.include_new,
+                                "include_new",
+                                map.next_value()?,
+                            )?;
                         }
                         _ => {}
                     }
@@ -3093,6 +3126,12 @@ pub struct PaymentMethodRecord {
     pub account_number: Option<masking::Secret<String>>,
     #[serde(default)]
     pub routing_number: Option<masking::Secret<String>>,
+    #[serde(default)]
+    pub bank_account_holder_name: Option<masking::Secret<String>>,
+    #[serde(default)]
+    pub bank_type: Option<common_enums::BankType>,
+    #[serde(default)]
+    pub bank_holder_type: Option<common_enums::BankHolderType>,
 }
 
 #[cfg(feature = "v1")]
@@ -3109,6 +3148,9 @@ impl PaymentMethodRecord {
                 Some(PaymentMethodCreateData::BankDebit(BankDebitDetail::Ach {
                     account_number: account_number.clone(),
                     routing_number: routing_number.clone(),
+                    bank_account_holder_name: self.bank_account_holder_name.clone(),
+                    bank_type: self.bank_type,
+                    bank_holder_type: self.bank_holder_type,
                 }))
             }
             _ => None,
@@ -3620,6 +3662,9 @@ pub struct PaymentMethodSessionRequest {
     /// The storage type for the payment method
     #[schema(value_type = StorageType)]
     pub storage_type: common_enums::StorageType,
+
+    /// Whether the card with new status should be listed in the session
+    pub keep_alive: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -3698,10 +3743,6 @@ pub struct PaymentMethodSessionConfirmRequest {
     /// The return url to which the customer should be redirected to after adding the payment method
     #[schema(value_type = Option<String>)]
     pub return_url: Option<common_utils::types::Url>,
-
-    /// The storage type for the payment method
-    #[schema(value_type = Option<StorageType>)]
-    pub storage_type: Option<common_enums::StorageType>,
 }
 
 #[cfg(feature = "v2")]
@@ -3762,8 +3803,8 @@ pub struct PaymentMethodSessionResponse {
     pub associated_token_id: Option<id_type::GlobalTokenId>,
 
     /// The storage type for the payment method
-    #[schema(value_type = Option<StorageType>)]
-    pub storage_type: Option<common_enums::StorageType>,
+    #[schema(value_type = StorageType)]
+    pub storage_type: common_enums::StorageType,
 
     /// Card CVC token storage details
     #[schema(value_type = Option<CardCVCTokenStorageDetails>)]
@@ -3779,6 +3820,9 @@ pub struct PaymentMethodSessionResponse {
     #[schema(value_type = Option<String>, example = "cHJvZmlsZV9pZD0uLi4=")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sdk_authorization: Option<String>,
+
+    /// Whether the card with new status should be listed in the session
+    pub keep_alive: bool,
 }
 
 #[cfg(feature = "v2")]

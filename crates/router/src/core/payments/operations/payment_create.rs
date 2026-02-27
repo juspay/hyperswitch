@@ -877,6 +877,15 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     .await?;
                     logger::info!("Payment method fetched from PM Modular Service.");
 
+                    utils::when(
+                        pm_info.payment_method.0.customer_id
+                            != req.customer_id.clone().get_required_value("customer_id")?,
+                        || {
+                            logger::info!("Payment method id does not belong to the customer id provided in the request.");
+                            Err(errors::ApiErrorResponse::PaymentMethodNotFound)
+                        },
+                    )?;
+
                     Some(pm_info)
                 } else {
                     None
@@ -1148,6 +1157,11 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
                         .to_string(),
             },
         )?;
+
+        request.validate_installment_options().map_err(|err| {
+            let message = format!("invalid installment options: {err}");
+            err.change_context(errors::ApiErrorResponse::InvalidRequestData { message })
+        })?;
 
         if request.confirm.unwrap_or(false) {
             helpers::validate_pm_or_token_given(
@@ -1774,6 +1788,7 @@ impl PaymentCreate {
                 .partner_merchant_identifier_details
                 .clone(),
             state_metadata: None,
+            installment_options: request.installment_options.clone(),
         })
     }
 }

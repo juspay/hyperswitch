@@ -1219,6 +1219,15 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     .await?;
                     logger::info!("Payment method fetched from PM Modular Service.");
 
+                    utils::when(
+                        pm_info.payment_method.0.customer_id
+                            != req.customer_id.clone().get_required_value("customer_id")?,
+                        || {
+                            logger::info!("Payment method id does not belong to the customer id provided in the request.");
+                            Err(errors::ApiErrorResponse::PaymentMethodNotFound)
+                        },
+                    )?;
+
                     Some(pm_info)
                 } else {
                     None
@@ -2568,6 +2577,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .enable_partial_authorization,
                         enable_overcapture: payment_data.payment_intent.enable_overcapture,
                         shipping_cost: None,
+                        installment_options: payment_data
+                            .payment_intent
+                            .installment_options
+                            .clone(),
                     })),
                     &m_key_store,
                     storage_scheme,
@@ -2657,6 +2670,11 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
                 message: "Invalid straight through routing rules format".to_string(),
             })
             .attach_printable("Invalid straight through routing rules format")?;
+
+        request.validate_installment_options().map_err(|err| {
+            let message = format!("invalid installment options: {err}");
+            err.change_context(errors::ApiErrorResponse::InvalidRequestData { message })
+        })?;
 
         Ok((
             Box::new(self),
