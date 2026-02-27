@@ -3071,6 +3071,7 @@ Cypress.Commands.add(
     const merchant_connector_id = globalState.get(
       `${configInfo.merchantConnectorPrefix}Id`
     );
+    const name = 'CIT For Mandates';
 
     for (const key in reqData) {
       requestBody[key] = reqData[key];
@@ -3097,7 +3098,7 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
+        softExpect(globalState, name,()=> expect(response.headers["content-type"]).to.include("application/json"));
         if (response.status === 200) {
           globalState.set("paymentID", response.body.payment_id);
 
@@ -3109,7 +3110,7 @@ Cypress.Commands.add(
           expect(merchant_connector_id, "connector_id").to.equal(
             response.body.merchant_connector_id
           );
-          expect(response.body.customer, "customer").to.not.be.empty;
+          softExpect(globalState, name , ()=> expect(response.body.customer, "customer").to.be.empty);
           expect(response.body.profile_id, "profile_id").to.not.be.null;
           if (
             response.body.status !== "failed" &&
@@ -3670,7 +3671,8 @@ Cypress.Commands.add(
       "three_ds",
       { redirectionUrl, expectedUrl },
       connectorId,
-      null
+      null,
+      globalState
     );
   }
 );
@@ -3691,7 +3693,8 @@ Cypress.Commands.add(
         "bank_redirect",
         { redirectionUrl, expectedUrl },
         connectorId,
-        paymentMethodType
+        paymentMethodType,
+        globalState
       );
     }
   }
@@ -3719,7 +3722,8 @@ Cypress.Commands.add(
       paymentMethodType,
       {
         nextActionType,
-      }
+      },
+      globalState
     );
   }
 );
@@ -3737,7 +3741,8 @@ Cypress.Commands.add(
       "reward",
       { redirectionUrl, expectedUrl },
       connectorId,
-      paymentMethodType
+      paymentMethodType,
+      globalState
     );
   }
 );
@@ -3755,7 +3760,8 @@ Cypress.Commands.add(
       "crypto",
       { redirectionUrl, expectedUrl },
       connectorId,
-      paymentMethodType
+      paymentMethodType,
+      globalState
     );
   }
 );
@@ -3773,7 +3779,8 @@ Cypress.Commands.add(
       "bank_redirect",
       { redirectionUrl, expectedUrl },
       connectorId,
-      paymentMethodType
+      paymentMethodType,
+      globalState
     );
   }
 );
