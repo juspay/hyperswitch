@@ -1,10 +1,12 @@
-use std::collections::{HashMap, HashSet};
-use std::num::NonZeroU8;
 #[cfg(feature = "v2")]
 use std::str::FromStr;
+use std::{
+    collections::{HashMap, HashSet},
+    num::NonZeroU8,
+};
 
-use common_types::payments::{BillingFrequency, InstallmentInterestRate};
 use cards::CardNumber;
+use common_types::payments::{BillingFrequency, InstallmentInterestRate};
 #[cfg(feature = "v1")]
 use common_utils::crypto::OptionalEncryptableName;
 use common_utils::{
@@ -2481,7 +2483,7 @@ pub struct PaymentMethodListResponse {
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct PmlPaymentIntentResponse {
     /// Unique identifier for the payment
-    pub payment_id:id_type::PaymentId,
+    pub payment_id: id_type::PaymentId,
 
     /// The status of the payment
     #[schema(value_type = IntentStatus)]

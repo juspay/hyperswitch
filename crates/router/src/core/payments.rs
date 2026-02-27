@@ -13960,4 +13960,3 @@ impl PaymentIntentStateMetadataExt {
         Ok(())
     }
 }
-

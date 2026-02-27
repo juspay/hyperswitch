@@ -6,13 +6,15 @@ use api_models::enums as api_enums;
 use api_models::payments as api_payments;
 #[cfg(feature = "v2")]
 use api_models::payments::RevenueRecoveryGetIntentResponse;
-use api_models::payment_methods::{
-    PmlInstallmentAmountDetails, PmlInstallmentOption, PmlInstallmentPlan,
-    PmlPaymentIntentResponse,
-};
-use api_models::payments::{
-    Address, ConnectorMandateReferenceId, CustomerDetails, CustomerDetailsResponse, FrmMessage,
-    MandateIds, NetworkDetails, RequestSurchargeDetails,
+use api_models::{
+    payment_methods::{
+        PmlInstallmentAmountDetails, PmlInstallmentOption, PmlInstallmentPlan,
+        PmlPaymentIntentResponse,
+    },
+    payments::{
+        Address, ConnectorMandateReferenceId, CustomerDetails, CustomerDetailsResponse, FrmMessage,
+        MandateIds, NetworkDetails, RequestSurchargeDetails,
+    },
 };
 use common_enums::{Currency, MerchantAccountType, RequestIncrementalAuthorization};
 #[cfg(feature = "v1")]
@@ -4303,8 +4305,7 @@ pub fn construct_connector_invoke_hidden_frame(
 }
 
 #[cfg(feature = "v1")]
-impl ForeignFrom<storage::PaymentIntent> for PmlPaymentIntentResponse
-{
+impl ForeignFrom<storage::PaymentIntent> for PmlPaymentIntentResponse {
     fn foreign_from(pi: storage::PaymentIntent) -> Self {
         Self {
             payment_id: pi.payment_id,
@@ -4346,12 +4347,12 @@ impl ForeignFrom<storage::PaymentIntent> for PmlPaymentIntentResponse
                     common_types::payments::InstallmentOptions(opts),
                     pi.amount,
                 )
-                    .map_err(|e| {
-                        router_env::logger::error!(
-                            "Failed to transform installment options for PML: {e:?}"
-                        )
-                    })
-                    .ok()
+                .map_err(|e| {
+                    router_env::logger::error!(
+                        "Failed to transform installment options for PML: {e:?}"
+                    )
+                })
+                .ok()
             }),
         }
     }
@@ -4394,7 +4395,9 @@ fn transform_installment_options_for_pml(
                     plan.number_of_installments
                         .as_slice()
                         .iter()
-                        .map(|&count| compute_installment_plan_for_count(count, &plan, order_amount))
+                        .map(|&count| {
+                            compute_installment_plan_for_count(count, &plan, order_amount)
+                        })
                         .collect::<RouterResult<Vec<_>>>()
                 })
                 .collect::<RouterResult<Vec<_>>>()?
