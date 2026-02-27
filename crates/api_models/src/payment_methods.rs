@@ -2498,6 +2498,7 @@ pub struct PmlPaymentIntentResponse {
     pub currency: Option<api_enums::Currency>,
 
     /// Client secret for client-side payment confirmation
+    #[schema(value_type = Option<String>)]
     pub client_secret: Option<masking::Secret<String>>,
 
     /// A description for the payment
@@ -2527,6 +2528,7 @@ pub struct PmlPaymentIntentResponse {
     pub metadata: Option<serde_json::Value>,
 
     /// Order details for the payment
+    #[schema(value_type = Option<Vec<Object>>)]
     pub order_details: Option<Vec<masking::Secret<serde_json::Value>>>,
 
     /// Timestamp when the payment was created
@@ -2568,6 +2570,7 @@ pub struct PmlInstallmentPlan {
     #[schema(value_type = BillingFrequency)]
     pub billing_frequency: BillingFrequency,
     /// Interest rate as a percentage
+    #[schema(value_type = f64)]
     pub interest_rate: InstallmentInterestRate,
     /// Pre-computed amount breakdown
     pub amount_details: PmlInstallmentAmountDetails,
