@@ -83,6 +83,9 @@ default_command_timeout = 30      # An optional timeout to apply to all commands
 unresponsive_timeout = 10         # An optional timeout for Unresponsive commands in seconds. This should be less than default_command_timeout.
 unresponsive_check_interval = 2   # The frequency at which the client checks for unresponsive connections. In seconds. This value should usually be less than half of `unresponsive_timeout` and always more than 1 ms.
 max_feed_count = 200              # The maximum number of frames that will be fed to a socket before flushing.
+tcp_keepalive_time = 5            # Time after which TCP keepalive probes will be sent in seconds
+tcp_keepalive_interval = 2        # Interval between TCP keepalive probes in seconds
+tcp_keepalive_retries = 3         # Number of times keepalive probes will be sent before connection is marked broken
 
 # This section provides configs for currency conversion api
 [forex_api]
