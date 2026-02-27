@@ -2565,6 +2565,7 @@ pub struct PmlInstallmentOption {
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct PmlInstallmentPlan {
     /// Number of installments for this plan
+    #[schema(value_type = u8)]
     pub number_of_installments: NonZeroU8,
     /// Billing frequency
     #[schema(value_type = BillingFrequency)]
