@@ -53,6 +53,7 @@ use crate::{constants::headers, types::ResponseRouterData, utils};
 
 const PAYJUSTNOWINSTORE_MERCHANT_TERMINAL_ID: &str = "X-PayJustNow-Merchant-Terminal-ID";
 const SIGNATURE: &str = "X-Signature";
+const MERCHANT_REFERENCE_NON_UNIQUE: &str = "X-Merchant-Reference-Non-Unique";
 
 #[derive(Clone)]
 pub struct Payjustnowinstore {
@@ -118,6 +119,10 @@ where
                 self.get_content_type().to_string().into(),
             ),
             (SIGNATURE.to_string(), signature_hex.into_masked()),
+            (
+                MERCHANT_REFERENCE_NON_UNIQUE.to_string(),
+                "true".to_string().into(),
+            ),
         ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
