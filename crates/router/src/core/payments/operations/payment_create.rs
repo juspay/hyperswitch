@@ -1160,6 +1160,11 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
             },
         )?;
 
+        request.validate_installment_options().map_err(|err| {
+            let message = format!("invalid installment options: {err}");
+            err.change_context(errors::ApiErrorResponse::InvalidRequestData { message })
+        })?;
+
         if request.confirm.unwrap_or(false) {
             helpers::validate_pm_or_token_given(
                 &request.payment_method,
@@ -1787,6 +1792,7 @@ impl PaymentCreate {
                 .partner_merchant_identifier_details
                 .clone(),
             state_metadata: None,
+            installment_options: request.installment_options.clone(),
         })
     }
 }
