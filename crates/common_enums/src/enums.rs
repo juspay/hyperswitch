@@ -181,7 +181,6 @@ impl AttemptStatus {
             | Self::Charged
             | Self::AutoRefunded
             | Self::Voided
-            | Self::VoidedPostCharge
             | Self::VoidFailed
             | Self::CaptureFailed
             | Self::Failure
@@ -204,7 +203,8 @@ impl AttemptStatus {
             | Self::PaymentMethodAwaited
             | Self::ConfirmationAwaited
             | Self::DeviceDataCollectionPending
-            | Self::IntegrityFailure => false,
+            | Self::IntegrityFailure
+            | Self::VoidedPostCharge => false,
         }
     }
 
@@ -2493,7 +2493,7 @@ impl PaymentMethodType {
             Self::RedPagos => "RedPagos",
             Self::SamsungPay => "Samsung Pay",
             Self::Sepa => "SEPA Direct Debit",
-            Self::SepaGuarenteedDebit => "SEPA Guarenteed Direct Debit",
+            Self::SepaGuarenteedDebit => "SEPA Guaranteed Direct Debit",
             Self::SepaBankTransfer => "SEPA Bank Transfer",
             Self::Sofort => "Sofort",
             Self::Skrill => "Skrill",
@@ -2590,6 +2590,27 @@ impl PaymentMethod {
             | Self::RealTimePayment
             | Self::Upi
             | Self::Voucher
+            | Self::OpenBanking
+            | Self::MobilePayment
+            | Self::NetworkToken => false,
+        }
+    }
+
+    pub fn supports_installments(&self) -> bool {
+        match self {
+            Self::Card => true,
+            Self::CardRedirect
+            | Self::PayLater
+            | Self::Wallet
+            | Self::BankRedirect
+            | Self::BankTransfer
+            | Self::Crypto
+            | Self::BankDebit
+            | Self::Reward
+            | Self::RealTimePayment
+            | Self::Upi
+            | Self::Voucher
+            | Self::GiftCard
             | Self::OpenBanking
             | Self::MobilePayment
             | Self::NetworkToken => false,
@@ -2788,6 +2809,7 @@ pub enum PaymentType {
     NewMandate,
     SetupMandate,
     RecurringMandate,
+    Installment,
 }
 
 /// SCA Exemptions types available for authentication
@@ -9987,6 +10009,12 @@ pub enum FeatureStatus {
     Supported,
 }
 
+impl FeatureStatus {
+    pub fn is_supported(&self) -> bool {
+        matches!(self, Self::Supported)
+    }
+}
+
 /// The type of tokenization to use for the payment method
 #[derive(
     Clone,
@@ -10755,4 +10783,44 @@ pub enum WebhookRegistrationStatus {
     Success,
     // Webhook registration has failed
     Failure,
+}
+
+/// The status of a post-capture void operation
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    SmithyModel,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum PostCaptureVoidStatus {
+    Succeeded,
+    #[default]
+    Pending,
+    Failed,
+}
+
+impl PostCaptureVoidStatus {
+    pub fn is_post_capture_void_failure(self) -> bool {
+        match self {
+            Self::Failed => true,
+            Self::Pending | Self::Succeeded => false,
+        }
+    }
 }

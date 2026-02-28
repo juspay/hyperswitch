@@ -715,11 +715,26 @@ pub async fn retrieve_payment_method_with_token(
             )
             .await?;
 
-            let (account_number, routing_number) = match bank_debit_detail {
+            let (
+                account_number,
+                routing_number,
+                vault_bank_account_holder_name,
+                vault_bank_type,
+                vault_bank_holder_type,
+            ) = match bank_debit_detail {
                 payment_methods::BankDebitDetail::Ach {
                     account_number,
                     routing_number,
-                } => (account_number, routing_number),
+                    bank_account_holder_name,
+                    bank_type,
+                    bank_holder_type,
+                } => (
+                    account_number,
+                    routing_number,
+                    bank_account_holder_name,
+                    bank_type,
+                    bank_holder_type,
+                ),
             };
 
             let payment_method_data = payment_method_info
@@ -770,10 +785,11 @@ pub async fn retrieve_payment_method_with_token(
                             account_number,
                             routing_number,
                             card_holder_name,
-                            bank_account_holder_name,
+                            bank_account_holder_name: vault_bank_account_holder_name
+                                .or(bank_account_holder_name),
                             bank_name,
-                            bank_type,
-                            bank_holder_type,
+                            bank_type: vault_bank_type.or(bank_type),
+                            bank_holder_type: vault_bank_holder_type.or(bank_holder_type),
                         },
                     ),
                 ),
@@ -910,10 +926,10 @@ pub(crate) async fn get_payment_method_create_request(
                     account_number,
                     routing_number,
                     card_holder_name: _,
-                    bank_account_holder_name: _,
+                    bank_account_holder_name,
                     bank_name: _,
-                    bank_type: _,
-                    bank_holder_type: _,
+                    bank_type,
+                    bank_holder_type,
                 }) => {
                     let payment_method_request = payment_methods::PaymentMethodCreate {
                         payment_method: Some(payment_method),
@@ -934,6 +950,9 @@ pub(crate) async fn get_payment_method_create_request(
                                 payment_methods::BankDebitDetail::Ach {
                                     account_number: account_number.to_owned(),
                                     routing_number: routing_number.to_owned(),
+                                    bank_account_holder_name: bank_account_holder_name.clone(),
+                                    bank_type: *bank_type,
+                                    bank_holder_type: *bank_holder_type,
                                 },
                             ),
                         ),
@@ -3023,6 +3042,7 @@ fn convert_from_saved_payment_method_data(
             )))
         }
         payment_methods::PaymentMethodsData::BankDetails(_)
+        | payment_methods::PaymentMethodsData::BankDebit(_)
         | payment_methods::PaymentMethodsData::WalletDetails(_) => {
             Err(errors::ApiErrorResponse::UnprocessableEntity {
                 message: "External vaulting is not supported for this payment method type"
@@ -3622,16 +3642,16 @@ fn get_pm_list_context(
                 }
             })
         }
-        Some(payment_methods::PaymentMethodsData::WalletDetails(_)) | None => {
-            Some(PaymentMethodListContext::TemporaryToken {
-                token_data: is_payment_associated.then_some(
-                    storage::PaymentTokenData::temporary_generic(generate_id(
-                        consts::ID_LENGTH,
-                        "token",
-                    )),
-                ),
-            })
-        }
+        Some(payment_methods::PaymentMethodsData::BankDebit(_))
+        | Some(payment_methods::PaymentMethodsData::WalletDetails(_))
+        | None => Some(PaymentMethodListContext::TemporaryToken {
+            token_data: is_payment_associated.then_some(
+                storage::PaymentTokenData::temporary_generic(generate_id(
+                    consts::ID_LENGTH,
+                    "token",
+                )),
+            ),
+        }),
     };
 
     Ok(payment_method_retrieval_context)
