@@ -120,6 +120,7 @@ pub struct Connectors {
     pub razorpay: ConnectorParamsWithKeys,
     pub recurly: ConnectorParams,
     pub redsys: ConnectorParams,
+    pub revolv3: ConnectorParams,
     pub riskified: ConnectorParams,
     pub santander: ConnectorParams,
     pub shift4: ConnectorParams,
