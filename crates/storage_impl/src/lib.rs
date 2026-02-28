@@ -1,3 +1,4 @@
+#![recursion_limit = "256"]
 use std::{fmt::Debug, sync::Arc};
 
 use common_utils::types::TenantConfig;
