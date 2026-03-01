@@ -1,7 +1,4 @@
-import {
-  connectorDetails as commonConnectorDetails,
-  customerAcceptance,
-} from "./Commons";
+import { customerAcceptance } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
@@ -716,29 +713,5 @@ export const connectorDetails = {
         },
       },
     },
-  },
-  bank_transfer_pm: {
-    InstantBankTransferFinland: getCustomExchange(
-      {
-        Response: {
-          status: 200,
-          body: {
-            status: "requires_customer_action",
-          },
-        },
-      },
-      commonConnectorDetails.bank_transfer_pm.InstantBankTransferFinland
-    ),
-    InstantBankTransferPoland: getCustomExchange(
-      {
-        Response: {
-          status: 200,
-          body: {
-            status: "requires_customer_action",
-          },
-        },
-      },
-      commonConnectorDetails.bank_transfer_pm.InstantBankTransferPoland
-    ),
   },
 };

@@ -1349,15 +1349,15 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
           break;
 
         case "trustpay":
-          cy.get('form[name="challengeForm"]', {
+          cy.get('form[name="simulationForm"]', {
             timeout: constants.WAIT_TIME,
           })
             .should("exist")
             .then(() => {
-              cy.get("#outcomeSelect")
-                .select("Approve")
-                .should("have.value", "Y");
-              cy.get('button[type="submit"]').click();
+              cy.get("#challengeResult")
+                .select("Successful")
+                .should("have.value", "Success");
+              cy.get('input[type="submit"]').click();
             });
           break;
 
