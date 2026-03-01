@@ -17,9 +17,9 @@ describe("Card - Sync Refund flow test", () => {
 
   context("Card - Sync Refund flow test", () => {
     it("Create Payment Intent + Payment Methods Call + Confirm Payment Intent + Retrieve Payment after Confirmation + Refund Payment + Sync Refund", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "PaymentIntent"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntent"];
 
       cy.step("Create Payment Intent", () =>
         cy.createPaymentIntentTest(
@@ -61,9 +61,9 @@ describe("Card - Sync Refund flow test", () => {
 
       if (!utils.should_continue_further(refundData)) return;
 
-      const syncRefundData = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["SyncRefund"];
+      const syncRefundData = getConnectorDetails(
+        globalState.get("connectorId")
+      )["card_pm"]["SyncRefund"];
 
       cy.step("Sync Refund", () =>
         cy.syncRefundCallTest(syncRefundData, globalState)
