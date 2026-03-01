@@ -15,39 +15,41 @@ describe("Card - Sync payment flow test", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  it("Card - Sync payment flow test", () => {
-    const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-      "PaymentIntent"
-    ];
+  context("Card - Sync payment flow test", () => {
+    it("Create Payment Intent + Payment Methods Call + Confirm Payment Intent + Retrieve Payment after Confirmation", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "PaymentIntent"
+      ];
 
-    cy.step("Create Payment Intent", () =>
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        data,
-        "no_three_ds",
-        "automatic",
-        globalState
-      )
-    );
+      cy.step("Create Payment Intent", () =>
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        )
+      );
 
-    if (!utils.should_continue_further(data)) return;
+      if (!utils.should_continue_further(data)) return;
 
-    cy.step("Payment Methods Call", () =>
-      cy.paymentMethodsCallTest(globalState)
-    );
+      cy.step("Payment Methods Call", () =>
+        cy.paymentMethodsCallTest(globalState)
+      );
 
-    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-      "card_pm"
-    ]["No3DSAutoCapture"];
+      const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSAutoCapture"];
 
-    cy.step("Confirm Payment Intent", () =>
-      cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState)
-    );
+      cy.step("Confirm Payment Intent", () =>
+        cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState)
+      );
 
-    if (!utils.should_continue_further(confirmData)) return;
+      if (!utils.should_continue_further(confirmData)) return;
 
-    cy.step("Retrieve Payment after Confirmation", () =>
-      cy.retrievePaymentCallTest({ globalState, data: confirmData })
-    );
+      cy.step("Retrieve Payment after Confirmation", () =>
+        cy.retrievePaymentCallTest({ globalState, data: confirmData })
+      );
+    });
   });
 });

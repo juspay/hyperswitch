@@ -15,40 +15,42 @@ describe("Card - ThreeDS payment flow test", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  it("Card-ThreeDS payment flow test Create and Confirm", () => {
-    const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-      "PaymentIntent"
-    ];
+  context("Card-ThreeDS payment flow test Create and Confirm", () => {
+    it("create payment intent + payment methods call + confirm payment intent + handle redirection", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "PaymentIntent"
+      ];
 
-    cy.step("create payment intent", () =>
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        data,
-        "three_ds",
-        "automatic",
-        globalState
-      )
-    );
+      cy.step("create payment intent", () =>
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "three_ds",
+          "automatic",
+          globalState
+        )
+      );
 
-    if (!utils.should_continue_further(data)) return;
+      if (!utils.should_continue_further(data)) return;
 
-    cy.step("payment methods call", () =>
-      cy.paymentMethodsCallTest(globalState)
-    );
+      cy.step("payment methods call", () =>
+        cy.paymentMethodsCallTest(globalState)
+      );
 
-    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-      "card_pm"
-    ]["3DSAutoCapture"];
+      const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["3DSAutoCapture"];
 
-    cy.step("confirm payment intent", () =>
-      cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState)
-    );
+      cy.step("confirm payment intent", () =>
+        cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState)
+      );
 
-    if (!utils.should_continue_further(confirmData)) return;
+      if (!utils.should_continue_further(confirmData)) return;
 
-    const expected_redirection = fixtures.confirmBody["return_url"];
-    cy.step("handle redirection", () =>
-      cy.handleRedirection(globalState, expected_redirection)
-    );
+      const expected_redirection = fixtures.confirmBody["return_url"];
+      cy.step("handle redirection", () =>
+        cy.handleRedirection(globalState, expected_redirection)
+      );
+    });
   });
 });
