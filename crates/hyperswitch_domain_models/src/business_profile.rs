@@ -39,7 +39,7 @@ impl ForeignFrom<storage_types::MultipleWebhookDetail> for MultipleWebhookDetail
             webhook_url: item.webhook_url,
             events: item.events,
             status: item.status,
-            is_legacy_url: false,
+            is_legacy_url: item.is_legacy_url,
         }
     }
 }
@@ -89,15 +89,25 @@ impl WebhookUrls {
     ) -> Self {
         let mut urls = Vec::new();
         let mut processed_urls = HashSet::new();
+        let existing_legacy_entry = multiple_urls
+            .as_ref()
+            .and_then(|list| list.iter().find(|detail| detail.is_legacy_url));
 
         if let Some(legacy_url_value) = legacy_url {
             if processed_urls.insert(legacy_url_value.peek().clone()) {
+                let webhook_endpoint_id = existing_legacy_entry
+                    .map(|entry| entry.webhook_endpoint_id.clone())
+                    .unwrap_or_else(common_utils::generate_webhook_endpoint_id_of_default_length);
+
                 urls.push(MultipleWebhookDetail {
-                    webhook_endpoint_id:
-                        common_utils::generate_webhook_endpoint_id_of_default_length(),
+                    webhook_endpoint_id,
                     webhook_url: legacy_url_value,
-                    events: common_enums::EventType::iter().collect(),
-                    status: common_enums::OutgoingWebhookEndpointStatus::Active,
+                    events: existing_legacy_entry
+                        .map(|entry| entry.events.clone())
+                        .unwrap_or_else(|| common_enums::EventType::iter().collect()),
+                    status: existing_legacy_entry
+                        .map(|entry| entry.status)
+                        .unwrap_or(common_enums::OutgoingWebhookEndpointStatus::Active),
                     is_legacy_url: true,
                 });
             }
@@ -105,12 +115,14 @@ impl WebhookUrls {
 
         if let Some(multiple_urls_list) = multiple_urls {
             for detail in multiple_urls_list {
+                if detail.is_legacy_url {
+                    continue;
+                }
                 if processed_urls.insert(detail.webhook_url.peek().clone()) {
                     urls.push(detail.foreign_into());
                 }
             }
         }
-
         Self(urls)
     }
 }
@@ -145,6 +157,65 @@ impl ForeignFrom<storage_types::WebhookDetails> for WebhookDetails {
             refund_statuses_enabled: item.refund_statuses_enabled,
             payout_statuses_enabled: item.payout_statuses_enabled,
             multiple_webhooks_list: Some(webhook_urls),
+        }
+    }
+}
+
+impl WebhookDetails {
+    pub fn merge(self, other: Self) -> Self {
+        Self {
+            webhook_version: other.webhook_version.or(self.webhook_version),
+            webhook_username: other.webhook_username.or(self.webhook_username),
+            webhook_password: other.webhook_password.or(self.webhook_password),
+            payment_created_enabled: other
+                .payment_created_enabled
+                .or(self.payment_created_enabled),
+            payment_succeeded_enabled: other
+                .payment_succeeded_enabled
+                .or(self.payment_succeeded_enabled),
+            payment_failed_enabled: other.payment_failed_enabled.or(self.payment_failed_enabled),
+            payment_statuses_enabled: other
+                .payment_statuses_enabled
+                .or(self.payment_statuses_enabled),
+            refund_statuses_enabled: other
+                .refund_statuses_enabled
+                .or(self.refund_statuses_enabled),
+            payout_statuses_enabled: other
+                .payout_statuses_enabled
+                .or(self.payout_statuses_enabled),
+            multiple_webhooks_list: other.multiple_webhooks_list.or(self.multiple_webhooks_list),
+        }
+    }
+
+    pub fn update_from_api(
+        existing: Option<Self>,
+        api_webhook: api_models::admin::WebhookDetails,
+    ) -> Self {
+        let mut existing_webhook_urls = existing
+            .as_ref()
+            .and_then(|d| d.multiple_webhooks_list.clone())
+            .unwrap_or_else(|| WebhookUrls::get_multiple_webhook_urls(None, None));
+
+        if let Some(new_url) = api_webhook.webhook_url {
+            existing_webhook_urls.update_legacy_webhook_url(new_url);
+        }
+
+        let api_webhook_as_domain = Self {
+            webhook_version: api_webhook.webhook_version,
+            webhook_username: api_webhook.webhook_username,
+            webhook_password: api_webhook.webhook_password,
+            payment_created_enabled: api_webhook.payment_created_enabled,
+            payment_failed_enabled: api_webhook.payment_failed_enabled,
+            payment_succeeded_enabled: api_webhook.payment_succeeded_enabled,
+            payment_statuses_enabled: api_webhook.payment_statuses_enabled,
+            refund_statuses_enabled: api_webhook.refund_statuses_enabled,
+            payout_statuses_enabled: api_webhook.payout_statuses_enabled,
+            multiple_webhooks_list: Some(existing_webhook_urls),
+        };
+
+        match existing {
+            Some(existing_details) => existing_details.merge(api_webhook_as_domain),
+            None => api_webhook_as_domain,
         }
     }
 }
