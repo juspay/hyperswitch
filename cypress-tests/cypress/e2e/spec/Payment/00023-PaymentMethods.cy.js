@@ -132,7 +132,8 @@ describe("Payment Methods Tests", () => {
           )
         );
 
-        if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
 
         cy.step("List PM for Customer", () =>
           cy.listCustomerPMCallTest(globalState)
@@ -156,7 +157,8 @@ describe("Payment Methods Tests", () => {
           )
         );
 
-        if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
         if (!shouldContinue) return;
 
         const expectedRedirection = fixtures.confirmBody["return_url"];
