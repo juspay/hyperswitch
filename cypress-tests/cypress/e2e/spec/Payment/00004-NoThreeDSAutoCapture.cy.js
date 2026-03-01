@@ -17,9 +17,9 @@ describe("Card - NoThreeDS payment flow test", () => {
 
   context("Card-NoThreeDS payment flow test Create and confirm", () => {
     it("Create Payment Intent + Payment Methods Call + Confirm Payment + Retrieve Payment", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "PaymentIntent"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntent"];
 
       cy.step("Create Payment Intent", () =>
         cy.createPaymentIntentTest(
@@ -55,9 +55,9 @@ describe("Card - NoThreeDS payment flow test", () => {
 
   context("Card-NoThreeDS payment flow test Create+Confirm", () => {
     it("Create and Confirm Payment + Retrieve Payment", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "No3DSAutoCapture"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSAutoCapture"];
 
       cy.step("Create and Confirm Payment", () =>
         cy.createConfirmPaymentTest(
@@ -79,9 +79,9 @@ describe("Card - NoThreeDS payment flow test", () => {
 
   context("Card-NoThreeDS payment with shipping cost", () => {
     it("Create Payment Intent with shipping cost + Payment Methods Call + Confirm Payment with shipping cost + Retrieve Payment with shipping cost", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "PaymentIntentWithShippingCost"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntentWithShippingCost"];
 
       cy.step("Create Payment Intent with shipping cost", () =>
         cy.createPaymentIntentTest(
