@@ -5439,7 +5439,7 @@
             ],
             "properties": {
               "Passthrough": {
-                "$ref": "#/components/schemas/PassthroughAddtionalData"
+                "$ref": "#/components/schemas/PassthroughAdditionalData"
               }
             }
           }
@@ -10593,6 +10593,7 @@
           "razorpay",
           "recurly",
           "redsys",
+          "revolv3",
           "santander",
           "shift4",
           "silverflow",
@@ -17917,6 +17918,14 @@
               }
             ],
             "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -19105,7 +19114,7 @@
           }
         }
       },
-      "PassthroughAddtionalData": {
+      "PassthroughAdditionalData": {
         "type": "object",
         "description": "additional payout method details for passthrough payout method",
         "required": [
@@ -22168,7 +22177,8 @@
           "normal",
           "new_mandate",
           "setup_mandate",
-          "recurring_mandate"
+          "recurring_mandate",
+          "installment"
         ]
       },
       "PaymentsCancelRequest": {
@@ -24877,7 +24887,7 @@
             ],
             "properties": {
               "passthrough": {
-                "$ref": "#/components/schemas/PassthroughAddtionalData"
+                "$ref": "#/components/schemas/PassthroughAdditionalData"
               }
             }
           }
@@ -27631,6 +27641,7 @@
           "razorpay",
           "recurly",
           "redsys",
+          "revolv3",
           "riskified",
           "santander",
           "shift4",
@@ -28734,7 +28745,8 @@
         "type": "string",
         "enum": [
           "amount",
-          "created"
+          "created",
+          "modified"
         ]
       },
       "SplitPaymentMethodDataRequest": {
@@ -29498,7 +29510,7 @@
           },
           "three_ds_connector": {
             "type": "string",
-            "description": "Prefered 3ds Connector",
+            "description": "Preferred 3ds Connector",
             "nullable": true
           }
         }
@@ -29536,7 +29548,7 @@
               },
               "consume_post_message_for_three_ds_method_completion": {
                 "type": "boolean",
-                "description": "Indicates whethere to wait for Post message after 3DS method data submission"
+                "description": "Indicates whether to wait for Post message after 3DS method data submission"
               }
             }
           }

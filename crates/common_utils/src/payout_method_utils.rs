@@ -25,7 +25,7 @@ pub enum AdditionalPayoutMethodData {
     /// Additional data for Bank Redirect payout method
     BankRedirect(Box<BankRedirectAdditionalData>),
     /// Additional data for Passthrough payout method
-    Passthrough(Box<PassthroughAddtionalData>),
+    Passthrough(Box<PassthroughAdditionalData>),
 }
 
 crate::impl_to_sql_from_sql_json!(AdditionalPayoutMethodData);
@@ -290,7 +290,7 @@ pub struct InteracAdditionalData {
     Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
 )]
 #[diesel(sql_type = Jsonb)]
-pub struct PassthroughAddtionalData {
+pub struct PassthroughAdditionalData {
     /// Psp_token of the passthrough flow
     #[schema(value_type = String, example = "token_12345")]
     pub psp_token: MaskedPspToken,

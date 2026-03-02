@@ -503,6 +503,7 @@ pub async fn create_domain_model_for_split_payment(
     attempts_group_id: &id_type::GlobalAttemptGroupId,
     payment_method_type: enums::PaymentMethod,
     payment_method_subtype: enums::PaymentMethodType,
+    initiator: Option<&domain::Initiator>,
 ) -> common_utils::errors::CustomResult<domain::PaymentAttempt, errors::ApiErrorResponse> {
     let id = id_type::GlobalAttemptId::generate(&cell_id);
     let intent_amount_details = payment_intent.amount_details.clone();
@@ -585,7 +586,7 @@ pub async fn create_domain_model_for_split_payment(
         card_discovery: None,
         feature_metadata: None,
         processor_merchant_id: payment_intent.merchant_id.clone(),
-        created_by: None,
+        created_by: initiator.and_then(|initiator| initiator.to_created_by()),
         connector_request_reference_id: None,
         network_transaction_id: None,
         authorized_amount: None,

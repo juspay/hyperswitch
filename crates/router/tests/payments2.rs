@@ -240,6 +240,7 @@ async fn payments_create_core() {
         partner_merchant_identifier_details: None,
         payment_method_tokenization_details: None,
         error_details: None,
+        installment_options: None,
         state_metadata: None,
     };
 
@@ -548,6 +549,7 @@ async fn payments_create_core_adyen_no_redirect() {
             partner_merchant_identifier_details: None,
             payment_method_tokenization_details: None,
             error_details: None,
+            installment_options: None,
             state_metadata: None,
         },
         vec![],
