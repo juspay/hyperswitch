@@ -67,7 +67,7 @@ macro_rules! config {
                 pub async fn [<get_ $superposition_key:lower>](
                     &self,
                     storage: &dyn StorageInterface,
-                    superposition_client: Option<&superposition::SuperpositionClient>,
+                    superposition_client: &superposition::SuperpositionClient,
                     targeting_key: Option<&$targeting_type>,
                 ) -> $output {
                     fetch_db_with_dimensions::<[<$superposition_key:camel>], $requirement, O, P>(

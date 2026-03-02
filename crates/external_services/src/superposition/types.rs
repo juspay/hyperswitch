@@ -1,9 +1,11 @@
 //! Type definitions for Superposition integration
 
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use common_utils::{errors::CustomResult, fp_utils::when};
 use masking::{ExposeInterface, Secret};
+
+use super::SuperpositionClient;
 
 /// Wrapper type for JSON values from Superposition
 #[derive(Debug, Clone)]
@@ -91,6 +93,16 @@ pub struct ConfigContext {
 }
 
 impl SuperpositionClientConfig {
+    /// Create and return a Superposition client
+    pub async fn get_superposition_client(
+        &self,
+    ) -> CustomResult<Arc<SuperpositionClient>, SuperpositionError> {
+        let client = SuperpositionClient::new(self.clone())
+            .await
+            .map_err(|e| SuperpositionError::ClientInitError(e.to_string()))?;
+        Ok(Arc::new(client))
+    }
+
     /// Validate the Superposition configuration
     pub fn validate(&self) -> Result<(), SuperpositionError> {
         if !self.enabled {

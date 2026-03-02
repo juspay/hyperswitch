@@ -144,7 +144,7 @@ pub struct SessionState {
     pub crm_client: Arc<dyn CrmInterface>,
     pub infra_components: Option<serde_json::Value>,
     pub enhancement: Option<HashMap<String, String>>,
-    pub superposition_service: Option<Arc<SuperpositionClient>>,
+    pub superposition_service: Arc<SuperpositionClient>,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -338,7 +338,7 @@ pub struct AppState {
     pub crm_client: Arc<dyn CrmInterface>,
     pub infra_components: Option<serde_json::Value>,
     pub enhancement: Option<HashMap<String, String>>,
-    pub superposition_service: Option<Arc<SuperpositionClient>>,
+    pub superposition_service: Arc<SuperpositionClient>,
 }
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<id_type::TenantId> {
@@ -463,16 +463,17 @@ impl AppState {
             let cache_store = get_cache_store(&conf.clone(), shut_down_signal, testable)
                 .await
                 .expect("Failed to create store");
-            let global_store: Box<dyn GlobalStorageInterface> = Box::pin(Self::get_store_interface(
-                &storage_impl,
-                &event_handler,
-                &conf,
-                &conf.multitenancy.global_tenant,
-                Arc::clone(&cache_store),
-                testable,
-            ))
-            .await
-            .get_global_storage_interface();
+            let global_store: Box<dyn GlobalStorageInterface> =
+                Box::pin(Self::get_store_interface(
+                    &storage_impl,
+                    &event_handler,
+                    &conf,
+                    &conf.multitenancy.global_tenant,
+                    Arc::clone(&cache_store),
+                    testable,
+                ))
+                .await
+                .get_global_storage_interface();
             #[cfg(feature = "olap")]
             let pools = conf
                 .multitenancy
@@ -505,23 +506,13 @@ impl AppState {
             let grpc_client = conf.grpc_client.get_grpc_client_interface().await;
             let infra_component_values = Self::process_env_mappings(conf.infra_values.clone());
             let enhancement = conf.enhancement.clone();
-            let superposition_service = if conf.superposition.get_inner().enabled {
-                match SuperpositionClient::new(conf.superposition.get_inner().clone()).await {
-                    Ok(client) => {
-                        router_env::logger::info!("Superposition client initialized successfully");
-                        Some(Arc::new(client))
-                    }
-                    Err(err) => {
-                        router_env::logger::warn!(
-                            "Failed to initialize superposition client: {:?}. Continuing without superposition support.",
-                            err
-                        );
-                        None
-                    }
-                }
-            } else {
-                None
-            };
+            #[allow(clippy::expect_used)]
+            let superposition_service = conf
+                .superposition
+                .get_inner()
+                .get_superposition_client()
+                .await
+                .expect("Failed to initialize superposition client");
             Self {
                 flow_name: String::from("default"),
                 stores,

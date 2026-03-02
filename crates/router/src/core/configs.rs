@@ -128,7 +128,7 @@ impl ConfigType for serde_json::Value {
 /// `db_key` method to construct the database key from dimensions.
 pub async fn fetch_db_with_dimensions<C, M, O, P>(
     storage: &dyn db::StorageInterface,
-    superposition_client: Option<&superposition::SuperpositionClient>,
+    superposition_client: &superposition::SuperpositionClient,
     dimensions: &dimension_state::Dimensions<M, O, P>,
     targeting_key: Option<&C::TargetingKey>,
 ) -> C::Output
@@ -168,7 +168,7 @@ pub trait DatabaseBackedConfig: superposition::Config {
 /// that database fallback is used when superposition fetch fails.
 pub async fn fetch_db_config<C>(
     storage: &dyn db::StorageInterface,
-    superposition_client: Option<&superposition::SuperpositionClient>,
+    superposition_client: &superposition::SuperpositionClient,
     db_key: &str,
     context: Option<ConfigContext>,
     targeting_key: Option<&C::TargetingKey>,
@@ -181,14 +181,7 @@ where
     let default_value = C::DEFAULT_VALUE;
     let config_type = C::KEY;
 
-    let superposition_result = match superposition_client {
-        Some(client) => C::fetch(client, context, targeting_key).await,
-        None => Err(error_stack::report!(
-            superposition::SuperpositionError::ClientError(
-                "No superposition client available".to_string()
-            )
-        )),
-    };
+    let superposition_result = C::fetch(superposition_client, context, targeting_key).await;
 
     match superposition_result {
         Ok(value) => value,
