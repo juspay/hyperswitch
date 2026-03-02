@@ -2240,8 +2240,7 @@ where
                 .net_amount
                 .set_installment_interest(Some(total_interest));
 
-            if let Some(installment_data) = payment_data.payment_attempt.installment_data.as_mut()
-            {
+            if let Some(installment_data) = payment_data.payment_attempt.installment_data.as_mut() {
                 installment_data.installment_interest = Some(total_interest);
             }
         }
