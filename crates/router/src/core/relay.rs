@@ -12,9 +12,10 @@ use hyperswitch_domain_models::relay;
 
 use super::errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt};
 use crate::{
+    connector::utils::RouterData,
     core::payments,
     routes::SessionState,
-    services,
+    services::{self, api::ConnectorValidation},
     types::{
         api::{self},
         domain,
@@ -971,16 +972,34 @@ pub async fn sync_relay_capture_with_gateway(
     )
     .await?;
 
-    let router_data_res = services::execute_connector_processing_step(
-        state,
-        connector_integration,
-        &router_data,
-        payments::CallConnectorAction::Trigger,
-        None,
-        None,
-    )
-    .await
-    .to_payment_failed_response()?;
+    //validate_psync_reference_id if call_connector_action is trigger
+    let router_data_res = if connector_data
+        .connector
+        .validate_psync_reference_id(
+            &router_data.request,
+            router_data.is_three_ds(),
+            router_data.status,
+            router_data.connector_meta_data.clone(),
+        )
+        .is_err()
+    {
+        router_env::logger::warn!(
+            "validate_psync_reference_id failed, hence skipping call to connector"
+        );
+
+        router_data
+    } else {
+        services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            &router_data,
+            payments::CallConnectorAction::Trigger,
+            None,
+            None,
+        )
+        .await
+        .to_payment_failed_response()?
+    };
 
     let relay_response = relay::RelayUpdate::try_from_capture_response((
         router_data_res.status,
