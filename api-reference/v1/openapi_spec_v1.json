@@ -15045,6 +15045,7 @@
           "razorpay",
           "recurly",
           "redsys",
+          "revolv3",
           "santander",
           "shift4",
           "silverflow",
@@ -20900,6 +20901,14 @@
           },
           "billing_frequency": {
             "$ref": "#/components/schemas/BillingFrequency"
+          },
+          "installment_interest": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -20942,7 +20951,7 @@
           },
           "interest_rate": {
             "type": "number",
-            "format": "float",
+            "format": "double",
             "description": "Interest rate per installment as a percentage max 2 decimal places\n"
           }
         }
@@ -35819,6 +35828,14 @@
           },
           "currency": {
             "$ref": "#/components/schemas/Currency"
+          },
+          "capture_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CaptureMethod"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -36697,6 +36714,7 @@
           "razorpay",
           "recurly",
           "redsys",
+          "revolv3",
           "riskified",
           "santander",
           "shift4",

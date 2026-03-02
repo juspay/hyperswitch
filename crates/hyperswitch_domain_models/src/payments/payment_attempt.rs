@@ -53,7 +53,8 @@ use url::Url;
 use super::PaymentIntent;
 #[cfg(feature = "v2")]
 use crate::{
-    address::Address, consts, payment_method_data::PaymentMethodData, router_response_types,
+    address::Address, consts, payment_method_data::PaymentMethodData, platform,
+    router_response_types,
 };
 use crate::{
     behaviour, errors,
@@ -906,6 +907,7 @@ impl PaymentAttempt {
         storage_scheme: storage_enums::MerchantStorageScheme,
         request: &api_models::payments::PaymentsConfirmIntentRequest,
         encrypted_data: DecryptedPaymentAttempt,
+        initiator: Option<&platform::Initiator>,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let id = id_type::GlobalAttemptId::generate(&cell_id);
         let intent_amount_details = payment_intent.amount_details.clone();
@@ -988,7 +990,7 @@ impl PaymentAttempt {
             card_discovery: None,
             feature_metadata: None,
             processor_merchant_id: payment_intent.merchant_id.clone(),
-            created_by: None,
+            created_by: initiator.and_then(|initiator| initiator.to_created_by()),
             connector_request_reference_id: None,
             network_transaction_id: None,
             authorized_amount: None,
@@ -1002,6 +1004,7 @@ impl PaymentAttempt {
         storage_scheme: storage_enums::MerchantStorageScheme,
         request: &api_models::payments::ProxyPaymentsRequest,
         encrypted_data: DecryptedPaymentAttempt,
+        initiator: Option<&platform::Initiator>,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let id = id_type::GlobalAttemptId::generate(&cell_id);
         let intent_amount_details = payment_intent.amount_details.clone();
@@ -1080,7 +1083,7 @@ impl PaymentAttempt {
             id,
             card_discovery: None,
             processor_merchant_id: payment_intent.merchant_id.clone(),
-            created_by: None,
+            created_by: initiator.and_then(|initiator| initiator.to_created_by()),
             connector_request_reference_id: None,
             network_transaction_id: None,
             authorized_amount: None,
@@ -1094,6 +1097,7 @@ impl PaymentAttempt {
         storage_scheme: storage_enums::MerchantStorageScheme,
         request: &api_models::payments::ExternalVaultProxyPaymentsRequest,
         encrypted_data: DecryptedPaymentAttempt,
+        initiator: Option<&platform::Initiator>,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let id = id_type::GlobalAttemptId::generate(&cell_id);
         let intent_amount_details = payment_intent.amount_details.clone();
@@ -1179,7 +1183,7 @@ impl PaymentAttempt {
             id,
             card_discovery: None,
             processor_merchant_id: payment_intent.merchant_id.clone(),
-            created_by: None,
+            created_by: initiator.and_then(|initiator| initiator.to_created_by()),
             connector_request_reference_id: None,
             network_transaction_id: None,
             authorized_amount: None,
@@ -1194,6 +1198,7 @@ impl PaymentAttempt {
         storage_scheme: storage_enums::MerchantStorageScheme,
         request: &api_models::payments::PaymentsAttemptRecordRequest,
         encrypted_data: DecryptedPaymentAttempt,
+        initiator: Option<&platform::Initiator>,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let id = id_type::GlobalAttemptId::generate(&cell_id);
 
@@ -1302,7 +1307,7 @@ impl PaymentAttempt {
             card_discovery: None,
             charges: None,
             processor_merchant_id: payment_intent.merchant_id.clone(),
-            created_by: None,
+            created_by: initiator.and_then(|initiator| initiator.to_created_by()),
             connector_request_reference_id,
             network_transaction_id: None,
             authorized_amount: None,
@@ -2275,7 +2280,6 @@ impl PaymentAttemptUpdate {
                 customer_acceptance,
                 shipping_cost: net_amount.get_shipping_cost(),
                 order_tax_amount: net_amount.get_order_tax_amount(),
-                installment_interest: net_amount.get_installment_interest(),
                 installment_data,
                 connector_mandate_detail,
                 tokenization,
@@ -2856,7 +2860,6 @@ impl behaviour::Conversion for PaymentAttempt {
             card_network,
             order_tax_amount: self.net_amount.get_order_tax_amount(),
             shipping_cost: self.net_amount.get_shipping_cost(),
-            installment_interest: self.net_amount.get_installment_interest(),
             installment_data: self.installment_data,
             connector_mandate_detail: self.connector_mandate_detail,
             tokenization: self.tokenization,
@@ -2930,7 +2933,10 @@ impl behaviour::Conversion for PaymentAttempt {
                     storage_model.order_tax_amount,
                     storage_model.surcharge_amount,
                     storage_model.tax_amount,
-                    storage_model.installment_interest,
+                    storage_model
+                        .installment_data
+                        .as_ref()
+                        .and_then(|d| d.installment_interest),
                 ),
                 currency: storage_model.currency,
                 save_to_locker: storage_model.save_to_locker,
@@ -3094,7 +3100,6 @@ impl behaviour::Conversion for PaymentAttempt {
             card_network,
             order_tax_amount: self.net_amount.get_order_tax_amount(),
             shipping_cost: self.net_amount.get_shipping_cost(),
-            installment_interest: self.net_amount.get_installment_interest(),
             connector_mandate_detail: self.connector_mandate_detail,
             tokenization: self.tokenization,
             request_extended_authorization: self.request_extended_authorization,
@@ -3298,7 +3303,6 @@ impl behaviour::Conversion for PaymentAttempt {
             encrypted_payment_method_data: None,
             error_details: None,
             retry_type: None,
-            installment_interest: None,
             installment_data: None,
         })
     }

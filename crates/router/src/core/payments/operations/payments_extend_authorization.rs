@@ -203,8 +203,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsExtendAu
             is_manual_retry_enabled: None,
             is_l2_l3_enabled: false,
             external_authentication_data: None,
-            selected_installment: None,
-            installment_details: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -230,6 +228,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsExtendAuthorizationRequest, 
         _payment_data: &mut PaymentData<F>,
         _request: Option<payments::CustomerDetails>,
         _provider: &domain::Provider,
+        _initiator: Option<&domain::Initiator>,
         _dimensions: DimensionsWithMerchantId,
     ) -> errors::CustomResult<
         (

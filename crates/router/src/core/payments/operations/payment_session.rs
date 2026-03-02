@@ -227,8 +227,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
             is_manual_retry_enabled: None,
             is_l2_l3_enabled: false,
             external_authentication_data: None,
-            selected_installment: None,
-            installment_details: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -330,6 +328,7 @@ where
         payment_data: &mut PaymentData<F>,
         request: Option<payments::CustomerDetails>,
         provider: &domain::Provider,
+        initiator: Option<&domain::Initiator>,
         dimensions: DimensionsWithMerchantId,
     ) -> errors::CustomResult<
         (PaymentSessionOperation<'a, F>, Option<domain::Customer>),
@@ -343,6 +342,7 @@ where
                     payment_data,
                     request,
                     provider,
+                    initiator,
                     dimensions,
                 )
                 .await

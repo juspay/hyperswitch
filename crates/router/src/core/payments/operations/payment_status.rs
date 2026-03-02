@@ -67,6 +67,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
+        initiator: Option<&domain::Initiator>,
         dimensions: DimensionsWithMerchantId,
     ) -> CustomResult<
         (
@@ -83,6 +84,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     payment_data,
                     request,
                     provider,
+                    initiator,
                     dimensions,
                 )
                 .await
@@ -564,8 +566,6 @@ async fn get_tracker_for_sync<
         is_manual_retry_enabled: business_profile.is_manual_retry_enabled,
         is_l2_l3_enabled: business_profile.is_l2_l3_enabled,
         external_authentication_data: None,
-        selected_installment: None,
-        installment_details: None,
     };
 
     let get_trackers_response = operations::GetTrackerResponse {

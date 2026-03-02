@@ -376,8 +376,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             is_manual_retry_enabled: None,
             is_l2_l3_enabled: business_profile.is_l2_l3_enabled,
             external_authentication_data: None,
-            selected_installment: None,
-            installment_details: None,
         };
 
         let customer_details = Some(CustomerDetails {
@@ -411,6 +409,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         payment_data: &mut PaymentData<F>,
         _request: Option<CustomerDetails>,
         provider: &domain::Provider,
+        _initiator: Option<&domain::Initiator>,
         _dimensions: DimensionsWithMerchantId,
     ) -> CustomResult<
         (CompleteAuthorizeOperation<'a, F>, Option<domain::Customer>),
