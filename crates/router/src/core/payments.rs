@@ -8078,12 +8078,8 @@ async fn set_payment_method_from_token_for_modular_payment_method_flow<F, D>(
                 platform.get_provider().get_key_store(),
             )
             .await
-            .map(|(pm, _)| {
-                logger::debug!("Found payment method: {:?}", pm);
-                pm
-            })
             .unwrap_or_else(|err| {
-                logger::error!("Failed to fetch payment method from locker: {:?}", err);
+                logger::error!("Failed to fetch payment method from vault: {:?}", err);
                 None
             })
         }
