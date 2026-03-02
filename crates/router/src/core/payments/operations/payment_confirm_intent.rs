@@ -210,7 +210,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
                 cell_id,
                 storage_scheme,
                 request,
-                encrypted_data
+                encrypted_data,
+                platform.get_initiator(),
             )
             .await?;
 
@@ -356,6 +357,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
                 pm_split_amount_data
                     .payment_method_details
                     .payment_method_subtype,
+                platform.get_initiator(),
             )
             .await?;
 
