@@ -8134,8 +8134,12 @@ async fn set_payment_method_from_token_for_modular_payment_method_flow<F, D>(
                 platform.get_provider().get_key_store(),
             )
             .await
+            .map(|(pm, _)| pm)
             .unwrap_or_else(|err| {
-                logger::error!("Failed to fetch payment method from vault: {:?}", err);
+                logger::error!(
+                    "Failed to fetch payment method from temp storage: {:?}",
+                    err
+                );
                 None
             })
         }
