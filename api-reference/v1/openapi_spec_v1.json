@@ -27137,6 +27137,14 @@
           "is_guest_customer": {
             "type": "boolean",
             "description": "indicates whether this is a guest customer flow"
+          },
+          "intent_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PmlPaymentIntentResponse"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -34039,6 +34047,193 @@
           },
           "merchant_account_type": {
             "$ref": "#/components/schemas/MerchantAccountType"
+          }
+        }
+      },
+      "PmlInstallmentAmountDetails": {
+        "type": "object",
+        "description": "Amount breakdown for a single installment plan",
+        "required": [
+          "amount_per_installment",
+          "total_amount"
+        ],
+        "properties": {
+          "amount_per_installment": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "total_amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          }
+        }
+      },
+      "PmlInstallmentOption": {
+        "type": "object",
+        "description": "Installment options for a payment method, as returned in the PML response",
+        "required": [
+          "payment_method",
+          "available_plans"
+        ],
+        "properties": {
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "available_plans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PmlInstallmentPlan"
+            },
+            "description": "Individual installment plans with computed amounts"
+          }
+        }
+      },
+      "PmlInstallmentPlan": {
+        "type": "object",
+        "description": "A single installment plan with pre-computed amount breakdown",
+        "required": [
+          "number_of_installments",
+          "billing_frequency",
+          "interest_rate",
+          "amount_details"
+        ],
+        "properties": {
+          "number_of_installments": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of installments for this plan",
+            "minimum": 0
+          },
+          "billing_frequency": {
+            "$ref": "#/components/schemas/BillingFrequency"
+          },
+          "interest_rate": {
+            "type": "number",
+            "format": "double",
+            "description": "Interest rate as a percentage"
+          },
+          "amount_details": {
+            "$ref": "#/components/schemas/PmlInstallmentAmountDetails"
+          }
+        }
+      },
+      "PmlPaymentIntentResponse": {
+        "type": "object",
+        "description": "Intent-only payment details returned as part of the Payment Method List response",
+        "required": [
+          "payment_id",
+          "status",
+          "amount",
+          "attempt_count"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "Unique identifier for the payment"
+          },
+          "status": {
+            "$ref": "#/components/schemas/IntentStatus"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
+            "nullable": true
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "Client secret for client-side payment confirmation",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "A description for the payment",
+            "nullable": true
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "The customer identifier",
+            "nullable": true
+          },
+          "return_url": {
+            "type": "string",
+            "description": "The URL to redirect to after payment completion",
+            "nullable": true
+          },
+          "setup_future_usage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FutureUsage"
+              }
+            ],
+            "nullable": true
+          },
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "shipping": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Additional metadata",
+            "nullable": true
+          },
+          "order_details": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            },
+            "description": "Order details for the payment",
+            "nullable": true
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the payment was created",
+            "nullable": true
+          },
+          "expires_on": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the client secret expires",
+            "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The profile identifier",
+            "nullable": true
+          },
+          "merchant_order_reference_id": {
+            "type": "string",
+            "description": "Merchant-provided reference identifier",
+            "nullable": true
+          },
+          "attempt_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of payment attempts made"
+          },
+          "installment_options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PmlInstallmentOption"
+            },
+            "description": "Installment options available for this payment",
+            "nullable": true
           }
         }
       },
