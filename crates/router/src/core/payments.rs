@@ -1500,7 +1500,7 @@ where
     validate_for_proxy_payment(
         state,
         &payment_data,
-        platform.get_processor().get_account().get_id(),
+        &dimensions,
     )
     .await?;
 
@@ -9211,7 +9211,7 @@ where
 pub async fn validate_for_proxy_payment<F, D>(
     state: &SessionState,
     payment_data: &D,
-    merchant_id: &id_type::MerchantId,
+    dimensions: &DimensionWithMerchantIdAndProfileId,
 ) -> RouterResult<()>
 where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -9223,20 +9223,13 @@ where
         .clone()
         .is_card_limited_details_flow();
 
-    let db = &*state.store;
-    let config = db
-        .find_config_by_key_unwrap_or(
-            &merchant_id.get_should_enable_mit_with_limited_card_data(),
-            Some("false".to_string()),
+    let is_mit_with_limited_card_data_enabled = dimensions
+        .get_should_enable_mit_with_limited_card_data(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            Some(&payment_data.get_payment_intent().payment_id),
         )
         .await;
-    let is_mit_with_limited_card_data_enabled = match config {
-        Ok(conf) => conf.config == "true",
-        Err(error) => {
-            router_env::logger::error!(?error);
-            false
-        }
-    };
 
     utils::when(
         is_card_limited_details_flow && !is_mit_with_limited_card_data_enabled,

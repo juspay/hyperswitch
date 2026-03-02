@@ -192,3 +192,23 @@ impl DatabaseBackedConfig for ShouldPerformEligibility {
         Some(format!("{}_{}", Self::KEY, merchant_id))
     }
 }
+
+config! {
+    superposition_key = SHOULD_ENABLE_MIT_WITH_LIMITED_CARD_DATA,
+    output = bool,
+    default = false,
+    requires = DimensionWithMerchantIdAndProfileId,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for ShouldEnableMitWithLimitedCardData {
+    const KEY: &'static str = "should_enable_mit_with_limited_card_data";
+
+    fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+        let merchant_id = dimensions
+            .get_merchant_id()
+            .map(|id| id.get_string_repr())
+            .unwrap_or_default();
+        Some(format!("{}_{}", merchant_id, Self::KEY))
+    }
+}
