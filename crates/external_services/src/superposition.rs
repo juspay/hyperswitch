@@ -6,7 +6,7 @@ pub mod types;
 use std::collections::HashMap;
 
 use common_utils::{errors::CustomResult, id_type::TargetingKey};
-use error_stack::report;
+use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
 
 pub use self::types::{ConfigContext, SuperpositionClientConfig, SuperpositionError};
@@ -133,12 +133,13 @@ impl SuperpositionClient {
 
         // Initialize provider and validate connection to Superposition service
         // This ensures we fail fast if the service is unavailable
-        provider.init().await.map_err(|e| {
-            report!(SuperpositionError::ClientInitError(format!(
-                "Failed to connect to Superposition service: {}",
-                e
-            )))
-        })?;
+        provider
+            .init()
+            .await
+            .change_context(SuperpositionError::ClientInitError(
+                "Failed to connect to Superposition service".to_string(),
+            ))
+            .attach_printable("Superposition Provider initialization failed")?;
 
         // Initialize OpenFeature API and set provider
         let mut api = open_feature::OpenFeature::singleton_mut().await;

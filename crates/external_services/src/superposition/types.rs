@@ -3,6 +3,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use common_utils::{errors::CustomResult, fp_utils::when};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 
 use super::SuperpositionClient;
@@ -99,7 +100,9 @@ impl SuperpositionClientConfig {
     ) -> CustomResult<Arc<SuperpositionClient>, SuperpositionError> {
         let client = SuperpositionClient::new(self.clone())
             .await
-            .map_err(|e| SuperpositionError::ClientInitError(e.to_string()))?;
+            .change_context(SuperpositionError::ClientInitError(
+                "Failed to create Superposition client".to_string(),
+            ))?;
         Ok(Arc::new(client))
     }
 
