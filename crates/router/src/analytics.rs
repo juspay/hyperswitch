@@ -37,7 +37,7 @@ pub mod routes {
         analytics_validator::request_validator,
         consts::opensearch::SEARCH_INDEXES,
         core::{api_locking, errors::user::UserErrors, verification::utils},
-        db::{user::UserInterface, user_role::ListUserRolesByUserIdPayload},
+        db::{user_role::ListUserRolesByUserIdPayload},
         routes::{metrics, AppState},
         services::{
             api,

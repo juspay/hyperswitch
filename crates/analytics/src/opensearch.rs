@@ -650,7 +650,7 @@ impl OpenSearchQueryBuilder {
                                             "lang": "painless",
                                             "source": ACTIVE_ATTEMPT_FILTER_SCRIPT,
                                             "params": {
-                                                "field_name": format!("attempts_list.{}.keyword", field),
+                                                "field": field,
                                                 "values": values
                                             }
                                         }
