@@ -1,7 +1,10 @@
 use external_services::superposition;
 
 use super::{
-    dimension_state::{DimensionWithMerchantIdAndProfileId, DimensionsWithMerchantId},
+    dimension_state::{
+        DimensionWithMerchantIdAndProfileId, DimensionsWithMerchantId,
+        DimensionWithMerchantIdAndProfileIdAndConnector,
+    },
     fetch_db_config_for_dimensions, DatabaseBackedConfig,
 };
 use crate::{consts::superposition as superposition_consts, db::StorageInterface, utils::id_type};
@@ -210,5 +213,44 @@ impl DatabaseBackedConfig for ShouldEnableMitWithLimitedCardData {
             .map(|id| id.get_string_repr())
             .unwrap_or_default();
         Some(format!("{}_{}", merchant_id, Self::KEY))
+    }
+}
+
+config! {
+    superposition_key = SHOULD_STORE_ELIGIBILITY_CHECK_DATA_FOR_AUTHENTICATION,
+    output = bool,
+    default = false,
+    requires = DimensionsWithMerchantId,
+    targeting_key = id_type::AuthenticationId
+}
+
+impl DatabaseBackedConfig for ShouldStoreEligibilityCheckDataForAuthentication {
+    const KEY: &'static str = "should_store_eligibility_check_data_for_authentication";
+
+    fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+        let merchant_id = dimensions
+            .get_merchant_id()
+            .map(|id| id.get_string_repr())
+            .unwrap_or_default();
+        // Matches the existing key format: "should_store_eligibility_check_data_for_authentication_{merchant_id}"
+        Some(format!("{}_{}", Self::KEY, merchant_id))
+    }
+}
+
+config! {
+    superposition_key = STEP_UP_ENABLED,
+    output = bool,
+    default = false,
+    requires = DimensionWithMerchantIdAndProfileIdAndConnector,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for StepUpEnabled {
+    const KEY: &'static str = "step_up_enabled";
+
+    // The old DB format stored a Vec<Connector> under "step_up_enabled_{merchant_id}".
+    // That schema is not compatible with a per-connector boolean, so no DB fallback.
+    fn db_key(_dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+        None
     }
 }

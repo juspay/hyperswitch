@@ -1218,6 +1218,7 @@ where
                                 None,
                                 &business_profile,
                                 &feature_config,
+                                &dimensions,
                             )
                             .await?;
                         };
