@@ -203,6 +203,15 @@ export const connectorDetails = {
         },
       },
     },
+    VoidAfterConfirm: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "processing", // this is an async process
+        },
+      },
+    },
     Void: {
       Request: {},
       Response: {
@@ -219,7 +228,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "pending",
+          status: "succeeded",
         },
       },
     },
@@ -230,7 +239,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "pending",
+          status: "succeeded",
         },
       },
     },
@@ -241,7 +250,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "pending",
+          status: "succeeded",
         },
       },
     },
@@ -252,7 +261,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "pending",
+          status: "succeeded",
         },
       },
     },
@@ -299,6 +308,8 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,

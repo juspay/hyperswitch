@@ -133,7 +133,9 @@ mod test {
             metadata: None,
             payment: inputs::PaymentInput {
                 amount: MinorUnit::new(32),
+                transaction_initiator: None,
                 card_bin: None,
+                extended_card_bin: None,
                 currency: enums::Currency::USD,
                 authentication_type: Some(enums::AuthenticationType::NoThreeDs),
                 capture_method: Some(enums::CaptureMethod::Automatic),
@@ -175,9 +177,11 @@ mod test {
         let inp = inputs::BackendInput {
             metadata: None,
             payment: inputs::PaymentInput {
+                transaction_initiator: None,
                 amount: MinorUnit::new(32),
                 currency: enums::Currency::USD,
                 card_bin: Some("123456".to_string()),
+                extended_card_bin: None,
                 authentication_type: Some(enums::AuthenticationType::NoThreeDs),
                 capture_method: Some(enums::CaptureMethod::Automatic),
                 business_country: Some(enums::Country::UnitedStatesOfAmerica),
@@ -219,9 +223,11 @@ mod test {
         let inp = inputs::BackendInput {
             metadata: None,
             payment: inputs::PaymentInput {
+                transaction_initiator: None,
                 amount: MinorUnit::new(32),
                 currency: enums::Currency::USD,
                 card_bin: Some("123456".to_string()),
+                extended_card_bin: None,
                 authentication_type: Some(enums::AuthenticationType::NoThreeDs),
                 capture_method: Some(enums::CaptureMethod::Automatic),
                 business_country: Some(enums::Country::UnitedStatesOfAmerica),
@@ -263,9 +269,11 @@ mod test {
         let inp = inputs::BackendInput {
             metadata: None,
             payment: inputs::PaymentInput {
+                transaction_initiator: None,
                 amount: MinorUnit::new(32),
                 currency: enums::Currency::USD,
                 card_bin: Some("123456".to_string()),
+                extended_card_bin: None,
                 authentication_type: Some(enums::AuthenticationType::NoThreeDs),
                 capture_method: Some(enums::CaptureMethod::Automatic),
                 business_country: Some(enums::Country::UnitedStatesOfAmerica),
@@ -307,9 +315,11 @@ mod test {
         let inp = inputs::BackendInput {
             metadata: None,
             payment: inputs::PaymentInput {
+                transaction_initiator: None,
                 amount: MinorUnit::new(32),
                 currency: enums::Currency::USD,
                 card_bin: Some("123456".to_string()),
+                extended_card_bin: None,
                 authentication_type: Some(enums::AuthenticationType::NoThreeDs),
                 capture_method: Some(enums::CaptureMethod::Automatic),
                 business_country: Some(enums::Country::UnitedStatesOfAmerica),
@@ -351,9 +361,11 @@ mod test {
         let inp = inputs::BackendInput {
             metadata: None,
             payment: inputs::PaymentInput {
+                transaction_initiator: None,
                 amount: MinorUnit::new(32),
                 currency: enums::Currency::USD,
                 card_bin: Some("123456".to_string()),
+                extended_card_bin: None,
                 authentication_type: Some(enums::AuthenticationType::NoThreeDs),
                 capture_method: Some(enums::CaptureMethod::Automatic),
                 business_country: Some(enums::Country::UnitedStatesOfAmerica),
@@ -395,9 +407,11 @@ mod test {
         let inp = inputs::BackendInput {
             metadata: None,
             payment: inputs::PaymentInput {
+                transaction_initiator: None,
                 amount: MinorUnit::new(32),
                 currency: enums::Currency::USD,
                 card_bin: None,
+                extended_card_bin: None,
                 authentication_type: Some(enums::AuthenticationType::NoThreeDs),
                 capture_method: Some(enums::CaptureMethod::Automatic),
                 business_country: Some(enums::Country::UnitedStatesOfAmerica),
@@ -439,9 +453,11 @@ mod test {
         let inp = inputs::BackendInput {
             metadata: None,
             payment: inputs::PaymentInput {
+                transaction_initiator: None,
                 amount: MinorUnit::new(32),
                 currency: enums::Currency::USD,
                 card_bin: None,
+                extended_card_bin: None,
                 authentication_type: Some(enums::AuthenticationType::NoThreeDs),
                 capture_method: Some(enums::CaptureMethod::Automatic),
                 business_country: Some(enums::Country::UnitedStatesOfAmerica),
@@ -484,8 +500,10 @@ mod test {
             metadata: None,
             payment: inputs::PaymentInput {
                 amount: MinorUnit::new(32),
+                transaction_initiator: None,
                 currency: enums::Currency::USD,
                 card_bin: None,
+                extended_card_bin: None,
                 authentication_type: Some(enums::AuthenticationType::NoThreeDs),
                 capture_method: Some(enums::CaptureMethod::Automatic),
                 business_country: Some(enums::Country::UnitedStatesOfAmerica),
@@ -530,7 +548,9 @@ mod test {
             metadata: Some(meta_map),
             payment: inputs::PaymentInput {
                 amount: MinorUnit::new(32),
+                transaction_initiator: None,
                 card_bin: None,
+                extended_card_bin: None,
                 currency: enums::Currency::USD,
                 authentication_type: Some(enums::AuthenticationType::NoThreeDs),
                 capture_method: Some(enums::CaptureMethod::Automatic),
@@ -574,7 +594,9 @@ mod test {
             metadata: None,
             payment: inputs::PaymentInput {
                 amount: MinorUnit::new(150),
+                transaction_initiator: None,
                 card_bin: None,
+                extended_card_bin: None,
                 currency: enums::Currency::USD,
                 authentication_type: Some(enums::AuthenticationType::NoThreeDs),
                 capture_method: Some(enums::CaptureMethod::Automatic),
@@ -627,7 +649,9 @@ mod test {
             metadata: None,
             payment: inputs::PaymentInput {
                 amount: MinorUnit::new(120),
+                transaction_initiator: None,
                 card_bin: None,
+                extended_card_bin: None,
                 currency: enums::Currency::USD,
                 authentication_type: Some(enums::AuthenticationType::NoThreeDs),
                 capture_method: Some(enums::CaptureMethod::Automatic),

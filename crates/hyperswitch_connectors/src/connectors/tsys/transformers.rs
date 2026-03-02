@@ -109,7 +109,10 @@ impl TryFrom<&TsysRouterData<&types::PaymentsAuthorizeRouterData>> for TsysPayme
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("tsys"),
                 ))?
@@ -238,6 +241,7 @@ fn get_error_response(
         status_code,
         attempt_status: None,
         connector_transaction_id: None,
+        connector_response_reference_id: None,
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
@@ -254,6 +258,7 @@ fn get_payments_response(connector_response: TsysResponse) -> PaymentsResponseDa
         network_txn_id: None,
         connector_response_reference_id: Some(connector_response.transaction_id),
         incremental_authorization_allowed: None,
+        authentication_data: None,
         charges: None,
     }
 }
@@ -279,6 +284,7 @@ fn get_payments_sync_response(
                 .clone(),
         ),
         incremental_authorization_allowed: None,
+        authentication_data: None,
         charges: None,
     }
 }

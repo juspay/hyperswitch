@@ -91,23 +91,23 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
 }
 
 impl subscriptions_api::Subscriptions for Stripebilling {}
-impl subscriptions_api::GetSubscriptionPlansFlow for Stripebilling {}
+impl subscriptions_api::GetSubscriptionItemsFlow for Stripebilling {}
 impl subscriptions_api::SubscriptionRecordBackFlow for Stripebilling {}
 impl subscriptions_api::SubscriptionCreate for Stripebilling {}
 impl
     ConnectorIntegration<
-        subscription_flow_types::GetSubscriptionPlans,
-        subscription_request_types::GetSubscriptionPlansRequest,
-        subscription_response_types::GetSubscriptionPlansResponse,
+        subscription_flow_types::GetSubscriptionItems,
+        subscription_request_types::GetSubscriptionItemsRequest,
+        subscription_response_types::GetSubscriptionItemsResponse,
     > for Stripebilling
 {
 }
 impl subscriptions_api::GetSubscriptionPlanPricesFlow for Stripebilling {}
 impl
     ConnectorIntegration<
-        subscription_flow_types::GetSubscriptionPlanPrices,
-        subscription_request_types::GetSubscriptionPlanPricesRequest,
-        subscription_response_types::GetSubscriptionPlanPricesResponse,
+        subscription_flow_types::GetSubscriptionItemPrices,
+        subscription_request_types::GetSubscriptionItemPricesRequest,
+        subscription_response_types::GetSubscriptionItemPricesResponse,
     > for Stripebilling
 {
 }
@@ -231,6 +231,7 @@ impl ConnectorCommon for Stripebilling {
             reason: response.reason,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -896,6 +897,7 @@ impl webhooks::IncomingWebhook for Stripebilling {
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let webhook =
             stripebilling::StripebillingWebhookBody::get_webhook_object_from_body(request.body)
@@ -919,6 +921,7 @@ impl webhooks::IncomingWebhook for Stripebilling {
     fn get_webhook_event_type(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }

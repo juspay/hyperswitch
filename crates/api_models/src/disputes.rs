@@ -3,13 +3,14 @@ use std::collections::HashMap;
 use common_utils::types::{StringMinorUnit, TimeRange};
 use masking::{Deserialize, Serialize};
 use serde::de::Error;
+use smithy::SmithyModel;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
 use super::enums::{Currency, DisputeStage, DisputeStatus};
 use crate::{admin::MerchantConnectorInfo, files};
 
-#[derive(Clone, Debug, Serialize, ToSchema, Eq, PartialEq)]
+#[derive(Clone, Debug, Serialize, ToSchema)]
 pub struct DisputeResponse {
     /// The identifier for dispute
     pub dispute_id: String,
@@ -55,35 +56,52 @@ pub struct DisputeResponse {
     /// The `merchant_connector_id` of the connector / processor through which the dispute was processed
     #[schema(value_type = Option<String>)]
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    /// Shows if the disputed amount(dispute_lost statuses only) + refunded amount is greater than captured amount
+    pub is_already_refunded: bool,
 }
 
-#[derive(Clone, Debug, Serialize, ToSchema, Eq, PartialEq)]
+#[derive(Clone, Debug, Serialize, ToSchema, Eq, PartialEq, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct DisputeResponsePaymentsRetrieve {
     /// The identifier for dispute
+    #[smithy(value_type = "String")]
     pub dispute_id: String,
+    /// The dispute amount
+    #[smithy(value_type = "String")]
+    pub amount: StringMinorUnit,
     /// Stage of the dispute
+    #[smithy(value_type = "DisputeStage")]
     pub dispute_stage: DisputeStage,
     /// Status of the dispute
+    #[smithy(value_type = "DisputeStatus")]
     pub dispute_status: DisputeStatus,
     /// Status of the dispute sent by connector
+    #[smithy(value_type = "String")]
     pub connector_status: String,
     /// Dispute id sent by connector
+    #[smithy(value_type = "String")]
     pub connector_dispute_id: String,
     /// Reason of dispute sent by connector
+    #[smithy(value_type = "Option<String>")]
     pub connector_reason: Option<String>,
     /// Reason code of dispute sent by connector
+    #[smithy(value_type = "Option<String>")]
     pub connector_reason_code: Option<String>,
     /// Evidence deadline of dispute sent by connector
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[smithy(value_type = "Option<String>")]
     pub challenge_required_by: Option<PrimitiveDateTime>,
     /// Dispute created time sent by connector
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[smithy(value_type = "Option<String>")]
     pub connector_created_at: Option<PrimitiveDateTime>,
     /// Dispute updated time sent by connector
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    #[smithy(value_type = "Option<String>")]
     pub connector_updated_at: Option<PrimitiveDateTime>,
     /// Time at which dispute is received
     #[serde(with = "common_utils::custom_serde::iso8601")]
+    #[smithy(value_type = "String")]
     pub created_at: PrimitiveDateTime,
 }
 

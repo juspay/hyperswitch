@@ -768,6 +768,13 @@ common_utils::impl_to_sql_from_sql_json!(AuthenticationConnectorDetails);
 pub struct ExternalVaultConnectorDetails {
     pub vault_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     pub vault_sdk: Option<VaultSdk>,
+    pub vault_token_selector: Option<Vec<VaultTokenField>>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub struct VaultTokenField {
+    pub token_type: common_enums::VaultTokenType,
 }
 
 common_utils::impl_to_sql_from_sql_json!(ExternalVaultConnectorDetails);
@@ -856,6 +863,8 @@ pub struct PaymentLinkConfigRequest {
     pub details_layout: Option<common_enums::PaymentLinkDetailsLayout>,
     pub payment_button_text: Option<String>,
     pub custom_message_for_card_terms: Option<String>,
+    pub custom_message_for_payment_method_types:
+        Option<common_types::payments::PaymentMethodsConfig>,
     pub payment_button_colour: Option<String>,
     pub skip_status_screen: Option<bool>,
     pub payment_button_text_colour: Option<String>,

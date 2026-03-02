@@ -4,12 +4,7 @@ use std::collections::HashMap;
 use api_models::payouts::{BankRedirect, PayoutMethodData};
 use api_models::webhooks;
 use common_enums::{enums, Currency};
-use common_utils::{
-    id_type,
-    pii::{self, Email},
-    request::Method,
-    types::FloatMajorUnit,
-};
+use common_utils::{id_type, pii::Email, request::Method, types::FloatMajorUnit};
 use hyperswitch_domain_models::{
     payment_method_data::{BankRedirectData, PaymentMethodData},
     router_data::{
@@ -172,6 +167,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, LoonioPaymentsResponse, T, PaymentsResp
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -216,7 +212,7 @@ impl From<LoonioTransactionStatus> for enums::AttemptStatus {
 pub struct LoonioTransactionSyncResponse {
     pub transaction_id: String,
     pub state: LoonioTransactionStatus,
-    pub customer_bank_info: Option<pii::SecretSerdeValue>,
+    pub customer_bank_info: Option<LoonioCustomerInfo>,
 }
 
 #[derive(Default, Debug, Serialize)]
@@ -248,12 +244,16 @@ impl<F, T> TryFrom<ResponseRouterData<F, LoonioPaymentResponseData, T, PaymentsR
                         .as_ref()
                         .map(|customer_info| {
                             ConnectorResponseData::with_additional_payment_method_data(
-                                AdditionalPaymentMethodConnectorResponse::BankRedirect {
-                                    interac: Some(InteracCustomerInfo {
-                                        customer_info: Some(customer_info.clone()),
-                                    }),
-                                },
-                            )
+                            AdditionalPaymentMethodConnectorResponse::BankRedirect {
+                                interac: Some(InteracCustomerInfo {
+                                    customer_info: Some(
+                                        common_types::payments::InteracCustomerInfoDetails::from(
+                                            customer_info,
+                                        ),
+                                    ),
+                                }),
+                            },
+                        )
                         });
                 Ok(Self {
                     status: enums::AttemptStatus::from(sync_response.state),
@@ -267,6 +267,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, LoonioPaymentResponseData, T, PaymentsR
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     }),
                     connector_response,
@@ -279,7 +280,11 @@ impl<F, T> TryFrom<ResponseRouterData<F, LoonioPaymentResponseData, T, PaymentsR
                     ConnectorResponseData::with_additional_payment_method_data(
                         AdditionalPaymentMethodConnectorResponse::BankRedirect {
                             interac: Some(InteracCustomerInfo {
-                                customer_info: Some(customer_info.clone()),
+                                customer_info: Some(
+                                    common_types::payments::InteracCustomerInfoDetails::from(
+                                        customer_info,
+                                    ),
+                                ),
                             }),
                         },
                     )
@@ -296,12 +301,25 @@ impl<F, T> TryFrom<ResponseRouterData<F, LoonioPaymentResponseData, T, PaymentsR
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     }),
                     connector_response,
                     ..item.data
                 })
             }
+        }
+    }
+}
+
+impl From<&LoonioCustomerInfo> for common_types::payments::InteracCustomerInfoDetails {
+    fn from(value: &LoonioCustomerInfo) -> Self {
+        Self {
+            customer_name: value.customer_name.clone(),
+            customer_email: value.customer_email.clone(),
+            customer_phone_number: value.customer_phone_number.clone(),
+            customer_bank_id: value.customer_bank_id.clone(),
+            customer_bank_name: value.customer_bank_name.clone(),
         }
     }
 }
@@ -413,10 +431,18 @@ pub struct LoonioWebhookBody {
     pub api_transaction_id: String,
     pub signature: Option<String>,
     pub event_code: LoonioWebhookEventCode,
-    pub id: i32,
     #[serde(rename = "type")]
     pub transaction_type: LoonioWebhookTransactionType,
-    pub customer_info: Option<pii::SecretSerdeValue>,
+    pub customer_info: Option<LoonioCustomerInfo>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct LoonioCustomerInfo {
+    pub customer_name: Option<Secret<String>>,
+    pub customer_email: Option<Email>,
+    pub customer_phone_number: Option<Secret<String>>,
+    pub customer_bank_id: Option<Secret<String>>,
+    pub customer_bank_name: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -441,6 +467,61 @@ impl From<&LoonioWebhookEventCode> for webhooks::IncomingWebhookEvent {
             | LoonioWebhookEventCode::TransactionNsf => Self::PaymentIntentFailure,
             _ => Self::EventNotSupported,
         }
+    }
+}
+
+pub(crate) fn get_loonio_webhook_event(
+    transaction_type: &LoonioWebhookTransactionType,
+    event_code: &LoonioWebhookEventCode,
+) -> webhooks::IncomingWebhookEvent {
+    match transaction_type {
+        LoonioWebhookTransactionType::OutgoingNotVerified => {
+            #[cfg(feature = "payouts")]
+            {
+                match event_code {
+                    LoonioWebhookEventCode::TransactionPrepared => {
+                        webhooks::IncomingWebhookEvent::PayoutCreated
+                    }
+                    LoonioWebhookEventCode::TransactionPending => {
+                        webhooks::IncomingWebhookEvent::PayoutProcessing
+                    }
+                    LoonioWebhookEventCode::TransactionAvailable
+                    | LoonioWebhookEventCode::TransactionSettled => {
+                        webhooks::IncomingWebhookEvent::PayoutSuccess
+                    }
+                    LoonioWebhookEventCode::TransactionFailed
+                    | LoonioWebhookEventCode::TransactionRejected => {
+                        webhooks::IncomingWebhookEvent::PayoutFailure
+                    }
+                    _ => webhooks::IncomingWebhookEvent::EventNotSupported,
+                }
+            }
+
+            #[cfg(not(feature = "payouts"))]
+            {
+                webhooks::IncomingWebhookEvent::EventNotSupported
+            }
+        }
+
+        _ => match event_code {
+            LoonioWebhookEventCode::TransactionSettled
+            | LoonioWebhookEventCode::TransactionAvailable => {
+                webhooks::IncomingWebhookEvent::PaymentIntentSuccess
+            }
+            LoonioWebhookEventCode::TransactionPending
+            | LoonioWebhookEventCode::TransactionPrepared => {
+                webhooks::IncomingWebhookEvent::PaymentIntentProcessing
+            }
+            LoonioWebhookEventCode::TransactionFailed
+            | LoonioWebhookEventCode::TransactionRejected
+            | LoonioWebhookEventCode::TransactionStatusFileFailed
+            | LoonioWebhookEventCode::TransactionReturned
+            | LoonioWebhookEventCode::TransactionWrongDestination
+            | LoonioWebhookEventCode::TransactionNsf => {
+                webhooks::IncomingWebhookEvent::PaymentIntentFailure
+            }
+            _ => webhooks::IncomingWebhookEvent::EventNotSupported,
+        },
     }
 }
 

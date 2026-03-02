@@ -47,6 +47,7 @@ use crate::{
 pub mod dashboard_metadata;
 pub mod decision_manager;
 pub use decision_manager::*;
+pub mod oidc;
 pub mod user_authentication_method;
 
 use super::{types as domain_types, UserKeyStore};
@@ -269,8 +270,9 @@ impl NewUserOrganization {
 impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUserOrganization {
     type Error = error_stack::Report<UserErrors>;
     fn try_from(value: user_api::SignUpWithMerchantIdRequest) -> UserResult<Self> {
+        let org_type = value.organization_type.unwrap_or_default();
         let new_organization = api_org::OrganizationNew::new(
-            common_enums::OrganizationType::Standard,
+            org_type,
             Some(UserCompanyName::new(value.company_name)?.get_secret()),
         );
         let db_organization = ForeignFrom::foreign_from(new_organization);
@@ -416,7 +418,7 @@ pub struct NewUserMerchant {
     company_name: Option<UserCompanyName>,
     new_organization: NewUserOrganization,
     product_type: Option<common_enums::MerchantProductType>,
-    merchant_account_type: Option<common_enums::MerchantAccountRequestType>,
+    merchant_account_type: Option<common_enums::MerchantAccountType>,
 }
 
 impl TryFrom<UserCompanyName> for MerchantName {
@@ -449,7 +451,6 @@ impl NewUserMerchant {
         if state
             .store
             .get_merchant_key_store_by_merchant_id(
-                &(&state).into(),
                 &self.get_merchant_id(),
                 &state.store.get_master_key().to_vec().into(),
             )
@@ -542,11 +543,9 @@ impl NewUserMerchant {
             return Err(UserErrors::InternalServerError.into());
         };
 
-        let key_manager_state = &(&state).into();
         let merchant_key_store = state
             .store
             .get_merchant_key_store_by_merchant_id(
-                key_manager_state,
                 &merchant_account_response.merchant_id,
                 &state.store.get_master_key().to_vec().into(),
             )
@@ -557,7 +556,6 @@ impl NewUserMerchant {
         let merchant_account = state
             .store
             .find_merchant_account_by_merchant_id(
-                key_manager_state,
                 &merchant_account_response.merchant_id,
                 &merchant_key_store,
             )
@@ -593,11 +591,9 @@ impl NewUserMerchant {
             ..Default::default()
         };
 
-        let key_manager_state = &(&state).into();
         let merchant_key_store = state
             .store
             .get_merchant_key_store_by_merchant_id(
-                key_manager_state,
                 &merchant_account_response.id,
                 &state.store.get_master_key().to_vec().into(),
             )
@@ -608,7 +604,6 @@ impl NewUserMerchant {
         let merchant_account = state
             .store
             .find_merchant_account_by_merchant_id(
-                key_manager_state,
                 &merchant_account_response.id,
                 &merchant_key_store,
             )
@@ -616,15 +611,18 @@ impl NewUserMerchant {
             .change_context(UserErrors::InternalServerError)
             .attach_printable("Failed to retrieve merchant account by merchant_id")?;
 
-        let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+        let platform = domain::Platform::new(
             merchant_account.clone(),
-            merchant_key_store,
-        )));
+            merchant_key_store.clone(),
+            merchant_account.clone(),
+            merchant_key_store.clone(),
+            None,
+        );
 
         Box::pin(admin::create_profile(
             state,
             profile_create_request,
-            merchant_context,
+            platform.get_processor().clone(),
         ))
         .await
         .change_context(UserErrors::InternalServerError)
@@ -674,12 +672,20 @@ impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUserMerchant {
         let merchant_id = MerchantId::new(value.company_name.clone())?;
         let new_organization = NewUserOrganization::try_from(value)?;
         let product_type = Some(consts::user::DEFAULT_PRODUCT_TYPE);
+        let merchant_account_type = match new_organization.0.organization_type {
+            common_enums::OrganizationType::Platform => {
+                Some(common_enums::MerchantAccountType::Platform)
+            }
+            common_enums::OrganizationType::Standard => {
+                Some(common_enums::MerchantAccountType::Standard)
+            }
+        };
         Ok(Self {
             company_name,
             merchant_id: id_type::MerchantId::try_from(merchant_id)?,
             new_organization,
             product_type,
-            merchant_account_type: None,
+            merchant_account_type,
         })
     }
 }
@@ -750,7 +756,7 @@ impl TryFrom<UserMerchantCreateRequestWithToken> for NewUserMerchant {
                 user_merchant_create.company_name.clone(),
             )?),
             product_type: user_merchant_create.product_type,
-            merchant_account_type: user_merchant_create.merchant_account_type,
+            merchant_account_type: user_merchant_create.merchant_account_type.map(Into::into),
             new_organization: NewUserOrganization::from((
                 user_from_storage,
                 user_merchant_create,
@@ -870,6 +876,42 @@ impl NewUser {
         self.new_merchant
             .create_new_merchant_and_insert_in_db(state.clone())
             .await?;
+
+        // If Platform org, update organization with platform_merchant_id
+        match self.new_merchant.new_organization.0.organization_type {
+            common_enums::OrganizationType::Platform => {
+                common_utils::fp_utils::when(
+                    !matches!(
+                        self.new_merchant.merchant_account_type,
+                        Some(common_enums::MerchantAccountType::Platform)
+                    ),
+                    || {
+                        Err(
+                            report!(UserErrors::InvalidPlatformOperation).attach_printable(
+                                "Merchant account type must be Platform for Platform organization",
+                            ),
+                        )
+                    },
+                )?;
+
+                let org_update =
+                    diesel_models::organization::OrganizationUpdate::UpdatePlatformMerchant {
+                        platform_merchant_id: merchant_id.clone(),
+                    };
+
+                state
+                    .accounts_store
+                    .update_organization_by_org_id(
+                        &self.new_merchant.new_organization.get_organization_id(),
+                        org_update,
+                    )
+                    .await
+                    .change_context(UserErrors::InternalServerError)
+                    .attach_printable("Failed to update organization with platform_merchant_id")?;
+            }
+            common_enums::OrganizationType::Standard => {}
+        }
+
         let created_user = self.insert_user_in_db(db).await;
         if created_user.is_err() {
             let _ = admin::merchant_account_delete(state, merchant_id).await;
@@ -1201,11 +1243,7 @@ impl UserFromStorage {
         let key_manager_state = &state.into();
         let key_store_result = state
             .global_store
-            .get_user_key_store_by_user_id(
-                key_manager_state,
-                self.get_user_id(),
-                &master_key.to_vec().into(),
-            )
+            .get_user_key_store_by_user_id(self.get_user_id(), &master_key.to_vec().into())
             .await;
 
         if let Ok(key_store) = key_store_result {
@@ -1226,7 +1264,7 @@ impl UserFromStorage {
                     key_manager_state,
                     EncryptionTransferRequest {
                         identifier: Identifier::User(self.get_user_id().to_string()),
-                        key: consts::BASE64_ENGINE.encode(key),
+                        key: masking::StrongSecret::new(consts::BASE64_ENGINE.encode(key)),
                     },
                 )
                 .await
@@ -1238,7 +1276,7 @@ impl UserFromStorage {
                 key: domain_types::crypto_operation(
                     key_manager_state,
                     type_name!(UserKeyStore),
-                    domain_types::CryptoOperation::Encrypt(key.to_vec().into()),
+                    domain_types::CryptoOperation::EncryptLocally(key.to_vec().into()),
                     Identifier::User(self.get_user_id().to_string()),
                     master_key,
                 )
@@ -1250,7 +1288,7 @@ impl UserFromStorage {
 
             state
                 .global_store
-                .insert_user_key_store(key_manager_state, key_store, &master_key.to_vec().into())
+                .insert_user_key_store(key_store, &master_key.to_vec().into())
                 .await
                 .change_context(UserErrors::InternalServerError)
         } else {
@@ -1280,7 +1318,6 @@ impl UserFromStorage {
         let user_key_store = state
             .global_store
             .get_user_key_store_by_user_id(
-                key_manager_state,
                 self.get_user_id(),
                 &state.store.get_master_key().to_vec().into(),
             )

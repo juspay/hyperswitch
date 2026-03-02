@@ -18,7 +18,7 @@ use crate::{
 #[cfg(feature = "v2")]
 pub async fn validate_request_and_initiate_payment_method_collect_link(
     _state: &SessionState,
-    _merchant_context: &domain::MerchantContext,
+    _platform: &domain::Platform,
     _req: &PaymentMethodCollectLinkRequest,
 ) -> RouterResult<PaymentMethodCollectLinkData> {
     todo!()
@@ -27,21 +27,20 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
 #[cfg(feature = "v1")]
 pub async fn validate_request_and_initiate_payment_method_collect_link(
     state: &SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     req: &PaymentMethodCollectLinkRequest,
 ) -> RouterResult<PaymentMethodCollectLinkData> {
     // Validate customer_id
     let db: &dyn StorageInterface = &*state.store;
     let customer_id = req.customer_id.clone();
-    let merchant_id = merchant_context.get_merchant_account().get_id().clone();
+    let merchant_id = platform.get_provider().get_account().get_id().clone();
     #[cfg(feature = "v1")]
     match db
         .find_customer_by_customer_id_merchant_id(
-            &state.into(),
             &customer_id,
             &merchant_id,
-            merchant_context.get_merchant_key_store(),
-            merchant_context.get_merchant_account().storage_scheme,
+            platform.get_provider().get_key_store(),
+            platform.get_provider().get_account().storage_scheme,
         )
         .await
     {
@@ -74,8 +73,9 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
     let default_config = &state.conf.generic_link.payment_method_collect;
 
     #[cfg(feature = "v1")]
-    let merchant_config = merchant_context
-        .get_merchant_account()
+    let merchant_config = platform
+        .get_processor()
+        .get_account()
         .pm_collect_link_config
         .as_ref()
         .map(|config| {

@@ -1,5 +1,6 @@
 pub mod disputes;
 pub mod fraud_check;
+pub mod merchant_connector_webhook_management;
 pub mod revenue_recovery;
 pub mod subscriptions;
 use std::collections::HashMap;
@@ -10,11 +11,12 @@ pub use disputes::{
     AcceptDisputeResponse, DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
     SubmitEvidenceResponse,
 };
-use serde::Serialize;
+use error_stack::ResultExt;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     errors::api_error_response::ApiErrorResponse,
-    router_request_types::{authentication::AuthNFlowType, ResponseId},
+    router_request_types::{authentication::AuthNFlowType, ResponseId, UcsAuthenticationData},
     vault::PaymentMethodVaultingData,
 };
 
@@ -62,7 +64,13 @@ pub enum PaymentsResponseData {
         network_txn_id: Option<String>,
         connector_response_reference_id: Option<String>,
         incremental_authorization_allowed: Option<bool>,
+        authentication_data: Option<Box<UcsAuthenticationData>>,
         charges: Option<common_types::payments::ConnectorChargeResponseData>,
+    },
+    PostCaptureVoidResponse {
+        post_capture_void_status: common_enums::PostCaptureVoidStatus,
+        connector_reference_id: Option<String>,
+        description: Option<String>,
     },
     MultipleCaptureResponse {
         // pending_capture_id_list: Vec<String>,
@@ -110,6 +118,7 @@ pub enum PaymentsResponseData {
     },
     PaymentsCreateOrderResponse {
         order_id: String,
+        session_token: Option<api_models::payments::SessionToken>,
     },
 }
 
@@ -124,7 +133,7 @@ pub struct TaxCalculationResponseData {
     pub order_tax_amount: MinorUnit,
 }
 
-#[derive(Serialize, Debug, Clone)]
+#[derive(Serialize, Debug, Clone, serde::Deserialize)]
 pub struct MandateReference {
     pub connector_mandate_id: Option<String>,
     pub payment_method_id: Option<String>,
@@ -213,6 +222,7 @@ impl PaymentsResponseData {
                     network_txn_id: auth_network_txn_id,
                     connector_response_reference_id: auth_connector_response_reference_id,
                     incremental_authorization_allowed: auth_incremental_auth_allowed,
+                    authentication_data: auth_authentication_data,
                     charges: auth_charges,
                 },
                 Self::TransactionResponse {
@@ -223,6 +233,7 @@ impl PaymentsResponseData {
                     network_txn_id: capture_network_txn_id,
                     connector_response_reference_id: capture_connector_response_reference_id,
                     incremental_authorization_allowed: capture_incremental_auth_allowed,
+                    authentication_data: capture_authentication_data,
                     charges: capture_charges,
                 },
             ) => Ok(Self::TransactionResponse {
@@ -248,6 +259,9 @@ impl PaymentsResponseData {
                     .or(auth_connector_response_reference_id.clone()),
                 incremental_authorization_allowed: (*capture_incremental_auth_allowed)
                     .or(*auth_incremental_auth_allowed),
+                authentication_data: capture_authentication_data
+                    .clone()
+                    .or(auth_authentication_data.clone()),
                 charges: auth_charges.clone().or(capture_charges.clone()),
             }),
             _ => Err(ApiErrorResponse::NotSupported {
@@ -281,12 +295,32 @@ impl PaymentsResponseData {
             None
         }
     }
+
+    pub fn get_mandate_reference(&self) -> Option<MandateReference> {
+        if let Self::TransactionResponse {
+            mandate_reference, ..
+        } = self
+        {
+            mandate_reference.as_ref().clone()
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub enum PreprocessingResponseId {
     PreProcessingId(String),
     ConnectorTransactionId(String),
+}
+
+impl PreprocessingResponseId {
+    pub fn get_string_repr(&self) -> &String {
+        match self {
+            Self::PreProcessingId(value) => value,
+            Self::ConnectorTransactionId(value) => value,
+        }
+    }
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, serde::Deserialize)]
@@ -346,6 +380,9 @@ pub enum RedirectForm {
         method: Method,
         form_fields: HashMap<String, String>,
         collection_id: Option<String>,
+    },
+    WorldpayxmlRedirectForm {
+        jwt: String,
     },
 }
 
@@ -462,6 +499,7 @@ impl From<RedirectForm> for diesel_models::payment_attempt::RedirectForm {
                 form_fields,
                 collection_id,
             },
+            RedirectForm::WorldpayxmlRedirectForm { jwt } => Self::WorldpayxmlRedirectForm { jwt },
         }
     }
 }
@@ -562,6 +600,9 @@ impl From<diesel_models::payment_attempt::RedirectForm> for RedirectForm {
                 form_fields,
                 collection_id,
             },
+            diesel_models::payment_attempt::RedirectForm::WorldpayxmlRedirectForm { jwt } => {
+                Self::WorldpayxmlRedirectForm { jwt }
+            }
         }
     }
 }
@@ -623,6 +664,7 @@ pub enum AuthenticationResponseData {
         message_version: common_utils::types::SemanticVersion,
         connector_metadata: Option<serde_json::Value>,
         directory_server_id: Option<String>,
+        scheme_id: Option<String>,
     },
     AuthNResponse {
         authn_flow_type: AuthNFlowType,
@@ -683,6 +725,12 @@ pub trait SupportedPaymentMethodsExt {
         payment_method_type: common_enums::PaymentMethodType,
         payment_method_details: PaymentMethodDetails,
     );
+
+    fn is_refund_supported(
+        &self,
+        payment_method: &common_enums::PaymentMethod,
+        payment_method_type: &common_enums::PaymentMethodType,
+    ) -> bool;
 }
 
 impl SupportedPaymentMethodsExt for SupportedPaymentMethods {
@@ -701,6 +749,23 @@ impl SupportedPaymentMethodsExt for SupportedPaymentMethods {
             self.insert(payment_method, payment_method_type_metadata);
         }
     }
+
+    fn is_refund_supported(
+        &self,
+        payment_method: &common_enums::PaymentMethod,
+        payment_method_type: &common_enums::PaymentMethodType,
+    ) -> bool {
+        self.get(payment_method)
+            .and_then(|pm_types| pm_types.get(payment_method_type))
+            .map(|details| details.supports_refund())
+            .unwrap_or(true)
+    }
+}
+
+impl PaymentMethodDetails {
+    fn supports_refund(&self) -> bool {
+        self.refunds.is_supported()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -710,7 +775,7 @@ pub enum VaultResponseData {
         client_secret: masking::Secret<String>,
     },
     ExternalVaultInsertResponse {
-        connector_vault_id: String,
+        connector_vault_id: VaultIdType,
         fingerprint_id: String,
     },
     ExternalVaultRetrieveResponse {
@@ -721,10 +786,85 @@ pub enum VaultResponseData {
     },
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum VaultIdType {
+    SingleVaultId(String),
+    MultiVauldIds(MultiVaultIdType),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum MultiVaultIdType {
+    Card {
+        tokenized_card_number: Option<masking::Secret<String>>,
+        tokenized_card_expiry_year: Option<masking::Secret<String>>,
+        tokenized_card_expiry_month: Option<masking::Secret<String>>,
+        tokenized_card_cvc: Option<masking::Secret<String>>,
+    },
+    NetworkToken {
+        tokenized_network_token: Option<masking::Secret<String>>,
+        tokenized_network_token_exp_year: Option<masking::Secret<String>>,
+        tokenized_network_token_exp_month: Option<masking::Secret<String>>,
+        tokenized_cryptogram: Option<masking::Secret<String>>,
+    },
+}
+
+impl VaultIdType {
+    pub fn get_single_vault_id(&self) -> Result<String, error_stack::Report<ApiErrorResponse>> {
+        match self {
+            Self::SingleVaultId(vault_id) => Ok(vault_id.to_string()),
+            Self::MultiVauldIds(_) => Err(ApiErrorResponse::MissingRequiredField {
+                field_name: "SingleVaultId",
+            }
+            .into()),
+        }
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn get_auth_vault_token_data(
+        &self,
+    ) -> Result<
+        api_models::authentication::AuthenticationVaultTokenData,
+        error_stack::Report<ApiErrorResponse>,
+    > {
+        match self.clone() {
+            Self::MultiVauldIds(multi_vault_data) => match multi_vault_data {
+                MultiVaultIdType::Card {
+                    tokenized_card_number,
+                    tokenized_card_expiry_year,
+                    tokenized_card_expiry_month,
+                    tokenized_card_cvc,
+                } => Ok(
+                    api_models::authentication::AuthenticationVaultTokenData::CardData {
+                        tokenized_card_number,
+                        tokenized_card_expiry_month,
+                        tokenized_card_expiry_year,
+                        tokenized_card_cvc,
+                    },
+                ),
+                MultiVaultIdType::NetworkToken {
+                    tokenized_network_token,
+                    tokenized_network_token_exp_month,
+                    tokenized_network_token_exp_year,
+                    tokenized_cryptogram,
+                } => Ok(
+                    api_models::authentication::AuthenticationVaultTokenData::NetworkTokenData {
+                        tokenized_network_token,
+                        tokenized_expiry_month: tokenized_network_token_exp_month,
+                        tokenized_expiry_year: tokenized_network_token_exp_year,
+                        tokenized_cryptogram,
+                    },
+                ),
+            },
+            Self::SingleVaultId(_) => Err(ApiErrorResponse::InternalServerError)
+                .attach_printable("Unexpected Behaviour, Multi Token Data is missing"),
+        }
+    }
+}
+
 impl Default for VaultResponseData {
     fn default() -> Self {
         Self::ExternalVaultInsertResponse {
-            connector_vault_id: String::new(),
+            connector_vault_id: VaultIdType::SingleVaultId(String::new()),
             fingerprint_id: String::new(),
         }
     }

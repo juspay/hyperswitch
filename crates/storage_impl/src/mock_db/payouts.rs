@@ -114,4 +114,14 @@ impl PayoutsInterface for MockDb {
         // TODO: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
     }
+
+    #[cfg(feature = "olap")]
+    async fn get_payout_intent_status_with_count(
+        &self,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
+        _time_range: &common_utils::types::TimeRange,
+    ) -> CustomResult<Vec<(common_enums::PayoutStatus, i64)>, StorageError> {
+        Err(StorageError::MockDbError)?
+    }
 }

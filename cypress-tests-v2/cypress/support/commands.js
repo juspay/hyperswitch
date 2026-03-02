@@ -609,42 +609,61 @@ Cypress.Commands.add(
     mcaUpdateBody.connector_type = connectorType;
     mcaUpdateBody.payment_methods_enabled = paymentMethodsEnabled;
 
-    cy.request({
-      method: "PUT",
-      url: url,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `admin-api-key=${api_key}`,
-        ...customHeaders,
-      },
-      body: mcaUpdateBody,
-      failOnStatusCode: false,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
+    // Read connector auth file and merge metadata
+    cy.readFile(globalState.get("connectorAuthFilePath")).then(
+      (jsonContent) => {
+        const jsonString = JSON.stringify(jsonContent);
+        const key =
+          connectorType === "payment_processor"
+            ? connectorName
+            : `${connectorName}_payout`;
+        const authDetails = getValueByKey(jsonString, key);
 
-      if (response.status === 200) {
-        expect(response.body.connector_name).to.equal(connectorName);
-        expect(response.body.id).to.include("mca_").and.to.not.be.empty;
-        expect(response.body.status).to.equal("active");
-        expect(response.body.profile_id).to.equal(profile_id);
-        expect(
-          response.body.connector_webhook_details.merchant_secret
-        ).to.equal(mcaUpdateBody.connector_webhook_details.merchant_secret);
-
-        if (
-          merchant_connector_id === undefined ||
-          merchant_connector_id === null
-        ) {
-          globalState.set("merchantConnectorId", response.body.id);
-          cy.task("setGlobalState", globalState.data);
+        if (authDetails && authDetails.metadata) {
+          mcaUpdateBody.metadata = {
+            ...mcaUpdateBody.metadata,
+            ...authDetails.metadata,
+          };
         }
-      } else {
-        // to be updated
-        throw new Error(
-          `Merchant connector account update call failed with status ${response.status} and message: "${response.body.error.message}"`
-        );
+
+        cy.request({
+          method: "PUT",
+          url: url,
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `admin-api-key=${api_key}`,
+            ...customHeaders,
+          },
+          body: mcaUpdateBody,
+          failOnStatusCode: false,
+        }).then((response) => {
+          logRequestId(response.headers["x-request-id"]);
+
+          if (response.status === 200) {
+            expect(response.body.connector_name).to.equal(connectorName);
+            expect(response.body.id).to.include("mca_").and.to.not.be.empty;
+            expect(response.body.status).to.equal("active");
+            expect(response.body.profile_id).to.equal(profile_id);
+            expect(
+              response.body.connector_webhook_details.merchant_secret
+            ).to.equal(mcaUpdateBody.connector_webhook_details.merchant_secret);
+
+            if (
+              merchant_connector_id === undefined ||
+              merchant_connector_id === null
+            ) {
+              globalState.set("merchantConnectorId", response.body.id);
+              cy.task("setGlobalState", globalState.data);
+            }
+          } else {
+            // to be updated
+            throw new Error(
+              `Merchant connector account update call failed with status ${response.status} and message: "${response.body.error.message}"`
+            );
+          }
+        });
       }
-    });
+    );
   }
 );
 

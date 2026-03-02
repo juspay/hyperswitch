@@ -1,7 +1,9 @@
 import { connectorDetails as CommonConnectorDetails } from "./Commons.js";
+import { connectorDetails as noonConnectorDetails } from "./Noon.js";
 
 const connectorDetails = {
   commons: CommonConnectorDetails,
+  noon: noonConnectorDetails,
 };
 
 export default function getConnectorDetails(connectorId) {
@@ -49,7 +51,29 @@ export function getValueByKey(jsonObject, key) {
     typeof jsonObject === "string" ? JSON.parse(jsonObject) : jsonObject;
 
   if (data && typeof data === "object" && key in data) {
-    return data[key];
+    const value = data[key];
+
+    // Check if the value has connector_account_details
+    if (value && typeof value === "object" && value.connector_account_details) {
+      return value;
+    }
+
+    // Check if it has nested structure like connector_1, connector_2
+    if (value && typeof value === "object") {
+      // Default to connector_1 if it exists
+      if (value.connector_1 && value.connector_1.connector_account_details) {
+        return value.connector_1;
+      }
+      // Fallback to first key that has connector_account_details
+      const keys = Object.keys(value);
+      for (const nestedKey of keys) {
+        if (value[nestedKey] && value[nestedKey].connector_account_details) {
+          return value[nestedKey];
+        }
+      }
+    }
+
+    return value;
   } else {
     return null;
   }

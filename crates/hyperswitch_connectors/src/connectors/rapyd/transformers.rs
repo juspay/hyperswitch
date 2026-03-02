@@ -470,6 +470,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, RapydPaymentsResponse, T, PaymentsRespo
                             reason: data.failure_message.to_owned(),
                             attempt_status: None,
                             connector_transaction_id: None,
+                            connector_response_reference_id: None,
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
@@ -503,6 +504,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, RapydPaymentsResponse, T, PaymentsRespo
                                     .merchant_reference_id
                                     .to_owned(),
                                 incremental_authorization_allowed: None,
+                                authentication_data: None,
                                 charges: None,
                             }),
                         )
@@ -518,6 +520,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, RapydPaymentsResponse, T, PaymentsRespo
                     reason: item.response.status.message,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,

@@ -40,18 +40,25 @@ impl super::behaviour::Conversion for UserKeyStore {
         Self: Sized,
     {
         let identifier = Identifier::User(item.user_id.clone());
+
+        let decryption_operation = if state.use_legacy_key_store_decryption {
+            CryptoOperation::Decrypt(item.key)
+        } else {
+            CryptoOperation::DecryptLocally(item.key)
+        };
+
         Ok(Self {
             key: crypto_operation(
                 state,
                 type_name!(Self::DstType),
-                CryptoOperation::Decrypt(item.key),
+                decryption_operation,
                 identifier,
                 key.peek(),
             )
             .await
             .and_then(|val| val.try_into_operation())
             .change_context(ValidationError::InvalidValue {
-                message: "Failed while decrypting customer data".to_string(),
+                message: "Failed while decrypting user key store".to_string(),
             })?,
             user_id: item.user_id,
             created_at: item.created_at,

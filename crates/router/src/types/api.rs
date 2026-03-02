@@ -12,6 +12,8 @@ pub mod files;
 #[cfg(feature = "frm")]
 pub mod fraud_check;
 pub mod mandates;
+pub mod merchant_connector_webhook_management;
+pub mod merchant_connector_webhook_management_v2;
 pub mod payment_link;
 pub mod payment_methods;
 pub mod payments;
@@ -41,8 +43,8 @@ pub mod refunds_v2;
 use std::{fmt::Debug, str::FromStr};
 
 use api_models::routing::{self as api_routing, RoutableConnectorChoice};
-use common_enums::RoutableConnectors;
 use error_stack::ResultExt;
+use euclid::enums::RoutableConnectors;
 pub use hyperswitch_domain_models::router_flow_types::{
     access_token_auth::{AccessTokenAuth, AccessTokenAuthentication},
     mandate_revoke::MandateRevoke,
@@ -60,6 +62,7 @@ pub use hyperswitch_interfaces::{
             ConnectorPreAuthenticationVersionCallV2, ExternalAuthenticationV2,
         },
         fraud_check::FraudCheck,
+        merchant_connector_webhook_management::{ConfigureConnectorWebhook, WebhookRegister},
         revenue_recovery::{
             BillingConnectorInvoiceSyncIntegration, BillingConnectorPaymentsSyncIntegration,
             RevenueRecovery, RevenueRecoveryRecordBack,
@@ -81,8 +84,8 @@ pub use self::fraud_check::*;
 pub use self::payouts::*;
 pub use self::{
     admin::*, api_keys::*, authentication::*, configs::*, connector_mapping::*, customers::*,
-    disputes::*, files::*, payment_link::*, payment_methods::*, payments::*, poll::*, refunds::*,
-    refunds_v2::*, webhooks::*,
+    disputes::*, files::*, merchant_connector_webhook_management::*, payment_link::*,
+    payment_methods::*, payments::*, poll::*, refunds::*, refunds_v2::*, webhooks::*,
 };
 use super::transformers::ForeignTryFrom;
 use crate::{

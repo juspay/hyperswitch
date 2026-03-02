@@ -32,12 +32,17 @@ pub mod health_check;
 #[cfg(feature = "v1")]
 pub mod locker_migration;
 pub mod mandate;
+pub mod merchant_connector_webhook_management;
 pub mod metrics;
 pub mod payment_link;
 #[cfg(feature = "v2")]
 pub mod payment_method_balance;
 pub mod payment_methods;
 pub mod payments;
+
+#[cfg(feature = "v2")]
+pub mod split_payments;
+
 #[cfg(feature = "payouts")]
 pub mod payout_link;
 #[cfg(feature = "payouts")]

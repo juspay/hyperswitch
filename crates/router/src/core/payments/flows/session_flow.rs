@@ -8,6 +8,7 @@ use common_utils::{
 use error_stack::{Report, ResultExt};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentIntentData;
+use hyperswitch_interfaces::api::gateway;
 use masking::{ExposeInterface, ExposeOptionInterface};
 
 use super::{ConstructFlowSpecificData, Feature};
@@ -15,7 +16,12 @@ use crate::{
     consts::PROTOCOL,
     core::{
         errors::{self, ConnectorErrorExt, RouterResult},
-        payments::{self, access_token, customers, helpers, transformers, PaymentData},
+        payments::{
+            self, access_token, customers,
+            gateway::context as gateway_context,
+            helpers::{self},
+            transformers, PaymentData,
+        },
     },
     headers, logger,
     routes::{self, app::settings, metrics},
@@ -38,7 +44,7 @@ impl
         &self,
         state: &routes::SessionState,
         connector_id: &str,
-        merchant_context: &domain::MerchantContext,
+        processor: &domain::Processor,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -48,7 +54,7 @@ impl
             state,
             self.clone(),
             connector_id,
-            merchant_context,
+            processor,
             customer,
             merchant_connector_account,
             merchant_recipient_data,
@@ -68,8 +74,7 @@ impl
         &self,
         state: &routes::SessionState,
         connector_id: &str,
-        merchant_context: &domain::MerchantContext,
-        customer: &Option<domain::Customer>,
+        processor: &domain::Processor,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
@@ -83,8 +88,7 @@ impl
             state,
             self.clone(),
             connector_id,
-            merchant_context,
-            customer,
+            processor,
             merchant_connector_account,
             merchant_recipient_data,
             header_payload,
@@ -106,6 +110,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
         _return_raw_connector_response: Option<bool>,
+        gateway_context: gateway_context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         metrics::SESSION_TOKEN_CREATED.add(
             1,
@@ -118,6 +123,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
             call_connector_action,
             business_profile,
             header_payload,
+            gateway_context,
         )
         .await
     }
@@ -126,14 +132,16 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         &self,
         state: &routes::SessionState,
         connector: &api::ConnectorData,
-        _merchant_context: &domain::MerchantContext,
+        _processor: &domain::Processor,
         creds_identifier: Option<&str>,
+        gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(
             state,
             connector,
             self,
             creds_identifier,
+            gateway_context,
         ))
         .await
     }
@@ -142,12 +150,14 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         &self,
         state: &routes::SessionState,
         connector: &api::ConnectorData,
+        gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<Option<String>> {
         customers::create_connector_customer(
             state,
             connector,
             self,
             types::ConnectorCustomerData::try_from(self)?,
+            gateway_context,
         )
         .await
     }
@@ -290,11 +300,11 @@ async fn create_applepay_session_token(
         ) = match apple_pay_metadata {
             payment_types::ApplepaySessionTokenMetadata::ApplePayCombined(
                 apple_pay_combined_metadata,
-            ) => match apple_pay_combined_metadata {
-                payment_types::ApplePayCombinedMetadata::Simplified {
+            ) => match apple_pay_combined_metadata.get_combined_metadata_required() {
+                Ok(payment_types::ApplePayCombinedMetadata::Simplified {
                     payment_request_data,
                     session_token_data,
-                } => {
+                }) => {
                     logger::info!("Apple pay simplified flow");
 
                     let merchant_identifier = state
@@ -336,10 +346,10 @@ async fn create_applepay_session_token(
                         Some(session_token_data.initiative_context),
                     )
                 }
-                payment_types::ApplePayCombinedMetadata::Manual {
+                Ok(payment_types::ApplePayCombinedMetadata::Manual {
                     payment_request_data,
                     session_token_data,
-                } => {
+                }) => {
                     logger::info!("Apple pay manual flow");
 
                     let apple_pay_session_request = get_session_request_for_manual_apple_pay(
@@ -358,6 +368,24 @@ async fn create_applepay_session_token(
                         merchant_business_country,
                         session_token_data.initiative_context,
                     )
+                }
+                Err(_) => {
+                    if apple_pay_combined_metadata.is_predecrypted_token_supported() {
+                        logger::info!("Apple pay only predecrypted flows are enabled");
+                        return Ok(types::PaymentsSessionRouterData {
+                            response: Ok(types::PaymentsResponseData::SessionResponse {
+                                session_token: payment_types::SessionToken::NoSessionTokenReceived,
+                            }),
+                            ..router_data.clone()
+                        });
+                    } else {
+                        logger::info!("Apple pay No flows are enabled");
+                        return Err(errors::ApiErrorResponse::InvalidDataFormat {
+                            field_name: "connector_metadata".to_string(),
+                            expected_format: "applepay_metadata_format".to_string(),
+                        }
+                        .into());
+                    }
                 }
             },
             payment_types::ApplepaySessionTokenMetadata::ApplePay(apple_pay_metadata) => {
@@ -1015,11 +1043,15 @@ fn create_gpay_session_token(
                     expected_format: "gpay_connector_wallets_details_format".to_string(),
                 })?;
 
+            let (provider_details, cards) = (
+                gpay_data.google_pay.provider_details,
+                gpay_data.google_pay.cards,
+            );
             let payment_types::GooglePayProviderDetails::GooglePayMerchantDetails(gpay_info) =
-                gpay_data.google_pay.provider_details.clone();
+                provider_details.clone();
 
             let gpay_allowed_payment_methods = get_allowed_payment_methods_from_cards(
-                gpay_data,
+                cards,
                 &gpay_info.merchant_info.tokenization_specification,
                 is_billing_details_required,
             )?;
@@ -1076,9 +1108,25 @@ fn create_gpay_session_token(
                     field_name: "connector_metadata".to_string(),
                     expected_format: "gpay_metadata_format".to_string(),
                 })?;
-
+            let gpay_data = match gpay_data.google_pay.data {
+                Some(data) => data,
+                None => {
+                    if gpay_data.google_pay.is_predecrypted_token_supported() {
+                        return Ok(types::PaymentsSessionRouterData {
+                            response: Ok(types::PaymentsResponseData::SessionResponse {
+                                session_token: payment_types::SessionToken::NoSessionTokenReceived,
+                            }),
+                            ..router_data.clone()
+                        });
+                    }
+                    return Err(errors::ApiErrorResponse::InvalidDataFormat {
+                        field_name: "connector_metadata".to_string(),
+                        expected_format: "GpayMetadata".to_string(),
+                    }
+                    .into());
+                }
+            };
             let gpay_allowed_payment_methods = gpay_data
-                .data
                 .allowed_payment_methods
                 .into_iter()
                 .map(
@@ -1087,6 +1135,21 @@ fn create_gpay_session_token(
                             billing_address_required: Some(is_billing_details_required),
                             billing_address_parameters: billing_address_parameters.clone(),
                             ..allowed_payment_methods.parameters
+                        },
+                        tokenization_specification: payment_types::GpayTokenizationSpecification {
+                            parameters: payment_types::GpayTokenParameters {
+                                stripe_publishable_key: construct_stripe_publishable_key(
+                                    &allowed_payment_methods
+                                        .tokenization_specification
+                                        .parameters,
+                                    router_data,
+                                )
+                                .expose_option(),
+                                ..allowed_payment_methods
+                                    .tokenization_specification
+                                    .parameters
+                            },
+                            ..allowed_payment_methods.tokenization_specification
                         },
                         ..allowed_payment_methods
                     },
@@ -1098,7 +1161,7 @@ fn create_gpay_session_token(
                     session_token: payment_types::SessionToken::GooglePay(Box::new(
                         payment_types::GpaySessionTokenResponse::GooglePaySession(
                             payment_types::GooglePaySessionResponse {
-                                merchant_info: gpay_data.data.merchant_info,
+                                merchant_info: gpay_data.merchant_info,
                                 allowed_payment_methods: gpay_allowed_payment_methods,
                                 transaction_info,
                                 connector: connector.connector_name.to_string(),
@@ -1131,7 +1194,7 @@ fn create_gpay_session_token(
 pub(crate) const CARD: &str = "CARD";
 
 fn get_allowed_payment_methods_from_cards(
-    gpay_info: payment_types::GooglePayWalletDetails,
+    gpay_cards: payment_types::GpayAllowedMethodsParameters,
     gpay_token_specific_data: &payment_types::GooglePayTokenizationSpecification,
     is_billing_details_required: bool,
 ) -> RouterResult<payment_types::GpayAllowedPaymentMethods> {
@@ -1151,7 +1214,7 @@ fn get_allowed_payment_methods_from_cards(
         parameters: payment_types::GpayAllowedMethodsParameters {
             billing_address_required: Some(is_billing_details_required),
             billing_address_parameters: billing_address_parameters.clone(),
-            ..gpay_info.google_pay.cards
+            ..gpay_cards
         },
         payment_method_type: CARD.to_string(),
         tokenization_specification: payment_types::GpayTokenizationSpecification {
@@ -1178,6 +1241,31 @@ fn get_allowed_payment_methods_from_cards(
             },
         },
     })
+}
+
+fn construct_stripe_publishable_key(
+    gpay_token_specific_parameters: &payment_types::GpayTokenParameters,
+    router_data: &types::PaymentsSessionRouterData,
+) -> Option<masking::Secret<String>> {
+    let suffix =
+        if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(stripe)) =
+            &router_data.request.split_payments
+        {
+            if stripe.charge_type
+                == common_enums::PaymentChargeType::Stripe(common_enums::StripeChargeType::Direct)
+            {
+                format!("/{}", stripe.transfer_account_id)
+            } else {
+                String::new()
+            }
+        } else {
+            String::new()
+        };
+
+    gpay_token_specific_parameters
+        .stripe_publishable_key
+        .clone()
+        .map(|key| masking::Secret::new(format!("{}{}", key, suffix)))
 }
 
 fn is_session_response_delayed(
@@ -1209,6 +1297,7 @@ pub trait RouterDataSession
 where
     Self: Sized,
 {
+    #[allow(clippy::too_many_arguments)]
     async fn decide_flow<'a, 'b>(
         &'b self,
         state: &'a routes::SessionState,
@@ -1217,6 +1306,7 @@ where
         call_connector_action: payments::CallConnectorAction,
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        gateway_context: payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<Self>;
 }
 
@@ -1411,6 +1501,7 @@ impl RouterDataSession for types::PaymentsSessionRouterData {
         call_connector_action: payments::CallConnectorAction,
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        gateway_context: payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         match connector.get_token {
             api::GetToken::GpayMetadata => {
@@ -1443,13 +1534,14 @@ impl RouterDataSession for types::PaymentsSessionRouterData {
                     types::PaymentsSessionData,
                     types::PaymentsResponseData,
                 > = connector.connector.get_connector_integration();
-                let resp = services::execute_connector_processing_step(
+                let resp = gateway::execute_payment_gateway(
                     state,
                     connector_integration,
                     self,
                     call_connector_action,
                     None,
                     None,
+                    gateway_context,
                 )
                 .await
                 .to_payment_failed_response()?;

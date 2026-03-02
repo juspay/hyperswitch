@@ -14,6 +14,7 @@ use crate::workflows::revenue_recovery::update_token_expiry_based_on_schedule_ti
 use crate::{
     consts,
     core::{
+        configs,
         errors::StorageErrorExt,
         payments::{self as payment_flows, operations},
     },
@@ -52,10 +53,8 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
             .tracking_data
             .clone()
             .parse_value("PaymentsRetrieveRequest")?;
-        let key_manager_state = &state.into();
         let key_store = db
             .get_merchant_key_store_by_merchant_id(
-                key_manager_state,
                 tracking_data
                     .merchant_id
                     .as_ref()
@@ -66,7 +65,6 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
 
         let merchant_account = db
             .find_merchant_account_by_merchant_id(
-                key_manager_state,
                 tracking_data
                     .merchant_id
                     .as_ref()
@@ -75,32 +73,37 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
             )
             .await?;
 
-        let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+        let platform = domain::Platform::new(
             merchant_account.clone(),
             key_store.clone(),
-        )));
+            merchant_account.clone(),
+            key_store.clone(),
+            None,
+        );
+        let dimensions = configs::dimension_state::Dimensions::new()
+            .with_merchant_id(platform.get_processor().get_account().get_id().clone());
         // TODO: Add support for ReqState in PT flows
-        let (mut payment_data, _, customer, _, _) =
-            Box::pin(payment_flows::payments_operation_core::<
-                api::PSync,
-                _,
-                _,
-                _,
-                payment_flows::PaymentData<api::PSync>,
-            >(
-                state,
-                state.get_req_state(),
-                &merchant_context,
-                None,
-                operations::PaymentStatus,
-                tracking_data.clone(),
-                payment_flows::CallConnectorAction::Trigger,
-                None,
-                services::AuthFlow::Client,
-                None,
-                hyperswitch_domain_models::payments::HeaderPayload::default(),
-            ))
-            .await?;
+        let (mut payment_data, _, _, _) = Box::pin(payment_flows::payments_operation_core::<
+            api::PSync,
+            _,
+            _,
+            _,
+            payment_flows::PaymentData<api::PSync>,
+        >(
+            state,
+            state.get_req_state(),
+            &platform,
+            None,
+            operations::PaymentStatus,
+            tracking_data.clone(),
+            payment_flows::CallConnectorAction::Trigger,
+            None,
+            services::AuthFlow::Client,
+            None,
+            hyperswitch_domain_models::payments::HeaderPayload::default(),
+            dimensions,
+        ))
+        .await?;
 
         let terminal_status = [
             enums::AttemptStatus::RouterDeclined,
@@ -158,12 +161,20 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                             updated_by: merchant_account.storage_scheme.to_string(),
                             unified_code: None,
                             unified_message: None,
+                            standardised_code: None,
+                            description: None,
+                            user_guidance_message: None,
                             connector_transaction_id: None,
+                            connector_response_reference_id: None,
                             payment_method_data: None,
                             authentication_type: None,
                             issuer_error_code: None,
                             issuer_error_message: None,
-                            network_details:None
+                            network_details: None,
+                            network_error_message: None,
+                            encrypted_payment_method_data: None,
+                            recommended_action: None,
+                            card_network: payment_data.payment_attempt.extract_card_network(),
                         };
 
                     payment_data.payment_attempt = db
@@ -171,13 +182,13 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                             payment_data.payment_attempt,
                             payment_attempt_update,
                             merchant_account.storage_scheme,
+                            &key_store,
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
                     payment_data.payment_intent = db
                         .update_payment_intent(
-                            &state.into(),
                             payment_data.payment_intent,
                             payment_intent_update,
                             &key_store,
@@ -195,11 +206,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                         .attach_printable("Could not find profile_id in payment intent")?;
 
                     let business_profile = db
-                        .find_business_profile_by_profile_id(
-                            key_manager_state,
-                            &key_store,
-                            profile_id,
-                        )
+                        .find_business_profile_by_profile_id(&key_store, profile_id)
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                             id: profile_id.get_string_repr().to_owned(),
@@ -208,10 +215,10 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                     // Trigger the outgoing webhook to notify the merchant about failed payment
                     let operation = operations::PaymentStatus;
                     Box::pin(utils::trigger_payments_webhook(
-                        merchant_context,
+                        platform.get_processor(),
+                        platform.get_initiator(),
                         business_profile,
                         payment_data,
-                        customer,
                         state,
                         operation,
                     ))

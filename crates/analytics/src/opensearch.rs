@@ -43,6 +43,7 @@ pub struct OpenSearchIndexes {
     pub payment_intents: String,
     pub refunds: String,
     pub disputes: String,
+    pub payouts: String,
     pub sessionizer_payment_attempts: String,
     pub sessionizer_payment_intents: String,
     pub sessionizer_refunds: String,
@@ -88,6 +89,7 @@ impl Default for OpenSearchConfig {
                 payment_intents: "hyperswitch-payment-intent-events".to_string(),
                 refunds: "hyperswitch-refund-events".to_string(),
                 disputes: "hyperswitch-dispute-events".to_string(),
+                payouts: "hyperswitch-payout-events".to_string(),
                 sessionizer_payment_attempts: "sessionizer-payment-attempt-events".to_string(),
                 sessionizer_payment_intents: "sessionizer-payment-intent-events".to_string(),
                 sessionizer_refunds: "sessionizer-refund-events".to_string(),
@@ -239,6 +241,7 @@ impl OpenSearchClient {
             SearchIndex::PaymentIntents => self.indexes.payment_intents.clone(),
             SearchIndex::Refunds => self.indexes.refunds.clone(),
             SearchIndex::Disputes => self.indexes.disputes.clone(),
+            SearchIndex::Payouts => self.indexes.payouts.clone(),
             SearchIndex::SessionizerPaymentAttempts => {
                 self.indexes.sessionizer_payment_attempts.clone()
             }
@@ -349,6 +352,12 @@ impl OpenSearchIndexes {
         when(self.disputes.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "Opensearch Disputes index must not be empty".into(),
+            ))
+        })?;
+
+        when(self.payouts.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "Opensearch Payouts index must not be empty".into(),
             ))
         })?;
 

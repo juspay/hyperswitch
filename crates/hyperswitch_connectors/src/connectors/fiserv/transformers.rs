@@ -607,12 +607,13 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
                             application_data_hash: None,
                         };
 
-                        let apple_pay_metadata = item.router_data.get_connector_meta()?.expose();
+                        let apple_pay_metadata = item.router_data.get_connector_meta()?;
                         let applepay_metadata = apple_pay_metadata
                             .clone()
                             .parse_value::<ApplepayCombinedSessionTokenData>(
                                 "ApplepayCombinedSessionTokenData",
                             )
+                            .change_context(errors::ConnectorError::ParsingFailed)
                             .map(|combined_metadata| {
                                 ApplepaySessionTokenMetadata::ApplePayCombined(
                                     combined_metadata.apple_pay_combined,
@@ -623,17 +624,19 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
                                     .parse_value::<ApplepaySessionTokenData>(
                                         "ApplepaySessionTokenData",
                                     )
+                                    .change_context(errors::ConnectorError::ParsingFailed)
                                     .map(|old_metadata| {
                                         ApplepaySessionTokenMetadata::ApplePay(
                                             old_metadata.apple_pay,
                                         )
                                     })
-                            })
-                            .change_context(errors::ConnectorError::ParsingFailed)?;
+                            })?;
 
                         let merchant_identifier = match applepay_metadata {
                             ApplepaySessionTokenMetadata::ApplePayCombined(ref combined) => {
-                                match combined {
+                                match combined.get_combined_metadata_required().change_context(
+                                    errors::ConnectorError::MissingApplePayTokenData,
+                                )? {
                                     ApplePayCombinedMetadata::Simplified { .. } => {
                                         return Err(
                                             errors::ConnectorError::MissingApplePayTokenData.into(),
@@ -641,7 +644,7 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
                                     }
                                     ApplePayCombinedMetadata::Manual {
                                         session_token_data, ..
-                                    } => &session_token_data.merchant_identifier,
+                                    } => &session_token_data.merchant_identifier.clone(),
                                 }
                             }
                             ApplepaySessionTokenMetadata::ApplePay(ref data) => {
@@ -701,7 +704,10 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => Err(
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => Err(
                 error_stack::report!(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("fiserv"),
                 )),
@@ -939,6 +945,7 @@ pub enum FiservOrderStatus {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum FiservPaymentsResponse {
     Charges(FiservChargesResponse),
     Checkout(FiservCheckoutResponse),
@@ -1016,6 +1023,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FiservPaymentsResponse, T, PaymentsResp
                     gateway_resp.transaction_processing_details.order_id,
                 ),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -1072,6 +1080,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FiservSyncResponse, T, PaymentsResponse
                 network_txn_id: None,
                 connector_response_reference_id: Some(connector_response_reference_id.to_string()),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data

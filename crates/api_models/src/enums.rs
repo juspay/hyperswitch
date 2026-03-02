@@ -1,6 +1,8 @@
 use std::str::FromStr;
 
 pub use common_enums::*;
+pub use euclid::enums::RoutableConnectors;
+use smithy::SmithyModel;
 use utoipa::ToSchema;
 
 pub use super::connector_enums::Connector;
@@ -57,6 +59,7 @@ pub enum PayoutConnectors {
     Stripe,
     Wise,
     Worldpay,
+    Worldpayxml,
 }
 
 #[cfg(feature = "v2")]
@@ -67,6 +70,16 @@ pub enum UpdateActiveAttempt {
     #[schema(value_type = Option<String>)]
     Set(common_utils::id_type::GlobalAttemptId),
     /// To unset the active attempt id
+    Unset,
+}
+
+/// Generic enum to handle updating or clearing a field
+#[derive(Debug, ToSchema, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SetOrUnset<T> {
+    /// Set the field to a specific value
+    Set(T),
+    /// Clear/unset the field
     Unset,
 }
 
@@ -87,6 +100,7 @@ impl From<PayoutConnectors> for RoutableConnectors {
             PayoutConnectors::Stripe => Self::Stripe,
             PayoutConnectors::Wise => Self::Wise,
             PayoutConnectors::Worldpay => Self::Worldpay,
+            PayoutConnectors::Worldpayxml => Self::Worldpayxml,
         }
     }
 }
@@ -108,6 +122,7 @@ impl From<PayoutConnectors> for Connector {
             PayoutConnectors::Stripe => Self::Stripe,
             PayoutConnectors::Wise => Self::Wise,
             PayoutConnectors::Worldpay => Self::Worldpay,
+            PayoutConnectors::Worldpayxml => Self::Worldpayxml,
         }
     }
 }
@@ -130,6 +145,7 @@ impl TryFrom<Connector> for PayoutConnectors {
             Connector::Stripe => Ok(Self::Stripe),
             Connector::Wise => Ok(Self::Wise),
             Connector::Worldpay => Ok(Self::Worldpay),
+            Connector::Worldpayxml => Ok(Self::Worldpayxml),
             _ => Err(format!("Invalid payout connector {value}")),
         }
     }
@@ -155,6 +171,7 @@ pub enum FrmConnectors {
     /// Signifyd Risk Manager. Official docs: https://docs.signifyd.com/
     Signifyd,
     Riskified,
+    Cybersourcedecisionmanager,
 }
 
 #[derive(
@@ -206,6 +223,18 @@ impl From<VaultConnectors> for Connector {
     }
 }
 
+impl TryFrom<Connector> for VaultConnectors {
+    type Error = String;
+    fn try_from(value: Connector) -> Result<Self, Self::Error> {
+        match value {
+            Connector::Vgs => Ok(Self::Vgs),
+            Connector::HyperswitchVault => Ok(Self::HyperswitchVault),
+            Connector::Tokenex => Ok(Self::Tokenex),
+            _ => Err(format!("Connector {value} is not a valid vault connector")),
+        }
+    }
+}
+
 #[derive(
     Clone, Debug, serde::Deserialize, serde::Serialize, strum::Display, strum::EnumString, ToSchema,
 )]
@@ -248,9 +277,11 @@ pub struct UnresolvedResponseReason {
 #[strum(serialize_all = "snake_case")]
 pub enum FieldType {
     UserCardNumber,
+    UserGiftCardNumber,
     UserCardExpiryMonth,
     UserCardExpiryYear,
     UserCardCvc,
+    UserGiftCardPin,
     UserCardNetwork,
     UserFullName,
     UserEmailAddress,
@@ -273,6 +304,7 @@ pub enum FieldType {
     UserShippingAddressPincode,
     UserShippingAddressState,
     UserShippingAddressCountry { options: Vec<String> },
+    UserDocumentType { options: Vec<String> },
     UserSocialSecurityNumber,
     UserBlikCode,
     UserBank,
@@ -424,19 +456,16 @@ mod test {
     PartialEq,
     Eq,
     ToSchema,
+    SmithyModel,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum RetryAction {
     /// Manual retry through request is being deprecated, now it is available through profile
     ManualRetry,
     /// Denotes that the payment is requeued
     Requeue,
-}
-
-#[derive(Clone, Copy)]
-pub enum LockerChoice {
-    HyperswitchCardVault,
 }
 
 #[derive(
@@ -518,8 +547,12 @@ impl From<PermissionScope> for ReconPermissionScope {
 pub enum TokenStatus {
     /// Indicates that the token is active and can be used for payments
     Active,
+    /// Indicates that the token is inactive and can't be used for payments
+    Inactive,
     /// Indicates that the token is suspended from network's end for some reason and can't be used for payments until it is re-activated
     Suspended,
-    /// Indicates that the token is deactivated and further can't be used for payments
-    Deactivated,
+    /// Indicates that the token is expired and can't be used for payments
+    Expired,
+    /// Indicates that the token is deleted and further can't be used for payments
+    Deleted,
 }

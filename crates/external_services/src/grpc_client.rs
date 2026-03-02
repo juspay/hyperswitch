@@ -23,6 +23,7 @@ use health_check_client::HealthCheckClient;
 use hyper_util::client::legacy::connect::HttpConnector;
 #[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
 use router_env::logger;
+use router_env::RequestId;
 #[cfg(any(feature = "dynamic_routing", feature = "revenue_recovery"))]
 use tonic::body::Body;
 use typed_builder::TypedBuilder;
@@ -155,29 +156,43 @@ pub struct GrpcHeaders {
 pub struct GrpcHeadersUcs {
     /// Tenant id
     tenant_id: String,
+    /// Request id
+    request_id: Option<RequestId>,
     /// Lineage ids
     lineage_ids: LineageIds,
     /// External vault proxy metadata
     external_vault_proxy_metadata: Option<String>,
     /// Merchant Reference Id
     merchant_reference_id: Option<ucs_types::UcsReferenceId>,
-
-    request_id: Option<String>,
+    /// Resource id
+    resource_id: Option<ucs_types::UcsResourceId>,
 
     shadow_mode: Option<bool>,
+    /// Config override as JSON string to pass to UCS
+    config_override: Option<String>,
 }
 
 /// Type aliase for GrpcHeaders builder in initial stage
-pub type GrpcHeadersUcsBuilderInitial =
-    GrpcHeadersUcsBuilder<((String,), (), (), (), (Option<String>,), (Option<bool>,))>;
+pub type GrpcHeadersUcsBuilderInitial = GrpcHeadersUcsBuilder<(
+    (String,),
+    (Option<RequestId>,),
+    (),
+    (),
+    (),
+    (),
+    (Option<bool>,),
+    (Option<String>,),
+)>;
 /// Type aliase for GrpcHeaders builder in intermediate stage
 pub type GrpcHeadersUcsBuilderFinal = GrpcHeadersUcsBuilder<(
     (String,),
+    (Option<RequestId>,),
     (LineageIds,),
     (Option<String>,),
     (Option<ucs_types::UcsReferenceId>,),
-    (Option<String>,),
+    (Option<ucs_types::UcsResourceId>,),
     (Option<bool>,),
+    (Option<String>,),
 )>;
 
 /// struct to represent set of Lineage ids

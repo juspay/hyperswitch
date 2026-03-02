@@ -12,7 +12,7 @@ use api_models::{
     },
 };
 use error_stack::ResultExt;
-use hyperswitch_domain_models::merchant_context::MerchantKeyStore;
+use hyperswitch_domain_models::platform::MerchantKeyStore;
 use payment_methods::core::errors::ApiErrorResponse;
 use router_env::{
     tracing::{self, instrument},
@@ -46,13 +46,11 @@ pub async fn routing_create_config(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, payload, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
             routing::create_routing_algorithm_under_profile(
                 state,
-                merchant_context,
-                auth.profile_id,
+                auth.platform,
+                profile_id,
                 payload.clone(),
                 transaction_type
                     .or(payload.transaction_type)
@@ -61,11 +59,13 @@ pub async fn routing_create_config(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -89,12 +89,9 @@ pub async fn routing_create_config(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, payload, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             routing::create_routing_algorithm_under_profile(
                 state,
-                merchant_context,
+                auth.platform,
                 Some(auth.profile.get_id().clone()),
                 payload,
                 transaction_type,
@@ -103,17 +100,21 @@ pub async fn routing_create_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::ProfileRoutingWrite,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -136,13 +137,11 @@ pub async fn routing_link_config(
         &req,
         path.into_inner(),
         |state, auth: auth::AuthenticationData, algorithm, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
             routing::link_routing_config(
                 state,
-                merchant_context,
-                auth.profile_id,
+                auth.platform,
+                profile_id,
                 algorithm,
                 transaction_type
                     .or(json_payload.transaction_type)
@@ -151,11 +150,13 @@ pub async fn routing_link_config(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -185,12 +186,9 @@ pub async fn routing_link_config(
         &req,
         wrapper.clone(),
         |state, auth: auth::AuthenticationData, wrapper, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             routing::link_routing_config_under_profile(
                 state,
-                merchant_context,
+                auth.platform,
                 wrapper.profile_id,
                 wrapper.algorithm_id.routing_algorithm_id,
                 transaction_type,
@@ -199,12 +197,14 @@ pub async fn routing_link_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             },
             &auth::JWTAuthProfileFromRoute {
                 profile_id: wrapper.profile_id,
                 required_permission: Permission::MerchantRoutingWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -212,6 +212,8 @@ pub async fn routing_link_config(
         &auth::JWTAuthProfileFromRoute {
             profile_id: wrapper.profile_id,
             required_permission: Permission::MerchantRoutingWrite,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -233,23 +235,23 @@ pub async fn routing_retrieve_config(
         &req,
         algorithm_id,
         |state, auth: auth::AuthenticationData, algorithm_id, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
             routing::retrieve_routing_algorithm_from_algorithm_id(
                 state,
-                merchant_context,
-                auth.profile_id,
+                auth.platform,
+                profile_id,
                 algorithm_id,
             )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -273,12 +275,9 @@ pub async fn routing_retrieve_config(
         &req,
         algorithm_id,
         |state, auth: auth::AuthenticationData, algorithm_id, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             routing::retrieve_routing_algorithm_from_algorithm_id(
                 state,
-                merchant_context,
+                auth.platform,
                 Some(auth.profile.get_id().clone()),
                 algorithm_id,
             )
@@ -286,17 +285,21 @@ pub async fn routing_retrieve_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::ProfileRoutingRead,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -318,12 +321,9 @@ pub async fn list_routing_configs(
         &req,
         query.into_inner(),
         |state, auth: auth::AuthenticationData, query_params, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             routing::retrieve_merchant_routing_dictionary(
                 state,
-                merchant_context,
+                auth.platform,
                 None,
                 query_params.clone(),
                 transaction_type
@@ -333,11 +333,13 @@ pub async fn list_routing_configs(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantRoutingRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -361,13 +363,10 @@ pub async fn list_routing_configs_for_profile(
         &req,
         query.into_inner(),
         |state, auth: auth::AuthenticationData, query_params, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             routing::retrieve_merchant_routing_dictionary(
                 state,
-                merchant_context,
-                auth.profile_id.map(|profile_id| vec![profile_id]),
+                auth.platform,
+                auth.profile.map(|profile| vec![profile.get_id().clone()]),
                 query_params.clone(),
                 transaction_type
                     .or(query_params.transaction_type)
@@ -376,11 +375,13 @@ pub async fn list_routing_configs_for_profile(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingRead,
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -405,12 +406,9 @@ pub async fn routing_unlink_config(
         &req,
         path.clone(),
         |state, auth: auth::AuthenticationData, path, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             routing::unlink_routing_config_under_profile(
                 state,
-                merchant_context,
+                auth.platform,
                 path,
                 transaction_type,
             )
@@ -418,12 +416,14 @@ pub async fn routing_unlink_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             },
             &auth::JWTAuthProfileFromRoute {
                 profile_id: path,
                 required_permission: Permission::MerchantRoutingWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -431,6 +431,8 @@ pub async fn routing_unlink_config(
         &auth::JWTAuthProfileFromRoute {
             profile_id: path,
             required_permission: Permission::MerchantRoutingWrite,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -452,14 +454,12 @@ pub async fn routing_unlink_config(
         &req,
         payload.into_inner(),
         |state, auth: auth::AuthenticationData, payload_req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
             routing::unlink_routing_config(
                 state,
-                merchant_context,
+                auth.platform,
                 payload_req.clone(),
-                auth.profile_id,
+                profile_id,
                 transaction_type
                     .or(payload_req.transaction_type)
                     .unwrap_or(enums::TransactionType::Payment),
@@ -467,11 +467,13 @@ pub async fn routing_unlink_config(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -498,12 +500,9 @@ pub async fn routing_update_default_config(
         &req,
         wrapper,
         |state, auth: auth::AuthenticationData, wrapper, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             routing::update_default_fallback_routing(
                 state,
-                merchant_context,
+                auth.platform,
                 wrapper.profile_id,
                 wrapper.connectors,
             )
@@ -511,17 +510,21 @@ pub async fn routing_update_default_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantRoutingWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::MerchantRoutingWrite,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -542,23 +545,22 @@ pub async fn routing_update_default_config(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, updated_config, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             routing::update_default_routing_config(
                 state,
-                merchant_context,
+                auth.platform,
                 updated_config,
                 transaction_type,
             )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantRoutingWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -581,24 +583,23 @@ pub async fn routing_retrieve_default_config(
         &req,
         path.clone(),
         |state, auth: auth::AuthenticationData, profile_id, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             routing::retrieve_default_fallback_algorithm_for_profile(
                 state,
-                merchant_context,
+                auth.platform,
                 profile_id,
             )
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             },
             &auth::JWTAuthProfileFromRoute {
                 profile_id: path,
                 required_permission: Permission::MerchantRoutingRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -606,6 +607,8 @@ pub async fn routing_retrieve_default_config(
         &auth::JWTAuthProfileFromRoute {
             profile_id: path,
             required_permission: Permission::MerchantRoutingRead,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -625,23 +628,23 @@ pub async fn routing_retrieve_default_config(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
             routing::retrieve_default_routing_config(
                 state,
-                auth.profile_id,
-                merchant_context,
+                profile_id,
+                auth.platform,
                 transaction_type,
             )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -664,29 +667,30 @@ pub async fn upsert_surcharge_decision_manager_config(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, update_decision, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             surcharge_decision_config::upsert_surcharge_decision_config(
                 state,
-                merchant_context,
+                auth.platform,
                 update_decision,
             )
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantSurchargeDecisionManagerWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::MerchantSurchargeDecisionManagerWrite,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -705,25 +709,26 @@ pub async fn delete_surcharge_decision_manager_config(
         &req,
         (),
         |state, auth: auth::AuthenticationData, (), _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            surcharge_decision_config::delete_surcharge_decision_config(state, merchant_context)
+            surcharge_decision_config::delete_surcharge_decision_config(state, auth.platform)
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantSurchargeDecisionManagerWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::MerchantSurchargeDecisionManagerWrite,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -743,25 +748,26 @@ pub async fn retrieve_surcharge_decision_manager_config(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            surcharge_decision_config::retrieve_surcharge_decision_config(state, merchant_context)
+            surcharge_decision_config::retrieve_surcharge_decision_config(state, auth.platform)
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantSurchargeDecisionManagerRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::MerchantSurchargeDecisionManagerRead,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -782,25 +788,26 @@ pub async fn upsert_decision_manager_config(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, update_decision, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            conditional_config::upsert_conditional_config(state, merchant_context, update_decision)
+            conditional_config::upsert_conditional_config(state, auth.platform, update_decision)
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantThreeDsDecisionManagerWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::MerchantThreeDsDecisionManagerWrite,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -823,7 +830,7 @@ pub async fn upsert_decision_manager_config(
         |state, auth: auth::AuthenticationData, update_decision, _| {
             conditional_config::upsert_conditional_config(
                 state,
-                auth.key_store,
+                auth.platform.get_processor().get_key_store().clone(),
                 update_decision,
                 auth.profile,
             )
@@ -831,17 +838,21 @@ pub async fn upsert_decision_manager_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileThreeDsDecisionManagerWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::ProfileThreeDsDecisionManagerWrite,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -861,25 +872,26 @@ pub async fn delete_decision_manager_config(
         &req,
         (),
         |state, auth: auth::AuthenticationData, (), _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            conditional_config::delete_conditional_config(state, merchant_context)
+            conditional_config::delete_conditional_config(state, auth.platform)
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantThreeDsDecisionManagerWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::MerchantThreeDsDecisionManagerWrite,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -900,22 +912,30 @@ pub async fn retrieve_decision_manager_config(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            conditional_config::retrieve_conditional_config(state, auth.key_store, auth.profile)
+            conditional_config::retrieve_conditional_config(
+                state,
+                auth.platform.get_processor().get_key_store().clone(),
+                auth.profile,
+            )
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileThreeDsDecisionManagerWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::ProfileThreeDsDecisionManagerWrite,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -936,25 +956,26 @@ pub async fn retrieve_decision_manager_config(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            conditional_config::retrieve_conditional_config(state, merchant_context)
+            conditional_config::retrieve_conditional_config(state, auth.platform)
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantThreeDsDecisionManagerRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::MerchantThreeDsDecisionManagerRead,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -979,13 +1000,11 @@ pub async fn routing_retrieve_linked_config(
             &req,
             query.clone(),
             |state, auth: AuthenticationData, query_params, _| {
-                let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                    domain::Context(auth.merchant_account, auth.key_store),
-                ));
+                let profile_id = auth.profile.map(|profile| profile.get_id().clone());
                 routing::retrieve_linked_routing_config(
                     state,
-                    merchant_context,
-                    auth.profile_id,
+                    auth.platform,
+                    profile_id,
                     query_params,
                     transaction_type
                         .or(query.transaction_type)
@@ -994,12 +1013,14 @@ pub async fn routing_retrieve_linked_config(
             },
             auth::auth_type(
                 &auth::HeaderAuth(auth::ApiKeyAuth {
-                    is_connected_allowed: false,
-                    is_platform_allowed: false,
+                    allow_connected_scope_operation: false,
+                    allow_platform_self_operation: false,
                 }),
                 &auth::JWTAuthProfileFromRoute {
                     profile_id,
                     required_permission: Permission::ProfileRoutingRead,
+                    allow_connected: true,
+                    allow_platform: false,
                 },
                 req.headers(),
             ),
@@ -1013,13 +1034,11 @@ pub async fn routing_retrieve_linked_config(
             &req,
             query.clone(),
             |state, auth: AuthenticationData, query_params, _| {
-                let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                    domain::Context(auth.merchant_account, auth.key_store),
-                ));
+                let profile_id = auth.profile.map(|profile| profile.get_id().clone());
                 routing::retrieve_linked_routing_config(
                     state,
-                    merchant_context,
-                    auth.profile_id,
+                    auth.platform,
+                    profile_id,
                     query_params,
                     transaction_type
                         .or(query.transaction_type)
@@ -1028,11 +1047,13 @@ pub async fn routing_retrieve_linked_config(
             },
             auth::auth_type(
                 &auth::HeaderAuth(auth::ApiKeyAuth {
-                    is_connected_allowed: false,
-                    is_platform_allowed: false,
+                    allow_connected_scope_operation: false,
+                    allow_platform_self_operation: false,
                 }),
                 &auth::JWTAuth {
                     permission: Permission::ProfileRoutingRead,
+                    allow_connected: true,
+                    allow_platform: false,
                 },
                 req.headers(),
             ),
@@ -1063,12 +1084,9 @@ pub async fn routing_retrieve_linked_config(
         &req,
         wrapper.clone(),
         |state, auth: AuthenticationData, wrapper, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             routing::retrieve_routing_config_under_profile(
                 state,
-                merchant_context,
+                auth.platform,
                 wrapper.routing_query,
                 wrapper.profile_id,
                 transaction_type,
@@ -1077,12 +1095,14 @@ pub async fn routing_retrieve_linked_config(
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             },
             &auth::JWTAuthProfileFromRoute {
                 profile_id: wrapper.profile_id,
                 required_permission: Permission::ProfileRoutingRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -1090,6 +1110,8 @@ pub async fn routing_retrieve_linked_config(
         &auth::JWTAuthProfileFromRoute {
             profile_id: wrapper.profile_id,
             required_permission: Permission::ProfileRoutingRead,
+            allow_connected: false,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -1109,34 +1131,35 @@ pub async fn routing_retrieve_default_config_for_profiles(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             routing::retrieve_default_routing_config_for_profiles(
                 state,
-                merchant_context,
+                auth.platform,
                 transaction_type,
             )
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantRoutingRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantRoutingRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -1164,12 +1187,9 @@ pub async fn routing_update_default_config_for_profile(
         &req,
         routing_payload_wrapper.clone(),
         |state, auth: auth::AuthenticationData, wrapper, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             routing::update_default_routing_config_for_profile(
                 state,
-                merchant_context,
+                auth.platform,
                 wrapper.updated_config,
                 wrapper.profile_id,
                 transaction_type,
@@ -1177,61 +1197,14 @@ pub async fn routing_update_default_config_for_profile(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuthProfileFromRoute {
                 profile_id: routing_payload_wrapper.profile_id,
                 required_permission: Permission::ProfileRoutingWrite,
-            },
-            req.headers(),
-        ),
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-#[cfg(all(feature = "olap", feature = "v1", feature = "dynamic_routing"))]
-#[instrument(skip_all)]
-pub async fn toggle_success_based_routing(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    query: web::Query<api_models::routing::ToggleDynamicRoutingQuery>,
-    path: web::Path<routing_types::ToggleDynamicRoutingPath>,
-) -> impl Responder {
-    let flow = Flow::ToggleDynamicRouting;
-    let wrapper = routing_types::ToggleDynamicRoutingWrapper {
-        feature_to_enable: query.into_inner().enable,
-        profile_id: path.into_inner().profile_id,
-    };
-    Box::pin(oss_api::server_wrap(
-        flow,
-        state,
-        &req,
-        wrapper.clone(),
-        |state,
-         auth: auth::AuthenticationData,
-         wrapper: routing_types::ToggleDynamicRoutingWrapper,
-         _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            routing::toggle_specific_dynamic_routing(
-                state,
-                merchant_context,
-                wrapper.feature_to_enable,
-                wrapper.profile_id,
-                api_models::routing::DynamicRoutingType::SuccessRateBasedRouting,
-            )
-        },
-        auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
-            }),
-            &auth::JWTAuthProfileFromRoute {
-                profile_id: wrapper.profile_id,
-                required_permission: Permission::ProfileRoutingWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -1268,12 +1241,9 @@ pub async fn create_success_based_routing(
          auth: auth::AuthenticationData,
          wrapper: routing_types::CreateDynamicRoutingWrapper,
          _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             routing::create_specific_dynamic_routing(
                 state,
-                merchant_context,
+                auth.platform,
                 wrapper.feature_to_enable,
                 wrapper.profile_id,
                 api_models::routing::DynamicRoutingType::SuccessRateBasedRouting,
@@ -1282,12 +1252,14 @@ pub async fn create_success_based_routing(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuthProfileFromRoute {
                 profile_id: wrapper.profile_id,
                 required_permission: Permission::ProfileRoutingWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -1326,12 +1298,14 @@ pub async fn success_based_routing_update_configs(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuthProfileFromRoute {
                 profile_id: routing_payload_wrapper.profile_id,
                 required_permission: Permission::ProfileRoutingWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -1370,12 +1344,14 @@ pub async fn elimination_routing_update_configs(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuthProfileFromRoute {
                 profile_id: routing_payload_wrapper.profile_id,
                 required_permission: Permission::ProfileRoutingWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -1408,12 +1384,9 @@ pub async fn contract_based_routing_setup_config(
          auth: auth::AuthenticationData,
          wrapper: routing_types::ContractBasedRoutingSetupPayloadWrapper,
          _| async move {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             Box::pin(routing::contract_based_dynamic_routing_setup(
                 state,
-                merchant_context,
+                auth.platform,
                 wrapper.profile_id,
                 wrapper.features_to_enable,
                 wrapper.config,
@@ -1422,10 +1395,12 @@ pub async fn contract_based_routing_setup_config(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuthProfileFromRoute {
+                allow_connected: false,
+                allow_platform: false,
                 profile_id: routing_payload_wrapper.profile_id,
                 required_permission: Permission::ProfileRoutingWrite,
             },
@@ -1459,13 +1434,10 @@ pub async fn contract_based_routing_update_configs(
          auth: auth::AuthenticationData,
          wrapper: routing_types::ContractBasedRoutingPayloadWrapper,
          _| async {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             Box::pin(routing::contract_based_routing_update_configs(
                 state,
                 wrapper.updated_config,
-                merchant_context,
+                auth.platform,
                 wrapper.algorithm_id,
                 wrapper.profile_id,
             ))
@@ -1473,61 +1445,14 @@ pub async fn contract_based_routing_update_configs(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuthProfileFromRoute {
                 profile_id: routing_payload_wrapper.profile_id,
                 required_permission: Permission::ProfileRoutingWrite,
-            },
-            req.headers(),
-        ),
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-#[cfg(all(feature = "olap", feature = "v1", feature = "dynamic_routing"))]
-#[instrument(skip_all)]
-pub async fn toggle_elimination_routing(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    query: web::Query<api_models::routing::ToggleDynamicRoutingQuery>,
-    path: web::Path<routing_types::ToggleDynamicRoutingPath>,
-) -> impl Responder {
-    let flow = Flow::ToggleDynamicRouting;
-    let wrapper = routing_types::ToggleDynamicRoutingWrapper {
-        feature_to_enable: query.into_inner().enable,
-        profile_id: path.into_inner().profile_id,
-    };
-    Box::pin(oss_api::server_wrap(
-        flow,
-        state,
-        &req,
-        wrapper.clone(),
-        |state,
-         auth: auth::AuthenticationData,
-         wrapper: routing_types::ToggleDynamicRoutingWrapper,
-         _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            routing::toggle_specific_dynamic_routing(
-                state,
-                merchant_context,
-                wrapper.feature_to_enable,
-                wrapper.profile_id,
-                api_models::routing::DynamicRoutingType::EliminationRouting,
-            )
-        },
-        auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
-            }),
-            &auth::JWTAuthProfileFromRoute {
-                profile_id: wrapper.profile_id,
-                required_permission: Permission::ProfileRoutingWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -1564,12 +1489,9 @@ pub async fn create_elimination_routing(
          auth: auth::AuthenticationData,
          wrapper: routing_types::CreateDynamicRoutingWrapper,
          _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             routing::create_specific_dynamic_routing(
                 state,
-                merchant_context,
+                auth.platform,
                 wrapper.feature_to_enable,
                 wrapper.profile_id,
                 api_models::routing::DynamicRoutingType::EliminationRouting,
@@ -1578,12 +1500,14 @@ pub async fn create_elimination_routing(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuthProfileFromRoute {
                 profile_id: wrapper.profile_id,
                 required_permission: Permission::ProfileRoutingWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -1619,24 +1543,23 @@ pub async fn set_dynamic_routing_volume_split(
          auth: auth::AuthenticationData,
          payload: api_models::routing::RoutingVolumeSplitWrapper,
          _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             routing::configure_dynamic_routing_volume_split(
                 state,
-                merchant_context,
+                auth.platform,
                 payload.profile_id,
                 payload.routing_info,
             )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuthProfileFromRoute {
                 profile_id: payload.profile_id,
                 required_permission: Permission::ProfileRoutingWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -1661,23 +1584,18 @@ pub async fn get_dynamic_routing_volume_split(
         &req,
         payload.clone(),
         |state, auth: auth::AuthenticationData, payload, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            routing::retrieve_dynamic_routing_volume_split(
-                state,
-                merchant_context,
-                payload.profile_id,
-            )
+            routing::retrieve_dynamic_routing_volume_split(state, auth.platform, payload.profile_id)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuthProfileFromRoute {
                 profile_id: payload.profile_id,
                 required_permission: Permission::ProfileRoutingRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -1719,8 +1637,8 @@ pub async fn evaluate_routing_rule(
             Ok(services::ApplicationResponse::Json(euclid_response))
         },
         &auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -1744,12 +1662,16 @@ pub async fn migrate_routing_rules_for_profile(
         |state, _, query_params, _| async move {
             let merchant_id = query_params.merchant_id.clone();
             let (key_store, merchant_account) = get_merchant_account(&state, &merchant_id).await?;
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(merchant_account, key_store),
-            ));
+            let platform = domain::Platform::new(
+                merchant_account.clone(),
+                key_store.clone(),
+                merchant_account,
+                key_store,
+                None,
+            );
             let res = Box::pin(routing::migrate_rules_for_profile(
                 state,
-                merchant_context,
+                platform,
                 query_params,
             ))
             .await?;
@@ -1766,11 +1688,9 @@ async fn get_merchant_account(
     merchant_id: &common_utils::id_type::MerchantId,
 ) -> common_utils::errors::CustomResult<(MerchantKeyStore, domain::MerchantAccount), ApiErrorResponse>
 {
-    let key_manager_state = &state.into();
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
-            key_manager_state,
             merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -1779,7 +1699,7 @@ async fn get_merchant_account(
 
     let merchant_account = state
         .store
-        .find_merchant_account_by_merchant_id(key_manager_state, merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
         .await
         .to_not_found_response(ApiErrorResponse::MerchantAccountNotFound)?;
     Ok((key_store, merchant_account))
@@ -1798,10 +1718,12 @@ pub async fn call_decide_gateway_open_router(
         state,
         &req,
         payload.clone(),
-        |state, _auth, payload, _| routing::decide_gateway_open_router(state.clone(), payload),
+        |state, _auth: auth::AuthenticationData, payload, _| {
+            routing::decide_gateway_open_router(state.clone(), payload)
+        },
         &auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -1821,12 +1743,12 @@ pub async fn call_update_gateway_score_open_router(
         state,
         &req,
         payload.clone(),
-        |state, _auth, payload, _| {
+        |state, _auth: auth::AuthenticationData, payload, _| {
             routing::update_gateway_score_open_router(state.clone(), payload)
         },
         &auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         },
         api_locking::LockAction::NotApplicable,
     ))

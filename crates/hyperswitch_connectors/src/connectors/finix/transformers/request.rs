@@ -16,6 +16,7 @@ pub struct FinixPaymentsRequest {
     pub tags: Option<FinixTags>,
     pub three_d_secure: Option<FinixThreeDSecure>,
     pub idempotency_id: Option<String>,
+    pub statement_descriptor: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

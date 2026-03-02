@@ -7,7 +7,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use clap::{arg, command, Parser, ValueEnum};
+use clap::{Parser, ValueEnum};
 use masking::PeekInterface;
 use regex::Regex;
 
