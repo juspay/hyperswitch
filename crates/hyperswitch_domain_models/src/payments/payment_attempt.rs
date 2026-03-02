@@ -55,7 +55,8 @@ use url::Url;
 use super::PaymentIntent;
 #[cfg(feature = "v2")]
 use crate::{
-    address::Address, consts, payment_method_data::PaymentMethodData, router_response_types,
+    address::Address, consts, payment_method_data::PaymentMethodData, platform,
+    router_response_types,
 };
 use crate::{
     behaviour, errors,
@@ -908,6 +909,7 @@ impl PaymentAttempt {
         storage_scheme: storage_enums::MerchantStorageScheme,
         request: &api_models::payments::PaymentsConfirmIntentRequest,
         encrypted_data: DecryptedPaymentAttempt,
+        initiator: Option<&platform::Initiator>,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let id = id_type::GlobalAttemptId::generate(&cell_id);
         let intent_amount_details = payment_intent.amount_details.clone();
@@ -990,7 +992,7 @@ impl PaymentAttempt {
             card_discovery: None,
             feature_metadata: None,
             processor_merchant_id: payment_intent.merchant_id.clone(),
-            created_by: None,
+            created_by: initiator.and_then(|initiator| initiator.to_created_by()),
             connector_request_reference_id: None,
             network_transaction_id: None,
             authorized_amount: None,
@@ -1004,6 +1006,7 @@ impl PaymentAttempt {
         storage_scheme: storage_enums::MerchantStorageScheme,
         request: &api_models::payments::ProxyPaymentsRequest,
         encrypted_data: DecryptedPaymentAttempt,
+        initiator: Option<&platform::Initiator>,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let id = id_type::GlobalAttemptId::generate(&cell_id);
         let intent_amount_details = payment_intent.amount_details.clone();
@@ -1082,7 +1085,7 @@ impl PaymentAttempt {
             id,
             card_discovery: None,
             processor_merchant_id: payment_intent.merchant_id.clone(),
-            created_by: None,
+            created_by: initiator.and_then(|initiator| initiator.to_created_by()),
             connector_request_reference_id: None,
             network_transaction_id: None,
             authorized_amount: None,
@@ -1096,6 +1099,7 @@ impl PaymentAttempt {
         storage_scheme: storage_enums::MerchantStorageScheme,
         request: &api_models::payments::ExternalVaultProxyPaymentsRequest,
         encrypted_data: DecryptedPaymentAttempt,
+        initiator: Option<&platform::Initiator>,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let id = id_type::GlobalAttemptId::generate(&cell_id);
         let intent_amount_details = payment_intent.amount_details.clone();
@@ -1181,7 +1185,7 @@ impl PaymentAttempt {
             id,
             card_discovery: None,
             processor_merchant_id: payment_intent.merchant_id.clone(),
-            created_by: None,
+            created_by: initiator.and_then(|initiator| initiator.to_created_by()),
             connector_request_reference_id: None,
             network_transaction_id: None,
             authorized_amount: None,
@@ -1196,6 +1200,7 @@ impl PaymentAttempt {
         storage_scheme: storage_enums::MerchantStorageScheme,
         request: &api_models::payments::PaymentsAttemptRecordRequest,
         encrypted_data: DecryptedPaymentAttempt,
+        initiator: Option<&platform::Initiator>,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let id = id_type::GlobalAttemptId::generate(&cell_id);
 
@@ -1304,7 +1309,7 @@ impl PaymentAttempt {
             card_discovery: None,
             charges: None,
             processor_merchant_id: payment_intent.merchant_id.clone(),
-            created_by: None,
+            created_by: initiator.and_then(|initiator| initiator.to_created_by()),
             connector_request_reference_id,
             network_transaction_id: None,
             authorized_amount: None,

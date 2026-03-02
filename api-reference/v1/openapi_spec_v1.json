@@ -35789,6 +35789,14 @@
           },
           "currency": {
             "$ref": "#/components/schemas/Currency"
+          },
+          "capture_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CaptureMethod"
+              }
+            ],
+            "nullable": true
           }
         }
       },
