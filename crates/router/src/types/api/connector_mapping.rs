@@ -393,6 +393,9 @@ impl ConnectorData {
                 enums::Connector::Redsys => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Redsys::new())))
                 }
+                enums::Connector::Revolv3 => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Revolv3::new())))
+                }
                 enums::Connector::Santander => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Santander::new())))
                 }
