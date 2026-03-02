@@ -1110,6 +1110,7 @@ pub struct InstallmentRequest {
     #[schema(value_type = u8)]
     pub number_of_installments: NonZeroU8,
     /// Billing frequency for the chosen installment plan
+    #[schema(value_type = BillingFrequency)]
     pub billing_frequency: common_payments_types::BillingFrequency,
 }
 
