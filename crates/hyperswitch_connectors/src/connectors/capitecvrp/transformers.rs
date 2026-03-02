@@ -5,21 +5,30 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, RouterData},
-    router_flow_types::refunds::Execute,
     router_request_types::{
         MandateRevokeRequestData, PaymentsAuthorizeData, PaymentsSyncData, SetupMandateRequestData,
     },
     router_response_types::{MandateReference, MandateRevokeResponseData, PaymentsResponseData},
-    types::{
-        PaymentsAuthorizeRouterData, RefundsRouterData, SetupMandateRouterData,
-    },
+    types::{PaymentsAuthorizeRouterData, SetupMandateRouterData},
 };
 use hyperswitch_interfaces::errors;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
-use crate::types::{RefundsResponseRouterData, ResponseRouterData};
+use crate::types::ResponseRouterData;
+
+#[derive(Debug)]
+pub struct CapitecvrpRouterData<T> {
+    pub amount: MinorUnit,
+    pub router_data: T,
+}
+
+impl<T> From<(MinorUnit, T)> for CapitecvrpRouterData<T> {
+    fn from((amount, router_data): (MinorUnit, T)) -> Self {
+        Self { amount, router_data }
+    }
+}
 
 fn get_merchant_reference(
     additional_merchant_data: &Option<AdditionalMerchantData>,
@@ -41,10 +50,10 @@ fn get_merchant_reference(
 // Auth type for Capitec VRP - OAuth2 Password Flow
 #[derive(Debug, Clone)]
 pub struct CapitecvrpAuthType {
-    pub client_id: Secret<String>,
-    pub client_secret: Secret<String>,
-    pub username: Secret<String>,
-    pub password: Secret<String>,
+    pub(super) client_id: Secret<String>,
+    pub(super) client_secret: Secret<String>,
+    pub(super) username: Secret<String>,
+    pub(super) password: Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for CapitecvrpAuthType {
@@ -130,10 +139,10 @@ pub struct OnceOffPaymentConsent {
     pub product_description: Option<String>,
     pub beneficiary_statement_description: String,
     pub client_statement_description: String,
-    pub minimum_amount: i64,
-    pub maximum_amount: i64,
+    pub minimum_amount: MinorUnit,
+    pub maximum_amount: MinorUnit,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tip_amount: Option<i64>,
+    pub tip_amount: Option<MinorUnit>,
 }
 
 #[derive(Debug, Serialize)]
@@ -173,8 +182,8 @@ pub struct RecurringPaymentConsent {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub product_description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub minimum_amount: Option<i64>,
-    pub maximum_amount: i64,
+    pub minimum_amount: Option<MinorUnit>,
+    pub maximum_amount: MinorUnit,
     pub recurrence: Recurrence,
 }
 
@@ -223,7 +232,7 @@ impl From<ConsentStatus> for enums::AttemptStatus {
     fn from(status: ConsentStatus) -> Self {
         match status {
             ConsentStatus::Pending => Self::AuthenticationPending,
-            ConsentStatus::Approved => Self::Authorized,
+            ConsentStatus::Approved => Self::Charged,
             ConsentStatus::Declined => Self::AuthenticationFailed,
             ConsentStatus::Timeout => Self::Failure,
             ConsentStatus::Fraud => Self::Failure,
@@ -240,7 +249,7 @@ pub struct CapitecvrpOnceOffPaymentRequest {
     pub consent_receipt: String,
     pub beneficiary_statement_description: String,
     pub client_statement_description: String,
-    pub amount: i64,
+    pub amount: MinorUnit,
 }
 
 #[derive(Debug, Serialize)]
@@ -249,7 +258,7 @@ pub struct CapitecvrpRecurringPaymentRequest {
     pub consent_receipt: String,
     pub beneficiary_statement_description: String,
     pub client_statement_description: String,
-    pub amount: i64,
+    pub amount: MinorUnit,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub callback_url: Option<String>,
 }
@@ -258,7 +267,7 @@ pub struct CapitecvrpRecurringPaymentRequest {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentMethodInfo {
-    pub account_number: String,
+    pub account_number: Secret<String>,
     #[serde(rename = "type")]
     pub payment_type: String,
 }
@@ -311,11 +320,11 @@ pub enum CapitecvrpFlowType {
     Recurring,
 }
 
-impl TryFrom<&SetupMandateRouterData> for CapitecvrpOnceOffConsentRequest {
+impl TryFrom<CapitecvrpRouterData<&SetupMandateRouterData>> for CapitecvrpOnceOffConsentRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(item: &SetupMandateRouterData) -> Result<Self, Self::Error> {
-        let payment_method_data = item.request.payment_method_data.clone();
+    fn try_from(item: CapitecvrpRouterData<&SetupMandateRouterData>) -> Result<Self, Self::Error> {
+        let payment_method_data = item.router_data.request.payment_method_data.clone();
 
         let capitec_data = match payment_method_data {
             PaymentMethodData::OpenBanking(
@@ -344,19 +353,19 @@ impl TryFrom<&SetupMandateRouterData> for CapitecvrpOnceOffConsentRequest {
         let identifier_key = parse_client_identifier_key(&capitec_data.client_identifier.identifier_key)?;
         let identifier_value = capitec_data.client_identifier.identifier_value.clone();
 
-        let amount = item.request.minor_amount.get_amount_as_i64();
+        let amount = item.amount;
 
-        let min_amount = capitec_data.minimum_amount.map(|a| a.get_amount_as_i64()).unwrap_or(amount);
-        let max_amount = capitec_data.maximum_amount.map(|a| a.get_amount_as_i64()).unwrap_or(amount);
+        let min_amount = capitec_data.minimum_amount.unwrap_or(amount);
+        let max_amount = capitec_data.maximum_amount.unwrap_or(amount);
 
         let merchant_reference = get_merchant_reference(
-            &item.additional_merchant_data,
-            &item.connector_request_reference_id,
+            &item.router_data.additional_merchant_data,
+            &item.router_data.connector_request_reference_id,
         );
 
         let payment_consent = OnceOffPaymentConsent {
             merchant_reference: merchant_reference.clone(),
-            product_description: capitec_data.product_description.or(item.description.clone())
+            product_description: capitec_data.product_description.or(item.router_data.description.clone())
                 .map(|desc| truncate_string(&desc, 20)),
             beneficiary_statement_description: truncate_string(
                 capitec_data.beneficiary_statement_description.as_deref()
@@ -365,7 +374,7 @@ impl TryFrom<&SetupMandateRouterData> for CapitecvrpOnceOffConsentRequest {
             ),
             client_statement_description: truncate_string(
                 capitec_data.client_statement_description.as_deref()
-                    .unwrap_or(item.description.as_deref().unwrap_or("Payment")),
+                    .unwrap_or(item.router_data.description.as_deref().unwrap_or("Payment")),
                 20,
             ),
             minimum_amount: min_amount,
@@ -379,7 +388,7 @@ impl TryFrom<&SetupMandateRouterData> for CapitecvrpOnceOffConsentRequest {
                 identifier_value,
             },
             payment_consent,
-            callback_url: item.request.router_return_url.clone(),
+            callback_url: item.router_data.request.router_return_url.clone(),
         })
     }
 }
@@ -405,11 +414,11 @@ fn parse_client_identifier_key(key: &str) -> Result<ClientIdentifierKey, error_s
     }
 }
 
-impl TryFrom<&SetupMandateRouterData> for CapitecvrpRecurringConsentRequest {
+impl TryFrom<CapitecvrpRouterData<&SetupMandateRouterData>> for CapitecvrpRecurringConsentRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(item: &SetupMandateRouterData) -> Result<Self, Self::Error> {
-        let payment_method_data = item.request.payment_method_data.clone();
+    fn try_from(item: CapitecvrpRouterData<&SetupMandateRouterData>) -> Result<Self, Self::Error> {
+        let payment_method_data = item.router_data.request.payment_method_data.clone();
 
         let (capitec_data, recurrence_data) = match payment_method_data {
             PaymentMethodData::OpenBanking(
@@ -441,21 +450,21 @@ impl TryFrom<&SetupMandateRouterData> for CapitecvrpRecurringConsentRequest {
         let identifier_key = parse_client_identifier_key(&capitec_data.client_identifier.identifier_key)?;
         let identifier_value = capitec_data.client_identifier.identifier_value.clone();
 
-        let amount = item.request.minor_amount.get_amount_as_i64();
-        let max_amount = capitec_data.maximum_amount.map(|a| a.get_amount_as_i64()).unwrap_or(amount);
+        let amount = item.amount;
+        let max_amount = capitec_data.maximum_amount.unwrap_or(amount);
 
         let recurrence = extract_recurrence(recurrence_data)?;
 
         let merchant_reference = get_merchant_reference(
-            &item.additional_merchant_data,
-            &item.connector_request_reference_id,
+            &item.router_data.additional_merchant_data,
+            &item.router_data.connector_request_reference_id,
         );
 
         let payment_consent = RecurringPaymentConsent {
             merchant_reference,
-            product_description: capitec_data.product_description.or(item.description.clone())
+            product_description: capitec_data.product_description.or(item.router_data.description.clone())
                 .map(|desc| truncate_string(&desc, 20)),
-            minimum_amount: capitec_data.minimum_amount.map(|a| a.get_amount_as_i64()).or(Some(1)),
+            minimum_amount: capitec_data.minimum_amount.or(Some(MinorUnit::new(1))),
             maximum_amount: max_amount,
             recurrence,
         };
@@ -466,7 +475,7 @@ impl TryFrom<&SetupMandateRouterData> for CapitecvrpRecurringConsentRequest {
                 identifier_value,
             },
             payment_consent,
-            callback_url: item.request.router_return_url.clone(),
+            callback_url: item.router_data.request.router_return_url.clone(),
         })
     }
 }
@@ -569,47 +578,45 @@ impl<F>
     }
 }
 
-impl TryFrom<&PaymentsAuthorizeRouterData> for CapitecvrpOnceOffPaymentRequest {
+impl TryFrom<CapitecvrpRouterData<&PaymentsAuthorizeRouterData>> for CapitecvrpOnceOffPaymentRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(item: &PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let consent_receipt = get_consent_receipt_from_metadata(item)?;
-        let amount = item.request.minor_amount.get_amount_as_i64();
+    fn try_from(item: CapitecvrpRouterData<&PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
+        let consent_receipt = get_consent_receipt_from_metadata(item.router_data)?;
 
         Ok(Self {
             consent_receipt,
             beneficiary_statement_description: truncate_string(
-                &item.connector_request_reference_id,
+                &item.router_data.connector_request_reference_id,
                 20,
             ),
             client_statement_description: truncate_string(
-                item.description.as_deref().unwrap_or("Payment"),
+                item.router_data.description.as_deref().unwrap_or("Payment"),
                 20,
             ),
-            amount,
+            amount: item.amount,
         })
     }
 }
 
-impl TryFrom<&PaymentsAuthorizeRouterData> for CapitecvrpRecurringPaymentRequest {
+impl TryFrom<CapitecvrpRouterData<&PaymentsAuthorizeRouterData>> for CapitecvrpRecurringPaymentRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(item: &PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let consent_receipt = get_consent_receipt_from_metadata(item)?;
-        let amount = item.request.minor_amount.get_amount_as_i64();
+    fn try_from(item: CapitecvrpRouterData<&PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
+        let consent_receipt = get_consent_receipt_from_metadata(item.router_data)?;
 
         Ok(Self {
             consent_receipt,
             beneficiary_statement_description: truncate_string(
-                &item.connector_request_reference_id,
+                &item.router_data.connector_request_reference_id,
                 20,
             ),
             client_statement_description: truncate_string(
-                item.description.as_deref().unwrap_or("Payment"),
+                item.router_data.description.as_deref().unwrap_or("Payment"),
                 20,
             ),
-            amount,
-            callback_url: item.request.router_return_url.clone(),
+            amount: item.amount,
+            callback_url: item.router_data.request.router_return_url.clone(),
         })
     }
 }
@@ -740,13 +747,13 @@ impl<F>
             .request
             .connector_transaction_id
             .get_connector_transaction_id()
-            .ok();
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
 
         Ok(Self {
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(
-                    connector_transaction_id.unwrap_or_default(),
+                    connector_transaction_id,
                 ),
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
@@ -803,13 +810,13 @@ impl<F>
             .request
             .connector_transaction_id
             .get_connector_transaction_id()
-            .ok();
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
 
         Ok(Self {
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(
-                    connector_transaction_id.unwrap_or_default(),
+                    connector_transaction_id,
                 ),
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
@@ -838,40 +845,5 @@ impl<F>
             }),
             ..item.data
         })
-    }
-}
-
-#[derive(Debug, Serialize)]
-pub struct CapitecvrpRefundRequest {
-    pub amount: MinorUnit,
-}
-
-impl<F> TryFrom<&RefundsRouterData<F>> for CapitecvrpRefundRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(_item: &RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        Err(errors::ConnectorError::NotImplemented(
-            "Refunds are not supported for Capitec VRP".to_string(),
-        )
-        .into())
-    }
-}
-
-#[derive(Debug, Deserialize)]
-pub struct CapitecvrpRefundResponse {
-    pub id: String,
-    pub status: String,
-}
-
-impl TryFrom<RefundsResponseRouterData<Execute, CapitecvrpRefundResponse>>
-    for RefundsRouterData<Execute>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        _item: RefundsResponseRouterData<Execute, CapitecvrpRefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Err(errors::ConnectorError::NotImplemented(
-            "Refunds are not supported for Capitec VRP".to_string(),
-        )
-        .into())
     }
 }

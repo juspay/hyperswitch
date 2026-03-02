@@ -143,26 +143,7 @@ impl ConnectorCommon for Capitecvrp {
     }
 }
 
-impl ConnectorValidation for Capitecvrp {
-    fn validate_connector_against_payment_request(
-        &self,
-        capture_method: Option<enums::CaptureMethod>,
-        _payment_method: enums::PaymentMethod,
-        _pmt: Option<enums::PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
-            enums::CaptureMethod::ManualMultiple
-            | enums::CaptureMethod::Scheduled
-            | enums::CaptureMethod::SequentialAutomatic => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("capitecvrp"),
-                ))?
-            }
-        }
-    }
-}
+impl ConnectorValidation for Capitecvrp {}
 
 fn get_correlation_id_header(
 ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
@@ -291,7 +272,13 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         req: &SetupMandateRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = capitecvrp::CapitecvrpOnceOffConsentRequest::try_from(req)?;
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
+        let connector_router_data = capitecvrp::CapitecvrpRouterData::from((amount, req));
+        let connector_req = capitecvrp::CapitecvrpOnceOffConsentRequest::try_from(connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -447,7 +434,13 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = capitecvrp::CapitecvrpOnceOffPaymentRequest::try_from(req)?;
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
+        let connector_router_data = capitecvrp::CapitecvrpRouterData::from((amount, req));
+        let connector_req = capitecvrp::CapitecvrpOnceOffPaymentRequest::try_from(connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
