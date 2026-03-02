@@ -1325,12 +1325,14 @@ impl InstallmentInterestRate {
             let amount_f64 = amount
                 .to_string()
                 .parse::<f64>()
-                .change_context(errors::InstallmentInterestRateError::UnableToApplyInterestRate)?;
+                .change_context(errors::InstallmentInterestRateError::UnableToApplyInterestRate)
+                .attach_printable("Failed to parse amount as f64")?;
             let ceiled = (amount_f64 * (self.0 / 100.0)).ceil();
             let result = ceiled
                 .to_string()
                 .parse::<i64>()
-                .change_context(errors::InstallmentInterestRateError::UnableToApplyInterestRate)?;
+                .change_context(errors::InstallmentInterestRateError::UnableToApplyInterestRate)
+                .attach_printable("Failed to parse ceiled result as i64")?;
             Ok(MinorUnit::new(result))
         }
     }
