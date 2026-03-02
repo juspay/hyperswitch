@@ -4,6 +4,73 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.03.02.0
+
+### Features
+
+- **connector:** [Revolv3] Integrate Card flows ([#11319](https://github.com/juspay/hyperswitch/pull/11319)) ([`dbe505f`](https://github.com/juspay/hyperswitch/commit/dbe505f23e33d4293a6bc616011fbc5aecd08636))
+- **payments:** Implemented support for sorting payment lists by the modified_at field ([#11333](https://github.com/juspay/hyperswitch/pull/11333)) ([`fa27f44`](https://github.com/juspay/hyperswitch/commit/fa27f44cb4a19b65597f6d74834c614588d19a2b))
+
+### Bug Fixes
+
+- **ucs:** Add connector_customer_id to PaymentMethod flow ([#11376](https://github.com/juspay/hyperswitch/pull/11376)) ([`fc14212`](https://github.com/juspay/hyperswitch/commit/fc1421294cc9ca20c5edcf615dd7d9d88b0aed6f))
+
+### Refactors
+
+- **routing:** De-couple dynamic and static routing ([#10854](https://github.com/juspay/hyperswitch/pull/10854)) ([`4d69890`](https://github.com/juspay/hyperswitch/commit/4d69890b6524094558e4b197fca5d6e70483f14f))
+
+### Miscellaneous Tasks
+
+- **connector:** Add warning comment about dtd validation to redsys soap api ([#11384](https://github.com/juspay/hyperswitch/pull/11384)) ([`03f2f05`](https://github.com/juspay/hyperswitch/commit/03f2f05fdb69fc6324455c5c3e492e6296a09195))
+
+**Full Changelog:** [`2026.02.27.0...2026.03.02.0`](https://github.com/juspay/hyperswitch/compare/2026.02.27.0...2026.03.02.0)
+
+- - -
+
+## 2026.02.27.0
+
+### Features
+
+- **customers:** Update billing and shipping address types to OptionalEncryptableValue and enhance decryption handling ([#11374](https://github.com/juspay/hyperswitch/pull/11374)) ([`6dfa403`](https://github.com/juspay/hyperswitch/commit/6dfa4037eec03c528a16a9086bbe1010502a4dba))
+- **reports:** Implement programmatic API trigger for reports ([#11289](https://github.com/juspay/hyperswitch/pull/11289)) ([`1e7eff5`](https://github.com/juspay/hyperswitch/commit/1e7eff50bb83f7462c79c7f2d8505a4457aab553))
+
+**Full Changelog:** [`2026.02.26.0...2026.02.27.0`](https://github.com/juspay/hyperswitch/compare/2026.02.26.0...2026.02.27.0)
+
+- - -
+
+## 2026.02.26.0
+
+### Features
+
+- **connector:**
+  - [Cybersource] add `responseMsg.TokenInformation.Customer.Id` to payment response ([#11334](https://github.com/juspay/hyperswitch/pull/11334)) ([`0269bdc`](https://github.com/juspay/hyperswitch/commit/0269bdce8490641dd51cf9d728b0bc81cba3473c))
+  - [Mollie] implement v1 Webhook ([#11324](https://github.com/juspay/hyperswitch/pull/11324)) ([`23a5637`](https://github.com/juspay/hyperswitch/commit/23a5637e1f03ffe0d17d5846c41cc587f62e88a6))
+  - Cybersource add QAR currencies for card ([#11232](https://github.com/juspay/hyperswitch/pull/11232)) ([`ca63e6a`](https://github.com/juspay/hyperswitch/commit/ca63e6a139ac196f481ff100c5a7a5cf8b0c170b))
+  - [Nuvei] implement ntid flow for wallet for nuvie connector ([#11259](https://github.com/juspay/hyperswitch/pull/11259)) ([`3b8708c`](https://github.com/juspay/hyperswitch/commit/3b8708c24ec7a33c45ac07199668084ac011df31))
+- **payments:** Add support for installment payment options in payment intent ([#11340](https://github.com/juspay/hyperswitch/pull/11340)) ([`fb4518a`](https://github.com/juspay/hyperswitch/commit/fb4518a57ccec017fdae70dc6fe35a5f5a551aae))
+
+### Bug Fixes
+
+- **core:** Throw bad request error for refunds when the flow is not supported or implemented ([#10735](https://github.com/juspay/hyperswitch/pull/10735)) ([`66f34b9`](https://github.com/juspay/hyperswitch/commit/66f34b91dfec423b44f0ba4e96888ef393d1e796))
+
+### Miscellaneous Tasks
+
+- Wallets Refactor and Added Paze in tunnel HS<>UCS ([#11338](https://github.com/juspay/hyperswitch/pull/11338)) ([`eb831bf`](https://github.com/juspay/hyperswitch/commit/eb831bfc3d752cce921f86f0f749aa36155209f4))
+
+**Full Changelog:** [`2026.02.25.0...2026.02.26.0`](https://github.com/juspay/hyperswitch/compare/2026.02.25.0...2026.02.26.0)
+
+- - -
+
+## 2026.02.25.0
+
+### Features
+
+- **payment_methods:** Support bank_type, bank_holder_type, and bank_account_holder_name in ACH migration ([#11358](https://github.com/juspay/hyperswitch/pull/11358)) ([`a2d0a4e`](https://github.com/juspay/hyperswitch/commit/a2d0a4efd96c1eada92309e5082650787b547e34))
+
+**Full Changelog:** [`2026.02.24.0...2026.02.25.0`](https://github.com/juspay/hyperswitch/compare/2026.02.24.0...2026.02.25.0)
+
+- - -
+
 ## 2026.02.24.0
 
 ### Features

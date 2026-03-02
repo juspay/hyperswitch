@@ -1062,6 +1062,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         .enable_partial_authorization,
                     enable_overcapture: payment_data.payment_intent.enable_overcapture,
                     shipping_cost,
+                    installment_options: payment_data.payment_intent.installment_options,
                 })),
                 key_store,
                 storage_scheme,
@@ -1163,6 +1164,11 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
                 message: "Invalid straight through routing rules format".to_string(),
             })
             .attach_printable("Invalid straight through routing rules format")?;
+
+        request.validate_installment_options().map_err(|err| {
+            let message = format!("invalid installment options: {err}");
+            err.change_context(errors::ApiErrorResponse::InvalidRequestData { message })
+        })?;
 
         Ok((
             Box::new(self),
