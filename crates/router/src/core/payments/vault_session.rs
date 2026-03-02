@@ -91,6 +91,7 @@ where
             state,
             customer,
             platform.get_processor(),
+            platform.get_initiator(),
             &merchant_connector_account,
             payment_data,
         )
@@ -132,6 +133,7 @@ pub async fn call_create_connector_customer_if_required<F, Req, D>(
     state: &SessionState,
     customer: &Option<domain::Customer>,
     processor: &domain::Processor,
+    initiator: Option<&domain::Initiator>,
     merchant_connector_account_type: &domain::MerchantConnectorAccountTypeDetails,
     payment_data: &mut D,
 ) -> RouterResult<Option<storage::CustomerUpdate>>
@@ -200,6 +202,7 @@ where
                     merchant_connector_account_type,
                     customer.as_ref(),
                     connector_customer_id.clone(),
+                    initiator,
                 )
                 .await;
 
