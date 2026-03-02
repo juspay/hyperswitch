@@ -3615,7 +3615,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
         if connector == "worldpayxml" {
             let html = core_utils::get_html_redirect_response_after_ddc(
                 redirection_response.return_url_with_query_params,
-                "required" // hard-coded for now, need to update as we add support for other connectors
+                "required", // hard-coded for now, need to update as we add support for other connectors
             )?;
             return Ok(services::ApplicationResponse::Form(Box::new(
                 services::RedirectionFormData {
@@ -3745,7 +3745,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
         if connector == "worldpayxml" {
             let html = core_utils::get_html_redirect_response_after_ddc(
                 redirect_response.return_url_with_query_params,
-                "required" // hard-coded for now, need to update as we add support for other connectors
+                "required", // hard-coded for now, need to update as we add support for other connectors
             )?;
             return Ok(services::ApplicationResponse::Form(Box::new(
                 services::RedirectionFormData {
@@ -3756,7 +3756,6 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
                 },
             )));
         }
-
 
         if payments_response
             .is_iframe_redirection_enabled

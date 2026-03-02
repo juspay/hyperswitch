@@ -690,6 +690,32 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<bytes::Bytes>>
     fn try_from(
         item: PaymentsPreAuthenticateResponseRouterData<bytes::Bytes>,
     ) -> Result<Self, Self::Error> {
+        let _description =
+            item.data
+                .description
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "description",
+                })?;
+
+        let browser_info = item.data.request.browser_info.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "browser_info",
+            },
+        )?;
+
+        let _accept_header = browser_info.accept_header.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "browser_info.accept_header",
+            },
+        )?;
+
+        let _user_agent_header = browser_info.user_agent.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "browser_info.user_agent",
+            },
+        )?;
+
         let metadata_for_jwt =
             WorldpayxmlConnectorMetadataObject::try_from(item.data.connector_meta_data.as_ref())?;
 

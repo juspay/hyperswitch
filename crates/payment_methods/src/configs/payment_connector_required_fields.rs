@@ -1676,19 +1676,7 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
         ),
         (
             Connector::Worldpayxml,
-            fields(
-                vec![],
-                vec![
-                    RequiredField::CardNumber,
-                    RequiredField::CardExpMonth,
-                    RequiredField::CardExpYear,
-                    RequiredField::CardCvc,
-                    RequiredField::BillingUserFirstName,
-                    RequiredField::BillingUserLastName,
-                    RequiredField::Description,
-                ],
-                vec![],
-            ),
+            fields(vec![], card_with_name(), vec![]),
         ),
         (
             Connector::Worldpayvantiv,
@@ -2420,10 +2408,6 @@ fn get_wallet_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFi
                 (Connector::Stripe, fields(vec![], vec![], vec![])),
                 (Connector::Adyen, fields(vec![], vec![], vec![])),
                 (
-                    Connector::Worldpayxml,
-                    fields(vec![], vec![], vec![RequiredField::Description]),
-                ),
-                (
                     Connector::Nuvei,
                     fields(
                         vec![],
@@ -2567,10 +2551,6 @@ fn get_wallet_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFi
             enums::PaymentMethodType::GooglePay,
             connectors(vec![
                 (Connector::Adyen, fields(vec![], vec![], vec![])),
-                (
-                    Connector::Worldpayxml,
-                    fields(vec![], vec![], vec![RequiredField::Description]),
-                ),
                 (
                     Connector::Bankofamerica,
                     RequiredFieldFinal {
