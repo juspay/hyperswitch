@@ -1203,10 +1203,12 @@ pub async fn perform_cgraph_filtering(
     Ok(final_selection)
 }
 
+#[cfg(feature = "v1")]
 fn is_installment_payment(payment_data: &routing::PaymentsDslInput<'_>) -> bool {
     payment_data.payment_intent.installment_options.is_some()
 }
 
+#[cfg(feature = "v1")]
 fn get_payment_method_and_type_for_installment(
     payment_data: &routing::PaymentsDslInput<'_>,
 ) -> (
@@ -1219,6 +1221,7 @@ fn get_payment_method_and_type_for_installment(
     )
 }
 
+#[cfg(feature = "v1")]
 fn get_payment_data_for_installments<'a>(
     transaction_data: &'a routing::TransactionData<'a>,
 ) -> Option<&'a routing::PaymentsDslInput<'a>> {
@@ -1229,6 +1232,7 @@ fn get_payment_data_for_installments<'a>(
     }
 }
 
+#[cfg(feature = "v1")]
 fn get_installment_supported_connectors(
     state: &SessionState,
     transaction_data: &routing::TransactionData<'_>,
@@ -1268,6 +1272,7 @@ fn get_installment_supported_connectors(
         })
 }
 
+#[cfg(feature = "v1")]
 fn update_eligible_connectors_for_installments(
     state: &SessionState,
     transaction_data: &routing::TransactionData<'_>,
@@ -1379,6 +1384,8 @@ pub async fn perform_eligibility_analysis_with_fallback(
     business_profile: &domain::Profile,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     logger::debug!("euclid_routing: performing eligibility");
+
+    #[cfg(feature = "v1")]
     let eligible_connectors =
         update_eligible_connectors_for_installments(state, transaction_data, eligible_connectors);
 
