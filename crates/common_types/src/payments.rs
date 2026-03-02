@@ -1430,6 +1430,8 @@ pub struct InstallmentData {
     pub number_of_installments: NonZeroU8,
     /// Billing frequency for the chosen installment plan
     pub billing_frequency: BillingFrequency,
+    /// Total interest amount applied for this installment plan
+    pub installment_interest: Option<MinorUnit>,
 }
 impl_to_sql_from_sql_json!(InstallmentData);
 

@@ -5090,7 +5090,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .partner_merchant_identifier_details,
             rrn,
             feature_metadata,
-            installment_details: payment_data.installment_details.clone(),
+            installment_details: payment_data.payment_attempt.installment_data.clone(),
         })
     }
 }

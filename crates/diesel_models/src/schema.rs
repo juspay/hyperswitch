@@ -1142,7 +1142,6 @@ diesel::table! {
         error_details -> Nullable<Jsonb>,
         #[max_length = 64]
         retry_type -> Nullable<Varchar>,
-        installment_interest -> Nullable<Int8>,
         installment_data -> Nullable<Jsonb>,
     }
 }

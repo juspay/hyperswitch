@@ -2185,11 +2185,10 @@ pub fn calculate_installment_interest(
     order_amount: MinorUnit,
     interest_rate: common_types::payments::InstallmentInterestRate,
 ) -> RouterResult<MinorUnit> {
-    let interest = interest_rate
+    interest_rate
         .apply_and_ceil_result(order_amount)
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to calculate installment interest")?;
-    Ok(interest)
+        .attach_printable("Failed to calculate installment interest")
 }
 
 #[cfg(feature = "v1")]
@@ -2198,7 +2197,7 @@ fn populate_installment_details<F>(payment_data: &mut PaymentData<F>) -> RouterR
 where
     F: Send + Clone,
 {
-    if let Some(selected_installment) = payment_data.selected_installment.clone() {
+    if let Some(selected_installment) = payment_data.payment_attempt.installment_data.clone() {
         // Customer sent installment_data but merchant never configured installment_options
         let installment_options = payment_data
             .payment_intent
@@ -2241,8 +2240,10 @@ where
                 .net_amount
                 .set_installment_interest(Some(total_interest));
 
-            // The connector only needs number_of_installments.
-            payment_data.installment_details = Some(selected_installment);
+            if let Some(installment_data) = payment_data.payment_attempt.installment_data.as_mut()
+            {
+                installment_data.installment_interest = Some(total_interest);
+            }
         }
     }
 
@@ -8146,8 +8147,6 @@ where
     pub is_manual_retry_enabled: Option<bool>,
     pub is_l2_l3_enabled: bool,
     pub external_authentication_data: Option<api_models::payments::ExternalThreeDsData>,
-    pub selected_installment: Option<common_types::payments::InstallmentData>,
-    pub installment_details: Option<common_types::payments::InstallmentData>,
 }
 
 #[cfg(feature = "v1")]
@@ -11978,7 +11977,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
     }
 
     fn get_installment_details(&self) -> Option<&common_types::payments::InstallmentData> {
-        self.installment_details.as_ref()
+        self.payment_attempt.installment_data.as_ref()
     }
 
     // #[cfg(feature = "v2")]
