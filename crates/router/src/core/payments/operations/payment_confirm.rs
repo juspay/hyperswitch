@@ -890,7 +890,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 _ => None,
             });
 
-        payment_attempt.installment_data = request.installment_data.clone();
+        payment_attempt.installment_data = request.installment_data.clone().map(Into::into);
 
         let payment_data = PaymentData {
             flow: PhantomData,

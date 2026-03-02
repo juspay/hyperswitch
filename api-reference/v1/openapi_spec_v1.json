@@ -20956,6 +20956,25 @@
           }
         }
       },
+      "InstallmentRequest": {
+        "type": "object",
+        "description": "Installment selection sent by the customer during payment confirmation.",
+        "required": [
+          "number_of_installments",
+          "billing_frequency"
+        ],
+        "properties": {
+          "number_of_installments": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of installments chosen by the customer",
+            "minimum": 0
+          },
+          "billing_frequency": {
+            "$ref": "#/components/schemas/BillingFrequency"
+          }
+        }
+      },
       "IntentStatus": {
         "type": "string",
         "description": "Represents the overall status of a payment intent.\nThe status transitions through various states depending on the payment method, confirmation, capture method, and any subsequent actions (like customer authentication or manual capture).",
@@ -28342,7 +28361,7 @@
           "installment_data": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/InstallmentData"
+                "$ref": "#/components/schemas/InstallmentRequest"
               }
             ],
             "nullable": true
@@ -28886,7 +28905,7 @@
           "installment_data": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/InstallmentData"
+                "$ref": "#/components/schemas/InstallmentRequest"
               }
             ],
             "nullable": true
@@ -30519,7 +30538,7 @@
           "installment_data": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/InstallmentData"
+                "$ref": "#/components/schemas/InstallmentRequest"
               }
             ],
             "nullable": true
@@ -31983,7 +32002,7 @@
           "installment_data": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/InstallmentData"
+                "$ref": "#/components/schemas/InstallmentRequest"
               }
             ],
             "nullable": true
