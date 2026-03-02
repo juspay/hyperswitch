@@ -164,6 +164,7 @@ pub enum Connector {
     Razorpay,
     Recurly,
     Redsys,
+    Revolv3,
     Santander,
     Shift4,
     Silverflow,
@@ -371,6 +372,7 @@ impl Connector {
             | Self::Rapyd
             | Self::Recurly
             | Self::Redsys
+            | Self::Revolv3
             | Self::Santander
             | Self::Shift4
             | Self::Silverflow
