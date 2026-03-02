@@ -8,7 +8,6 @@ pub use ::payment_methods::helpers::{
 use api_models::ephemeral_key::ClientSecretResponse;
 #[cfg(feature = "v2")]
 use api_models::payments::{additional_info::UpiAdditionalData, UpiSource};
-use common_types::payments::InstallmentOption;
 use api_models::{
     customers::CustomerDocumentDetails,
     mandates::RecurringDetails,
@@ -19,6 +18,7 @@ use api_models::{
 };
 use base64::Engine;
 use common_enums::{enums::ExecutionMode, ConnectorType};
+use common_types::payments::InstallmentOption;
 #[cfg(feature = "v2")]
 use common_utils::id_type::GenerateId;
 use common_utils::{
