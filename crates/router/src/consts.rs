@@ -366,6 +366,8 @@ pub mod superposition {
         "should_store_eligibility_check_data_for_authentication";
     /// Step-up 3DS enabled configuration key
     pub const STEP_UP_ENABLED: &str = "step_up_enabled";
+    /// Extended card BIN configuration key
+    pub const ENABLE_EXTENDED_CARD_BIN: &str = "enable_extended_card_bin";
 }
 
 #[cfg(test)]

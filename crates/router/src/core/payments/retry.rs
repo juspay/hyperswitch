@@ -12,7 +12,7 @@ use router_env::{
 use crate::{
     consts,
     core::{
-        configs::{dimension_state, dimension_state::DimensionWithMerchantIdAndProfileId},
+        configs::dimension_state::DimensionWithMerchantIdAndProfileId,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{
             self, complete_connector_service,

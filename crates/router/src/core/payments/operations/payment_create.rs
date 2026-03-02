@@ -344,6 +344,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             profile_id.clone(),
             &customer_acceptance,
             payment_method_recurring_details.clone(),
+            customer_details.customer_id.as_ref(),
         )
         .await?;
 
@@ -1257,6 +1258,7 @@ impl PaymentCreate {
         profile_id: common_utils::id_type::ProfileId,
         customer_acceptance: &Option<common_payments_types::CustomerAcceptance>,
         payment_method_recurring_details: Option<domain::PaymentMethodData>,
+        customer_id: Option<&common_utils::id_type::CustomerId>,
     ) -> RouterResult<(
         PaymentAttempt,
         Option<api_models::payments::AdditionalPaymentData>,
@@ -1273,6 +1275,7 @@ impl PaymentCreate {
         let status = helpers::payment_attempt_status_fsm(payment_method_data, request.confirm);
         let (amount, currency) = (money.0, Some(money.1));
 
+        let merchant_id = platform.get_processor().get_account().get_id().clone();
         let mut additional_pm_data = request
             .payment_method_data
             .as_ref()
@@ -1286,7 +1289,10 @@ impl PaymentCreate {
                 helpers::get_additional_payment_data(
                     &payment_method_data,
                     &*state.store,
+                    state.superposition_service.as_ref(),
+                    &merchant_id,
                     &profile_id,
+                    customer_id,
                     None,
                 )
                 .await

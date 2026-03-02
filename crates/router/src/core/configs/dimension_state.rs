@@ -208,7 +208,7 @@ impl<M, O, P, Cn> Dimensions<M, O, P, Cn> {
     }
 }
 
-impl Default for Dimensions<NoMerchantId, NoOrgId, NoProfileId> {
+impl Default for Dimensions<NoMerchantId, NoOrgId, NoProfileId, NoConnector> {
     fn default() -> Self {
         Self::new()
     }

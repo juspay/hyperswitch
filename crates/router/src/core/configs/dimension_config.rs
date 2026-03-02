@@ -254,3 +254,24 @@ impl DatabaseBackedConfig for StepUpEnabled {
         None
     }
 }
+
+config! {
+    superposition_key = ENABLE_EXTENDED_CARD_BIN,
+    output = bool,
+    default = false,
+    requires = DimensionWithMerchantIdAndProfileId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for EnableExtendedCardBin {
+    const KEY: &'static str = "enable_extended_card_bin";
+
+    fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+        let profile_id = dimensions
+            .get_profile_id()
+            .map(|id| id.get_string_repr())
+            .unwrap_or_default();
+        // Matches the existing key format: "{profile_id}_enable_extended_card_bin"
+        Some(format!("{}_{}", profile_id, Self::KEY))
+    }
+}

@@ -512,12 +512,15 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .or(payment_method_recurring_details.clone());
 
         let store = state.clone().store;
+        let superposition_service = state.clone().superposition_service;
+        let merchant_id = payment_intent.merchant_id.clone();
         let profile_id = payment_intent
             .profile_id
             .clone()
             .get_required_value("profile_id")
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("'profile_id' not set in payment intent")?;
+        let customer_id = payment_intent.customer_id.clone();
 
         let additional_pm_data_fut = tokio::spawn(
             async move {
@@ -526,7 +529,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         helpers::get_additional_payment_data(
                             &payment_method_data,
                             store.as_ref(),
+                            superposition_service.as_ref(),
+                            &merchant_id,
                             &profile_id,
+                            customer_id.as_ref(),
                             None,
                         )
                         .await
@@ -2286,6 +2292,8 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .get_required_value("profile_id")
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
+        let customer_id = payment_data.payment_intent.customer_id.as_ref();
+
         let payment_experience = payment_data.payment_attempt.payment_experience;
         let additional_pm_data = payment_data
             .payment_method_data
@@ -2294,7 +2302,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                 helpers::get_additional_payment_data(
                     payment_method_data,
                     &*state.store,
+                    state.superposition_service.as_ref(),
+                    &payment_data.payment_intent.merchant_id,
                     profile_id,
+                    customer_id,
                     payment_data.payment_method_token.as_ref(),
                 )
                 .await
