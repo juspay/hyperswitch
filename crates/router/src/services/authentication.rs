@@ -204,6 +204,7 @@ pub enum AuthenticationType {
         merchant_id: id_type::MerchantId,
         profile_id: Option<id_type::ProfileId>,
     },
+    InternalApiKey,
     EmbeddedJwt {
         merchant_id: id_type::MerchantId,
         profile_id: id_type::ProfileId,
@@ -247,6 +248,7 @@ impl AuthenticationType {
             | Self::UserJwt { .. }
             | Self::SinglePurposeJwt { .. }
             | Self::SinglePurposeOrLoginJwt { .. }
+            | Self::InternalApiKey
             | Self::NoAuth => None,
         }
     }
@@ -2683,6 +2685,46 @@ where
                 .authenticate_and_fetch(request_headers, state)
                 .await?)
         }
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct InternalApiKeyAuth;
+
+#[async_trait]
+impl<A> AuthenticateAndFetch<(), A> for InternalApiKeyAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<((), AuthenticationType)> {
+        let config = state.conf();
+
+        if !config.internal_merchant_id_profile_id_auth.enabled {
+            return Err(errors::ApiErrorResponse::Unauthorized)
+                .attach_printable("Internal API key authentication is not enabled");
+        }
+
+        let internal_api_key = HeaderMapStruct::new(request_headers)
+            .get_header_value_by_key(headers::X_INTERNAL_API_KEY)
+            .map(|s| s.to_string())
+            .ok_or(errors::ApiErrorResponse::Unauthorized)
+            .attach_printable("X-Internal-API-Key header is missing")?;
+
+        if internal_api_key
+            != *config
+                .internal_merchant_id_profile_id_auth
+                .internal_api_key
+                .peek()
+        {
+            return Err(errors::ApiErrorResponse::Unauthorized)
+                .attach_printable("Internal API key authentication failed");
+        }
+
+        Ok(((), AuthenticationType::InternalApiKey))
     }
 }
 
