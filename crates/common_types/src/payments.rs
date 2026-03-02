@@ -1316,28 +1316,21 @@ impl InstallmentInterestRate {
         if amount > max_amount {
             // value gets rounded off after i64::MAX/10000
             Err(error_stack::report!(
-                errors::InstallmentInterestRateError::UnableToApplyInterestRate {
-                    interest_rate: self.0,
-                    amount: MinorUnit::new(amount),
-                }
+                errors::InstallmentInterestRateError::UnableToApplyInterestRate
             ))
             .attach_printable(format!(
                 "Cannot calculate interest rate for amount greater than {max_amount}",
             ))
         } else {
-            let amount_f64 = amount.to_string().parse::<f64>().change_context(
-                errors::InstallmentInterestRateError::UnableToApplyInterestRate {
-                    interest_rate: self.0,
-                    amount: MinorUnit::new(amount),
-                },
-            )?;
+            let amount_f64 = amount
+                .to_string()
+                .parse::<f64>()
+                .change_context(errors::InstallmentInterestRateError::UnableToApplyInterestRate)?;
             let ceiled = (amount_f64 * (self.0 / 100.0)).ceil();
-            let result = ceiled.to_string().parse::<i64>().change_context(
-                errors::InstallmentInterestRateError::UnableToApplyInterestRate {
-                    interest_rate: self.0,
-                    amount: MinorUnit::new(amount),
-                },
-            )?;
+            let result = ceiled
+                .to_string()
+                .parse::<i64>()
+                .change_context(errors::InstallmentInterestRateError::UnableToApplyInterestRate)?;
             Ok(MinorUnit::new(result))
         }
     }

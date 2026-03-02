@@ -146,13 +146,8 @@ pub enum PercentageError {
 #[derive(Debug, Clone, thiserror::Error, PartialEq)]
 pub enum InstallmentInterestRateError {
     /// Error occurred while applying interest rate to amount
-    #[error("Failed to apply interest rate of {interest_rate} on {amount}")]
-    UnableToApplyInterestRate {
-        /// interest rate value
-        interest_rate: f64,
-        /// amount value
-        amount: MinorUnit,
-    },
+    #[error("Failed to apply interest rate to amount")]
+    UnableToApplyInterestRate,
 }
 
 /// Allows [error_stack::Report] to change between error contexts
