@@ -86,6 +86,7 @@ use crate::{
         },
         payments::{
             helpers,
+            transformers::IntoPmlPaymentIntentResponse,
             routing::{
                 self,
                 utils::{load_skip_pre_routing_config, perform_pre_routing},
@@ -3887,7 +3888,7 @@ pub async fn list_payment_methods(
 
     let intent_data = payment_intent
         .clone()
-        .map(api_models::payment_methods::PmlPaymentIntentResponse::foreign_from);
+        .map(|pi| pi.into_pml_response());
 
     Ok(services::ApplicationResponse::Json(
         api::PaymentMethodListResponse {
