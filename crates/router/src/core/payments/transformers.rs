@@ -6,7 +6,6 @@ use api_models::enums as api_enums;
 use api_models::payments as api_payments;
 #[cfg(feature = "v2")]
 use api_models::payments::RevenueRecoveryGetIntentResponse;
-use common_types::payments as common_types_payments;
 use api_models::{
     payment_methods::{
         PmlInstallmentAmountDetails, PmlInstallmentOption, PmlInstallmentPlan,
@@ -18,6 +17,7 @@ use api_models::{
     },
 };
 use common_enums::{Currency, MerchantAccountType, RequestIncrementalAuthorization};
+use common_types::payments as common_types_payments;
 #[cfg(feature = "v1")]
 use common_utils::{
     consts::X_HS_LATENCY,
@@ -4349,12 +4349,10 @@ impl IntoPmlPaymentIntentResponse for storage::PaymentIntent {
             merchant_order_reference_id: self.merchant_order_reference_id,
             attempt_count: self.attempt_count,
             installment_options: self.installment_options.and_then(|opts| {
-               common_types_payments::InstallmentOptions(opts)
+                common_types_payments::InstallmentOptions(opts)
                     .into_pml_installment_options(self.amount)
                     .map_err(|e| {
-                        tracing::error!(
-                            "Failed to transform installment options for PML: {e:?}"
-                        )
+                        tracing::error!("Failed to transform installment options for PML: {e:?}")
                     })
                     .ok()
             }),

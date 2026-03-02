@@ -86,12 +86,12 @@ use crate::{
         },
         payments::{
             helpers,
-            transformers::IntoPmlPaymentIntentResponse,
             routing::{
                 self,
                 utils::{load_skip_pre_routing_config, perform_pre_routing},
                 SessionFlowRoutingInput,
             },
+            transformers::IntoPmlPaymentIntentResponse,
         },
         utils as core_utils,
     },
@@ -3886,9 +3886,7 @@ pub async fn list_payment_methods(
 
     let is_tax_connector_enabled = business_profile.get_is_tax_connector_enabled();
 
-    let intent_data = payment_intent
-        .clone()
-        .map(|pi| pi.into_pml_response());
+    let intent_data = payment_intent.clone().map(|pi| pi.into_pml_response());
 
     Ok(services::ApplicationResponse::Json(
         api::PaymentMethodListResponse {
