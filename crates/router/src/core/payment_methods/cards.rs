@@ -70,6 +70,8 @@ use crate::core::payment_methods::{
     utils::{get_merchant_pm_filter_graph, make_pm_graph, refresh_pm_filters_cache},
 };
 #[cfg(feature = "v1")]
+use crate::core::payments::transformers::IntoPmlPaymentIntentResponse;
+#[cfg(feature = "v1")]
 use crate::routes::app::SessionStateInfo;
 #[cfg(feature = "payouts")]
 use crate::types::domain::types::AsyncLift;
@@ -91,7 +93,6 @@ use crate::{
                 utils::{load_skip_pre_routing_config, perform_pre_routing},
                 SessionFlowRoutingInput,
             },
-            transformers::IntoPmlPaymentIntentResponse,
         },
         utils as core_utils,
     },
