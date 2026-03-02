@@ -3986,3 +3986,24 @@ pub async fn embedded_token_info(
         },
     ))
 }
+
+pub async fn get_user_details_internally(
+    state: SessionState,
+    user_id: String,
+) -> UserResponse<user_api::GetUserInternalDetailsResponse> {
+    let user: domain::UserFromStorage = state
+        .global_store
+        .find_user_by_user_id(&user_id)
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to fetch user from database")?
+        .into();
+
+    Ok(ApplicationResponse::Json(
+        user_api::GetUserInternalDetailsResponse {
+            name: user.get_name(),
+            email: user.get_email(),
+            is_active: user.is_active(),
+        },
+    ))
+}

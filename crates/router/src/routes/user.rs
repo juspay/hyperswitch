@@ -1175,3 +1175,38 @@ pub async fn embedded_token_info(
     ))
     .await
 }
+
+pub async fn get_user_details_internally(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::GetUserDetailsInternally;
+    let user_id = path.into_inner();
+
+    // Use internal API key auth - requires X-Internal-API-Key + X-Merchant-Id + X-Profile-Id
+    let (auth_type, _api_key_type) = match auth::check_internal_api_key_auth_no_client_secret(
+        req.headers(),
+        auth::ApiKeyAuth {
+            allow_connected_scope_operation: true,
+            allow_platform_self_operation: true,
+        },
+        state.conf.internal_merchant_id_profile_id_auth.clone(),
+    ) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        user_id.clone(),
+        |state, _auth: auth::AuthenticationData, user_id, _| {
+            user_core::get_user_details_internally(state, user_id)
+        },
+        &*auth_type,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

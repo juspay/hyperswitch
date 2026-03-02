@@ -484,3 +484,11 @@ pub struct EmbeddedTokenInfoResponse {
     pub merchant_account_version: common_enums::ApiVersion,
     pub profile_id: id_type::ProfileId,
 }
+
+/// Response for internal API to get user details
+#[derive(Debug, serde::Serialize)]
+pub struct GetUserInternalDetailsResponse {
+    pub name: Secret<String>,
+    pub email: pii::Email,
+    pub is_active: bool,
+}
