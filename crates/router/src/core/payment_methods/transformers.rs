@@ -1601,48 +1601,18 @@ pub async fn fetch_payment_method_from_modular_service(
     .await
     .attach_printable("Failed to transform payment method retrieve response")?;
 
-    // Normalize modular raw PM data -
-    // - Off session: if raw data is missing/invalid (for example, missing CVC), fall back to mandate payment data.
-    // - On-session: if raw data is missing/invalid, continue without raw payment method data.
-    let converted_raw_payment_method_data = pm_response
-        .raw_payment_method_data
-        .map(|raw_data| DomainPaymentMethodDataWrapper::try_from((raw_data, pmd_card_token)))
-        .transpose();
-
-    let raw_payment_method_data = match converted_raw_payment_method_data {
-        Ok(Some(raw_data)) => Some(raw_data),
-        Ok(None) => {
-            if is_off_session_payment {
-                Some(DomainPaymentMethodDataWrapper(
-                    domain::PaymentMethodData::MandatePayment,
-                ))
-            } else {
-                logger::warn!(
-                    payment_method_id = %payment_method_id,
-                    "PM modular retrieve response did not contain raw_payment_method_data"
-                );
-                None
-            }
-        }
-        Err(err) => {
-            if is_off_session_payment {
-                logger::info!(
-                    payment_method_id = %payment_method_id,
-                    error = ?err,
-                    "Failed to build raw card data for off-session modular flow, falling back to mandate payment data",
-                );
-                Some(DomainPaymentMethodDataWrapper(
-                    domain::PaymentMethodData::MandatePayment,
-                ))
-            } else {
-                logger::info!(
-                    payment_method_id = %payment_method_id,
-                    error = ?err,
-                    "Failed to build raw card data for modular flow, proceeding without raw payment method data",
-                );
-                None
-            }
-        }
+    let raw_payment_method_data = if is_off_session_payment {
+        Some(DomainPaymentMethodDataWrapper(
+            domain::PaymentMethodData::MandatePayment,
+        ))
+    } else {
+        pm_response
+            .raw_payment_method_data
+            .map(|raw_data| {
+                DomainPaymentMethodDataWrapper::try_from((raw_data, pmd_card_token.clone()))
+            })
+            .transpose()
+            .attach_printable("Failed to convert raw payment method data")?
     };
 
     let pm_wrapper = PaymentMethodWithRawData {
