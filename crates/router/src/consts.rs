@@ -354,6 +354,40 @@ pub mod superposition {
     pub const REQUIRES_CVV: &str = "requires_cvv";
     /// implicit customer update configuration key
     pub const IMPLICIT_CUSTOMER_UPDATE: &str = "implicit_customer_update";
+    /// Blocklist guard enabled configuration key - controls whether the payment method blocklist feature is active for a merchant
+    pub const BLOCKLIST_GUARD_ENABLED: &str = "blocklist_guard_enabled";
+    /// enable extended card bin configuration key - controls whether first 8 digits of card number are extracted and stored
+    pub const ENABLE_EXTENDED_CARD_BIN: &str = "enable_extended_card_bin";
+    /// should call gsm configuration
+    pub const SHOULD_CALL_GSM: &str = "should_call_gsm_";
+    /// payment update enabled for client auth configuration key
+    pub const PAYMENT_UPDATE_ENABLED_FOR_CLIENT_AUTH: &str =
+        "payment_update_enabled_for_client_auth";
+    /// UCS enabled configuration key
+    pub const UCS_ENABLED: &str = "ucs_enabled";
+    /// Authentication service eligibility configuration key
+    pub const AUTHENTICATION_SERVICE_ELIGIBLE: &str = "authentication_service_eligible";
+    /// Should disable auth tokenization configuration key - controls whether post-authentication card data is tokenized and pushed to external vault
+    pub const SHOULD_DISABLE_AUTH_TOKENIZATION: &str = "should_disable_auth_tokenization";
+    /// Should enable MIT with limited card data configuration key - controls whether merchant initiated transactions with limited card data are allowed for proxy payments
+    pub const SHOULD_ENABLE_MIT_WITH_LIMITED_CARD_DATA: &str =
+        "should_enable_mit_with_limited_card_data";
+    /// Should perform eligibility check configuration key - controls whether SDK performs eligibility check before payment confirmation
+    pub const SHOULD_PERFORM_ELIGIBILITY: &str = "should_perform_eligibility";
+    /// Should store eligibility check data for authentication configuration key
+    pub const SHOULD_STORE_ELIGIBILITY_CHECK_DATA_FOR_AUTHENTICATION: &str =
+        "should_store_eligibility_check_data_for_authentication";
+    /// Should return raw payment method details configuration key - controls whether external API keys can retrieve unmasked payment method details
+    pub const SHOULD_RETURN_RAW_PAYMENT_METHOD_DETAILS: &str =
+        "should_return_raw_payment_method_details";
+    /// Should call PM modular service configuration key - controls whether the organization uses the modular payment method service
+    pub const SHOULD_CALL_PM_MODULAR_SERVICE: &str = "should_call_pm_modular_service";
+    /// Should call GSM for payout retry configuration key - controls whether GSM-based retry is enabled for payouts
+    pub const SHOULD_CALL_GSM_PAYOUT: &str = "should_call_gsm_payout";
+    /// Skip saving wallet at connector configuration key - controls whether wallet payment methods should skip connector mandate creation
+    pub const SKIP_SAVING_WALLET_AT_CONNECTOR: &str = "skip_saving_wallet_at_connector";
+    /// Pre-routing disabled for payment method and payment method type configuration key
+    pub const PRE_ROUTING_DISABLED_PM_PMT: &str = "pre_routing_disabled_pm_pmt";
 }
 
 #[cfg(test)]

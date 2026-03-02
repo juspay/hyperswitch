@@ -300,21 +300,20 @@ pub async fn modify_trackers(
 }
 
 pub async fn config_should_call_gsm_payout(
-    db: &dyn StorageInterface,
+    state: &app::SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
     retry_type: PayoutRetryType,
 ) -> bool {
-    let key = merchant_id.get_should_call_gsm_payout_key(retry_type);
-    let config = db
-        .find_config_by_key_unwrap_or(key.as_str(), Some("false".to_string()))
-        .await;
-    match config {
-        Ok(conf) => conf.config == "true",
-        Err(error) => {
-            logger::error!(?error);
-            false
-        }
-    }
+    let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+        .with_merchant_id(merchant_id.clone())
+        .with_payout_retry_type(retry_type);
+    dimensions
+        .get_should_call_gsm_payout(
+            state.store.as_ref(),
+            state.superposition_service.as_deref(),
+            Some(merchant_id),
+        )
+        .await
 }
 
 pub trait GsmValidation {

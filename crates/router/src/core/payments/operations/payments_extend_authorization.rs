@@ -228,7 +228,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsExtendAuthorizationRequest, 
         _payment_data: &mut PaymentData<F>,
         _request: Option<payments::CustomerDetails>,
         _provider: &domain::Provider,
-        _dimensions: DimensionsWithMerchantId,
+        _dimensions: &DimensionsWithMerchantId,
     ) -> errors::CustomResult<
         (
             PaymentExtendAuthorizationOperation<'a, F>,
