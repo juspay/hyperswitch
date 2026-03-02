@@ -20900,6 +20900,14 @@
           },
           "billing_frequency": {
             "$ref": "#/components/schemas/BillingFrequency"
+          },
+          "installment_interest": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
           }
         }
       },
