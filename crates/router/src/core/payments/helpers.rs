@@ -8,12 +8,13 @@ pub use ::payment_methods::helpers::{
 use api_models::ephemeral_key::ClientSecretResponse;
 #[cfg(feature = "v2")]
 use api_models::payments::{additional_info::UpiAdditionalData, UpiSource};
+use common_types::payments::InstallmentOption;
 use api_models::{
     customers::CustomerDocumentDetails,
     mandates::RecurringDetails,
     payments::{
         additional_info::{self as payment_additional_types},
-        RequestSurchargeDetails,
+        InstallmentRequest, RequestSurchargeDetails,
     },
 };
 use base64::Engine;
@@ -4229,8 +4230,8 @@ pub(crate) fn validate_payment_status_against_not_allowed_statuses(
 }
 
 pub(crate) fn validate_installment_data_in_create(
-    installment_options: &Option<Vec<common_types::payments::InstallmentOption>>,
-    installment_data: &Option<common_types::payments::InstallmentData>,
+    installment_options: &Option<Vec<InstallmentOption>>,
+    installment_data: &Option<InstallmentRequest>,
 ) -> Result<(), errors::ApiErrorResponse> {
     utils::when(
         installment_options.is_some() || installment_data.is_some(),
