@@ -44,6 +44,10 @@ pub trait HealthCheckInterface {
     async fn health_check_unified_connector_service(
         &self,
     ) -> CustomResult<HealthState, errors::HealthCheckUnifiedConnectorServiceError>;
+
+    async fn health_check_unified_authentication_service(
+        &self,
+    ) -> CustomResult<HealthState, errors::HealthCheckUnifiedAuthenticationServiceError>;
 }
 
 #[async_trait::async_trait]
@@ -227,6 +231,37 @@ impl HealthCheckInterface for app::SessionState {
         } else {
             logger::debug!("Unified Connector Service client not configured");
             Ok(HealthState::NotApplicable)
+        }
+    }
+
+    async fn health_check_unified_authentication_service(
+        &self,
+    ) -> CustomResult<HealthState, errors::HealthCheckUnifiedAuthenticationServiceError> {
+        let base_url = self
+            .conf
+            .connectors
+            .unified_authentication_service
+            .base_url
+            .trim_end_matches('/');
+        let url = format!("{}/{}", base_url, "health/ready");
+        let request = services::Request::new(services::Method::Get, &url);
+        let response = services::call_connector_api(self, request, "health_check_for_unified_authentication_service")
+            .await
+            .change_context(
+                errors::HealthCheckUnifiedAuthenticationServiceError::FailedToCallUnifiedAuthenticationService,
+            )?;
+
+        match response {
+            Ok(resp) => {
+                if resp.status_code == 200 {
+                    logger::debug!("Unified Authentication Service health check successful");
+                    Ok(HealthState::Running)
+                } else {
+                    logger::debug!("Unified Authentication Service health check not successful");
+                    Ok(HealthState::Error)
+                }
+            }
+            Err(_) => Ok(HealthState::Error),
         }
     }
 }
