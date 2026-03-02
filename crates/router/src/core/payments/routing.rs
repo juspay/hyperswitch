@@ -670,6 +670,7 @@ pub trait RoutingStage: Send + Sync {
     fn routing_approach(&self) -> common_enums::RoutingApproach;
 }
 
+#[cfg(feature = "v1")]
 #[derive(Clone)]
 pub struct SessionRoutingContext {
     pub routing_algorithm: Arc<MerchantAccountRoutingAlgorithm>,
@@ -833,6 +834,7 @@ impl RoutingStage for DecisionEngineStaticRoutingStage {
     }
 }
 
+#[cfg(feature = "v1")]
 pub async fn perform_static_routing_with_de(
     state: &SessionState,
     business_profile: &domain::Profile,
@@ -956,11 +958,13 @@ pub struct SessionRoutingInput<'a> {
     pub backend_input: &'a mut backend::BackendInput,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Clone)]
 pub struct SessionRoutingStage {
     pub ctx: SessionRoutingContext,
 }
 
+#[cfg(feature = "v1")]
 impl RoutingStage for SessionRoutingStage {
     type Input<'a> = SessionRoutingInput<'a>;
     type Output = RoutingConnectorOutcomeForSessionRouting;
