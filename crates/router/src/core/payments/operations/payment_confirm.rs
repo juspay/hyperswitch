@@ -1738,7 +1738,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                         bank_code: None,
                                         nick_name: None,
                                         eci: authentication_details.eci,
-                                        par: None, 
+                                        par: None,
                                     }),common_enums::AuthenticationStatus::Success)
                             },
 
