@@ -249,19 +249,28 @@ impl HealthCheckInterface for app::SessionState {
             .await
             .change_context(
                 errors::HealthCheckUnifiedAuthenticationServiceError::FailedToCallUnifiedAuthenticationService,
-            )?;
+            );
 
         match response {
-            Ok(resp) => {
-                if resp.status_code == 200 {
-                    logger::debug!("Unified Authentication Service health check successful");
-                    Ok(HealthState::Running)
-                } else {
+            Ok(resp) => match resp {
+                Ok(uas_resp) => {
+                    if uas_resp.status_code == 200 {
+                        logger::debug!("Unified Authentication Service health check successful");
+                        Ok(HealthState::Running)
+                    } else {
+                        logger::debug!(
+                            "Unified Authentication Service health check not successful"
+                        );
+                        Ok(HealthState::Error)
+                    }
+                }
+                Err(_) => {
                     logger::debug!("Unified Authentication Service health check not successful");
                     Ok(HealthState::Error)
                 }
-            }
-            Err(_) => Ok(HealthState::Error),
+            },
+            // Keeping this NotApplicable since authentication service is Saas product, and would not be available to Oss.
+            Err(_) => Ok(HealthState::NotApplicable),
         }
     }
 }
