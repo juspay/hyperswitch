@@ -710,7 +710,7 @@ impl CreateOrValidateOrganization {
                     Some(MerchantAccountType::Platform) => OrganizationType::Platform,
                     Some(MerchantAccountType::Connected) => {
                         return Err(errors::ApiErrorResponse::InvalidRequestData {
-                            message: "Connected merchants cannot create an organization"
+                            message: "Organization cannot be created with connected merchants only"
                                 .to_string(),
                         }
                         .into());
