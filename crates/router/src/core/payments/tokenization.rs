@@ -504,6 +504,7 @@ where
                                         network_token_locker_id,
                                         pm_network_token_data_encrypted,
                                         platform.get_provider().get_account().storage_scheme,
+                                        platform.get_initiator(),
                                     )
                                     .await
                                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -553,6 +554,7 @@ where
                                                 Some(vault_source_details),
                                                 payment_method_customer_details_encrypted,
                                                 resp.locker_fingerprint_id,
+                                                platform.get_initiator(),
                                             )
                                             .await
                                     } else {
@@ -645,6 +647,7 @@ where
                                             network_token_locker_id,
                                             pm_network_token_data_encrypted,
                                             platform.get_provider().get_account().storage_scheme,
+                                            platform.get_initiator(),
                                         )
                                         .await
                                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -697,6 +700,7 @@ where
                                                     Some(vault_source_details),
                                                     payment_method_customer_details_encrypted,
                                                     resp.locker_fingerprint_id,
+                                                    platform.get_initiator(),
                                                 )
                                                 .await
                                         } else {
@@ -825,6 +829,7 @@ where
                                     pm_data_encrypted.map(Into::into),
                                     platform.get_provider().get_account().storage_scheme,
                                     card_scheme,
+                                    platform.get_initiator(),
                                 )
                                 .await
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -925,6 +930,7 @@ where
                                     Some(vault_source_details),
                                     payment_method_customer_details_encrypted,
                                     resp.locker_fingerprint_id,
+                                    platform.get_initiator(),
                                 )
                                 .await?;
 
@@ -2156,6 +2162,7 @@ async fn generate_network_token_and_update_payment_method(
                     network_token_locker_id,
                     pm_network_token_data_encrypted,
                     platform.get_provider().get_account().storage_scheme,
+                    platform.get_initiator(),
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)

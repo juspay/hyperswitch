@@ -181,6 +181,7 @@ impl<F: Send + Clone + Sync>
                 storage_scheme,
                 request,
                 encrypted_data,
+                platform.get_initiator(),
             )
             .await?;
 

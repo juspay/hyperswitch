@@ -2738,3 +2738,18 @@ pub async fn update_gateway_score_open_router(
         response,
     ))
 }
+
+pub fn transaction_type_from_payments_dsl(input: &PaymentsDslInput<'_>) -> enums::TransactionType {
+    let txn_data = TransactionData::Payment(input.clone());
+    enums::TransactionType::from(&txn_data)
+}
+
+pub fn log_connectors(stage: &str, connectors: &[routing::RoutableConnectorChoice]) {
+    let names: Vec<String> = connectors.iter().map(|c| c.connector.to_string()).collect();
+
+    router_env::logger::debug!(
+        "euclid: connectors after {} = {{{}}}",
+        stage,
+        names.join(", ")
+    );
+}

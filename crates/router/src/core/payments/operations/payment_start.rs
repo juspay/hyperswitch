@@ -291,6 +291,7 @@ where
         _payment_data: &mut PaymentData<F>,
         _request: Option<CustomerDetails>,
         _provider: &domain::Provider,
+        _initiator: Option<&domain::Initiator>,
         _dimensions: DimensionsWithMerchantId,
         _mandate_type: Option<MandateTransactionType>,
     ) -> CustomResult<
