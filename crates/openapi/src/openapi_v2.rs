@@ -210,7 +210,7 @@ Never share your secret api keys. Keep them guarded and secure.
         common_utils::payout_method_utils::OpenBankingUkAdditionalData,
         common_utils::payout_method_utils::VenmoAdditionalData,
         common_utils::payout_method_utils::ApplePayDecryptAdditionalData,
-        common_utils::payout_method_utils::PassthroughAddtionalData,
+        common_utils::payout_method_utils::PassthroughAdditionalData,
         common_types::payments::SplitPaymentsRequest,
         common_types::payments::GpayTokenizationData,
         common_types::payments::GPayPredecryptData,

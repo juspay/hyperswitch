@@ -1958,6 +1958,14 @@ pub struct Message {
     transaction: RedsysSyncRequest,
 }
 
+/// SOAP XML Transaction request for Redsys PSync/RSync operations
+///
+/// CRITICAL: Field ordering must match Redsys DTD exactly.
+/// Alphabetical sorting will cause XML0001 error (DTD validation failure).
+///
+/// Required DTD order: Ds_MerchantCode → Ds_Terminal → Ds_Order → Ds_TransactionType
+///
+/// Ref: RS.TE.CEL.MAN.0021 v1.4, Section 3.2.1 (Transaction simple)
 #[derive(Debug, Serialize)]
 #[serde(rename = "Transaction")]
 pub struct RedsysSyncRequest {
