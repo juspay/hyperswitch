@@ -1273,6 +1273,7 @@ where
     }
 }
 
+#[cfg(feature = "v1")]
 pub async fn try_pre_routing_connectors<F, D>(
     state: &SessionState,
     platform: &domain::Platform,
@@ -1284,6 +1285,8 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
+    let mut connector_call_type = None;
+
     if let (None, Some(payment_method_type)) = (
         payment_data.get_token_data(),
         payment_data
@@ -1307,64 +1310,69 @@ where
                 .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
 
             #[cfg(feature = "retry")]
-            let should_do_retry = crate::core::payments::retry::config_should_call_gsm(
-                &*state.store,
-                platform.get_processor().get_account().get_id(),
-                business_profile,
-            )
-            .await;
-
-            #[cfg(feature = "retry")]
-            if payment_data.get_payment_attempt().payment_method_type
-                == Some(storage_enums::PaymentMethodType::ApplePay)
-                && should_do_retry
             {
-                let retryable_connector_data =
-                    crate::core::payments::helpers::get_apple_pay_retryable_connectors(
-                        state,
-                        platform,
-                        payment_data.get_creds_identifier(),
-                        &connectors.clone(),
-                        first_connector
-                            .connector_data
-                            .merchant_connector_id
-                            .clone()
-                            .as_ref(),
-                        business_profile.clone(),
-                    )
-                    .await?;
+                let should_do_retry = crate::core::payments::retry::config_should_call_gsm(
+                    &*state.store,
+                    platform.get_processor().get_account().get_id(),
+                    business_profile,
+                )
+                .await;
 
-                if let Some(connector_data_list) = retryable_connector_data {
-                    if connector_data_list.len() > 1 {
-                        logger::info!("Constructed apple pay retryable connector list");
-                        return Ok(Some(api::ConnectorCallType::Retryable(connector_data_list)));
+                if payment_data.get_payment_attempt().payment_method_type
+                    == Some(storage_enums::PaymentMethodType::ApplePay)
+                    && should_do_retry
+                {
+                    let retryable_connector_data =
+                        crate::core::payments::helpers::get_apple_pay_retryable_connectors(
+                            state,
+                            platform,
+                            payment_data.get_creds_identifier(),
+                            &connectors.clone(),
+                            first_connector
+                                .connector_data
+                                .merchant_connector_id
+                                .clone()
+                                .as_ref(),
+                            business_profile.clone(),
+                        )
+                        .await?;
+
+                    if let Some(connector_data_list) = retryable_connector_data {
+                        if connector_data_list.len() > 1 {
+                            logger::info!("Constructed apple pay retryable connector list");
+                            connector_call_type =
+                                Some(api::ConnectorCallType::Retryable(connector_data_list));
+                        }
                     }
                 }
             }
 
-            routing_data.routed_through = Some(
-                first_connector
-                    .connector_data
-                    .connector_name
-                    .to_string()
-                    .clone(),
-            );
+            if connector_call_type.is_none() {
+                routing_data.routed_through = Some(
+                    first_connector
+                        .connector_data
+                        .connector_name
+                        .to_string()
+                        .clone(),
+                );
 
-            routing_data.merchant_connector_id =
-                first_connector.connector_data.merchant_connector_id.clone();
+                routing_data.merchant_connector_id =
+                    first_connector.connector_data.merchant_connector_id.clone();
 
-            crate::core::payments::helpers::override_setup_future_usage_to_on_session(
-                &*state.store,
-                payment_data,
-            )
-            .await?;
+                crate::core::payments::helpers::override_setup_future_usage_to_on_session(
+                    &*state.store,
+                    payment_data,
+                )
+                .await?;
 
-            return Ok(Some(api::ConnectorCallType::PreDetermined(
-                first_connector.clone(),
-            )));
+                connector_call_type = Some(api::ConnectorCallType::PreDetermined(
+                    first_connector.clone(),
+                ));
+            }
         }
-    };
-    Ok(None)
+    }
+
+    Ok(connector_call_type)
 }
 
 pub struct RoutingConnectorOutcomeForSessionRouting {
