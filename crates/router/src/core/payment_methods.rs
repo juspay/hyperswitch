@@ -1979,7 +1979,6 @@ pub struct NetworkTokenPaymentMethodDetails {
     network_token_requestor_reference_id: String,
     network_token_locker_id: String,
     network_token_pmd: Encryptable<Secret<serde_json::Value>>,
-    par: Option<Secret<String>>,
 }
 
 #[cfg(feature = "v2")]
@@ -2030,8 +2029,6 @@ pub async fn network_tokenize_and_vault_the_pmd(
             )
             .await?;
 
-        let par = resp.par.clone();
-
         let network_token_vaulting_data = domain::PaymentMethodVaultingData::NetworkToken(resp);
         let vaulting_resp = vault::add_payment_method_to_vault(
             state,
@@ -2058,7 +2055,6 @@ pub async fn network_tokenize_and_vault_the_pmd(
             network_token_requestor_reference_id: network_token_req_ref_id,
             network_token_locker_id: vaulting_resp.vault_id.get_string_repr().clone(),
             network_token_pmd,
-            par,
         })
     }
     .await;

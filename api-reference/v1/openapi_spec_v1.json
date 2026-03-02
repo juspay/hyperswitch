@@ -23496,7 +23496,7 @@
           },
           "par": {
             "type": "string",
-            "description": "par value for the card",
+            "description": "The Payment Account Reference (PAR) for this card",
             "nullable": true
           }
         }

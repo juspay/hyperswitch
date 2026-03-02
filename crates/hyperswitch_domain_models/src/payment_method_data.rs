@@ -667,7 +667,7 @@ impl From<NetworkTokenDetailsForNetworkTransactionId> for NetworkTokenData {
             bank_code: network_token_details_for_nti.bank_code,
             nick_name: network_token_details_for_nti.nick_name,
             eci: network_token_details_for_nti.eci,
-            par: None, // check this
+            par: None, // Setting Par to None as it is not required for NetworkTransactionId flows
         }
     }
 }
@@ -3487,7 +3487,7 @@ impl From<DecryptedWalletTokenDetailsForNetworkTransactionId> for AdditionalNetw
                     .get_card_isin()
                     .clone(),
             ),
-            par: None, // check this
+            par: None, // Setting Par to None as it is not required for NetworkTransactionId flows
         }
     }
 }

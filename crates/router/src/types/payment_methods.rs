@@ -333,8 +333,6 @@ pub struct TokenDetails {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TokenCardDetails {
-    pub exp_month: Secret<String>,
-    pub exp_year: Secret<String>,
     pub par: Secret<String>,
 }
 

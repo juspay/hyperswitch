@@ -3553,7 +3553,7 @@ pub struct NetworkTokenResponse {
     #[smithy(value_type = "Option<String>")]
     pub card_holder_name: Option<Secret<String>>,
 
-    /// par value for the card
+    /// The Payment Account Reference (PAR) for this card
     #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub par: Option<Secret<String>>,
