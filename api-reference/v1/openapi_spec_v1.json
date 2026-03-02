@@ -11500,6 +11500,26 @@
                   },
                   "routing_number": {
                     "type": "string"
+                  },
+                  "bank_account_holder_name": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "bank_type": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankType"
+                      }
+                    ],
+                    "nullable": true
+                  },
+                  "bank_holder_type": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankHolderType"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -13064,6 +13084,13 @@
             "nullable": true
           }
         }
+      },
+      "BillingFrequency": {
+        "type": "string",
+        "description": "Billing frequency for a card installment plan",
+        "enum": [
+          "month"
+        ]
       },
       "BlikBankRedirectAdditionalData": {
         "type": "object",
@@ -15129,6 +15156,7 @@
           "razorpay",
           "recurly",
           "redsys",
+          "revolv3",
           "santander",
           "shift4",
           "silverflow",
@@ -17965,10 +17993,9 @@
         "type": "object",
         "properties": {
           "amount": {
-            "type": "number",
-            "format": "double",
+            "type": "string",
             "description": "The discount value (e.g., \"5.50\").",
-            "example": 38.02,
+            "example": "5.50",
             "nullable": true
           },
           "end_date": {
@@ -21049,6 +21076,50 @@
           }
         }
       },
+      "InstallmentOption": {
+        "type": "object",
+        "description": "Installment options grouped by payment method",
+        "required": [
+          "payment_method",
+          "installments"
+        ],
+        "properties": {
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "installments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InstallmentOptionData"
+            },
+            "description": "List of available installment configurations"
+          }
+        }
+      },
+      "InstallmentOptionData": {
+        "type": "object",
+        "description": "A single installment plan option accepted in request payloads",
+        "required": [
+          "number_of_installments",
+          "billing_frequency",
+          "interest_rate"
+        ],
+        "properties": {
+          "number_of_installments": {
+            "type": "string",
+            "format": "binary",
+            "description": "Number of installments (e.g., [3, 6, 12])"
+          },
+          "billing_frequency": {
+            "$ref": "#/components/schemas/BillingFrequency"
+          },
+          "interest_rate": {
+            "type": "number",
+            "format": "double",
+            "description": "Interest rate applied per installment as a percentage"
+          }
+        }
+      },
       "IntentStatus": {
         "type": "string",
         "description": "Represents the overall status of a payment intent.\nThe status transitions through various states depending on the payment method, confirmation, capture method, and any subsequent actions (like customer authentication or manual capture).",
@@ -23748,6 +23819,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/TokenSource"
+              }
+            ],
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
               }
             ],
             "nullable": true
@@ -27806,7 +27885,8 @@
           "normal",
           "new_mandate",
           "setup_mandate",
-          "recurring_mandate"
+          "recurring_mandate",
+          "installment"
         ]
       },
       "PaymentsCancelPostCaptureRequest": {
@@ -28423,6 +28503,14 @@
               }
             ],
             "nullable": true
+          },
+          "installment_options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InstallmentOption"
+            },
+            "description": "Installment payment options grouped by payment method. When provided, the payment is treated as an installment payment.",
+            "nullable": true
           }
         }
       },
@@ -28950,6 +29038,14 @@
                 "$ref": "#/components/schemas/PartnerMerchantIdentifierDetails"
               }
             ],
+            "nullable": true
+          },
+          "installment_options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InstallmentOption"
+            },
+            "description": "Installment payment options grouped by payment method. When provided, the payment is treated as an installment payment.",
             "nullable": true
           }
         }
@@ -29670,6 +29766,14 @@
                 "$ref": "#/components/schemas/PaymentMethodTokenizationDetails"
               }
             ],
+            "nullable": true
+          },
+          "installment_options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InstallmentOption"
+            },
+            "description": "Installment payment options associated with this payment, grouped by payment method",
             "nullable": true
           }
         }
@@ -30552,6 +30656,14 @@
               }
             ],
             "nullable": true
+          },
+          "installment_options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InstallmentOption"
+            },
+            "description": "Installment payment options grouped by payment method. When provided, the payment is treated as an installment payment.",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -31298,6 +31410,14 @@
               }
             ],
             "nullable": true
+          },
+          "installment_options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InstallmentOption"
+            },
+            "description": "Installment payment options associated with this payment, grouped by payment method",
+            "nullable": true
           }
         }
       },
@@ -31433,6 +31553,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/FeatureMetadata"
+              }
+            ],
+            "nullable": true
+          },
+          "connector_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorMetadata"
               }
             ],
             "nullable": true
@@ -31983,6 +32111,14 @@
                 "$ref": "#/components/schemas/PartnerMerchantIdentifierDetails"
               }
             ],
+            "nullable": true
+          },
+          "installment_options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InstallmentOption"
+            },
+            "description": "Installment payment options grouped by payment method. When provided, the payment is treated as an installment payment.",
             "nullable": true
           }
         }
@@ -35901,6 +36037,14 @@
           },
           "currency": {
             "$ref": "#/components/schemas/Currency"
+          },
+          "capture_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CaptureMethod"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -36779,6 +36923,7 @@
           "razorpay",
           "recurly",
           "redsys",
+          "revolv3",
           "riskified",
           "santander",
           "shift4",
