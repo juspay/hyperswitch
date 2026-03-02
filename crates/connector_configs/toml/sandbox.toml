@@ -8109,3 +8109,45 @@ options=["Connector"]
 [truelayer.connector_auth.BodyKey]
   api_key = "Client ID"
   key1 = "Client Secret"
+
+
+[revolv3]
+[[revolv3.credit]]
+payment_method_type = "Mastercard"
+[[revolv3.credit]]
+payment_method_type = "Visa"
+[[revolv3.credit]]
+payment_method_type = "Interac"
+[[revolv3.credit]]
+payment_method_type = "AmericanExpress"
+[[revolv3.credit]]
+payment_method_type = "JCB"
+[[revolv3.credit]]
+payment_method_type = "DinersClub"
+[[revolv3.credit]]
+payment_method_type = "Discover"
+[[revolv3.credit]]
+payment_method_type = "CartesBancaires"
+[[revolv3.credit]]
+payment_method_type = "UnionPay"
+[[revolv3.debit]]
+payment_method_type = "Mastercard"
+[[revolv3.debit]]
+payment_method_type = "Visa"
+[[revolv3.debit]]
+payment_method_type = "Interac"
+[[revolv3.debit]]
+payment_method_type = "AmericanExpress"
+[[revolv3.debit]]
+payment_method_type = "JCB"
+[[revolv3.debit]]
+payment_method_type = "DinersClub"
+[[revolv3.debit]]
+payment_method_type = "Discover"
+[[revolv3.debit]]
+payment_method_type = "CartesBancaires"
+[[revolv3.debit]]
+payment_method_type = "UnionPay"
+[revolv3.connector_auth.HeaderKey]
+api_key = "Static Tokens"
+

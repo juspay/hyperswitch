@@ -10593,6 +10593,7 @@
           "razorpay",
           "recurly",
           "redsys",
+          "revolv3",
           "santander",
           "shift4",
           "silverflow",
@@ -27622,6 +27623,7 @@
           "razorpay",
           "recurly",
           "redsys",
+          "revolv3",
           "riskified",
           "santander",
           "shift4",
@@ -28725,7 +28727,8 @@
         "type": "string",
         "enum": [
           "amount",
-          "created"
+          "created",
+          "modified"
         ]
       },
       "SplitPaymentMethodDataRequest": {
