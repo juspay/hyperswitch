@@ -51,6 +51,7 @@ pub const REDACTED: &str = "Redacted";
 pub async fn create_customer(
     state: SessionState,
     provider: domain::Provider,
+    initiator: Option<domain::Initiator>,
     customer_data: customers::CustomerRequest,
     connector_customer_details: Option<Vec<payment_methods_domain::ConnectorCustomerDetails>>,
 ) -> errors::CustomerResponse<customers::CustomerResponse> {
@@ -93,6 +94,7 @@ pub async fn create_customer(
             db,
             &merchant_reference_id,
             &provider,
+            initiator.as_ref(),
             key_manager_state,
             &state,
         )
@@ -110,6 +112,7 @@ pub async fn create_customer(
     customer_data.generate_response(&customer)
 }
 
+#[allow(clippy::too_many_arguments)]
 #[async_trait::async_trait]
 trait CustomerCreateBridge {
     async fn create_domain_model_from_request<'a>(
@@ -120,6 +123,7 @@ trait CustomerCreateBridge {
         db: &'a dyn StorageInterface,
         merchant_reference_id: &'a Option<id_type::CustomerId>,
         provider: &'a domain::Provider,
+        initiator: Option<&'a domain::Initiator>,
         key_manager_state: &'a KeyManagerState,
         state: &'a SessionState,
     ) -> errors::CustomResult<domain::Customer, errors::CustomersErrorResponse>;
@@ -141,6 +145,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
         db: &'a dyn StorageInterface,
         merchant_reference_id: &'a Option<id_type::CustomerId>,
         provider: &'a domain::Provider,
+        initiator: Option<&'a domain::Initiator>,
         key_manager_state: &'a KeyManagerState,
         state: &'a SessionState,
     ) -> errors::CustomResult<domain::Customer, errors::CustomersErrorResponse> {
@@ -256,9 +261,8 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             version: common_types::consts::API_VERSION,
             tax_registration_id: encryptable_customer.tax_registration_id,
             document_details: document_details_encrypted,
-            // TODO: Populate created_by from authentication context once it is integrated in auth data
-            created_by: None,
-            last_modified_by: None,
+            created_by: initiator.and_then(|initiator| initiator.to_created_by()),
+            last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
         })
     }
 
@@ -286,6 +290,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
         _db: &'a dyn StorageInterface,
         merchant_reference_id: &'a Option<id_type::CustomerId>,
         provider: &'a domain::Provider,
+        initiator: Option<&'a domain::Initiator>,
         key_state: &'a KeyManagerState,
         state: &'a SessionState,
     ) -> errors::CustomResult<domain::Customer, errors::CustomersErrorResponse> {
@@ -376,9 +381,8 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             status: common_enums::DeleteStatus::Active,
             tax_registration_id: encryptable_customer.tax_registration_id,
             document_details: None,
-            // TODO: Populate created_by from authentication context once it is integrated in auth data
-            created_by: None,
-            last_modified_by: None,
+            created_by: initiator.and_then(|initiator| initiator.to_created_by()),
+            last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
         })
     }
 
@@ -812,7 +816,10 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
                 status: Some(common_enums::DeleteStatus::Redacted),
                 tax_registration_id: Some(redacted_encrypted_value.clone()),
                 document_details: None,
-                last_modified_by: None,
+                last_modified_by: platform
+                    .get_initiator()
+                    .and_then(|initiator| initiator.to_created_by())
+                    .map(|last_modified_by| last_modified_by.to_string()),
             }));
 
         db.update_customer_by_global_id(
@@ -843,6 +850,7 @@ trait CustomerDeleteBridge {
         &'a self,
         db: &'a dyn StorageInterface,
         provider: &'a domain::Provider,
+        initiator: Option<&'a domain::Initiator>,
         key_manager_state: &'a KeyManagerState,
         state: &'a SessionState,
     ) -> errors::CustomerResponse<customers::CustomerDeleteResponse>;
@@ -865,12 +873,19 @@ trait CustomerDeleteBridge {
 pub async fn delete_customer(
     state: SessionState,
     provider: domain::Provider,
+    initiator: Option<domain::Initiator>,
     customer_id: id_type::CustomerId,
 ) -> errors::CustomerResponse<customers::CustomerDeleteResponse> {
     let db = &*state.store;
     let key_manager_state = &(&state).into();
     customer_id
-        .redact_customer_details_and_generate_response(db, &provider, key_manager_state, &state)
+        .redact_customer_details_and_generate_response(
+            db,
+            &provider,
+            initiator.as_ref(),
+            key_manager_state,
+            &state,
+        )
         .await
 }
 
@@ -881,6 +896,7 @@ impl CustomerDeleteBridge for id_type::CustomerId {
         &'a self,
         db: &'a dyn StorageInterface,
         provider: &'a domain::Provider,
+        initiator: Option<&'a domain::Initiator>,
         key_manager_state: &'a KeyManagerState,
         state: &'a SessionState,
     ) -> errors::CustomerResponse<customers::CustomerDeleteResponse> {
@@ -1049,7 +1065,9 @@ impl CustomerDeleteBridge for id_type::CustomerId {
             address_id: None,
             tax_registration_id: Some(redacted_encrypted_value.clone()),
             document_details: Box::new(None),
-            last_modified_by: None,
+            last_modified_by: initiator
+                .and_then(|initiator| initiator.to_created_by())
+                .map(|last_modified_by| last_modified_by.to_string()),
         };
 
         db.update_customer_by_customer_id_merchant_id(
@@ -1078,6 +1096,7 @@ impl CustomerDeleteBridge for id_type::CustomerId {
 pub async fn update_customer(
     state: SessionState,
     provider: domain::Provider,
+    initiator: Option<domain::Initiator>,
     update_customer: customers::CustomerUpdateRequestInternal,
 ) -> errors::CustomerResponse<customers::CustomerResponse> {
     update_customer
@@ -1119,6 +1138,7 @@ pub async fn update_customer(
             &None,
             db,
             &provider,
+            initiator.as_ref(),
             key_manager_state,
             &state,
             &customer,
@@ -1128,6 +1148,7 @@ pub async fn update_customer(
     update_customer.request.generate_response(&updated_customer)
 }
 
+#[allow(clippy::too_many_arguments)]
 #[async_trait::async_trait]
 trait CustomerUpdateBridge {
     async fn create_domain_model_from_request<'a>(
@@ -1137,6 +1158,7 @@ trait CustomerUpdateBridge {
         >,
         db: &'a dyn StorageInterface,
         provider: &'a domain::Provider,
+        initiator: Option<&'a domain::Initiator>,
         key_manager_state: &'a KeyManagerState,
         state: &'a SessionState,
         domain_customer: &'a domain::Customer,
@@ -1294,6 +1316,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
         >,
         db: &'a dyn StorageInterface,
         provider: &'a domain::Provider,
+        initiator: Option<&'a domain::Initiator>,
         key_manager_state: &'a KeyManagerState,
         state: &'a SessionState,
         domain_customer: &'a domain::Customer,
@@ -1390,7 +1413,11 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                     description: self.description.clone(),
                     connector_customer: Box::new(None),
                     address_id: address.clone().map(|addr| addr.address_id),
-                    last_modified_by: None,
+                    last_modified_by: initiator.and_then(|initiator| {
+                        initiator
+                            .to_created_by()
+                            .map(|last_modified_by| last_modified_by.to_string())
+                    }),
                 },
                 provider.get_key_store(),
                 provider.get_account().storage_scheme,
@@ -1424,6 +1451,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
         >,
         db: &'a dyn StorageInterface,
         provider: &'a domain::Provider,
+        initiator: Option<&'a domain::Initiator>,
         key_manager_state: &'a KeyManagerState,
         state: &'a SessionState,
         domain_customer: &'a domain::Customer,
@@ -1506,7 +1534,11 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                     default_shipping_address: encrypted_customer_shipping_address,
                     default_payment_method_id: Some(self.default_payment_method_id.clone()),
                     status: None,
-                    last_modified_by: None,
+                    last_modified_by: initiator.and_then(|initiator| {
+                        initiator
+                            .to_created_by()
+                            .map(|last_modified_by| last_modified_by.to_string())
+                    }),
                 })),
                 provider.get_key_store(),
                 provider.get_account().storage_scheme,
@@ -1537,6 +1569,7 @@ pub async fn migrate_customers(
         match create_customer(
             state.clone(),
             platform.get_provider().clone(),
+            platform.get_initiator().cloned(),
             customer_migration.customer,
             customer_migration.connector_customer_details,
         )
