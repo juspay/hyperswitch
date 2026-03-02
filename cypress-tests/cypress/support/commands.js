@@ -123,9 +123,9 @@ function parseMethodFlows(methodFlowInput) {
 
   return methodFlowInput.includes(",")
     ? methodFlowInput
-      .split(",")
-      .map((flow) => flow.trim())
-      .filter((flow) => flow.length > 0)
+        .split(",")
+        .map((flow) => flow.trim())
+        .filter((flow) => flow.length > 0)
     : [methodFlowInput.trim()];
 }
 
@@ -1561,12 +1561,12 @@ Cypress.Commands.add(
           const responsePaymentMethods = response.body["payment_methods"];
           const responseRequiredFields =
             responsePaymentMethods[0]["payment_method_types"][0][
-            "required_fields"
+              "required_fields"
             ];
 
           const expectedRequiredFields =
             data["payment_methods"][0]["payment_method_types"][0][
-            "required_fields"
+              "required_fields"
             ];
 
           Object.keys(expectedRequiredFields).forEach((key) => {
@@ -2950,13 +2950,13 @@ Cypress.Commands.add(
             for (const key in response.body.attempts) {
               if (
                 response.body.attempts[key].attempt_id ===
-                `${payment_id}_${attempt}` &&
+                  `${payment_id}_${attempt}` &&
                 response.body.status === "succeeded"
               ) {
                 expect(response.body.attempts[key].status).to.equal("charged");
               } else if (
                 response.body.attempts[key].attempt_id ===
-                `${payment_id}_${attempt}` &&
+                  `${payment_id}_${attempt}` &&
                 response.body.status === "requires_customer_action"
               ) {
                 expect(response.body.attempts[key].status).to.equal(
@@ -5351,23 +5351,26 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add("listPaymentsWithApiKeyCallTest", (apiKey, globalState) => {
-  const baseUrl = globalState
-    ? globalState.get("baseUrl")
-    : Cypress.env("BASEURL");
+Cypress.Commands.add(
+  "listPaymentsWithApiKeyCallTest",
+  (apiKey, globalState) => {
+    const baseUrl = globalState
+      ? globalState.get("baseUrl")
+      : Cypress.env("BASEURL");
 
-  return cy
-    .request({
-      method: "GET",
-      url: `${baseUrl}/payments/list`,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": apiKey,
-      },
-      failOnStatusCode: false,
-    })
-    .then((response) => {
-      logRequestId(response.headers["x-request-id"]);
-      return cy.wrap(response);
-    });
-});
+    return cy
+      .request({
+        method: "GET",
+        url: `${baseUrl}/payments/list`,
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": apiKey,
+        },
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        logRequestId(response.headers["x-request-id"]);
+        return cy.wrap(response);
+      });
+  }
+);

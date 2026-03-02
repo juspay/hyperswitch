@@ -54,7 +54,10 @@ describe("Connector Setup for Connected Merchants", () => {
 
       globalState.set("merchantId", globalState.get("connectedMerchantId_1"));
       globalState.set("apiKey", globalState.get("apiKey_CM1"));
-      globalState.set("merchantConnectorId", globalState.get("connectorId_CM1"));
+      globalState.set(
+        "merchantConnectorId",
+        globalState.get("connectorId_CM1")
+      );
       globalState.set("connectorId", "stripe");
 
       cy.connectorRetrieveCall(globalState);
@@ -107,7 +110,10 @@ describe("Connector Setup for Connected Merchants", () => {
 
       globalState.set("merchantId", globalState.get("connectedMerchantId_2"));
       globalState.set("apiKey", globalState.get("apiKey_CM2"));
-      globalState.set("merchantConnectorId", globalState.get("connectorId_CM2"));
+      globalState.set(
+        "merchantConnectorId",
+        globalState.get("connectorId_CM2")
+      );
       globalState.set("connectorId", "stripe");
 
       cy.connectorRetrieveCall(globalState);

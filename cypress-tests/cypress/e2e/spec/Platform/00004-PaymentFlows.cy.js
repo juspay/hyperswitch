@@ -29,7 +29,10 @@ describe("Platform Payment Flows", () => {
         globalState
       ).then((response) => {
         if (response.status !== 200) {
-          cy.task("cli_log", `Payment create failed: ${JSON.stringify(response.body)}`);
+          cy.task(
+            "cli_log",
+            `Payment create failed: ${JSON.stringify(response.body)}`
+          );
         }
         expect(response.status).to.equal(200);
         expect(response.body).to.have.property("payment_id");

@@ -21,17 +21,16 @@ describe("Platform Setup & Connected Merchant Onboarding", () => {
         merchant_account_type: "platform",
       };
 
-      cy.createPlatformMerchantCallTest(
-        merchantCreateBody,
-        globalState
-      ).then((response) => {
-        expect(response.status).to.equal(200);
-        expect(response.body).to.have.property(
-          "merchant_account_type",
-          "platform"
-        );
-        expect(response.body).to.have.property("organization_id");
-      });
+      cy.createPlatformMerchantCallTest(merchantCreateBody, globalState).then(
+        (response) => {
+          expect(response.status).to.equal(200);
+          expect(response.body).to.have.property(
+            "merchant_account_type",
+            "platform"
+          );
+          expect(response.body).to.have.property("organization_id");
+        }
+      );
     });
 
     it("retrieve-platform-merchant", () => {
