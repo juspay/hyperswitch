@@ -304,6 +304,7 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::payments::InstallmentOption,
         common_types::payments::InstallmentOptionData,
         common_types::payments::InstallmentData,
+        api_models::payments::InstallmentRequest,
         common_types::payments::BillingFrequency,
         common_types::connector_webhook_configuration::WebhookSetupCapabilities,
         common_types::connector_webhook_configuration::WebhookConfigType,

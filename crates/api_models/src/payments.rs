@@ -1103,7 +1103,6 @@ impl AmountDetailsUpdate {
 }
 
 /// Installment selection sent by the customer during payment confirmation.
-/// Contains only the customer-facing fields; `installment_interest` is server-computed.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct InstallmentRequest {
