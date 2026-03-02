@@ -28,6 +28,7 @@ use crate::merchant_connector_account::MerchantConnectorAccountTypeDetails;
 use crate::{
     behaviour,
     merchant_key_store::MerchantKeyStore,
+    platform,
     type_encryption::{self as types, AsyncLift},
 };
 
@@ -855,6 +856,7 @@ pub async fn update_connector_customer_in_customers(
     connector_label: &str,
     connector_customer_map: Option<&pii::SecretSerdeValue>,
     connector_customer_id: Option<String>,
+    initiator: Option<&platform::Initiator>,
 ) -> Option<CustomerUpdate> {
     let mut connector_customer_map = connector_customer_map
         .and_then(|connector_customer| connector_customer.clone().expose().as_object().cloned())
@@ -871,7 +873,9 @@ pub async fn update_connector_customer_in_customers(
         .map(
             |connector_customer_value| CustomerUpdate::ConnectorCustomer {
                 connector_customer: Some(pii::SecretSerdeValue::new(connector_customer_value)),
-                last_modified_by: None,
+                last_modified_by: initiator
+                    .and_then(|initiator| initiator.to_created_by())
+                    .map(|last_modified_by| last_modified_by.to_string()),
             },
         )
 }
@@ -882,6 +886,7 @@ pub async fn update_connector_customer_in_customers(
     merchant_connector_account: &MerchantConnectorAccountTypeDetails,
     customer: Option<&Customer>,
     connector_customer_id: Option<String>,
+    initiator: Option<&platform::Initiator>,
 ) -> Option<CustomerUpdate> {
     match merchant_connector_account {
         MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(account) => {
@@ -893,7 +898,9 @@ pub async fn update_connector_customer_in_customers(
                 connector_customer_map.insert(connector_account_id, new_conn_cust_id);
                 CustomerUpdate::ConnectorCustomer {
                     connector_customer: Some(connector_customer_map),
-                    last_modified_by: None,
+                    last_modified_by: initiator
+                        .and_then(|initiator| initiator.to_created_by())
+                        .map(|last_modified_by| last_modified_by.to_string()),
                 }
             })
         }
