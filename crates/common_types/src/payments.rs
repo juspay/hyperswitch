@@ -1307,7 +1307,6 @@ pub struct InstallmentInterestRate(f64);
 
 impl InstallmentInterestRate {
     /// apply the interest rate to amount and ceil the result
-    #[allow(clippy::as_conversions)]
     pub fn apply_and_ceil_result(
         &self,
         amount: MinorUnit,
@@ -1326,7 +1325,19 @@ impl InstallmentInterestRate {
                 "Cannot calculate interest rate for amount greater than {max_amount}",
             ))
         } else {
-            let result = (amount as f64 * (self.0 / 100.0)).ceil() as i64;
+            let amount_f64 = amount.to_string().parse::<f64>().change_context(
+                errors::InstallmentInterestRateError::UnableToApplyInterestRate {
+                    interest_rate: self.0,
+                    amount: MinorUnit::new(amount),
+                },
+            )?;
+            let ceiled = (amount_f64 * (self.0 / 100.0)).ceil();
+            let result = ceiled.to_string().parse::<i64>().change_context(
+                errors::InstallmentInterestRateError::UnableToApplyInterestRate {
+                    interest_rate: self.0,
+                    amount: MinorUnit::new(amount),
+                },
+            )?;
             Ok(MinorUnit::new(result))
         }
     }
