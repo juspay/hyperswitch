@@ -2,6 +2,15 @@ use common_utils::{hashing::HashedString, types::TimeRange};
 use masking::{ExposeInterface, WithType};
 use serde_json::Value;
 
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct OpensearchRange {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gte: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lte: Option<i64>,
+}
+
+
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct SearchFilters {
     pub payment_method: Option<Vec<String>>,
@@ -15,7 +24,7 @@ pub struct SearchFilters {
     pub card_last_4: Option<Vec<String>>,
     pub payment_id: Option<Vec<String>>,
     pub amount: Option<Vec<u64>>,
-    pub amount_filter: Option<super::super::payments::AmountFilter>,
+    pub amount_filter: Option<OpensearchRange>,
     pub customer_id: Option<Vec<String>>,
     pub authentication_type: Option<Vec<String>>,
     pub card_discovery: Option<Vec<String>>,
@@ -70,7 +79,10 @@ impl From<&crate::payments::PaymentListFilterConstraints> for SearchFilters {
             search_tags: None,
             card_last_4: None,
             amount: None,
-            amount_filter: constraints.amount_filter.clone(),
+            amount_filter: constraints.amount_filter.as_ref().map(|amount| OpensearchRange {
+                gte: amount.start_amount,
+                lte: amount.end_amount,
+            }),
         }
     }
 }

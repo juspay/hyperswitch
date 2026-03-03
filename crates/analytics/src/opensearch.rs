@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use api_models::{
-    analytics::search::SearchIndex,
+    analytics::search::{OpensearchRange, SearchIndex},
     errors::types::{ApiError, ApiErrorResponse},
     payments::{Order, SortBy, SortOn},
 };
@@ -68,13 +68,6 @@ impl From<TimeRange> for OpensearchTimeRange {
     }
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
-pub struct OpensearchRange {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub gte: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub lte: Option<i64>,
-}
 
 #[derive(Clone, Debug, serde::Deserialize)]
 pub struct OpenSearchConfig {
