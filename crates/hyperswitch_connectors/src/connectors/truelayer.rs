@@ -1,11 +1,12 @@
 pub mod transformers;
 
-use std::sync::LazyLock;
+use std::{collections::BTreeMap, sync::LazyLock};
 
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
-    ext_traits::BytesExt,
+    ext_traits::{ByteSliceExt, BytesExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
@@ -17,19 +18,29 @@ use hyperswitch_domain_models::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
+        VerifyWebhookSource,
     },
     router_request_types::{
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, SetupMandateRequestData,
+        RefundsData, SetupMandateRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt, VerifyWebhookSourceResponseData,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData,
+        RefreshTokenRouterData, RefundSyncRouterData, RefundsRouterData,
+        VerifyWebhookSourceRouterData,
     },
+};
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::{
+    router_flow_types::{payouts::PoFulfill, PoSync},
+    router_request_types::PayoutsData,
+    router_response_types::PayoutsResponseData,
+    types::PayoutsRouterData,
 };
 use hyperswitch_interfaces::{
     api::{
@@ -46,6 +57,7 @@ use masking::{ExposeInterface, Mask};
 use transformers as truelayer;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
+const TL_SIGNATURE: &str = "Tl-Signature";
 
 #[derive(Clone)]
 pub struct Truelayer {
@@ -72,6 +84,7 @@ impl api::Refund for Truelayer {}
 impl api::RefundExecute for Truelayer {}
 impl api::RefundSync for Truelayer {}
 impl api::PaymentToken for Truelayer {}
+impl api::ConnectorVerifyWebhookSource for Truelayer {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Truelayer
@@ -86,14 +99,53 @@ where
     fn build_headers(
         &self,
         req: &RouterData<Flow, Request, Response>,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            self.get_content_type().to_string().into(),
-        )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
+        let idempotency_key = uuid::Uuid::new_v4().to_string();
+        let truelayer_req = self
+            .get_request_body(req, connectors)
+            .map(|req| req.get_inner_value().expose().clone())?;
+        let http_method = self.get_http_method();
+
+        let mut headers = BTreeMap::new();
+        headers.insert("Idempotency-Key".to_string(), idempotency_key.to_string());
+
+        let body_json_str = truelayer_req.as_str();
+
+        let metadata = truelayer::TruelayerMetadata::try_from(&req.connector_meta_data)?;
+
+        let kid = metadata.kid.expose();
+        let private_key = metadata.private_key.expose();
+
+        let path = "/v3/payouts";
+
+        let tl_signature = truelayer::generate_tl_signature(
+            http_method.to_string(),
+            path,
+            &headers,
+            Some(body_json_str),
+            private_key,
+            kid.as_str(),
+        )?;
+
+        let access_token = req
+            .access_token
+            .clone()
+            .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
+
+        let header = vec![
+            (
+                headers::AUTHORIZATION.to_string(),
+                format!("Bearer {}", access_token.token.expose()).into_masked(),
+            ),
+            (TL_SIGNATURE.to_string(), tl_signature.into_masked()),
+            (headers::IDEMPOTENCY_KEY.to_string(), idempotency_key.into()),
+            (
+                headers::CONTENT_TYPE.to_string(),
+                self.common_get_content_type().to_string().into(),
+            ),
+        ];
+
         Ok(header)
     }
 }
@@ -108,7 +160,7 @@ impl ConnectorCommon for Truelayer {
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        "application/json"
+        "application/json; charset=UTF-8"
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
@@ -123,7 +175,7 @@ impl ConnectorCommon for Truelayer {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
+            auth.client_id.expose().into_masked(),
         )])
     }
 
@@ -142,11 +194,11 @@ impl ConnectorCommon for Truelayer {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response.title.clone(),
+            message: response.title.clone(),
+            reason: Some(response.detail),
             attempt_status: None,
-            connector_transaction_id: None,
+            connector_transaction_id: Some(response.trace_id),
             connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
@@ -186,7 +238,101 @@ impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> fo
     //TODO: implement sessions flow
 }
 
-impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Truelayer {}
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Truelayer {
+    fn get_url(
+        &self,
+        _req: &RefreshTokenRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let base_url = connectors.truelayer.secondary_base_url.clone();
+        Ok(format!("{}/connect/token", base_url))
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        "application/x-www-form-urlencoded"
+    }
+
+    fn get_request_body(
+        &self,
+        req: &RefreshTokenRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = truelayer::TruelayerAccessTokenRequestData::try_from(req)?;
+
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &RefreshTokenRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let req = Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .headers(types::RefreshTokenType::get_headers(self, req, connectors)?)
+                .url(&types::RefreshTokenType::get_url(self, req, connectors)?)
+                .set_body(types::RefreshTokenType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        );
+
+        Ok(req)
+    }
+
+    fn handle_response(
+        &self,
+        data: &RefreshTokenRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<RefreshTokenRouterData, errors::ConnectorError> {
+        let response: truelayer::TruelayerAccessTokenResponseData = res
+            .response
+            .parse_struct("Truelayer TruelayerAccessTokenResponseData")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: truelayer::TruelayerAccessTokenErrorResponse = res
+            .response
+            .parse_struct("Truelayer TruelayerAccessTokenErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_error_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response.error.clone(),
+            message: response.error.clone(),
+            reason: response
+                .error_details
+                .clone()
+                .and_then(|details| details.reason),
+            attempt_status: None,
+            connector_transaction_id: None,
+            connector_response_reference_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
+            connector_metadata: None,
+        })
+    }
+}
 
 impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
     for Truelayer
@@ -574,33 +720,330 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Truelayer
     }
 }
 
+impl api::Payouts for Truelayer {}
+#[cfg(feature = "payouts")]
+impl api::PayoutFulfill for Truelayer {}
+#[cfg(feature = "payouts")]
+impl api::PayoutSync for Truelayer {}
+
+#[async_trait::async_trait]
+#[cfg(feature = "payouts")]
+impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Truelayer {
+    fn get_url(
+        &self,
+        _req: &PayoutsRouterData<PoFulfill>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}/v3/payouts", self.base_url(connectors)))
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_headers(
+        &self,
+        req: &PayoutsRouterData<PoFulfill>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PayoutsRouterData<PoFulfill>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.destination_currency,
+        )?;
+
+        let connector_router_data = truelayer::TruelayerRouterData::from((amount, req));
+
+        let connector_req = truelayer::TruelayerPayoutRequest::try_from(&connector_router_data)?;
+
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PayoutsRouterData<PoFulfill>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&types::PayoutFulfillType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(types::PayoutFulfillType::get_headers(
+                self, req, connectors,
+            )?)
+            .set_body(types::PayoutFulfillType::get_request_body(
+                self, req, connectors,
+            )?)
+            .build();
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PayoutsRouterData<PoFulfill>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PayoutsRouterData<PoFulfill>, errors::ConnectorError> {
+        let response: truelayer::TruelayerPayoutResponse = res
+            .response
+            .parse_struct("TruelayerPayoutResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Truelayer {
+    fn get_url(
+        &self,
+        req: &PayoutsRouterData<PoSync>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let connector_payout_id = req.request.connector_payout_id.to_owned().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "transaction_id",
+            },
+        )?;
+        Ok(format!(
+            "{}/v3/payouts/{}",
+            self.base_url(connectors),
+            connector_payout_id
+        ))
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_headers(
+        &self,
+        req: &PayoutsRouterData<PoSync>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        let access_token = req
+            .access_token
+            .clone()
+            .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
+
+        let header = vec![
+            (
+                headers::AUTHORIZATION.to_string(),
+                format!("Bearer {}", access_token.token.expose()).into_masked(),
+            ),
+            (
+                headers::CONTENT_TYPE.to_string(),
+                self.common_get_content_type().to_string().into(),
+            ),
+        ];
+
+        Ok(header)
+    }
+
+    fn build_request(
+        &self,
+        req: &PayoutsRouterData<PoSync>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Get)
+            .url(&types::PayoutSyncType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(types::PayoutSyncType::get_headers(self, req, connectors)?)
+            .build();
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PayoutsRouterData<PoSync>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PayoutsRouterData<PoSync>, errors::ConnectorError> {
+        let response: truelayer::TruelayerPayoutSyncType = res
+            .response
+            .parse_struct("TruelayerPayoutSyncType")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+}
+
+impl
+    ConnectorIntegration<
+        VerifyWebhookSource,
+        VerifyWebhookSourceRequestData,
+        VerifyWebhookSourceResponseData,
+    > for Truelayer
+{
+    fn get_url(
+        &self,
+        req: &RouterData<
+            VerifyWebhookSource,
+            VerifyWebhookSourceRequestData,
+            VerifyWebhookSourceResponseData,
+        >,
+        _connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let tl_signature_header = req
+            .request
+            .webhook_headers
+            .get("Tl-Signature")
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
+        let tl_signature = tl_signature_header
+            .to_str()
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
+        let parts: Vec<&str> = tl_signature.splitn(3, '.').collect();
+        let header_b64 = parts
+            .first()
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
+        let header_json = URL_SAFE_NO_PAD
+            .decode(header_b64)
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
+        let jws_header: truelayer::JwsHeaderWebhooks = serde_json::from_slice(&header_json)
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
+
+        let jku = jws_header
+            .jku
+            .ok_or_else(|| errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        if truelayer::ALLOWED_JKUS.contains(&jku.as_str()) {
+            Ok(jku)
+        } else {
+            Err(report!(
+                errors::ConnectorError::WebhookSourceVerificationFailed
+            ))
+        }
+    }
+
+    fn build_request(
+        &self,
+        req: &VerifyWebhookSourceRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Get)
+            .url(&types::VerifyWebhookSourceType::get_url(
+                self, req, connectors,
+            )?)
+            .build();
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &VerifyWebhookSourceRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<VerifyWebhookSourceRouterData, errors::ConnectorError> {
+        let response: truelayer::Jwks = res
+            .response
+            .parse_struct("truelayer Jwks")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+}
+
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Truelayer {
     fn get_webhook_object_reference_id(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook_body: truelayer::TruelayerPayoutsWebhookBody = request
+            .body
+            .parse_struct("TruelayerPayoutsWebhookBody")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        if truelayer::is_payout_webhook_event(&webhook_body._type) {
+            Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
+                api_models::webhooks::PayoutIdType::ConnectorPayoutId(webhook_body.payout_id),
+            ))
+        } else {
+            Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        }
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook_body: truelayer::TruelayerPayoutsWebhookBody = request
+            .body
+            .parse_struct("TruelayerPayoutsWebhookBody")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        Ok(truelayer::get_payout_webhook_event(webhook_body._type))
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook_body: truelayer::TruelayerPayoutsWebhookBody = request
+            .body
+            .parse_struct("TruelayerPayoutsWebhookBody")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        Ok(Box::new(webhook_body))
     }
 }
 
 static TRUELAYER_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
-    LazyLock::new(SupportedPaymentMethods::new);
+    LazyLock::new(|| {
+        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
+
+        let mut truelayer_supported_payment_methods = SupportedPaymentMethods::new();
+        truelayer_supported_payment_methods.add(
+            enums::PaymentMethod::BankRedirect,
+            enums::PaymentMethodType::OpenBankingUk,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        truelayer_supported_payment_methods
+    });
 
 static TRUELAYER_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Truelayer",
