@@ -464,6 +464,7 @@ pub async fn get_token_pm_type_mandate_details(
     pm_info: Option<domain::PaymentMethod>,
 ) -> RouterResult<MandateGenericData> {
     let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
+    let feature_config = core_utils::get_feature_config(state, platform).await;
     let (
         payment_token,
         payment_method,
@@ -731,9 +732,10 @@ pub async fn get_token_pm_type_mandate_details(
             }
         }
         None => {
-            let payment_method_info = match pm_info {
-                Some(pm) => Some(pm.clone()),
-                None => payment_method_id
+            let payment_method_info = if feature_config.is_payment_method_modular_allowed {
+                pm_info
+            } else {
+                payment_method_id
                     .async_map(|payment_method_id| async move {
                         state
                             .store
@@ -746,7 +748,7 @@ pub async fn get_token_pm_type_mandate_details(
                             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
                     })
                     .await
-                    .transpose()?,
+                    .transpose()?
             };
             (
                 request.payment_token.to_owned(),
