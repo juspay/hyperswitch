@@ -7628,6 +7628,7 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         minor_amount_capturable: data.minor_amount_capturable,
         authorized_amount: data.authorized_amount,
         customer_document_details: data.customer_document_details.clone(),
+        connector_intent_metadata: data.connector_intent_metadata.clone(),
     }
 }
 

@@ -146,6 +146,7 @@ impl VerifyConnectorData {
             minor_amount_capturable: None,
             authorized_amount: None,
             customer_document_details: None,
+            connector_intent_metadata: None,
         }
     }
 }
