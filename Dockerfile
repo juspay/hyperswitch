@@ -49,6 +49,11 @@ ARG BIN_DIR=/local/bin
 # Copy this required fields config file
 COPY --from=builder /router/config/payment_required_fields_v2.toml ${CONFIG_DIR}/payment_required_fields_v2.toml
 
+# Copy deployment config files
+COPY --from=builder /router/config/deployments/integration_test.toml ${CONFIG_DIR}/deployments/
+COPY --from=builder /router/config/deployments/production.toml ${CONFIG_DIR}/deployments/
+COPY --from=builder /router/config/deployments/sandbox.toml ${CONFIG_DIR}/deployments/
+
 # RUN_ENV decides the corresponding config file to be used
 ARG RUN_ENV=sandbox
 
