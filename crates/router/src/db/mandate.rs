@@ -64,8 +64,9 @@ mod storage {
     use error_stack::{report, ResultExt};
     use redis_interface::HsetnxReply;
     use router_env::{instrument, tracing};
-    use storage_impl::redis::kv_store::{
-        decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey,
+    use storage_impl::{
+        database::store::DatabaseStore,
+        redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
     };
 
     use super::MandateInterface;
@@ -328,10 +329,13 @@ mod storage {
             .await;
             mandate.update_storage_scheme(storage_scheme);
             match storage_scheme {
-                MerchantStorageScheme::PostgresOnly => mandate
-                    .insert(&conn)
-                    .await
-                    .map_err(|error| report!(errors::StorageError::from(error))),
+                MerchantStorageScheme::PostgresOnly => {
+                    mandate.insert(&conn).await.map_err(|error| {
+                        let error_msg = format!("{:?}", error);
+                        self.handle_query_error(&error_msg);
+                        report!(errors::StorageError::from(error))
+                    })
+                }
                 MerchantStorageScheme::RedisKv => {
                     let mandate_id = mandate.mandate_id.clone();
                     let merchant_id = &mandate.merchant_id.to_owned();
@@ -403,6 +407,7 @@ mod storage {
     use common_utils::id_type;
     use error_stack::report;
     use router_env::{instrument, tracing};
+    use storage_impl::database::store::DatabaseStore;
 
     use super::MandateInterface;
     use crate::{
@@ -508,10 +513,11 @@ mod storage {
             _storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<storage_types::Mandate, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
-            mandate
-                .insert(&conn)
-                .await
-                .map_err(|error| report!(errors::StorageError::from(error)))
+            mandate.insert(&conn).await.map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(errors::StorageError::from(error))
+            })
         }
     }
 }

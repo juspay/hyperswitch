@@ -4,6 +4,7 @@ use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, ResultExt};
 use futures::future::try_join_all;
 use router_env::{instrument, tracing};
+use storage_impl::database::store::DatabaseStore;
 
 use super::{MockDb, Store};
 use crate::{
@@ -139,7 +140,11 @@ impl EventInterface for Store {
             .change_context(errors::StorageError::EncryptionError)?
             .insert(&conn)
             .await
-            .map_err(|error| report!(errors::StorageError::from(error)))?
+            .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(errors::StorageError::from(error))
+            })?
             .convert(
                 self.get_keymanager_state()
                     .attach_printable("Missing KeyManagerState")?,
@@ -454,7 +459,11 @@ impl EventInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::Event::update_by_merchant_id_event_id(&conn, merchant_id, event_id, event.into())
             .await
-            .map_err(|error| report!(errors::StorageError::from(error)))?
+            .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(errors::StorageError::from(error))
+            })?
             .convert(
                 self.get_keymanager_state()
                     .attach_printable("Missing KeyManagerState")?,

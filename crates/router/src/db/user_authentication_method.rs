@@ -1,6 +1,7 @@
 use diesel_models::user_authentication_method as storage;
 use error_stack::report;
 use router_env::{instrument, tracing};
+use storage_impl::database::store::DatabaseStore;
 
 use super::MockDb;
 use crate::{
@@ -54,7 +55,11 @@ impl UserAuthenticationMethodInterface for Store {
         user_authentication_method
             .insert(&conn)
             .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+            .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(errors::StorageError::from(error))
+            })
     }
 
     #[instrument(skip_all)]
@@ -107,7 +112,11 @@ impl UserAuthenticationMethodInterface for Store {
             user_authentication_method_update,
         )
         .await
-        .map_err(|error| report!(errors::StorageError::from(error)))
+        .map_err(|error| {
+            let error_msg = format!("{:?}", error);
+            self.handle_query_error(&error_msg);
+            report!(errors::StorageError::from(error))
+        })
     }
 
     #[instrument(skip_all)]

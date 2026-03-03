@@ -1,6 +1,6 @@
 use error_stack::report;
 use router_env::{instrument, tracing};
-use storage_impl::MockDb;
+use storage_impl::{database::store::DatabaseStore, MockDb};
 
 use super::Store;
 use crate::{
@@ -39,10 +39,11 @@ impl DynamicRoutingStatsInterface for Store {
         dynamic_routing_stat: storage::DynamicRoutingStatsNew,
     ) -> CustomResult<storage::DynamicRoutingStats, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        dynamic_routing_stat
-            .insert(&conn)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+        dynamic_routing_stat.insert(&conn).await.map_err(|error| {
+            let error_msg = format!("{:?}", error);
+            self.handle_query_error(&error_msg);
+            report!(errors::StorageError::from(error))
+        })
     }
 
     async fn find_dynamic_routing_stats_optional_by_attempt_id_merchant_id(
@@ -69,7 +70,11 @@ impl DynamicRoutingStatsInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         storage::DynamicRoutingStats::update(&conn, attempt_id, merchant_id, data)
             .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+            .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(errors::StorageError::from(error))
+            })
     }
 }
 

@@ -122,7 +122,11 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
             .change_context(StorageError::EncryptionError)?
             .insert(&conn)
             .await
-            .map_err(|error| report!(StorageError::from(error)))?
+            .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(StorageError::from(error))
+            })?
             .convert(
                 self.get_keymanager_state()
                     .attach_printable("Missing KeyManagerState")?,
@@ -197,7 +201,11 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
             .change_context(StorageError::EncryptionError)?
             .update_by_profile_id(&conn, ProfileUpdateInternal::from(profile_update))
             .await
-            .map_err(|error| report!(StorageError::from(error)))?
+            .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(StorageError::from(error))
+            })?
             .convert(
                 self.get_keymanager_state()
                     .attach_printable("Missing KeyManagerState")?,
@@ -217,7 +225,11 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
         let conn = pg_accounts_connection_write(self).await?;
         business_profile::Profile::delete_by_profile_id_merchant_id(&conn, profile_id, merchant_id)
             .await
-            .map_err(|error| report!(StorageError::from(error)))
+            .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(StorageError::from(error))
+            })
     }
 
     #[instrument(skip_all)]

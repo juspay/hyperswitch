@@ -1,6 +1,7 @@
 use diesel_models::authorization::AuthorizationUpdateInternal;
 use error_stack::report;
 use router_env::{instrument, tracing};
+use storage_impl::database::store::DatabaseStore;
 
 use super::{MockDb, Store};
 use crate::{
@@ -38,10 +39,11 @@ impl AuthorizationInterface for Store {
         authorization: storage::AuthorizationNew,
     ) -> CustomResult<storage::Authorization, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        authorization
-            .insert(&conn)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+        authorization.insert(&conn).await.map_err(|error| {
+            let error_msg = format!("{:?}", error);
+            self.handle_query_error(&error_msg);
+            report!(errors::StorageError::from(error))
+        })
     }
 
     #[instrument(skip_all)]
@@ -106,8 +108,14 @@ impl AuthorizationInterface for Store {
                         authorization,
                     )
                     .await
-                    .map_err(|error| report!(errors::StorageError::from(error)))
+                    .map_err(|error| {
+                        let error_msg = format!("{:?}", error);
+                        self.handle_query_error(&error_msg);
+                        report!(errors::StorageError::from(error))
+                    })
                 } else {
+                    let error_msg = format!("{:?}", error);
+                    self.handle_query_error(&error_msg);
                     Err(report!(errors::StorageError::from(error)))
                 }
             }

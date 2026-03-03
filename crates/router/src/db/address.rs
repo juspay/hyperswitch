@@ -79,6 +79,7 @@ mod storage {
     use common_utils::{ext_traits::AsyncExt, id_type, types::keymanager::KeyManagerState};
     use error_stack::{report, ResultExt};
     use router_env::{instrument, tracing};
+    use storage_impl::database::store::DatabaseStore;
 
     use super::AddressInterface;
     use crate::{
@@ -156,7 +157,11 @@ mod storage {
             let conn = connection::pg_connection_write(self).await?;
             storage_types::Address::update_by_address_id(&conn, address_id, address.into())
                 .await
-                .map_err(|error| report!(errors::StorageError::from(error)))
+                .map_err(|error| {
+                    let error_msg = format!("{:?}", error);
+                    self.handle_query_error(&error_msg);
+                    report!(errors::StorageError::from(error))
+                })
                 .async_and_then(|address| async {
                     address
                         .convert(
@@ -187,7 +192,11 @@ mod storage {
             address
                 .update(&conn, address_update.into())
                 .await
-                .map_err(|error| report!(errors::StorageError::from(error)))
+                .map_err(|error| {
+                    let error_msg = format!("{:?}", error);
+                    self.handle_query_error(&error_msg);
+                    report!(errors::StorageError::from(error))
+                })
                 .async_and_then(|address| async {
                     address
                         .convert(
@@ -217,7 +226,11 @@ mod storage {
                 .change_context(errors::StorageError::EncryptionError)?
                 .insert(&conn)
                 .await
-                .map_err(|error| report!(errors::StorageError::from(error)))
+                .map_err(|error| {
+                    let error_msg = format!("{:?}", error);
+                    self.handle_query_error(&error_msg);
+                    report!(errors::StorageError::from(error))
+                })
                 .async_and_then(|address| async {
                     address
                         .convert(
@@ -245,7 +258,11 @@ mod storage {
                 .change_context(errors::StorageError::EncryptionError)?
                 .insert(&conn)
                 .await
-                .map_err(|error| report!(errors::StorageError::from(error)))
+                .map_err(|error| {
+                    let error_msg = format!("{:?}", error);
+                    self.handle_query_error(&error_msg);
+                    report!(errors::StorageError::from(error))
+                })
                 .async_and_then(|address| async {
                     address
                         .convert(
@@ -276,7 +293,11 @@ mod storage {
                 address.into(),
             )
             .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+            .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(errors::StorageError::from(error))
+            })
             .async_and_then(|addresses| async {
                 let mut output = Vec::with_capacity(addresses.len());
                 for address in addresses.into_iter() {
@@ -301,8 +322,9 @@ mod storage {
     use error_stack::{report, ResultExt};
     use redis_interface::HsetnxReply;
     use router_env::{instrument, tracing};
-    use storage_impl::redis::kv_store::{
-        decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey,
+    use storage_impl::{
+        database::store::DatabaseStore,
+        redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
     };
 
     use super::AddressInterface;
@@ -417,7 +439,11 @@ mod storage {
             let conn = connection::pg_connection_write(self).await?;
             storage_types::Address::update_by_address_id(&conn, address_id, address.into())
                 .await
-                .map_err(|error| report!(errors::StorageError::from(error)))
+                .map_err(|error| {
+                    let error_msg = format!("{:?}", error);
+                    self.handle_query_error(&error_msg);
+                    report!(errors::StorageError::from(error))
+                })
                 .async_and_then(|address| async {
                     address
                         .convert(
@@ -462,7 +488,11 @@ mod storage {
                     address
                         .update(&conn, address_update.into())
                         .await
-                        .map_err(|error| report!(errors::StorageError::from(error)))
+                        .map_err(|error| {
+                            let error_msg = format!("{:?}", error);
+                            self.handle_query_error(&error_msg);
+                            report!(errors::StorageError::from(error))
+                        })
                         .async_and_then(|address| async {
                             address
                                 .convert(
@@ -545,7 +575,11 @@ mod storage {
                     address_new
                         .insert(&conn)
                         .await
-                        .map_err(|error| report!(errors::StorageError::from(error)))
+                        .map_err(|error| {
+                            let error_msg = format!("{:?}", error);
+                            self.handle_query_error(&error_msg);
+                            report!(errors::StorageError::from(error))
+                        })
                         .async_and_then(|address| async {
                             address
                                 .convert(
@@ -640,7 +674,11 @@ mod storage {
                 .change_context(errors::StorageError::EncryptionError)?
                 .insert(&conn)
                 .await
-                .map_err(|error| report!(errors::StorageError::from(error)))
+                .map_err(|error| {
+                    let error_msg = format!("{:?}", error);
+                    self.handle_query_error(&error_msg);
+                    report!(errors::StorageError::from(error))
+                })
                 .async_and_then(|address| async {
                     address
                         .convert(
@@ -671,7 +709,11 @@ mod storage {
                 address.into(),
             )
             .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+            .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(errors::StorageError::from(error))
+            })
             .async_and_then(|addresses| async {
                 let mut output = Vec::with_capacity(addresses.len());
                 for address in addresses.into_iter() {

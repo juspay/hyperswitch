@@ -1,6 +1,7 @@
 use diesel_models::fraud_check::{self as storage, FraudCheck, FraudCheckUpdate};
 use error_stack::report;
 use router_env::{instrument, tracing};
+use storage_impl::database::store::DatabaseStore;
 
 use super::MockDb;
 use crate::{
@@ -43,9 +44,11 @@ impl FraudCheckInterface for Store {
         new: storage::FraudCheckNew,
     ) -> CustomResult<FraudCheck, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        new.insert(&conn)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+        new.insert(&conn).await.map_err(|error| {
+            let error_msg = format!("{:?}", error);
+            self.handle_query_error(&error_msg);
+            report!(errors::StorageError::from(error))
+        })
     }
 
     #[instrument(skip_all)]
@@ -57,7 +60,11 @@ impl FraudCheckInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         this.update_with_attempt_id(&conn, fraud_check)
             .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+            .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(errors::StorageError::from(error))
+            })
     }
 
     #[instrument(skip_all)]

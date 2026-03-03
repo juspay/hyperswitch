@@ -128,6 +128,22 @@ where
     fn get_accounts_replica_pool(&self) -> &PgPool {
         self.db_store.get_accounts_replica_pool()
     }
+
+    fn get_master_pool_manager(&self) -> &database::pool_manager::PgPoolManager {
+        self.db_store.get_master_pool_manager()
+    }
+
+    fn get_replica_pool_manager(&self) -> &database::pool_manager::PgPoolManager {
+        self.db_store.get_replica_pool_manager()
+    }
+
+    fn get_accounts_master_pool_manager(&self) -> &database::pool_manager::PgPoolManager {
+        self.db_store.get_accounts_master_pool_manager()
+    }
+
+    fn get_accounts_replica_pool_manager(&self) -> &database::pool_manager::PgPoolManager {
+        self.db_store.get_accounts_replica_pool_manager()
+    }
 }
 
 impl<T: DatabaseStore> RedisConnInterface for RouterStore<T> {
@@ -199,6 +215,9 @@ impl<T: DatabaseStore> RouterStore<T> {
         execute_query
             .await
             .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.db_store.handle_query_error(&error_msg);
+
                 let new_err = diesel_error_to_data_error(*error.current_context());
                 error.change_context(new_err)
             })?
@@ -225,6 +244,9 @@ impl<T: DatabaseStore> RouterStore<T> {
         M: ReverseConversion<D>,
     {
         match execute_query_fut.await.map_err(|error| {
+            let error_msg = format!("{:?}", error);
+            self.db_store.handle_query_error(&error_msg);
+
             let new_err = diesel_error_to_data_error(*error.current_context());
             error.change_context(new_err)
         })? {
@@ -258,6 +280,9 @@ impl<T: DatabaseStore> RouterStore<T> {
         let resource_futures = execute_query
             .await
             .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.db_store.handle_query_error(&error_msg);
+
                 let new_err = diesel_error_to_data_error(*error.current_context());
                 error.change_context(new_err)
             })?

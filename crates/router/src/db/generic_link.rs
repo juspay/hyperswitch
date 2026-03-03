@@ -1,5 +1,6 @@
 use error_stack::report;
 use router_env::{instrument, tracing};
+use storage_impl::database::store::DatabaseStore;
 
 use crate::{
     connection,
@@ -89,10 +90,11 @@ impl GenericLinkInterface for Store {
         generic_link: storage::GenericLinkNew,
     ) -> CustomResult<storage::GenericLinkState, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        generic_link
-            .insert(&conn)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+        generic_link.insert(&conn).await.map_err(|error| {
+            let error_msg = format!("{:?}", error);
+            self.handle_query_error(&error_msg);
+            report!(errors::StorageError::from(error))
+        })
     }
 
     #[instrument(skip_all)]
@@ -104,7 +106,11 @@ impl GenericLinkInterface for Store {
         pm_collect_link
             .insert_pm_collect_link(&conn)
             .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+            .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(errors::StorageError::from(error))
+            })
     }
 
     #[instrument(skip_all)]
@@ -116,7 +122,11 @@ impl GenericLinkInterface for Store {
         pm_collect_link
             .insert_payout_link(&conn)
             .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+            .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(errors::StorageError::from(error))
+            })
     }
 
     #[instrument(skip_all)]
@@ -129,7 +139,11 @@ impl GenericLinkInterface for Store {
         payout_link
             .update_payout_link(&conn, payout_link_update)
             .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+            .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(errors::StorageError::from(error))
+            })
     }
 }
 

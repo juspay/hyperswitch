@@ -485,7 +485,11 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             .change_context(Self::Error::EncryptionError)?
             .insert(&conn)
             .await
-            .map_err(|error| report!(Self::Error::from(error)))
+            .map_err(|error| {
+                let error_msg = format!("{:?}", error);
+                self.handle_query_error(&error_msg);
+                report!(Self::Error::from(error))
+            })
             .async_and_then(|item| async {
                 item.convert(
                     self.get_keymanager_state()
@@ -732,7 +736,11 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
                 .change_context(Self::Error::EncryptionError)?
                 .update(&conn, merchant_connector_account)
                 .await
-                .map_err(|error| report!(Self::Error::from(error)))
+                .map_err(|error| {
+                    let error_msg = format!("{:?}", error);
+                    self.handle_query_error(&error_msg);
+                    report!(Self::Error::from(error))
+                })
                 .async_and_then(|item| async {
                     item.convert(
                         self.get_keymanager_state()
@@ -812,7 +820,11 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
                 .change_context(Self::Error::EncryptionError)?
                 .update(&conn, merchant_connector_account)
                 .await
-                .map_err(|error| report!(Self::Error::from(error)))
+                .map_err(|error| {
+                    let error_msg = format!("{:?}", error);
+                    self.handle_query_error(&error_msg);
+                    report!(Self::Error::from(error))
+                })
                 .async_and_then(|item| async {
                     item.convert(
                         self.get_keymanager_state()
