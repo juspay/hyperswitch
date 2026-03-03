@@ -18,7 +18,7 @@ describe("Card - Customer Deletion and Psync", () => {
   context(
     "No3DS Card - Psync after Customer Deletion (Automatic Capture)",
     () => {
-      it("Create Customer + Create Payment Intent + Confirm Payment + Retrieve Payment + Delete Customer + Retrieve Payment (After Customer Deletion)", () => {
+      it("Create Customer -> Create Payment Intent -> Confirm Payment -> Retrieve Payment -> Delete Customer -> Retrieve Payment (After Customer Deletion)", () => {
         cy.step("Create Customer", () =>
           cy.createCustomerCallTest(fixtures.customerCreateBody, globalState)
         );
@@ -70,7 +70,7 @@ describe("Card - Customer Deletion and Psync", () => {
   context(
     "3DS Card - Psync after Customer Deletion (Automatic Capture)",
     () => {
-      it("Create Customer + Create Payment Intent + Confirm Payment + Handle 3DS Redirection + Retrieve Payment + Delete Customer + Retrieve Payment (After Customer Deletion)", () => {
+      it("Create Customer -> Create Payment Intent -> Confirm Payment -> Handle 3DS Redirection -> Retrieve Payment -> Delete Customer -> Retrieve Payment (After Customer Deletion)", () => {
         cy.step("Create Customer", () =>
           cy.createCustomerCallTest(fixtures.customerCreateBody, globalState)
         );
@@ -129,7 +129,7 @@ describe("Card - Customer Deletion and Psync", () => {
   );
 
   context("No3DS Card - Psync after Customer Deletion (Manual Capture)", () => {
-    it("Create Customer + Create Payment Intent + Confirm Payment + Retrieve Payment + Capture Payment + Retrieve Payment (After Capture) + Delete Customer + Retrieve Payment (After Customer Deletion)", () => {
+    it("Create Customer -> Create Payment Intent -> Confirm Payment -> Retrieve Payment -> Capture Payment -> Retrieve Payment (After Capture) -> Delete Customer -> Retrieve Payment (After Customer Deletion)", () => {
       cy.step("Create Customer", () =>
         cy.createCustomerCallTest(fixtures.customerCreateBody, globalState)
       );
@@ -187,7 +187,7 @@ describe("Card - Customer Deletion and Psync", () => {
   });
 
   context("3DS Card - Psync after Customer Deletion (Manual Capture)", () => {
-    it("Create Customer + Create Payment Intent + Confirm Payment + Handle 3DS Redirection + Retrieve Payment + Capture Payment + Retrieve Payment (After Capture) + Delete Customer + Retrieve Payment (After Customer Deletion)", () => {
+    it("Create Customer -> Create Payment Intent -> Confirm Payment -> Handle 3DS Redirection -> Retrieve Payment -> Capture Payment -> Retrieve Payment (After Capture) -> Delete Customer -> Retrieve Payment (After Customer Deletion)", () => {
       cy.step("Create Customer", () =>
         cy.createCustomerCallTest(fixtures.customerCreateBody, globalState)
       );

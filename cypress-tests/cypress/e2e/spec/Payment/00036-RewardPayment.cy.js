@@ -20,7 +20,7 @@ describe("Reward Payment - Cashtocode", () => {
   });
 
   context("Evoucher payment method flow", () => {
-    it("Create Payment Intent for Evoucher + Payment Methods Call + Confirm Evoucher Payment + Handle Redirection + Retrieve Payment", () => {
+    it("Create Payment Intent for Evoucher -> Payment Methods Call -> Confirm Evoucher Payment -> Handle Redirection -> Retrieve Payment", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "reward_pm"
       ]["PaymentIntentUSD"];
@@ -74,7 +74,7 @@ describe("Reward Payment - Cashtocode", () => {
   });
 
   context("Classic payment method flow", () => {
-    it("Create Payment Intent for Classic + Payment Methods Call + Confirm Classic Payment + Handle Redirection for Classic + Retrieve Payment", () => {
+    it("Create Payment Intent for Classic -> Payment Methods Call -> Confirm Classic Payment -> Handle Redirection for Classic -> Retrieve Payment", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "reward_pm"
       ]["PaymentIntentEUR"];

@@ -16,7 +16,7 @@ describe("UPI Payments - Hyperswitch", () => {
   });
 
   context("should complete UPI Collect payment and refund", () => {
-    it("Create Payment Intent + Fetch Payment Methods + Confirm UPI Collect Payment + Handle UPI Redirection + Retrieve Payment + Refund Payment", () => {
+    it("Create Payment Intent -> Fetch Payment Methods -> Confirm UPI Collect Payment -> Handle UPI Redirection -> Retrieve Payment -> Refund Payment", () => {
       const createPaymentData = getConnectorDetails(
         globalState.get("connectorId")
       )["upi_pm"]["PaymentIntent"];
@@ -68,7 +68,7 @@ describe("UPI Payments - Hyperswitch", () => {
 
   // Skipping UPI Intent intentionally as connector is throwing 5xx during redirection
   context("should complete UPI Intent payment", () => {
-    it.skip("Create Payment Intent + Fetch Payment Methods + Confirm UPI Intent Payment + Handle UPI Redirection + Retrieve Payment", () => {
+    it.skip("Create Payment Intent -> Fetch Payment Methods -> Confirm UPI Intent Payment -> Handle UPI Redirection -> Retrieve Payment", () => {
       const createPaymentData = getConnectorDetails(
         globalState.get("connectorId")
       )["upi_pm"]["PaymentIntent"];

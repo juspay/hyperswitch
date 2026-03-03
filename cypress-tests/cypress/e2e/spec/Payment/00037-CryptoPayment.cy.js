@@ -20,7 +20,7 @@ describe("Crypto Payment", () => {
   });
 
   context("Crypto Currency Payment flow", () => {
-    it("Create Payment Intent + Payment Methods Call + Confirm Crypto Currency Payment + Handle Redirection + Retrieve Payment", () => {
+    it("Create Payment Intent -> Payment Methods Call -> Confirm Crypto Currency Payment -> Handle Redirection -> Retrieve Payment", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "crypto_pm"
       ]["PaymentIntent"];
@@ -74,7 +74,7 @@ describe("Crypto Payment", () => {
   });
 
   context("Crypto Currency manual capture flow", () => {
-    it("Create Payment Intent (Manual) + Payment Methods Call + Confirm Crypto Currency Payment (Manual Capture) + Handle Redirection + Retrieve Payment", () => {
+    it("Create Payment Intent (Manual) -> Payment Methods Call -> Confirm Crypto Currency Payment (Manual Capture) -> Handle Redirection -> Retrieve Payment", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "crypto_pm"
       ]["PaymentIntent"];

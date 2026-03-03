@@ -16,7 +16,7 @@ describe("Payment Methods Tests", () => {
   });
 
   context("Create payment method for customer", () => {
-    it("Create Customer + Create Payment Method + List PM for Customer", () => {
+    it("Create Customer -> Create Payment Method -> List PM for Customer", () => {
       cy.step("Create Customer", () =>
         cy.createCustomerCallTest(fixtures.customerCreateBody, globalState)
       );
@@ -34,7 +34,7 @@ describe("Payment Methods Tests", () => {
   });
 
   context("Set default payment method", () => {
-    it("List PM for Customer + Create Payment Method + Create Payment Intent + Confirm Payment + List PM for Customer + Set Default Payment Method", () => {
+    it("List PM for Customer -> Create Payment Method -> Create Payment Intent -> Confirm Payment -> List PM for Customer -> Set Default Payment Method", () => {
       cy.step("List PM for Customer", () =>
         cy.listCustomerPMCallTest(globalState)
       );
@@ -82,7 +82,7 @@ describe("Payment Methods Tests", () => {
   });
 
   context("Delete payment method for customer", () => {
-    it("Create Customer + Create Payment Method + List PM for Customer + Delete Payment Method for Customer", () => {
+    it("Create Customer -> Create Payment Method -> List PM for Customer -> Delete Payment Method for Customer", () => {
       cy.step("Create Customer", () =>
         cy.createCustomerCallTest(fixtures.customerCreateBody, globalState)
       );
@@ -113,7 +113,7 @@ describe("Payment Methods Tests", () => {
     });
 
     context("No 3DS save card", () => {
-      it("Create Customer + Create+Confirm Payment (No 3DS Off Session) + List PM for Customer", () => {
+      it("Create Customer -> Create+Confirm Payment (No 3DS Off Session) -> List PM for Customer", () => {
         cy.step("Create Customer", () =>
           cy.createCustomerCallTest(fixtures.customerCreateBody, globalState)
         );
@@ -142,7 +142,7 @@ describe("Payment Methods Tests", () => {
     });
 
     context("3DS save card", () => {
-      it("Create+Confirm Payment (3DS Off Session) + Handle Redirection + List PM for Customer", () => {
+      it("Create+Confirm Payment (3DS Off Session) -> Handle Redirection -> List PM for Customer", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardUse3DSAutoCaptureOffSession"];
@@ -173,7 +173,7 @@ describe("Payment Methods Tests", () => {
     });
 
     context("3DS save card with token", () => {
-      it("Create Payment Intent + Confirm Save Card Payment + Handle Redirection + List PM for Customer", () => {
+      it("Create Payment Intent -> Confirm Save Card Payment -> Handle Redirection -> List PM for Customer", () => {
         const saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
 
         const intentData = getConnectorDetails(globalState.get("connectorId"))[
@@ -229,7 +229,7 @@ describe("Payment Methods Tests", () => {
     });
 
     context("No 3DS save card with token", () => {
-      it("Create Payment Intent + Confirm Save Card Payment + List PM for Customer", () => {
+      it("Create Payment Intent -> Confirm Save Card Payment -> List PM for Customer", () => {
         const saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
 
         const intentData = getConnectorDetails(globalState.get("connectorId"))[

@@ -82,7 +82,7 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
   context(
     "Card - NoThreeDS Create and Confirm Automatic multiple MITs payment flow test",
     () => {
-      it("MIT 1 - Auto Capture using NTID + MIT 2 - Auto Capture using NTID", () => {
+      it("MIT 1 - Auto Capture using NTID -> MIT 2 - Auto Capture using NTID", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["MITAutoCapture"];
@@ -115,7 +115,7 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
   context(
     "Card - NoThreeDS Create and Confirm Manual multiple MITs payment flow test",
     () => {
-      it("MIT 1 - Manual Capture using NTID + Capture MIT 1 Payment + MIT 2 - Manual Capture using NTID + Capture MIT 2 Payment", () => {
+      it("MIT 1 - Manual Capture using NTID -> Capture MIT 1 Payment -> MIT 2 - Manual Capture using NTID -> Capture MIT 2 Payment", () => {
         const mitData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["MITManualCapture"];
@@ -162,7 +162,7 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
   context(
     "Card - ThreeDS Create and Confirm Automatic multiple MITs payment flow test",
     () => {
-      it("MIT 1 - Auto Capture using NTID + MIT 2 - Auto Capture using NTID", () => {
+      it("MIT 1 - Auto Capture using NTID -> MIT 2 - Auto Capture using NTID", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["MITAutoCapture"];
