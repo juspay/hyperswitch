@@ -369,6 +369,37 @@ impl UnifiedConnectorServiceClient {
             })
     }
 
+    /// Performs Update Metadata
+    pub async fn update_metadata(
+        &self,
+        update_metadata_request: payments_grpc::PaymentServiceUpdateMetadataRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<
+        tonic::Response<payments_grpc::PaymentServiceUpdateMetadataResponse>,
+    > {
+        let mut request = tonic::Request::new(update_metadata_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.client
+            .clone()
+            .update_metadata(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::UpdateMetadataFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="update_metadata",
+                    connector_name=?connector_name,
+                    "UCS update_metadata gRPC call failed"
+                )
+            })
+    }
+
     /// Performs Payment Authenticate
     pub async fn payment_authenticate(
         &self,

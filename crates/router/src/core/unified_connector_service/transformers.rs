@@ -9,7 +9,10 @@ use api_models::payments::{
     PaypalSessionTokenResponse, PaypalTransactionInfo, SdkNextAction, SecretInfoToInitiateSdk,
     SessionToken, ThirdPartySdkSessionResponse,
 };
-use common_enums::{AttemptStatus, AuthenticationType, AuthorizationStatus, RefundStatus};
+use common_enums::{
+    AttemptStatus, AuthenticationType, AuthorizationStatus, PaymentResourceUpdateStatus,
+    RefundStatus,
+};
 use common_utils::{
     ext_traits::Encode,
     types::{self, AmountConvertor, MinorUnit, StringMajorUnitForConnector},
@@ -24,13 +27,13 @@ use hyperswitch_domain_models::{
         payments::{Authorize, Capture, PSync, SetupMandate},
         refunds::{Execute, RSync},
         unified_authentication_service as uas_flows, ExternalVaultProxy, IncrementalAuthorization,
-        Session,
+        Session, UpdateMetadata,
     },
     router_request_types::{
         self, AuthenticationData, ExternalVaultProxyPaymentsData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData,
-        SyncRequestType,
+        PaymentsSessionData, PaymentsSyncData, PaymentsUpdateMetadataData, RefundsData,
+        SetupMandateRequestData, SyncRequestType,
     },
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
 };
@@ -5313,6 +5316,19 @@ impl ForeignFrom<payments_grpc::AuthorizationStatus> for AuthorizationStatus {
     }
 }
 
+impl ForeignFrom<payments_grpc::UpdateMetadataStatus> for PaymentResourceUpdateStatus {
+    fn foreign_from(grpc_status: payments_grpc::UpdateMetadataStatus) -> Self {
+        match grpc_status {
+            payments_grpc::UpdateMetadataStatus::UpdateMetadataSuccess => Self::Success,
+            payments_grpc::UpdateMetadataStatus::UpdateMetadataFailure => Self::Failure,
+            payments_grpc::UpdateMetadataStatus::Unspecified => {
+                tracing::warn!("Unspecified UpdateMetadataStatus received, treating as Failure");
+                Self::Failure
+            }
+        }
+    }
+}
+
 impl ForeignFrom<&common_types::payments::BillingDescriptor> for payments_grpc::BillingDescriptor {
     fn foreign_from(billing_descriptor: &common_types::payments::BillingDescriptor) -> Self {
         Self {
@@ -5982,6 +5998,85 @@ impl
             metadata: None,
             connector_metadata: None,
             test_mode: router_data.test_mode,
+        })
+    }
+}
+
+impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceUpdateMetadataResponse>
+    for Result<PaymentsResponseData, ErrorResponse>
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        response: payments_grpc::PaymentServiceUpdateMetadataResponse,
+    ) -> Result<Self, Self::Error> {
+        let status_code = convert_connector_service_status_code(response.status_code)?;
+
+        let response = if response.error_code.is_some() {
+            Err(ErrorResponse {
+                code: response.error_code().to_owned(),
+                message: response.error_message().to_owned(),
+                reason: response.error_reason,
+                status_code,
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::PaymentResourceUpdateResponse {
+                status: PaymentResourceUpdateStatus::foreign_from(response.status()),
+            })
+        };
+
+        Ok(response)
+    }
+}
+
+impl
+    transformers::ForeignTryFrom<
+        &RouterData<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsResponseData>,
+    > for payments_grpc::PaymentServiceUpdateMetadataRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        router_data: &RouterData<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let metadata = router_data
+            .request
+            .metadata
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()
+            .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
+            .map(|s| s.into());
+
+        let merchant_account_metadata = router_data
+            .connector_meta_data
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()
+            .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
+            .map(|s| s.into());
+
+        Ok(Self {
+            transaction_id: Some(Identifier {
+                id_type: Some(payments_grpc::identifier::IdType::Id(
+                    router_data.request.connector_transaction_id.clone(),
+                )),
+            }),
+            request_ref_id: Some(Identifier {
+                id_type: Some(payments_grpc::identifier::IdType::Id(
+                    router_data.connector_request_reference_id.clone(),
+                )),
+            }),
+            metadata,
+            merchant_account_metadata,
+            feature_metadata: None,
         })
     }
 }

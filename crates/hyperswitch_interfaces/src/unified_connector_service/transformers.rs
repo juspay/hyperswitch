@@ -165,6 +165,10 @@ pub enum UnifiedConnectorServiceError {
     /// Failed to perform Incremental Authorization from gRPC Server
     #[error("Failed to perform Incremental Authorization from gRPC Server")]
     IncrementalAuthorizationFailure,
+
+    /// Failed to perform Update Metadata from gRPC Server
+    #[error("Failed to perform Update Metadata from gRPC Server")]
+    UpdateMetadataFailure,
 }
 
 /// UCS Webhook transformation status
