@@ -234,6 +234,7 @@ where
 async fn update_pm_connector_mandate_details<F, Req>(
     state: &SessionState,
     provider: &domain::Provider,
+    initiator: Option<&domain::Initiator>,
     payment_data: &PaymentData<F>,
     router_data: &types::RouterData<F, Req, types::PaymentsResponseData>,
 ) -> RouterResult<()>
@@ -321,6 +322,7 @@ where
                 payment_method,
                 connector_mandate_details,
                 provider.get_account().storage_scheme,
+                initiator,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -698,6 +700,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         &self,
         state: &SessionState,
         provider: &domain::Provider,
+        initiator: Option<&domain::Initiator>,
         payment_data: &PaymentData<F>,
         router_data: &types::RouterData<
             F,
@@ -710,7 +713,14 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         F: 'b + Clone + Send + Sync,
     {
         if !feature_set.is_payment_method_modular_allowed {
-            update_pm_connector_mandate_details(state, provider, payment_data, router_data).await
+            update_pm_connector_mandate_details(
+                state,
+                provider,
+                initiator,
+                payment_data,
+                router_data,
+            )
+            .await
         } else {
             Ok(())
         }
@@ -983,6 +993,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
             resp.status,
             resp.response.clone(),
             platform.get_provider().get_account().storage_scheme,
+            platform.get_initiator(),
         )
         .await?;
         Ok(())
@@ -993,6 +1004,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         &self,
         state: &SessionState,
         provider: &domain::Provider,
+        initiator: Option<&domain::Initiator>,
         payment_data: &PaymentData<F>,
         router_data: &types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
         feature_set: &core_utils::FeatureConfig,
@@ -1001,7 +1013,14 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         F: 'b + Clone + Send + Sync,
     {
         if !feature_set.is_payment_method_modular_allowed {
-            update_pm_connector_mandate_details(state, provider, payment_data, router_data).await
+            update_pm_connector_mandate_details(
+                state,
+                provider,
+                initiator,
+                payment_data,
+                router_data,
+            )
+            .await
         } else {
             Ok(())
         }
@@ -1727,6 +1746,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         &self,
         state: &SessionState,
         provider: &domain::Provider,
+        initiator: Option<&domain::Initiator>,
         payment_data: &PaymentData<F>,
         router_data: &types::RouterData<
             F,
@@ -1738,7 +1758,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
     where
         F: 'b + Clone + Send + Sync,
     {
-        update_pm_connector_mandate_details(state, provider, payment_data, router_data).await
+        update_pm_connector_mandate_details(state, provider, initiator, payment_data, router_data)
+            .await
     }
     #[cfg(feature = "v1")]
     async fn update_modular_pm_and_mandate<'b>(
@@ -1840,6 +1861,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             resp.status,
             resp.response.clone(),
             platform.get_provider().get_account().storage_scheme,
+            platform.get_initiator(),
         )
         .await?;
         Ok(())
@@ -1850,6 +1872,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
         &self,
         state: &SessionState,
         provider: &domain::Provider,
+        initiator: Option<&domain::Initiator>,
         payment_data: &PaymentData<F>,
         router_data: &types::RouterData<
             F,
@@ -1862,7 +1885,14 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
         F: 'b + Clone + Send + Sync,
     {
         if !feature_set.is_payment_method_modular_allowed {
-            update_pm_connector_mandate_details(state, provider, payment_data, router_data).await
+            update_pm_connector_mandate_details(
+                state,
+                provider,
+                initiator,
+                payment_data,
+                router_data,
+            )
+            .await
         } else {
             Ok(())
         }
@@ -2899,6 +2929,7 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
     attempt_status: common_enums::AttemptStatus,
     payment_response: Result<types::PaymentsResponseData, ErrorResponse>,
     storage_scheme: enums::MerchantStorageScheme,
+    _initiator: Option<&domain::Initiator>,
 ) -> RouterResult<()> {
     todo!()
 }
@@ -2911,6 +2942,7 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
     attempt_status: common_enums::AttemptStatus,
     payment_response: Result<types::PaymentsResponseData, ErrorResponse>,
     storage_scheme: enums::MerchantStorageScheme,
+    initiator: Option<&domain::Initiator>,
 ) -> RouterResult<()> {
     // If the payment_method is deleted then ignore the error related to retrieving payment method
     // This should be handled when the payment method is soft deleted
@@ -2969,13 +3001,17 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
             storage::PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
                 network_transaction_id,
                 status: Some(updated_pm_status),
-                last_modified_by: None,
+                last_modified_by: initiator
+                    .and_then(|initiator| initiator.to_created_by())
+                    .map(|last_modified_by| last_modified_by.to_string()),
             }
         } else {
             storage::PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
                 network_transaction_id,
                 status: None,
-                last_modified_by: None,
+                last_modified_by: initiator
+                    .and_then(|initiator| initiator.to_created_by())
+                    .map(|last_modified_by| last_modified_by.to_string()),
             }
         };
 
@@ -3038,6 +3074,7 @@ impl<F: Clone>
         &'b self,
         state: &'b SessionState,
         processor: &domain::Processor,
+        _initiator: Option<&domain::Initiator>,
         mut payment_data: hyperswitch_domain_models::payments::PaymentCaptureData<F>,
         response: types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>,
     ) -> RouterResult<hyperswitch_domain_models::payments::PaymentCaptureData<F>>
@@ -3100,6 +3137,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
         &'b self,
         state: &'b SessionState,
         processor: &domain::Processor,
+        initiator: Option<&domain::Initiator>,
         mut payment_data: PaymentConfirmData<F>,
         response: types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     ) -> RouterResult<PaymentConfirmData<F>>
@@ -3238,6 +3276,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                         processor.get_account().storage_scheme,
                         pm_update_status,
                         payment_method.get_id(),
+                        initiator,
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3270,6 +3309,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentStatusData<F>, types::PaymentsSyncDat
         &'b self,
         state: &'b SessionState,
         processor: &domain::Processor,
+        _initiator: Option<&domain::Initiator>,
         mut payment_data: PaymentStatusData<F>,
         response: types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
     ) -> RouterResult<PaymentStatusData<F>>
@@ -3428,6 +3468,7 @@ impl
         &'b self,
         state: &'b SessionState,
         processor: &domain::Processor,
+        _initiator: Option<&domain::Initiator>,
         mut payment_data: PaymentConfirmData<
             hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
         >,
@@ -3500,6 +3541,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
         &'b self,
         state: &'b SessionState,
         processor: &domain::Processor,
+        _initiator: Option<&domain::Initiator>,
         mut payment_data: PaymentConfirmData<F>,
         response: types::RouterData<F, types::SetupMandateRequestData, types::PaymentsResponseData>,
     ) -> RouterResult<PaymentConfirmData<F>>
@@ -3822,6 +3864,7 @@ impl<F: Clone + Send + Sync>
         &'b self,
         state: &'b SessionState,
         processor: &domain::Processor,
+        _initiator: Option<&domain::Initiator>,
         mut payment_data: hyperswitch_domain_models::payments::PaymentCancelData<F>,
         router_data: types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>,
     ) -> RouterResult<hyperswitch_domain_models::payments::PaymentCancelData<F>>
