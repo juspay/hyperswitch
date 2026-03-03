@@ -16,7 +16,7 @@ describe("Card - Sync payment flow test", () => {
   });
 
   context("Card - Sync payment flow test", () => {
-    it("Create Payment Intent + Payment Methods Call + Confirm Payment Intent + Retrieve Payment after Confirmation", () => {
+    it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Retrieve Payment after Confirmation", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["PaymentIntent"];

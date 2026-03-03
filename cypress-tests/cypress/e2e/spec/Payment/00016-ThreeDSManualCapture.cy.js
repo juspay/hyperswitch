@@ -18,7 +18,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
   context(
     "Card - ThreeDS Manual Full Capture payment flow test - Create and Confirm",
     () => {
-      it("Create Payment Intent + Payment Methods Call + Confirm Payment Intent + handle redirection + Retrieve Payment after Confirmation + Capture Payment + Retrieve Payment after Capture", () => {
+      it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> handle redirection -> Retrieve Payment after Confirmation -> Capture Payment -> Retrieve Payment after Capture", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
@@ -83,7 +83,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
   context(
     "Card - ThreeDS Manual Full Capture payment flow test - Create+Confirm",
     () => {
-      it("Create and Confirm Payment + Handle Redirection + Retrieve Payment + Capture Payment + Retrieve Payment after Capture", () => {
+      it("Create and Confirm Payment -> Handle Redirection -> Retrieve Payment -> Capture Payment -> Retrieve Payment after Capture", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["3DSManualCapture"];
@@ -120,7 +120,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
   context(
     "Card - ThreeDS Manual Partial Capture payment flow test - Create and Confirm",
     () => {
-      it("Create Payment Intent + Payment Methods Call + Confirm Payment Intent + handle redirection + Retrieve Payment after Confirmation + Partial Capture Payment + Retrieve Payment after Partial Capture", () => {
+      it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> handle redirection -> Retrieve Payment after Confirmation -> Partial Capture Payment -> Retrieve Payment after Partial Capture", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
@@ -189,7 +189,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
   context(
     "Card - ThreeDS Manual Partial Capture payment flow test - Create+Confirm",
     () => {
-      it("Create and Confirm Payment + handle redirection + Retrieve Payment after Confirmation + Partial Capture Payment + Retrieve Payment after Partial Capture", () => {
+      it("Create and Confirm Payment -> handle redirection -> Retrieve Payment after Confirmation -> Partial Capture Payment -> Retrieve Payment after Partial Capture", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["3DSManualCapture"];

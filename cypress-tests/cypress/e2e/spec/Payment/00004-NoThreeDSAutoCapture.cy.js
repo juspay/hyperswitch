@@ -16,7 +16,7 @@ describe("Card - NoThreeDS payment flow test", () => {
   });
 
   context("Card-NoThreeDS payment flow test Create and confirm", () => {
-    it("Create Payment Intent + Payment Methods Call + Confirm Payment + Retrieve Payment", () => {
+    it("Create Payment Intent -> Payment Methods Call -> Confirm Payment -> Retrieve Payment", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["PaymentIntent"];
@@ -54,7 +54,7 @@ describe("Card - NoThreeDS payment flow test", () => {
   });
 
   context("Card-NoThreeDS payment flow test Create+Confirm", () => {
-    it("Create and Confirm Payment + Retrieve Payment", () => {
+    it("Create and Confirm Payment -> Retrieve Payment", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["No3DSAutoCapture"];
@@ -78,7 +78,7 @@ describe("Card - NoThreeDS payment flow test", () => {
   });
 
   context("Card-NoThreeDS payment with shipping cost", () => {
-    it("Create Payment Intent with shipping cost + Payment Methods Call + Confirm Payment with shipping cost + Retrieve Payment with shipping cost", () => {
+    it("Create Payment Intent with shipping cost -> Payment Methods Call -> Confirm Payment with shipping cost -> Retrieve Payment with shipping cost", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["PaymentIntentWithShippingCost"];

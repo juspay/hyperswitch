@@ -16,7 +16,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
   });
 
   context("Card - void payment in Requires_capture state flow test", () => {
-    it("Create Payment Intent + Payment Methods Call + Confirm Payment Intent + Retrieve Payment after Confirmation + Void Payment without Capture", () => {
+    it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Retrieve Payment after Confirmation -> Void Payment without Capture", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["PaymentIntent"];
@@ -64,7 +64,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
   context(
     "Card - void payment in Requires_payment_method state flow test",
     () => {
-      it("Create Payment Intent + Payment Methods Call + Void Payment without Confirmation", () => {
+      it("Create Payment Intent -> Payment Methods Call -> Void Payment without Confirmation", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
@@ -97,7 +97,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
   );
 
   context("Card - void payment in success state flow test", () => {
-    it("Create Payment Intent + Payment Methods Call + Confirm Payment Intent + Retrieve Payment after Confirmation + Void Payment after Confirmation", () => {
+    it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Retrieve Payment after Confirmation -> Void Payment after Confirmation", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["PaymentIntent"];

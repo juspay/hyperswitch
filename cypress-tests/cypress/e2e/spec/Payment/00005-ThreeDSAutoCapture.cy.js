@@ -16,7 +16,7 @@ describe("Card - ThreeDS payment flow test", () => {
   });
 
   context("Card-ThreeDS payment flow test Create and Confirm", () => {
-    it("create payment intent + payment methods call + confirm payment intent + handle redirection", () => {
+    it("create payment intent -> payment methods call -> confirm payment intent -> handle redirection", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["PaymentIntent"];
