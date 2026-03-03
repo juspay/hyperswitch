@@ -3464,7 +3464,7 @@ impl From<NetworkTokenDetailsForNetworkTransactionId> for AdditionalNetworkToken
                     .get_card_isin()
                     .clone(),
             ),
-            par: None, // check this
+            par: None,
         }
     }
 }
