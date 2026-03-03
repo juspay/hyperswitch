@@ -70,7 +70,7 @@ use crate::core::payment_methods::{
     utils::{get_merchant_pm_filter_graph, make_pm_graph, refresh_pm_filters_cache},
 };
 #[cfg(feature = "v1")]
-use crate::core::payments::transformers::IntoPmlPaymentIntentResponse;
+use crate::core::payments::transformers::IntoPaymentMethodListIntentData;
 #[cfg(feature = "v1")]
 use crate::routes::app::SessionStateInfo;
 #[cfg(feature = "payouts")]
@@ -3887,7 +3887,9 @@ pub async fn list_payment_methods(
 
     let is_tax_connector_enabled = business_profile.get_is_tax_connector_enabled();
 
-    let intent_data = payment_intent.clone().map(|pi| pi.into_pml_response());
+    let intent_data = payment_intent
+        .clone()
+        .map(|pi| pi.into_payment_method_list_intent_data());
 
     Ok(services::ApplicationResponse::Json(
         api::PaymentMethodListResponse {

@@ -2476,12 +2476,12 @@ pub struct PaymentMethodListResponse {
     pub is_guest_customer: bool,
 
     /// Payment intent details associated with this payment method list request
-    pub intent_data: Option<PmlPaymentIntentResponse>,
+    pub intent_data: Option<PaymentMethodListIntentData>,
 }
 
 /// Intent-only payment details returned as part of the Payment Method List response
 #[derive(Debug, serde::Serialize, ToSchema)]
-pub struct PmlPaymentIntentResponse {
+pub struct PaymentMethodListIntentData {
     /// Unique identifier for the payment
     #[schema(value_type = String)]
     pub payment_id: id_type::PaymentId,
@@ -2548,22 +2548,22 @@ pub struct PmlPaymentIntentResponse {
     pub attempt_count: i16,
 
     /// Installment options available for this payment
-    pub installment_options: Option<Vec<PmlInstallmentOption>>,
+    pub installment_options: Option<Vec<PaymentMethodListInstallmentOption>>,
 }
 
-/// Installment options for a payment method, as returned in the PML response
+/// Installment options for a payment method, as returned in the payment method list response
 #[derive(Debug, serde::Serialize, ToSchema)]
-pub struct PmlInstallmentOption {
+pub struct PaymentMethodListInstallmentOption {
     /// The payment method these plans apply to
     #[schema(value_type = PaymentMethod)]
     pub payment_method: api_enums::PaymentMethod,
     /// Individual installment plans with computed amounts
-    pub available_plans: Vec<PmlInstallmentPlan>,
+    pub available_plans: Vec<PaymentMethodListInstallmentPlan>,
 }
 
 /// A single installment plan with pre-computed amount breakdown
 #[derive(Debug, serde::Serialize, ToSchema)]
-pub struct PmlInstallmentPlan {
+pub struct PaymentMethodListInstallmentPlan {
     /// Number of installments for this plan
     #[schema(value_type = u8)]
     pub number_of_installments: NonZeroU8,
@@ -2574,12 +2574,12 @@ pub struct PmlInstallmentPlan {
     #[schema(value_type = f64)]
     pub interest_rate: InstallmentInterestRate,
     /// Pre-computed amount breakdown
-    pub amount_details: PmlInstallmentAmountDetails,
+    pub amount_details: PaymentMethodListInstallmentAmountDetails,
 }
 
 /// Amount breakdown for a single installment plan
 #[derive(Debug, serde::Serialize, ToSchema)]
-pub struct PmlInstallmentAmountDetails {
+pub struct PaymentMethodListInstallmentAmountDetails {
     /// Amount charged per installment in minor units
     pub amount_per_installment: MinorUnit,
     /// Total amount across all installments in minor units (may differ slightly from order amount due to ceiling)

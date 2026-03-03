@@ -8,8 +8,8 @@ use api_models::payments as api_payments;
 use api_models::payments::RevenueRecoveryGetIntentResponse;
 use api_models::{
     payment_methods::{
-        PmlInstallmentAmountDetails, PmlInstallmentOption, PmlInstallmentPlan,
-        PmlPaymentIntentResponse,
+        PaymentMethodListInstallmentAmountDetails, PaymentMethodListInstallmentOption,
+        PaymentMethodListInstallmentPlan, PaymentMethodListIntentData,
     },
     payments::{
         Address, ConnectorMandateReferenceId, CustomerDetails, CustomerDetailsResponse, FrmMessage,
@@ -4306,14 +4306,14 @@ pub fn construct_connector_invoke_hidden_frame(
 }
 
 #[cfg(feature = "v1")]
-pub(crate) trait IntoPmlPaymentIntentResponse {
-    fn into_pml_response(self) -> PmlPaymentIntentResponse;
+pub(crate) trait IntoPaymentMethodListIntentData {
+    fn into_payment_method_list_intent_data(self) -> PaymentMethodListIntentData;
 }
 
 #[cfg(feature = "v1")]
-impl IntoPmlPaymentIntentResponse for storage::PaymentIntent {
-    fn into_pml_response(self) -> PmlPaymentIntentResponse {
-        PmlPaymentIntentResponse {
+impl IntoPaymentMethodListIntentData for storage::PaymentIntent {
+    fn into_payment_method_list_intent_data(self) -> PaymentMethodListIntentData {
+        PaymentMethodListIntentData {
             payment_id: self.payment_id,
             status: self.status,
             amount: self.amount,
@@ -4350,9 +4350,11 @@ impl IntoPmlPaymentIntentResponse for storage::PaymentIntent {
             attempt_count: self.attempt_count,
             installment_options: self.installment_options.and_then(|opts| {
                 common_types_payments::InstallmentOptions(opts)
-                    .into_pml_installment_options(self.amount)
+                    .into_payment_method_list_installment_options(self.amount)
                     .map_err(|e| {
-                        tracing::error!("Failed to transform installment options for PML: {e:?}")
+                        tracing::error!(
+                            "Failed to transform installment options for payment method list: {e:?}"
+                        )
                     })
                     .ok()
             }),
@@ -4364,14 +4366,14 @@ trait IntoInstallmentPlan {
     fn into_installment_plan(
         self,
         order_amount: MinorUnit,
-    ) -> RouterResult<Vec<PmlInstallmentPlan>>;
+    ) -> RouterResult<Vec<PaymentMethodListInstallmentPlan>>;
 }
 
 impl IntoInstallmentPlan for common_types_payments::InstallmentOptionData {
     fn into_installment_plan(
         self,
         order_amount: MinorUnit,
-    ) -> RouterResult<Vec<PmlInstallmentPlan>> {
+    ) -> RouterResult<Vec<PaymentMethodListInstallmentPlan>> {
         self.number_of_installments
             .as_slice()
             .iter()
@@ -4383,11 +4385,11 @@ impl IntoInstallmentPlan for common_types_payments::InstallmentOptionData {
                     .attach_printable("Failed to apply installment interest rate")?;
                 let total_with_interest = order_amount + interest;
                 let per_installment = total_with_interest / count;
-                Ok(PmlInstallmentPlan {
+                Ok(PaymentMethodListInstallmentPlan {
                     number_of_installments: count,
                     billing_frequency: self.billing_frequency.clone(),
                     interest_rate: self.interest_rate,
-                    amount_details: PmlInstallmentAmountDetails {
+                    amount_details: PaymentMethodListInstallmentAmountDetails {
                         amount_per_installment: per_installment,
                         total_amount: total_with_interest,
                     },
@@ -4397,18 +4399,18 @@ impl IntoInstallmentPlan for common_types_payments::InstallmentOptionData {
     }
 }
 
-trait IntoPmlInstallmentOptions {
-    fn into_pml_installment_options(
+trait IntoPaymentMethodListInstallmentOptions {
+    fn into_payment_method_list_installment_options(
         self,
         order_amount: MinorUnit,
-    ) -> RouterResult<Vec<PmlInstallmentOption>>;
+    ) -> RouterResult<Vec<PaymentMethodListInstallmentOption>>;
 }
 
-impl IntoPmlInstallmentOptions for common_types_payments::InstallmentOptions {
-    fn into_pml_installment_options(
+impl IntoPaymentMethodListInstallmentOptions for common_types_payments::InstallmentOptions {
+    fn into_payment_method_list_installment_options(
         self,
         order_amount: MinorUnit,
-    ) -> RouterResult<Vec<PmlInstallmentOption>> {
+    ) -> RouterResult<Vec<PaymentMethodListInstallmentOption>> {
         self.0
             .into_iter()
             .map(|opt| {
@@ -4420,7 +4422,7 @@ impl IntoPmlInstallmentOptions for common_types_payments::InstallmentOptions {
                     .into_iter()
                     .flatten()
                     .collect();
-                Ok(PmlInstallmentOption {
+                Ok(PaymentMethodListInstallmentOption {
                     payment_method: opt.payment_method,
                     available_plans,
                 })
