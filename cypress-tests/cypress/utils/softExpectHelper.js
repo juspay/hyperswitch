@@ -10,14 +10,14 @@ export function softExpect(globalState, name, assertionFn) {
       assertionFn();
     } catch (error) {
       // Initialize errors array if not exists
-      const errors = globalState.get("softAssertErrors") || [];
+      const errors = globalState.get("softExpectErrors") || [];
       errors.push({
         message: error.message,
         name,
         actual: error.actual,
         expected: error.expected,
       });
-      globalState.set("softAssertErrors", errors);
+      globalState.set("softExpectErrors", errors);
       
       // Log the failure but don't throw
       cy.task("cli_log", `${RED} EXPECT FAILED: ${error.message} ${RESET}`);
@@ -27,15 +27,15 @@ export function softExpect(globalState, name, assertionFn) {
   /**
    * Call at the start of each it block to clear previous errors
    */
-  export function clearSoftAssertErrors(globalState) {
-    globalState.set("softAssertErrors", []);
+  export function clearSoftExpectErrors(globalState) {
+    globalState.set("softExpectErrors", []);
   }
   
   /**
    * Call at the end of each it block - throws if there were any failures
    */
-  export function assertAllSoftErrors(globalState, testName = "Test") {
-    const errors = globalState.get("softAssertErrors") || [];
+  export function validateAllSoftErrors(globalState, testName = "Test") {
+    const errors = globalState.get("softExpectErrors") || [];
     
     if (errors.length > 0) {
       const errorMessage = [
@@ -58,7 +58,7 @@ export function softExpect(globalState, name, assertionFn) {
         }),
       ].join("\n");
       // Clear errors after reporting
-      globalState.set("softAssertErrors", []);
+      globalState.set("softExpectErrors", []);
       throw new Error(errorMessage);
     }
   }

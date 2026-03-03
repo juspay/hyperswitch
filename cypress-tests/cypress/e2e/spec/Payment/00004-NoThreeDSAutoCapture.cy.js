@@ -1,6 +1,6 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
-import { clearSoftAssertErrors, assertAllSoftErrors } from "../../../utils/softExpectHelper";
+import { clearSoftExpectErrors, validateAllSoftErrors } from "../../../utils/softExpectHelper";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
@@ -17,7 +17,7 @@ describe("Card - NoThreeDS payment flow test", () => {
   });
 
   it("Card-NoThreeDS payment flow test Create and confirm", () => {
-    clearSoftAssertErrors(globalState);
+    clearSoftExpectErrors(globalState);
     const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
       "PaymentIntent"
     ];
@@ -53,7 +53,7 @@ describe("Card - NoThreeDS payment flow test", () => {
     );
 
     cy.then(() => {
-      assertAllSoftErrors(globalState, "Card-NoThreeDS payment flow test Create and confirm");
+      validateAllSoftErrors(globalState, "Card-NoThreeDS payment flow test Create and confirm");
     });
   });
 

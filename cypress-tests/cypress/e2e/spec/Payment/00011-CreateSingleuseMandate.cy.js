@@ -1,5 +1,5 @@
 import * as fixtures from "../../../fixtures/imports";
-import { assertAllSoftErrors, clearSoftAssertErrors } from "../../../utils/softExpectHelper";
+import { validateAllSoftErrors, clearSoftExpectErrors } from "../../../utils/softExpectHelper";
 import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
@@ -28,7 +28,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       });
 
       it("Confirm No 3DS CIT", () => {
-        clearSoftAssertErrors(globalState);
+        clearSoftExpectErrors(globalState);
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["MandateSingleUseNo3DSAutoCapture"];
@@ -47,7 +47,7 @@ describe("Card - SingleUse Mandates flow test", () => {
           shouldContinue = utils.should_continue_further(data);
 
         cy.then(() => {
-          assertAllSoftErrors(globalState, "Confirm No 3DS CIT");
+          validateAllSoftErrors(globalState, "Confirm No 3DS CIT");
         });
       });
 
