@@ -326,6 +326,7 @@ impl<F: Clone + Send + Sync>
         payment_data: &mut payments::PaymentData<F>,
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
+        _initiator: Option<&domain::Initiator>,
         _dimensions: DimensionsWithMerchantId,
     ) -> CustomResult<
         (

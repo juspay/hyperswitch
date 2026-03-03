@@ -328,6 +328,7 @@ where
         payment_data: &mut PaymentData<F>,
         request: Option<payments::CustomerDetails>,
         provider: &domain::Provider,
+        initiator: Option<&domain::Initiator>,
         dimensions: DimensionsWithMerchantId,
     ) -> errors::CustomResult<
         (PaymentSessionOperation<'a, F>, Option<domain::Customer>),
@@ -341,6 +342,7 @@ where
                     payment_data,
                     request,
                     provider,
+                    initiator,
                     dimensions,
                 )
                 .await

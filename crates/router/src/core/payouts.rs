@@ -643,9 +643,7 @@ pub async fn payouts_cancel_core(
         .attach_printable("Payout cancellation failed for given Payout request")?;
     }
 
-    Ok(services::ApplicationResponse::Json(
-        response_handler(&state, &platform, &payout_data).await?,
-    ))
+    trigger_webhook_and_handle_response(&state, &platform, &payout_data).await
 }
 
 #[instrument(skip_all)]
@@ -1243,6 +1241,7 @@ pub async fn create_recipient(
                             &connector_label,
                             customer.connector_customer.as_ref(),
                             recipient_create_data.connector_payout_id.clone(),
+                            platform.get_initiator(),
                         )
                         .await
                     {
@@ -2217,7 +2216,10 @@ pub async fn create_recipient_disburse_account(
 
                             #[cfg(feature = "v2")]
                             connector_mandate_details: Some(common_connector_mandate),
-                            last_modified_by: None,
+                            last_modified_by: platform
+                                .get_initiator()
+                                .and_then(|initiator| initiator.to_created_by())
+                                .map(|last_modified_by| last_modified_by.to_string()),
                         };
 
                     payout_data.payment_method = Some(
