@@ -16,7 +16,7 @@ describe("Bank Redirect tests", () => {
   });
 
   context("Blik Create and Confirm flow test", () => {
-    it("Create Payment Intent + List Merchant Payment Methods + Confirm Payment", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
       ]["PaymentIntent"]("Blik");
@@ -53,7 +53,7 @@ describe("Bank Redirect tests", () => {
   });
 
   context("EPS Create and Confirm flow test", () => {
-    it("Create Payment Intent + List Merchant Payment Methods + Confirm Payment + Handle Bank Redirect Redirection", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
       ]["PaymentIntent"]("Eps");
@@ -103,7 +103,7 @@ describe("Bank Redirect tests", () => {
   });
 
   context("iDEAL Create and Confirm flow test", () => {
-    it("Create Payment Intent + List Merchant Payment Methods + Confirm Payment + Handle Bank Redirect Redirection", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
       ]["PaymentIntent"]("Ideal");
@@ -153,7 +153,7 @@ describe("Bank Redirect tests", () => {
   });
 
   context("Sofort Create and Confirm flow test", () => {
-    it("Create Payment Intent + List Merchant Payment Methods + Confirm Payment + Handle Bank Redirect Redirection", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
       ]["PaymentIntent"]("Sofort");
@@ -203,7 +203,7 @@ describe("Bank Redirect tests", () => {
   });
 
   context("Przelewy24 Create and Confirm flow test", () => {
-    it("Create Payment Intent + List Merchant Payment Methods + Confirm Payment + Handle Bank Redirect Redirection", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
       ]["PaymentIntent"]("Przelewy24");
@@ -253,7 +253,7 @@ describe("Bank Redirect tests", () => {
   });
 
   context("OpenBankingUk Create and Confirm flow test", () => {
-    it("Create Payment Intent + List Merchant Payment Methods + Confirm Payment + Handle Bank Redirect Redirection + Retrieve Payment", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection -> Retrieve Payment", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
       ]["PaymentIntent"]("OpenBankingUk");
@@ -307,7 +307,7 @@ describe("Bank Redirect tests", () => {
   });
 
   context("OnlineBankingFpx Create and Confirm flow test", () => {
-    it("Create Payment Intent + List Merchant Payment Methods + Confirm Payment + Handle Bank Redirect Redirection + Retrieve Payment", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection -> Retrieve Payment", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
       ]["PaymentIntent"]("OnlineBankingFpx");
@@ -361,7 +361,7 @@ describe("Bank Redirect tests", () => {
   });
 
   context("Interac Create and Confirm flow test", () => {
-    it("Create Payment Intent + List Merchant Payment Methods + Confirm Payment + Handle Bank Redirect Redirection + Retrieve Payment", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection -> Retrieve Payment", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
       ]["PaymentIntent"]("Interac");

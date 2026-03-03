@@ -16,7 +16,7 @@ describe("Card - Sync Refund flow test", () => {
   });
 
   context("Card - Sync Refund flow test", () => {
-    it("Create Payment Intent + Payment Methods Call + Confirm Payment Intent + Retrieve Payment after Confirmation + Refund Payment + Sync Refund", () => {
+    it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Retrieve Payment after Confirmation -> Refund Payment -> Sync Refund", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["PaymentIntent"];

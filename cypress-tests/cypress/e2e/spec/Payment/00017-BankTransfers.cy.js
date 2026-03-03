@@ -16,7 +16,7 @@ describe("Bank Transfers", () => {
   });
 
   context("Bank transfer - Pix forward flow", () => {
-    it("Create Payment Intent for Pix + List Merchant Payment Methods + Confirm Bank Transfer for Pix + Handle Bank Transfer Redirection for Pix", () => {
+    it("Create Payment Intent for Pix -> List Merchant Payment Methods -> Confirm Bank Transfer for Pix -> Handle Bank Transfer Redirection for Pix", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
       ]["PaymentIntent"]("Pix");
@@ -66,7 +66,7 @@ describe("Bank Transfers", () => {
   });
 
   context("Bank transfer - Instant Bank Transfer Finland forward flow", () => {
-    it("Create Payment Intent  + List Merchant Payment Methods + Confirm Bank Transfer  + Handle Bank Transfer Redirection ", () => {
+    it("Create Payment Intent  -> List Merchant Payment Methods -> Confirm Bank Transfer  -> Handle Bank Transfer Redirection ", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
       ]["PaymentIntent"]("InstantBankTransferFinland");
@@ -116,7 +116,7 @@ describe("Bank Transfers", () => {
   });
 
   context("Bank transfer - Instant Bank Transfer Poland forward flow", () => {
-    it("Create Payment Intent  + List Merchant Payment Methods + Confirm Bank Transfer  + Handle Bank Transfer Redirection ", () => {
+    it("Create Payment Intent  -> List Merchant Payment Methods -> Confirm Bank Transfer  -> Handle Bank Transfer Redirection ", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
       ]["PaymentIntent"]("InstantBankTransferPoland");
@@ -166,7 +166,7 @@ describe("Bank Transfers", () => {
   });
 
   context("Bank transfer - Ach flow", () => {
-    it("Create Payment Intent  + List Merchant Payment Methods + Confirm Bank Transfer  + Handle Bank Transfer Redirection ", () => {
+    it("Create Payment Intent  -> List Merchant Payment Methods -> Confirm Bank Transfer  -> Handle Bank Transfer Redirection ", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
       ]["PaymentIntent"]("Ach");

@@ -16,7 +16,7 @@ describe("Card - Refund flow - No 3DS", () => {
   });
 
   context("Card - Full Refund flow test for No-3DS", () => {
-    it("Create Payment Intent + Payment Methods Call + Confirm Payment Intent + Retrieve Payment after Confirmation + Refund Payment + Sync Refund Payment", () => {
+    it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Retrieve Payment after Confirmation -> Refund Payment -> Sync Refund Payment", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["PaymentIntent"];
@@ -72,7 +72,7 @@ describe("Card - Refund flow - No 3DS", () => {
   });
 
   context("Card - Partial Refund flow test for No-3DS", () => {
-    it("Create Payment Intent + Payment Methods Call + Confirm Payment Intent + Retrieve Payment after Confirmation + Partial Refund Payment + Partial Refund Payment - 2nd Attempt + Sync Refund Payment", () => {
+    it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Retrieve Payment after Confirmation -> Partial Refund Payment -> Partial Refund Payment - 2nd Attempt -> Sync Refund Payment", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["PaymentIntent"];
@@ -136,7 +136,7 @@ describe("Card - Refund flow - No 3DS", () => {
   context(
     "Fully Refund Card-NoThreeDS payment flow test Create+Confirm",
     () => {
-      it("Create and Confirm Payment + Retrieve Payment after Confirmation + Refund Payment + Sync Refund Payment", () => {
+      it("Create and Confirm Payment -> Retrieve Payment after Confirmation -> Refund Payment -> Sync Refund Payment", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["No3DSAutoCapture"];
@@ -181,7 +181,7 @@ describe("Card - Refund flow - No 3DS", () => {
   context(
     "Partially Refund Card-NoThreeDS payment flow test Create+Confirm",
     () => {
-      it("Create and Confirm Payment + Retrieve Payment after Confirmation + Partial Refund Payment + Partial Refund Payment - 2nd Attempt + Sync Refund Payment", () => {
+      it("Create and Confirm Payment -> Retrieve Payment after Confirmation -> Partial Refund Payment -> Partial Refund Payment - 2nd Attempt -> Sync Refund Payment", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["No3DSAutoCapture"];
@@ -235,7 +235,7 @@ describe("Card - Refund flow - No 3DS", () => {
   );
 
   context("Card - Full Refund for fully captured No-3DS payment", () => {
-    it("Create Payment Intent + Payment Methods Call + Confirm Payment Intent + Retrieve Payment after Confirmation + Capture Payment + Retrieve Payment after Capture + Refund Payment + Sync Refund Payment", () => {
+    it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Retrieve Payment after Confirmation -> Capture Payment -> Retrieve Payment after Capture -> Refund Payment -> Sync Refund Payment", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["PaymentIntent"];
@@ -310,7 +310,7 @@ describe("Card - Refund flow - No 3DS", () => {
   });
 
   context("Card - Partial Refund for fully captured No-3DS payment", () => {
-    it("Create Payment Intent + Payment Methods Call + Confirm Payment Intent + Retrieve Payment after Confirmation + Capture Payment + Retrieve Payment after Capture + Partial Refund Payment + Partial Refund Payment - 2nd Attempt + Sync Refund Payment + List Refunds", () => {
+    it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Retrieve Payment after Confirmation -> Capture Payment -> Retrieve Payment after Capture -> Partial Refund Payment -> Partial Refund Payment - 2nd Attempt -> Sync Refund Payment -> List Refunds", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["PaymentIntent"];
@@ -404,7 +404,7 @@ describe("Card - Refund flow - No 3DS", () => {
   });
 
   context("Card - Full Refund for partially captured No-3DS payment", () => {
-    it("Create Payment Intent + Payment Methods Call + Confirm Payment Intent + Retrieve Payment after Confirmation + Partial Capture Payment + Retrieve Payment after Partial Capture + Refund Payment + Sync Refund Payment", () => {
+    it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Retrieve Payment after Confirmation -> Partial Capture Payment -> Retrieve Payment after Partial Capture -> Refund Payment -> Sync Refund Payment", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["PaymentIntent"];
@@ -488,7 +488,7 @@ describe("Card - Refund flow - No 3DS", () => {
   });
 
   context("Card - Partial Refund for partially captured No-3DS payment", () => {
-    it("Create Payment Intent + Payment Methods Call + Confirm Payment Intent + Retrieve Payment after Confirmation + Partial Capture Payment + Retrieve Payment after Partial Capture + Refund Payment + Sync Refund Payment", () => {
+    it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Retrieve Payment after Confirmation -> Partial Capture Payment -> Retrieve Payment after Partial Capture -> Refund Payment -> Sync Refund Payment", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["PaymentIntent"];
@@ -574,7 +574,7 @@ describe("Card - Refund flow - No 3DS", () => {
   context(
     "Card - Full Refund for Create + Confirm Automatic CIT and MIT payment flow test",
     () => {
-      it("CIT for Mandates Call + MIT for Mandates Call + MIT for Mandates Call - 2nd Attempt + Refund Payment + Sync Refund Payment", () => {
+      it("CIT for Mandates Call -> MIT for Mandates Call -> MIT for Mandates Call - 2nd Attempt -> Refund Payment -> Sync Refund Payment", () => {
         const citData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["MandateMultiUseNo3DSAutoCapture"];
@@ -657,7 +657,7 @@ describe("Card - Refund flow - 3DS", () => {
   });
 
   context("Card - Full Refund flow test for 3DS", () => {
-    it("Create Payment Intent + Payment Methods Call + Confirm Payment Intent + Handle Redirection + Retrieve Payment after Confirmation + Refund Payment + Sync Refund Payment", () => {
+    it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Handle Redirection -> Retrieve Payment after Confirmation -> Refund Payment -> Sync Refund Payment", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["PaymentIntent"];
@@ -716,7 +716,7 @@ describe("Card - Refund flow - 3DS", () => {
   });
 
   context("Card - Partial Refund flow test for 3DS", () => {
-    it("Create Payment Intent + Payment Methods Call + Confirm Payment Intent + Handle Redirection + Retrieve Payment after Confirmation + Partial Refund Payment + Partial Refund Payment - 2nd Attempt + Sync Refund Payment", () => {
+    it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Handle Redirection -> Retrieve Payment after Confirmation -> Partial Refund Payment -> Partial Refund Payment - 2nd Attempt -> Sync Refund Payment", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["PaymentIntent"];
@@ -782,7 +782,7 @@ describe("Card - Refund flow - 3DS", () => {
   });
 
   context("Fully Refund Card-ThreeDS payment flow test Create+Confirm", () => {
-    it("Create and Confirm Payment + Handle Redirection + Retrieve Payment after Confirmation + Refund Payment + Sync Refund Payment", () => {
+    it("Create and Confirm Payment -> Handle Redirection -> Retrieve Payment after Confirmation -> Refund Payment -> Sync Refund Payment", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["3DSAutoCapture"];
@@ -831,7 +831,7 @@ describe("Card - Refund flow - 3DS", () => {
   context(
     "Partially Refund Card-ThreeDS payment flow test Create+Confirm",
     () => {
-      it("Create and Confirm Payment + Handle Redirection + Retrieve Payment after Confirmation + Partial Refund Payment + Partial Refund Payment - 2nd Attempt + Sync Refund Payment", () => {
+      it("Create and Confirm Payment -> Handle Redirection -> Retrieve Payment after Confirmation -> Partial Refund Payment -> Partial Refund Payment - 2nd Attempt -> Sync Refund Payment", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["3DSAutoCapture"];
@@ -886,7 +886,7 @@ describe("Card - Refund flow - 3DS", () => {
   );
 
   context("Card - Full Refund for fully captured 3DS payment", () => {
-    it("Create Payment Intent + Payment Methods Call + Confirm Payment Intent + Handle Redirection + Retrieve Payment after Confirmation + Capture Payment + Retrieve Payment after Capture + Refund Payment + Sync Refund Payment", () => {
+    it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Handle Redirection -> Retrieve Payment after Confirmation -> Capture Payment -> Retrieve Payment after Capture -> Refund Payment -> Sync Refund Payment", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["PaymentIntent"];
@@ -959,7 +959,7 @@ describe("Card - Refund flow - 3DS", () => {
   });
 
   context("Card - Partial Refund for fully captured 3DS payment", () => {
-    it("Create Payment Intent + Payment Methods Call + Confirm Payment Intent + Handle Redirection + Retrieve Payment after Confirmation + Capture Payment + Retrieve Payment after Capture + Partial Refund Payment + Partial Refund Payment - 2nd Attempt + Sync Refund Payment", () => {
+    it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Handle Redirection -> Retrieve Payment after Confirmation -> Capture Payment -> Retrieve Payment after Capture -> Partial Refund Payment -> Partial Refund Payment - 2nd Attempt -> Sync Refund Payment", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["PaymentIntent"];
@@ -1040,7 +1040,7 @@ describe("Card - Refund flow - 3DS", () => {
   });
 
   context("Card - Full Refund for partially captured 3DS payment", () => {
-    it("Create Payment Intent + Payment Methods Call + Confirm Payment Intent + Handle Redirection + Retrieve Payment after Confirmation + Partial Capture Payment + Retrieve Payment after Partial Capture + Refund Payment + Sync Refund Payment", () => {
+    it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Handle Redirection -> Retrieve Payment after Confirmation -> Partial Capture Payment -> Retrieve Payment after Partial Capture -> Refund Payment -> Sync Refund Payment", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["PaymentIntent"];
@@ -1119,7 +1119,7 @@ describe("Card - Refund flow - 3DS", () => {
   });
 
   context("Card - Partial Refund for partially captured 3DS payment", () => {
-    it("Create Payment Intent + Payment Methods Call + Confirm Payment Intent + Handle Redirection + Retrieve Payment after Confirmation + Partial Capture Payment + Retrieve Payment after Partial Capture + Partial Refund Payment + Sync Refund Payment", () => {
+    it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Handle Redirection -> Retrieve Payment after Confirmation -> Partial Capture Payment -> Retrieve Payment after Partial Capture -> Partial Refund Payment -> Sync Refund Payment", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["PaymentIntent"];

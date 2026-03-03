@@ -19,7 +19,7 @@ describe("Card - SaveCard payment flow test", () => {
   context(
     "Save card for NoThreeDS automatic capture payment- Create+Confirm [on_session]",
     () => {
-      it("Create Customer + Create and Confirm Payment + Retrieve Payment after Confirm + List Customer Payment Methods + Create Payment Intent + Save Card Confirm Call", () => {
+      it("Create Customer -> Create and Confirm Payment -> Retrieve Payment after Confirm -> List Customer Payment Methods -> Create Payment Intent -> Save Card Confirm Call", () => {
         const saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
 
         cy.step("Create Customer", () =>
@@ -84,7 +84,7 @@ describe("Card - SaveCard payment flow test", () => {
   context(
     "Save card for NoThreeDS manual full capture payment- Create+Confirm [on_session]",
     () => {
-      it("Create Customer + Create and Confirm Payment + Retrieve Payment after Confirm + List Customer Payment Methods + Create Payment Intent + Save Card Confirm Call + Retrieve Payment after Save Card Confirm + Capture Payment + Retrieve Payment after Capture", () => {
+      it("Create Customer -> Create and Confirm Payment -> Retrieve Payment after Confirm -> List Customer Payment Methods -> Create Payment Intent -> Save Card Confirm Call -> Retrieve Payment after Save Card Confirm -> Capture Payment -> Retrieve Payment after Capture", () => {
         const saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
 
         cy.step("Create Customer", () =>
@@ -169,7 +169,7 @@ describe("Card - SaveCard payment flow test", () => {
   context(
     "Save card for NoThreeDS manual partial capture payment- Create + Confirm [on_session]",
     () => {
-      it("Create Customer + Create and Confirm Payment + Retrieve Payment after Confirm + List Customer Payment Methods + Create Payment Intent + Save Card Confirm Call + Retrieve Payment after Save Card Confirm + Partial Capture Payment + Retrieve Payment after Partial Capture", () => {
+      it("Create Customer -> Create and Confirm Payment -> Retrieve Payment after Confirm -> List Customer Payment Methods -> Create Payment Intent -> Save Card Confirm Call -> Retrieve Payment after Save Card Confirm -> Partial Capture Payment -> Retrieve Payment after Partial Capture", () => {
         const saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
 
         cy.step("Create Customer", () =>
@@ -258,7 +258,7 @@ describe("Card - SaveCard payment flow test", () => {
   context(
     "Save card for NoThreeDS automatic capture payment [off_session]",
     () => {
-      it("Create Customer + Create and Confirm Payment + Retrieve Payment after Confirm + List Customer Payment Methods + Create Payment Intent + Save Card Confirm Call", () => {
+      it("Create Customer -> Create and Confirm Payment -> Retrieve Payment after Confirm -> List Customer Payment Methods -> Create Payment Intent -> Save Card Confirm Call", () => {
         const saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
 
         cy.step("Create Customer", () =>
@@ -323,7 +323,7 @@ describe("Card - SaveCard payment flow test", () => {
   context(
     "Save card for NoThreeDS manual capture payment- Create+Confirm [off_session]",
     () => {
-      it("Create Customer + Create and Confirm Payment + Retrieve Payment after Confirm + Capture Payment + Retrieve Payment after Capture + List Customer Payment Methods + Create Payment Intent + Save Card Confirm Call + Retrieve Payment after Save Card Confirm + Capture Payment + Retrieve Payment after Capture", () => {
+      it("Create Customer -> Create and Confirm Payment -> Retrieve Payment after Confirm -> Capture Payment -> Retrieve Payment after Capture -> List Customer Payment Methods -> Create Payment Intent -> Save Card Confirm Call -> Retrieve Payment after Save Card Confirm -> Capture Payment -> Retrieve Payment after Capture", () => {
         const saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
 
         cy.step("Create Customer", () =>
@@ -418,7 +418,7 @@ describe("Card - SaveCard payment flow test", () => {
   context(
     "Save card for NoThreeDS automatic capture payment - create and confirm [off_session]",
     () => {
-      it("Create Customer + Create Payment Intent + Confirm Payment + Retrieve Payment after Confirm + List Customer Payment Methods + Create Payment Intent for Subsequent Payment + Save Card Confirm Call for Subsequent Payment", () => {
+      it("Create Customer -> Create Payment Intent -> Confirm Payment -> Retrieve Payment after Confirm -> List Customer Payment Methods -> Create Payment Intent for Subsequent Payment -> Save Card Confirm Call for Subsequent Payment", () => {
         const saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
 
         cy.step("Create Customer", () =>
@@ -494,7 +494,7 @@ describe("Card - SaveCard payment flow test", () => {
   context(
     "Use billing address from payment method during subsequent payment [off_session]",
     () => {
-      it("Create Customer + Create Payment Intent + Confirm Payment + list Customer Payment Methods + Create Payment Intent for Subsequent Payment + Save Card Confirm Call for Subsequent Payment without Billing Address", () => {
+      it("Create Customer -> Create Payment Intent -> Confirm Payment -> list Customer Payment Methods -> Create Payment Intent for Subsequent Payment -> Save Card Confirm Call for Subsequent Payment without Billing Address", () => {
         const saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
         cy.step("Create Customer", () =>
           cy.createCustomerCallTest(fixtures.customerCreateBody, globalState)
@@ -567,7 +567,7 @@ describe("Card - SaveCard payment flow test", () => {
   context(
     "Check if card fields are populated when saving card again after a metadata update",
     () => {
-      it("Create Customer + Create and Confirm Payment + Retrieve Payment after Confirm + Create and Confirm Payment again with updated card holder name in metadata + Retrieve Customer Payment Methods", () => {
+      it("Create Customer -> Create and Confirm Payment -> Retrieve Payment after Confirm -> Create and Confirm Payment again with updated card holder name in metadata -> Retrieve Customer Payment Methods", () => {
         cy.step("Create Customer", () =>
           cy.createCustomerCallTest(fixtures.customerCreateBody, globalState)
         );
