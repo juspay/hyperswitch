@@ -4,6 +4,30 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.03.03.0
+
+### Features
+
+- **platform:** Populate created_by and last_modified_by using initiator context ([#11318](https://github.com/juspay/hyperswitch/pull/11318)) ([`6ccc09e`](https://github.com/juspay/hyperswitch/commit/6ccc09e47c634c754fe92f417faedb50cd899efb))
+
+### Bug Fixes
+
+- **payouts:** Trigger webhook for payout cancel ([#11379](https://github.com/juspay/hyperswitch/pull/11379)) ([`d128950`](https://github.com/juspay/hyperswitch/commit/d1289505baf1e0514dbe4c77e4ac295687d69249))
+- **postman:** Update confirm payment test to allow multiple CVV error … ([#11393](https://github.com/juspay/hyperswitch/pull/11393)) ([`39192bf`](https://github.com/juspay/hyperswitch/commit/39192bf659c9b29345a961c9b1c618ee48a2eb4d))
+
+### Refactors
+
+- **euclid:** De-couple static routing from core ([#11001](https://github.com/juspay/hyperswitch/pull/11001)) ([`74f2212`](https://github.com/juspay/hyperswitch/commit/74f221248986d73052a4190becbd3ec0c23624d6))
+- **relay:** Add manual multiple capture for relay and fix database deserialization ([#11264](https://github.com/juspay/hyperswitch/pull/11264)) ([`37bf9bc`](https://github.com/juspay/hyperswitch/commit/37bf9bc23764240774902a83dc5d2ba496b61e01))
+
+### Miscellaneous Tasks
+
+- **postman:** Update Postman collection files ([`130187a`](https://github.com/juspay/hyperswitch/commit/130187a352a0a899c45f5e57354eef91ec9ebffd))
+
+**Full Changelog:** [`2026.03.02.0...2026.03.03.0`](https://github.com/juspay/hyperswitch/compare/2026.03.02.0...2026.03.03.0)
+
+- - -
+
 ## 2026.03.02.0
 
 ### Features
