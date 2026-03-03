@@ -501,18 +501,39 @@ Cypress.Commands.add("merchantRetrieveCall", (globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      expect(response.headers["content-type"], "content_headers").to.include(
-        "application/json"
+      softExpect(globalState, "merchantRetrieveCall", () =>
+        expect(response.headers["content-type"], "content_headers").to.include(
+          "application/json"
+        )
       );
-      expect(response.body.merchant_id, "merchant_id").to.equal(merchant_id);
-      expect(
-        response.body.payment_response_hash_key,
-        "payment_response_hash_key"
-      ).to.not.be.null;
-      expect(response.body.publishable_key, "publishable_key").to.not.be.null;
+      softExpect(globalState, "merchantRetrieveCall", () =>
+        expect(response.body.merchant_id, "merchant_id").to.equal(merchant_id)
+      );
+      softExpect(globalState, "merchantRetrieveCall", () =>
+        expect(
+          response.body.payment_response_hash_key,
+          "payment_response_hash_key"
+        ).to.not.be.null
+      );
+      softExpect(globalState, "merchantRetrieveCall", () =>
+        expect(
+          response.body.publishable_key,
+          "publishable_key"
+        ).to.not.be.null
+      );
       cy.log("HI");
-      expect(response.body.default_profile, "default_profile").to.not.be.null;
-      expect(response.body.organization_id, "organization_id").to.not.be.null;
+      softExpect(globalState, "merchantRetrieveCall", () =>
+        expect(
+          response.body.default_profile,
+          "default_profile"
+        ).to.not.be.null
+      );
+      softExpect(globalState, "merchantRetrieveCall", () =>
+        expect(
+          response.body.organization_id,
+          "organization_id"
+        ).to.not.be.null
+      );
       globalState.set("organizationId", response.body.organization_id);
 
       if (globalState.get("publishableKey") === undefined) {
@@ -536,8 +557,12 @@ Cypress.Commands.add("merchantDeleteCall", (globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      expect(response.body.merchant_id).to.equal(merchant_id);
-      expect(response.body.deleted).to.equal(true);
+      softExpect(globalState, "merchantDeleteCall", () =>
+        expect(response.body.merchant_id).to.equal(merchant_id)
+      );
+      softExpect(globalState, "merchantDeleteCall", () =>
+        expect(response.body.deleted).to.equal(true)
+      );
     });
   });
 });
@@ -556,12 +581,22 @@ Cypress.Commands.add("ListConnectorsFeatureMatrixCall", (globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      expect(response.body).to.have.property("connectors").and.not.empty;
-      expect(response.body.connectors).to.be.an("array").and.not.empty;
+      softExpect(globalState, "ListConnectorsFeatureMatrixCall", () =>
+        expect(response.body).to.have.property("connectors").and.not.empty
+      );
+      softExpect(globalState, "ListConnectorsFeatureMatrixCall", () =>
+        expect(response.body.connectors).to.be.an("array").and.not.empty
+      );
       response.body.connectors.forEach((item) => {
-        expect(item).to.have.property("description").and.not.empty;
-        expect(item).to.have.property("category").and.not.empty;
-        expect(item).to.have.property("integration_status").and.not.empty;
+        softExpect(globalState, "ListConnectorsFeatureMatrixCall", () =>
+          expect(item).to.have.property("description").and.not.empty
+        );
+        softExpect(globalState, "ListConnectorsFeatureMatrixCall", () =>
+          expect(item).to.have.property("category").and.not.empty
+        );
+        softExpect(globalState, "ListConnectorsFeatureMatrixCall", () =>
+          expect(item).to.have.property("integration_status").and.not.empty
+        );
       });
     });
   });
@@ -582,14 +617,22 @@ Cypress.Commands.add("merchantListCall", (globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
+      softExpect(globalState, "merchantListCall", () =>
+        expect(response.headers["content-type"]).to.include("application/json")
+      );
       for (const key in response.body) {
-        expect(response.body[key]).to.have.property("merchant_id").and.not
-          .empty;
-        expect(response.body[key]).to.have.property("organization_id").and.not
-          .empty;
-        expect(response.body[key]).to.have.property("default_profile").and.not
-          .empty;
+        softExpect(globalState, "merchantListCall", () =>
+          expect(response.body[key]).to.have.property("merchant_id").and.not
+            .empty
+        );
+        softExpect(globalState, "merchantListCall", () =>
+          expect(response.body[key]).to.have.property("organization_id").and.not
+            .empty
+        );
+        softExpect(globalState, "merchantListCall", () =>
+          expect(response.body[key]).to.have.property("default_profile").and.not
+            .empty
+        );
       }
     });
   });
@@ -618,11 +661,21 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
-        expect(response.body.merchant_id).to.equal(merchant_id);
-        expect(response.body.publishable_key).to.equal(publishable_key);
-        expect(response.body.organization_id).to.equal(organization_id);
-        expect(response.body.merchant_details).to.not.equal(merchant_details);
+        softExpect(globalState, "merchantUpdateCall", () =>
+          expect(response.headers["content-type"]).to.include("application/json")
+        );
+        softExpect(globalState, "merchantUpdateCall", () =>
+          expect(response.body.merchant_id).to.equal(merchant_id)
+        );
+        softExpect(globalState, "merchantUpdateCall", () =>
+          expect(response.body.publishable_key).to.equal(publishable_key)
+        );
+        softExpect(globalState, "merchantUpdateCall", () =>
+          expect(response.body.organization_id).to.equal(organization_id)
+        );
+        softExpect(globalState, "merchantUpdateCall", () =>
+          expect(response.body.merchant_details).to.not.equal(merchant_details)
+        );
       });
     });
   }
@@ -656,7 +709,9 @@ Cypress.Commands.add(
       cy.wrap(response).then(() => {
         globalState.set(`${profilePrefix}Id`, response.body.profile_id);
         if (response.status === 200) {
-          expect(response.body.profile_id).to.not.to.be.null;
+          softExpect(globalState, "createBusinessProfileTest", () =>
+            expect(response.body.profile_id).to.not.to.be.null
+          );
         } else {
           throw new Error(
             `Business Profile call failed ${response.body.error.message}`
@@ -762,14 +817,21 @@ Cypress.Commands.add("apiKeyCreateTest", (apiKeyCreateBody, globalState) => {
 
     cy.wrap(response).then(() => {
       if (response.status === 200) {
-        expect(response.body.merchant_id).to.equal(merchantId);
-        expect(response.body.description).to.equal(
-          apiKeyCreateBody.description
+        softExpect(globalState, "apiKeyCreateTest", () =>
+          expect(response.body.merchant_id).to.equal(merchantId)
+        );
+        softExpect(globalState, "apiKeyCreateTest", () =>
+          expect(response.body.description).to.equal(
+            apiKeyCreateBody.description
+          )
         );
 
         // API Key assertions are intentionally excluded to avoid being exposed in the logs
-        expect(response.body).to.have.property(keyIdType).and.to.include(keyId)
-          .and.to.not.be.empty;
+        softExpect(globalState, "apiKeyCreateTest", () =>
+          expect(response.body)
+            .to.have.property(keyIdType)
+            .and.to.include(keyId).and.to.not.be.empty
+        );
 
         globalState.set("apiKeyId", response.body.key_id);
         globalState.set("apiKey", response.body.api_key);
@@ -810,11 +872,17 @@ Cypress.Commands.add("apiKeyUpdateCall", (apiKeyUpdateBody, globalState) => {
 
     cy.wrap(response).then(() => {
       if (response.status === 200) {
-        expect(response.body.name).to.equal("Updated API Key");
-        expect(response.body.merchant_id).to.equal(merchantId);
+        softExpect(globalState, "apiKeyUpdateCall", () =>
+          expect(response.body.name).to.equal("Updated API Key")
+        );
+        softExpect(globalState, "apiKeyUpdateCall", () =>
+          expect(response.body.merchant_id).to.equal(merchantId)
+        );
 
         // API Key assertions are intentionally excluded to avoid being exposed in the logs
-        expect(response.body.key_id).to.equal(apiKeyId);
+        softExpect(globalState, "apiKeyUpdateCall", () =>
+          expect(response.body.key_id).to.equal(apiKeyId)
+        );
       } else {
         // to be updated
         throw new Error(
@@ -842,10 +910,18 @@ Cypress.Commands.add("apiKeyRetrieveCall", (globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
-      expect(response.body.name).to.equal("Updated API Key");
-      expect(response.body.key_id).to.equal(api_key_id);
-      expect(response.body.merchant_id).to.equal(merchant_id);
+      softExpect(globalState, "apiKeyRetrieveCall", () =>
+        expect(response.headers["content-type"]).to.include("application/json")
+      );
+      softExpect(globalState, "apiKeyRetrieveCall", () =>
+        expect(response.body.name).to.equal("Updated API Key")
+      );
+      softExpect(globalState, "apiKeyRetrieveCall", () =>
+        expect(response.body.key_id).to.equal(api_key_id)
+      );
+      softExpect(globalState, "apiKeyRetrieveCall", () =>
+        expect(response.body.merchant_id).to.equal(merchant_id)
+      );
     });
   });
 });
@@ -865,18 +941,32 @@ Cypress.Commands.add("apiKeyListCall", (globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
-      expect(response.body).to.be.an("array").and.not.empty;
+      softExpect(globalState, "apiKeyListCall", () =>
+        expect(response.headers["content-type"]).to.include("application/json")
+      );
+      softExpect(globalState, "apiKeyListCall", () =>
+        expect(response.body).to.be.an("array").and.not.empty
+      );
       for (const key in response.body) {
-        expect(response.body[key]).to.have.property("name").and.not.empty;
+        softExpect(globalState, "apiKeyListCall", () =>
+          expect(response.body[key]).to.have.property("name").and.not.empty
+        );
         if (base_url.includes("sandbox") || base_url.includes("integ")) {
-          expect(response.body[key]).to.have.property("key_id").include("snd_")
-            .and.not.empty;
+          softExpect(globalState, "apiKeyListCall", () =>
+            expect(response.body[key])
+              .to.have.property("key_id")
+              .include("snd_").and.not.empty
+          );
         } else if (base_url.includes("localhost")) {
-          expect(response.body[key]).to.have.property("key_id").include("dev_")
-            .and.not.empty;
+          softExpect(globalState, "apiKeyListCall", () =>
+            expect(response.body[key])
+              .to.have.property("key_id")
+              .include("dev_").and.not.empty
+          );
         }
-        expect(response.body[key].merchant_id).to.equal(merchant_id);
+        softExpect(globalState, "apiKeyListCall", () =>
+          expect(response.body[key].merchant_id).to.equal(merchant_id)
+        );
       }
     });
   });
@@ -899,10 +989,18 @@ Cypress.Commands.add("apiKeyDeleteCall", (globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
-      expect(response.body.merchant_id).to.equal(merchant_id);
-      expect(response.body.key_id).to.equal(api_key_id);
-      expect(response.body.revoked).to.equal(true);
+      softExpect(globalState, "apiKeyDeleteCall", () =>
+        expect(response.headers["content-type"]).to.include("application/json")
+      );
+      softExpect(globalState, "apiKeyDeleteCall", () =>
+        expect(response.body.merchant_id).to.equal(merchant_id)
+      );
+      softExpect(globalState, "apiKeyDeleteCall", () =>
+        expect(response.body.key_id).to.equal(api_key_id)
+      );
+      softExpect(globalState, "apiKeyDeleteCall", () =>
+        expect(response.body.revoked).to.equal(true)
+      );
     });
   });
 });
@@ -952,7 +1050,9 @@ Cypress.Commands.add(
 
           cy.wrap(response).then(() => {
             if (response.status === 200) {
-              expect(connectorName).to.equal(response.body.connector_name);
+              softExpect(globalState, "createNamedConnectorCallTest", () =>
+                expect(connectorName).to.equal(response.body.connector_name)
+              );
               globalState.set(
                 `${mcaPrefix}Id`,
                 response.body.merchant_connector_id
@@ -1038,8 +1138,10 @@ Cypress.Commands.add(
 
           cy.wrap(response).then(() => {
             if (response.status === 200) {
-              expect(globalState.get("connectorId")).to.equal(
-                response.body.connector_name
+              softExpect(globalState, "createConnectorCallTest", () =>
+                expect(globalState.get("connectorId")).to.equal(
+                  response.body.connector_name
+                )
               );
               globalState.set(
                 `${mcaPrefix}Id`,
@@ -1114,8 +1216,10 @@ Cypress.Commands.add(
 
           cy.wrap(response).then(() => {
             if (response.status === 200) {
-              expect(globalState.get("connectorId")).to.equal(
-                response.body.connector_name
+              softExpect(globalState, "createPayoutConnectorCallTest", () =>
+                expect(globalState.get("connectorId")).to.equal(
+                  response.body.connector_name
+                )
               );
               globalState.set(
                 "merchantConnectorId",
@@ -1157,10 +1261,16 @@ Cypress.Commands.add("connectorRetrieveCall", (globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
-      expect(response.body.connector_name).to.equal(connector_id);
-      expect(response.body.merchant_connector_id).to.equal(
-        merchant_connector_id
+      softExpect(globalState, "connectorRetrieveCall", () =>
+        expect(response.headers["content-type"]).to.include("application/json")
+      );
+      softExpect(globalState, "connectorRetrieveCall", () =>
+        expect(response.body.connector_name).to.equal(connector_id)
+      );
+      softExpect(globalState, "connectorRetrieveCall", () =>
+        expect(response.body.merchant_connector_id).to.equal(
+          merchant_connector_id
+        )
       );
     });
   });
@@ -1182,11 +1292,17 @@ Cypress.Commands.add("connectorDeleteCall", (globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      expect(response.body.merchant_id).to.equal(merchant_id);
-      expect(response.body.merchant_connector_id).to.equal(
-        merchant_connector_id
+      softExpect(globalState, "connectorDeleteCall", () =>
+        expect(response.body.merchant_id).to.equal(merchant_id)
       );
-      expect(response.body.deleted).to.equal(true);
+      softExpect(globalState, "connectorDeleteCall", () =>
+        expect(response.body.merchant_connector_id).to.equal(
+          merchant_connector_id
+        )
+      );
+      softExpect(globalState, "connectorDeleteCall", () =>
+        expect(response.body.deleted).to.equal(true)
+      );
     });
   });
 });
@@ -1231,14 +1347,22 @@ Cypress.Commands.add(
         }).then((response) => {
           logRequestId(response.headers["x-request-id"]);
           cy.wrap(response).then(() => {
-            expect(response.headers["content-type"]).to.include(
-              "application/json"
+            softExpect(globalState, "connectorUpdateCall", () =>
+              expect(response.headers["content-type"]).to.include(
+                "application/json"
+              )
             );
-            expect(response.body.connector_name).to.equal(connector_id);
-            expect(response.body.merchant_connector_id).to.equal(
-              merchant_connector_id
+            softExpect(globalState, "connectorUpdateCall", () =>
+              expect(response.body.connector_name).to.equal(connector_id)
             );
-            expect(response.body.connector_label).to.equal(connectorLabel);
+            softExpect(globalState, "connectorUpdateCall", () =>
+              expect(response.body.merchant_connector_id).to.equal(
+                merchant_connector_id
+              )
+            );
+            softExpect(globalState, "connectorUpdateCall", () =>
+              expect(response.body.connector_label).to.equal(connectorLabel)
+            );
           });
         });
       }
@@ -1262,12 +1386,22 @@ Cypress.Commands.add("connectorListByMid", (globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
-      expect(response.body).to.be.an("array").and.not.empty;
+      softExpect(globalState, "connectorListByMid", () =>
+        expect(response.headers["content-type"]).to.include("application/json")
+      );
+      softExpect(globalState, "connectorListByMid", () =>
+        expect(response.body).to.be.an("array").and.not.empty
+      );
       response.body.forEach((item) => {
-        expect(item).to.not.have.property("metadata");
-        expect(item).to.not.have.property("additional_merchant_data");
-        expect(item).to.not.have.property("connector_wallets_details");
+        softExpect(globalState, "connectorListByMid", () =>
+          expect(item).to.not.have.property("metadata")
+        );
+        softExpect(globalState, "connectorListByMid", () =>
+          expect(item).to.not.have.property("additional_merchant_data")
+        );
+        softExpect(globalState, "connectorListByMid", () =>
+          expect(item).to.not.have.property("connector_wallets_details")
+        );
       });
     });
   });
@@ -1292,29 +1426,47 @@ Cypress.Commands.add(
         if (response.status === 200) {
           globalState.set("customerId", response.body.customer_id);
 
-          expect(response.body.customer_id, "customer_id").to.not.be.empty;
-          expect(customerCreateBody.email, "email").to.equal(
-            response.body.email
+          softExpect(globalState, "createCustomerCallTest", () =>
+            expect(response.body.customer_id, "customer_id").to.not.be.empty
           );
-          expect(customerCreateBody.name, "name").to.equal(response.body.name);
-          expect(customerCreateBody.phone, "phone").to.equal(
-            response.body.phone
+          softExpect(globalState, "createCustomerCallTest", () =>
+            expect(customerCreateBody.email, "email").to.equal(
+              response.body.email
+            )
           );
-          expect(customerCreateBody.metadata, "metadata").to.deep.equal(
-            response.body.metadata
+          softExpect(globalState, "createCustomerCallTest", () =>
+            expect(customerCreateBody.name, "name").to.equal(response.body.name)
           );
-          expect(customerCreateBody.address, "address").to.deep.equal(
-            response.body.address
+          softExpect(globalState, "createCustomerCallTest", () =>
+            expect(customerCreateBody.phone, "phone").to.equal(
+              response.body.phone
+            )
           );
-          expect(
-            customerCreateBody.phone_country_code,
-            "phone_country_code"
-          ).to.equal(response.body.phone_country_code);
+          softExpect(globalState, "createCustomerCallTest", () =>
+            expect(customerCreateBody.metadata, "metadata").to.deep.equal(
+              response.body.metadata
+            )
+          );
+          softExpect(globalState, "createCustomerCallTest", () =>
+            expect(customerCreateBody.address, "address").to.deep.equal(
+              response.body.address
+            )
+          );
+          softExpect(globalState, "createCustomerCallTest", () =>
+            expect(
+              customerCreateBody.phone_country_code,
+              "phone_country_code"
+            ).to.equal(response.body.phone_country_code)
+          );
         } else if (response.status === 400) {
           if (response.body.error.message.includes("already exists")) {
-            expect(response.body.error.code).to.equal("IR_12");
-            expect(response.body.error.message).to.equal(
-              "Customer with the given `customer_id` already exists"
+            softExpect(globalState, "createCustomerCallTest", () =>
+              expect(response.body.error.code).to.equal("IR_12")
+            );
+            softExpect(globalState, "createCustomerCallTest", () =>
+              expect(response.body.error.message).to.equal(
+                "Customer with the given `customer_id` already exists"
+              )
             );
           }
         }
@@ -1346,7 +1498,9 @@ Cypress.Commands.add("customerListCall", (globalState) => {
 
     cy.wrap(response).then(() => {
       for (const key in response.body) {
-        expect(response.body[key]).to.not.be.empty;
+        softExpect(globalState, "customerListCall", () =>
+          expect(response.body[key]).to.not.be.empty
+        );
       }
     });
   });
@@ -1369,35 +1523,49 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
-        expect(response.status).to.eq(200);
-        expect(response.body).to.have.property("data");
-        expect(response.body).to.have.property("total_count");
+        softExpect(globalState, "customerListWithCountCallTest", () =>
+          expect(response.status).to.eq(200)
+        );
+        softExpect(globalState, "customerListWithCountCallTest", () =>
+          expect(response.body).to.have.property("data")
+        );
+        softExpect(globalState, "customerListWithCountCallTest", () =>
+          expect(response.body).to.have.property("total_count")
+        );
 
         const actualDataLength = response.body.data.length;
         const totalCount = response.body.total_count;
 
         // Validate total_count is a number
-        expect(totalCount).to.be.a("number");
+        softExpect(globalState, "customerListWithCountCallTest", () =>
+          expect(totalCount).to.be.a("number")
+        );
 
         // Data length should never exceed the requested limit
-        expect(actualDataLength).to.be.at.most(
-          limit,
-          `Data length (${actualDataLength}) should not exceed limit (${limit})`
+        softExpect(globalState, "customerListWithCountCallTest", () =>
+          expect(actualDataLength).to.be.at.most(
+            limit,
+            `Data length (${actualDataLength}) should not exceed limit (${limit})`
+          )
         );
 
         // If offset is within range, validate data length expectations
         if (offset < totalCount) {
           const remainingRecords = totalCount - offset;
           const expectedDataLength = Math.min(limit, remainingRecords);
-          expect(actualDataLength).to.equal(
-            expectedDataLength,
-            `Expected ${expectedDataLength} records but got ${actualDataLength} (total: ${totalCount}, offset: ${offset}, limit: ${limit})`
+          softExpect(globalState, "customerListWithCountCallTest", () =>
+            expect(actualDataLength).to.equal(
+              expectedDataLength,
+              `Expected ${expectedDataLength} records but got ${actualDataLength} (total: ${totalCount}, offset: ${offset}, limit: ${limit})`
+            )
           );
         } else {
           // If offset >= total_count, data should be empty
-          expect(actualDataLength).to.equal(
-            0,
-            `When offset (${offset}) >= total_count (${totalCount}), data should be empty`
+          softExpect(globalState, "customerListWithCountCallTest", () =>
+            expect(actualDataLength).to.equal(
+              0,
+              `When offset (${offset}) >= total_count (${totalCount}), data should be empty`
+            )
           );
         }
       });
@@ -1420,7 +1588,9 @@ Cypress.Commands.add("customerRetrieveCall", (globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      expect(response.body.customer_id).to.equal(customer_id).and.not.be.empty;
+      softExpect(globalState, "customerRetrieveCall", () =>
+        expect(response.body.customer_id).to.equal(customer_id).and.not.be.empty
+      );
     });
   });
 });
@@ -1443,7 +1613,9 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
-        expect(response.body.customer_id).to.equal(customer_id);
+        softExpect(globalState, "customerUpdateCall", () =>
+          expect(response.body.customer_id).to.equal(customer_id)
+        );
       });
     });
   }
@@ -1466,10 +1638,18 @@ Cypress.Commands.add("ephemeralGenerateCall", (globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      expect(response.body.customer_id).to.equal(customer_id);
-      expect(response.body.merchant_id).to.equal(merchant_id);
-      expect(response.body.id).to.exist.and.not.be.empty;
-      expect(response.body.secret).to.exist.and.not.be.empty;
+      softExpect(globalState, "ephemeralGenerateCall", () =>
+        expect(response.body.customer_id).to.equal(customer_id)
+      );
+      softExpect(globalState, "ephemeralGenerateCall", () =>
+        expect(response.body.merchant_id).to.equal(merchant_id)
+      );
+      softExpect(globalState, "ephemeralGenerateCall", () =>
+        expect(response.body.id).to.exist.and.not.be.empty
+      );
+      softExpect(globalState, "ephemeralGenerateCall", () =>
+        expect(response.body.secret).to.exist.and.not.be.empty
+      );
     });
   });
 });
@@ -1489,10 +1669,18 @@ Cypress.Commands.add("customerDeleteCall", (globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      expect(response.body.customer_id).to.equal(customer_id).and.not.be.empty;
-      expect(response.body.customer_deleted).to.equal(true);
-      expect(response.body.address_deleted).to.equal(true);
-      expect(response.body.payment_methods_deleted).to.equal(true);
+      softExpect(globalState, "customerDeleteCall", () =>
+        expect(response.body.customer_id).to.equal(customer_id).and.not.be.empty
+      );
+      softExpect(globalState, "customerDeleteCall", () =>
+        expect(response.body.customer_deleted).to.equal(true)
+      );
+      softExpect(globalState, "customerDeleteCall", () =>
+        expect(response.body.address_deleted).to.equal(true)
+      );
+      softExpect(globalState, "customerDeleteCall", () =>
+        expect(response.body.payment_methods_deleted).to.equal(true)
+      );
     });
   });
 });
@@ -1513,20 +1701,28 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
+        softExpect(globalState, "paymentMethodListTestLessThanEqualToOnePaymentMethod", () =>
+          expect(response.headers["content-type"]).to.include("application/json")
+        );
         if (response.status === 200) {
-          expect(response.body).to.have.property("currency");
+          softExpect(globalState, "paymentMethodListTestLessThanEqualToOnePaymentMethod", () =>
+            expect(response.body).to.have.property("currency")
+          );
           if (resData["payment_methods"].length == 1) {
             function getPaymentMethodType(obj) {
               return obj["payment_methods"][0]["payment_method_types"][0][
                 "payment_method_type"
               ];
             }
-            expect(getPaymentMethodType(resData)).to.equal(
-              getPaymentMethodType(response.body)
+            softExpect(globalState, "paymentMethodListTestLessThanEqualToOnePaymentMethod", () =>
+              expect(getPaymentMethodType(resData)).to.equal(
+                getPaymentMethodType(response.body)
+              )
             );
           } else {
-            expect(0).to.equal(response.body["payment_methods"].length);
+            softExpect(globalState, "paymentMethodListTestLessThanEqualToOnePaymentMethod", () =>
+              expect(0).to.equal(response.body["payment_methods"].length)
+            );
           }
         } else {
           defaultErrorHandler(response, resData);
@@ -1557,7 +1753,9 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
+        softExpect(globalState, "paymentMethodListTestWithRequiredFields", () =>
+          expect(response.headers["content-type"]).to.include("application/json")
+        );
         if (response.status === 200) {
           const responsePaymentMethods = response.body["payment_methods"];
           const responseRequiredFields =
@@ -1574,17 +1772,27 @@ Cypress.Commands.add(
             const expectedField = expectedRequiredFields[key];
             const responseField = responseRequiredFields[key];
 
-            expect(responseField).to.exist;
-            expect(responseField.required_field).to.equal(
-              expectedField.required_field
+            softExpect(globalState, "paymentMethodListTestWithRequiredFields", () =>
+              expect(responseField).to.exist
             );
-            expect(responseField.display_name).to.equal(
-              expectedField.display_name
+            softExpect(globalState, "paymentMethodListTestWithRequiredFields", () =>
+              expect(responseField.required_field).to.equal(
+                expectedField.required_field
+              )
             );
-            expect(responseField.field_type).to.deep.equal(
-              expectedField.field_type
+            softExpect(globalState, "paymentMethodListTestWithRequiredFields", () =>
+              expect(responseField.display_name).to.equal(
+                expectedField.display_name
+              )
             );
-            expect(responseField.value).to.equal(expectedField.value);
+            softExpect(globalState, "paymentMethodListTestWithRequiredFields", () =>
+              expect(responseField.field_type).to.deep.equal(
+                expectedField.field_type
+              )
+            );
+            softExpect(globalState, "paymentMethodListTestWithRequiredFields", () =>
+              expect(responseField.value).to.equal(expectedField.value)
+            );
           });
         } else {
           throw new Error(
@@ -1612,9 +1820,13 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
+        softExpect(globalState, "paymentMethodListTestTwoConnectorsForOnePaymentMethodCredit", () =>
+          expect(response.headers["content-type"]).to.include("application/json")
+        );
         if (response.status === 200) {
-          expect(response.body).to.have.property("currency");
+          softExpect(globalState, "paymentMethodListTestTwoConnectorsForOnePaymentMethodCredit", () =>
+            expect(response.body).to.have.property("currency")
+          );
           if (resData["payment_methods"].length > 0) {
             function getPaymentMethodType(obj) {
               return obj["payment_methods"][0]["payment_method_types"][0][
@@ -1628,12 +1840,16 @@ Cypress.Commands.add(
               response.body
             );
             for (let i = 0; i < response_payment_method_type.length; i++) {
-              expect(config_payment_method_type[i]).to.equal(
-                response_payment_method_type[i]
+              softExpect(globalState, "paymentMethodListTestTwoConnectorsForOnePaymentMethodCredit", () =>
+                expect(config_payment_method_type[i]).to.equal(
+                  response_payment_method_type[i]
+                )
               );
             }
           } else {
-            expect(0).to.equal(response.body["payment_methods"].length);
+            softExpect(globalState, "paymentMethodListTestTwoConnectorsForOnePaymentMethodCredit", () =>
+              expect(0).to.equal(response.body["payment_methods"].length)
+            );
           }
         } else {
           defaultErrorHandler(response, resData);
@@ -1672,8 +1888,10 @@ Cypress.Commands.add(
           const actualTokens = response.body.session_token;
 
           // Verifying length of array
-          expect(actualTokens.length, "arrayLength").to.equal(
-            expectedTokens.length
+          softExpect(globalState, "sessionTokenCall", () =>
+            expect(actualTokens.length, "arrayLength").to.equal(
+              expectedTokens.length
+            )
           );
 
           // Verify specific fields in each session_token object
@@ -1681,11 +1899,15 @@ Cypress.Commands.add(
             const actualToken = actualTokens[index];
 
             // Check specific fields only
-            expect(actualToken.wallet_name, "wallet_name").to.equal(
-              expectedToken.wallet_name
+            softExpect(globalState, "sessionTokenCall", () =>
+              expect(actualToken.wallet_name, "wallet_name").to.equal(
+                expectedToken.wallet_name
+              )
             );
-            expect(actualToken.connector, "connector").to.equal(
-              expectedToken.connector
+            softExpect(globalState, "sessionTokenCall", () =>
+              expect(actualToken.connector, "connector").to.equal(
+                expectedToken.connector
+              )
             );
           });
         } else {
@@ -1748,9 +1970,13 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
+        softExpect(globalState, "createPaymentIntentTest", () =>
+          expect(response.headers["content-type"]).to.include("application/json")
+        );
         if (resData.status === 200) {
-          expect(response.body).to.have.property("client_secret");
+          softExpect(globalState, "createPaymentIntentTest", () =>
+            expect(response.body).to.have.property("client_secret")
+          );
           const clientSecret = response.body.client_secret;
           globalState.set("clientSecret", clientSecret);
           globalState.set("paymentID", response.body.payment_id);
@@ -1761,80 +1987,132 @@ Cypress.Commands.add(
           );
           cy.log(clientSecret);
           for (const key in resData.body) {
-            expect(resData.body[key]).to.equal(
-              response.body[key],
-              `Expected ${resData.body[key]} but got ${response.body[key]}`
+            softExpect(globalState, "createPaymentIntentTest", () =>
+              expect(resData.body[key]).to.equal(
+                response.body[key],
+                `Expected ${resData.body[key]} but got ${response.body[key]}`
+              )
             );
           }
-          expect(response.body.payment_id, "payment_id").to.not.be.null;
-          expect(response.body.merchant_id, "merchant_id").to.not.be.null;
-          expect(createPaymentBody.amount, "amount").to.equal(
-            response.body.amount
+          softExpect(globalState, "createPaymentIntentTest", () =>
+            expect(response.body.payment_id, "payment_id").to.not.be.null
           );
-          expect(createPaymentBody.currency, "currency").to.equal(
-            response.body.currency
+          softExpect(globalState, "createPaymentIntentTest", () =>
+            expect(response.body.merchant_id, "merchant_id").to.not.be.null
           );
-          expect(createPaymentBody.capture_method, "capture_method").to.equal(
-            response.body.capture_method
+          softExpect(globalState, "createPaymentIntentTest", () =>
+            expect(createPaymentBody.amount, "amount").to.equal(
+              response.body.amount
+            )
           );
-          expect(
-            createPaymentBody.authentication_type,
-            "authentication_type"
-          ).to.equal(response.body.authentication_type);
-          expect(createPaymentBody.description, "description").to.equal(
-            response.body.description
+          softExpect(globalState, "createPaymentIntentTest", () =>
+            expect(createPaymentBody.currency, "currency").to.equal(
+              response.body.currency
+            )
           );
-          expect(createPaymentBody.email, "email").to.equal(
-            response.body.email
+          softExpect(globalState, "createPaymentIntentTest", () =>
+            expect(createPaymentBody.capture_method, "capture_method").to.equal(
+              response.body.capture_method
+            )
           );
-          expect(createPaymentBody.email, "customer.email").to.equal(
-            response.body.customer.email
+          softExpect(globalState, "createPaymentIntentTest", () =>
+            expect(
+              createPaymentBody.authentication_type,
+              "authentication_type"
+            ).to.equal(response.body.authentication_type)
           );
-          expect(createPaymentBody.customer_id, "customer.id").to.equal(
-            response.body.customer.id
+          softExpect(globalState, "createPaymentIntentTest", () =>
+            expect(createPaymentBody.description, "description").to.equal(
+              response.body.description
+            )
           );
-          expect(createPaymentBody.metadata, "metadata").to.deep.equal(
-            response.body.metadata
+          softExpect(globalState, "createPaymentIntentTest", () =>
+            expect(createPaymentBody.email, "email").to.equal(
+              response.body.email
+            )
           );
-          expect(
-            createPaymentBody.setup_future_usage,
-            "setup_future_usage"
-          ).to.equal(response.body.setup_future_usage);
+          softExpect(globalState, "createPaymentIntentTest", () =>
+            expect(createPaymentBody.email, "customer.email").to.equal(
+              response.body.customer.email
+            )
+          );
+          softExpect(globalState, "createPaymentIntentTest", () =>
+            expect(createPaymentBody.customer_id, "customer.id").to.equal(
+              response.body.customer.id
+            )
+          );
+          softExpect(globalState, "createPaymentIntentTest", () =>
+            expect(createPaymentBody.metadata, "metadata").to.deep.equal(
+              response.body.metadata
+            )
+          );
+          softExpect(globalState, "createPaymentIntentTest", () =>
+            expect(
+              createPaymentBody.setup_future_usage,
+              "setup_future_usage"
+            ).to.equal(response.body.setup_future_usage)
+          );
           // If 'shipping_cost' is not included in the request, the 'amount' in 'createPaymentBody' should match the 'amount_capturable' in the response.
           if (typeof createPaymentBody?.shipping_cost === "undefined") {
-            expect(createPaymentBody.amount, "amount_capturable").to.equal(
-              response.body.amount_capturable
+            softExpect(globalState, "createPaymentIntentTest", () =>
+              expect(createPaymentBody.amount, "amount_capturable").to.equal(
+                response.body.amount_capturable
+              )
             );
           } else {
-            expect(
-              createPaymentBody.amount + createPaymentBody.shipping_cost,
-              "amount_capturable"
-            ).to.equal(response.body.amount_capturable);
+            softExpect(globalState, "createPaymentIntentTest", () =>
+              expect(
+                createPaymentBody.amount + createPaymentBody.shipping_cost,
+                "amount_capturable"
+              ).to.equal(response.body.amount_capturable)
+            );
           }
-          expect(response.body.amount_received, "amount_received").to.be.oneOf([
-            0,
-            null,
-          ]);
-          expect(response.body.connector, "connector").to.be.null;
-          expect(createPaymentBody.capture_method, "capture_method").to.equal(
-            response.body.capture_method
+          softExpect(globalState, "createPaymentIntentTest", () =>
+            expect(response.body.amount_received, "amount_received").to.be.oneOf([
+              0,
+              null,
+            ])
           );
-          expect(response.body.payment_method, "payment_method").to.be.null;
-          expect(response.body.payment_method_data, "payment_method_data").to.be
-            .null;
-          expect(response.body.merchant_connector_id, "merchant_connector_id")
-            .to.be.null;
-          expect(response.body.payment_method_id, "payment_method_id").to.be
-            .null;
-          expect(response.body.payment_method_id, "payment_method_status").to.be
-            .null;
-          expect(response.body.profile_id, "profile_id").to.not.be.null;
-          expect(
-            response.body.merchant_order_reference_id,
-            "merchant_order_reference_id"
-          ).to.be.null;
-          expect(response.body.connector_mandate_id, "connector_mandate_id").to
-            .be.null;
+          softExpect(globalState, "createPaymentIntentTest", () =>
+            expect(response.body.connector, "connector").to.be.null
+          );
+          softExpect(globalState, "createPaymentIntentTest", () =>
+            expect(createPaymentBody.capture_method, "capture_method").to.equal(
+              response.body.capture_method
+            )
+          );
+          softExpect(globalState, "createPaymentIntentTest", () =>
+            expect(response.body.payment_method, "payment_method").to.be.null
+          );
+          softExpect(globalState, "createPaymentIntentTest", () =>
+            expect(response.body.payment_method_data, "payment_method_data").to.be
+              .null
+          );
+          softExpect(globalState, "createPaymentIntentTest", () =>
+            expect(response.body.merchant_connector_id, "merchant_connector_id")
+              .to.be.null
+          );
+          softExpect(globalState, "createPaymentIntentTest", () =>
+            expect(response.body.payment_method_id, "payment_method_id").to.be
+              .null
+          );
+          softExpect(globalState, "createPaymentIntentTest", () =>
+            expect(response.body.payment_method_id, "payment_method_status").to.be
+              .null
+          );
+          softExpect(globalState, "createPaymentIntentTest", () =>
+            expect(response.body.profile_id, "profile_id").to.not.be.null
+          );
+          softExpect(globalState, "createPaymentIntentTest", () =>
+            expect(
+              response.body.merchant_order_reference_id,
+              "merchant_order_reference_id"
+            ).to.be.null
+          );
+          softExpect(globalState, "createPaymentIntentTest", () =>
+            expect(response.body.connector_mandate_id, "connector_mandate_id").to
+              .be.null
+          );
 
           validateErrorMessage(response, resData);
         } else {
@@ -1860,36 +2138,50 @@ Cypress.Commands.add("paymentMethodsCallTest", (globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
-      expect(response.body).to.have.property("redirect_url");
-      expect(response.body).to.have.property("payment_methods");
+      softExpect(globalState, "paymentMethodsCallTest", () =>
+        expect(response.headers["content-type"]).to.include("application/json")
+      );
+      softExpect(globalState, "paymentMethodsCallTest", () =>
+        expect(response.body).to.have.property("redirect_url")
+      );
+      softExpect(globalState, "paymentMethodsCallTest", () =>
+        expect(response.body).to.have.property("payment_methods")
+      );
       if (
         globalState.get("collectBillingDetails") === true ||
         globalState.get("alwaysCollectBillingDetails") === true
       ) {
-        expect(
-          response.body.collect_billing_details_from_wallets,
-          "collectBillingDetailsFromWallets"
-        ).to.be.true;
+        softExpect(globalState, "paymentMethodsCallTest", () =>
+          expect(
+            response.body.collect_billing_details_from_wallets,
+            "collectBillingDetailsFromWallets"
+          ).to.be.true
+        );
       } else
-        expect(
-          response.body.collect_billing_details_from_wallets,
-          "collectBillingDetailsFromWallets"
-        ).to.be.false;
+        softExpect(globalState, "paymentMethodsCallTest", () =>
+          expect(
+            response.body.collect_billing_details_from_wallets,
+            "collectBillingDetailsFromWallets"
+          ).to.be.false
+        );
 
       if (
         globalState.get("collectShippingDetails") === true ||
         globalState.get("alwaysCollectShippingDetails") === true
       ) {
-        expect(
-          response.body.collect_shipping_details_from_wallets,
-          "collectShippingDetailsFromWallets"
-        ).to.be.true;
+        softExpect(globalState, "paymentMethodsCallTest", () =>
+          expect(
+            response.body.collect_shipping_details_from_wallets,
+            "collectShippingDetailsFromWallets"
+          ).to.be.true
+        );
       } else
-        expect(
-          response.body.collect_shipping_details_from_wallets,
-          "collectShippingDetailsFromWallets"
-        ).to.be.false;
+        softExpect(globalState, "paymentMethodsCallTest", () =>
+          expect(
+            response.body.collect_shipping_details_from_wallets,
+            "collectShippingDetailsFromWallets"
+          ).to.be.false
+        );
       globalState.set("paymentID", paymentIntentID);
       cy.log(response);
     });
@@ -1916,23 +2208,39 @@ Cypress.Commands.add("createPaymentMethodTest", (globalState, data) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
+      softExpect(globalState, "createPaymentMethodTest", () =>
+        expect(response.headers["content-type"]).to.include("application/json")
+      );
       if (response.status === 200) {
-        expect(response.body.client_secret, "client_secret").to.include(
-          "_secret_"
-        ).and.to.not.be.null;
-        expect(response.body.payment_method_id, "payment_method_id").to.not.be
-          .null;
-        expect(response.body.merchant_id, "merchant_id").to.equal(merchant_id);
-        expect(reqData.payment_method_type, "payment_method_type").to.equal(
-          response.body.payment_method_type
+        softExpect(globalState, "createPaymentMethodTest", () =>
+          expect(response.body.client_secret, "client_secret").to.include(
+            "_secret_"
+          ).and.to.not.be.null
         );
-        expect(reqData.payment_method, "payment_method").to.equal(
-          response.body.payment_method
+        softExpect(globalState, "createPaymentMethodTest", () =>
+          expect(response.body.payment_method_id, "payment_method_id").to.not.be
+            .null
         );
-        expect(response.body.last_used_at, "last_used_at").to.not.be.null;
-        expect(reqData.customer_id, "customer_id").to.equal(
-          response.body.customer_id
+        softExpect(globalState, "createPaymentMethodTest", () =>
+          expect(response.body.merchant_id, "merchant_id").to.equal(merchant_id)
+        );
+        softExpect(globalState, "createPaymentMethodTest", () =>
+          expect(reqData.payment_method_type, "payment_method_type").to.equal(
+            response.body.payment_method_type
+          )
+        );
+        softExpect(globalState, "createPaymentMethodTest", () =>
+          expect(reqData.payment_method, "payment_method").to.equal(
+            response.body.payment_method
+          )
+        );
+        softExpect(globalState, "createPaymentMethodTest", () =>
+          expect(response.body.last_used_at, "last_used_at").to.not.be.null
+        );
+        softExpect(globalState, "createPaymentMethodTest", () =>
+          expect(reqData.customer_id, "customer_id").to.equal(
+            response.body.customer_id
+          )
         );
         globalState.set("paymentMethodId", response.body.payment_method_id);
       } else {
@@ -1960,14 +2268,24 @@ Cypress.Commands.add("deletePaymentMethodTest", (globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
+      softExpect(globalState, "deletePaymentMethodTest", () =>
+        expect(response.headers["content-type"]).to.include("application/json")
+      );
       if (response.status === 200) {
-        expect(response.body.payment_method_id).to.equal(paymentMethodId);
-        expect(response.body.deleted).to.be.true;
+        softExpect(globalState, "deletePaymentMethodTest", () =>
+          expect(response.body.payment_method_id).to.equal(paymentMethodId)
+        );
+        softExpect(globalState, "deletePaymentMethodTest", () =>
+          expect(response.body.deleted).to.be.true
+        );
       } else if (response.status === 500 && baseUrl.includes("localhost")) {
         // delete payment method api endpoint requires tartarus (hyperswitch card vault) to be set up since it makes a call to the locker service to delete the payment method
-        expect(response.body.error.code).to.include("HE_00");
-        expect(response.body.error.message).to.include("Something went wrong");
+        softExpect(globalState, "deletePaymentMethodTest", () =>
+          expect(response.body.error.code).to.include("HE_00")
+        );
+        softExpect(globalState, "deletePaymentMethodTest", () =>
+          expect(response.body.error.message).to.include("Something went wrong")
+        );
       } else {
         throw new Error(
           `Payment Method Delete Call Failed with error message: ${response.body.error.message}`
@@ -1992,16 +2310,24 @@ Cypress.Commands.add("setDefaultPaymentMethodTest", (globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
+      softExpect(globalState, "setDefaultPaymentMethodTest", () =>
+        expect(response.headers["content-type"]).to.include("application/json")
+      );
       if (response.status === 200) {
-        expect(response.body).to.have.property(
-          "default_payment_method_id",
-          payment_method_id
+        softExpect(globalState, "setDefaultPaymentMethodTest", () =>
+          expect(response.body).to.have.property(
+            "default_payment_method_id",
+            payment_method_id
+          )
         );
-        expect(response.body).to.have.property("customer_id", customer_id);
+        softExpect(globalState, "setDefaultPaymentMethodTest", () =>
+          expect(response.body).to.have.property("customer_id", customer_id)
+        );
       } else if (response.status === 400) {
-        expect(response.body.error.message).to.equal(
-          "Payment Method is already set as default"
+        softExpect(globalState, "setDefaultPaymentMethodTest", () =>
+          expect(response.body.error.message).to.equal(
+            "Payment Method is already set as default"
+          )
         );
       } else {
         defaultErrorHandler(response);
@@ -2052,7 +2378,9 @@ Cypress.Commands.add(
       storeRequestId(response.headers["x-request-id"], globalState);
 
       cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
+        softExpect(globalState, name, () =>
+          expect(response.headers["content-type"]).to.include("application/json")
+        );
         if (response.status === 200) {
           globalState.set("paymentID", paymentIntentID);
           globalState.set("connectorId", response.body.connector);
@@ -2061,52 +2389,71 @@ Cypress.Commands.add(
             response.body.connector_transaction_id
           );
           globalState.set("paymentIntentStatus", response.body.status);
-          expect(response.body.connector, "connector").to.equal(
-            globalState.get("connectorId")
+          softExpect(globalState, name, () =>
+            expect(response.body.connector, "connector").to.equal(
+              globalState.get("connectorId")
+            )
           );
-          expect(paymentIntentID, "payment_id").to.equal(
-            response.body.payment_id
+          softExpect(globalState, name, () =>
+            expect(paymentIntentID, "payment_id").to.equal(
+              response.body.payment_id
+            )
           );
-          expect(response.body.payment_method_data, "payment_method_data").to
-            .not.be.empty;
-          expect(merchantConnectorId, "connector_id").to.equal(
-            response.body.merchant_connector_id
+          softExpect(globalState, name, () =>
+            expect(response.body.payment_method_data, "payment_method_data").to
+              .not.be.empty
           );
-          softExpect(globalState, name, ()=> expect(response.body.customer, "customer").to.not.be.empty);
-          expect(response.body.billing, "billing_address").to.not.be.empty;
-          expect(response.body.profile_id, "profile_id").to.equal(profileId).and
-            .to.not.be.null;
+          softExpect(globalState, name, () =>
+            expect(merchantConnectorId, "connector_id").to.equal(
+              response.body.merchant_connector_id
+            )
+          );
+          softExpect(globalState, name, () => expect(response.body.customer, "customer").to.not.be.empty);
+          softExpect(globalState, name, () =>
+            expect(response.body.billing, "billing_address").to.not.be.empty
+          );
+          softExpect(globalState, name, () =>
+            expect(response.body.profile_id, "profile_id").to.equal(profileId).and
+              .to.not.be.null
+          );
 
           validateErrorMessage(response, resData);
 
           if (response.body.capture_method === "automatic") {
             if (response.body.authentication_type === "three_ds") {
-              expect(response.body)
-                .to.have.property("next_action")
-                .to.have.property("redirect_to_url");
+              softExpect(globalState, name, () =>
+                expect(response.body)
+                  .to.have.property("next_action")
+                  .to.have.property("redirect_to_url")
+              );
               globalState.set(
                 "nextActionUrl",
                 response.body.next_action.redirect_to_url
               );
               for (const key in resData.body) {
                 softExpect(globalState, name, () =>
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                ));
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  )
+                );
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                softExpect(globalState, name, () => expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-              ));
+                softExpect(globalState, name, () =>
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  )
+                );
                 if (
                   response.body.setup_future_usage === "off_session" &&
                   response.body.status === "succeeded"
                 ) {
-                  expect(
-                    response.body.connector_mandate_id,
-                    "connector_mandate_id"
-                  ).to.not.be.null;
+                  softExpect(globalState, name, () =>
+                    expect(
+                      response.body.connector_mandate_id,
+                      "connector_mandate_id"
+                    ).to.not.be.null
+                  );
                 }
               }
             } else {
@@ -2116,31 +2463,39 @@ Cypress.Commands.add(
             }
           } else if (response.body.capture_method === "manual") {
             if (response.body.authentication_type === "three_ds") {
-              expect(response.body)
-                .to.have.property("next_action")
-                .to.have.property("redirect_to_url");
+              softExpect(globalState, name, () =>
+                expect(response.body)
+                  .to.have.property("next_action")
+                  .to.have.property("redirect_to_url")
+              );
               globalState.set(
                 "nextActionUrl",
                 response.body.next_action.redirect_to_url
               );
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
+                softExpect(globalState, name, () =>
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  )
                 );
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
+                softExpect(globalState, name, () =>
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  )
                 );
                 if (
                   response.body.setup_future_usage === "off_session" &&
                   response.body.status === "succeeded"
                 ) {
-                  expect(
-                    response.body.connector_mandate_id,
-                    "connector_mandate_id"
-                  ).to.not.be.null;
+                  softExpect(globalState, name, () =>
+                    expect(
+                      response.body.connector_mandate_id,
+                      "connector_mandate_id"
+                    ).to.not.be.null
+                  );
                 }
               }
             } else {
@@ -2196,8 +2551,10 @@ Cypress.Commands.add(
 
       cy.wrap(response).then(() => {
         if (response.status === 200) {
-          expect(response.headers["content-type"]).to.include(
-            "application/json"
+          softExpect(globalState, "confirmBankRedirectCallTest", () =>
+            expect(response.headers["content-type"]).to.include(
+              "application/json"
+            )
           );
           globalState.set("paymentID", paymentIntentId);
           globalState.set("connectorId", response.body.connector);
@@ -2218,22 +2575,28 @@ Cypress.Commands.add(
                       connectorId === "adyen" &&
                       response.body.payment_method_type === "blik"
                     ) {
-                      expect(response.body)
-                        .to.have.property("next_action")
-                        .to.have.property("type")
-                        .to.equal("wait_screen_information");
+                      softExpect(globalState, "confirmBankRedirectCallTest", () =>
+                        expect(response.body)
+                          .to.have.property("next_action")
+                          .to.have.property("type")
+                          .to.equal("wait_screen_information")
+                      );
                     } else {
-                      expect(response.body)
-                        .to.have.property("next_action")
-                        .to.have.property("redirect_to_url");
+                      softExpect(globalState, "confirmBankRedirectCallTest", () =>
+                        expect(response.body)
+                          .to.have.property("next_action")
+                          .to.have.property("redirect_to_url")
+                      );
                       globalState.set(
                         "nextActionUrl",
                         response.body.next_action.redirect_to_url
                       );
                     }
                   } else if (response.body.status === "failed") {
-                    expect(response.body.error_code).to.equal(
-                      resData.body.error_code
+                    softExpect(globalState, "confirmBankRedirectCallTest", () =>
+                      expect(response.body.error_code).to.equal(
+                        resData.body.error_code
+                      )
                     );
                   }
                 } else {
@@ -2247,9 +2610,11 @@ Cypress.Commands.add(
                   response.body.capture_method === "automatic" ||
                   response.body.capture_method === "manual"
                 ) {
-                  expect(response.body)
-                    .to.have.property("next_action")
-                    .to.have.property("redirect_to_url");
+                  softExpect(globalState, "confirmBankRedirectCallTest", () =>
+                    expect(response.body)
+                      .to.have.property("next_action")
+                      .to.have.property("redirect_to_url")
+                  );
                   globalState.set(
                     "nextActionUrl",
                     response.body.next_action.redirect_to_url
@@ -2309,7 +2674,9 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
+        softExpect(globalState, "confirmBankTransferCallTest", () =>
+          expect(response.headers["content-type"]).to.include("application/json")
+        );
         if (response.status === 200) {
           globalState.set("paymentID", paymentIntentID);
 
@@ -2321,9 +2688,11 @@ Cypress.Commands.add(
           ) {
             switch (response.body.payment_method_type) {
               case "pix":
-                expect(response.body)
-                  .to.have.property("next_action")
-                  .to.have.property("qr_code_url");
+                softExpect(globalState, "confirmBankTransferCallTest", () =>
+                  expect(response.body)
+                    .to.have.property("next_action")
+                    .to.have.property("qr_code_url")
+                );
                 if (response.body.next_action.qr_code_url !== null) {
                   globalState.set(
                     "nextActionUrl", // This is intentionally kept as nextActionUrl to avoid issues during handleRedirection call,
@@ -2351,9 +2720,11 @@ Cypress.Commands.add(
 
                 break;
               default:
-                expect(response.body)
-                  .to.have.property("next_action")
-                  .to.have.property("redirect_to_url");
+                softExpect(globalState, "confirmBankTransferCallTest", () =>
+                  expect(response.body)
+                    .to.have.property("next_action")
+                    .to.have.property("redirect_to_url")
+                );
                 globalState.set(
                   "nextActionUrl",
                   response.body.next_action.redirect_to_url
@@ -2409,7 +2780,9 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
+        softExpect(globalState, "confirmUpiCall", () =>
+          expect(response.headers["content-type"]).to.include("application/json")
+        );
         if (response.status === 200) {
           validateErrorMessage(response, resData);
 
@@ -2418,17 +2791,21 @@ Cypress.Commands.add(
             response.body.capture_method === "manual"
           ) {
             if (response.body.payment_method_type === "upi_collect") {
-              expect(response.body)
-                .to.have.property("next_action")
-                .to.have.property("redirect_to_url");
+              softExpect(globalState, "confirmUpiCall", () =>
+                expect(response.body)
+                  .to.have.property("next_action")
+                  .to.have.property("redirect_to_url")
+              );
               globalState.set(
                 "nextActionUrl",
                 response.body.next_action.redirect_to_url
               );
             } else if (response.body.payment_method_type === "upi_intent") {
-              expect(response.body)
-                .to.have.property("next_action")
-                .to.have.property("qr_code_fetch_url");
+              softExpect(globalState, "confirmUpiCall", () =>
+                expect(response.body)
+                  .to.have.property("next_action")
+                  .to.have.property("qr_code_fetch_url")
+              );
               globalState.set(
                 "nextActionUrl",
                 response.body.next_action.qr_code_fetch_url
@@ -2491,7 +2868,9 @@ Cypress.Commands.add(
 
       cy.wrap(response).then(() => {
         globalState.set("clientSecret", response.body.client_secret);
-        expect(response.headers["content-type"]).to.include("application/json");
+        softExpect(globalState, "createConfirmPaymentTest", () =>
+          expect(response.headers["content-type"]).to.include("application/json")
+        );
 
         if (response.status === 200) {
           globalState.set("paymentAmount", createConfirmPaymentBody.amount);
@@ -2501,42 +2880,64 @@ Cypress.Commands.add(
             "actualSetupFutureUsage",
             response.body.setup_future_usage
           );
-          expect(response.body.connector, "connector").to.equal(
-            globalState.get("connectorId")
+          softExpect(globalState, "createConfirmPaymentTest", () =>
+            expect(response.body.connector, "connector").to.equal(
+              globalState.get("connectorId")
+            )
           );
-          expect(response.body.payment_id, "payment_id").to.equal(
-            globalState.get("paymentID")
+          softExpect(globalState, "createConfirmPaymentTest", () =>
+            expect(response.body.payment_id, "payment_id").to.equal(
+              globalState.get("paymentID")
+            )
           );
-          expect(response.body.payment_method_data, "payment_method_data").to
-            .not.be.empty;
-          expect(response.body.merchant_connector_id, "connector_id").to.equal(
-            merchant_connector_id
+          softExpect(globalState, "createConfirmPaymentTest", () =>
+            expect(response.body.payment_method_data, "payment_method_data").to
+              .not.be.empty
           );
-          expect(response.body.customer, "customer").to.not.be.empty;
-          expect(response.body.billing, "billing_address").to.not.be.empty;
-          expect(response.body.profile_id, "profile_id").to.not.be.null;
-          expect(response.body).to.have.property("status");
+          softExpect(globalState, "createConfirmPaymentTest", () =>
+            expect(response.body.merchant_connector_id, "connector_id").to.equal(
+              merchant_connector_id
+            )
+          );
+          softExpect(globalState, "createConfirmPaymentTest", () =>
+            expect(response.body.customer, "customer").to.not.be.empty
+          );
+          softExpect(globalState, "createConfirmPaymentTest", () =>
+            expect(response.body.billing, "billing_address").to.not.be.empty
+          );
+          softExpect(globalState, "createConfirmPaymentTest", () =>
+            expect(response.body.profile_id, "profile_id").to.not.be.null
+          );
+          softExpect(globalState, "createConfirmPaymentTest", () =>
+            expect(response.body).to.have.property("status")
+          );
 
           validateErrorMessage(response, resData);
 
           if (response.body.capture_method === "automatic") {
             if (response.body.authentication_type === "three_ds") {
-              expect(response.body)
-                .to.have.property("next_action")
-                .to.have.property("redirect_to_url");
+              softExpect(globalState, "createConfirmPaymentTest", () =>
+                expect(response.body)
+                  .to.have.property("next_action")
+                  .to.have.property("redirect_to_url")
+              );
               globalState.set(
                 "nextActionUrl",
                 response.body.next_action.redirect_to_url
               );
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
+                softExpect(globalState, "createConfirmPaymentTest", () =>
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  )
                 );
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
+                softExpect(globalState, "createConfirmPaymentTest", () =>
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  )
                 );
               }
             } else {
@@ -2546,22 +2947,28 @@ Cypress.Commands.add(
             }
           } else if (response.body.capture_method === "manual") {
             if (response.body.authentication_type === "three_ds") {
-              expect(response.body)
-                .to.have.property("next_action")
-                .to.have.property("redirect_to_url");
+              softExpect(globalState, "createConfirmPaymentTest", () =>
+                expect(response.body)
+                  .to.have.property("next_action")
+                  .to.have.property("redirect_to_url")
+              );
               globalState.set(
                 "nextActionUrl",
                 response.body.next_action.redirect_to_url
               );
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
+                softExpect(globalState, "createConfirmPaymentTest", () =>
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  )
                 );
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
+                softExpect(globalState, "createConfirmPaymentTest", () =>
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  )
                 );
               }
             } else {
@@ -2631,37 +3038,57 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
       storeRequestId(response.headers["x-request-id"], globalState);
       cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
+        softExpect(globalState, "saveCardConfirmCallTest", () =>
+          expect(response.headers["content-type"]).to.include("application/json")
+        );
         if (response.status === 200) {
           globalState.set("paymentID", paymentIntentID);
 
           globalState.set("paymentID", paymentIntentID);
           globalState.set("connectorId", response.body.connector);
-          expect(response.body.connector, "connector").to.equal(
-            globalState.get("connectorId")
+          softExpect(globalState, "saveCardConfirmCallTest", () =>
+            expect(response.body.connector, "connector").to.equal(
+              globalState.get("connectorId")
+            )
           );
-          expect(paymentIntentID, "payment_id").to.equal(
-            response.body.payment_id
+          softExpect(globalState, "saveCardConfirmCallTest", () =>
+            expect(paymentIntentID, "payment_id").to.equal(
+              response.body.payment_id
+            )
           );
-          expect(response.body.payment_method_data, "payment_method_data").to
-            .not.be.empty;
-          expect(merchant_connector_id, "connector_id").to.equal(
-            response.body.merchant_connector_id
+          softExpect(globalState, "saveCardConfirmCallTest", () =>
+            expect(response.body.payment_method_data, "payment_method_data").to
+              .not.be.empty
           );
-          expect(response.body.customer, "customer").to.not.be.empty;
+          softExpect(globalState, "saveCardConfirmCallTest", () =>
+            expect(merchant_connector_id, "connector_id").to.equal(
+              response.body.merchant_connector_id
+            )
+          );
+          softExpect(globalState, "saveCardConfirmCallTest", () =>
+            expect(response.body.customer, "customer").to.not.be.empty
+          );
           if (reqData.billing !== null) {
-            expect(response.body.billing, "billing_address").to.not.be.empty;
+            softExpect(globalState, "saveCardConfirmCallTest", () =>
+              expect(response.body.billing, "billing_address").to.not.be.empty
+            );
           }
-          expect(response.body.profile_id, "profile_id").to.not.be.null;
-          expect(response.body.payment_token, "payment_token").to.not.be.null;
+          softExpect(globalState, "saveCardConfirmCallTest", () =>
+            expect(response.body.profile_id, "profile_id").to.not.be.null
+          );
+          softExpect(globalState, "saveCardConfirmCallTest", () =>
+            expect(response.body.payment_token, "payment_token").to.not.be.null
+          );
 
           validateErrorMessage(response, resData);
 
           if (response.body.capture_method === "automatic") {
             if (response.body.authentication_type === "three_ds") {
-              expect(response.body)
-                .to.have.property("next_action")
-                .to.have.property("redirect_to_url");
+              softExpect(globalState, "saveCardConfirmCallTest", () =>
+                expect(response.body)
+                  .to.have.property("next_action")
+                  .to.have.property("redirect_to_url")
+              );
               globalState.set(
                 "nextActionUrl",
                 response.body.next_action.redirect_to_url
@@ -2671,19 +3098,25 @@ Cypress.Commands.add(
                 response.body?.payment_method_id &&
                 response.body.payment_method_id !== null
               ) {
-                expect(
-                  response.body.payment_method_status,
-                  "payment_method_status"
-                ).to.equal("active");
+                softExpect(globalState, "saveCardConfirmCallTest", () =>
+                  expect(
+                    response.body.payment_method_status,
+                    "payment_method_status"
+                  ).to.equal("active")
+                );
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
+                softExpect(globalState, "saveCardConfirmCallTest", () =>
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  )
                 );
               }
-              expect(response.body.customer_id).to.equal(
-                globalState.get("customerId")
+              softExpect(globalState, "saveCardConfirmCallTest", () =>
+                expect(response.body.customer_id).to.equal(
+                  globalState.get("customerId")
+                )
               );
               if (
                 [
@@ -2692,20 +3125,26 @@ Cypress.Commands.add(
                   "succeeded",
                 ].includes(response.body.status)
               ) {
-                expect(
-                  response.body.payment_method_id,
-                  "payment_method_id should exist for succeeded/requires_capture status"
-                ).to.exist.and.to.be.a("string");
+                softExpect(globalState, "saveCardConfirmCallTest", () =>
+                  expect(
+                    response.body.payment_method_id,
+                    "payment_method_id should exist for succeeded/requires_capture status"
+                  ).to.exist.and.to.be.a("string")
+                );
 
-                expect(
-                  response.body.payment_method_id,
-                  "payment_method_id"
-                ).to.include("pm_");
+                softExpect(globalState, "saveCardConfirmCallTest", () =>
+                  expect(
+                    response.body.payment_method_id,
+                    "payment_method_id"
+                  ).to.include("pm_")
+                );
 
-                expect(
-                  response.body.payment_method_status,
-                  "payment_method_status"
-                ).to.equal("active");
+                softExpect(globalState, "saveCardConfirmCallTest", () =>
+                  expect(
+                    response.body.payment_method_status,
+                    "payment_method_status"
+                  ).to.equal("active")
+                );
               }
             } else {
               // Handle other authentication types as needed
@@ -2715,21 +3154,27 @@ Cypress.Commands.add(
             }
           } else if (response.body.capture_method === "manual") {
             if (response.body.authentication_type === "three_ds") {
-              expect(response.body)
-                .to.have.property("next_action")
-                .to.have.property("redirect_to_url");
+              softExpect(globalState, "saveCardConfirmCallTest", () =>
+                expect(response.body)
+                  .to.have.property("next_action")
+                  .to.have.property("redirect_to_url")
+              );
               globalState.set(
                 "nextActionUrl",
                 response.body.next_action.redirect_to_url
               );
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
+                softExpect(globalState, "saveCardConfirmCallTest", () =>
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  )
                 );
               }
-              expect(response.body.customer_id).to.equal(
-                globalState.get("customerId")
+              softExpect(globalState, "saveCardConfirmCallTest", () =>
+                expect(response.body.customer_id).to.equal(
+                  globalState.get("customerId")
+                )
               );
             } else {
               // Handle other authentication types as needed
@@ -2781,11 +3226,17 @@ Cypress.Commands.add("captureCallTest", (requestBody, data, globalState) => {
     logRequestId(response.headers["x-request-id"]);
     storeRequestId(response.headers["x-request-id"], globalState);
     cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
+      softExpect(globalState, "captureCallTest", () =>
+        expect(response.headers["content-type"]).to.include("application/json")
+      );
       if (response.body.capture_method !== undefined) {
-        expect(response.body.payment_id).to.equal(paymentId);
+        softExpect(globalState, "captureCallTest", () =>
+          expect(response.body.payment_id).to.equal(paymentId)
+        );
         for (const key in resData.body) {
-          expect(resData.body[key]).to.equal(response.body[key]);
+          softExpect(globalState, "captureCallTest", () =>
+            expect(resData.body[key]).to.equal(response.body[key])
+          );
         }
       } else {
         defaultErrorHandler(response, resData);
@@ -2826,10 +3277,14 @@ Cypress.Commands.add("voidCallTest", (requestBody, data, globalState) => {
     storeRequestId(response.headers["x-request-id"], globalState);
 
     cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
+      softExpect(globalState, "voidCallTest", () =>
+        expect(response.headers["content-type"]).to.include("application/json")
+      );
       if (response.status === 200) {
         for (const key in resData.body) {
-          expect(resData.body[key]).to.equal(response.body[key]);
+          softExpect(globalState, "voidCallTest", () =>
+            expect(resData.body[key]).to.equal(response.body[key])
+          );
         }
       } else {
         defaultErrorHandler(response, resData);
@@ -2869,22 +3324,36 @@ Cypress.Commands.add(
 
       cy.wrap(response).then(() => {
         if (response.status === 200) {
-          expect(response.headers["content-type"]).to.include(
-            "application/json"
+          softExpect(globalState, "retrievePaymentCallTest", () =>
+            expect(response.headers["content-type"]).to.include(
+              "application/json"
+            )
           );
-          expect(response.body.payment_id).to.equal(payment_id);
-          expect(response.body.amount).to.equal(
-            globalState.get("paymentAmount")
+          softExpect(globalState, "retrievePaymentCallTest", () =>
+            expect(response.body.payment_id).to.equal(payment_id)
           );
-          expect(response.body.profile_id, "profile_id").to.not.be.null;
-          expect(response.body.billing, "billing_address").to.not.be.null;
-          expect(response.body.customer, "customer").to.not.be.empty;
+          softExpect(globalState, "retrievePaymentCallTest", () =>
+            expect(response.body.amount).to.equal(
+              globalState.get("paymentAmount")
+            )
+          );
+          softExpect(globalState, "retrievePaymentCallTest", () =>
+            expect(response.body.profile_id, "profile_id").to.not.be.null
+          );
+          softExpect(globalState, "retrievePaymentCallTest", () =>
+            expect(response.body.billing, "billing_address").to.not.be.null
+          );
+          softExpect(globalState, "retrievePaymentCallTest", () =>
+            expect(response.body.customer, "customer").to.not.be.empty
+          );
 
           if (expectedIntentStatus) {
-            expect(
-              response.body.status,
-              "payment status should match stored intent_status"
-            ).to.equal(expectedIntentStatus);
+            softExpect(globalState, "retrievePaymentCallTest", () =>
+              expect(
+                response.body.status,
+                "payment status should match stored intent_status"
+              ).to.equal(expectedIntentStatus)
+            );
           }
 
           if (
@@ -2892,17 +3361,25 @@ Cypress.Commands.add(
               response.body.status
             )
           ) {
-            expect(response.body.connector, "connector").to.equal(
-              globalState.get("connectorId")
+            softExpect(globalState, "retrievePaymentCallTest", () =>
+              expect(response.body.connector, "connector").to.equal(
+                globalState.get("connectorId")
+              )
             );
-            expect(response.body.payment_method_data, "payment_method_data").to
-              .not.be.empty;
-            expect(response.body.payment_method, "payment_method").to.not.be
-              .null;
-            expect(
-              response.body.merchant_connector_id,
-              "connector_id"
-            ).to.equal(merchant_connector_id);
+            softExpect(globalState, "retrievePaymentCallTest", () =>
+              expect(response.body.payment_method_data, "payment_method_data").to
+                .not.be.empty
+            );
+            softExpect(globalState, "retrievePaymentCallTest", () =>
+              expect(response.body.payment_method, "payment_method").to.not.be
+                .null
+            );
+            softExpect(globalState, "retrievePaymentCallTest", () =>
+              expect(
+                response.body.merchant_connector_id,
+                "connector_id"
+              ).to.equal(merchant_connector_id)
+            );
           }
 
           if (
@@ -2910,10 +3387,12 @@ Cypress.Commands.add(
             typeof response.body.payment_method_id === "string"
           ) {
             // Validate the payment_method_id format
-            expect(
-              response.body.payment_method_id,
-              "payment_method_id"
-            ).to.include("pm_").and.to.not.be.null;
+            softExpect(globalState, "retrievePaymentCallTest", () =>
+              expect(
+                response.body.payment_method_id,
+                "payment_method_id"
+              ).to.include("pm_").and.to.not.be.null
+            );
 
             // Whenever, CIT Confirmations gets a payment status of `processing`, it does not yield the `payment_method_id` and hence the `paymentMethodId` in the `globalState` gets the value of `null`. And hence while confirming MIT, it yields an `error.message` of `"Json deserialize error: invalid type: null, expected a string at line 1 column 182"` which is basically because of the `null` value in `recurring_details.data` with `recurring_details.type` as `payment_method_id`. However, we get the `payment_method_id` while PSync, so we can assign it to the `globalState` here.
             globalState.set("paymentMethodId", response.body.payment_method_id);
@@ -2937,18 +3416,28 @@ Cypress.Commands.add(
               : "inactive";
 
             // Validate the status
-            expect(
-              response.body.payment_method_status,
-              "payment_method_status"
-            ).to.equal(expectedStatus);
+            softExpect(globalState, "retrievePaymentCallTest", () =>
+              expect(
+                response.body.payment_method_status,
+                "payment_method_status"
+              ).to.equal(expectedStatus)
+            );
           }
 
           if (autoretries) {
-            expect(response.body).to.have.property("attempts");
-            expect(response.body.attempts).to.be.an("array").and.not.empty;
-            expect(response.body.attempts.length).to.equal(attempt);
-            expect(response.body.attempts[0].attempt_id).to.include(
-              `${payment_id}_`
+            softExpect(globalState, "retrievePaymentCallTest", () =>
+              expect(response.body).to.have.property("attempts")
+            );
+            softExpect(globalState, "retrievePaymentCallTest", () =>
+              expect(response.body.attempts).to.be.an("array").and.not.empty
+            );
+            softExpect(globalState, "retrievePaymentCallTest", () =>
+              expect(response.body.attempts.length).to.equal(attempt)
+            );
+            softExpect(globalState, "retrievePaymentCallTest", () =>
+              expect(response.body.attempts[0].attempt_id).to.include(
+                `${payment_id}_`
+              )
             );
             for (const key in response.body.attempts) {
               if (
@@ -2956,17 +3445,23 @@ Cypress.Commands.add(
                   `${payment_id}_${attempt}` &&
                 response.body.status === "succeeded"
               ) {
-                expect(response.body.attempts[key].status).to.equal("charged");
+                softExpect(globalState, "retrievePaymentCallTest", () =>
+                  expect(response.body.attempts[key].status).to.equal("charged")
+                );
               } else if (
                 response.body.attempts[key].attempt_id ===
                   `${payment_id}_${attempt}` &&
                 response.body.status === "requires_customer_action"
               ) {
-                expect(response.body.attempts[key].status).to.equal(
-                  "authentication_pending"
+                softExpect(globalState, "retrievePaymentCallTest", () =>
+                  expect(response.body.attempts[key].status).to.equal(
+                    "authentication_pending"
+                  )
                 );
               } else {
-                expect(response.body.attempts[key].status).to.equal("failure");
+                softExpect(globalState, "retrievePaymentCallTest", () =>
+                  expect(response.body.attempts[key].status).to.equal("failure")
+                );
               }
             }
           }
@@ -3010,13 +3505,19 @@ Cypress.Commands.add("refundCallTest", (requestBody, data, globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
+      softExpect(globalState, "refundCallTest", () =>
+        expect(response.headers["content-type"]).to.include("application/json")
+      );
       if (response.status === 200) {
         globalState.set("refundId", response.body.refund_id);
         for (const key in resData.body) {
-          expect(resData.body[key]).to.equal(response.body[key]);
+          softExpect(globalState, "refundCallTest", () =>
+            expect(resData.body[key]).to.equal(response.body[key])
+          );
         }
-        expect(response.body.payment_id).to.equal(payment_id);
+        softExpect(globalState, "refundCallTest", () =>
+          expect(response.body.payment_id).to.equal(payment_id)
+        );
       } else {
         defaultErrorHandler(response, resData);
       }
@@ -3041,9 +3542,13 @@ Cypress.Commands.add("syncRefundCallTest", (data, globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
+      softExpect(globalState, "syncRefundCallTest", () =>
+        expect(response.headers["content-type"]).to.include("application/json")
+      );
       for (const key in resData.body) {
-        expect(resData.body[key]).to.equal(response.body[key]);
+        softExpect(globalState, "syncRefundCallTest", () =>
+          expect(resData.body[key]).to.equal(response.body[key])
+        );
       }
     });
   });
@@ -3098,42 +3603,60 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
-        softExpect(globalState, name,()=> expect(response.headers["content-type"]).to.include("application/json"));
+        softExpect(globalState, name, () => expect(response.headers["content-type"]).to.include("application/json"));
         if (response.status === 200) {
           globalState.set("paymentID", response.body.payment_id);
 
-          expect(response.body.payment_method_data, "payment_method_data").to
-            .not.be.empty;
-          expect(response.body.connector, "connector").to.equal(
-            globalState.get("connectorId")
+          softExpect(globalState, name, () =>
+            expect(response.body.payment_method_data, "payment_method_data").to
+              .not.be.empty
           );
-          expect(merchant_connector_id, "connector_id").to.equal(
-            response.body.merchant_connector_id
+          softExpect(globalState, name, () =>
+            expect(response.body.connector, "connector").to.equal(
+              globalState.get("connectorId")
+            )
           );
-          softExpect(globalState, name , ()=> expect(response.body.customer, "customer").to.be.empty);
-          expect(response.body.profile_id, "profile_id").to.not.be.null;
+          softExpect(globalState, name, () =>
+            expect(merchant_connector_id, "connector_id").to.equal(
+              response.body.merchant_connector_id
+            )
+          );
+          softExpect(globalState, name, () => expect(response.body.customer, "customer").to.be.empty);
+          softExpect(globalState, name, () =>
+            expect(response.body.profile_id, "profile_id").to.not.be.null
+          );
           if (
             response.body.status !== "failed" &&
             response.body.setup_future_usage === "off_session"
           ) {
-            expect(response.body.payment_method_id, "payment_method_id").to.not
-              .be.null;
+            softExpect(globalState, name, () =>
+              expect(response.body.payment_method_id, "payment_method_id").to.not
+                .be.null
+            );
           }
 
           if (requestBody.mandate_data === null) {
-            expect(response.body).to.have.property("payment_method_id");
+            softExpect(globalState, name, () =>
+              expect(response.body).to.have.property("payment_method_id")
+            );
             globalState.set("paymentMethodId", response.body.payment_method_id);
           } else {
-            expect(response.body).to.have.property("mandate_id");
+            softExpect(globalState, name, () =>
+              expect(response.body).to.have.property("mandate_id")
+            );
             globalState.set("mandateId", response.body.mandate_id);
           }
 
           if (response.body.capture_method === "automatic") {
-            expect(response.body).to.have.property("mandate_id");
+            softExpect(globalState, name, () =>
+              expect(response.body).to.have.property("mandate_id")
+            );
             if (response.body.authentication_type === "three_ds") {
-              expect(response.body)
-                .to.have.property("next_action")
-                .to.have.property("redirect_to_url");
+              softExpect(globalState, name, () =>
+                expect(response.body)
+                  .to.have.property("next_action")
+                  .to.have.property("redirect_to_url")
+              );
               const nextActionUrl = response.body.next_action.redirect_to_url;
               globalState.set(
                 "nextActionUrl",
@@ -3141,14 +3664,18 @@ Cypress.Commands.add(
               );
               cy.log(nextActionUrl);
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
+                softExpect(globalState, name, () =>
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  )
                 );
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
+                softExpect(globalState, name, () =>
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  )
                 );
                 if (
                   response.body.setup_future_usage === "off_session" &&
@@ -3156,10 +3683,12 @@ Cypress.Commands.add(
                   response.body.mandate_id === null &&
                   response.body.status === "succeeded"
                 ) {
-                  expect(
-                    response.body.connector_mandate_id,
-                    "connector_mandate_id"
-                  ).to.not.be.null;
+                  softExpect(globalState, name, () =>
+                    expect(
+                      response.body.connector_mandate_id,
+                      "connector_mandate_id"
+                    ).to.not.be.null
+                  );
                 }
               }
             } else {
@@ -3169,9 +3698,11 @@ Cypress.Commands.add(
             }
           } else if (response.body.capture_method === "manual") {
             if (response.body.authentication_type === "three_ds") {
-              expect(response.body)
-                .to.have.property("next_action")
-                .to.have.property("redirect_to_url");
+              softExpect(globalState, name, () =>
+                expect(response.body)
+                  .to.have.property("next_action")
+                  .to.have.property("redirect_to_url")
+              );
               const nextActionUrl = response.body.next_action.redirect_to_url;
               globalState.set(
                 "nextActionUrl",
@@ -3179,24 +3710,30 @@ Cypress.Commands.add(
               );
               cy.log(nextActionUrl);
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
+                softExpect(globalState, name, () =>
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  )
                 );
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
+                softExpect(globalState, name, () =>
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  )
                 );
                 if (
                   response.body.setup_future_usage === "off_session" &&
                   response.body.mandate_id === null &&
                   response.body.status === "succeeded"
                 ) {
-                  expect(
-                    response.body.connector_mandate_id,
-                    "connector_mandate_id"
-                  ).to.not.be.null;
+                  softExpect(globalState, name, () =>
+                    expect(
+                      response.body.connector_mandate_id,
+                      "connector_mandate_id"
+                    ).to.not.be.null
+                  );
                 }
               }
             } else {
@@ -3257,35 +3794,55 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
+        softExpect(globalState, "mitForMandatesCallTest", () =>
+          expect(response.headers["content-type"]).to.include("application/json")
+        );
         if (response.status === 200) {
           globalState.set("paymentID", response.body.payment_id);
-          expect(response.body.payment_method_data, "payment_method_data").to
-            .not.be.empty;
-          expect(response.body.connector, "connector").to.equal(
-            globalState.get("connectorId")
+          softExpect(globalState, "mitForMandatesCallTest", () =>
+            expect(response.body.payment_method_data, "payment_method_data").to
+              .not.be.empty
           );
-          expect(merchant_connector_id, "connector_id").to.equal(
-            response.body.merchant_connector_id
+          softExpect(globalState, "mitForMandatesCallTest", () =>
+            expect(response.body.connector, "connector").to.equal(
+              globalState.get("connectorId")
+            )
           );
-          expect(response.body.customer, "customer").to.not.be.empty;
-          expect(response.body.profile_id, "profile_id").to.not.be.null;
-          expect(response.body.payment_method_id, "payment_method_id").to.not.be
-            .null;
+          softExpect(globalState, "mitForMandatesCallTest", () =>
+            expect(merchant_connector_id, "connector_id").to.equal(
+              response.body.merchant_connector_id
+            )
+          );
+          softExpect(globalState, "mitForMandatesCallTest", () =>
+            expect(response.body.customer, "customer").to.not.be.empty
+          );
+          softExpect(globalState, "mitForMandatesCallTest", () =>
+            expect(response.body.profile_id, "profile_id").to.not.be.null
+          );
+          softExpect(globalState, "mitForMandatesCallTest", () =>
+            expect(response.body.payment_method_id, "payment_method_id").to.not.be
+              .null
+          );
 
           if (response.body.capture_method === "automatic") {
             if (response.body.authentication_type === "three_ds") {
-              expect(response.body)
-                .to.have.property("next_action")
-                .to.have.property("redirect_to_url");
+              softExpect(globalState, "mitForMandatesCallTest", () =>
+                expect(response.body)
+                  .to.have.property("next_action")
+                  .to.have.property("redirect_to_url")
+              );
               const nextActionUrl = response.body.next_action.redirect_to_url;
               cy.log(nextActionUrl);
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.equal(response.body[key]);
+                softExpect(globalState, "mitForMandatesCallTest", () =>
+                  expect(resData.body[key], [key]).to.equal(response.body[key])
+                );
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.equal(response.body[key]);
+                softExpect(globalState, "mitForMandatesCallTest", () =>
+                  expect(resData.body[key], [key]).to.equal(response.body[key])
+                );
               }
             } else {
               throw new Error(
@@ -3294,17 +3851,23 @@ Cypress.Commands.add(
             }
           } else if (response.body.capture_method === "manual") {
             if (response.body.authentication_type === "three_ds") {
-              expect(response.body)
-                .to.have.property("next_action")
-                .to.have.property("redirect_to_url");
+              softExpect(globalState, "mitForMandatesCallTest", () =>
+                expect(response.body)
+                  .to.have.property("next_action")
+                  .to.have.property("redirect_to_url")
+              );
               const nextActionUrl = response.body.next_action.redirect_to_url;
               cy.log(nextActionUrl);
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.equal(response.body[key]);
+                softExpect(globalState, "mitForMandatesCallTest", () =>
+                  expect(resData.body[key], [key]).to.equal(response.body[key])
+                );
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.equal(response.body[key]);
+                softExpect(globalState, "mitForMandatesCallTest", () =>
+                  expect(resData.body[key], [key]).to.equal(response.body[key])
+                );
               }
             } else {
               throw new Error(
@@ -3318,12 +3881,18 @@ Cypress.Commands.add(
           }
         } else if (response.status === 400) {
           if (response.body.error.message === "Mandate Validation Failed") {
-            expect(response.body.error.code).to.equal("HE_03");
-            expect(response.body.error.message).to.equal(
-              "Mandate Validation Failed"
+            softExpect(globalState, "mitForMandatesCallTest", () =>
+              expect(response.body.error.code).to.equal("HE_03")
             );
-            expect(response.body.error.reason).to.equal(
-              "request amount is greater than mandate amount"
+            softExpect(globalState, "mitForMandatesCallTest", () =>
+              expect(response.body.error.message).to.equal(
+                "Mandate Validation Failed"
+              )
+            );
+            softExpect(globalState, "mitForMandatesCallTest", () =>
+              expect(response.body.error.reason).to.equal(
+                "request amount is greater than mandate amount"
+              )
             );
           }
         } else {
@@ -3392,31 +3961,39 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
+        softExpect(globalState, "mitUsingPMId", () =>
+          expect(response.headers["content-type"]).to.include("application/json")
+        );
 
         if (response.status === 200) {
           globalState.set("paymentID", response.body.payment_id);
 
           if (response.body.status === "failed") {
-            expect(
-              response.body.connector_transaction_id,
-              "connector_transaction_id"
-            ).to.be.null;
+            softExpect(globalState, "mitUsingPMId", () =>
+              expect(
+                response.body.connector_transaction_id,
+                "connector_transaction_id"
+              ).to.be.null
+            );
           } else {
-            expect(
-              response.body.connector_transaction_id,
-              "connector_transaction_id"
-            ).to.not.be.null;
+            softExpect(globalState, "mitUsingPMId", () =>
+              expect(
+                response.body.connector_transaction_id,
+                "connector_transaction_id"
+              ).to.not.be.null
+            );
           }
 
           if (
             response.body.payment_method_id &&
             typeof response.body.payment_method_id === "string"
           ) {
-            expect(
-              response.body.payment_method_id,
-              "payment_method_id"
-            ).to.include("pm_").and.to.not.be.null;
+            softExpect(globalState, "mitUsingPMId", () =>
+              expect(
+                response.body.payment_method_id,
+                "payment_method_id"
+              ).to.include("pm_").and.to.not.be.null
+            );
 
             const allowedActiveStatuses = [
               "succeeded",
@@ -3425,56 +4002,76 @@ Cypress.Commands.add(
             ];
 
             if (allowedActiveStatuses.includes(response.body.status)) {
-              expect(response.body.status, "response status").to.be.oneOf(
-                allowedActiveStatuses
+              softExpect(globalState, "mitUsingPMId", () =>
+                expect(response.body.status, "response status").to.be.oneOf(
+                  allowedActiveStatuses
+                )
               );
 
-              expect(
-                response.body.payment_method_status,
-                "payment_method_status for active status"
-              ).to.equal("active");
+              softExpect(globalState, "mitUsingPMId", () =>
+                expect(
+                  response.body.payment_method_status,
+                  "payment_method_status for active status"
+                ).to.equal("active")
+              );
 
               if (connector_agnostic_mit) {
-                expect(
-                  response.body.connector_mandate_id,
-                  "connector_mandate_id for active status"
-                ).to.be.null;
+                softExpect(globalState, "mitUsingPMId", () =>
+                  expect(
+                    response.body.connector_mandate_id,
+                    "connector_mandate_id for active status"
+                  ).to.be.null
+                );
               } else {
-                expect(
-                  response.body.connector_mandate_id,
-                  "connector_mandate_id for active status"
-                ).to.exist.and.not.be.null;
+                softExpect(globalState, "mitUsingPMId", () =>
+                  expect(
+                    response.body.connector_mandate_id,
+                    "connector_mandate_id for active status"
+                  ).to.exist.and.not.be.null
+                );
               }
             } else {
-              expect(response.body.status, "response status").to.not.be.oneOf(
-                allowedActiveStatuses
+              softExpect(globalState, "mitUsingPMId", () =>
+                expect(response.body.status, "response status").to.not.be.oneOf(
+                  allowedActiveStatuses
+                )
               );
 
-              expect(
-                response.body.payment_method_status,
-                "payment_method_status for inactive status"
-              ).to.equal("inactive");
+              softExpect(globalState, "mitUsingPMId", () =>
+                expect(
+                  response.body.payment_method_status,
+                  "payment_method_status for inactive status"
+                ).to.equal("inactive")
+              );
 
-              expect(
-                response.body.connector_mandate_id,
-                "connector_mandate_id for inactive status"
-              ).to.be.null;
+              softExpect(globalState, "mitUsingPMId", () =>
+                expect(
+                  response.body.connector_mandate_id,
+                  "connector_mandate_id for inactive status"
+                ).to.be.null
+              );
             }
           }
 
           if (response.body.capture_method === "automatic") {
             if (response.body.authentication_type === "three_ds") {
-              expect(response.body)
-                .to.have.property("next_action")
-                .to.have.property("redirect_to_url");
+              softExpect(globalState, "mitUsingPMId", () =>
+                expect(response.body)
+                  .to.have.property("next_action")
+                  .to.have.property("redirect_to_url")
+              );
               const nextActionUrl = response.body.next_action.redirect_to_url;
               cy.log(nextActionUrl);
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.equal(response.body[key]);
+                softExpect(globalState, "mitUsingPMId", () =>
+                  expect(resData.body[key], [key]).to.equal(response.body[key])
+                );
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.equal(response.body[key]);
+                softExpect(globalState, "mitUsingPMId", () =>
+                  expect(resData.body[key], [key]).to.equal(response.body[key])
+                );
               }
             } else {
               throw new Error(
@@ -3483,17 +4080,23 @@ Cypress.Commands.add(
             }
           } else if (response.body.capture_method === "manual") {
             if (response.body.authentication_type === "three_ds") {
-              expect(response.body)
-                .to.have.property("next_action")
-                .to.have.property("redirect_to_url");
+              softExpect(globalState, "mitUsingPMId", () =>
+                expect(response.body)
+                  .to.have.property("next_action")
+                  .to.have.property("redirect_to_url")
+              );
               const nextActionUrl = response.body.next_action.redirect_to_url;
               cy.log(nextActionUrl);
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.equal(response.body[key]);
+                softExpect(globalState, "mitUsingPMId", () =>
+                  expect(resData.body[key], [key]).to.equal(response.body[key])
+                );
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.equal(response.body[key]);
+                softExpect(globalState, "mitUsingPMId", () =>
+                  expect(resData.body[key], [key]).to.equal(response.body[key])
+                );
               }
             } else {
               throw new Error(
@@ -3551,25 +4154,33 @@ Cypress.Commands.add(
 
       cy.wrap(response).then(() => {
         if (response.status === 200) {
-          expect(response.headers["content-type"]).to.include(
-            "application/json"
+          softExpect(globalState, "mitUsingNTID", () =>
+            expect(response.headers["content-type"]).to.include(
+              "application/json"
+            )
           );
 
           globalState.set("paymentID", response.body.payment_id);
 
           if (response.body.capture_method === "automatic") {
             if (response.body.authentication_type === "three_ds") {
-              expect(response.body)
-                .to.have.property("next_action")
-                .to.have.property("redirect_to_url");
+              softExpect(globalState, "mitUsingNTID", () =>
+                expect(response.body)
+                  .to.have.property("next_action")
+                  .to.have.property("redirect_to_url")
+              );
               const nextActionUrl = response.body.next_action.redirect_to_url;
               cy.log(nextActionUrl);
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.equal(response.body[key]);
+                softExpect(globalState, "mitUsingNTID", () =>
+                  expect(resData.body[key], [key]).to.equal(response.body[key])
+                );
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.equal(response.body[key]);
+                softExpect(globalState, "mitUsingNTID", () =>
+                  expect(resData.body[key], [key]).to.equal(response.body[key])
+                );
               }
             } else {
               throw new Error(
@@ -3578,17 +4189,23 @@ Cypress.Commands.add(
             }
           } else if (response.body.capture_method === "manual") {
             if (response.body.authentication_type === "three_ds") {
-              expect(response.body)
-                .to.have.property("next_action")
-                .to.have.property("redirect_to_url");
+              softExpect(globalState, "mitUsingNTID", () =>
+                expect(response.body)
+                  .to.have.property("next_action")
+                  .to.have.property("redirect_to_url")
+              );
               const nextActionUrl = response.body.next_action.redirect_to_url;
               cy.log(nextActionUrl);
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.equal(response.body[key]);
+                softExpect(globalState, "mitUsingNTID", () =>
+                  expect(resData.body[key], [key]).to.equal(response.body[key])
+                );
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.equal(response.body[key]);
+                softExpect(globalState, "mitUsingNTID", () =>
+                  expect(resData.body[key], [key]).to.equal(response.body[key])
+                );
               }
             } else {
               throw new Error(
@@ -3621,11 +4238,15 @@ Cypress.Commands.add("listMandateCallTest", (globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
+      softExpect(globalState, "listMandateCallTest", () =>
+        expect(response.headers["content-type"]).to.include("application/json")
+      );
       let i = 0;
       for (i in response.body) {
         if (response.body[i].mandate_id === globalState.get("mandateId")) {
-          expect(response.body[i].status).to.equal("active");
+          softExpect(globalState, "listMandateCallTest", () =>
+            expect(response.body[i].status).to.equal("active")
+          );
         }
       }
     });
@@ -3646,12 +4267,18 @@ Cypress.Commands.add("revokeMandateCallTest", (globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
+      softExpect(globalState, "revokeMandateCallTest", () =>
+        expect(response.headers["content-type"]).to.include("application/json")
+      );
       if (response.body.status === 200) {
-        expect(response.body.status).to.equal("revoked");
+        softExpect(globalState, "revokeMandateCallTest", () =>
+          expect(response.body.status).to.equal("revoked")
+        );
       } else if (response.body.status === 400) {
-        expect(response.body.reason).to.equal(
-          "Mandate has already been revoked"
+        softExpect(globalState, "revokeMandateCallTest", () =>
+          expect(response.body.reason).to.equal(
+            "Mandate has already been revoked"
+          )
         );
       }
     });
@@ -3820,7 +4447,9 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
+        softExpect(globalState, "confirmRealTimePaymentCallTest", () =>
+          expect(response.headers["content-type"]).to.include("application/json")
+        );
         if (response.status === 200) {
           globalState.set("paymentID", paymentIntentID);
 
@@ -3833,24 +4462,32 @@ Cypress.Commands.add(
             switch (response.body.payment_method_type) {
               case "duit_now":
                 if (response.body.connector === "fiuu")
-                  expect(response.body)
-                    .to.have.property("next_action")
-                    .and.have.nested.property("image_data_url").and.not.be.null;
+                  softExpect(globalState, "confirmRealTimePaymentCallTest", () =>
+                    expect(response.body)
+                      .to.have.property("next_action")
+                      .and.have.nested.property("image_data_url").and.not.be.null
+                  );
                 for (const key in resData.body) {
-                  expect(resData.body[key], [key]).to.deep.equal(
-                    response.body[key]
+                  softExpect(globalState, "confirmRealTimePaymentCallTest", () =>
+                    expect(resData.body[key], [key]).to.deep.equal(
+                      response.body[key]
+                    )
                   );
                 }
                 if (response.body.connector === "iatapay")
-                  expect(response.body)
-                    .to.have.property("next_action")
-                    .to.have.property("redirect_to_url");
+                  softExpect(globalState, "confirmRealTimePaymentCallTest", () =>
+                    expect(response.body)
+                      .to.have.property("next_action")
+                      .to.have.property("redirect_to_url")
+                  );
                 break;
 
               default:
-                expect(response.body)
-                  .to.have.property("next_action")
-                  .to.have.property("image_data_url");
+                softExpect(globalState, "confirmRealTimePaymentCallTest", () =>
+                  expect(response.body)
+                    .to.have.property("next_action")
+                    .to.have.property("image_data_url")
+                );
                 globalState.set(
                   "image_data_url",
                   response.body.next_action.redirect_to_url
@@ -3906,7 +4543,9 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
+        softExpect(globalState, "confirmRewardCallTest", () =>
+          expect(response.headers["content-type"]).to.include("application/json")
+        );
         if (response.status === 200) {
           globalState.set("paymentID", paymentIntentID);
 
@@ -3916,9 +4555,11 @@ Cypress.Commands.add(
             response.body.capture_method === "automatic" ||
             response.body.capture_method === "manual"
           ) {
-            expect(response.body)
-              .to.have.property("next_action")
-              .to.have.property("redirect_to_url");
+            softExpect(globalState, "confirmRewardCallTest", () =>
+              expect(response.body)
+                .to.have.property("next_action")
+                .to.have.property("redirect_to_url")
+            );
             globalState.set(
               "nextActionUrl",
               response.body.next_action.redirect_to_url
@@ -3926,8 +4567,10 @@ Cypress.Commands.add(
             globalState.set("nextActionType", "redirect_to_url");
 
             for (const key in resData.body) {
-              expect(resData.body[key], [key]).to.deep.equal(
-                response.body[key]
+              softExpect(globalState, "confirmRewardCallTest", () =>
+                expect(resData.body[key], [key]).to.deep.equal(
+                  response.body[key]
+                )
               );
             }
           } else {
@@ -3978,7 +4621,9 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState, order = 0) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
+      softExpect(globalState, "listCustomerPMCallTest", () =>
+        expect(response.headers["content-type"]).to.include("application/json")
+      );
 
       // Validate response has payment methods
       if (response.body.customer_payment_methods[order]?.payment_token) {
@@ -3994,28 +4639,38 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState, order = 0) => {
         globalState.set("paymentToken", paymentToken);
 
         if (cardInfo) {
-          expect(cardInfo.expiry_year, "expiry_year").to.not.be.null;
-          expect(cardInfo.card_holder_name, "card_holder_name").to.not.be.null;
+          softExpect(globalState, "listCustomerPMCallTest", () =>
+            expect(cardInfo.expiry_year, "expiry_year").to.not.be.null
+          );
+          softExpect(globalState, "listCustomerPMCallTest", () =>
+            expect(cardInfo.card_holder_name, "card_holder_name").to.not.be.null
+          );
         }
 
         // Validate last_used_at timestamp
-        expect(new Date(lastUsedAt).getTime(), "last_used_at").to.be.lessThan(
-          Date.now()
-        ).and.to.not.be.null;
+        softExpect(globalState, "listCustomerPMCallTest", () =>
+          expect(new Date(lastUsedAt).getTime(), "last_used_at").to.be.lessThan(
+            Date.now()
+          ).and.to.not.be.null
+        );
 
         // For order > 0, validate payment methods are ordered by last_used_at
         if (order > 0) {
           const prevLastUsedAt =
             response.body.customer_payment_methods[0].last_used_at;
-          expect(
-            new Date(prevLastUsedAt).getTime(),
-            "last_used_at ordering"
-          ).to.be.greaterThan(new Date(lastUsedAt).getTime());
+          softExpect(globalState, "listCustomerPMCallTest", () =>
+            expect(
+              new Date(prevLastUsedAt).getTime(),
+              "last_used_at ordering"
+            ).to.be.greaterThan(new Date(lastUsedAt).getTime())
+          );
         }
       } else {
-        expect(response.body)
-          .to.have.property("customer_payment_methods")
-          .to.be.an("array").and.empty;
+        softExpect(globalState, "listCustomerPMCallTest", () =>
+          expect(response.body)
+            .to.have.property("customer_payment_methods")
+            .to.be.an("array").and.empty
+        );
       }
 
       // Validate other payment method properties
@@ -4023,31 +4678,43 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState, order = 0) => {
         const paymentMethod =
           response.body.customer_payment_methods[arrayCount];
 
-        expect(
-          globalState.get("customerId"),
-          `${arrayCount} customer_id`
-        ).to.equal(paymentMethod.customer_id);
+        softExpect(globalState, "listCustomerPMCallTest", () =>
+          expect(
+            globalState.get("customerId"),
+            `${arrayCount} customer_id`
+          ).to.equal(paymentMethod.customer_id)
+        );
 
-        expect(
-          paymentMethod.payment_token,
-          `${arrayCount} payment_token`
-        ).to.include("token_").and.not.be.null;
+        softExpect(globalState, "listCustomerPMCallTest", () =>
+          expect(
+            paymentMethod.payment_token,
+            `${arrayCount} payment_token`
+          ).to.include("token_").and.not.be.null
+        );
 
-        expect(
-          paymentMethod.payment_method_id,
-          `${arrayCount} payment_method_id`
-        ).to.include("pm_").and.not.be.null;
+        softExpect(globalState, "listCustomerPMCallTest", () =>
+          expect(
+            paymentMethod.payment_method_id,
+            `${arrayCount} payment_method_id`
+          ).to.include("pm_").and.not.be.null
+        );
 
-        expect(paymentMethod.payment_method, `${arrayCount} payment_method`).to
-          .not.be.null;
+        softExpect(globalState, "listCustomerPMCallTest", () =>
+          expect(paymentMethod.payment_method, `${arrayCount} payment_method`).to
+            .not.be.null
+        );
 
-        expect(
-          paymentMethod.payment_method_type,
-          `${arrayCount} payment_method_type`
-        ).to.not.be.null;
+        softExpect(globalState, "listCustomerPMCallTest", () =>
+          expect(
+            paymentMethod.payment_method_type,
+            `${arrayCount} payment_method_type`
+          ).to.not.be.null
+        );
 
-        expect(paymentMethod.last_used_at, `${arrayCount} last_used_at`).to.not
-          .be.null;
+        softExpect(globalState, "listCustomerPMCallTest", () =>
+          expect(paymentMethod.last_used_at, `${arrayCount} last_used_at`).to.not
+            .be.null
+        );
       }
     });
   });
@@ -4068,7 +4735,9 @@ Cypress.Commands.add("listCustomerPMByClientSecret", (globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
+      softExpect(globalState, "listCustomerPMByClientSecret", () =>
+        expect(response.headers["content-type"]).to.include("application/json")
+      );
       if (response.body.customer_payment_methods[0]?.payment_token) {
         const paymentToken =
           response.body.customer_payment_methods[0].payment_token;
@@ -4076,27 +4745,35 @@ Cypress.Commands.add("listCustomerPMByClientSecret", (globalState) => {
           response.body.customer_payment_methods[0].payment_method_id;
         globalState.set("paymentToken", paymentToken);
         globalState.set("paymentMethodId", paymentMethodId);
-        expect(
-          response.body.customer_payment_methods[0].payment_method_id,
-          "payment_method_id"
-        ).to.not.be.null;
+        softExpect(globalState, "listCustomerPMByClientSecret", () =>
+          expect(
+            response.body.customer_payment_methods[0].payment_method_id,
+            "payment_method_id"
+          ).to.not.be.null
+        );
 
         if (setupFutureUsage === "off_session") {
-          expect(
-            response.body.customer_payment_methods[0].requires_cvv,
-            "requires_cvv"
-          ).to.be.false;
+          softExpect(globalState, "listCustomerPMByClientSecret", () =>
+            expect(
+              response.body.customer_payment_methods[0].requires_cvv,
+              "requires_cvv"
+            ).to.be.false
+          );
         } else if (setupFutureUsage === "on_session") {
-          expect(
-            response.body.customer_payment_methods[0].requires_cvv,
-            "requires_cvv"
-          ).to.be.true;
+          softExpect(globalState, "listCustomerPMByClientSecret", () =>
+            expect(
+              response.body.customer_payment_methods[0].requires_cvv,
+              "requires_cvv"
+            ).to.be.true
+          );
         }
       } else {
         // We only get an empty array if something's wrong. One exception is a 4xx when no customer exist but it is handled in the test
-        expect(response.body)
-          .to.have.property("customer_payment_methods")
-          .to.be.an("array").and.empty;
+        softExpect(globalState, "listCustomerPMByClientSecret", () =>
+          expect(response.body)
+            .to.have.property("customer_payment_methods")
+            .to.be.an("array").and.empty
+        );
       }
     });
   });
@@ -4115,8 +4792,12 @@ Cypress.Commands.add("listRefundCallTest", (requestBody, globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
-      expect(response.body.data).to.be.an("array").and.not.empty;
+      softExpect(globalState, "listRefundCallTest", () =>
+        expect(response.headers["content-type"]).to.include("application/json")
+      );
+      softExpect(globalState, "listRefundCallTest", () =>
+        expect(response.body.data).to.be.an("array").and.not.empty
+      );
     });
   });
 });
@@ -4146,12 +4827,16 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
+        softExpect(globalState, "createConfirmPayoutTest", () =>
+          expect(response.headers["content-type"]).to.include("application/json")
+        );
         if (response.status === 200) {
           globalState.set("payoutAmount", createConfirmPayoutBody.amount);
           globalState.set("payoutID", response.body.payout_id);
           for (const key in resData.body) {
-            expect(resData.body[key]).to.deep.equal(response.body[key]);
+            softExpect(globalState, "createConfirmPayoutTest", () =>
+              expect(resData.body[key]).to.deep.equal(response.body[key])
+            );
           }
         } else {
           defaultErrorHandler(response, resData);
@@ -4187,13 +4872,17 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
+        softExpect(globalState, "createConfirmWithTokenPayoutTest", () =>
+          expect(response.headers["content-type"]).to.include("application/json")
+        );
 
         if (response.status === 200) {
           globalState.set("payoutAmount", createConfirmPayoutBody.amount);
           globalState.set("payoutID", response.body.payout_id);
           for (const key in resData.body) {
-            expect(resData.body[key]).to.deep.equal(response.body[key]);
+            softExpect(globalState, "createConfirmWithTokenPayoutTest", () =>
+              expect(resData.body[key]).to.deep.equal(response.body[key])
+            );
           }
         } else {
           defaultErrorHandler(response, resData);
@@ -4230,13 +4919,17 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
+        softExpect(globalState, "createConfirmWithPayoutMethodIdTest", () =>
+          expect(response.headers["content-type"]).to.include("application/json")
+        );
 
         if (response.status === 200) {
           globalState.set("payoutAmount", createConfirmPayoutBody.amount);
           globalState.set("payoutID", response.body.payout_id);
           for (const key in resData.body) {
-            expect(resData.body[key]).to.equal(response.body[key]);
+            softExpect(globalState, "createConfirmWithPayoutMethodIdTest", () =>
+              expect(resData.body[key]).to.equal(response.body[key])
+            );
           }
         } else {
           defaultErrorHandler(response, resData);
@@ -4266,11 +4959,15 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
+        softExpect(globalState, "fulfillPayoutCallTest", () =>
+          expect(response.headers["content-type"]).to.include("application/json")
+        );
 
         if (response.status === 200) {
           for (const key in resData.body) {
-            expect(resData.body[key]).to.equal(response.body[key]);
+            softExpect(globalState, "fulfillPayoutCallTest", () =>
+              expect(resData.body[key]).to.equal(response.body[key])
+            );
           }
         } else {
           defaultErrorHandler(response, resData);
@@ -4301,11 +4998,15 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
+        softExpect(globalState, "updatePayoutCallTest", () =>
+          expect(response.headers["content-type"]).to.include("application/json")
+        );
 
         if (response.status === 200) {
           for (const key in resData.body) {
-            expect(resData.body[key]).to.equal(response.body[key]);
+            softExpect(globalState, "updatePayoutCallTest", () =>
+              expect(resData.body[key]).to.equal(response.body[key])
+            );
           }
         } else {
           defaultErrorHandler(response, resData);
@@ -4329,9 +5030,15 @@ Cypress.Commands.add("retrievePayoutCallTest", (globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
-      expect(response.body.payout_id).to.equal(payout_id);
-      expect(response.body.amount).to.equal(globalState.get("payoutAmount"));
+      softExpect(globalState, "retrievePayoutCallTest", () =>
+        expect(response.headers["content-type"]).to.include("application/json")
+      );
+      softExpect(globalState, "retrievePayoutCallTest", () =>
+        expect(response.body.payout_id).to.equal(payout_id)
+      );
+      softExpect(globalState, "retrievePayoutCallTest", () =>
+        expect(response.body.amount).to.equal(globalState.get("payoutAmount"))
+      );
     });
   });
 });
@@ -4361,8 +5068,10 @@ Cypress.Commands.add("userLogin", (globalState) => {
     cy.wrap(response).then(() => {
       if (response.status === 200) {
         if (response.body.token_type === "totp") {
-          expect(response.body, "totp_token").to.have.property("token").and.to
-            .not.be.empty;
+          softExpect(globalState, "userLogin", () =>
+            expect(response.body, "totp_token").to.have.property("token").and.to
+              .not.be.empty
+          );
 
           const totpToken = response.body.token;
           if (!totpToken) {
@@ -4399,8 +5108,10 @@ Cypress.Commands.add("terminate2Fa", (globalState) => {
     cy.wrap(response).then(() => {
       if (response.status === 200) {
         if (response.body.token_type === "user_info") {
-          expect(response.body, "user_info_token").to.have.property("token").and
-            .to.not.be.empty;
+          softExpect(globalState, "terminate2Fa", () =>
+            expect(response.body, "user_info_token").to.have.property("token").and
+              .to.not.be.empty
+          );
 
           const userInfoToken = response.body.token;
           if (!userInfoToken) {
@@ -4439,12 +5150,18 @@ Cypress.Commands.add("userInfo", (globalState) => {
 
     cy.wrap(response).then(() => {
       if (response.status === 200) {
-        expect(response.body, "merchant_id").to.have.property("merchant_id").and
-          .to.not.be.empty;
-        expect(response.body, "organization_id").to.have.property("org_id").and
-          .to.not.be.empty;
-        expect(response.body, "profile_id").to.have.property("profile_id").and
-          .to.not.be.empty;
+        softExpect(globalState, "userInfo", () =>
+          expect(response.body, "merchant_id").to.have.property("merchant_id").and
+            .to.not.be.empty
+        );
+        softExpect(globalState, "userInfo", () =>
+          expect(response.body, "organization_id").to.have.property("org_id").and
+            .to.not.be.empty
+        );
+        softExpect(globalState, "userInfo", () =>
+          expect(response.body, "profile_id").to.have.property("profile_id").and
+            .to.not.be.empty
+        );
 
         globalState.set("merchantId", response.body.merchant_id);
         globalState.set("organizationId", response.body.org_id);
@@ -4476,7 +5193,9 @@ Cypress.Commands.add("ListMcaByMid", (globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
+      softExpect(globalState, "ListMcaByMid", () =>
+        expect(response.headers["content-type"]).to.include("application/json")
+      );
       globalState.set("profileId", response.body[0].profile_id);
       globalState.set("stripeMcaId", response.body[0].merchant_connector_id);
       globalState.set("adyenMcaId", response.body[1].merchant_connector_id);
@@ -4511,13 +5230,19 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
+        softExpect(globalState, "addRoutingConfig", () =>
+          expect(response.headers["content-type"]).to.include("application/json")
+        );
 
         if (response.status === 200) {
-          expect(response.body).to.have.property("id");
+          softExpect(globalState, "addRoutingConfig", () =>
+            expect(response.body).to.have.property("id")
+          );
           globalState.set("routingConfigId", response.body.id);
           for (const key in resData.body) {
-            expect(resData.body[key]).to.equal(response.body[key]);
+            softExpect(globalState, "addRoutingConfig", () =>
+              expect(resData.body[key]).to.equal(response.body[key])
+            );
           }
         } else {
           defaultErrorHandler(response, resData);
@@ -4543,12 +5268,18 @@ Cypress.Commands.add("activateRoutingConfig", (data, globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
+      softExpect(globalState, "activateRoutingConfig", () =>
+        expect(response.headers["content-type"]).to.include("application/json")
+      );
 
       if (response.status === 200) {
-        expect(response.body.id).to.equal(routing_config_id);
+        softExpect(globalState, "activateRoutingConfig", () =>
+          expect(response.body.id).to.equal(routing_config_id)
+        );
         for (const key in resData.body) {
-          expect(resData.body[key]).to.equal(response.body[key]);
+          softExpect(globalState, "activateRoutingConfig", () =>
+            expect(resData.body[key]).to.equal(response.body[key])
+          );
         }
       } else {
         defaultErrorHandler(response, resData);
@@ -4573,12 +5304,18 @@ Cypress.Commands.add("retrieveRoutingConfig", (data, globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
+      softExpect(globalState, "retrieveRoutingConfig", () =>
+        expect(response.headers["content-type"]).to.include("application/json")
+      );
 
       if (response.status === 200) {
-        expect(response.body.id).to.equal(routing_config_id);
+        softExpect(globalState, "retrieveRoutingConfig", () =>
+          expect(response.body.id).to.equal(routing_config_id)
+        );
         for (const key in resData.body) {
-          expect(resData.body[key]).to.equal(response.body[key]);
+          softExpect(globalState, "retrieveRoutingConfig", () =>
+            expect(resData.body[key]).to.equal(response.body[key])
+          );
         }
       } else {
         defaultErrorHandler(response, resData);
@@ -4605,15 +5342,21 @@ Cypress.Commands.add(
 
       cy.wrap(response).then(() => {
         if (response.status === 200) {
-          expect(response.body)
-            .to.have.property("message")
-            .to.equal("card_declined");
-          expect(response.body)
-            .to.have.property("connector")
-            .to.equal("stripe");
-          expect(response.body)
-            .to.have.property("step_up_possible")
-            .to.equal(step_up_possible);
+          softExpect(globalState, "updateGsmConfig", () =>
+            expect(response.body)
+              .to.have.property("message")
+              .to.equal("card_declined")
+          );
+          softExpect(globalState, "updateGsmConfig", () =>
+            expect(response.body)
+              .to.have.property("connector")
+              .to.equal("stripe")
+          );
+          softExpect(globalState, "updateGsmConfig", () =>
+            expect(response.body)
+              .to.have.property("step_up_possible")
+              .to.equal(step_up_possible)
+          );
         }
       });
     });
@@ -4642,71 +5385,99 @@ Cypress.Commands.add("incrementalAuth", (globalState, data) => {
 
     cy.wrap(response).then(() => {
       if (response.status === 200) {
-        expect(response.body.amount_capturable, "amount_capturable").to.equal(
-          resData.body.amount_capturable
+        softExpect(globalState, "incrementalAuth", () =>
+          expect(response.body.amount_capturable, "amount_capturable").to.equal(
+            resData.body.amount_capturable
+          )
         );
-        expect(
-          response.body.authorization_count,
-          "authorization_count"
-        ).to.be.a("number").and.not.be.null;
-        expect(
-          response.body.incremental_authorization_allowed,
-          "incremental_authorization_allowed"
-        ).to.be.true;
-        expect(
-          response.body.incremental_authorizations,
-          "incremental_authorizations"
-        ).to.be.an("array").and.not.be.empty;
-        expect(response.body.payment_id, "payment_id").to.equal(paymentId);
-        expect(response.body.status, "status").to.equal(resData.body.status);
+        softExpect(globalState, "incrementalAuth", () =>
+          expect(
+            response.body.authorization_count,
+            "authorization_count"
+          ).to.be.a("number").and.not.be.null
+        );
+        softExpect(globalState, "incrementalAuth", () =>
+          expect(
+            response.body.incremental_authorization_allowed,
+            "incremental_authorization_allowed"
+          ).to.be.true
+        );
+        softExpect(globalState, "incrementalAuth", () =>
+          expect(
+            response.body.incremental_authorizations,
+            "incremental_authorizations"
+          ).to.be.an("array").and.not.be.empty
+        );
+        softExpect(globalState, "incrementalAuth", () =>
+          expect(response.body.payment_id, "payment_id").to.equal(paymentId)
+        );
+        softExpect(globalState, "incrementalAuth", () =>
+          expect(response.body.status, "status").to.equal(resData.body.status)
+        );
 
         for (const key in response.body.incremental_authorizations) {
-          expect(response.body.incremental_authorizations[key], "amount")
-            .to.have.property("amount")
-            .to.be.a("number")
-            .to.equal(resData.body.amount).and.not.be.null;
+          softExpect(globalState, "incrementalAuth", () =>
+            expect(response.body.incremental_authorizations[key], "amount")
+              .to.have.property("amount")
+              .to.be.a("number")
+              .to.equal(resData.body.amount).and.not.be.null
+          );
           if (
             response.body.incremental_authorizations[key].status === "failure"
           ) {
-            expect(response.body.incremental_authorizations[key], "error_code")
-              .to.have.property("error_code")
-              .to.be.equal(
-                resData.body.incremental_authorizations[key].error_code
-              );
-            expect(
-              response.body.incremental_authorizations[key],
-              "error_message"
-            )
-              .to.have.property("error_message")
-              .to.be.equal(
-                resData.body.incremental_authorizations[key].error_message
-              );
-            expect(response.body.incremental_authorizations[key], "status")
-              .to.have.property("status")
-              .to.equal("failure");
+            softExpect(globalState, "incrementalAuth", () =>
+              expect(response.body.incremental_authorizations[key], "error_code")
+                .to.have.property("error_code")
+                .to.be.equal(
+                  resData.body.incremental_authorizations[key].error_code
+                )
+            );
+            softExpect(globalState, "incrementalAuth", () =>
+              expect(
+                response.body.incremental_authorizations[key],
+                "error_message"
+              )
+                .to.have.property("error_message")
+                .to.be.equal(
+                  resData.body.incremental_authorizations[key].error_message
+                )
+            );
+            softExpect(globalState, "incrementalAuth", () =>
+              expect(response.body.incremental_authorizations[key], "status")
+                .to.have.property("status")
+                .to.equal("failure")
+            );
           } else {
-            expect(
-              response.body.incremental_authorizations[key],
-              "error_code"
-            ).to.have.property("error_code").to.be.null;
-            expect(
-              response.body.incremental_authorizations[key],
-              "error_message"
-            ).to.have.property("error_message").to.be.null;
-            expect(response.body.incremental_authorizations[key], "status")
-              .to.have.property("status")
-              .to.equal("success");
+            softExpect(globalState, "incrementalAuth", () =>
+              expect(
+                response.body.incremental_authorizations[key],
+                "error_code"
+              ).to.have.property("error_code").to.be.null
+            );
+            softExpect(globalState, "incrementalAuth", () =>
+              expect(
+                response.body.incremental_authorizations[key],
+                "error_message"
+              ).to.have.property("error_message").to.be.null
+            );
+            softExpect(globalState, "incrementalAuth", () =>
+              expect(response.body.incremental_authorizations[key], "status")
+                .to.have.property("status")
+                .to.equal("success")
+            );
           }
-          expect(
-            response.body.incremental_authorizations[key],
-            "previously_authorized_amount"
-          )
-            .to.have.property("previously_authorized_amount")
-            .to.be.a("number")
-            .to.equal(
-              response.body.incremental_authorizations[key]
-                .previously_authorized_amount
-            ).and.not.be.null;
+          softExpect(globalState, "incrementalAuth", () =>
+            expect(
+              response.body.incremental_authorizations[key],
+              "previously_authorized_amount"
+            )
+              .to.have.property("previously_authorized_amount")
+              .to.be.a("number")
+              .to.equal(
+                response.body.incremental_authorizations[key]
+                  .previously_authorized_amount
+              ).and.not.be.null
+          );
         }
       }
     });
@@ -4754,8 +5525,12 @@ Cypress.Commands.add("setConfigs", (globalState, key, value, requestType) => {
 
     cy.wrap(response).then(() => {
       if (response.status === 200) {
-        expect(response.body).to.have.property("key").to.equal(key);
-        expect(response.body).to.have.property("value").to.equal(value);
+        softExpect(globalState, "setConfigs", () =>
+          expect(response.body).to.have.property("key").to.equal(key)
+        );
+        softExpect(globalState, "setConfigs", () =>
+          expect(response.body).to.have.property("value").to.equal(value)
+        );
       } else {
         Cypress.log({
           name: "setConfigs",
@@ -4840,13 +5615,19 @@ Cypress.Commands.add(
 
       cy.wrap(response).then(() => {
         if (response.status === 200) {
-          expect(response.body)
-            .to.have.property("fingerprint_id")
-            .to.equal(cardBin);
-          expect(response.body)
-            .to.have.property("data_kind")
-            .to.equal("card_bin");
-          expect(response.body).to.have.property("created_at").to.not.be.null;
+          softExpect(globalState, "blocklistCreateRule", () =>
+            expect(response.body)
+              .to.have.property("fingerprint_id")
+              .to.equal(cardBin)
+          );
+          softExpect(globalState, "blocklistCreateRule", () =>
+            expect(response.body)
+              .to.have.property("data_kind")
+              .to.equal("card_bin")
+          );
+          softExpect(globalState, "blocklistCreateRule", () =>
+            expect(response.body).to.have.property("created_at").to.not.be.null
+          );
           globalState.set("blocklistRuleId", response.body.fingerprint_id);
         } else {
           throw new Error(
@@ -4922,25 +5703,37 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
+        softExpect(globalState, "paymentsEligibilityCheck", () =>
+          expect(response.headers["content-type"]).to.include("application/json")
+        );
 
         if (response.status === 200) {
-          expect(response.body)
-            .to.have.property("payment_id")
-            .to.equal(paymentId);
+          softExpect(globalState, "paymentsEligibilityCheck", () =>
+            expect(response.body)
+              .to.have.property("payment_id")
+              .to.equal(paymentId)
+          );
 
           // Check for expected response structure based on test case
           if (resData.body.sdk_next_action?.next_action?.deny) {
-            expect(response.body).to.have.property("sdk_next_action");
-            expect(response.body.sdk_next_action).to.have.property(
-              "next_action"
+            softExpect(globalState, "paymentsEligibilityCheck", () =>
+              expect(response.body).to.have.property("sdk_next_action")
             );
-            expect(response.body.sdk_next_action.next_action).to.have.property(
-              "deny"
+            softExpect(globalState, "paymentsEligibilityCheck", () =>
+              expect(response.body.sdk_next_action).to.have.property(
+                "next_action"
+              )
             );
-            expect(response.body.sdk_next_action.next_action.deny)
-              .to.have.property("message")
-              .to.equal(resData.body.sdk_next_action.next_action.deny.message);
+            softExpect(globalState, "paymentsEligibilityCheck", () =>
+              expect(response.body.sdk_next_action.next_action).to.have.property(
+                "deny"
+              )
+            );
+            softExpect(globalState, "paymentsEligibilityCheck", () =>
+              expect(response.body.sdk_next_action.next_action.deny)
+                .to.have.property("message")
+                .to.equal(resData.body.sdk_next_action.next_action.deny.message)
+            );
           } else {
             // For non-blocklisted cards, we expect no deny action
             if (response.body.sdk_next_action?.next_action?.deny) {
@@ -4985,7 +5778,9 @@ Cypress.Commands.add(
         );
       }
 
-      expect(firstResponse.status).to.be.oneOf([200, 302]);
+      softExpect(globalState, "ddcServerSideRaceConditionTest", () =>
+        expect(firstResponse.status).to.be.oneOf([200, 302])
+      );
       cy.log(`First request status: ${firstResponse.status}`);
 
       cy.request({
@@ -4998,8 +5793,12 @@ Cypress.Commands.add(
       }).then((secondResponse) => {
         cy.log(`Second request status: ${secondResponse.status}`);
 
-        expect(secondResponse.status).to.eq(ddcConfig.expectedError.status);
-        expect(secondResponse.body).to.deep.equal(ddcConfig.expectedError.body);
+        softExpect(globalState, "ddcServerSideRaceConditionTest", () =>
+          expect(secondResponse.status).to.eq(ddcConfig.expectedError.status)
+        );
+        softExpect(globalState, "ddcServerSideRaceConditionTest", () =>
+          expect(secondResponse.body).to.deep.equal(ddcConfig.expectedError.body)
+        );
 
         cy.log(
           "✅ Server-side race condition protection verified - second submission properly rejected"
@@ -5175,13 +5974,23 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
+        softExpect(globalState, "manualPaymentStatusUpdateTest", () =>
+          expect(response.headers["content-type"]).to.include("application/json")
+        );
         if (response.status === 200) {
-          expect(response.status).to.eq(200);
-          expect(response.body.payment_id).to.equal(paymentId);
-          expect(response.body.merchant_id).to.equal(merchantId);
-          expect(response.body.attempt_status).to.equal(
-            PaymentsManualUpdateRequestBody.attempt_status
+          softExpect(globalState, "manualPaymentStatusUpdateTest", () =>
+            expect(response.status).to.eq(200)
+          );
+          softExpect(globalState, "manualPaymentStatusUpdateTest", () =>
+            expect(response.body.payment_id).to.equal(paymentId)
+          );
+          softExpect(globalState, "manualPaymentStatusUpdateTest", () =>
+            expect(response.body.merchant_id).to.equal(merchantId)
+          );
+          softExpect(globalState, "manualPaymentStatusUpdateTest", () =>
+            expect(response.body.attempt_status).to.equal(
+              PaymentsManualUpdateRequestBody.attempt_status
+            )
           );
         } else {
           throw new Error(
