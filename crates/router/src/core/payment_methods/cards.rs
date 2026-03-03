@@ -3887,9 +3887,13 @@ pub async fn list_payment_methods(
 
     let is_tax_connector_enabled = business_profile.get_is_tax_connector_enabled();
 
-    let intent_data = payment_intent
-        .clone()
-        .map(|pi| pi.into_payment_method_list_intent_data());
+    let intent_data = payment_intent.clone().and_then(|pi| {
+        let net_amount = payment_attempt
+            .as_ref()
+            .map(|pa| pa.net_amount.get_total_amount())
+            .unwrap_or(pi.amount);
+        Some(pi.into_payment_method_list_intent_data(net_amount))
+    });
 
     Ok(services::ApplicationResponse::Json(
         api::PaymentMethodListResponse {

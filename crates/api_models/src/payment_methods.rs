@@ -14,7 +14,7 @@ use common_utils::{
     errors,
     ext_traits::OptionExt,
     id_type, link_utils, pii,
-    types::{MinorUnit, Percentage, Surcharge},
+    types::{FloatMajorUnit, MinorUnit, Percentage, Surcharge},
 };
 use masking::PeekInterface;
 use serde::de;
@@ -2580,10 +2580,10 @@ pub struct PaymentMethodListInstallmentPlan {
 /// Amount breakdown for a single installment plan
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct PaymentMethodListInstallmentAmountDetails {
-    /// Amount charged per installment in minor units
-    pub amount_per_installment: MinorUnit,
-    /// Total amount across all installments in minor units (may differ slightly from order amount due to ceiling)
-    pub total_amount: MinorUnit,
+    /// Amount charged per installment in major units
+    pub amount_per_installment: FloatMajorUnit,
+    /// Total amount across all installments in major units (may differ slightly from order amount due to ceiling)
+    pub total_amount: FloatMajorUnit,
 }
 
 #[cfg(feature = "v1")]

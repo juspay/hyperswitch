@@ -427,7 +427,7 @@ impl MinorUnit {
     }
 
     /// Convert the amount to its major denomination based on Currency and return f64
-    fn to_major_unit_as_f64(
+    pub fn to_major_unit_as_f64(
         self,
         currency: enums::Currency,
     ) -> Result<FloatMajorUnit, error_stack::Report<ParsingError>> {
