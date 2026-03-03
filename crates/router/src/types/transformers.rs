@@ -1337,6 +1337,7 @@ impl ForeignFrom<&api_models::payouts::BankRedirect> for api_enums::PaymentMetho
     fn foreign_from(value: &api_models::payouts::BankRedirect) -> Self {
         match value {
             api_models::payouts::BankRedirect::Interac(_) => Self::Interac,
+            api_models::payouts::BankRedirect::OpenBankingUk(_) => Self::OpenBankingUk,
         }
     }
 }

@@ -390,6 +390,7 @@ pub enum Wallet {
 #[serde(rename_all = "snake_case")]
 pub enum BankRedirect {
     Interac(Interac),
+    OpenBankingUk(OpenBankingUk),
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -397,6 +398,16 @@ pub struct Interac {
     /// Customer email linked with interac account
     #[schema(value_type = String, example = "john.doe@example.com")]
     pub email: Email,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct OpenBankingUk {
+    /// Account holder name
+    #[schema(value_type = String, example = "John Doe")]
+    pub account_holder_name: Secret<String>,
+    /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
+    #[schema(value_type = String, example = "DE89370400440532013000")]
+    pub iban: Secret<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -1084,6 +1095,13 @@ impl From<BankRedirect> for payout_method_utils::BankRedirectAdditionalData {
                     email: Some(ForeignFrom::foreign_from(email)),
                 }))
             }
+            BankRedirect::OpenBankingUk(OpenBankingUk {
+                account_holder_name,
+                iban,
+            }) => Self::OpenBankingUk(Box::new(payout_method_utils::OpenBankingUkAdditionalData {
+                account_holder_name,
+                iban,
+            })),
         }
     }
 }

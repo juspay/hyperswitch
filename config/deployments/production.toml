@@ -154,7 +154,8 @@ tesouro.base_url = "https://api.tesouro.com"
 thunes.base_url = "https://api.limonetik.com/"
 tokenex.base_url = "https://api.tokenex.com"
 tokenio.base_url = "https://api.token.io"
-truelayer.base_url = "https://auth.truelayer.com"
+truelayer.base_url = "https://api.truelayer.com"
+truelayer.secondary_base_url = "https://auth.truelayer.com"
 trustpay.base_url = "https://tpgw.trustpay.eu/"
 trustpayments.base_url = "https://webservices.securetrading.net/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
@@ -678,6 +679,12 @@ upi_intent = { country = "IN", currency = "INR" }
 upi_collect = { country = "IN", currency = "INR" }
 upi_intent = { country = "IN", currency = "INR" }
 
+[pm_filters.truelayer]
+open_banking_uk = { currency = "GBP,EUR" }
+
+[payout_method_filters.truelayer]
+open_banking_uk = { currency = "GBP,EUR,PLN" }
+
 [pm_filters.redsys]
 credit = { currency = "AUD,BGN,CAD,CHF,COP,CZK,DKK,EUR,GBP,HRK,HUF,ILS,INR,JPY,MYR,NOK,NZD,PEN,PLN,RUB,SAR,SEK,SGD,THB,USD,ZAR", country="ES" }
 debit = { currency = "AUD,BGN,CAD,CHF,COP,CZK,DKK,EUR,GBP,HRK,HUF,ILS,INR,JPY,MYR,NOK,NZD,PEN,PLN,RUB,SAR,SEK,SGD,THB,USD,ZAR", country="ES" }
@@ -938,7 +945,7 @@ redis_lock_expiry_seconds = 180
 enabled = "false"
 
 [webhook_source_verification_call]
-connectors_with_webhook_source_verification_call = "paypal"     # List of connectors which has additional source verification api-call
+connectors_with_webhook_source_verification_call = "paypal, truelayer"     # List of connectors which has additional source verification api-call
 
 [unmasked_headers]
 keys = "accept-language,user-agent,x-profile-id"

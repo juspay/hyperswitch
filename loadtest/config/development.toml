@@ -219,6 +219,7 @@ thunes.base_url = "https://api.limonetikqualif.com/"
 tokenex.base_url = "https://test-api.tokenex.com"
 tokenio.base_url = "https://api.sandbox.token.io"
 truelayer.base_url = "https://api.truelayer-sandbox.com"
+truelayer.secondary_base_url = "https://auth.truelayer-sandbox.com"
 stripe.base_url_file_upload = "https://files.stripe.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 trustpayments.base_url = "https://webservices.securetrading.net/"
@@ -438,6 +439,12 @@ upi_intent = { country = "IN", currency = "INR" }
 [pm_filters.paytm]
 upi_collect = { country = "IN", currency = "INR" }
 upi_intent = { country = "IN", currency = "INR" }
+
+[pm_filters.truelayer]
+open_banking_uk = { currency = "GBP,EUR" }
+
+[payout_method_filters.truelayer]
+open_banking_uk = { currency = "GBP,EUR,PLN" }
 
 [pm_filters.adyen]
 boleto = { country = "BR", currency = "BRL" }

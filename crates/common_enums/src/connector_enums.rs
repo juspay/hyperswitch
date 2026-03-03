@@ -176,7 +176,7 @@ pub enum Connector {
     Tesouro,
     Tokenex,
     Tokenio,
-    // Truelayer,
+    Truelayer,
     Trustpay,
     Trustpayments,
     Tsys,
@@ -210,6 +210,7 @@ impl Connector {
                 | (Self::Adyenplatform, _)
                 | (Self::Nomupay, _)
                 | (Self::Loonio, _)
+                | (Self::Truelayer, _)
                 | (Self::Worldpay, Some(PayoutType::Wallet))
                 | (Self::Worldpayxml, Some(PayoutType::Wallet))
         )
@@ -228,7 +229,10 @@ impl Connector {
     }
     #[cfg(feature = "payouts")]
     pub fn supports_access_token_for_payout(self, payout_method: Option<PayoutType>) -> bool {
-        matches!((self, payout_method), (Self::Paypal, _))
+        matches!(
+            (self, payout_method),
+            (Self::Paypal, _) | (Self::Truelayer, _)
+        )
     }
     #[cfg(feature = "payouts")]
     pub fn supports_access_token_for_external_vault(self) -> bool {
@@ -259,6 +263,8 @@ impl Connector {
                 | (Self::Itaubank, _)
                 | (Self::Facilitapay, _)
                 | (Self::Dwolla, _)
+                | (Self::Santander, _)
+                | (Self::Truelayer, _)
         )
     }
     pub fn requires_order_creation_before_payment(self, payment_method: PaymentMethod) -> bool {
@@ -375,7 +381,7 @@ impl Connector {
             | Self::Taxjar
             | Self::Tesouro
             // | Self::Thunes
-            // | Self::Truelayer
+            | Self::Truelayer
             | Self::Trustpay
             | Self::Trustpayments
             // | Self::Tokenio

@@ -7681,6 +7681,37 @@ key1 = "Merchant Token"
 [[loonio_payout.bank_redirect]]
 payment_method_type = "interac"
 
+[truelayer_payout]
+[truelayer_payout.connector_auth.BodyKey]
+api_key = "Client ID"
+key1 = "Client Secret"
+[[truelayer_payout.bank_redirect]]
+payment_method_type = "open_banking_uk"
+
+[truelayer_payout.metadata.kid]
+name = "kid"
+label = "KID"
+placeholder = "Enter your KID"
+required = true
+type = "Text"
+[truelayer_payout.metadata.merchant_account_id]
+name = "merchant_account_id"
+label = "Merchant Account ID"
+placeholder = "Enter your Merchant Account ID"
+required = true
+type = "Text"
+[truelayer_payout.metadata.account_holder_name]
+name = "account_holder_name"
+label = "Account Holder Name"
+placeholder = "Enter your Account Holder Name"
+required = true
+type = "Text"
+[truelayer_payout.metadata.private_key]
+name = "private_key"
+label = "Private Key (Base64 encoded)"
+placeholder = "Enter your Private Key(Base64 encoded)"
+required = true
+type = "Text"
 
 [tesouro]
 [[tesouro.credit]]

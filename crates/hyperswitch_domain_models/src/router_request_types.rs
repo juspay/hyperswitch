@@ -1571,6 +1571,7 @@ pub struct VerifyWebhookSourceRequestData {
     pub webhook_headers: actix_web::http::header::HeaderMap,
     pub webhook_body: Vec<u8>,
     pub merchant_secret: api_models::webhooks::ConnectorWebhookSecrets,
+    pub webhook_uri: http::Uri,
 }
 
 #[derive(Debug, Clone)]
