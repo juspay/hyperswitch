@@ -831,9 +831,12 @@ where
             should_continue_capture,
         );
 
+        let dimensions_with_org_and_merchant_id = dimensions
+            .with_organization_id(platform.get_processor().get_account().get_org_id().clone())
+            .without_profile_id();
+
         let is_eligible_for_uas = helpers::is_merchant_eligible_authentication_service(
-            platform.get_processor().get_account().get_id(),
-            platform.get_processor().get_account().get_org_id(),
+            &dimensions_with_org_and_merchant_id,
             state,
         )
         .await?;
@@ -10778,6 +10781,8 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
     let processor_merchant_id = platform.get_processor().get_account().get_id();
     let storage_scheme = platform.get_processor().get_account().storage_scheme;
     let payment_id = req.payment_id;
+    let dimensions = configs::dimension_state::Dimensions::new()
+        .with_merchant_id(processor_merchant_id.clone());
     let payment_intent = db
         .find_payment_intent_by_payment_id_processor_merchant_id(
             &payment_id,
@@ -10900,6 +10905,8 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
+    let dimensions = dimensions
+        .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
     let payment_method_details = helpers::get_payment_method_details_from_payment_token(
         &state,
         &payment_attempt,
@@ -10945,10 +10952,8 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         .clone()
         .get_required_value("authentication_connector_details")
         .attach_printable("authentication_connector_details not configured by the merchant")?;
-
     let authentication_response = if helpers::is_merchant_eligible_authentication_service(
-        platform.get_processor().get_account().get_id(),
-        platform.get_processor().get_account().get_org_id(),
+        &dimensions,
         &state,
     )
     .await?

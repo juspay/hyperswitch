@@ -8481,45 +8481,16 @@ pub fn validate_platform_request_for_marketplace(
     Ok(())
 }
 
-/// Returns `true` if either the org or merchant config is set to "true"
-///
-/// Priority logic:
-/// 1. If org-level config exists (either "true" or "false"), that decision is final
-///    - Org = "true" → returns true (authentication enabled)
-///    - Org = "false" → returns false (authentication disabled, merchant config ignored)
-/// 2. If org-level config is missing or fails to fetch, fallback to merchant-level config
-///    - Merchant = "true" → returns true
-///    - Merchant = "false" or missing → returns false
-///
-/// This ensures parent (org) rules take precedence over child (merchant) configurations
 pub async fn is_merchant_eligible_authentication_service(
-    merchant_id: &id_type::MerchantId,
-    org_id: &id_type::OrganizationId,
+    dimensions: &configs::dimension_state::DimensionsWithOrgIdAndMerchantId,
     state: &SessionState,
 ) -> RouterResult<bool> {
-    let db = &*state.store;
-    let org_key = org_id.get_authentication_service_eligible_key();
-    let org_eligible = db
-        .find_config_by_key(&org_key)
-        .await
-        .inspect_err(|error| {
-            logger::error!(?error, "Failed to fetch `{org_key}` config from DB");
-        })
-        .ok()
-        .map(|c| c.config.to_lowercase() == "true");
-
-    Ok(org_eligible
-        .async_unwrap_or_else(|| async {
-            let merchant_key = merchant_id.get_authentication_service_eligible_key();
-            db.find_config_by_key(&merchant_key)
-                .await
-                .inspect_err(|error| {
-                    logger::error!(?error, "Failed to fetch `{merchant_key}` config from DB");
-                })
-                .ok()
-                .map(|c| c.config.to_lowercase() == "true")
-                .unwrap_or(false)
-        })
+    Ok(dimensions
+        .get_authentication_service_eligible(
+            &*state.store,
+            state.superposition_service.as_ref(),
+            None::<&id_type::CustomerId>,
+        )
         .await)
 }
 

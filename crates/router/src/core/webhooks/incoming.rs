@@ -39,6 +39,7 @@ use super::{types, utils, MERCHANT_ID};
 use crate::{
     consts,
     core::{
+        configs,
         api_locking,
         errors::{self, ConnectorErrorExt, CustomResult, RouterResponse, StorageErrorExt},
         metrics, payment_methods,
@@ -228,6 +229,9 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             platform.get_processor().get_account().get_id().clone()
         )),
     );
+    let dimensions = configs::dimension_state::Dimensions::new()
+        .with_merchant_id(platform.get_processor().get_account().get_id().clone())
+        .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
     let request_details = IncomingWebhookRequestDetails {
         method: req.method().clone(),
         uri: req.uri().clone(),
@@ -242,7 +246,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     // If No, then it will return Direct
     // Direct Signifies its not a authentication connector
     let three_ds_execution_path =
-        fetch_three_ds_execution_path(&platform, connector_name_or_mca_id, &state).await?;
+        fetch_three_ds_execution_path(&platform, connector_name_or_mca_id, &state, &dimensions).await?;
 
     // Decodes webhook body based on execution path, and returns connector Integration, connector_name and webhook_processing_result back to the flow without disturbing the current flow
     let (connector, connector_name, webhook_processing_result) = match three_ds_execution_path {
@@ -482,6 +486,7 @@ async fn fetch_three_ds_execution_path(
     platform: &domain::Platform,
     connector_name_or_mca_id: &str,
     state: &SessionState,
+    dimensions: &configs::dimension_state::DimensionsWithOrgIdAndMerchantId,
 ) -> errors::RouterResult<ThreeDsProcessingMode> {
     let (merchant_connector_account, connector, connector_name) =
         fetch_optional_mca_and_connector(state, platform, connector_name_or_mca_id).await?;
@@ -504,8 +509,7 @@ async fn fetch_three_ds_execution_path(
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
     let is_merchant_eligible_for_uas =
         payments::helpers::is_merchant_eligible_authentication_service(
-            &platform.get_processor().get_account().get_id().clone(),
-            &platform.get_processor().get_account().get_org_id().clone(),
+            dimensions,
             state,
         )
         .await?;

@@ -2,8 +2,8 @@ use external_services::superposition;
 
 use super::{
     dimension_state::{
-        DimensionWithMerchantIdAndProfileId, DimensionsWithMerchantId,
-        DimensionWithMerchantIdAndProfileIdAndConnector,
+        DimensionWithMerchantIdAndProfileId, DimensionWithMerchantIdAndProfileIdAndConnector,
+        DimensionsWithMerchantId, DimensionsWithOrgIdAndMerchantId,
     },
     fetch_db_config_for_dimensions, DatabaseBackedConfig,
 };
@@ -273,5 +273,21 @@ impl DatabaseBackedConfig for EnableExtendedCardBin {
             .unwrap_or_default();
         // Matches the existing key format: "{profile_id}_enable_extended_card_bin"
         Some(format!("{}_{}", profile_id, Self::KEY))
+    }
+}
+
+config! {
+    superposition_key = AUTHENTICATION_SERVICE_ELIGIBLE,
+    output = bool,
+    default = false,
+    requires = DimensionsWithOrgIdAndMerchantId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for AuthenticationServiceEligible {
+    const KEY: &'static str = "authentication_service_eligible";
+
+    fn db_key(_dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+        None
     }
 }

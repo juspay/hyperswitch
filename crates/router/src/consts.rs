@@ -368,6 +368,8 @@ pub mod superposition {
     pub const STEP_UP_ENABLED: &str = "step_up_enabled";
     /// Extended card BIN configuration key
     pub const ENABLE_EXTENDED_CARD_BIN: &str = "enable_extended_card_bin";
+    /// Authentication service merchant eligibility configuration key
+    pub const AUTHENTICATION_SERVICE_ELIGIBLE: &str = "authentication_service_eligible";
 }
 
 #[cfg(test)]

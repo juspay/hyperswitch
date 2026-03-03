@@ -129,6 +129,58 @@ impl<M, O, P> Dimensions<M, O, P, NoConnector> {
     }
 }
 
+/// Can only remove merchant_id if currently present
+impl<O, P, Cn> Dimensions<HasMerchantId, O, P, Cn> {
+    pub fn without_merchant_id(&self) -> Dimensions<NoMerchantId, O, P, Cn> {
+        Dimensions {
+            merchant_id: None,
+            organization_id: self.organization_id.clone(),
+            profile_id: self.profile_id.clone(),
+            connector: self.connector,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+/// Can only remove organization_id if currently present
+impl<M, P, Cn> Dimensions<M, HasOrgId, P, Cn> {
+    pub fn without_organization_id(&self) -> Dimensions<M, NoOrgId, P, Cn> {
+        Dimensions {
+            merchant_id: self.merchant_id.clone(),
+            organization_id: None,
+            profile_id: self.profile_id.clone(),
+            connector: self.connector,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+/// Can only remove profile_id if currently present
+impl<M, O, Cn> Dimensions<M, O, HasProfileId, Cn> {
+    pub fn without_profile_id(&self) -> Dimensions<M, O, NoProfileId, Cn> {
+        Dimensions {
+            merchant_id: self.merchant_id.clone(),
+            organization_id: self.organization_id.clone(),
+            profile_id: None,
+            connector: self.connector,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+/// Can only remove connector if currently present
+impl<M, O, P> Dimensions<M, O, P, HasConnector> {
+    pub fn without_connector(&self) -> Dimensions<M, O, P, NoConnector> {
+        Dimensions {
+            merchant_id: self.merchant_id.clone(),
+            organization_id: self.organization_id.clone(),
+            profile_id: self.profile_id.clone(),
+            connector: None,
+            _phantom: PhantomData,
+        }
+    }
+}
+
 /// merchant_id getter - only available if HasMerchantId
 impl<O, P, Cn> Dimensions<HasMerchantId, O, P, Cn> {
     pub fn merchant_id(&self) -> Result<&id_type::MerchantId, DimensionError> {
@@ -255,6 +307,10 @@ impl<M, O, P, Cn> DimensionsBase for Dimensions<M, O, P, Cn> {
 }
 
 pub type DimensionsWithMerchantId = Dimensions<HasMerchantId, NoOrgId, NoProfileId, NoConnector>;
+pub type DimensionsWithOrgIdAndMerchantId =
+    Dimensions<HasMerchantId, HasOrgId, NoProfileId, NoConnector>;
+pub type DimensionsWithOrgIdAndMerchantIdAndProfileId =
+    Dimensions<HasMerchantId, HasOrgId, HasProfileId, NoConnector>;
 pub type DimensionWithMerchantIdAndProfileId = Dimensions<HasMerchantId, NoOrgId, HasProfileId, NoConnector>;
 pub type DimensionsWithMerchantIdAndConnector =
     Dimensions<HasMerchantId, NoOrgId, NoProfileId, HasConnector>;
