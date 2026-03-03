@@ -2439,38 +2439,6 @@ pub fn make_dsl_input_for_surcharge(
     Ok(backend_input)
 }
 
-pub struct RoutingConnectorOutcomeWithApproach {
-    pub connectors: Vec<routing_types::RoutableConnectorChoice>,
-    pub routing_approach: common_enums::RoutingApproach,
-}
-
-impl RoutingConnectorOutcomeWithApproach {
-    pub fn resolve_or_fallback(
-        self,
-        stage: &'static str,
-        fallback_connectors: &[routing_types::RoutableConnectorChoice],
-        fallback_approach: common_enums::RoutingApproach,
-    ) -> (
-        Vec<routing_types::RoutableConnectorChoice>,
-        common_enums::RoutingApproach,
-    ) {
-        if self.connectors.is_empty() {
-            logger::warn!("euclid: {} returned empty connectors, falling back", stage);
-            routing::log_connectors(stage, fallback_connectors);
-            (fallback_connectors.to_vec(), fallback_approach)
-        } else {
-            routing::log_connectors(stage, &self.connectors);
-            (self.connectors, self.routing_approach)
-        }
-    }
-
-    pub fn empty() -> Self {
-        Self {
-            connectors: Vec::new(),
-            routing_approach: common_enums::RoutingApproach::DefaultFallback,
-        }
-    }
-}
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn perform_dynamic_routing_with_open_router(
     state: &SessionState,
