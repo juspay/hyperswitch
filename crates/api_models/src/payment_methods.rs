@@ -2581,8 +2581,10 @@ pub struct PaymentMethodListInstallmentPlan {
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct PaymentMethodListInstallmentAmountDetails {
     /// Amount charged per installment in major units
+    #[schema(value_type = f64)]
     pub amount_per_installment: FloatMajorUnit,
     /// Total amount across all installments in major units (may differ slightly from order amount due to ceiling)
+    #[schema(value_type = f64)]
     pub total_amount: FloatMajorUnit,
 }
 
