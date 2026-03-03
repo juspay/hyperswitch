@@ -21,6 +21,8 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::payouts::{
     payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface,
 };
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::platform::Initiator;
 use hyperswitch_domain_models::{
     cards_info::CardsInfoInterface,
     disputes,
@@ -2310,9 +2312,10 @@ impl PaymentMethodInterface for KafkaStore {
         &self,
         key_store: &domain::MerchantKeyStore,
         payment_method: domain::PaymentMethod,
+        initiator: Option<&Initiator>,
     ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
         self.diesel_store
-            .delete_payment_method(key_store, payment_method)
+            .delete_payment_method(key_store, payment_method, initiator)
             .await
     }
 
