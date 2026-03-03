@@ -577,6 +577,17 @@ pub enum AdyenPaymentResponse {
     WebhookResponse(Box<AdyenWebhookResponse>),
 }
 
+pub fn get_amount_from_payment_response(response: &AdyenPaymentResponse) -> Option<Amount> {
+    match response {
+        AdyenPaymentResponse::Response(r) => r.amount.clone(),
+        AdyenPaymentResponse::PresentToShopper(r) => r.amount.clone(),
+        AdyenPaymentResponse::QrCodeResponse(r) => r.amount.clone(),
+        AdyenPaymentResponse::RedirectionResponse(r) => r.amount.clone(),
+        AdyenPaymentResponse::WebhookResponse(r) => r.amount.clone(),
+        AdyenPaymentResponse::RedirectionErrorResponse(_) => None,
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenResponse {
@@ -5355,7 +5366,7 @@ pub struct AdyenCaptureResponse {
     psp_reference: String,
     reference: String,
     status: String,
-    amount: Amount,
+    pub amount: Amount,
     merchant_reference: Option<String>,
     store: Option<String>,
     splits: Option<Vec<AdyenSplitData>>,
