@@ -513,17 +513,17 @@ pub struct OrderInformationIncrementalAuthorization {
     amount_details: AdditionalAmount,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OrderInformation {
-    amount_details: Amount,
+    pub amount_details: Amount,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Amount {
-    total_amount: StringMajorUnit,
-    currency: api_models::enums::Currency,
+    pub total_amount: StringMajorUnit,
+    pub currency: api_models::enums::Currency,
 }
 
 #[derive(Debug, Serialize)]
@@ -1692,6 +1692,7 @@ pub struct WellsfargoPaymentsResponse {
     risk_information: Option<ClientRiskInformation>,
     token_information: Option<WellsfargoTokenInformation>,
     error_information: Option<WellsfargoErrorInformation>,
+    pub order_information: Option<OrderInformation>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -2063,6 +2064,7 @@ pub struct WellsfargoTransactionResponse {
     application_information: ApplicationInformation,
     client_reference_information: Option<ClientReferenceInformation>,
     error_information: Option<WellsfargoErrorInformation>,
+    pub order_information: Option<OrderInformation>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -2194,6 +2196,14 @@ pub struct WellsfargoRefundResponse {
     id: String,
     status: WellsfargoRefundStatus,
     error_information: Option<WellsfargoErrorInformation>,
+    pub refund_details: RefundDetails,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RefundDetails {
+    pub refund_amount: StringMajorUnit,
+    pub currency: api_models::enums::Currency,
 }
 
 impl TryFrom<RefundsResponseRouterData<Execute, WellsfargoRefundResponse>>
@@ -2238,6 +2248,7 @@ pub struct WellsfargoRsyncResponse {
     id: String,
     application_information: Option<RsyncApplicationInformation>,
     error_information: Option<WellsfargoErrorInformation>,
+    pub order_information: Option<OrderInformation>,
 }
 
 impl TryFrom<RefundsResponseRouterData<RSync, WellsfargoRsyncResponse>>
