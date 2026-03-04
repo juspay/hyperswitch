@@ -15,278 +15,149 @@ describe("Card - ThreeDS Manual payment flow test", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  context("Card - ThreeDS Manual Full Capture payment flow test", () => {
-    context("payment Create and Confirm", () => {
-      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
+  it("Card - ThreeDS Manual Full Capture payment flow test - Create and Confirm", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+      "PaymentIntent"
+    ];
 
-      beforeEach(function () {
-        if (!shouldContinue) {
-          this.skip();
-        }
-      });
+    cy.createPaymentIntentTest(
+      fixtures.createPaymentBody,
+      data,
+      "three_ds",
+      "manual",
+      globalState
+    );
 
-      it("create-payment-call-test", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentIntent"];
+    if (!utils.should_continue_further(data)) return;
 
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "three_ds",
-          "manual",
-          globalState
-        );
+    cy.paymentMethodsCallTest(globalState);
 
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
+    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["3DSManualCapture"];
 
-      it("payment_methods-call-test", () => {
-        cy.paymentMethodsCallTest(globalState);
-      });
+    cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
-      it("confirm-call-test", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["3DSManualCapture"];
+    if (!utils.should_continue_further(confirmData)) return;
 
-        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+    const expected_redirection = fixtures.confirmBody["return_url"];
+    cy.handleRedirection(globalState, expected_redirection);
 
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
+    cy.retrievePaymentCallTest({ globalState, data: confirmData });
 
-      it("Handle redirection", () => {
-        const expected_redirection = fixtures.confirmBody["return_url"];
-        cy.handleRedirection(globalState, expected_redirection);
-      });
+    const captureData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["Capture"];
 
-      it("retrieve-payment-call-test", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["3DSManualCapture"];
+    cy.captureCallTest(fixtures.captureBody, captureData, globalState);
 
-        cy.retrievePaymentCallTest({ globalState, data });
-      });
+    if (!utils.should_continue_further(captureData)) return;
 
-      it("capture-call-test", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["Capture"];
-
-        cy.captureCallTest(fixtures.captureBody, data, globalState);
-
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
-
-      it("retrieve-payment-call-test", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["Capture"];
-
-        cy.retrievePaymentCallTest({ globalState, data });
-      });
-    });
-
-    context("Payment Create+Confirm", () => {
-      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
-
-      beforeEach(function () {
-        if (!shouldContinue) {
-          this.skip();
-        }
-      });
-
-      it("create+confirm-payment-call-test", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["3DSManualCapture"];
-
-        cy.createConfirmPaymentTest(
-          fixtures.createConfirmPaymentBody,
-          data,
-          "three_ds",
-          "manual",
-          globalState
-        );
-
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
-
-      it("Handle redirection", () => {
-        const expected_redirection =
-          fixtures.createConfirmPaymentBody["return_url"];
-        cy.handleRedirection(globalState, expected_redirection);
-      });
-
-      it("retrieve-payment-call-test", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["3DSManualCapture"];
-
-        cy.retrievePaymentCallTest({ globalState, data });
-      });
-
-      it("capture-call-test", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["Capture"];
-
-        cy.captureCallTest(fixtures.captureBody, data, globalState);
-
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
-
-      it("retrieve-payment-call-test", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["Capture"];
-
-        cy.retrievePaymentCallTest({ globalState, data });
-      });
-    });
+    cy.retrievePaymentCallTest({ globalState, data: captureData });
   });
 
-  context(
-    "Card - ThreeDS Manual Partial Capture payment flow test - Create and Confirm",
-    () => {
-      context("payment Create and Payment Confirm", () => {
-        let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
+  it("Card - ThreeDS Manual Full Capture payment flow test - Create+Confirm", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+      "3DSManualCapture"
+    ];
 
-        beforeEach(function () {
-          if (!shouldContinue) {
-            this.skip();
-          }
-        });
+    cy.createConfirmPaymentTest(
+      fixtures.createConfirmPaymentBody,
+      data,
+      "three_ds",
+      "manual",
+      globalState
+    );
 
-        it("create-payment-call-test", () => {
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["PaymentIntent"];
+    if (!utils.should_continue_further(data)) return;
 
-          cy.createPaymentIntentTest(
-            fixtures.createPaymentBody,
-            data,
-            "three_ds",
-            "manual",
-            globalState
-          );
+    const expected_redirection =
+      fixtures.createConfirmPaymentBody["return_url"];
+    cy.handleRedirection(globalState, expected_redirection);
 
-          if (shouldContinue)
-            shouldContinue = utils.should_continue_further(data);
-        });
+    cy.retrievePaymentCallTest({ globalState, data });
 
-        it("payment_methods-call-test", () => {
-          cy.paymentMethodsCallTest(globalState);
-        });
+    const captureData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["Capture"];
 
-        it("confirm-call-test", () => {
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["3DSManualCapture"];
+    cy.captureCallTest(fixtures.captureBody, captureData, globalState);
 
-          cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+    if (!utils.should_continue_further(captureData)) return;
 
-          if (shouldContinue)
-            shouldContinue = utils.should_continue_further(data);
-        });
+    cy.retrievePaymentCallTest({ globalState, data: captureData });
+  });
 
-        it("Handle redirection", () => {
-          const expected_redirection = fixtures.confirmBody["return_url"];
-          cy.handleRedirection(globalState, expected_redirection);
-        });
+  it("Card - ThreeDS Manual Partial Capture payment flow test - Create and Confirm", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+      "PaymentIntent"
+    ];
 
-        it("retrieve-payment-call-test", () => {
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["3DSManualCapture"];
+    cy.createPaymentIntentTest(
+      fixtures.createPaymentBody,
+      data,
+      "three_ds",
+      "manual",
+      globalState
+    );
 
-          cy.retrievePaymentCallTest({ globalState, data });
-        });
+    if (!utils.should_continue_further(data)) return;
 
-        it("capture-call-test", () => {
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["PartialCapture"];
+    cy.paymentMethodsCallTest(globalState);
 
-          cy.captureCallTest(fixtures.captureBody, data, globalState);
+    const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["3DSManualCapture"];
 
-          if (shouldContinue)
-            shouldContinue = utils.should_continue_further(data);
-        });
+    cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
-        it("retrieve-payment-call-test", () => {
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["PartialCapture"];
+    if (!utils.should_continue_further(confirmData)) return;
 
-          cy.retrievePaymentCallTest({ globalState, data });
-        });
-      });
+    const expected_redirection = fixtures.confirmBody["return_url"];
+    cy.handleRedirection(globalState, expected_redirection);
 
-      context("payment + Confirm", () => {
-        let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
+    cy.retrievePaymentCallTest({ globalState, data: confirmData });
 
-        beforeEach(function () {
-          if (!shouldContinue) {
-            this.skip();
-          }
-        });
+    const partialCaptureData = getConnectorDetails(
+      globalState.get("connectorId")
+    )["card_pm"]["PartialCapture"];
 
-        it("create+confirm-payment-call-test", () => {
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["3DSManualCapture"];
+    cy.captureCallTest(fixtures.captureBody, partialCaptureData, globalState);
 
-          cy.createConfirmPaymentTest(
-            fixtures.createConfirmPaymentBody,
-            data,
-            "three_ds",
-            "manual",
-            globalState
-          );
+    if (!utils.should_continue_further(partialCaptureData)) return;
 
-          if (shouldContinue)
-            shouldContinue = utils.should_continue_further(data);
-        });
+    cy.retrievePaymentCallTest({ globalState, data: partialCaptureData });
+  });
 
-        it("Handle redirection", () => {
-          const expected_redirection =
-            fixtures.createConfirmPaymentBody["return_url"];
-          cy.handleRedirection(globalState, expected_redirection);
-        });
+  it("Card - ThreeDS Manual Partial Capture payment flow test - Create+Confirm", () => {
+    const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+      "3DSManualCapture"
+    ];
 
-        it("retrieve-payment-call-test", () => {
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["3DSManualCapture"];
+    cy.createConfirmPaymentTest(
+      fixtures.createConfirmPaymentBody,
+      data,
+      "three_ds",
+      "manual",
+      globalState
+    );
 
-          cy.retrievePaymentCallTest({ globalState, data });
-        });
+    if (!utils.should_continue_further(data)) return;
 
-        it("capture-call-test", () => {
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["PartialCapture"];
+    const expected_redirection =
+      fixtures.createConfirmPaymentBody["return_url"];
+    cy.handleRedirection(globalState, expected_redirection);
 
-          cy.captureCallTest(fixtures.captureBody, data, globalState);
+    cy.retrievePaymentCallTest({ globalState, data });
 
-          if (shouldContinue)
-            shouldContinue = utils.should_continue_further(data);
-        });
+    const partialCaptureData = getConnectorDetails(
+      globalState.get("connectorId")
+    )["card_pm"]["PartialCapture"];
 
-        it("retrieve-payment-call-test", () => {
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["PartialCapture"];
+    cy.captureCallTest(fixtures.captureBody, partialCaptureData, globalState);
 
-          cy.retrievePaymentCallTest({ globalState, data });
-        });
-      });
-    }
-  );
+    if (!utils.should_continue_further(partialCaptureData)) return;
+
+    cy.retrievePaymentCallTest({ globalState, data: partialCaptureData });
+  });
 });
