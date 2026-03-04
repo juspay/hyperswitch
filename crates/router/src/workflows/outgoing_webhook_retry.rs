@@ -89,31 +89,29 @@ pub async fn trigger_outgoing_webhook_bulk_workflow(
     let event_class = tracking_data.event_class;
     let primary_object_type = tracking_data.primary_object_type;
     let db = &*state.store;
-    let key_manager_state = &state.into();
 
     let merchant_key_store = db
-        .get_merchant_key_store_by_merchant_id(
-            key_manager_state,
-            &merchant_id,
-            &db.get_master_key().to_vec().into(),
-        )
+        .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
         .await?;
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &merchant_key_store)
+        .find_merchant_account_by_merchant_id(&tracking_data.merchant_id, &merchant_key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    let business_profile = utils::validate_and_get_business_profile(
-        db,
-        key_manager_state,
-        &merchant_key_store,
-        Some(&profile_id),
-        &merchant_id,
-    )
-    .await?
-    .ok_or(errors::ApiErrorResponse::ProfileNotFound {
-        id: profile_id.get_string_repr().to_string(),
-    })?;
+    let platform = domain::Platform::new(
+        merchant_account.clone(),
+        merchant_key_store.clone(),
+        merchant_account.clone(),
+        merchant_key_store.clone(),
+        None,
+    );
+
+    let business_profile =
+        utils::validate_and_get_business_profile(db, platform.get_processor(), Some(&profile_id))
+            .await?
+            .ok_or(errors::ApiErrorResponse::ProfileNotFound {
+                id: profile_id.get_string_repr().to_string(),
+            })?;
 
     let cloned_state = state.clone();
     let (content, _) = Box::pin(get_outgoing_webhook_content_and_event_type(
@@ -146,33 +144,37 @@ pub async fn trigger_outgoing_webhook_bulk_workflow(
 
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
-            key_manager_state,
             &tracking_data.merchant_id,
             &db.get_master_key().to_vec().into(),
         )
         .await?;
+
+    let platform = domain::Platform::new(
+        merchant_account.clone(),
+        key_store.clone(),
+        merchant_account.clone(),
+        key_store.clone(),
+        None,
+    );
+
     for webhook_detail in webhook_details.iter() {
         let webhook_detail_clone = webhook_detail.clone();
         let cloned_state = cloned_state.clone();
-        let merchant_account = merchant_account.clone();
-        let business_profile = business_profile.clone();
-        let content = content.clone();
+        let processor = platform.get_processor().clone();
         let payment_id = primary_object_id.clone();
-        let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
-            merchant_account.clone(),
-            key_store.clone(),
-        )));
+        let business_profile_clone = business_profile.clone();
+        let content_clone = content.clone();
         tokio::spawn(
             async move {
                 webhooks_core::create_event_and_trigger_outgoing_webhook(
                     cloned_state,
-                    merchant_context,
-                    business_profile,
+                    processor,
+                    business_profile_clone,
                     event_type,
                     event_class,
                     payment_id,
                     primary_object_type,
-                    content,
+                    content_clone,
                     primary_object_created_at,
                     webhook_detail_clone,
                 )

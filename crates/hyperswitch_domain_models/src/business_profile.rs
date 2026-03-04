@@ -59,6 +59,21 @@ impl ForeignFrom<MultipleWebhookDetail> for storage_types::MultipleWebhookDetail
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct WebhookUrls(pub Vec<MultipleWebhookDetail>);
 
+impl Default for WebhookUrls {
+    fn default() -> Self {
+        Self(Vec::new())
+    }
+}
+
+impl IntoIterator for WebhookUrls {
+    type Item = MultipleWebhookDetail;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
 impl From<Vec<MultipleWebhookDetail>> for WebhookUrls {
     fn from(item: Vec<MultipleWebhookDetail>) -> Self {
         Self(item)

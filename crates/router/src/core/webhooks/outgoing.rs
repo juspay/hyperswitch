@@ -98,6 +98,7 @@ pub(crate) async fn add_bulk_outgoing_webhook_task_to_process_tracker(
         None,
         schedule_time,
         common_types::consts::API_VERSION,
+        state.conf.application_source,
     )
     .map_err(errors::StorageError::from)?;
 
@@ -124,10 +125,7 @@ pub(crate) fn get_webhook_details_for_event_type(
         .get_required_value("webhook_details")
         .change_context(errors::WebhooksFlowError::MerchantWebhookDetailsNotFound)?;
 
-    let webhook_list = webhook_details
-        .multiple_webhooks_list
-        .clone()
-        .unwrap_or_default();
+    let webhook_list = webhook_details.multiple_webhooks_list.unwrap_or_default();
 
     let matching_details: Vec<MultipleWebhookDetail> = webhook_list
         .into_iter()
@@ -154,12 +152,13 @@ pub(crate) fn get_webhook_detail_by_webhook_endpoint_id(
         .as_ref()
         .ok_or(errors::WebhooksFlowError::MerchantWebhookDetailsNotFound)?;
 
-    let webhooks = webhook_details
+    let webhook_urls = webhook_details
         .multiple_webhooks_list
         .clone()
         .ok_or(errors::WebhooksFlowError::MerchantWebhookDetailsNotFound)?;
 
-    webhooks
+    webhook_urls
+        .0
         .into_iter()
         .find(|d| &d.webhook_endpoint_id == endpoint_id)
         .ok_or(errors::WebhooksFlowError::MerchantWebhookDetailsNotFound.into())

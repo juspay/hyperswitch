@@ -1834,34 +1834,39 @@ async fn payout_incoming_webhook_update_status(
         })?;
     payout_data.payouts = updated_payouts;
 
+    let payout_attempt_id_for_error = payout_attempt.payout_attempt_id.clone();
+    let connector_payout_id = payout_attempt.connector_payout_id.clone();
+    let is_eligible = payout_attempt.is_eligible;
+    let payout_connector_metadata = payout_attempt.payout_connector_metadata.clone();
+
     // if status is failure then update the error_code and error_message as well
     let payout_attempt_update = if status.is_payout_failure() {
         PayoutAttemptUpdate::StatusUpdate {
-            connector_payout_id: payout_attempt.connector_payout_id.clone(),
+            connector_payout_id,
             status,
             error_message: payout_webhook_details.error_message,
             error_code: payout_webhook_details.error_code,
-            is_eligible: payout_attempt.is_eligible,
+            is_eligible,
             unified_code: None,
             unified_message: None,
-            payout_connector_metadata: payout_attempt.payout_connector_metadata.clone(),
+            payout_connector_metadata,
         }
     } else {
         PayoutAttemptUpdate::StatusUpdate {
-            connector_payout_id: payout_attempt.connector_payout_id.clone(),
+            connector_payout_id,
             status,
             error_message: None,
             error_code: None,
-            is_eligible: payout_data.payout_attempt.is_eligible,
+            is_eligible,
             unified_code: None,
             unified_message: None,
-            payout_connector_metadata: payout_attempt.payout_connector_metadata.clone(),
+            payout_connector_metadata,
         }
     };
 
     let updated_payout_attempt = db
         .update_payout_attempt(
-            payout_attempt,
+            &payout_data.payout_attempt,
             payout_attempt_update,
             &payout_data.payouts,
             platform.get_processor().get_account().storage_scheme,
@@ -1871,31 +1876,37 @@ async fn payout_incoming_webhook_update_status(
         .attach_printable_lazy(|| {
             format!(
                 "Failed while updating payout attempt: payout_attempt_id: {}",
-                payout_attempt.payout_attempt_id
+                payout_attempt_id_for_error
             )
         })?;
+
+    // Extract values needed for webhook before the mutable assignment
+    let payout_id_for_webhook = updated_payout_attempt.payout_id.clone();
+    let created_at_for_webhook = updated_payout_attempt.created_at;
+    let status_for_webhook = updated_payout_attempt.status;
+
     payout_data.payout_attempt = updated_payout_attempt;
 
-    let event_type: Option<enums::EventType> = payout_data.payout_attempt.status.into();
+    let event_type: Option<enums::EventType> = status_for_webhook.into();
 
     // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
     if let Some(outgoing_event_type) = event_type {
         Box::pin(super::add_bulk_outgoing_webhook_task_to_process_tracker(
             state,
             &business_profile,
-            payout_attempt.payout_id.get_string_repr(),
+            payout_id_for_webhook.get_string_repr(),
             outgoing_event_type,
             enums::EventClass::Payouts,
             enums::EventObjectType::PayoutDetails,
-            Some(payout_attempt.created_at),
+            Some(created_at_for_webhook),
         ))
         .await
         .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)?;
     }
 
     Ok(WebhookResponseTracker::Payout {
-        payout_id: payout_data.payout_attempt.payout_id.clone(),
-        status: payout_data.payout_attempt.status,
+        payout_id: payout_id_for_webhook,
+        status: status_for_webhook,
     })
 }
 
@@ -1911,10 +1922,10 @@ async fn payout_incoming_webhook_retrieve_status(
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     metrics::INCOMING_PAYOUT_WEBHOOK_SIGNATURE_FAILURE_METRIC.add(1, &[]);
     // Form connector data
-    let connector_data = match &payout_data.payout_attempt.connector {
+    let connector_data = match payout_data.payout_attempt.connector.clone() {
         Some(connector) => ConnectorData::get_payout_connector_by_name(
             &state.conf.connectors,
-            connector,
+            &connector,
             GetToken::Connector,
             payout_data.payout_attempt.merchant_connector_id.clone(),
         )
@@ -1942,24 +1953,17 @@ async fn payout_incoming_webhook_retrieve_status(
 
     // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
     if let Some(outgoing_event_type) = event_type {
-        let payout_response = payouts::response_handler(&state, &platform, payout_data).await?;
-
-        Box::pin(super::create_event_and_trigger_outgoing_webhook(
+        Box::pin(super::add_bulk_outgoing_webhook_task_to_process_tracker(
             state,
-            platform.get_processor().clone(),
-            business_profile,
+            &business_profile,
+            payout_data.payout_attempt.payout_id.get_string_repr(),
             outgoing_event_type,
             enums::EventClass::Payouts,
-            payout_data
-                .payout_attempt
-                .payout_id
-                .get_string_repr()
-                .to_string(),
             enums::EventObjectType::PayoutDetails,
-            api::OutgoingWebhookContent::PayoutDetails(Box::new(payout_response)),
             Some(payout_data.payout_attempt.created_at),
         ))
-        .await?;
+        .await
+        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)?;
     }
 
     Ok(WebhookResponseTracker::Payout {
