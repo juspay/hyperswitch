@@ -1411,3 +1411,7 @@ polling_interval = 15 # Polling interval in seconds for configuration updates
 "28" = { description = "Retry after 6 days", recommended_action = "retry_after_6_days" }
 "29" = { description = "Retry after 8 days", recommended_action = "retry_after_8_days" }
 "30" = { description = "Retry after 10 days", recommended_action = "retry_after_10_days" }
+
+# Configuration to decide whether to add payout sync process tracker for the following payout_method and connector
+[payout_sync_process_tracker.supported_payout_methods]
+wallet.connector_list = "paypal"

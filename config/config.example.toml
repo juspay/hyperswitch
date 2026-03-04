@@ -1394,3 +1394,7 @@ request_timeout =  60                           # Request timeout in seconds for
 # Base URLs for modular microservices
 # (e.g., payment-methods, customers, routing, etc.)
 payment_methods_base_url = "http://localhost:8082"
+
+# Configuration to decide whether to add payout sync process tracker for the following payout_method and connector
+[payout_sync_process_tracker.supported_payout_methods]
+wallet.connector_list = "paypal"
