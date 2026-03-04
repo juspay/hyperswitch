@@ -7119,3 +7119,41 @@ impl
         })
     }
 }
+
+#[cfg(test)]
+mod test_adyen_integrity {
+    use super::*;
+
+    #[test]
+    fn get_amount_from_response_variant_returns_some() {
+        let json = serde_json::json!({
+            "pspReference": "ABC123",
+            "resultCode": "Authorised",
+            "merchantReference": "ref_001",
+            "amount": { "currency": "EUR", "value": 1000 }
+        });
+        let response: AdyenResponse = serde_json::from_value(json).expect("valid json");
+        let payment_response = AdyenPaymentResponse::Response(Box::new(response));
+
+        let result = get_amount_from_payment_response(&payment_response);
+
+        assert!(result.is_some());
+        let amount = result.unwrap();
+        assert_eq!(amount.value, MinorUnit::new(1000));
+        assert_eq!(amount.currency.to_string(), "EUR");
+    }
+
+    #[test]
+    fn get_amount_from_redirection_error_returns_none() {
+        let json = serde_json::json!({
+            "resultCode": "Refused",
+            "refusalReason": "Not enough balance"
+        });
+        let response: RedirectionErrorResponse = serde_json::from_value(json).expect("valid json");
+        let payment_response = AdyenPaymentResponse::RedirectionErrorResponse(Box::new(response));
+
+        let result = get_amount_from_payment_response(&payment_response);
+
+        assert!(result.is_none());
+    }
+}
