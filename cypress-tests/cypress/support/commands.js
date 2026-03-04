@@ -413,6 +413,7 @@ function cleanupProcessedRequestIds(
 function logRequestId(xRequestId) {
   if (xRequestId) {
     cy.task("cli_log", "x-request-id -> " + xRequestId);
+    cy.task("setGlobalState", { xRequestId });
   } else {
     cy.task("cli_log", "x-request-id is not available in the response headers");
   }
