@@ -1288,6 +1288,44 @@ pub fn build_unified_connector_service_payment_method(
                         })),
                     })
                 }
+                hyperswitch_domain_models::payment_method_data::WalletData::SamsungPay(
+                    samsung_pay_wallet_data,
+                ) => Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::SamsungPay(
+                        payments_grpc::SamsungWallet {
+                            payment_credential: Some(
+                                payments_grpc::samsung_wallet::PaymentCredential {
+                                    method: samsung_pay_wallet_data.payment_credential.method,
+                                    recurring_payment: samsung_pay_wallet_data.payment_credential.recurring_payment,
+                                    card_brand: samsung_pay_wallet_data.payment_credential.card_brand as i32,
+                                    dpan_last_four_digits: samsung_pay_wallet_data.payment_credential.dpan_last_four_digits,
+                                    card_last_four_digits: samsung_pay_wallet_data.payment_credential.card_last_four_digits,
+                                    token_data: Some(
+                                        payments_grpc::samsung_wallet::payment_credential::TokenData {
+                                            r#type: samsung_pay_wallet_data
+                                                .payment_credential
+                                                .token_data
+                                                .three_ds_type
+                                                .clone(),
+                                            version: samsung_pay_wallet_data
+                                                .payment_credential
+                                                .token_data
+                                                .version
+                                                .clone(),
+                                            data: Some(
+                                                samsung_pay_wallet_data
+                                                    .payment_credential
+                                                    .token_data
+                                                    .data
+                                                    .expose()
+                                                    .into()),
+                                        },
+                                    ),
+                                },
+                            ),
+                        },
+                    )),
+                }),
                 hyperswitch_domain_models::payment_method_data::WalletData::GooglePayThirdPartySdk(
                     google_pay_sdk_data,
                 ) => {
