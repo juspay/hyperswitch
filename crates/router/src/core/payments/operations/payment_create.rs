@@ -1227,10 +1227,10 @@ impl PaymentCreate {
     /// Client payment uses `setup_future_usage=off_session` without `off_session=true`.
     /// Mark it as off-session so modular raw PM conversion
     /// can fall back to mandate payment data when CVC is unavailable.
-    fn get_payment_method_reference_and_off_session_status<'a>(
+    fn get_payment_method_reference_and_off_session_status(
         self,
-        req: &'a api::PaymentsRequest,
-    ) -> (Option<&'a String>, bool) {
+        req: &api::PaymentsRequest,
+    ) -> (Option<&String>, bool) {
         match (
             req.off_session,
             req.recurring_details.as_ref(),
