@@ -881,7 +881,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
                     utils::when(
                         pm_info.payment_method.0.customer_id
-                            != req.customer_id.clone().get_required_value("customer_id")?,
+                            != req
+                                .get_customer_id()
+                                .get_required_value("customer_id")?
+                                .clone(),
                         || {
                             logger::info!("Payment method id does not belong to the customer id provided in the request.");
                             Err(errors::ApiErrorResponse::PaymentMethodNotFound)
