@@ -1189,8 +1189,8 @@ pub async fn get_user_details_internally(
         state,
         &req,
         user_id.clone(),
-        |state, _auth, user_id, _| user_core::get_user_details_internally(state, user_id),
-        &auth::AdminApiAuth,
+        |state, _auth: (), user_id, _| user_core::get_user_details_internally(state, user_id),
+        &auth::InternalMerchantIdProfileIdAuth(auth::AdminApiAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await
