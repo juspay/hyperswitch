@@ -1167,6 +1167,13 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
         })?;
 
         if request.confirm.unwrap_or(false) {
+            helpers::validate_installment_data_in_create(
+                &request.installment_options,
+                &request.installment_data,
+            )?;
+        }
+
+        if request.confirm.unwrap_or(false) {
             helpers::validate_pm_or_token_given(
                 &request.payment_method,
                 &request
@@ -1579,6 +1586,7 @@ impl PaymentCreate {
                 encrypted_payment_method_data: None,
                 error_details: None,
                 retry_type: None,
+                installment_data: None,
             },
             additional_pm_data,
 
