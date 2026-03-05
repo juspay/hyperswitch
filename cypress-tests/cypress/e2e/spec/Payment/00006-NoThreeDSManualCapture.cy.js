@@ -23,7 +23,9 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         let shouldContinue = true;
 
         step("Create Payment Intent", shouldContinue, () => {
-          const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PaymentIntent"];
 
           cy.createPaymentIntentTest(
             fixtures.createPaymentBody,
@@ -43,7 +45,9 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         });
 
         step("Confirm Payment Intent", shouldContinue, () => {
-          const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSManualCapture"];
+          const confirmData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["card_pm"]["No3DSManualCapture"];
 
           cy.confirmCallTest(
             fixtures.confirmBody,
@@ -58,7 +62,9 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         });
 
         step("Retrieve Payment after Confirmation", shouldContinue, () => {
-          const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSManualCapture"];
+          const confirmData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["card_pm"]["No3DSManualCapture"];
 
           cy.retrievePaymentCallTest({ globalState, data: confirmData });
 
@@ -68,7 +74,9 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         });
 
         step("Capture Payment", shouldContinue, () => {
-          const captureData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Capture"];
+          const captureData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["card_pm"]["Capture"];
 
           cy.captureCallTest(fixtures.captureBody, captureData, globalState);
 
@@ -78,7 +86,9 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         });
 
         step("Retrieve Payment after Capture", shouldContinue, () => {
-          const captureData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Capture"];
+          const captureData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["card_pm"]["Capture"];
 
           cy.retrievePaymentCallTest({ globalState, data: captureData });
         });
@@ -93,7 +103,9 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         let shouldContinue = true;
 
         step("Create and Confirm Payment Intent", shouldContinue, () => {
-          const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSManualCapture"];
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["No3DSManualCapture"];
 
           cy.createConfirmPaymentTest(
             fixtures.createConfirmPaymentBody,
@@ -109,7 +121,9 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         });
 
         step("Retrieve Payment after Confirmation", shouldContinue, () => {
-          const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSManualCapture"];
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["No3DSManualCapture"];
 
           cy.retrievePaymentCallTest({ globalState, data });
 
@@ -119,7 +133,9 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         });
 
         step("Capture Payment", shouldContinue, () => {
-          const captureData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Capture"];
+          const captureData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["card_pm"]["Capture"];
 
           cy.captureCallTest(fixtures.captureBody, captureData, globalState);
 
@@ -129,7 +145,9 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         });
 
         step("Retrieve Payment after Capture", shouldContinue, () => {
-          const captureData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Capture"];
+          const captureData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["card_pm"]["Capture"];
 
           cy.retrievePaymentCallTest({ globalState, data: captureData });
         });
@@ -144,7 +162,9 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         let shouldContinue = true;
 
         step("Create Payment Intent", shouldContinue, () => {
-          const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PaymentIntent"];
 
           cy.createPaymentIntentTest(
             fixtures.createPaymentBody,
@@ -164,7 +184,9 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         });
 
         step("Confirm Payment Intent", shouldContinue, () => {
-          const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSManualCapture"];
+          const confirmData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["card_pm"]["No3DSManualCapture"];
 
           cy.confirmCallTest(
             fixtures.confirmBody,
@@ -179,7 +201,9 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         });
 
         step("Retrieve Payment after Confirmation", shouldContinue, () => {
-          const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSManualCapture"];
+          const confirmData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["card_pm"]["No3DSManualCapture"];
 
           cy.retrievePaymentCallTest({ globalState, data: confirmData });
 
@@ -189,7 +213,9 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         });
 
         step("Partial Capture Payment", shouldContinue, () => {
-          const partialCaptureData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PartialCapture"];
+          const partialCaptureData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["card_pm"]["PartialCapture"];
 
           cy.captureCallTest(
             fixtures.captureBody,
@@ -203,7 +229,9 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         });
 
         step("Retrieve Payment after Partial Capture", shouldContinue, () => {
-          const partialCaptureData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PartialCapture"];
+          const partialCaptureData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["card_pm"]["PartialCapture"];
 
           cy.retrievePaymentCallTest({ globalState, data: partialCaptureData });
         });
@@ -218,7 +246,9 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         let shouldContinue = true;
 
         step("Create and Confirm Payment Intent", shouldContinue, () => {
-          const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSManualCapture"];
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["No3DSManualCapture"];
 
           cy.createConfirmPaymentTest(
             fixtures.createConfirmPaymentBody,
@@ -234,7 +264,9 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         });
 
         step("Retrieve Payment after Confirmation", shouldContinue, () => {
-          const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSManualCapture"];
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["No3DSManualCapture"];
 
           cy.retrievePaymentCallTest({ globalState, data });
 
@@ -244,7 +276,9 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         });
 
         step("Partial Capture Payment", shouldContinue, () => {
-          const partialCaptureData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PartialCapture"];
+          const partialCaptureData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["card_pm"]["PartialCapture"];
 
           cy.captureCallTest(
             fixtures.captureBody,
@@ -258,7 +292,9 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         });
 
         step("Retrieve Payment after Partial Capture", shouldContinue, () => {
-          const partialCaptureData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PartialCapture"];
+          const partialCaptureData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["card_pm"]["PartialCapture"];
 
           cy.retrievePaymentCallTest({ globalState, data: partialCaptureData });
         });

@@ -21,9 +21,9 @@ describe("Card - NoThreeDS payment flow test", () => {
       let shouldContinue = true;
 
       step("Create Payment Intent", shouldContinue, () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-          "PaymentIntent"
-        ];
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntent"];
 
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
@@ -74,9 +74,9 @@ describe("Card - NoThreeDS payment flow test", () => {
       let shouldContinue = true;
 
       step("Create and Confirm Payment", shouldContinue, () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-          "No3DSAutoCapture"
-        ];
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["No3DSAutoCapture"];
 
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
@@ -92,9 +92,9 @@ describe("Card - NoThreeDS payment flow test", () => {
       });
 
       step("Retrieve Payment", shouldContinue, () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-          "No3DSAutoCapture"
-        ];
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["No3DSAutoCapture"];
 
         cy.retrievePaymentCallTest({ globalState, data });
       });
@@ -106,9 +106,9 @@ describe("Card - NoThreeDS payment flow test", () => {
       let shouldContinue = true;
 
       step("Create Payment Intent with shipping cost", shouldContinue, () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-          "PaymentIntentWithShippingCost"
-        ];
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntentWithShippingCost"];
 
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,

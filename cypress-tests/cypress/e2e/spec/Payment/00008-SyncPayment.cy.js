@@ -21,7 +21,9 @@ describe("Card - Sync payment flow test", () => {
       let shouldContinue = true;
 
       step("Create Payment Intent", shouldContinue, () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntent"];
 
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
@@ -41,7 +43,9 @@ describe("Card - Sync payment flow test", () => {
       });
 
       step("Confirm Payment Intent", shouldContinue, () => {
-        const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["No3DSAutoCapture"];
 
         cy.confirmCallTest(
           fixtures.confirmBody,
@@ -56,7 +60,9 @@ describe("Card - Sync payment flow test", () => {
       });
 
       step("Retrieve Payment after Confirmation", shouldContinue, () => {
-        const confirmData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["No3DSAutoCapture"];
 
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
       });
