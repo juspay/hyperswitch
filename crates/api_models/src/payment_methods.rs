@@ -19,7 +19,8 @@ use common_utils::{
 use masking::PeekInterface;
 use serde::de;
 use utoipa::ToSchema;
-
+#[cfg(feature = "v1")]
+use error_stack::ResultExt;
 #[cfg(feature = "v1")]
 use crate::payments::BankCodeResponse;
 #[cfg(feature = "payouts")]
@@ -2589,13 +2590,12 @@ pub struct PaymentMethodListInstallmentAmountDetails {
 }
 
 impl PaymentMethodListInstallmentPlan {
-    pub fn try_from_installment_option_data(
+    pub fn from_installment_option_data(
         data: common_types::payments::InstallmentOptionData,
         order_amount: MinorUnit,
         net_amount: MinorUnit,
         currency: api_enums::Currency,
     ) -> errors::CustomResult<Vec<Self>, errors::ParsingError> {
-        use error_stack::ResultExt;
         data.number_of_installments
             .as_slice()
             .iter()
@@ -2630,7 +2630,7 @@ impl PaymentMethodListInstallmentPlan {
 }
 
 impl PaymentMethodListInstallmentOption {
-    pub fn try_from_installment_option(
+    pub fn from_installment_option(
         opt: common_types::payments::InstallmentOption,
         order_amount: MinorUnit,
         net_amount: MinorUnit,
@@ -2640,7 +2640,7 @@ impl PaymentMethodListInstallmentOption {
             .installments
             .into_iter()
             .map(|data| {
-                PaymentMethodListInstallmentPlan::try_from_installment_option_data(
+                PaymentMethodListInstallmentPlan::from_installment_option_data(
                     data,
                     order_amount,
                     net_amount,

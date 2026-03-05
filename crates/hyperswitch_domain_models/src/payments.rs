@@ -59,7 +59,7 @@ use crate::{
     ApiModelToDieselModelConvertor,
 };
 #[cfg(feature = "v1")]
-use crate::{errors, payment_method_data, RemoteStorageObject};
+use crate::{errors, ext_traits::OptionExt, payment_method_data, RemoteStorageObject};
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToEncryption)]
@@ -468,25 +468,23 @@ impl PaymentIntent {
 
         let installment_options = self
             .installment_options
-            .and_then(|opts| {
-                let currency = self.currency?;
-                let order_amount = self.amount;
-                Some(
-                    opts.into_iter()
-                        .map(|opt| {
-                            PaymentMethodListInstallmentOption::try_from_installment_option(
-                                opt,
-                                order_amount,
-                                net_amount,
-                                currency,
-                            )
-                        })
-                        .collect::<CustomResult<Vec<_>, _>>(),
-                )
+            .map(|opts| {
+                let currency = self.currency.get_required_value("currency")?;
+                opts.into_iter()
+                    .map(|opt| {
+                        PaymentMethodListInstallmentOption::from_installment_option(
+                            opt, self.amount, net_amount, currency,
+                        )
+                    })
+                    .collect::<CustomResult<Vec<_>, _>>()
+                    .change_context(
+                        errors::api_error_response::ApiErrorResponse::InternalServerError,
+                    )
+                    .attach_printable(
+                        "Failed to transform installment options for payment method list",
+                    )
             })
-            .transpose()
-            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to transform installment options for payment method list")?;
+            .transpose()?;
 
         Ok(PaymentMethodListIntentData {
             payment_id: self.payment_id,
