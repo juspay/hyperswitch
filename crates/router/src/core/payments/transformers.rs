@@ -3995,6 +3995,9 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse feature metadata")?;
 
+        let connector_response_metadata =
+            payment_attempt.get_connector_response_metadata_from_attempt_metadata();
+
         let payments_response = api::PaymentsResponse {
             payment_id: payment_intent.payment_id,
             merchant_id: payment_intent.merchant_id,
@@ -4007,6 +4010,7 @@ where
             initiator: initiator.and_then(|initiator| initiator.to_api_initiator()),
             sdk_authorization: Some(sdk_authorization),
             connector: routed_through,
+            state_metadata: payment_intent.state_metadata,
             client_secret: payment_intent.client_secret.map(Secret::new),
             created: Some(payment_intent.created_at),
             modified_at: Some(payment_intent.modified_at),
@@ -4135,6 +4139,8 @@ where
             billing_descriptor: payment_intent.billing_descriptor,
             partner_merchant_identifier_details: payment_intent.partner_merchant_identifier_details,
             payment_method_tokenization_details,
+            installment_options: payment_intent.installment_options,
+            connector_response_metadata,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -4299,11 +4305,13 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
     fn foreign_from((pi, pa): (storage::PaymentIntent, storage::PaymentAttempt)) -> Self {
         let connector_transaction_id = pa.get_connector_payment_id().map(ToString::to_string);
         Self {
+            connector_response_metadata: pa.get_connector_response_metadata_from_attempt_metadata(),
             payment_id: pi.payment_id,
             merchant_id: pi.merchant_id,
             status: pi.status,
             amount: pi.amount,
             amount_capturable: pa.amount_capturable,
+            state_metadata: pi.state_metadata,
             client_secret: pi.client_secret.map(|s| s.into()),
             created: Some(pi.created_at),
             modified_at: Some(pi.modified_at),
@@ -4448,6 +4456,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             billing_descriptor: pi.billing_descriptor,
             partner_merchant_identifier_details: pi.partner_merchant_identifier_details,
             payment_method_tokenization_details: None,
+            installment_options: pi.installment_options,
         }
     }
 }

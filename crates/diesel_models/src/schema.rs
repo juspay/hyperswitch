@@ -1257,6 +1257,7 @@ diesel::table! {
         tokenization -> Nullable<Varchar>,
         partner_merchant_identifier_details -> Nullable<Jsonb>,
         state_metadata -> Nullable<Jsonb>,
+        installment_options -> Nullable<Jsonb>,
     }
 }
 
@@ -1837,6 +1838,7 @@ diesel::table! {
         totp_recovery_codes -> Nullable<Array<Nullable<Text>>>,
         last_password_modified_at -> Nullable<Timestamp>,
         lineage_context -> Nullable<Jsonb>,
+        is_active -> Nullable<Bool>,
     }
 }
 
