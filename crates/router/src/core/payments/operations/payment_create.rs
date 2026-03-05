@@ -1228,7 +1228,7 @@ impl PaymentCreate {
     /// Mark it as off-session so modular raw PM conversion
     /// can fall back to mandate payment data when CVC is unavailable.
     fn get_payment_method_reference_and_off_session_status<'a>(
-        &self,
+        self,
         req: &'a api::PaymentsRequest,
     ) -> (Option<&'a String>, bool) {
         match (
