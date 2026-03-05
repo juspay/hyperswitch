@@ -43,6 +43,8 @@ use crate::{
     types::{api, domain},
     utils::OptionExt,
 };
+#[cfg(feature = "v1")]
+use crate::core::utils as core_utils;
 #[cfg(feature = "v2")]
 use crate::{
     consts,
@@ -1519,6 +1521,80 @@ impl
 }
 
 #[cfg(feature = "v1")]
+struct NtiInput {
+    raw_data: payment_methods::types::RawPaymentMethodData,
+    card_token: Option<domain::CardToken>,
+}
+
+#[cfg(feature = "v1")]
+impl From<NtiInput> for DomainPaymentMethodDataWrapper {
+    fn from(input: NtiInput) -> Self {
+        let NtiInput {
+            raw_data,
+            card_token,
+        } = input;
+        match raw_data {
+            payment_methods::types::RawPaymentMethodData::Card(card_detail) => {
+                let card_holder_name = card_token
+                    .and_then(|token| token.card_holder_name)
+                    .or(card_detail.card_holder_name);
+
+                Self(domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
+                    hyperswitch_domain_models::payment_method_data::CardDetailsForNetworkTransactionId {
+                        card_number: card_detail.card_number,
+                        card_exp_month: card_detail.card_exp_month,
+                        card_exp_year: card_detail.card_exp_year,
+                        card_issuer: card_detail.card_issuer,
+                        card_network: card_detail.card_network,
+                        card_type: card_detail.card_type.map(|card_type| card_type.to_string()),
+                        card_issuing_country: card_detail.card_issuing_country,
+                        card_issuing_country_code: None,
+                        bank_code: None,
+                        nick_name: card_detail.nick_name,
+                        card_holder_name,
+                    },
+                ))
+            }
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+fn resolve_modular_retrieved_pmd(
+    raw_data: Option<payment_methods::types::RawPaymentMethodData>,
+    card_token: Option<domain::CardToken>,
+    network_transaction_id: Option<String>,
+    is_off_session_payment: bool,
+    is_connector_agnostic_mit_enabled: bool,
+) -> CustomResult<Option<domain::PaymentMethodData>, errors::ApiErrorResponse> {
+    match is_off_session_payment {
+        true => match (
+            raw_data,
+            network_transaction_id,
+            is_connector_agnostic_mit_enabled,
+        ) {
+            (Some(raw_data), Some(_), true) => Ok(Some(
+                DomainPaymentMethodDataWrapper::from(NtiInput {
+                    raw_data,
+                    card_token,
+                })
+                .0,
+            )),
+            _ => Ok(Some(domain::PaymentMethodData::MandatePayment)),
+        },
+        false => {
+            let raw_data = raw_data.get_required_value("raw_payment_method_data")?;
+            let payment_method_data =
+                DomainPaymentMethodDataWrapper::try_from((raw_data, card_token))
+                    .attach_printable("Failed to convert raw payment method data")?
+                    .0;
+
+            Ok(Some(payment_method_data))
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
 impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn try_from(response: CreatePaymentMethodResponse) -> Result<Self, Self::Error> {
@@ -1609,23 +1685,27 @@ pub async fn fetch_payment_method_from_modular_service(
     .await
     .attach_printable("Failed to transform payment method retrieve response")?;
 
-    let raw_payment_method_data = if is_off_session_payment {
-        Some(DomainPaymentMethodDataWrapper(
-            domain::PaymentMethodData::MandatePayment,
-        ))
-    } else {
-        pm_response
-            .raw_payment_method_data
-            .map(|raw_data| {
-                DomainPaymentMethodDataWrapper::try_from((raw_data, pmd_card_token.clone()))
-            })
-            .transpose()
-            .attach_printable("Failed to convert raw payment method data")?
-    };
+    let is_connector_agnostic_mit_enabled = core_utils::validate_and_get_business_profile(
+        state.store.as_ref(),
+        platform.get_processor(),
+        Some(profile_id),
+    )
+    .await?
+    .and_then(|business_profile| business_profile.is_connector_agnostic_mit_enabled)
+    .unwrap_or(false);
+
+    let raw_payment_method_data = resolve_modular_retrieved_pmd(
+        pm_response.raw_payment_method_data,
+        pmd_card_token,
+        pm_response.network_transaction_id.clone(),
+        is_off_session_payment,
+        is_connector_agnostic_mit_enabled,
+    )
+    .attach_printable("Failed to resolve payment method data for modular retrieve flow")?;
 
     let pm_wrapper = PaymentMethodWithRawData {
         payment_method,
-        raw_payment_method_data: raw_payment_method_data.map(|wrapper| wrapper.0),
+        raw_payment_method_data,
     };
     Ok(pm_wrapper)
 }
