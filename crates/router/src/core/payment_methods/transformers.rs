@@ -30,6 +30,8 @@ use router_env::RequestId;
 use router_env::{logger, RequestIdentifier};
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "v1")]
+use crate::core::utils as core_utils;
 use crate::{
     configs::settings,
     core::{
@@ -43,8 +45,6 @@ use crate::{
     types::{api, domain},
     utils::OptionExt,
 };
-#[cfg(feature = "v1")]
-use crate::core::utils as core_utils;
 #[cfg(feature = "v2")]
 use crate::{
     consts,
