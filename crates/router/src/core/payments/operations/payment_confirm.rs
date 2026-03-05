@@ -880,15 +880,16 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         );
 
         //setting vault operation to existing vault data if raw payment method data is present in pm_info
-        let vault_operation =
-            payment_method_with_raw_data.and_then(|pm| match pm.raw_payment_method_data {
+        let vault_operation = payment_method_with_raw_data.as_ref().and_then(|pm| {
+            match pm.raw_payment_method_data.clone() {
                 Some(domain::PaymentMethodData::Card(card)) => {
                     Some(domain_payments::VaultOperation::ExistingVaultData(
                         domain_payments::VaultData::Card(card),
                     ))
                 }
                 _ => None,
-            });
+            }
+        });
 
         let payment_data = PaymentData {
             flow: PhantomData,
@@ -1110,6 +1111,12 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                     field_name: "payment_method_data",
                                 })?;
 
+                            let network_tokenization = business_profile
+                                .is_network_tokenization_enabled
+                                .then_some(common_types::payment_methods::NetworkTokenization {
+                                    enable: common_enums::NetworkTokenizationToggle::Enable,
+                                });
+
                             match pm_transformers::create_payment_method_in_modular_service(
                                 state,
                                 platform.get_provider().get_account().get_id(),
@@ -1127,6 +1134,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                     .customer_id
                                     .clone()
                                     .get_required_value("customer_id")?,
+                                network_tokenization,
                             )
                             .await
                             {

@@ -30,6 +30,8 @@ use router_env::RequestId;
 use router_env::{logger, RequestIdentifier};
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "v1")]
+use crate::core::utils as core_utils;
 use crate::{
     configs::settings,
     core::{
@@ -43,8 +45,6 @@ use crate::{
     types::{api, domain},
     utils::OptionExt,
 };
-#[cfg(feature = "v1")]
-use crate::core::utils as core_utils;
 #[cfg(feature = "v2")]
 use crate::{
     consts,
@@ -1486,37 +1486,40 @@ impl
             Option<domain::CardToken>,
         ),
     ) -> Result<Self, Self::Error> {
-        match raw_data {
-            payment_methods::types::RawPaymentMethodData::Card(card_detail) => {
-                // Use card_cvc from card_token if available, otherwise fall back to card_details.card_cvc
-                let card_cvc = card_token
-                    .as_ref()
-                    .and_then(|token| token.card_cvc.clone())
-                    .or(card_detail.card_cvc.clone())
-                    .get_required_value("card_cvc")?;
-                let card_holder_name = card_token
-                    .and_then(|token| token.card_holder_name.clone())
-                    .or(card_detail.card_holder_name.clone());
-
-                Ok(Self(domain::PaymentMethodData::Card(
-                    hyperswitch_domain_models::payment_method_data::Card {
-                        card_number: card_detail.card_number,
-                        card_exp_month: card_detail.card_exp_month,
-                        card_exp_year: card_detail.card_exp_year,
-                        card_cvc,
-                        card_issuer: card_detail.card_issuer,
-                        card_network: card_detail.card_network,
-                        card_type: card_detail.card_type.map(|card_type| card_type.to_string()),
-                        card_issuing_country: card_detail.card_issuing_country,
-                        card_issuing_country_code: None,
-                        bank_code: None,
-                        nick_name: card_detail.nick_name,
-                        card_holder_name,
-                        co_badged_card_data: None,
-                    },
-                )))
+        let card_detail = match raw_data {
+            payment_methods::types::RawPaymentMethodData::Card(card_detail) => card_detail,
+            payment_methods::types::RawPaymentMethodData::CardWithNT(card_with_nt) => {
+                card_with_nt.card_details
             }
-        }
+        };
+
+        // Use card_cvc from card_token if available, otherwise fall back to card_details.card_cvc
+        let card_cvc = card_token
+            .as_ref()
+            .and_then(|token| token.card_cvc.clone())
+            .or(card_detail.card_cvc.clone())
+            .get_required_value("card_cvc")?;
+        let card_holder_name = card_token
+            .and_then(|token| token.card_holder_name.clone())
+            .or(card_detail.card_holder_name.clone());
+
+        Ok(Self(domain::PaymentMethodData::Card(
+            hyperswitch_domain_models::payment_method_data::Card {
+                card_number: card_detail.card_number,
+                card_exp_month: card_detail.card_exp_month,
+                card_exp_year: card_detail.card_exp_year,
+                card_cvc,
+                card_issuer: card_detail.card_issuer,
+                card_network: card_detail.card_network,
+                card_type: card_detail.card_type.map(|card_type| card_type.to_string()),
+                card_issuing_country: card_detail.card_issuing_country,
+                card_issuing_country_code: None,
+                bank_code: None,
+                nick_name: card_detail.nick_name,
+                card_holder_name,
+                co_badged_card_data: None,
+            },
+        )))
     }
 }
 
@@ -1533,29 +1536,32 @@ impl From<NtiInput> for DomainPaymentMethodDataWrapper {
             raw_data,
             card_token,
         } = input;
-        match raw_data {
-            payment_methods::types::RawPaymentMethodData::Card(card_detail) => {
-                let card_holder_name = card_token
-                    .and_then(|token| token.card_holder_name)
-                    .or(card_detail.card_holder_name);
-
-                Self(domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
-                    hyperswitch_domain_models::payment_method_data::CardDetailsForNetworkTransactionId {
-                        card_number: card_detail.card_number,
-                        card_exp_month: card_detail.card_exp_month,
-                        card_exp_year: card_detail.card_exp_year,
-                        card_issuer: card_detail.card_issuer,
-                        card_network: card_detail.card_network,
-                        card_type: card_detail.card_type.map(|card_type| card_type.to_string()),
-                        card_issuing_country: card_detail.card_issuing_country,
-                        card_issuing_country_code: None,
-                        bank_code: None,
-                        nick_name: card_detail.nick_name,
-                        card_holder_name,
-                    },
-                ))
+        let card_detail = match raw_data {
+            payment_methods::types::RawPaymentMethodData::Card(card_detail) => card_detail,
+            payment_methods::types::RawPaymentMethodData::CardWithNT(card_with_nt) => {
+                card_with_nt.card_details
             }
-        }
+        };
+
+        let card_holder_name = card_token
+            .and_then(|token| token.card_holder_name)
+            .or(card_detail.card_holder_name);
+
+        Self(domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
+            hyperswitch_domain_models::payment_method_data::CardDetailsForNetworkTransactionId {
+                card_number: card_detail.card_number,
+                card_exp_month: card_detail.card_exp_month,
+                card_exp_year: card_detail.card_exp_year,
+                card_issuer: card_detail.card_issuer,
+                card_network: card_detail.card_network,
+                card_type: card_detail.card_type.map(|card_type| card_type.to_string()),
+                card_issuing_country: card_detail.card_issuing_country,
+                card_issuing_country_code: None,
+                bank_code: None,
+                nick_name: card_detail.nick_name,
+                card_holder_name,
+            },
+        ))
     }
 }
 
@@ -1568,18 +1574,44 @@ fn resolve_modular_retrieved_pmd(
     is_connector_agnostic_mit_enabled: bool,
 ) -> CustomResult<Option<domain::PaymentMethodData>, errors::ApiErrorResponse> {
     match is_off_session_payment {
-        true => match (
-            raw_data,
-            network_transaction_id,
-            is_connector_agnostic_mit_enabled,
-        ) {
-            (Some(raw_data), Some(_), true) => Ok(Some(
-                DomainPaymentMethodDataWrapper::from(NtiInput {
-                    raw_data,
-                    card_token,
-                })
-                .0,
-            )),
+        true => match raw_data {
+            Some(payment_methods::types::RawPaymentMethodData::Card(card_detail))
+                if network_transaction_id.is_some() && is_connector_agnostic_mit_enabled =>
+            {
+                Ok(Some(
+                    DomainPaymentMethodDataWrapper::from(NtiInput {
+                        raw_data: payment_methods::types::RawPaymentMethodData::Card(card_detail),
+                        card_token,
+                    })
+                    .0,
+                ))
+            }
+            Some(payment_methods::types::RawPaymentMethodData::CardWithNT(card_with_nt))
+                if network_transaction_id.is_some() && is_connector_agnostic_mit_enabled =>
+            {
+                Ok(Some(
+                    domain::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(
+                        hyperswitch_domain_models::payment_method_data::NetworkTokenDetailsForNetworkTransactionId {
+                            network_token: card_with_nt.network_token_details.card_number.into(),
+                            token_exp_month: card_with_nt.network_token_details.card_exp_month,
+                            token_exp_year: card_with_nt.network_token_details.card_exp_year,
+                            card_issuer: card_with_nt.network_token_details.card_issuer,
+                            card_network: card_with_nt.network_token_details.card_network,
+                            card_type: card_with_nt
+                                .network_token_details
+                                .card_type
+                                .map(|card_type| card_type.to_string()),
+                            card_issuing_country: card_with_nt
+                                .network_token_details
+                                .card_issuing_country,
+                            bank_code: None,
+                            nick_name: card_with_nt.network_token_details.nick_name,
+                            card_holder_name: card_with_nt.network_token_details.card_holder_name,
+                            eci: None,
+                        },
+                    ),
+                ))
+            }
             _ => Ok(Some(domain::PaymentMethodData::MandatePayment)),
         },
         false => {
@@ -1774,6 +1806,7 @@ pub async fn create_payment_method_in_modular_service(
     payment_method_data: domain::PaymentMethodData,
     billing_address: Option<hyperswitch_domain_models::address::Address>,
     customer_id: id_type::CustomerId,
+    network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
 ) -> CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
     let payment_method_request = CreatePaymentMethodV1Request {
         merchant_id: provider_merchant_id.clone(),
@@ -1783,7 +1816,7 @@ pub async fn create_payment_method_in_modular_service(
         customer_id,
         payment_method_data,
         billing: billing_address,
-        network_tokenization: None,
+        network_tokenization,
         storage_type: Some(common_enums::StorageType::Persistent),
         modular_service_prefix: state.conf.micro_services.payment_methods_prefix.0.clone(),
     };

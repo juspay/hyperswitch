@@ -9887,6 +9887,11 @@ where
                     payment_data.get_payment_method_data(),
                     Some(domain::PaymentMethodData::MandatePayment)
                         | Some(domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_))
+                        | Some(
+                            domain::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(
+                                _
+                            )
+                        )
                 )
                 && payment_data.get_payment_method_info().is_some()) =>
         {
@@ -9899,6 +9904,7 @@ where
                 payment_data,
                 routing_data,
                 connectors,
+                is_payment_method_modular_allowed,
                 is_connector_agnostic_mit_enabled,
                 is_network_tokenization_enabled,
             )
@@ -9918,6 +9924,7 @@ where
                 payment_data,
                 routing_data,
                 connectors,
+                is_payment_method_modular_allowed,
                 is_connector_agnostic_mit_enabled,
                 is_network_tokenization_enabled,
             )
@@ -9977,6 +9984,7 @@ async fn route_token_based_mit_connectors<F: Clone, D>(
     payment_data: &mut D,
     routing_data: &mut storage::RoutingData,
     connectors: Vec<api::ConnectorRoutingData>,
+    is_payment_method_modular_allowed: bool,
     is_connector_agnostic_mit_enabled: Option<bool>,
     is_network_tokenization_enabled: bool,
 ) -> RouterResult<ConnectorCallType>
@@ -9993,6 +10001,7 @@ where
         async move {
             let action_types = get_all_action_types(
                 state,
+                is_payment_method_modular_allowed,
                 is_connector_agnostic_mit_enabled,
                 is_network_tokenization_enabled,
                 &payment_method.clone(),
@@ -10381,6 +10390,7 @@ impl ActionTypesBuilder {
 #[cfg(feature = "v1")]
 pub async fn get_all_action_types(
     state: &SessionState,
+    is_payment_method_modular_allowed: bool,
     is_connector_agnostic_mit_enabled: Option<bool>,
     is_network_tokenization_enabled: bool,
     payment_method_info: &domain::PaymentMethod,
@@ -10430,17 +10440,31 @@ pub async fn get_all_action_types(
         .contains(&connector.connector_name)
         && network_tokenization_supported_connectors.contains(&connector.connector_name);
 
-    ActionTypesBuilder::new()
-        .with_mandate_flow(is_mandate_flow, payments_mandate_reference)
-        .with_network_tokenization(
-            state,
-            is_network_token_with_ntid_flow,
-            is_nt_with_ntid_supported_connector,
-            payment_method_info,
-        )
-        .await
-        .with_card_network_transaction_id(is_card_with_ntid_flow, payment_method_info)
-        .build()
+    if is_payment_method_modular_allowed {
+        ActionTypesBuilder::new()
+            .with_network_tokenization(
+                state,
+                is_network_token_with_ntid_flow,
+                is_nt_with_ntid_supported_connector,
+                payment_method_info,
+            )
+            .await
+            .with_card_network_transaction_id(is_card_with_ntid_flow, payment_method_info)
+            .with_mandate_flow(is_mandate_flow, payments_mandate_reference)
+            .build()
+    } else {
+        ActionTypesBuilder::new()
+            .with_mandate_flow(is_mandate_flow, payments_mandate_reference)
+            .with_network_tokenization(
+                state,
+                is_network_token_with_ntid_flow,
+                is_nt_with_ntid_supported_connector,
+                payment_method_info,
+            )
+            .await
+            .with_card_network_transaction_id(is_card_with_ntid_flow, payment_method_info)
+            .build()
+    }
 }
 
 pub fn is_network_transaction_id_flow(
