@@ -20,17 +20,10 @@ describe("Card - ThreeDS payment flow test", () => {
     it("create payment intent -> payment methods call -> confirm payment intent -> handle redirection", () => {
       let shouldContinue = true;
 
-<<<<<<< Updated upstream
-      cy.step("create payment intent", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentIntent"];
-=======
       step("create payment intent", shouldContinue, () => {
         const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
           "PaymentIntent"
         ];
->>>>>>> Stashed changes
 
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
