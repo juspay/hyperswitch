@@ -1,6 +1,7 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
+import step from "../../../utils/customStep";
 
 let globalState;
 
@@ -19,7 +20,7 @@ describe("Bank Redirect tests", () => {
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment", () => {
       let shouldContinue = true;
 
-      cy.step("Create Payment Intent", () => {
+      step("Create Payment Intent", shouldContinue, () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["PaymentIntent"]("Blik");
@@ -35,19 +36,11 @@ describe("Bank Redirect tests", () => {
         }
       });
 
-      cy.step("List Merchant Payment Methods", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
-          return;
-        }
+      step("List Merchant Payment Methods", shouldContinue, () => {
         cy.paymentMethodsCallTest(globalState);
       });
 
-      cy.step("Confirm Payment", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Payment");
-          return;
-        }
+      step("Confirm Payment", shouldContinue, () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["Blik"];
@@ -65,7 +58,7 @@ describe("Bank Redirect tests", () => {
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection", () => {
       let shouldContinue = true;
 
-      cy.step("Create Payment Intent", () => {
+      step("Create Payment Intent", shouldContinue, () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["PaymentIntent"]("Eps");
@@ -81,19 +74,11 @@ describe("Bank Redirect tests", () => {
         }
       });
 
-      cy.step("List Merchant Payment Methods", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
-          return;
-        }
+      step("List Merchant Payment Methods", shouldContinue, () => {
         cy.paymentMethodsCallTest(globalState);
       });
 
-      cy.step("Confirm Payment", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Payment");
-          return;
-        }
+      step("Confirm Payment", shouldContinue, () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["Eps"];
@@ -108,11 +93,7 @@ describe("Bank Redirect tests", () => {
         }
       });
 
-      cy.step("Handle Bank Redirect Redirection", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Handle Bank Redirect Redirection");
-          return;
-        }
+      step("Handle Bank Redirect Redirection", shouldContinue, () => {
         const expected_redirection = fixtures.confirmBody["return_url"];
         const payment_method_type = globalState.get("paymentMethodType");
         cy.handleBankRedirectRedirection(
@@ -128,7 +109,7 @@ describe("Bank Redirect tests", () => {
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection", () => {
       let shouldContinue = true;
 
-      cy.step("Create Payment Intent", () => {
+      step("Create Payment Intent", shouldContinue, () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["PaymentIntent"]("Ideal");
@@ -144,19 +125,11 @@ describe("Bank Redirect tests", () => {
         }
       });
 
-      cy.step("List Merchant Payment Methods", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
-          return;
-        }
+      step("List Merchant Payment Methods", shouldContinue, () => {
         cy.paymentMethodsCallTest(globalState);
       });
 
-      cy.step("Confirm Payment", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Payment");
-          return;
-        }
+      step("Confirm Payment", shouldContinue, () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["Ideal"];
@@ -171,11 +144,7 @@ describe("Bank Redirect tests", () => {
         }
       });
 
-      cy.step("Handle Bank Redirect Redirection", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Handle Bank Redirect Redirection");
-          return;
-        }
+      step("Handle Bank Redirect Redirection", shouldContinue, () => {
         const expected_redirection = fixtures.confirmBody["return_url"];
         const payment_method_type = globalState.get("paymentMethodType");
         cy.handleBankRedirectRedirection(
@@ -191,7 +160,7 @@ describe("Bank Redirect tests", () => {
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection", () => {
       let shouldContinue = true;
 
-      cy.step("Create Payment Intent", () => {
+      step("Create Payment Intent", shouldContinue, () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["PaymentIntent"]("Sofort");
@@ -207,19 +176,11 @@ describe("Bank Redirect tests", () => {
         }
       });
 
-      cy.step("List Merchant Payment Methods", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
-          return;
-        }
+      step("List Merchant Payment Methods", shouldContinue, () => {
         cy.paymentMethodsCallTest(globalState);
       });
 
-      cy.step("Confirm Payment", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Payment");
-          return;
-        }
+      step("Confirm Payment", shouldContinue, () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["Sofort"];
@@ -234,11 +195,7 @@ describe("Bank Redirect tests", () => {
         }
       });
 
-      cy.step("Handle Bank Redirect Redirection", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Handle Bank Redirect Redirection");
-          return;
-        }
+      step("Handle Bank Redirect Redirection", shouldContinue, () => {
         const expected_redirection = fixtures.confirmBody["return_url"];
         const payment_method_type = globalState.get("paymentMethodType");
         cy.handleBankRedirectRedirection(
@@ -254,7 +211,7 @@ describe("Bank Redirect tests", () => {
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection", () => {
       let shouldContinue = true;
 
-      cy.step("Create Payment Intent", () => {
+      step("Create Payment Intent", shouldContinue, () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["PaymentIntent"]("Przelewy24");
@@ -270,19 +227,11 @@ describe("Bank Redirect tests", () => {
         }
       });
 
-      cy.step("List Merchant Payment Methods", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
-          return;
-        }
+      step("List Merchant Payment Methods", shouldContinue, () => {
         cy.paymentMethodsCallTest(globalState);
       });
 
-      cy.step("Confirm Payment", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Payment");
-          return;
-        }
+      step("Confirm Payment", shouldContinue, () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["Przelewy24"];
@@ -297,11 +246,7 @@ describe("Bank Redirect tests", () => {
         }
       });
 
-      cy.step("Handle Bank Redirect Redirection", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Handle Bank Redirect Redirection");
-          return;
-        }
+      step("Handle Bank Redirect Redirection", shouldContinue, () => {
         const expected_redirection = fixtures.confirmBody["return_url"];
         const payment_method_type = globalState.get("paymentMethodType");
         cy.handleBankRedirectRedirection(
@@ -317,7 +262,7 @@ describe("Bank Redirect tests", () => {
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection -> Retrieve Payment", () => {
       let shouldContinue = true;
 
-      cy.step("Create Payment Intent", () => {
+      step("Create Payment Intent", shouldContinue, () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["PaymentIntent"]("OpenBankingUk");
@@ -333,19 +278,11 @@ describe("Bank Redirect tests", () => {
         }
       });
 
-      cy.step("List Merchant Payment Methods", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
-          return;
-        }
+      step("List Merchant Payment Methods", shouldContinue, () => {
         cy.paymentMethodsCallTest(globalState);
       });
 
-      cy.step("Confirm Payment", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Payment");
-          return;
-        }
+      step("Confirm Payment", shouldContinue, () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["OpenBankingUk"];
@@ -360,11 +297,7 @@ describe("Bank Redirect tests", () => {
         }
       });
 
-      cy.step("Handle Bank Redirect Redirection", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Handle Bank Redirect Redirection");
-          return;
-        }
+      step("Handle Bank Redirect Redirection", shouldContinue, () => {
         const expected_redirection = fixtures.confirmBody["return_url"];
         const payment_method_type = globalState.get("paymentMethodType");
         cy.handleBankRedirectRedirection(
@@ -374,11 +307,7 @@ describe("Bank Redirect tests", () => {
         );
       });
 
-      cy.step("Retrieve Payment", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Retrieve Payment");
-          return;
-        }
+      step("Retrieve Payment", shouldContinue, () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["OpenBankingUk"];
@@ -391,7 +320,7 @@ describe("Bank Redirect tests", () => {
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection -> Retrieve Payment", () => {
       let shouldContinue = true;
 
-      cy.step("Create Payment Intent", () => {
+      step("Create Payment Intent", shouldContinue, () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["PaymentIntent"]("OnlineBankingFpx");
@@ -407,19 +336,11 @@ describe("Bank Redirect tests", () => {
         }
       });
 
-      cy.step("List Merchant Payment Methods", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
-          return;
-        }
+      step("List Merchant Payment Methods", shouldContinue, () => {
         cy.paymentMethodsCallTest(globalState);
       });
 
-      cy.step("Confirm Payment", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Payment");
-          return;
-        }
+      step("Confirm Payment", shouldContinue, () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["OnlineBankingFpx"];
@@ -434,11 +355,7 @@ describe("Bank Redirect tests", () => {
         }
       });
 
-      cy.step("Handle Bank Redirect Redirection", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Handle Bank Redirect Redirection");
-          return;
-        }
+      step("Handle Bank Redirect Redirection", shouldContinue, () => {
         const expected_redirection = fixtures.confirmBody["return_url"];
         const payment_method_type = globalState.get("paymentMethodType");
         cy.handleBankRedirectRedirection(
@@ -448,11 +365,7 @@ describe("Bank Redirect tests", () => {
         );
       });
 
-      cy.step("Retrieve Payment", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Retrieve Payment");
-          return;
-        }
+      step("Retrieve Payment", shouldContinue, () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["OnlineBankingFpx"];
@@ -465,7 +378,7 @@ describe("Bank Redirect tests", () => {
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection -> Retrieve Payment", () => {
       let shouldContinue = true;
 
-      cy.step("Create Payment Intent", () => {
+      step("Create Payment Intent", shouldContinue, () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["PaymentIntent"]("Interac");
@@ -481,19 +394,11 @@ describe("Bank Redirect tests", () => {
         }
       });
 
-      cy.step("List Merchant Payment Methods", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
-          return;
-        }
+      step("List Merchant Payment Methods", shouldContinue, () => {
         cy.paymentMethodsCallTest(globalState);
       });
 
-      cy.step("Confirm Payment", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Payment");
-          return;
-        }
+      step("Confirm Payment", shouldContinue, () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["Interac"];
@@ -508,11 +413,7 @@ describe("Bank Redirect tests", () => {
         }
       });
 
-      cy.step("Handle Bank Redirect Redirection", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Handle Bank Redirect Redirection");
-          return;
-        }
+      step("Handle Bank Redirect Redirection", shouldContinue, () => {
         const expected_redirection = fixtures.confirmBody["return_url"];
         const payment_method_type = globalState.get("paymentMethodType");
         cy.handleBankRedirectRedirection(
@@ -522,11 +423,7 @@ describe("Bank Redirect tests", () => {
         );
       });
 
-      cy.step("Retrieve Payment", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Retrieve Payment");
-          return;
-        }
+      step("Retrieve Payment", shouldContinue, () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["Interac"];
