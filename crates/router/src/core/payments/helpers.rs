@@ -13,11 +13,12 @@ use api_models::{
     mandates::RecurringDetails,
     payments::{
         additional_info::{self as payment_additional_types},
-        RequestSurchargeDetails,
+        InstallmentRequest, RequestSurchargeDetails,
     },
 };
 use base64::Engine;
 use common_enums::{enums::ExecutionMode, ConnectorType};
+use common_types::payments::InstallmentOption;
 #[cfg(feature = "v2")]
 use common_utils::id_type::GenerateId;
 use common_utils::{
@@ -464,6 +465,7 @@ pub async fn get_token_pm_type_mandate_details(
     pm_info: Option<domain::PaymentMethod>,
 ) -> RouterResult<MandateGenericData> {
     let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
+    let feature_config = core_utils::get_feature_config(state, platform).await;
     let (
         payment_token,
         payment_method,
@@ -731,9 +733,10 @@ pub async fn get_token_pm_type_mandate_details(
             }
         }
         None => {
-            let payment_method_info = match pm_info {
-                Some(pm) => Some(pm.clone()),
-                None => payment_method_id
+            let payment_method_info = if feature_config.is_payment_method_modular_allowed {
+                pm_info
+            } else {
+                payment_method_id
                     .async_map(|payment_method_id| async move {
                         state
                             .store
@@ -746,7 +749,7 @@ pub async fn get_token_pm_type_mandate_details(
                             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
                     })
                     .await
-                    .transpose()?,
+                    .transpose()?
             };
             (
                 request.payment_token.to_owned(),
@@ -4228,6 +4231,22 @@ pub(crate) fn validate_payment_status_against_not_allowed_statuses(
     })
 }
 
+pub(crate) fn validate_installment_data_in_create(
+    installment_options: &Option<Vec<InstallmentOption>>,
+    installment_data: &Option<InstallmentRequest>,
+) -> Result<(), errors::ApiErrorResponse> {
+    utils::when(
+        installment_options.is_some() || installment_data.is_some(),
+        || {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message:
+                    "installment_options and installment_data are not supported when confirm is true."
+                        .to_string(),
+            })
+        },
+    )
+}
+
 #[instrument(skip_all)]
 pub(crate) fn validate_pm_or_token_given(
     payment_method: &Option<api_enums::PaymentMethod>,
@@ -5156,6 +5175,7 @@ impl AttemptType {
             is_overcapture_enabled: None,
             error_details: None,
             retry_type: Some(enums::RetryType::ManualRetry),
+            installment_data: None,
         }
     }
 
@@ -6266,18 +6286,14 @@ pub fn get_debit_routing_savings_amount(
 }
 
 #[cfg(all(feature = "retry", feature = "v1"))]
-pub async fn get_apple_pay_retryable_connectors<F, D>(
+pub async fn get_apple_pay_retryable_connectors(
     state: &SessionState,
     platform: &domain::Platform,
-    payment_data: &D,
+    creds_identifier: Option<&str>,
     pre_routing_connector_data_list: &[api::ConnectorRoutingData],
     merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
     business_profile: domain::Profile,
-) -> CustomResult<Option<Vec<api::ConnectorRoutingData>>, errors::ApiErrorResponse>
-where
-    F: Send + Clone,
-    D: OperationSessionGetters<F> + Send,
-{
+) -> CustomResult<Option<Vec<api::ConnectorRoutingData>>, errors::ApiErrorResponse> {
     let profile_id = business_profile.get_id();
 
     let pre_decided_connector_data_first = pre_routing_connector_data_list
@@ -6287,7 +6303,7 @@ where
     let merchant_connector_account_type = get_merchant_connector_account(
         state,
         platform.get_processor(),
-        payment_data.get_creds_identifier(),
+        creds_identifier,
         profile_id,
         &pre_decided_connector_data_first
             .connector_data
