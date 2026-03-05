@@ -1,6 +1,7 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
+import step from "../../../utils/customStep";
 
 let globalState;
 
@@ -19,10 +20,17 @@ describe("Card - NoThreeDS payment flow test", () => {
     it("Create Payment Intent -> Payment Methods Call -> Confirm Payment -> Retrieve Payment", () => {
       let shouldContinue = true;
 
+<<<<<<< Updated upstream
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
+=======
+      step("Create Payment Intent", shouldContinue, () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+          "PaymentIntent"
+        ];
+>>>>>>> Stashed changes
 
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
@@ -35,27 +43,13 @@ describe("Card - NoThreeDS payment flow test", () => {
         if (!utils.should_continue_further(data)) {
           shouldContinue = false;
         }
-
-        cy.task("cli_log", "Completed step: Create Payment Intent");
       });
 
-      cy.step("Payment Methods Call", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Payment Methods Call");
-          return;
-        }
-
+      step("Payment Methods Call", shouldContinue, () => {
         cy.paymentMethodsCallTest(globalState);
-
-        cy.task("cli_log", "Completed step: Payment Methods Call");
       });
 
-      cy.step("Confirm Payment", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Payment");
-          return;
-        }
-
+      step("Confirm Payment", shouldContinue, () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["No3DSAutoCapture"];
@@ -70,23 +64,14 @@ describe("Card - NoThreeDS payment flow test", () => {
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
         }
-
-        cy.task("cli_log", "Completed step: Confirm Payment");
       });
 
-      cy.step("Retrieve Payment", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Retrieve Payment");
-          return;
-        }
-
+      step("Retrieve Payment", shouldContinue, () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["No3DSAutoCapture"];
 
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
-
-        cy.task("cli_log", "Completed step: Retrieve Payment");
       });
     });
   });
@@ -95,10 +80,17 @@ describe("Card - NoThreeDS payment flow test", () => {
     it("Create and Confirm Payment -> Retrieve Payment", () => {
       let shouldContinue = true;
 
+<<<<<<< Updated upstream
       cy.step("Create and Confirm Payment", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["No3DSAutoCapture"];
+=======
+      step("Create and Confirm Payment", shouldContinue, () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+          "No3DSAutoCapture"
+        ];
+>>>>>>> Stashed changes
 
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
@@ -111,10 +103,9 @@ describe("Card - NoThreeDS payment flow test", () => {
         if (!utils.should_continue_further(data)) {
           shouldContinue = false;
         }
-
-        cy.task("cli_log", "Completed step: Create and Confirm Payment");
       });
 
+<<<<<<< Updated upstream
       cy.step("Retrieve Payment", () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Retrieve Payment");
@@ -124,10 +115,14 @@ describe("Card - NoThreeDS payment flow test", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["No3DSAutoCapture"];
+=======
+      step("Retrieve Payment", shouldContinue, () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+          "No3DSAutoCapture"
+        ];
+>>>>>>> Stashed changes
 
         cy.retrievePaymentCallTest({ globalState, data });
-
-        cy.task("cli_log", "Completed step: Retrieve Payment");
       });
     });
   });
@@ -136,10 +131,17 @@ describe("Card - NoThreeDS payment flow test", () => {
     it("Create Payment Intent with shipping cost -> Payment Methods Call -> Confirm Payment with shipping cost -> Retrieve Payment with shipping cost", () => {
       let shouldContinue = true;
 
+<<<<<<< Updated upstream
       cy.step("Create Payment Intent with shipping cost", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntentWithShippingCost"];
+=======
+      step("Create Payment Intent with shipping cost", shouldContinue, () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+          "PaymentIntentWithShippingCost"
+        ];
+>>>>>>> Stashed changes
 
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
@@ -152,24 +154,21 @@ describe("Card - NoThreeDS payment flow test", () => {
         if (!utils.should_continue_further(data)) {
           shouldContinue = false;
         }
+<<<<<<< Updated upstream
 
         cy.task(
           "cli_log",
           "Completed step: Create Payment Intent with shipping cost"
         );
+=======
+>>>>>>> Stashed changes
       });
 
-      cy.step("Payment Methods Call", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Payment Methods Call");
-          return;
-        }
-
+      step("Payment Methods Call", shouldContinue, () => {
         cy.paymentMethodsCallTest(globalState);
-
-        cy.task("cli_log", "Completed step: Payment Methods Call");
       });
 
+<<<<<<< Updated upstream
       cy.step("Confirm Payment with shipping cost", () => {
         if (!shouldContinue) {
           cy.task(
@@ -179,6 +178,9 @@ describe("Card - NoThreeDS payment flow test", () => {
           return;
         }
 
+=======
+      step("Confirm Payment with shipping cost", shouldContinue, () => {
+>>>>>>> Stashed changes
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentConfirmWithShippingCost"];
@@ -193,6 +195,7 @@ describe("Card - NoThreeDS payment flow test", () => {
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
         }
+<<<<<<< Updated upstream
 
         cy.task(
           "cli_log",
@@ -209,16 +212,24 @@ describe("Card - NoThreeDS payment flow test", () => {
           return;
         }
 
+=======
+      });
+
+      step("Retrieve Payment with shipping cost", shouldContinue, () => {
+>>>>>>> Stashed changes
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentConfirmWithShippingCost"];
 
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
+<<<<<<< Updated upstream
 
         cy.task(
           "cli_log",
           "Completed step: Retrieve Payment with shipping cost"
         );
+=======
+>>>>>>> Stashed changes
       });
     });
   });

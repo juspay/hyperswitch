@@ -1,6 +1,7 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
+import step from "../../../utils/customStep";
 
 let globalState;
 
@@ -19,10 +20,17 @@ describe("Card - ThreeDS payment flow test", () => {
     it("create payment intent -> payment methods call -> confirm payment intent -> handle redirection", () => {
       let shouldContinue = true;
 
+<<<<<<< Updated upstream
       cy.step("create payment intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
+=======
+      step("create payment intent", shouldContinue, () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+          "PaymentIntent"
+        ];
+>>>>>>> Stashed changes
 
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
@@ -35,27 +43,13 @@ describe("Card - ThreeDS payment flow test", () => {
         if (!utils.should_continue_further(data)) {
           shouldContinue = false;
         }
-
-        cy.task("cli_log", "Completed step: create payment intent");
       });
 
-      cy.step("payment methods call", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: payment methods call");
-          return;
-        }
-
+      step("payment methods call", shouldContinue, () => {
         cy.paymentMethodsCallTest(globalState);
-
-        cy.task("cli_log", "Completed step: payment methods call");
       });
 
-      cy.step("confirm payment intent", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: confirm payment intent");
-          return;
-        }
-
+      step("confirm payment intent", shouldContinue, () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["3DSAutoCapture"];
@@ -70,20 +64,11 @@ describe("Card - ThreeDS payment flow test", () => {
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
         }
-
-        cy.task("cli_log", "Completed step: confirm payment intent");
       });
 
-      cy.step("handle redirection", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: handle redirection");
-          return;
-        }
-
+      step("handle redirection", shouldContinue, () => {
         const expected_redirection = fixtures.confirmBody["return_url"];
         cy.handleRedirection(globalState, expected_redirection);
-
-        cy.task("cli_log", "Completed step: handle redirection");
       });
     });
   });
