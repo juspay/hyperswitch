@@ -70,7 +70,6 @@ use crate::core::payment_methods::{
     utils::{get_merchant_pm_filter_graph, make_pm_graph, refresh_pm_filters_cache},
 };
 #[cfg(feature = "v1")]
-#[cfg(feature = "v1")]
 use crate::routes::app::SessionStateInfo;
 #[cfg(feature = "payouts")]
 use crate::types::domain::types::AsyncLift;
