@@ -4,6 +4,19 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.03.04.0
+
+### Features
+
+- **connector:** [Truelayer] Implement Payouts ([#11352](https://github.com/juspay/hyperswitch/pull/11352)) ([`b78375b`](https://github.com/juspay/hyperswitch/commit/b78375b646d391523f608067aefe9b1f8e59de80))
+- **core:** Added Missing Payment Method Type in HS <> UCS Integration ([#11365](https://github.com/juspay/hyperswitch/pull/11365)) ([`baf11d6`](https://github.com/juspay/hyperswitch/commit/baf11d6e78ecf92b6007a5cb5717c87086345e12))
+- **core/connector:** [SANTANDER] Send back connector refund id in refund response and end_to_end_id in payments response ([#11244](https://github.com/juspay/hyperswitch/pull/11244)) ([`d70567b`](https://github.com/juspay/hyperswitch/commit/d70567b5e966e8ebb934850e50b9f9a024b7ba86))
+- **payment-methods:** Add 3ds complete authorize support for modular payment method flow ([#11354](https://github.com/juspay/hyperswitch/pull/11354)) ([`4a13dc6`](https://github.com/juspay/hyperswitch/commit/4a13dc64df61ac45130a4d3ac12f2b3f085b757d))
+
+**Full Changelog:** [`2026.03.03.0...2026.03.04.0`](https://github.com/juspay/hyperswitch/compare/2026.03.03.0...2026.03.04.0)
+
+- - -
+
 ## 2026.03.03.0
 
 ### Features
