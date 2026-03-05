@@ -255,7 +255,12 @@ pub async fn search_results(
             authentication_type,
             "authentication_type.keyword"
         );
-        append_filter!(query_builder, filters, card_discovery, "card_discovery.keyword");
+        append_filter!(
+            query_builder,
+            filters,
+            card_discovery,
+            "card_discovery.keyword"
+        );
         append_filter!(
             query_builder,
             filters,
