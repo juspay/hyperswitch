@@ -60,6 +60,9 @@ describe("Card - Sync Refund flow test", () => {
           "card_pm"
         ]["No3DSAutoCapture"];
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
       });
 
       step("Refund Payment", shouldContinue, () => {
