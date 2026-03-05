@@ -15,6 +15,7 @@ pub mod psync_gateway;
 pub mod session_gateway;
 pub mod session_token_gateway;
 pub mod setup_mandate;
+pub mod update_metadata_gateway;
 use std::sync;
 
 use common_enums;

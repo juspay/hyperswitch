@@ -1847,6 +1847,18 @@ pub fn handle_unified_connector_service_response_for_payment_pre_authenticate(
     Ok((router_data_response, status_code))
 }
 
+pub fn handle_unified_connector_service_response_for_update_metadata(
+    response: payments_grpc::PaymentServiceUpdateMetadataResponse,
+) -> CustomResult<(Result<PaymentsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>
+{
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+
+    let router_data_response =
+        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
+
+    Ok((router_data_response, status_code))
+}
+
 pub fn handle_unified_connector_service_response_for_payment_capture(
     response: payments_grpc::PaymentServiceCaptureResponse,
     prev_status: AttemptStatus,
