@@ -1179,6 +1179,17 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
     ) -> RouterResult<Option<operations::PaymentMethodWithRawData>> {
         match feature_config.is_payment_method_modular_allowed {
             true => {
+                utils::when(
+                    req.off_session == Some(true) && req.recurring_details.is_none(),
+                    || {
+                        Err(error_stack::report!(
+                            errors::ApiErrorResponse::PreconditionFailed {
+                                message: "off_session requires recurring_details".into(),
+                            }
+                        ))
+                    },
+                )?;
+
                 let profile_id = req
                     .profile_id
                     .clone()

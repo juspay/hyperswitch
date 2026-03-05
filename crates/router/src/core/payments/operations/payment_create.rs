@@ -832,6 +832,31 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         }
     }
 
+    /// Determines the payment method reference and off-session status for modular payment flows.
+    ///
+    /// Client payment uses `setup_future_usage=off_session` without `off_session=true`.
+    /// Mark it as off-session so modular raw PM conversion
+    /// can fall back to mandate payment data when CVC is unavailable.
+    fn get_payment_method_reference_and_off_session_status(
+        &self,
+        req: &api::PaymentsRequest,
+    ) -> (Option<&String>, bool) {
+        match (
+            req.off_session,
+            req.recurring_details.as_ref(),
+            req.setup_future_usage,
+        ) {
+            // Payment using off_session MITs using PM ID
+            (Some(true), Some(RecurringDetails::PaymentMethodId(payment_method_id)), _) => {
+                (Some(payment_method_id), true)
+            }
+            // Payment by client using tokens (PSP / NTI flows)
+            (_, _, Some(enums::FutureUsage::OffSession)) => (req.payment_token.as_ref(), true),
+            // All other cases
+            _ => (req.payment_token.as_ref(), false),
+        }
+    }
+
     #[instrument(skip_all)]
     async fn fetch_payment_method(
         &self,
@@ -864,25 +889,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .clone())
                     .get_required_value("profile_id")?;
 
-                // Client payment uses `setup_future_usage=off_session` without `off_session=true`.
-                // Mark it as off-session so modular raw PM conversion
-                // can fall back to mandate payment data when CVC is unavailable.
-                let (payment_method_reference, is_off_session_payment) = match (
-                    req.off_session,
-                    req.recurring_details.as_ref(),
-                    req.setup_future_usage,
-                ) {
-                    // Payment using off_session MITs using PM ID
-                    (Some(true), Some(RecurringDetails::PaymentMethodId(payment_method_id)), _) => {
-                        (Some(payment_method_id), true)
-                    }
-                    // Payment by client using tokens (PSP / NTI flows)
-                    (_, _, Some(enums::FutureUsage::OffSession)) => {
-                        (req.payment_token.as_ref(), true)
-                    }
-                    // All other cases
-                    _ => (req.payment_token.as_ref(), false),
-                };
+                let (payment_method_reference, is_off_session_payment) =
+                    self.get_payment_method_reference_and_off_session_status(req);
 
                 let pm_info = if let Some(payment_method_ref) = payment_method_reference {
                     // Fetch payment method using PM Modular Service
