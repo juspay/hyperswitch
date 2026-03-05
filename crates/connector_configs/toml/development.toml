@@ -39,6 +39,10 @@
   payment_method_type = "ali_pay"
 [[aci.wallet]]
   payment_method_type = "mb_way"
+[[aci.wallet]]
+  payment_method_type = "apple_pay"
+[[aci.wallet]]
+  payment_method_type = "google_pay"
 [[aci.bank_redirect]]
   payment_method_type = "ideal"
 [[aci.bank_redirect]]
