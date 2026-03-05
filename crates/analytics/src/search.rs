@@ -16,7 +16,6 @@ pub fn convert_to_value<T: Into<Value>>(items: Vec<T>) -> Vec<Value> {
     items.into_iter().map(|item| item.into()).collect()
 }
 
-
 macro_rules! append_filter {
     ($builder:ident, $filters:ident, $field:ident, $es_key:expr) => {
         if let Some(val) = &$filters.$field {
@@ -65,7 +64,12 @@ pub async fn msearch_results(
     if let Some(filters) = req.filters {
         append_filter!(query_builder, filters, currency, "currency.keyword");
         append_filter!(query_builder, filters, status, "status.keyword");
-        append_filter!(query_builder, filters, payment_method, "payment_method.keyword");
+        append_filter!(
+            query_builder,
+            filters,
+            payment_method,
+            "payment_method.keyword"
+        );
         append_filter!(
             query_builder,
             filters,
@@ -110,7 +114,6 @@ pub async fn msearch_results(
         append_filter!(query_builder, filters, payment_id, "payment_id.keyword");
         append_filter!(query_builder, filters, amount, "amount");
         append_filter!(query_builder, filters, customer_id, "customer_id.keyword");
-
     };
 
     if let Some(time_range) = req.time_range {
@@ -193,7 +196,12 @@ pub async fn search_results(
     if let Some(filters) = search_req.filters {
         append_filter!(query_builder, filters, currency, "currency.keyword");
         append_filter!(query_builder, filters, status, "status.keyword");
-        append_filter!(query_builder, filters, payment_method, "payment_method.keyword");
+        append_filter!(
+            query_builder,
+            filters,
+            payment_method,
+            "payment_method.keyword"
+        );
         append_filter!(
             query_builder,
             filters,

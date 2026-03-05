@@ -68,7 +68,6 @@ impl From<TimeRange> for OpensearchTimeRange {
     }
 }
 
-
 #[derive(Clone, Debug, serde::Deserialize)]
 pub struct OpenSearchConfig {
     host: String,

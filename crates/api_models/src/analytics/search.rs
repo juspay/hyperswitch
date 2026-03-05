@@ -10,7 +10,6 @@ pub struct OpensearchRange {
     pub lte: Option<i64>,
 }
 
-
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct SearchFilters {
     pub payment_method: Option<Vec<String>>,
@@ -79,10 +78,13 @@ impl From<&crate::payments::PaymentListFilterConstraints> for SearchFilters {
             search_tags: None,
             card_last_4: None,
             amount: None,
-            amount_filter: constraints.amount_filter.as_ref().map(|amount| OpensearchRange {
-                gte: amount.start_amount,
-                lte: amount.end_amount,
-            }),
+            amount_filter: constraints
+                .amount_filter
+                .as_ref()
+                .map(|amount| OpensearchRange {
+                    gte: amount.start_amount,
+                    lte: amount.end_amount,
+                }),
         }
     }
 }
