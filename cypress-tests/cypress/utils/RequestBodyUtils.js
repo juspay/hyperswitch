@@ -3,11 +3,7 @@ const keyPrefixes = {
     publishable_key: "pk_dev_",
     key_id: "dev_",
   },
-  integ: {
-    publishable_key: "pk_snd_",
-    key_id: "snd_",
-  },
-  sandbox: {
+  hyperswitch: {
     publishable_key: "pk_snd_",
     key_id: "snd_",
   },

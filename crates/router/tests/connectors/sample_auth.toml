@@ -69,8 +69,8 @@ api_secret = "API Secret Key"
 api_key = "API Key"
 
 [dlocal]
-key1 = "key1"
-api_key = "api_key"
+key1 = "x trans key"
+api_key = "x login"
 api_secret = "secret"
 
 [bambora]
@@ -192,7 +192,10 @@ api_key="API Key"
 api_key="API Key"
 
 [volt]
-api_key="API Key"
+api_key = "Username"
+api_secret = "Password"
+key1 = "Client ID"
+key2 = "Client Secret"
 
 [prophetpay]
 api_key="API Key"
@@ -364,9 +367,27 @@ key1="Client Secret"
 [payload]
 api_key="API Key"
 
-[bluecode]
+[calida]
 api_key="EOrder Token"
 
 [peachpayments]
 api_key="API Key"
 key1="Tenant ID"
+
+[tesouro]
+api_key="Client ID"
+key1="Client Secret"
+
+[finix]
+api_key = "Username"
+key1 = "Merchant Id"
+key2 = "Merchant Identity Id"
+api_secret = "Password"
+
+[payjustnowinstore]
+api_key = "Merchant API Key"
+key1 = "Merchant Terminal Id"
+
+[truelayer]
+api_key = "Client ID"
+key1 = "Client Secret"

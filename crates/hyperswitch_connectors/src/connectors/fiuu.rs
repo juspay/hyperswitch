@@ -239,6 +239,7 @@ impl ConnectorCommon for Fiuu {
             reason: Some(response.error_desc.clone()),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -246,7 +247,9 @@ impl ConnectorCommon for Fiuu {
         })
     }
 }
-pub fn build_form_from_struct<T: Serialize>(data: T) -> Result<Form, common_errors::ParsingError> {
+pub fn build_form_from_struct<T: Serialize + Send + 'static>(
+    data: T,
+) -> Result<RequestContent, common_errors::ParsingError> {
     let mut form = Form::new();
     let serialized = serde_json::to_value(&data).map_err(|e| {
         router_env::logger::error!("Error serializing data to JSON value: {:?}", e);
@@ -268,7 +271,7 @@ pub fn build_form_from_struct<T: Serialize>(data: T) -> Result<Form, common_erro
         };
         form = form.text(key.clone(), value.clone());
     }
-    Ok(form)
+    Ok(RequestContent::FormData((form, Box::new(data))))
 }
 
 impl ConnectorValidation for Fiuu {
@@ -345,19 +348,18 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .as_ref()
             .map(|mandate_id| mandate_id.is_network_transaction_id_flow());
 
-        let connector_req = match (optional_is_mit_flow, optional_is_nti_flow) {
+        match (optional_is_mit_flow, optional_is_nti_flow) {
             (Some(true), Some(false)) => {
                 let recurring_request = fiuu::FiuuMandateRequest::try_from(&connector_router_data)?;
                 build_form_from_struct(recurring_request)
-                    .change_context(errors::ConnectorError::ParsingFailed)?
+                    .change_context(errors::ConnectorError::ParsingFailed)
             }
             _ => {
                 let payment_request = fiuu::FiuuPaymentRequest::try_from(&connector_router_data)?;
                 build_form_from_struct(payment_request)
-                    .change_context(errors::ConnectorError::ParsingFailed)?
+                    .change_context(errors::ConnectorError::ParsingFailed)
             }
-        };
-        Ok(RequestContent::FormData(connector_req))
+        }
     }
 
     fn build_request(
@@ -429,9 +431,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Fiu
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let sync_request = fiuu::FiuuPaymentSyncRequest::try_from(req)?;
-        let connector_req = build_form_from_struct(sync_request)
-            .change_context(errors::ConnectorError::ParsingFailed)?;
-        Ok(RequestContent::FormData(connector_req))
+        build_form_from_struct(sync_request).change_context(errors::ConnectorError::ParsingFailed)
     }
 
     fn build_request(
@@ -528,11 +528,10 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         )?;
 
         let connector_router_data = fiuu::FiuuRouterData::from((amount, req));
-        let connector_req = build_form_from_struct(fiuu::PaymentCaptureRequest::try_from(
+        build_form_from_struct(fiuu::PaymentCaptureRequest::try_from(
             &connector_router_data,
         )?)
-        .change_context(errors::ConnectorError::ParsingFailed)?;
-        Ok(RequestContent::FormData(connector_req))
+        .change_context(errors::ConnectorError::ParsingFailed)
     }
 
     fn build_request(
@@ -595,9 +594,8 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Fi
         req: &PaymentsCancelRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = build_form_from_struct(fiuu::FiuuPaymentCancelRequest::try_from(req)?)
-            .change_context(errors::ConnectorError::ParsingFailed)?;
-        Ok(RequestContent::FormData(connector_req))
+        build_form_from_struct(fiuu::FiuuPaymentCancelRequest::try_from(req)?)
+            .change_context(errors::ConnectorError::ParsingFailed)
     }
 
     fn build_request(
@@ -667,10 +665,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Fiuu {
         )?;
 
         let connector_router_data = fiuu::FiuuRouterData::from((refund_amount, req));
-        let connector_req =
-            build_form_from_struct(fiuu::FiuuRefundRequest::try_from(&connector_router_data)?)
-                .change_context(errors::ConnectorError::ParsingFailed)?;
-        Ok(RequestContent::FormData(connector_req))
+        build_form_from_struct(fiuu::FiuuRefundRequest::try_from(&connector_router_data)?)
+            .change_context(errors::ConnectorError::ParsingFailed)
     }
 
     fn build_request(
@@ -732,9 +728,8 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Fiuu {
         req: &RefundSyncRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = build_form_from_struct(fiuu::FiuuRefundSyncRequest::try_from(req)?)
-            .change_context(errors::ConnectorError::ParsingFailed)?;
-        Ok(RequestContent::FormData(connector_req))
+        build_form_from_struct(fiuu::FiuuRefundSyncRequest::try_from(req)?)
+            .change_context(errors::ConnectorError::ParsingFailed)
     }
 
     fn build_request(
@@ -919,6 +914,7 @@ impl webhooks::IncomingWebhook for Fiuu {
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let header = utils::get_header_key_value("content-type", request.headers)?;
         let resource: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {

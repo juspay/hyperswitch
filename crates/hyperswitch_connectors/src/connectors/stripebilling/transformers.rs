@@ -157,6 +157,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, StripebillingPaymentsResponse, T, Payme
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -423,6 +424,8 @@ impl TryFrom<StripebillingInvoiceBody> for revenue_recovery::RevenueRecoveryInvo
             next_billing_at,
             billing_started_at,
             metadata: None,
+            // TODO! This field should be handled for billing connnector integrations
+            enable_partial_authorization: None,
         })
     }
 }
@@ -572,6 +575,7 @@ impl
                         card_issuer: None,
                         card_type: None,
                         card_issuing_country: None,
+                        card_issuing_country_code: None,
                         bank_code: None,
                         last4: None,
                         card_extended_bin: None,
@@ -582,6 +586,7 @@ impl
                         authentication_data: None,
                         is_regulated: None,
                         signature_network: None,
+                        auth_code: None,
                     },
                 },
             ),

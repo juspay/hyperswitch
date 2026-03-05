@@ -22,6 +22,7 @@ pub mod generic_link;
 pub mod generics;
 pub mod gsm;
 pub mod hyperswitch_ai_interaction;
+pub mod invoice;
 pub mod locker_mock_up;
 pub mod mandate;
 pub mod merchant_account;

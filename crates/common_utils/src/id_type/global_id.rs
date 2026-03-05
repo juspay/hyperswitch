@@ -25,6 +25,7 @@ pub(crate) enum GlobalEntity {
     Customer,
     Payment,
     Attempt,
+    AttemptGroup,
     PaymentMethod,
     Refund,
     PaymentMethodSession,
@@ -38,6 +39,7 @@ impl GlobalEntity {
             Self::Payment => "pay",
             Self::PaymentMethod => "pm",
             Self::Attempt => "att",
+            Self::AttemptGroup => "atg",
             Self::Refund => "ref",
             Self::PaymentMethodSession => "pms",
             Self::Token => "tok",
@@ -191,7 +193,6 @@ impl<'de> serde::Deserialize<'de> for GlobalId {
 
 #[cfg(test)]
 mod global_id_tests {
-    #![allow(clippy::unwrap_used)]
     use super::*;
 
     #[test]

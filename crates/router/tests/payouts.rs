@@ -1,5 +1,3 @@
-#![allow(clippy::unwrap_used, clippy::print_stdout)]
-
 mod utils;
 
 #[actix_web::test]

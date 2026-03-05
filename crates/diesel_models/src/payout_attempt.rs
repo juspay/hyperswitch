@@ -1,5 +1,5 @@
 use common_utils::{
-    payout_method_utils,
+    payout_method_utils, pii,
     types::{UnifiedCode, UnifiedMessage},
 };
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
@@ -38,6 +38,7 @@ pub struct PayoutAttempt {
     pub unified_message: Option<UnifiedMessage>,
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
     pub merchant_order_reference_id: Option<String>,
+    pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(
@@ -78,6 +79,7 @@ pub struct PayoutAttemptNew {
     pub unified_message: Option<UnifiedMessage>,
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
     pub merchant_order_reference_id: Option<String>,
+    pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -90,6 +92,7 @@ pub enum PayoutAttemptUpdate {
         is_eligible: Option<bool>,
         unified_code: Option<UnifiedCode>,
         unified_message: Option<UnifiedMessage>,
+        payout_connector_metadata: Option<pii::SecretSerdeValue>,
     },
     PayoutTokenUpdate {
         payout_token: String,
@@ -107,6 +110,14 @@ pub enum PayoutAttemptUpdate {
     },
     AdditionalPayoutMethodDataUpdate {
         additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
+    },
+    ManualUpdate {
+        status: Option<storage_enums::PayoutStatus>,
+        error_code: Option<String>,
+        error_message: Option<String>,
+        unified_code: Option<UnifiedCode>,
+        unified_message: Option<UnifiedMessage>,
+        connector_payout_id: Option<String>,
     },
 }
 
@@ -131,6 +142,7 @@ pub struct PayoutAttemptUpdateInternal {
     pub unified_message: Option<UnifiedMessage>,
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
     pub merchant_order_reference_id: Option<String>,
+    pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
 }
 
 impl Default for PayoutAttemptUpdateInternal {
@@ -154,6 +166,7 @@ impl Default for PayoutAttemptUpdateInternal {
             unified_message: None,
             additional_payout_method_data: None,
             merchant_order_reference_id: None,
+            payout_connector_metadata: None,
         }
     }
 }
@@ -173,6 +186,7 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
                 is_eligible,
                 unified_code,
                 unified_message,
+                payout_connector_metadata,
             } => Self {
                 connector_payout_id,
                 status: Some(status),
@@ -181,6 +195,7 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
                 is_eligible,
                 unified_code,
                 unified_message,
+                payout_connector_metadata,
                 ..Default::default()
             },
             PayoutAttemptUpdate::BusinessUpdate {
@@ -211,6 +226,22 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
                 additional_payout_method_data,
                 ..Default::default()
             },
+            PayoutAttemptUpdate::ManualUpdate {
+                status,
+                error_code,
+                error_message,
+                unified_code,
+                unified_message,
+                connector_payout_id,
+            } => Self {
+                status,
+                error_code,
+                error_message,
+                unified_code,
+                unified_message,
+                connector_payout_id,
+                ..Default::default()
+            },
         }
     }
 }
@@ -236,6 +267,7 @@ impl PayoutAttemptUpdate {
             unified_message,
             additional_payout_method_data,
             merchant_order_reference_id,
+            payout_connector_metadata,
         } = self.into();
         PayoutAttempt {
             payout_token: payout_token.or(source.payout_token),
@@ -258,6 +290,8 @@ impl PayoutAttemptUpdate {
                 .or(source.additional_payout_method_data),
             merchant_order_reference_id: merchant_order_reference_id
                 .or(source.merchant_order_reference_id),
+            payout_connector_metadata: payout_connector_metadata
+                .or(source.payout_connector_metadata),
             ..source
         }
     }

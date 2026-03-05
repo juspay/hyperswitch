@@ -67,6 +67,7 @@ pub mod headers {
     pub const X_API_VERSION: &str = "X-ApiVersion";
     pub const X_FORWARDED_FOR: &str = "X-Forwarded-For";
     pub const X_MERCHANT_ID: &str = "X-Merchant-Id";
+    pub const X_INTERNAL_API_KEY: &str = "X-Internal-Api-Key";
     pub const X_ORGANIZATION_ID: &str = "X-Organization-Id";
     pub const X_LOGIN: &str = "X-Login";
     pub const X_TRANS_KEY: &str = "X-Trans-Key";
@@ -122,7 +123,11 @@ pub fn mk_app(
         InitError = (),
     >,
 > {
-    let mut server_app = get_application_builder(request_body_limit, state.conf.cors.clone());
+    let mut server_app = get_application_builder(
+        request_body_limit,
+        state.conf.cors.clone(),
+        state.conf.trace_header.clone(),
+    );
 
     #[cfg(feature = "dummy_connector")]
     {
@@ -218,7 +223,8 @@ pub fn mk_app(
                 .service(routes::ConnectorOnboarding::server(state.clone()))
                 .service(routes::Analytics::server(state.clone()))
                 .service(routes::WebhookEvents::server(state.clone()))
-                .service(routes::FeatureMatrix::server(state.clone()));
+                .service(routes::FeatureMatrix::server(state.clone()))
+                .service(routes::Embedded::server(state.clone()));
         }
 
         #[cfg(feature = "v2")]
@@ -228,7 +234,8 @@ pub fn mk_app(
                 .service(routes::ProcessTrackerDeprecated::server(state.clone()))
                 .service(routes::ProcessTracker::server(state.clone()))
                 .service(routes::Gsm::server(state.clone()))
-                .service(routes::RecoveryDataBackfill::server(state.clone()));
+                .service(routes::RecoveryDataBackfill::server(state.clone()))
+                .service(routes::Analytics::server(state.clone()));
         }
     }
 
@@ -258,7 +265,11 @@ pub fn mk_app(
 
     server_app = server_app.service(routes::Cache::server(state.clone()));
     server_app = server_app.service(routes::Health::server(state.clone()));
-
+    // Registered at the end because this entry has an empty scope
+    #[cfg(feature = "olap")]
+    {
+        server_app = server_app.service(routes::Oidc::server(state.clone()));
+    }
     server_app
 }
 
@@ -282,7 +293,14 @@ pub async fn start_server(conf: settings::Settings<SecuredSecret>) -> Applicatio
         actix_web::HttpServer::new(move || mk_app(state.clone(), request_body_limit))
             .bind((server.host.as_str(), server.port))?
             .workers(server.workers)
-            .shutdown_timeout(server.shutdown_timeout);
+            .shutdown_timeout(server.shutdown_timeout)
+            .keep_alive(Some(std::time::Duration::from_secs(server.keep_alive)))
+            .client_request_timeout(std::time::Duration::from_millis(
+                server.client_request_timeout,
+            ))
+            .client_disconnect_timeout(std::time::Duration::from_millis(
+                server.client_disconnect_timeout,
+            ));
 
     #[cfg(feature = "tls")]
     let server = match server.tls {
@@ -373,6 +391,7 @@ impl Stop for mpsc::Sender<()> {
 pub fn get_application_builder(
     request_body_limit: usize,
     cors: settings::CorsSettings,
+    trace_header: settings::TraceHeaderConfig,
 ) -> actix_web::App<
     impl ServiceFactory<
         ServiceRequest,
@@ -398,12 +417,17 @@ pub fn get_application_builder(
             errors::error_handlers::custom_error_handlers,
         ))
         .wrap(middleware::default_response_headers())
-        .wrap(middleware::RequestId)
         .wrap(cors::cors(cors))
         // this middleware works only for Http1.1 requests
         .wrap(middleware::Http400RequestDetailsLogger)
         .wrap(middleware::AddAcceptLanguageHeader)
         .wrap(middleware::RequestResponseMetrics)
         .wrap(middleware::LogSpanInitializer)
-        .wrap(router_env::tracing_actix_web::TracingLogger::default())
+        .wrap(router_env::tracing_actix_web::TracingLogger::<
+            router_env::CustomRootSpanBuilder,
+        >::new())
+        .wrap(
+            router_env::RequestIdentifier::new(&trace_header.header_name)
+                .use_incoming_id(trace_header.id_reuse_strategy),
+        )
 }

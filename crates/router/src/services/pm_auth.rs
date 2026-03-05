@@ -1,5 +1,5 @@
+use hyperswitch_interfaces::consts;
 use pm_auth::{
-    consts,
     core::errors::ConnectorError,
     types::{self as pm_auth_types, api::BoxedConnectorIntegration, PaymentAuthRouterData},
 };

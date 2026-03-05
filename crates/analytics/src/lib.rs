@@ -22,7 +22,7 @@ pub mod search;
 mod sqlx;
 mod types;
 use api_event::metrics::{ApiEventMetric, ApiEventMetricRow};
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, types::TenantConfig};
 use disputes::metrics::{DisputeMetric, DisputeMetricRow};
 use enums::AuthInfo;
 use hyperswitch_interfaces::secrets_interface::{
@@ -969,10 +969,7 @@ impl AnalyticsProvider {
         }
     }
 
-    pub async fn from_conf(
-        config: &AnalyticsConfig,
-        tenant: &dyn storage_impl::config::TenantConfig,
-    ) -> Self {
+    pub async fn from_conf(config: &AnalyticsConfig, tenant: &dyn TenantConfig) -> Self {
         match config {
             AnalyticsConfig::Sqlx { sqlx, .. } => {
                 Self::Sqlx(SqlxClient::from_conf(sqlx, tenant.get_schema()).await)
@@ -1121,6 +1118,7 @@ pub struct ReportConfig {
     pub refund_function: String,
     pub dispute_function: String,
     pub authentication_function: String,
+    pub payout_function: String,
     pub region: String,
 }
 
@@ -1150,6 +1148,7 @@ pub enum AnalyticsFlow {
     GenerateDisputeReport,
     GenerateRefundReport,
     GenerateAuthenticationReport,
+    GeneratePayoutReport,
     GetApiEventMetrics,
     GetApiEventFilters,
     GetConnectorEvents,

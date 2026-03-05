@@ -11,6 +11,12 @@ impl super::settings::SchedulerSettings {
             ))
         })?;
 
+        when(self.cug_stream.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "scheduler cug_stream must not be empty".into(),
+            ))
+        })?;
+
         when(self.consumer.consumer_group.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "scheduler consumer group must not be empty".into(),

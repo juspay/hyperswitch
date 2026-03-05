@@ -12,6 +12,7 @@ function normalise(input) {
   const exceptions = {
     bankofamerica: "Bank of America",
     cybersource: "Cybersource",
+    noon: "Noon",
     paybox: "Paybox",
     paypal: "Paypal",
     wellsfargo: "Wellsfargo",
@@ -46,9 +47,7 @@ with `getCustomExchange`, if 501 response is expected, there is no need to pass 
 
 // Const to get default PaymentExchange object
 const getDefaultExchange = () => ({
-  Request: {
-    currency: "EUR",
-  },
+  Request: {},
   Response: {
     status: 501,
     body: {
@@ -62,9 +61,7 @@ const getDefaultExchange = () => ({
 });
 
 const getUnsupportedExchange = () => ({
-  Request: {
-    currency: "EUR",
-  },
+  Request: {},
   Response: {
     status: 400,
     body: {

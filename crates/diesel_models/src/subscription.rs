@@ -1,6 +1,6 @@
 use common_utils::{generate_id_with_default_len, pii::SecretSerdeValue};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::schema::subscription;
@@ -22,6 +22,8 @@ pub struct SubscriptionNew {
     modified_at: time::PrimitiveDateTime,
     profile_id: common_utils::id_type::ProfileId,
     merchant_reference_id: Option<String>,
+    plan_id: Option<String>,
+    item_price_id: Option<String>,
 }
 
 #[derive(
@@ -43,14 +45,19 @@ pub struct Subscription {
     pub modified_at: time::PrimitiveDateTime,
     pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_reference_id: Option<String>,
+    pub plan_id: Option<String>,
+    pub item_price_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, AsChangeset, router_derive::DebugAsDisplay, Deserialize)]
 #[diesel(table_name = subscription)]
 pub struct SubscriptionUpdate {
+    pub connector_subscription_id: Option<String>,
     pub payment_method_id: Option<String>,
     pub status: Option<String>,
     pub modified_at: time::PrimitiveDateTime,
+    pub plan_id: Option<String>,
+    pub item_price_id: Option<String>,
 }
 
 impl SubscriptionNew {
@@ -68,6 +75,8 @@ impl SubscriptionNew {
         metadata: Option<SecretSerdeValue>,
         profile_id: common_utils::id_type::ProfileId,
         merchant_reference_id: Option<String>,
+        plan_id: Option<String>,
+        item_price_id: Option<String>,
     ) -> Self {
         let now = common_utils::date_time::now();
         Self {
@@ -85,6 +94,8 @@ impl SubscriptionNew {
             modified_at: now,
             profile_id,
             merchant_reference_id,
+            plan_id,
+            item_price_id,
         }
     }
 
@@ -97,11 +108,20 @@ impl SubscriptionNew {
 }
 
 impl SubscriptionUpdate {
-    pub fn new(payment_method_id: Option<String>, status: Option<String>) -> Self {
+    pub fn new(
+        connector_subscription_id: Option<String>,
+        payment_method_id: Option<Secret<String>>,
+        status: Option<String>,
+        plan_id: Option<String>,
+        item_price_id: Option<String>,
+    ) -> Self {
         Self {
-            payment_method_id,
+            connector_subscription_id,
+            payment_method_id: payment_method_id.map(|pmid| pmid.peek().clone()),
             status,
             modified_at: common_utils::date_time::now(),
+            plan_id,
+            item_price_id,
         }
     }
 }

@@ -1,13 +1,14 @@
 use std::str::FromStr;
 
+use cards::NetworkToken;
 use common_enums::enums;
 use common_utils::{id_type, pii::Email, request::Method, types::StringMajorUnit};
 use error_stack::report;
 use hyperswitch_domain_models::{
-    network_tokenization::NetworkTokenNumber,
     payment_method_data::{
         BankRedirectData, Card, NetworkTokenData, PayLaterData, PaymentMethodData, WalletData,
     },
+    payment_methods::storage_enums::MitCategory,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::SetupMandate,
     router_request_types::{
@@ -136,7 +137,8 @@ pub struct AciCancelRequest {
 #[serde(rename_all = "camelCase")]
 pub struct AciMandateRequest {
     pub entity_id: Secret<String>,
-    pub payment_brand: PaymentBrand,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_brand: Option<PaymentBrand>,
     #[serde(flatten)]
     pub payment_details: PaymentDetails,
 }
@@ -350,9 +352,10 @@ impl
             | BankRedirectData::OnlineBankingSlovakia { .. }
             | BankRedirectData::OnlineBankingThailand { .. }
             | BankRedirectData::LocalBankRedirect {}
-            | BankRedirectData::OpenBankingUk { .. } => Err(
-                errors::ConnectorError::NotImplemented("Payment method".to_string()),
-            )?,
+            | BankRedirectData::OpenBankingUk { .. }
+            | BankRedirectData::OpenBanking { .. } => Err(errors::ConnectorError::NotImplemented(
+                "Payment method".to_string(),
+            ))?,
         };
         Ok(payment_data)
     }
@@ -372,10 +375,7 @@ fn get_aci_payment_brand(
         Some(common_enums::CardNetwork::UnionPay) => Ok(PaymentBrand::UnionPay),
         Some(common_enums::CardNetwork::Maestro) => Ok(PaymentBrand::Maestro),
         Some(unsupported_network) => Err(errors::ConnectorError::NotSupported {
-            message: format!(
-                "Card network {:?} is not supported by ACI",
-                unsupported_network
-            ),
+            message: format!("Card network {unsupported_network} is not supported by ACI"),
             connector: "ACI",
         })?,
         None => {
@@ -398,7 +398,7 @@ impl TryFrom<(Card, Option<Secret<String>>)> for PaymentDetails {
     ) -> Result<Self, Self::Error> {
         let card_expiry_year = card_data.get_expiry_year_4_digit();
 
-        let payment_brand = get_aci_payment_brand(card_data.card_network, false)?;
+        let payment_brand = get_aci_payment_brand(card_data.card_network, false).ok();
 
         Ok(Self::AciCard(Box::new(CardDetails {
             card_number: card_data.card_number,
@@ -458,7 +458,7 @@ pub struct AciNetworkTokenData {
     #[serde(rename = "tokenAccount.type")]
     pub token_type: AciTokenAccountType,
     #[serde(rename = "tokenAccount.number")]
-    pub token_number: NetworkTokenNumber,
+    pub token_number: NetworkToken,
     #[serde(rename = "tokenAccount.expiryMonth")]
     pub token_expiry_month: Secret<String>,
     #[serde(rename = "tokenAccount.expiryYear")]
@@ -544,7 +544,8 @@ pub struct CardDetails {
     #[serde(rename = "card.cvv")]
     pub card_cvv: Secret<String>,
     #[serde(rename = "paymentBrand")]
-    pub payment_brand: PaymentBrand,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_brand: Option<PaymentBrand>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -558,6 +559,8 @@ pub enum InstructionMode {
 #[serde(rename_all = "UPPERCASE")]
 pub enum InstructionType {
     Unscheduled,
+    Recurring,
+    Installment,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -579,6 +582,10 @@ pub struct Instruction {
 
     #[serde(rename = "standingInstruction.source")]
     source: InstructionSource,
+
+    #[serde(rename = "standingInstruction.initialTransactionId")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    initial_transaction_id: Option<String>,
 
     create_registration: Option<bool>,
 }
@@ -642,7 +649,10 @@ impl TryFrom<&AciRouterData<&PaymentsAuthorizeRouterData>> for AciPaymentsReques
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Aci"),
                 ))?
@@ -831,13 +841,29 @@ fn get_instruction_details(
             mode: InstructionMode::Initial,
             transaction_type: InstructionType::Unscheduled,
             source: InstructionSource::CardholderInitiatedTransaction,
+            initial_transaction_id: None,
             create_registration: Some(true),
         });
     } else if item.router_data.request.mandate_id.is_some() {
+        let initial_transaction_id = item
+            .router_data
+            .request
+            .get_connector_mandate_request_reference_id()
+            .ok();
+
+        let transaction_type = match item.router_data.request.mit_category.as_ref() {
+            Some(MitCategory::Installment) => InstructionType::Installment,
+            Some(MitCategory::Recurring) => InstructionType::Recurring,
+            Some(MitCategory::Unscheduled) | Some(MitCategory::Resubmission) | None => {
+                InstructionType::Unscheduled
+            }
+        };
+
         return Some(Instruction {
             mode: InstructionMode::Repeated,
-            transaction_type: InstructionType::Unscheduled,
+            transaction_type,
             source: InstructionSource::MerchantInitiatedTransaction,
+            initial_transaction_id,
             create_registration: None,
         });
     }
@@ -882,16 +908,20 @@ impl TryFrom<&RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponse
 
         let (payment_brand, payment_details) = match &item.request.payment_method_data {
             PaymentMethodData::Card(card_data) => {
-                let brand = get_aci_payment_brand(card_data.card_network.clone(), false)?;
-                match brand {
-                    PaymentBrand::Visa
-                    | PaymentBrand::Mastercard
-                    | PaymentBrand::AmericanExpress => {}
-                    _ => Err(errors::ConnectorError::NotSupported {
-                        message: "Payment method not supported for mandate setup".to_string(),
-                        connector: "ACI",
-                    })?,
-                }
+                let brand = get_aci_payment_brand(card_data.card_network.clone(), false).ok();
+                match brand.as_ref() {
+                    Some(PaymentBrand::Visa)
+                    | Some(PaymentBrand::Mastercard)
+                    | Some(PaymentBrand::AmericanExpress) => (),
+                    Some(_) => {
+                        return Err(errors::ConnectorError::NotSupported {
+                            message: "Payment method not supported for mandate setup".to_string(),
+                            connector: "ACI",
+                        }
+                        .into());
+                    }
+                    None => (),
+                };
 
                 let details = PaymentDetails::AciCard(Box::new(CardDetails {
                     card_number: card_data.card_number.clone(),
@@ -1069,7 +1099,7 @@ where
                 connector_mandate_id: Some(id.expose()),
                 payment_method_id: None,
                 mandate_metadata: None,
-                connector_mandate_request_reference_id: None,
+                connector_mandate_request_reference_id: Some(item.response.id.clone()),
             });
 
         let auto_capture = matches!(
@@ -1094,6 +1124,7 @@ where
                 status_code: item.http_code,
                 attempt_status: Some(status),
                 connector_transaction_id: Some(item.response.id.clone()),
+                connector_response_reference_id: Some(item.response.id.clone()),
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -1108,6 +1139,7 @@ where
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             })
         };
@@ -1153,13 +1185,13 @@ pub struct AciCaptureResponse {
     currency: String,
     descriptor: String,
     result: AciCaptureResult,
-    result_details: AciCaptureResultDetails,
+    result_details: Option<AciCaptureResultDetails>,
     build_number: String,
     timestamp: String,
     ndc: Secret<String>,
-    source: Secret<String>,
-    payment_method: String,
-    short_id: String,
+    source: Option<Secret<String>>,
+    payment_method: Option<String>,
+    short_id: Option<String>,
 }
 
 #[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
@@ -1174,22 +1206,22 @@ pub struct AciCaptureResult {
 pub struct AciCaptureResultDetails {
     extended_description: String,
     #[serde(rename = "clearingInstituteName")]
-    clearing_institute_name: String,
-    connector_tx_i_d1: String,
-    connector_tx_i_d3: String,
-    connector_tx_i_d2: String,
-    acquirer_response: String,
+    clearing_institute_name: Option<String>,
+    connector_tx_i_d1: Option<String>,
+    connector_tx_i_d3: Option<String>,
+    connector_tx_i_d2: Option<String>,
+    acquirer_response: Option<String>,
 }
 
 #[derive(Debug, Default, Clone, Deserialize)]
-pub enum AciCaptureStatus {
+pub enum AciStatus {
     Succeeded,
     Failed,
     #[default]
     Pending,
 }
 
-impl FromStr for AciCaptureStatus {
+impl FromStr for AciStatus {
     type Err = error_stack::Report<errors::ConnectorError>;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if FAILURE_CODES.contains(&s) {
@@ -1206,11 +1238,11 @@ impl FromStr for AciCaptureStatus {
     }
 }
 
-fn map_aci_capture_status(item: AciCaptureStatus) -> enums::AttemptStatus {
+fn map_aci_capture_status(item: AciStatus) -> enums::AttemptStatus {
     match item {
-        AciCaptureStatus::Succeeded => enums::AttemptStatus::Charged,
-        AciCaptureStatus::Failed => enums::AttemptStatus::Failure,
-        AciCaptureStatus::Pending => enums::AttemptStatus::Pending,
+        AciStatus::Succeeded => enums::AttemptStatus::Charged,
+        AciStatus::Failed => enums::AttemptStatus::Failure,
+        AciStatus::Pending => enums::AttemptStatus::Pending,
     }
 }
 
@@ -1221,8 +1253,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AciCaptureResponse, T, PaymentsResponse
     fn try_from(
         item: ResponseRouterData<F, AciCaptureResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let status =
-            map_aci_capture_status(AciCaptureStatus::from_str(&item.response.result.code)?);
+        let status = map_aci_capture_status(AciStatus::from_str(&item.response.result.code)?);
         let response = if status == enums::AttemptStatus::Failure {
             Err(ErrorResponse {
                 code: item.response.result.code.clone(),
@@ -1231,6 +1262,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AciCaptureResponse, T, PaymentsResponse
                 status_code: item.http_code,
                 attempt_status: Some(status),
                 connector_transaction_id: Some(item.response.id.clone()),
+                connector_response_reference_id: Some(item.response.id.clone()),
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -1245,6 +1277,71 @@ impl<F, T> TryFrom<ResponseRouterData<F, AciCaptureResponse, T, PaymentsResponse
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.referenced_id.clone()),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
+                charges: None,
+            })
+        };
+        Ok(Self {
+            status,
+            response,
+            reference_id: Some(item.response.referenced_id),
+            ..item.data
+        })
+    }
+}
+
+#[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciVoidResponse {
+    id: String,
+    referenced_id: String,
+    payment_type: AciPaymentType,
+    amount: StringMajorUnit,
+    currency: String,
+    descriptor: String,
+    result: AciCaptureResult,
+    result_details: Option<AciCaptureResultDetails>,
+    build_number: String,
+    timestamp: String,
+    ndc: Secret<String>,
+}
+
+fn map_aci_void_status(item: AciStatus) -> enums::AttemptStatus {
+    match item {
+        AciStatus::Succeeded => enums::AttemptStatus::Voided,
+        AciStatus::Failed => enums::AttemptStatus::VoidFailed,
+        AciStatus::Pending => enums::AttemptStatus::VoidInitiated,
+    }
+}
+
+impl<F, T> TryFrom<ResponseRouterData<F, AciVoidResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, AciVoidResponse, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let status = map_aci_void_status(AciStatus::from_str(&item.response.result.code)?);
+        let response = if status == enums::AttemptStatus::Failure {
+            Err(ErrorResponse {
+                code: item.response.result.code.clone(),
+                message: item.response.result.description.clone(),
+                reason: Some(item.response.result.description),
+                status_code: item.http_code,
+                attempt_status: Some(status),
+                connector_transaction_id: Some(item.response.id.clone()),
+                ..Default::default()
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: Some(item.response.referenced_id.clone()),
+                incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             })
         };
@@ -1344,6 +1441,7 @@ impl<F> TryFrom<RefundsResponseRouterData<F, AciRefundResponse>> for RefundsRout
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id.clone()),
+                connector_response_reference_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -1386,7 +1484,7 @@ impl
             connector_mandate_id: Some(item.response.id.clone()),
             payment_method_id: None,
             mandate_metadata: None,
-            connector_mandate_request_reference_id: None,
+            connector_mandate_request_reference_id: Some(item.response.id.clone()),
         });
 
         let status = if SUCCESSFUL_CODES.contains(&item.response.result.code.as_str()) {
@@ -1405,6 +1503,7 @@ impl
                 status_code: item.http_code,
                 attempt_status: Some(status),
                 connector_transaction_id: Some(item.response.id.clone()),
+                connector_response_reference_id: Some(item.response.id.clone()),
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -1419,6 +1518,7 @@ impl
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             })
         };

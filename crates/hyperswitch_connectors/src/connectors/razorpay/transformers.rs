@@ -11,7 +11,7 @@ use hyperswitch_domain_models::{
     payment_method_data::{PaymentMethodData, UpiData},
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{PaymentsAuthorizeData, ResponseId},
+    router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types,
 };
@@ -21,7 +21,10 @@ use serde::{Deserialize, Serialize};
 use time::{Duration, OffsetDateTime};
 
 use crate::{
-    types::{CreateOrderResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
+    types::{
+        CreateOrderResponseRouterData, PaymentsResponseRouterData, RefundsResponseRouterData,
+        ResponseRouterData,
+    },
     utils::{
         get_unimplemented_payment_method_error_message, missing_field_err,
         PaymentsAuthorizeRequestData, RouterData as OtherRouterData,
@@ -103,6 +106,7 @@ impl TryFrom<CreateOrderResponseRouterData<RazorpayOrderResponse>>
         Ok(Self {
             response: Ok(PaymentsResponseData::PaymentsCreateOrderResponse {
                 order_id: item.response.id.clone(),
+                session_token: None,
             }),
             ..item.data
         })
@@ -169,7 +173,7 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Razor
                         },
                     )
                 }
-                UpiData::UpiIntent(_upi_intent_data) => {
+                UpiData::UpiIntent(_) | UpiData::UpiQr(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         get_unimplemented_payment_method_error_message("razorpay"),
                     ))?
@@ -229,24 +233,12 @@ pub struct RazorpayPaymentsResponse {
     pub razorpay_payment_id: String,
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            RazorpayPaymentsResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
+impl TryFrom<PaymentsResponseRouterData<RazorpayPaymentsResponse>>
+    for types::PaymentsAuthorizeRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            RazorpayPaymentsResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsResponseRouterData<RazorpayPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         let connector_metadata = get_wait_screen_metadata()?;
         let order_id = item.data.request.get_order_id()?;
@@ -262,6 +254,7 @@ impl<F>
                 network_txn_id: None,
                 connector_response_reference_id: Some(order_id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -345,6 +338,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, RazorpaySyncResponse, T, PaymentsRespon
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -464,6 +458,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, RazorpayRefundResponse>>
 //                             network_txn_id: None,
 //                             connector_response_reference_id: None,
 //                             incremental_authorization_allowed: None,
+//                             authentication_data: None,
 //                             charges: None,
 //                         })
 //                     },

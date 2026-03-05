@@ -139,12 +139,14 @@ impl TryFrom<&EbanxRouterData<&PayoutsRouterData<PoCreate>>> for EbanxPayoutCrea
                     payee,
                 })
             }
-            PayoutMethodData::Card(_) | PayoutMethodData::Bank(_) | PayoutMethodData::Wallet(_) => {
-                Err(ConnectorError::NotSupported {
-                    message: "Payment Method Not Supported".to_string(),
-                    connector: "Ebanx",
-                })?
-            }
+            PayoutMethodData::Card(_)
+            | PayoutMethodData::Bank(_)
+            | PayoutMethodData::Wallet(_)
+            | PayoutMethodData::BankRedirect(_)
+            | PayoutMethodData::Passthrough(_) => Err(ConnectorError::NotSupported {
+                message: "Payment Method Not Supported".to_string(),
+                connector: "Ebanx",
+            })?,
         }
     }
 }
@@ -217,6 +219,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, EbanxPayoutResponse>> for PayoutsRo
                 should_add_next_step_to_process_tracker: false,
                 error_code: None,
                 error_message: None,
+                payout_connector_metadata: None,
             }),
             ..item.data
         })
@@ -245,10 +248,12 @@ impl<F> TryFrom<&EbanxRouterData<&PayoutsRouterData<F>>> for EbanxPayoutFulfillR
                     .to_owned()
                     .ok_or(ConnectorError::MissingRequiredField { field_name: "uid" })?,
             }),
-            PayoutType::Card | PayoutType::Wallet => Err(ConnectorError::NotSupported {
-                message: "Payout Method Not Supported".to_string(),
-                connector: "Ebanx",
-            })?,
+            PayoutType::Card | PayoutType::Wallet | PayoutType::BankRedirect => {
+                Err(ConnectorError::NotSupported {
+                    message: "Payout Method Not Supported".to_string(),
+                    connector: "Ebanx",
+                })?
+            }
         }
     }
 }
@@ -299,6 +304,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, EbanxFulfillResponse>> for PayoutsR
                 should_add_next_step_to_process_tracker: false,
                 error_code: None,
                 error_message: None,
+                payout_connector_metadata: None,
             }),
             ..item.data
         })
@@ -334,10 +340,12 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for EbanxPayoutCancelRequest {
                     .to_owned()
                     .ok_or(ConnectorError::MissingRequiredField { field_name: "uid" })?,
             }),
-            PayoutType::Card | PayoutType::Wallet => Err(ConnectorError::NotSupported {
-                message: "Payout Method Not Supported".to_string(),
-                connector: "Ebanx",
-            })?,
+            PayoutType::Card | PayoutType::Wallet | PayoutType::BankRedirect => {
+                Err(ConnectorError::NotSupported {
+                    message: "Payout Method Not Supported".to_string(),
+                    connector: "Ebanx",
+                })?
+            }
         }
     }
 }
@@ -388,6 +396,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, EbanxCancelResponse>> for PayoutsRo
                 should_add_next_step_to_process_tracker: false,
                 error_code: None,
                 error_message: None,
+                payout_connector_metadata: None,
             }),
             ..item.data
         })

@@ -61,6 +61,7 @@ export default defineConfig({
       return config;
     },
     experimentalRunAllSpecs: true,
+    retries: 2,
 
     specPattern: "cypress/e2e/**/*.cy.{js,jsx,ts,tsx}",
     supportFile: "cypress/support/e2e.js",

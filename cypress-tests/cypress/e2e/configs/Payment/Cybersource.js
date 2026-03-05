@@ -1,6 +1,6 @@
 import {
-  customerAcceptance,
   connectorDetails as commonConnectorDetails,
+  customerAcceptance,
 } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
@@ -60,6 +60,7 @@ const payment_method_data_no3ds = {
       card_verification: null,
     },
     authentication_data: null,
+    auth_code: null,
   },
   billing: null,
 };
@@ -69,8 +70,8 @@ const payment_method_data_3ds = {
     last4: "2701",
     card_type: "CREDIT",
     card_network: "Visa",
-    card_issuer: "INTL HDQTRS-CENTER OWNED",
-    card_issuing_country: "UNITEDSTATES",
+    card_issuer: "Intl Hdqtrs Center Owned",
+    card_issuing_country: "UNITED STATES OF AMERICA",
     card_isin: "400000",
     card_extended_bin: null,
     card_exp_month: "01",
@@ -78,6 +79,7 @@ const payment_method_data_3ds = {
     card_holder_name: "joseph Doe",
     payment_checks: null,
     authentication_data: null,
+    auth_code: null,
   },
   billing: null,
 };
@@ -285,6 +287,161 @@ export const connectorDetails = {
           payment_method: "card",
           attempt_count: 1,
           payment_method_data: payment_method_data_no3ds,
+        },
+      },
+    },
+    No3DSFailPayment: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          billing: {
+            address: {
+              city: "sakilmostak",
+              country: "US",
+              line1: "here",
+              line2: "there",
+              line3: "anywhere",
+              zip: "560090",
+              state: "Washingtonr",
+              first_name: "One",
+              last_name: "Two",
+            },
+            phone: {
+              number: "1234567890",
+              country_code: "+1",
+            },
+            email: "guest@example.com",
+          },
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        billing: billing_with_newline,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_message:
+            "Declined - One or more fields in the request contains invalid data, detailed_error_information: orderInformation.billTo.administrativeArea : INVALID_DATA",
+          attempt_count: 1,
+        },
+      },
+    },
+    ManualRetryPaymentDisabled: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          billing: {
+            address: {
+              city: "sakilmostak",
+              country: "US",
+              line1: "here",
+              line2: "there",
+              line3: "anywhere",
+              zip: "560090",
+              state: "Washingtonr",
+              first_name: "One",
+              last_name: "Two",
+            },
+            phone: {
+              number: "1234567890",
+              country_code: "+1",
+            },
+            email: "guest@example.com",
+          },
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        billing: billing_with_newline,
+      },
+      Response: {
+        status: 400,
+        body: {
+          type: "invalid_request",
+          message:
+            "You cannot confirm this payment because it has status failed, you can enable `manual_retry` in profile to try this payment again",
+          code: "IR_16",
+        },
+      },
+    },
+    ManualRetryPaymentEnabled: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          billing: {
+            address: {
+              city: "sakilmostak",
+              country: "US",
+              line1: "here",
+              line2: "there",
+              line3: "anywhere",
+              zip: "560090",
+              state: "Washington",
+              first_name: "One",
+              last_name: "Two",
+            },
+            phone: {
+              number: "1234567890",
+              country_code: "+1",
+            },
+            email: "guest@example.com",
+          },
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        billing: billing_with_newline,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method: "card",
+          attempt_count: 2,
+        },
+      },
+    },
+    ManualRetryPaymentCutoffExpired: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          billing: {
+            address: {
+              city: "sakilmostak",
+              country: "US",
+              line1: "here",
+              line2: "there",
+              line3: "anywhere",
+              zip: "560090",
+              state: "Washington",
+              first_name: "One",
+              last_name: "Two",
+            },
+            phone: {
+              number: "1234567890",
+              country_code: "+1",
+            },
+            email: "guest@example.com",
+          },
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        billing: billing_with_newline,
+      },
+      Response: {
+        status: 400,
+        body: {
+          type: "invalid_request",
+          message:
+            "You cannot confirm this payment using `manual_retry` because the allowed duration has expired",
+          code: "IR_16",
         },
       },
     },
@@ -679,6 +836,8 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,

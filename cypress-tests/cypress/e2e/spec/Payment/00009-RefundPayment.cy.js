@@ -59,7 +59,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "card_pm"
       ]["No3DSAutoCapture"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
 
     it("refund-call-test", () => {
@@ -127,7 +127,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "card_pm"
       ]["No3DSAutoCapture"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
 
     it("refund-call-test", () => {
@@ -194,7 +194,7 @@ describe("Card - Refund flow - No 3DS", () => {
           "card_pm"
         ]["No3DSAutoCapture"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
 
       it("refund-call-test", () => {
@@ -254,7 +254,7 @@ describe("Card - Refund flow - No 3DS", () => {
           "card_pm"
         ]["No3DSAutoCapture"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
 
       it("refund-call-test", () => {
@@ -284,7 +284,12 @@ describe("Card - Refund flow - No 3DS", () => {
           "card_pm"
         ]["SyncRefund"];
 
-        cy.syncRefundCallTest(data, globalState);
+        const newData = {
+          ...data,
+          Response: data.ResponseCustom || data.Response,
+        };
+
+        cy.refundCallTest(fixtures.refundBody, newData, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -336,7 +341,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "card_pm"
       ]["No3DSManualCapture"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
 
     it("capture-call-test", () => {
@@ -354,7 +359,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "card_pm"
       ]["Capture"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
 
     it("refund-call-test", () => {
@@ -362,7 +367,12 @@ describe("Card - Refund flow - No 3DS", () => {
         "card_pm"
       ]["manualPaymentRefund"];
 
-      cy.refundCallTest(fixtures.refundBody, data, globalState);
+      const newData = {
+        ...data,
+        Response: data.ResponseCustom || data.Response,
+      };
+
+      cy.refundCallTest(fixtures.refundBody, newData, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -422,7 +432,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "card_pm"
       ]["No3DSManualCapture"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
 
     it("capture-call-test", () => {
@@ -440,7 +450,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "card_pm"
       ]["Capture"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
 
     it("refund-call-test", () => {
@@ -448,7 +458,12 @@ describe("Card - Refund flow - No 3DS", () => {
         "card_pm"
       ]["manualPaymentPartialRefund"];
 
-      cy.refundCallTest(fixtures.refundBody, data, globalState);
+      const newData = {
+        ...data,
+        Response: data.ResponseCustom || data.Response,
+      };
+
+      cy.refundCallTest(fixtures.refundBody, newData, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -457,7 +472,12 @@ describe("Card - Refund flow - No 3DS", () => {
         "card_pm"
       ]["manualPaymentPartialRefund"];
 
-      cy.refundCallTest(fixtures.refundBody, data, globalState);
+      const newData = {
+        ...data,
+        Response: data.ResponseCustom || data.Response,
+      };
+
+      cy.refundCallTest(fixtures.refundBody, newData, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -520,7 +540,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "card_pm"
       ]["No3DSManualCapture"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
 
     it("capture-call-test", () => {
@@ -538,7 +558,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "card_pm"
       ]["PartialCapture"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
 
     it("refund-call-test", () => {
@@ -546,7 +566,12 @@ describe("Card - Refund flow - No 3DS", () => {
         "card_pm"
       ]["manualPaymentPartialRefund"];
 
-      cy.refundCallTest(fixtures.refundBody, data, globalState);
+      const newData = {
+        ...data,
+        Response: data.ResponseCustom || data.Response,
+      };
+
+      cy.refundCallTest(fixtures.refundBody, newData, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -606,7 +631,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "card_pm"
       ]["No3DSManualCapture"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
 
     it("capture-call-test", () => {
@@ -624,7 +649,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "card_pm"
       ]["PartialCapture"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
 
     it("refund-call-test", () => {
@@ -632,7 +657,12 @@ describe("Card - Refund flow - No 3DS", () => {
         "card_pm"
       ]["manualPaymentPartialRefund"];
 
-      cy.refundCallTest(fixtures.refundBody, data, globalState);
+      const newData = {
+        ...data,
+        Response: data.ResponseCustom || data.Response,
+      };
+
+      cy.refundCallTest(fixtures.refundBody, newData, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -799,7 +829,7 @@ describe("Card - Refund flow - 3DS", () => {
         "card_pm"
       ]["3DSAutoCapture"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
 
     it("refund-call-test", () => {
@@ -872,7 +902,7 @@ describe("Card - Refund flow - 3DS", () => {
         "card_pm"
       ]["3DSAutoCapture"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
 
     it("refund-call-test", () => {
@@ -941,7 +971,7 @@ describe("Card - Refund flow - 3DS", () => {
         "card_pm"
       ]["3DSAutoCapture"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
 
     it("refund-call-test", () => {
@@ -1003,7 +1033,7 @@ describe("Card - Refund flow - 3DS", () => {
           "card_pm"
         ]["3DSAutoCapture"];
 
-        cy.retrievePaymentCallTest(globalState, data);
+        cy.retrievePaymentCallTest({ globalState, data });
       });
 
       it("refund-call-test", () => {
@@ -1090,7 +1120,7 @@ describe("Card - Refund flow - 3DS", () => {
         "card_pm"
       ]["3DSManualCapture"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
 
     it("capture-call-test", () => {
@@ -1108,7 +1138,7 @@ describe("Card - Refund flow - 3DS", () => {
         "card_pm"
       ]["Capture"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
 
     it("refund-call-test", () => {
@@ -1181,7 +1211,7 @@ describe("Card - Refund flow - 3DS", () => {
         "card_pm"
       ]["3DSManualCapture"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
 
     it("capture-call-test", () => {
@@ -1199,7 +1229,7 @@ describe("Card - Refund flow - 3DS", () => {
         "card_pm"
       ]["Capture"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
 
     it("refund-call-test", () => {
@@ -1281,7 +1311,7 @@ describe("Card - Refund flow - 3DS", () => {
         "card_pm"
       ]["3DSManualCapture"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
 
     it("capture-call-test", () => {
@@ -1299,7 +1329,7 @@ describe("Card - Refund flow - 3DS", () => {
         "card_pm"
       ]["PartialCapture"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
 
     it("refund-call-test", () => {
@@ -1372,7 +1402,7 @@ describe("Card - Refund flow - 3DS", () => {
         "card_pm"
       ]["3DSManualCapture"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
 
     it("capture-call-test", () => {
@@ -1390,7 +1420,7 @@ describe("Card - Refund flow - 3DS", () => {
         "card_pm"
       ]["PartialCapture"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
 
     it("refund-call-test", () => {

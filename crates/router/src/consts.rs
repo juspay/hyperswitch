@@ -1,11 +1,12 @@
+pub mod oidc;
 pub mod opensearch;
 #[cfg(feature = "olap")]
 pub mod user;
 pub mod user_role;
-use std::collections::HashSet;
+use std::{collections::HashSet, str::FromStr, sync};
 
 use api_models::enums::Country;
-use common_utils::consts;
+use common_utils::{consts, id_type};
 pub use hyperswitch_domain_models::consts::{
     CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH, ROUTING_ENABLED_PAYMENT_METHODS,
     ROUTING_ENABLED_PAYMENT_METHOD_TYPES,
@@ -25,8 +26,6 @@ pub(crate) const ALPHABETS: [char; 62] = [
 ];
 /// API client request timeout (in seconds)
 pub const REQUEST_TIME_OUT: u64 = 30;
-pub const REQUEST_TIMEOUT_ERROR_CODE: &str = "TIMEOUT";
-pub const REQUEST_TIMEOUT_ERROR_MESSAGE: &str = "Connector did not respond in specified time";
 pub const REQUEST_TIMEOUT_PAYMENT_NOT_FOUND: &str = "Timed out ,payment not found";
 pub const REQUEST_TIMEOUT_ERROR_MESSAGE_FROM_PSYNC: &str =
     "This Payment has been moved to failed as there is no response from the connector";
@@ -61,6 +60,7 @@ pub const LOCKER_REDIS_PREFIX: &str = "LOCKER_PM_TOKEN";
 pub const LOCKER_REDIS_EXPIRY_SECONDS: u32 = 60 * 15; // 15 minutes
 
 pub const JWT_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24 * 2; // 2 days
+pub const JWT_EMBEDDED_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 3; // 3 hours
 
 // This should be one day, but it is causing issue while checking token in blacklist.
 // TODO: This should be fixed in future.
@@ -112,6 +112,9 @@ pub const MAX_INTENT_FULFILLMENT_EXPIRY: u32 = 1800;
 pub const MIN_INTENT_FULFILLMENT_EXPIRY: u32 = 60;
 
 pub const LOCKER_HEALTH_CALL_PATH: &str = "/health";
+pub const LOCKER_ADD_CARD_PATH: &str = "/cards/add";
+pub const LOCKER_RETRIEVE_CARD_PATH: &str = "/cards/retrieve";
+pub const LOCKER_DELETE_CARD_PATH: &str = "/cards/delete";
 
 pub const AUTHENTICATION_ID_PREFIX: &str = "authn";
 
@@ -120,6 +123,12 @@ pub const OUTGOING_CALL_URL: &str = "https://api.stripe.com/healthcheck";
 
 // 15 minutes = 900 seconds
 pub const POLL_ID_TTL: i64 = 900;
+
+// 15 minutes = 900 seconds
+pub const AUTHENTICATION_ELIGIBILITY_CHECK_DATA_TTL: i64 = 900;
+
+// Prefix key for storing authentication eligibility check data in redis
+pub const AUTHENTICATION_ELIGIBILITY_CHECK_DATA_KEY: &str = "AUTH_ELIGIBILITY_CHECK_DATA_";
 
 // Default Poll Config
 pub const DEFAULT_POLL_DELAY_IN_SECS: i8 = 2;
@@ -172,40 +181,31 @@ pub const DEFAULT_PRODUCT_IMG: &str =
 pub const DEFAULT_SDK_LAYOUT: &str = "tabs";
 
 /// Vault Add request url
-#[cfg(feature = "v2")]
-pub const ADD_VAULT_REQUEST_URL: &str = "/api/v2/vault/add";
+pub const V2_ADD_VAULT_REQUEST_URL: &str = "/api/v2/vault/add";
 
 /// Vault Get Fingerprint request url
-#[cfg(feature = "v2")]
-pub const VAULT_FINGERPRINT_REQUEST_URL: &str = "/api/v2/vault/fingerprint";
+pub const V2_VAULT_FINGERPRINT_REQUEST_URL: &str = "/api/v2/vault/fingerprint";
 
 /// Vault Retrieve request url
-#[cfg(feature = "v2")]
-pub const VAULT_RETRIEVE_REQUEST_URL: &str = "/api/v2/vault/retrieve";
+pub const V2_VAULT_RETRIEVE_REQUEST_URL: &str = "/api/v2/vault/retrieve";
 
 /// Vault Delete request url
-#[cfg(feature = "v2")]
-pub const VAULT_DELETE_REQUEST_URL: &str = "/api/v2/vault/delete";
+pub const V2_VAULT_DELETE_REQUEST_URL: &str = "/api/v2/vault/delete";
 
 /// Vault Header content type
-#[cfg(feature = "v2")]
-pub const VAULT_HEADER_CONTENT_TYPE: &str = "application/json";
+pub const V2_VAULT_HEADER_CONTENT_TYPE: &str = "application/json";
 
 /// Vault Add flow type
-#[cfg(feature = "v2")]
-pub const VAULT_ADD_FLOW_TYPE: &str = "add_to_vault";
+pub const V2_VAULT_ADD_FLOW_TYPE: &str = "add_to_vault";
 
 /// Vault Retrieve flow type
-#[cfg(feature = "v2")]
-pub const VAULT_RETRIEVE_FLOW_TYPE: &str = "retrieve_from_vault";
+pub const V2_VAULT_RETRIEVE_FLOW_TYPE: &str = "retrieve_from_vault";
 
 /// Vault Delete flow type
-#[cfg(feature = "v2")]
-pub const VAULT_DELETE_FLOW_TYPE: &str = "delete_from_vault";
+pub const V2_VAULT_DELETE_FLOW_TYPE: &str = "delete_from_vault";
 
 /// Vault Fingerprint fetch flow type
-#[cfg(feature = "v2")]
-pub const VAULT_GET_FINGERPRINT_FLOW_TYPE: &str = "get_fingerprint_vault";
+pub const V2_VAULT_GET_FINGERPRINT_FLOW_TYPE: &str = "get_fingerprint_vault";
 
 /// Max volume split for Dynamic routing
 pub const DYNAMIC_ROUTING_MAX_VOLUME: u8 = 100;
@@ -216,6 +216,12 @@ pub const CLICK_TO_PAY: &str = "click_to_pay";
 /// Merchant eligible for authentication service config
 pub const AUTHENTICATION_SERVICE_ELIGIBLE_CONFIG: &str =
     "merchants_eligible_for_authentication_service";
+
+/// Payment flow identifier used for performing GSM operations
+pub const PAYMENT_FLOW_STR: &str = "Payment";
+
+/// Default subflow identifier used for performing GSM operations
+pub const DEFAULT_SUBFLOW_STR: &str = "sub_flow";
 
 /// Refund flow identifier used for performing GSM operations
 pub const REFUND_FLOW_STR: &str = "refund_flow";
@@ -274,6 +280,12 @@ pub const IRRELEVANT_PAYMENT_INTENT_ID: &str = "irrelevant_payment_intent_id";
 /// Default payment attempt id
 pub const IRRELEVANT_PAYMENT_ATTEMPT_ID: &str = "irrelevant_payment_attempt_id";
 
+pub static PROFILE_ID_UNAVAILABLE: sync::LazyLock<id_type::ProfileId> = sync::LazyLock::new(|| {
+    #[allow(clippy::expect_used)]
+    id_type::ProfileId::from_str("PROFILE_ID_UNAVAIABLE")
+        .expect("Failed to parse PROFILE_ID_UNAVAIABLE")
+});
+
 /// Default payment attempt id
 pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID: &str =
     "irrelevant_connector_request_reference_id";
@@ -327,8 +339,29 @@ pub const UCS_AUTH_BODY_KEY: &str = "body-key";
 /// Header value indicating that header-key-based authentication is used.
 pub const UCS_AUTH_HEADER_KEY: &str = "header-key";
 
+/// Header value indicating that multi-key-based authentication is used.
+pub const UCS_AUTH_MULTI_KEY: &str = "multi-auth-key";
+
 /// Header value indicating that currency-auth-key-based authentication is used.
 pub const UCS_AUTH_CURRENCY_AUTH_KEY: &str = "currency-auth-key";
 
 /// Form field name for challenge request during creq submission
 pub const CREQ_CHALLENGE_REQUEST_KEY: &str = "creq";
+
+/// Superposition configuration keys
+pub mod superposition {
+    /// CVV requirement configuration key
+    pub const REQUIRES_CVV: &str = "requires_cvv";
+    /// implicit customer update configuration key
+    pub const IMPLICIT_CUSTOMER_UPDATE: &str = "implicit_customer_update";
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_profile_id_unavailable_initialization() {
+        // Just access the lazy static to ensure it doesn't panic during initialization
+        let _profile_id = super::PROFILE_ID_UNAVAILABLE.clone();
+        // If we get here without panicking, the test passes
+    }
+}

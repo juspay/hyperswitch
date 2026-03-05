@@ -445,6 +445,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, TokenioPaymentsResponse, T, PaymentsRes
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: Some(payment.id.clone()),
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
@@ -469,6 +470,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, TokenioPaymentsResponse, T, PaymentsRes
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     })
                 }
@@ -480,6 +482,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, TokenioPaymentsResponse, T, PaymentsRes
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,

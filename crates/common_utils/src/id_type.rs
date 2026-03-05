@@ -7,6 +7,7 @@ mod client_secret;
 mod customer;
 #[cfg(feature = "v2")]
 mod global_id;
+mod invoice;
 mod merchant;
 mod merchant_connector_account;
 mod organization;
@@ -19,6 +20,7 @@ mod relay;
 mod routing;
 mod subscription;
 mod tenant;
+mod webhook_endpoint;
 
 use std::{borrow::Cow, fmt::Debug};
 
@@ -36,7 +38,7 @@ use thiserror::Error;
 #[cfg(feature = "v2")]
 pub use self::global_id::{
     customer::GlobalCustomerId,
-    payment::{GlobalAttemptId, GlobalPaymentId},
+    payment::{GlobalAttemptGroupId, GlobalAttemptId, GlobalPaymentId},
     payment_methods::{GlobalPaymentMethodId, GlobalPaymentMethodSessionId},
     refunds::GlobalRefundId,
     token::GlobalTokenId,
@@ -47,10 +49,11 @@ pub use self::{
     authentication::AuthenticationId,
     client_secret::ClientSecretId,
     customer::CustomerId,
+    invoice::InvoiceId,
     merchant::MerchantId,
     merchant_connector_account::MerchantConnectorAccountId,
     organization::OrganizationId,
-    payment::{PaymentId, PaymentReferenceId},
+    payment::{PaymentId, PaymentReferenceId, PaymentResourceId},
     profile::ProfileId,
     profile_acquirer::ProfileAcquirerId,
     refunds::RefundReferenceId,
@@ -58,6 +61,7 @@ pub use self::{
     routing::RoutingId,
     subscription::SubscriptionId,
     tenant::TenantId,
+    webhook_endpoint::WebhookEndpointId,
 };
 use crate::{fp_utils::when, generate_id_with_default_len};
 
@@ -242,9 +246,14 @@ pub trait GenerateId {
     fn generate() -> Self;
 }
 
+/// Trait for types that can be used as a targeting key in Superposition experiments.
+pub trait TargetingKey {
+    /// Get the string representation to use as the targeting key value.
+    fn targeting_key_value(&self) -> &str;
+}
+
 #[cfg(test)]
 mod alphanumeric_id_tests {
-    #![allow(clippy::unwrap_used)]
     use super::*;
 
     const VALID_UNDERSCORE_ID_JSON: &str = r#""cus_abcdefghijklmnopqrstuv""#;

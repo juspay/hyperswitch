@@ -1,0 +1,4 @@
+-- Your SQL goes here
+ALTER TABLE subscription
+ADD COLUMN IF NOT EXISTS plan_id VARCHAR(128),
+ADD COLUMN IF NOT EXISTS item_price_id VARCHAR(128);

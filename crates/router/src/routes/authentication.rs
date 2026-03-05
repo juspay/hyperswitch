@@ -2,16 +2,17 @@ use actix_web::{web, HttpRequest, Responder};
 use api_models::authentication::{AuthenticationAuthenticateRequest, AuthenticationCreateRequest};
 #[cfg(feature = "v1")]
 use api_models::authentication::{
-    AuthenticationEligibilityRequest, AuthenticationSyncPostUpdateRequest,
-    AuthenticationSyncRequest,
+    AuthenticationEligibilityCheckRequest, AuthenticationEligibilityRequest,
+    AuthenticationRetrieveEligibilityCheckRequest, AuthenticationSessionTokenRequest,
+    AuthenticationSyncPostUpdateRequest, AuthenticationSyncRequest,
 };
+use masking::Secret;
 use router_env::{instrument, tracing, Flow};
 
 use crate::{
     core::{api_locking, unified_authentication_service},
     routes::app::{self},
     services::{api, authentication as auth},
-    types::domain,
 };
 
 #[cfg(feature = "v1")]
@@ -29,14 +30,11 @@ pub async fn authentication_create(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            unified_authentication_service::authentication_create_core(state, merchant_context, req)
+            unified_authentication_service::authentication_create_core(state, auth.platform, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -56,8 +54,7 @@ pub async fn authentication_eligibility(
     let api_auth = auth::ApiKeyAuth::default();
     let payload = json_payload.into_inner();
 
-    let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth)
-    {
+    let (auth, _) = match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth) {
         Ok((auth, _auth_flow)) => (auth, _auth_flow),
         Err(e) => return api::log_and_return_error_response(e),
     };
@@ -68,13 +65,14 @@ pub async fn authentication_eligibility(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+        |state, auth, mut req, _| {
+            if let Some(client_secret) = auth.client_secret {
+                req.client_secret = Some(Secret::new(client_secret));
+            }
+
             unified_authentication_service::authentication_eligibility_core(
                 state,
-                merchant_context,
+                auth.platform,
                 req,
                 authentication_id.clone(),
             )
@@ -102,7 +100,7 @@ pub async fn authentication_authenticate(
     };
 
     let (auth, auth_flow) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
+        match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth) {
             Ok((auth, auth_flow)) => (auth, auth_flow),
             Err(e) => return api::log_and_return_error_response(e),
         };
@@ -112,18 +110,96 @@ pub async fn authentication_authenticate(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+        |state, auth, mut req, _| {
+            if let Some(client_secret) = auth.client_secret {
+                req.client_secret = Some(Secret::new(client_secret));
+            }
+
             unified_authentication_service::authentication_authenticate_core(
                 state,
-                merchant_context,
+                auth.platform,
                 req,
                 auth_flow,
             )
         },
         &*auth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v1")]
+#[instrument(skip_all, fields(flow = ?Flow::AuthenticationEligibilityCheck))]
+pub async fn authentication_eligibility_check(
+    state: web::Data<app::AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<AuthenticationEligibilityCheckRequest>,
+    path: web::Path<common_utils::id_type::AuthenticationId>,
+) -> impl Responder {
+    let flow = Flow::AuthenticationEligibilityCheck;
+    let authentication_id = path.into_inner();
+    let api_auth = auth::ApiKeyAuth::default();
+    let payload = AuthenticationEligibilityCheckRequest {
+        authentication_id,
+        ..json_payload.into_inner()
+    };
+
+    let (auth, auth_flow) =
+        match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth) {
+            Ok((auth, auth_flow)) => (auth, auth_flow),
+            Err(e) => return api::log_and_return_error_response(e),
+        };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, mut req, _| {
+            if let Some(client_secret) = auth.client_secret {
+                req.client_secret = Some(Secret::new(client_secret));
+            }
+
+            unified_authentication_service::authentication_eligibility_check_core(
+                state,
+                auth.platform,
+                req,
+                auth_flow,
+            )
+        },
+        &*auth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v1")]
+#[instrument(skip_all, fields(flow = ?Flow::AuthenticationRetrieveEligibilityCheck))]
+pub async fn authentication_retrieve_eligibility_check(
+    state: web::Data<app::AppState>,
+    req: HttpRequest,
+    path: web::Path<common_utils::id_type::AuthenticationId>,
+) -> impl Responder {
+    let flow = Flow::AuthenticationRetrieveEligibilityCheck;
+    let authentication_id = path.into_inner();
+    let payload = AuthenticationRetrieveEligibilityCheckRequest { authentication_id };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            unified_authentication_service::authentication_retrieve_eligibility_check_core(
+                state,
+                auth.platform,
+                req,
+            )
+        },
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
+        }),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -138,7 +214,7 @@ pub async fn authentication_sync(
         common_utils::id_type::MerchantId,
         common_utils::id_type::AuthenticationId,
     )>,
-    json_payload: web::Query<AuthenticationSyncRequest>,
+    json_payload: web::Json<AuthenticationSyncRequest>,
 ) -> impl Responder {
     let flow = Flow::AuthenticationSync;
     let api_auth = auth::ApiKeyAuth::default();
@@ -148,7 +224,7 @@ pub async fn authentication_sync(
         ..json_payload.into_inner()
     };
     let (auth, auth_flow) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
+        match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth) {
             Ok((auth, auth_flow)) => (auth, auth_flow),
             Err(e) => return api::log_and_return_error_response(e),
         };
@@ -158,13 +234,14 @@ pub async fn authentication_sync(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+        |state, auth, mut req, _| {
+            if let Some(client_secret) = auth.client_secret {
+                req.client_secret = Some(Secret::new(client_secret));
+            }
+
             unified_authentication_service::authentication_sync_core(
                 state,
-                merchant_context,
+                auth.platform,
                 auth_flow,
                 req,
             )
@@ -195,16 +272,49 @@ pub async fn authentication_sync_post_update(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
-            unified_authentication_service::authentication_post_sync_core(
-                state,
-                merchant_context,
-                req,
-            )
+            unified_authentication_service::authentication_post_sync_core(state, auth.platform, req)
         },
         &auth::MerchantIdAuth(merchant_id),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v1")]
+#[instrument(skip_all, fields(flow = ?Flow::AuthenticationSessionToken))]
+pub async fn authentication_session_token(
+    state: web::Data<app::AppState>,
+    req: HttpRequest,
+    path: web::Path<common_utils::id_type::AuthenticationId>,
+    json_payload: web::Json<AuthenticationSessionTokenRequest>,
+) -> impl Responder {
+    let flow = Flow::AuthenticationSessionToken;
+    let authentication_id = path.into_inner();
+    let api_auth = auth::ApiKeyAuth::default();
+
+    let payload = AuthenticationSessionTokenRequest {
+        authentication_id: authentication_id.clone(),
+        ..json_payload.into_inner()
+    };
+
+    let (auth, _auth_flow) =
+        match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth) {
+            Ok((auth, auth_flow)) => (auth, auth_flow),
+            Err(e) => return api::log_and_return_error_response(e),
+        };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, mut req, _| {
+            if let Some(client_secret) = auth.client_secret {
+                req.client_secret = Some(Secret::new(client_secret));
+            }
+            unified_authentication_service::authentication_session_core(state, auth.platform, req)
+        },
+        &*auth,
         api_locking::LockAction::NotApplicable,
     ))
     .await

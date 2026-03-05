@@ -240,19 +240,15 @@ pub fn analyze<O: EuclidAnalysable + EuclidDirFilter>(
 
 #[cfg(all(test, feature = "ast_parser"))]
 mod tests {
-    #![allow(clippy::panic, clippy::expect_used)]
-
     use std::{ops::Deref, sync::Weak};
 
     use euclid_macros::knowledge;
     use hyperswitch_constraint_graph as cgraph;
 
     use super::*;
-    use crate::{
-        dirval,
-        dssa::graph::{self, euclid_graph_prelude},
-        types::DummyOutput,
-    };
+    #[allow(unused_imports)] // Required by the `knowledge!` macro expansion
+    use crate::dssa::graph::euclid_graph_prelude;
+    use crate::{dirval, dssa::graph, types::DummyOutput};
 
     #[test]
     fn test_conflicting_assertion_detection() {

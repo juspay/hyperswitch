@@ -1,7 +1,5 @@
 use std::collections::HashSet;
 
-use common_utils::id_type;
-
 #[cfg(feature = "payouts")]
 pub mod payout_required_fields;
 
@@ -13,6 +11,9 @@ impl Default for super::settings::Server {
             host: "localhost".into(),
             request_body_limit: 16 * 1024, // POST request body is limited to 16KiB
             shutdown_timeout: 30,
+            keep_alive: 5,
+            client_request_timeout: 5000,
+            client_disconnect_timeout: 1000,
             #[cfg(feature = "tls")]
             tls: None,
         }
@@ -53,9 +54,7 @@ impl Default for super::settings::Locker {
     fn default() -> Self {
         Self {
             host: "localhost".into(),
-            host_rs: "localhost".into(),
             mock_locker: true,
-            basilisk_host: "localhost".into(),
             locker_signing_key_id: "1".into(),
             //true or false
             locker_enabled: true,
@@ -120,17 +119,6 @@ impl Default for super::settings::KvConfig {
         Self {
             ttl: 900,
             soft_kill: Some(false),
-        }
-    }
-}
-
-impl Default for super::settings::GlobalTenant {
-    fn default() -> Self {
-        Self {
-            tenant_id: id_type::TenantId::get_default_global_tenant_id(),
-            schema: String::from("global"),
-            redis_key_prefix: String::from("global"),
-            clickhouse_database: String::from("global"),
         }
     }
 }

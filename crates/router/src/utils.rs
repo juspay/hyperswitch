@@ -4,6 +4,8 @@ pub mod connector_onboarding;
 pub mod currency;
 pub mod db_utils;
 pub mod ext_traits;
+#[cfg(feature = "olap")]
+pub mod oidc;
 #[cfg(feature = "kv_store")]
 pub mod storage_partitioning;
 #[cfg(feature = "olap")]
@@ -17,9 +19,8 @@ use std::fmt::Debug;
 use api_models::{
     enums,
     payments::{self},
-    webhooks,
+    subscription as subscription_types, webhooks,
 };
-use common_utils::types::keymanager::KeyManagerState;
 pub use common_utils::{
     crypto::{self, Encryptable},
     ext_traits::{ByteSliceExt, BytesExt, Encode, StringExt, ValueExt},
@@ -41,6 +42,8 @@ use masking::{ExposeInterface, SwitchStrategy};
 use nanoid::nanoid;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
+#[cfg(feature = "v1")]
+use subscriptions::{subscription_handler::SubscriptionHandler, workflows::InvoiceSyncHandler};
 use tracing_futures::Instrument;
 
 pub use self::ext_traits::{OptionExt, ValidateCall};
@@ -167,55 +170,53 @@ pub fn get_payout_attempt_id(payout_id: &str, attempt_count: i16) -> String {
 pub async fn find_payment_intent_from_payment_id_type(
     state: &SessionState,
     payment_id_type: payments::PaymentIdType,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
 ) -> CustomResult<PaymentIntent, errors::ApiErrorResponse> {
-    let key_manager_state: KeyManagerState = state.into();
     let db = &*state.store;
     match payment_id_type {
         payments::PaymentIdType::PaymentIntentId(payment_id) => db
-            .find_payment_intent_by_payment_id_merchant_id(
-                &key_manager_state,
+            .find_payment_intent_by_payment_id_processor_merchant_id(
                 &payment_id,
-                merchant_context.get_merchant_account().get_id(),
-                merchant_context.get_merchant_key_store(),
-                merchant_context.get_merchant_account().storage_scheme,
+                platform.get_processor().get_account().get_id(),
+                platform.get_processor().get_key_store(),
+                platform.get_processor().get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound),
         payments::PaymentIdType::ConnectorTransactionId(connector_transaction_id) => {
             let attempt = db
-                .find_payment_attempt_by_merchant_id_connector_txn_id(
-                    merchant_context.get_merchant_account().get_id(),
+                .find_payment_attempt_by_processor_merchant_id_connector_txn_id(
+                    platform.get_processor().get_account().get_id(),
                     &connector_transaction_id,
-                    merchant_context.get_merchant_account().storage_scheme,
+                    platform.get_processor().get_account().storage_scheme,
+                    platform.get_processor().get_key_store(),
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-            db.find_payment_intent_by_payment_id_merchant_id(
-                &key_manager_state,
+            db.find_payment_intent_by_payment_id_processor_merchant_id(
                 &attempt.payment_id,
-                merchant_context.get_merchant_account().get_id(),
-                merchant_context.get_merchant_key_store(),
-                merchant_context.get_merchant_account().storage_scheme,
+                platform.get_processor().get_account().get_id(),
+                platform.get_processor().get_key_store(),
+                platform.get_processor().get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
         }
         payments::PaymentIdType::PaymentAttemptId(attempt_id) => {
             let attempt = db
-                .find_payment_attempt_by_attempt_id_merchant_id(
+                .find_payment_attempt_by_attempt_id_processor_merchant_id(
                     &attempt_id,
-                    merchant_context.get_merchant_account().get_id(),
-                    merchant_context.get_merchant_account().storage_scheme,
+                    platform.get_processor().get_account().get_id(),
+                    platform.get_processor().get_account().storage_scheme,
+                    platform.get_processor().get_key_store(),
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-            db.find_payment_intent_by_payment_id_merchant_id(
-                &key_manager_state,
+            db.find_payment_intent_by_payment_id_processor_merchant_id(
                 &attempt.payment_id,
-                merchant_context.get_merchant_account().get_id(),
-                merchant_context.get_merchant_key_store(),
-                merchant_context.get_merchant_account().storage_scheme,
+                platform.get_processor().get_account().get_id(),
+                platform.get_processor().get_key_store(),
+                platform.get_processor().get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -230,43 +231,43 @@ pub async fn find_payment_intent_from_payment_id_type(
 pub async fn find_payment_intent_from_refund_id_type(
     state: &SessionState,
     refund_id_type: webhooks::RefundIdType,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     connector_name: &str,
 ) -> CustomResult<PaymentIntent, errors::ApiErrorResponse> {
     let db = &*state.store;
     let refund = match refund_id_type {
         webhooks::RefundIdType::RefundId(id) => db
             .find_refund_by_merchant_id_refund_id(
-                merchant_context.get_merchant_account().get_id(),
+                platform.get_processor().get_account().get_id(),
                 &id,
-                merchant_context.get_merchant_account().storage_scheme,
+                platform.get_processor().get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?,
         webhooks::RefundIdType::ConnectorRefundId(id) => db
             .find_refund_by_merchant_id_connector_refund_id_connector(
-                merchant_context.get_merchant_account().get_id(),
+                platform.get_processor().get_account().get_id(),
                 &id,
                 connector_name,
-                merchant_context.get_merchant_account().storage_scheme,
+                platform.get_processor().get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?,
     };
     let attempt = db
-        .find_payment_attempt_by_attempt_id_merchant_id(
+        .find_payment_attempt_by_attempt_id_processor_merchant_id(
             &refund.attempt_id,
-            merchant_context.get_merchant_account().get_id(),
-            merchant_context.get_merchant_account().storage_scheme,
+            platform.get_processor().get_account().get_id(),
+            platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-    db.find_payment_intent_by_payment_id_merchant_id(
-        &state.into(),
+    db.find_payment_intent_by_payment_id_processor_merchant_id(
         &attempt.payment_id,
-        merchant_context.get_merchant_account().get_id(),
-        merchant_context.get_merchant_key_store(),
-        merchant_context.get_merchant_account().storage_scheme,
+        platform.get_processor().get_account().get_id(),
+        platform.get_processor().get_key_store(),
+        platform.get_processor().get_account().storage_scheme,
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -276,36 +277,35 @@ pub async fn find_payment_intent_from_refund_id_type(
 pub async fn find_payment_intent_from_mandate_id_type(
     state: &SessionState,
     mandate_id_type: webhooks::MandateIdType,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
 ) -> CustomResult<PaymentIntent, errors::ApiErrorResponse> {
     let db = &*state.store;
     let mandate = match mandate_id_type {
         webhooks::MandateIdType::MandateId(mandate_id) => db
             .find_mandate_by_merchant_id_mandate_id(
-                merchant_context.get_merchant_account().get_id(),
+                platform.get_processor().get_account().get_id(),
                 mandate_id.as_str(),
-                merchant_context.get_merchant_account().storage_scheme,
+                platform.get_processor().get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?,
         webhooks::MandateIdType::ConnectorMandateId(connector_mandate_id) => db
             .find_mandate_by_merchant_id_connector_mandate_id(
-                merchant_context.get_merchant_account().get_id(),
+                platform.get_processor().get_account().get_id(),
                 connector_mandate_id.as_str(),
-                merchant_context.get_merchant_account().storage_scheme,
+                platform.get_processor().get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?,
     };
-    db.find_payment_intent_by_payment_id_merchant_id(
-        &state.into(),
+    db.find_payment_intent_by_payment_id_processor_merchant_id(
         &mandate
             .original_payment_id
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("original_payment_id not present in mandate record")?,
-        merchant_context.get_merchant_account().get_id(),
-        merchant_context.get_merchant_key_store(),
-        merchant_context.get_merchant_account().storage_scheme,
+        platform.get_processor().get_account().get_id(),
+        platform.get_processor().get_key_store(),
+        platform.get_processor().get_account().storage_scheme,
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -315,21 +315,25 @@ pub async fn find_payment_intent_from_mandate_id_type(
 pub async fn find_mca_from_authentication_id_type(
     state: &SessionState,
     authentication_id_type: webhooks::AuthenticationIdType,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
 ) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
     let db = &*state.store;
     let authentication = match authentication_id_type {
         webhooks::AuthenticationIdType::AuthenticationId(authentication_id) => db
             .find_authentication_by_merchant_id_authentication_id(
-                merchant_context.get_merchant_account().get_id(),
+                platform.get_processor().get_account().get_id(),
                 &authentication_id,
+                platform.get_processor().get_key_store(),
+                &state.into(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?,
         webhooks::AuthenticationIdType::ConnectorAuthenticationId(connector_authentication_id) => {
             db.find_authentication_by_merchant_id_connector_authentication_id(
-                merchant_context.get_merchant_account().get_id().clone(),
+                platform.get_processor().get_account().get_id().clone(),
                 connector_authentication_id,
+                platform.get_processor().get_key_store(),
+                &state.into(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?
@@ -343,10 +347,9 @@ pub async fn find_mca_from_authentication_id_type(
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("merchant_connector_id not present in authentication record")?;
         db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            &state.into(),
-            merchant_context.get_merchant_account().get_id(),
+            platform.get_processor().get_account().get_id(),
             &mca_id,
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor().get_key_store(),
         )
         .await
         .to_not_found_response(
@@ -367,19 +370,19 @@ pub async fn find_mca_from_authentication_id_type(
 #[cfg(feature = "v1")]
 pub async fn get_mca_from_payment_intent(
     state: &SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     payment_intent: PaymentIntent,
     connector_name: &str,
 ) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
     let db = &*state.store;
-    let key_manager_state: &KeyManagerState = &state.into();
 
     #[cfg(feature = "v1")]
     let payment_attempt = db
-        .find_payment_attempt_by_attempt_id_merchant_id(
+        .find_payment_attempt_by_attempt_id_processor_merchant_id(
             &payment_intent.active_attempt.get_id(),
-            merchant_context.get_merchant_account().get_id(),
-            merchant_context.get_merchant_account().storage_scheme,
+            platform.get_processor().get_account().get_id(),
+            platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -401,10 +404,9 @@ pub async fn get_mca_from_payment_intent(
             #[cfg(feature = "v1")]
             {
                 db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                    key_manager_state,
-                    merchant_context.get_merchant_account().get_id(),
+                    platform.get_processor().get_account().get_id(),
                     &merchant_connector_id,
-                    merchant_context.get_merchant_key_store(),
+                    platform.get_processor().get_key_store(),
                 )
                 .await
                 .to_not_found_response(
@@ -435,10 +437,9 @@ pub async fn get_mca_from_payment_intent(
             #[cfg(feature = "v1")]
             {
                 db.find_merchant_connector_account_by_profile_id_connector_name(
-                    key_manager_state,
                     &profile_id,
                     connector_name,
-                    merchant_context.get_merchant_key_store(),
+                    platform.get_processor().get_key_store(),
                 )
                 .await
                 .to_not_found_response(
@@ -459,11 +460,10 @@ pub async fn get_mca_from_payment_intent(
         }
     }
 }
-
 #[cfg(feature = "payouts")]
 pub async fn get_mca_from_payout_attempt(
     state: &SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     payout_id_type: webhooks::PayoutIdType,
     connector_name: &str,
 ) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
@@ -471,31 +471,29 @@ pub async fn get_mca_from_payout_attempt(
     let payout = match payout_id_type {
         webhooks::PayoutIdType::PayoutAttemptId(payout_attempt_id) => db
             .find_payout_attempt_by_merchant_id_payout_attempt_id(
-                merchant_context.get_merchant_account().get_id(),
+                platform.get_processor().get_account().get_id(),
                 &payout_attempt_id,
-                merchant_context.get_merchant_account().storage_scheme,
+                platform.get_processor().get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?,
         webhooks::PayoutIdType::ConnectorPayoutId(connector_payout_id) => db
             .find_payout_attempt_by_merchant_id_connector_payout_id(
-                merchant_context.get_merchant_account().get_id(),
+                platform.get_processor().get_account().get_id(),
                 &connector_payout_id,
-                merchant_context.get_merchant_account().storage_scheme,
+                platform.get_processor().get_account().storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?,
     };
-    let key_manager_state: &KeyManagerState = &state.into();
     match payout.merchant_connector_id {
         Some(merchant_connector_id) => {
             #[cfg(feature = "v1")]
             {
                 db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                    key_manager_state,
-                    merchant_context.get_merchant_account().get_id(),
+                    platform.get_processor().get_account().get_id(),
                     &merchant_connector_id,
-                    merchant_context.get_merchant_key_store(),
+                    platform.get_processor().get_key_store(),
                 )
                 .await
                 .to_not_found_response(
@@ -508,9 +506,8 @@ pub async fn get_mca_from_payout_attempt(
             {
                 //get mca using id
                 let _id = merchant_connector_id;
-                let _ = merchant_context.get_merchant_key_store();
+                let _ = platform.get_processor().get_key_store();
                 let _ = connector_name;
-                let _ = key_manager_state;
                 todo!()
             }
         }
@@ -518,10 +515,9 @@ pub async fn get_mca_from_payout_attempt(
             #[cfg(feature = "v1")]
             {
                 db.find_merchant_connector_account_by_profile_id_connector_name(
-                    key_manager_state,
                     &payout.profile_id,
                     connector_name,
-                    merchant_context.get_merchant_key_store(),
+                    platform.get_processor().get_key_store(),
                 )
                 .await
                 .to_not_found_response(
@@ -546,14 +542,15 @@ pub async fn get_mca_from_payout_attempt(
 pub async fn get_mca_from_object_reference_id(
     state: &SessionState,
     object_reference_id: webhooks::ObjectReferenceId,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     connector_name: &str,
 ) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
     let db = &*state.store;
 
     #[cfg(feature = "v1")]
-    let default_profile_id = merchant_context
-        .get_merchant_account()
+    let default_profile_id = platform
+        .get_processor()
+        .get_account()
         .default_profile
         .as_ref();
 
@@ -565,10 +562,9 @@ pub async fn get_mca_from_object_reference_id(
             #[cfg(feature = "v1")]
             {
                 db.find_merchant_connector_account_by_profile_id_connector_name(
-                    &state.into(),
                     profile_id,
                     connector_name,
-                    merchant_context.get_merchant_key_store(),
+                    platform.get_processor().get_key_store(),
                 )
                 .await
                 .to_not_found_response(
@@ -591,13 +587,9 @@ pub async fn get_mca_from_object_reference_id(
             webhooks::ObjectReferenceId::PaymentId(payment_id_type) => {
                 get_mca_from_payment_intent(
                     state,
-                    merchant_context,
-                    find_payment_intent_from_payment_id_type(
-                        state,
-                        payment_id_type,
-                        merchant_context,
-                    )
-                    .await?,
+                    platform,
+                    find_payment_intent_from_payment_id_type(state, payment_id_type, platform)
+                        .await?,
                     connector_name,
                 )
                 .await
@@ -605,11 +597,11 @@ pub async fn get_mca_from_object_reference_id(
             webhooks::ObjectReferenceId::RefundId(refund_id_type) => {
                 get_mca_from_payment_intent(
                     state,
-                    merchant_context,
+                    platform,
                     find_payment_intent_from_refund_id_type(
                         state,
                         refund_id_type,
-                        merchant_context,
+                        platform,
                         connector_name,
                     )
                     .await?,
@@ -620,29 +612,37 @@ pub async fn get_mca_from_object_reference_id(
             webhooks::ObjectReferenceId::MandateId(mandate_id_type) => {
                 get_mca_from_payment_intent(
                     state,
-                    merchant_context,
-                    find_payment_intent_from_mandate_id_type(
-                        state,
-                        mandate_id_type,
-                        merchant_context,
-                    )
-                    .await?,
+                    platform,
+                    find_payment_intent_from_mandate_id_type(state, mandate_id_type, platform)
+                        .await?,
                     connector_name,
                 )
                 .await
             }
             webhooks::ObjectReferenceId::ExternalAuthenticationID(authentication_id_type) => {
-                find_mca_from_authentication_id_type(
-                    state,
-                    authentication_id_type,
-                    merchant_context,
-                )
-                .await
+                find_mca_from_authentication_id_type(state, authentication_id_type, platform).await
+            }
+            webhooks::ObjectReferenceId::SubscriptionId(subscription_id_type) => {
+                #[cfg(feature = "v1")]
+                {
+                    let subscription_state = state.clone().into();
+                    let subscription_handler =
+                        SubscriptionHandler::new(&subscription_state, platform);
+                    let mut subscription_with_handler = subscription_handler
+                        .find_subscription(subscription_id_type)
+                        .await?;
+
+                    subscription_with_handler.get_mca(connector_name).await
+                }
+                #[cfg(feature = "v2")]
+                {
+                    let _db = db;
+                    todo!()
+                }
             }
             #[cfg(feature = "payouts")]
             webhooks::ObjectReferenceId::PayoutId(payout_id_type) => {
-                get_mca_from_payout_attempt(state, merchant_context, payout_id_type, connector_name)
-                    .await
+                get_mca_from_payout_attempt(state, platform, payout_id_type, connector_name).await
             }
         },
     }
@@ -674,6 +674,7 @@ pub fn handle_json_response_deserialization_failure(
                 reason: Some(response_data),
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -696,6 +697,18 @@ pub fn get_http_status_code_type(
             .attach_printable("Invalid http status code")?,
     };
     Ok(status_code_type.to_string())
+}
+
+// Trims whitespace from a Secret string and returns None if empty
+pub fn trim_secret_string(secret: masking::Secret<String>) -> Option<masking::Secret<String>> {
+    let trimmed = secret.expose().trim().to_string();
+    (!trimmed.is_empty()).then(|| masking::Secret::new(trimmed))
+}
+
+// Trims whitespace from a regular string and returns None if empty
+pub fn trim_string(value: String) -> Option<String> {
+    let trimmed = value.trim().to_string();
+    (!trimmed.is_empty()).then_some(trimmed)
 }
 
 pub fn add_connector_http_status_code_metrics(option_status_code: Option<u16>) {
@@ -1022,17 +1035,18 @@ pub fn add_apple_pay_flow_metrics(
 ) {
     if let Some(flow) = apple_pay_flow {
         match flow {
-            domain::ApplePayFlow::Simplified(_) => metrics::APPLE_PAY_SIMPLIFIED_FLOW.add(
-                1,
-                router_env::metric_attributes!(
-                    (
-                        "connector",
-                        connector.to_owned().unwrap_or("null".to_string()),
+            domain::ApplePayFlow::DecryptAtApplication(_) => metrics::APPLE_PAY_SIMPLIFIED_FLOW
+                .add(
+                    1,
+                    router_env::metric_attributes!(
+                        (
+                            "connector",
+                            connector.to_owned().unwrap_or("null".to_string()),
+                        ),
+                        ("merchant_id", merchant_id.clone()),
                     ),
-                    ("merchant_id", merchant_id.clone()),
                 ),
-            ),
-            domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW.add(
+            domain::ApplePayFlow::SkipDecryption => metrics::APPLE_PAY_MANUAL_FLOW.add(
                 1,
                 router_env::metric_attributes!(
                     (
@@ -1055,7 +1069,7 @@ pub fn add_apple_pay_payment_status_metrics(
     if payment_attempt_status == enums::AttemptStatus::Charged {
         if let Some(flow) = apple_pay_flow {
             match flow {
-                domain::ApplePayFlow::Simplified(_) => {
+                domain::ApplePayFlow::DecryptAtApplication(_) => {
                     metrics::APPLE_PAY_SIMPLIFIED_FLOW_SUCCESSFUL_PAYMENT.add(
                         1,
                         router_env::metric_attributes!(
@@ -1067,8 +1081,8 @@ pub fn add_apple_pay_payment_status_metrics(
                         ),
                     )
                 }
-                domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW_SUCCESSFUL_PAYMENT
-                    .add(
+                domain::ApplePayFlow::SkipDecryption => {
+                    metrics::APPLE_PAY_MANUAL_FLOW_SUCCESSFUL_PAYMENT.add(
                         1,
                         router_env::metric_attributes!(
                             (
@@ -1077,13 +1091,14 @@ pub fn add_apple_pay_payment_status_metrics(
                             ),
                             ("merchant_id", merchant_id.clone()),
                         ),
-                    ),
+                    )
+                }
             }
         }
     } else if payment_attempt_status == enums::AttemptStatus::Failure {
         if let Some(flow) = apple_pay_flow {
             match flow {
-                domain::ApplePayFlow::Simplified(_) => {
+                domain::ApplePayFlow::DecryptAtApplication(_) => {
                     metrics::APPLE_PAY_SIMPLIFIED_FLOW_FAILED_PAYMENT.add(
                         1,
                         router_env::metric_attributes!(
@@ -1095,16 +1110,18 @@ pub fn add_apple_pay_payment_status_metrics(
                         ),
                     )
                 }
-                domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW_FAILED_PAYMENT.add(
-                    1,
-                    router_env::metric_attributes!(
-                        (
-                            "connector",
-                            connector.to_owned().unwrap_or("null".to_string()),
+                domain::ApplePayFlow::SkipDecryption => {
+                    metrics::APPLE_PAY_MANUAL_FLOW_FAILED_PAYMENT.add(
+                        1,
+                        router_env::metric_attributes!(
+                            (
+                                "connector",
+                                connector.to_owned().unwrap_or("null".to_string()),
+                            ),
+                            ("merchant_id", merchant_id.clone()),
                         ),
-                        ("merchant_id", merchant_id.clone()),
-                    ),
-                ),
+                    )
+                }
             }
         }
     }
@@ -1125,9 +1142,9 @@ pub fn check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
 pub async fn trigger_payments_webhook<F, Op, D>(
-    merchant_account: domain::MerchantAccount,
+    processor: &domain::Processor,
+    initiator: Option<&domain::Initiator>,
     business_profile: domain::Profile,
-    key_store: &domain::MerchantKeyStore,
     payment_data: D,
     customer: Option<domain::Customer>,
     state: &SessionState,
@@ -1144,10 +1161,10 @@ where
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn trigger_payments_webhook<F, Op, D>(
-    merchant_context: domain::MerchantContext,
+    processor: &domain::Processor,
+    initiator: Option<&domain::Initiator>,
     business_profile: domain::Profile,
     payment_data: D,
-    customer: Option<domain::Customer>,
     state: &SessionState,
     operation: Op,
 ) -> RouterResult<()>
@@ -1157,9 +1174,12 @@ where
     D: payments_core::OperationSessionGetters<F>,
 {
     let status = payment_data.get_payment_intent().status;
+
+    // Trigger an outgoing webhook regardless of the current payment intent status if nothing is configured in the profile.
     let should_trigger_webhook = business_profile
-        .get_payment_webhook_statuses()
-        .contains(&status);
+        .get_configured_payment_webhook_statuses()
+        .map(|statuses| statuses.contains(&status))
+        .unwrap_or(true);
 
     if should_trigger_webhook {
         let captures = payment_data
@@ -1175,7 +1195,6 @@ where
         let payments_response = crate::core::payments::transformers::payments_to_payments_response(
             payment_data,
             captures,
-            customer,
             services::AuthFlow::Merchant,
             &state.base_url,
             &operation,
@@ -1183,6 +1202,8 @@ where
             None,
             None,
             None,
+            processor,
+            initiator,
         )?;
 
         let event_type = status.into();
@@ -1196,17 +1217,18 @@ where
             // So when server shutdown won't wait for this thread's completion.
 
             if let Some(event_type) = event_type {
+                let cloned_processor = processor.clone();
                 tokio::spawn(
                     async move {
                         let primary_object_created_at = payments_response_json.created;
                         Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
                             cloned_state,
-                            merchant_context.clone(),
+                            cloned_processor,
                             business_profile,
                             event_type,
                             diesel_models::enums::EventClass::Payments,
                             payment_id.get_string_repr().to_owned(),
-                            diesel_models::enums::EventObjectType::PaymentDetails,
+                            common_enums::EventObjectType::PaymentDetails,
                             webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(
                                 payments_response_json,
                             )),
@@ -1242,47 +1264,44 @@ pub async fn flatten_join_error<T>(handle: Handle<T>) -> RouterResult<T> {
 #[cfg(feature = "v1")]
 pub async fn trigger_refund_outgoing_webhook(
     state: &SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     refund: &diesel_models::Refund,
     profile_id: id_type::ProfileId,
 ) -> RouterResult<()> {
     let refund_status = refund.refund_status;
 
-    let key_manager_state = &(state).into();
     let business_profile = state
         .store
-        .find_business_profile_by_profile_id(
-            key_manager_state,
-            merchant_context.get_merchant_key_store(),
-            &profile_id,
-        )
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
+    // Trigger an outgoing webhook regardless of the current refund status if nothing is configured in the profile.
     let should_trigger_webhook = business_profile
-        .get_refund_webhook_statuses()
-        .contains(&refund_status);
+        .get_configured_refund_webhook_statuses()
+        .map(|statuses| statuses.contains(&refund_status))
+        .unwrap_or(true);
 
     if should_trigger_webhook {
         let event_type = refund_status.into();
         let refund_response: api_models::refunds::RefundResponse = refund.clone().foreign_into();
         let refund_id = refund_response.refund_id.clone();
         let cloned_state = state.clone();
-        let cloned_merchant_context = merchant_context.clone();
         let primary_object_created_at = refund_response.created_at;
         if let Some(outgoing_event_type) = event_type {
+            let processor = platform.get_processor().clone();
             tokio::spawn(
                 async move {
                     Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
                         cloned_state,
-                        cloned_merchant_context,
+                        processor,
                         business_profile,
                         outgoing_event_type,
                         diesel_models::enums::EventClass::Refunds,
                         refund_id.to_string(),
-                        diesel_models::enums::EventObjectType::RefundDetails,
+                        common_enums::EventObjectType::RefundDetails,
                         webhooks::OutgoingWebhookContent::RefundDetails(Box::new(refund_response)),
                         primary_object_created_at,
                     ))
@@ -1319,34 +1338,32 @@ pub fn get_locale_from_header(headers: &actix_web::http::header::HeaderMap) -> S
 #[cfg(all(feature = "payouts", feature = "v1"))]
 pub async fn trigger_payouts_webhook(
     state: &SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     payout_response: &api_models::payouts::PayoutCreateResponse,
 ) -> RouterResult<()> {
-    let key_manager_state = &(state).into();
     let profile_id = &payout_response.profile_id;
     let business_profile = state
         .store
-        .find_business_profile_by_profile_id(
-            key_manager_state,
-            merchant_context.get_merchant_key_store(),
-            profile_id,
-        )
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
     let status = &payout_response.status;
+
+    // Trigger an outgoing webhook regardless of the current payout status if nothing is configured in the profile.
     let should_trigger_webhook = business_profile
-        .get_payout_webhook_statuses()
-        .contains(status);
+        .get_configured_payout_webhook_statuses()
+        .map(|statuses| statuses.contains(status))
+        .unwrap_or(true);
 
     if should_trigger_webhook {
         let event_type = (*status).into();
         if let Some(event_type) = event_type {
-            let cloned_merchant_context = merchant_context.clone();
             let cloned_state = state.clone();
             let cloned_response = payout_response.clone();
+            let processor = platform.get_processor().clone();
 
             // This spawns this futures in a background thread, the exception inside this future won't affect
             // the current thread and the lifecycle of spawn thread is not handled by runtime.
@@ -1356,12 +1373,12 @@ pub async fn trigger_payouts_webhook(
                     let primary_object_created_at = cloned_response.created;
                     Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
                         cloned_state,
-                        cloned_merchant_context,
+                        processor,
                         business_profile,
                         event_type,
                         diesel_models::enums::EventClass::Payouts,
                         cloned_response.payout_id.get_string_repr().to_owned(),
-                        diesel_models::enums::EventObjectType::PayoutDetails,
+                        common_enums::EventObjectType::PayoutDetails,
                         webhooks::OutgoingWebhookContent::PayoutDetails(Box::new(cloned_response)),
                         primary_object_created_at,
                     ))
@@ -1379,8 +1396,57 @@ pub async fn trigger_payouts_webhook(
 #[cfg(all(feature = "payouts", feature = "v2"))]
 pub async fn trigger_payouts_webhook(
     state: &SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     payout_response: &api_models::payouts::PayoutCreateResponse,
 ) -> RouterResult<()> {
     todo!()
+}
+
+#[cfg(feature = "v1")]
+pub async fn trigger_subscriptions_outgoing_webhook(
+    state: &SessionState,
+    payment_response: subscription_types::PaymentResponseData,
+    invoice: &hyperswitch_domain_models::invoice::Invoice,
+    subscription: &hyperswitch_domain_models::subscription::Subscription,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+    profile: &domain::Profile,
+) -> RouterResult<()> {
+    if invoice.status != common_enums::enums::InvoiceStatus::InvoicePaid {
+        logger::info!("Invoice not paid, skipping outgoing webhook trigger");
+        return Ok(());
+    }
+    let response = InvoiceSyncHandler::generate_response(subscription, invoice, &payment_response)
+        .attach_printable("Subscriptions: Failed to generate response for outgoing webhook")?;
+
+    let platform = domain::Platform::new(
+        merchant_account.clone(),
+        key_store.clone(),
+        merchant_account.clone(),
+        key_store.clone(),
+        None,
+    );
+
+    let cloned_state = state.clone();
+    let cloned_profile = profile.clone();
+    let invoice_id = invoice.id.get_string_repr().to_owned();
+    let created_at = subscription.created_at;
+    let processor = platform.get_processor().clone();
+
+    tokio::spawn(async move {
+        Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
+            cloned_state,
+            processor,
+            cloned_profile,
+            common_enums::enums::EventType::InvoicePaid,
+            common_enums::enums::EventClass::Subscriptions,
+            invoice_id,
+            common_enums::EventObjectType::SubscriptionDetails,
+            webhooks::OutgoingWebhookContent::SubscriptionDetails(Box::new(response)),
+            Some(created_at),
+        ))
+        .await
+    });
+
+    Ok(())
 }

@@ -11,11 +11,8 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankTransferData, PaymentMethodData},
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
-    router_flow_types::{
-        payments::Void,
-        refunds::{Execute, RSync},
-    },
-    router_request_types::{PaymentsCancelData, ResponseId},
+    router_flow_types::refunds::{Execute, RSync},
+    router_request_types::ResponseId,
     router_response_types::{
         ConnectorCustomerResponseData, PaymentsResponseData, RefundsResponseData,
     },
@@ -41,7 +38,10 @@ use super::{
     },
 };
 use crate::{
-    types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
+    types::{
+        PaymentsCancelResponseRouterData, RefreshTokenRouterData, RefundsResponseRouterData,
+        ResponseRouterData,
+    },
     utils::{self, is_payment_failure, missing_field_err, QrImage, RouterData as OtherRouterData},
 };
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -202,7 +202,10 @@ impl TryFrom<&FacilitapayRouterData<&types::PaymentsAuthorizeRouterData>>
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     "Selected payment method through Facilitapay".to_string(),
                 )
@@ -269,6 +272,7 @@ pub fn parse_facilitapay_error_response(
         reason: Some(raw_error),
         attempt_status: None,
         connector_transaction_id: None,
+        connector_response_reference_id: None,
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
@@ -444,6 +448,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FacilitapayPaymentsResponse, T, Payment
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(item.response.data.transaction_id),
+                    connector_response_reference_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
@@ -460,6 +465,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FacilitapayPaymentsResponse, T, Payment
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.data.transaction_id),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 })
             },
@@ -531,19 +537,12 @@ impl From<FacilitapayPaymentStatus> for enums::RefundStatus {
 }
 
 // Void (cancel unprocessed payment) transformer
-impl
-    TryFrom<
-        ResponseRouterData<Void, FacilitapayVoidResponse, PaymentsCancelData, PaymentsResponseData>,
-    > for RouterData<Void, PaymentsCancelData, PaymentsResponseData>
+impl TryFrom<PaymentsCancelResponseRouterData<FacilitapayVoidResponse>>
+    for types::PaymentsCancelRouterData
 {
     type Error = Error;
     fn try_from(
-        item: ResponseRouterData<
-            Void,
-            FacilitapayVoidResponse,
-            PaymentsCancelData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsCancelResponseRouterData<FacilitapayVoidResponse>,
     ) -> Result<Self, Self::Error> {
         let status = common_enums::AttemptStatus::from(item.response.data.status.clone());
 
@@ -557,6 +556,7 @@ impl
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(item.response.data.void_id.clone()),
+                    connector_response_reference_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
@@ -573,6 +573,7 @@ impl
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.data.void_id),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 })
             },

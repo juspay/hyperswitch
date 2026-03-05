@@ -13,10 +13,13 @@ pub mod pm_auth;
 
 pub mod card_testing_guard;
 #[cfg(feature = "olap")]
+pub mod oidc_provider;
+#[cfg(feature = "olap")]
 pub mod openidconnect;
 
 use std::sync::Arc;
 
+use common_utils::types::{keymanager, TenantConfig};
 use error_stack::ResultExt;
 pub use hyperswitch_interfaces::connector_integration_v2::{
     BoxedConnectorIntegrationV2, ConnectorIntegrationAnyV2, ConnectorIntegrationV2,
@@ -24,7 +27,7 @@ pub use hyperswitch_interfaces::connector_integration_v2::{
 use masking::{ExposeInterface, StrongSecret};
 #[cfg(feature = "kv_store")]
 use storage_impl::kv_router_store::KVRouterStore;
-use storage_impl::{config::TenantConfig, errors::StorageResult, redis::RedisStore, RouterStore};
+use storage_impl::{errors::StorageResult, redis::RedisStore, RouterStore};
 use tokio::sync::oneshot;
 
 pub use self::{api::*, encryption::*};
@@ -49,6 +52,7 @@ pub async fn get_store(
     tenant: &dyn TenantConfig,
     cache_store: Arc<RedisStore>,
     test_transaction: bool,
+    key_manager_state: keymanager::KeyManagerState,
 ) -> StorageResult<Store> {
     let master_config = config.master_database.clone().into_inner();
 
@@ -68,7 +72,14 @@ pub async fn get_store(
     let conf = (master_config.into(), replica_config.into());
 
     let store: RouterStore<StoreType> = if test_transaction {
-        RouterStore::test_store(conf, tenant, &config.redis, master_enc_key).await?
+        RouterStore::test_store(
+            conf,
+            tenant,
+            &config.redis,
+            master_enc_key,
+            Some(key_manager_state.clone()),
+        )
+        .await?
     } else {
         RouterStore::from_config(
             conf,
@@ -76,6 +87,7 @@ pub async fn get_store(
             master_enc_key,
             cache_store,
             storage_impl::redis::cache::IMC_INVALIDATION_CHANNEL,
+            Some(key_manager_state.clone()),
         )
         .await?
     };
@@ -87,6 +99,7 @@ pub async fn get_store(
         config.drainer.num_partitions,
         config.kv_config.ttl,
         config.kv_config.soft_kill,
+        Some(key_manager_state),
     );
 
     Ok(store)

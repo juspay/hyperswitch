@@ -72,6 +72,12 @@ pub enum OutgoingWebhookEventContent {
         mandate_id: String,
         content: Value,
     },
+    Subscription {
+        subscription_id: common_utils::id_type::SubscriptionId,
+        invoice_id: Option<common_utils::id_type::InvoiceId>,
+        payment_id: Option<common_utils::id_type::PaymentId>,
+        content: Value,
+    },
 }
 pub trait OutgoingWebhookEventMetric {
     fn get_outgoing_webhook_event_content(&self) -> Option<OutgoingWebhookEventContent>;
@@ -111,6 +117,15 @@ impl OutgoingWebhookEventMetric for OutgoingWebhookContent {
                 content: masking::masked_serialize(&payout_payload)
                     .unwrap_or(serde_json::json!({"error":"failed to serialize"})),
             }),
+            Self::SubscriptionDetails(subscription) => {
+                Some(OutgoingWebhookEventContent::Subscription {
+                    subscription_id: subscription.id.clone(),
+                    invoice_id: subscription.get_optional_invoice_id(),
+                    payment_id: subscription.get_optional_payment_id(),
+                    content: masking::masked_serialize(&subscription)
+                        .unwrap_or(serde_json::json!({"error":"failed to serialize"})),
+                })
+            }
         }
     }
 }

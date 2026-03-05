@@ -12,6 +12,7 @@ use api_models::{
     payments,
 };
 use base64::Engine;
+use cards::NetworkToken;
 use common_utils::{
     date_time,
     errors::{ParsingError, ReportSwitchExt},
@@ -22,9 +23,7 @@ use common_utils::{
 };
 use diesel_models::{enums, types::OrderDetailsWithAmount};
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::{
-    network_tokenization::NetworkTokenNumber, payments::payment_attempt::PaymentAttempt,
-};
+use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
 use masking::{Deserialize, ExposeInterface, Secret};
 use regex::Regex;
 
@@ -180,31 +179,13 @@ where
                     payment_data,
                 );
                 let total_capturable_amount = payment_data.payment_attempt.get_total_amount();
-                let is_overcapture_enabled = *payment_data
-                    .payment_attempt
-                    .is_overcapture_enabled
-                    .as_deref()
-                    .unwrap_or(&false);
 
                 if Some(total_capturable_amount) == captured_amount.map(MinorUnit::new)
-                    || (is_overcapture_enabled
-                        && captured_amount.is_some_and(|captured_amount| {
-                            MinorUnit::new(captured_amount) > total_capturable_amount
-                        }))
+                    || (captured_amount.is_some_and(|captured_amount| {
+                        MinorUnit::new(captured_amount) > total_capturable_amount
+                    }))
                 {
                     Ok(enums::AttemptStatus::Charged)
-                } else if captured_amount.is_some_and(|captured_amount| {
-                    MinorUnit::new(captured_amount) > total_capturable_amount
-                }) {
-                    Err(ApiErrorResponse::IntegrityCheckFailed {
-                        reason: "captured_amount is greater than the total_capturable_amount"
-                            .to_string(),
-                        field_names: "captured_amount".to_string(),
-                        connector_transaction_id: payment_data
-                            .payment_attempt
-                            .connector_transaction_id
-                            .clone(),
-                    })?
                 } else if captured_amount.is_some_and(|captured_amount| {
                     MinorUnit::new(captured_amount) < total_capturable_amount
                 }) {
@@ -238,7 +219,7 @@ where
                 }) && payment_data
                     .payment_intent
                     .enable_partial_authorization
-                    .is_some_and(|val| val)
+                    .is_some_and(|val| val.is_true())
                 {
                     Ok(enums::AttemptStatus::PartiallyAuthorized)
                 } else if capturable_amount.is_some_and(|capturable_amount| {
@@ -246,7 +227,7 @@ where
                 }) && !payment_data
                     .payment_intent
                     .enable_partial_authorization
-                    .is_some_and(|val| val)
+                    .is_some_and(|val| val.is_true())
                 {
                     Err(ApiErrorResponse::IntegrityCheckFailed {
                         reason: "capturable_amount is less than the total attempt amount"
@@ -800,8 +781,8 @@ pub trait PaymentsPreProcessingData {
     fn get_email(&self) -> Result<Email, Error>;
     fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
     fn get_currency(&self) -> Result<enums::Currency, Error>;
-    fn get_amount(&self) -> Result<i64, Error>;
-    fn get_minor_amount(&self) -> Result<MinorUnit, Error>;
+    fn get_amount(&self) -> i64;
+    fn get_minor_amount(&self) -> MinorUnit;
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
     fn get_webhook_url(&self) -> Result<String, Error>;
@@ -823,13 +804,13 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
     fn get_currency(&self) -> Result<enums::Currency, Error> {
         self.currency.ok_or_else(missing_field_err("currency"))
     }
-    fn get_amount(&self) -> Result<i64, Error> {
-        self.amount.ok_or_else(missing_field_err("amount"))
+    fn get_amount(&self) -> i64 {
+        self.amount
     }
 
     // New minor amount function for amount framework
-    fn get_minor_amount(&self) -> Result<MinorUnit, Error> {
-        self.minor_amount.ok_or_else(missing_field_err("amount"))
+    fn get_minor_amount(&self) -> MinorUnit {
+        self.minor_amount
     }
 
     fn is_auto_capture(&self) -> Result<bool, Error> {
@@ -885,6 +866,7 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
                     connector_mandate_ids.get_connector_mandate_id()
                 }
                 Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | Some(payments::MandateReferenceId::CardWithLimitedData)
                 | None
                 | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
@@ -1064,6 +1046,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
                     connector_mandate_ids.get_connector_mandate_id()
                 }
                 Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | Some(payments::MandateReferenceId::CardWithLimitedData)
                 | None
                 | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
@@ -1077,6 +1060,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
                     Some(network_transaction_id.clone())
                 }
                 Some(payments::MandateReferenceId::ConnectorMandateId(_))
+                | Some(payments::MandateReferenceId::CardWithLimitedData)
                 | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_))
                 | None => None,
             })
@@ -1189,6 +1173,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
                     connector_mandate_ids.get_connector_mandate_request_reference_id()
                 }
                 Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | Some(payments::MandateReferenceId::CardWithLimitedData)
                 | None
                 | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
@@ -1328,6 +1313,7 @@ impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
                     connector_mandate_ids.get_connector_mandate_request_reference_id()
                 }
                 Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | Some(payments::MandateReferenceId::CardWithLimitedData)
                 | None
                 | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
@@ -2417,6 +2403,7 @@ impl
             status_code: http_code,
             attempt_status,
             connector_transaction_id,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -2440,7 +2427,6 @@ pub fn get_card_details(
 
 #[cfg(test)]
 mod error_code_error_message_tests {
-    #![allow(clippy::unwrap_used)]
     use super::*;
 
     struct TestConnector;
@@ -2592,6 +2578,7 @@ pub enum PaymentMethodDataType {
     AtomeRedirect,
     BreadpayRedirect,
     FlexitiRedirect,
+    PayjustnowRedirect,
     BancontactCard,
     Bizum,
     Blik,
@@ -2613,6 +2600,7 @@ pub enum PaymentMethodDataType {
     OnlineBankingThailand,
     AchBankDebit,
     SepaBankDebit,
+    SepaGuarenteedDebit,
     BecsBankDebit,
     BacsBankDebit,
     AchBankTransfer,
@@ -2654,6 +2642,7 @@ pub enum PaymentMethodDataType {
     Mifinity,
     Fps,
     PromptPay,
+    Qris,
     VietQr,
     OpenBanking,
     NetworkToken,
@@ -2671,6 +2660,9 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
             domain::payments::PaymentMethodData::Card(_) => Self::Card,
             domain::payments::PaymentMethodData::NetworkToken(_) => Self::NetworkToken,
             domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => Self::Card,
+            domain::PaymentMethodData::CardWithLimitedDetails(_) => Self::Card,
+            domain::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
+            | domain::PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_) => Self::NetworkToken,
             domain::payments::PaymentMethodData::CardRedirect(card_redirect_data) => {
                 match card_redirect_data {
                     domain::CardRedirectData::Knet {} => Self::Knet,
@@ -2732,6 +2724,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 domain::payments::PayLaterData::FlexitiRedirect {} => Self::FlexitiRedirect,
                 domain::payments::PayLaterData::AtomeRedirect {} => Self::AtomeRedirect,
                 domain::payments::PayLaterData::BreadpayRedirect {} => Self::BreadpayRedirect,
+                domain::payments::PayLaterData::PayjustnowRedirect {} => Self::PayjustnowRedirect,
             },
             domain::payments::PaymentMethodData::BankRedirect(bank_redirect_data) => {
                 match bank_redirect_data {
@@ -2770,12 +2763,14 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                     domain::payments::BankRedirectData::LocalBankRedirect { } => {
                         Self::LocalBankRedirect
                     }
+                    domain::payments::BankRedirectData::OpenBanking { .. } => Self::OpenBanking,
                 }
             }
             domain::payments::PaymentMethodData::BankDebit(bank_debit_data) => {
                 match bank_debit_data {
                     domain::payments::BankDebitData::AchBankDebit { .. } => Self::AchBankDebit,
                     domain::payments::BankDebitData::SepaBankDebit { .. } => Self::SepaBankDebit,
+                    domain::payments::BankDebitData::SepaGuarenteedBankDebit { .. } => Self::SepaGuarenteedDebit,
                     domain::payments::BankDebitData::BecsBankDebit { .. } => Self::BecsBankDebit,
                     domain::payments::BankDebitData::BacsBankDebit { .. } => Self::BacsBankDebit,
                 }
@@ -2859,6 +2854,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 hyperswitch_domain_models::payment_method_data::RealTimePaymentData::Fps {  } => Self::Fps,
                 hyperswitch_domain_models::payment_method_data::RealTimePaymentData::PromptPay {  } => Self::PromptPay,
                 hyperswitch_domain_models::payment_method_data::RealTimePaymentData::VietQr {  } => Self::VietQr,
+                hyperswitch_domain_models::payment_method_data::RealTimePaymentData::Qris {  } => Self::Qris,
             },
             domain::payments::PaymentMethodData::GiftCard(gift_card_data) => {
                 match *gift_card_data {
@@ -2900,7 +2896,7 @@ pub fn convert_back_amount_to_minor_units<T>(
 pub trait NetworkTokenData {
     fn get_card_issuer(&self) -> Result<CardIssuer, Error>;
     fn get_expiry_year_4_digit(&self) -> Secret<String>;
-    fn get_network_token(&self) -> NetworkTokenNumber;
+    fn get_network_token(&self) -> NetworkToken;
     fn get_network_token_expiry_month(&self) -> Secret<String>;
     fn get_network_token_expiry_year(&self) -> Secret<String>;
     fn get_cryptogram(&self) -> Option<Secret<String>>;
@@ -2936,12 +2932,12 @@ impl NetworkTokenData for domain::NetworkTokenData {
     }
 
     #[cfg(feature = "v1")]
-    fn get_network_token(&self) -> NetworkTokenNumber {
+    fn get_network_token(&self) -> NetworkToken {
         self.token_number.clone()
     }
 
     #[cfg(feature = "v2")]
-    fn get_network_token(&self) -> NetworkTokenNumber {
+    fn get_network_token(&self) -> NetworkToken {
         self.network_token.clone()
     }
 

@@ -44,7 +44,7 @@ pub async fn send_request(
                 let client = client.post(url);
                 match request.body {
                     Some(RequestContent::Json(payload)) => client.json(&payload),
-                    Some(RequestContent::FormData(form)) => client.multipart(form),
+                    Some(RequestContent::FormData((form, _))) => client.multipart(form),
                     Some(RequestContent::FormUrlEncoded(payload)) => client.form(&payload),
                     Some(RequestContent::Xml(payload)) => {
                         let body = quick_xml::se::to_string(&payload)
@@ -59,7 +59,7 @@ pub async fn send_request(
                 let client = client.put(url);
                 match request.body {
                     Some(RequestContent::Json(payload)) => client.json(&payload),
-                    Some(RequestContent::FormData(form)) => client.multipart(form),
+                    Some(RequestContent::FormData((form, _))) => client.multipart(form),
                     Some(RequestContent::FormUrlEncoded(payload)) => client.form(&payload),
                     Some(RequestContent::Xml(payload)) => {
                         let body = quick_xml::se::to_string(&payload)
@@ -74,7 +74,7 @@ pub async fn send_request(
                 let client = client.patch(url);
                 match request.body {
                     Some(RequestContent::Json(payload)) => client.json(&payload),
-                    Some(RequestContent::FormData(form)) => client.multipart(form),
+                    Some(RequestContent::FormData((form, _))) => client.multipart(form),
                     Some(RequestContent::FormUrlEncoded(payload)) => client.form(&payload),
                     Some(RequestContent::Xml(payload)) => {
                         let body = quick_xml::se::to_string(&payload)

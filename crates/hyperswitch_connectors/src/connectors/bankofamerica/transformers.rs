@@ -12,14 +12,11 @@ use hyperswitch_domain_models::{
         ErrorResponse, PaymentMethodToken, RouterData,
     },
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData,
-        ResponseId,
-    },
+    router_request_types::ResponseId,
     router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        RefundsRouterData, SetupMandateRouterData,
+        PaymentsSyncRouterData, RefundsRouterData, SetupMandateRouterData,
     },
 };
 use hyperswitch_interfaces::{api, errors};
@@ -29,7 +26,11 @@ use serde_json::Value;
 
 use crate::{
     constants,
-    types::{RefundsResponseRouterData, ResponseRouterData},
+    types::{
+        PaymentsCancelResponseRouterData, PaymentsCaptureResponseRouterData,
+        PaymentsResponseRouterData, PaymentsSyncResponseRouterData, RefundsResponseRouterData,
+        ResponseRouterData,
+    },
     unimplemented_payment_method,
     utils::{
         self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData,
@@ -120,7 +121,7 @@ pub enum BankOfAmericaActionsTokenType {
 #[serde(rename_all = "camelCase")]
 pub struct BankOfAmericaAuthorizationOptions {
     initiator: Option<BankOfAmericaPaymentInitiator>,
-    merchant_intitiated_transaction: Option<MerchantInitiatedTransaction>,
+    merchant_initiated_transaction: Option<MerchantInitiatedTransaction>,
 }
 
 #[derive(Debug, Serialize)]
@@ -343,7 +344,10 @@ impl TryFrom<&SetupMandateRouterData> for BankOfAmericaPaymentsRequest {
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("BankOfAmerica"),
                 ))?
@@ -412,7 +416,8 @@ impl<F, T>
                     | common_enums::PaymentMethod::Upi
                     | common_enums::PaymentMethod::Voucher
                     | common_enums::PaymentMethod::OpenBanking
-                    | common_enums::PaymentMethod::GiftCard => None,
+                    | common_enums::PaymentMethod::GiftCard
+                    | common_enums::PaymentMethod::NetworkToken => None,
                 };
 
                 Ok(Self {
@@ -435,6 +440,7 @@ impl<F, T>
                                     .unwrap_or(info_response.id),
                             ),
                             incremental_authorization_allowed: None,
+                            authentication_data: None,
                             charges: None,
                         }),
                     },
@@ -652,7 +658,7 @@ impl
                     None,
                     Some(BankOfAmericaAuthorizationOptions {
                         initiator: None,
-                        merchant_intitiated_transaction: Some(MerchantInitiatedTransaction {
+                        merchant_initiated_transaction: Some(MerchantInitiatedTransaction {
                             reason: None,
                             original_authorized_amount: Some(utils::get_amount_as_string(
                                 &api::CurrencyUnit::Base,
@@ -1143,7 +1149,10 @@ impl TryFrom<&BankOfAmericaRouterData<&PaymentsAuthorizeRouterData>>
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::NetworkToken(_)
-                    | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                    | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                    | PaymentMethodData::CardWithLimitedDetails(_)
+                    | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+                    | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message(
                                 "Bank of America",
@@ -1576,6 +1585,7 @@ fn map_error_response<F, T>(
         status_code: item.http_code,
         attempt_status: None,
         connector_transaction_id: Some(error_response.id.clone()),
+        connector_response_reference_id: None,
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
@@ -1654,30 +1664,19 @@ fn get_payment_response(
                         .unwrap_or(info_response.id.clone()),
                 ),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             })
         }
     }
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            BankOfAmericaPaymentsResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
+impl TryFrom<PaymentsResponseRouterData<BankOfAmericaPaymentsResponse>>
+    for PaymentsAuthorizeRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            BankOfAmericaPaymentsResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsResponseRouterData<BankOfAmericaPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response {
             BankOfAmericaPaymentsResponse::ClientReferenceInformation(info_response) => {
@@ -1716,7 +1715,8 @@ impl<F>
                     | common_enums::PaymentMethod::Upi
                     | common_enums::PaymentMethod::Voucher
                     | common_enums::PaymentMethod::OpenBanking
-                    | common_enums::PaymentMethod::GiftCard => None,
+                    | common_enums::PaymentMethod::GiftCard
+                    | common_enums::PaymentMethod::NetworkToken => None,
                 };
 
                 Ok(Self {
@@ -1762,27 +1762,16 @@ fn convert_to_additional_payment_method_connector_response(
         payment_checks,
         card_network: None,
         domestic_network: None,
+        auth_code: None,
     }
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            BankOfAmericaPaymentsResponse,
-            PaymentsCaptureData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsCaptureData, PaymentsResponseData>
+impl TryFrom<PaymentsCaptureResponseRouterData<BankOfAmericaPaymentsResponse>>
+    for PaymentsCaptureRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            BankOfAmericaPaymentsResponse,
-            PaymentsCaptureData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsCaptureResponseRouterData<BankOfAmericaPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response {
             BankOfAmericaPaymentsResponse::ClientReferenceInformation(info_response) => {
@@ -1802,24 +1791,12 @@ impl<F>
     }
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            BankOfAmericaPaymentsResponse,
-            PaymentsCancelData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsCancelData, PaymentsResponseData>
+impl TryFrom<PaymentsCancelResponseRouterData<BankOfAmericaPaymentsResponse>>
+    for PaymentsCancelRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            BankOfAmericaPaymentsResponse,
-            PaymentsCancelData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsCancelResponseRouterData<BankOfAmericaPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response {
             BankOfAmericaPaymentsResponse::ClientReferenceInformation(info_response) => {
@@ -1869,24 +1846,12 @@ pub struct ApplicationInformation {
     status: Option<BankofamericaPaymentStatus>,
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            BankOfAmericaTransactionResponse,
-            PaymentsSyncData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsSyncData, PaymentsResponseData>
+impl TryFrom<PaymentsSyncResponseRouterData<BankOfAmericaTransactionResponse>>
+    for PaymentsSyncRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            BankOfAmericaTransactionResponse,
-            PaymentsSyncData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsSyncResponseRouterData<BankOfAmericaTransactionResponse>,
     ) -> Result<Self, Self::Error> {
         match item.response.application_information.status {
             Some(app_status) => {
@@ -1923,7 +1888,8 @@ impl<F>
                     | common_enums::PaymentMethod::Upi
                     | common_enums::PaymentMethod::Voucher
                     | common_enums::PaymentMethod::OpenBanking
-                    | common_enums::PaymentMethod::GiftCard => None,
+                    | common_enums::PaymentMethod::GiftCard
+                    | common_enums::PaymentMethod::NetworkToken => None,
                 };
 
                 let risk_info: Option<ClientRiskInformation> = None;
@@ -1958,6 +1924,7 @@ impl<F>
                                 .map(|cref| cref.code)
                                 .unwrap_or(Some(item.response.id)),
                             incremental_authorization_allowed: None,
+                            authentication_data: None,
                             charges: None,
                         }),
                         connector_response,
@@ -1975,6 +1942,7 @@ impl<F>
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.id),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -2398,6 +2366,7 @@ fn get_error_response(
         status_code,
         attempt_status,
         connector_transaction_id: Some(transaction_id.clone()),
+        connector_response_reference_id: None,
         network_advice_code,
         network_decline_code,
         network_error_message: None,
@@ -2705,6 +2674,7 @@ fn convert_to_error_response_from_error_info(
         status_code,
         attempt_status: None,
         connector_transaction_id: Some(error_response.id.clone()),
+        connector_response_reference_id: None,
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
@@ -2729,7 +2699,7 @@ fn get_boa_mandate_action_details() -> (
                 credential_stored_on_file: Some(true),
                 stored_credential_used: None,
             }),
-            merchant_intitiated_transaction: None,
+            merchant_initiated_transaction: None,
         }),
     )
 }

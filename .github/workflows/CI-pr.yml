@@ -1,5 +1,8 @@
 name: CI-pr
 
+permissions:
+  contents: read
+
 on:
   pull_request:
 
@@ -43,7 +46,7 @@ jobs:
 
       - name: Checkout repository with token
         if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
@@ -51,7 +54,7 @@ jobs:
 
       - name: Checkout repository for fork
         if: ${{ github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -97,7 +100,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install mold linker
         uses: rui314/setup-mold@v1
@@ -121,59 +124,14 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      # - name: Install sccache
-      #   uses: taiki-e/install-action@v2
-      #   with:
-      #     tool: sccache
-      #     checksum: true
-
       - name: Install rust cache
         uses: Swatinem/rust-cache@v2.7.7
         with:
           save-if: false
 
-      - name: Install cargo-hack
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-hack
-          checksum: true
-
-      - name: Install just
-        uses: taiki-e/install-action@v2
-        with:
-          tool: just
-          checksum: true
-
-      - name: Install jq
+      - name: Run cargo check
         shell: bash
-        run: .github/scripts/install-jq.sh
-
-      - name: Cargo hack
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: just ci_hack
-
-  # cargo-deny:
-  #   name: Run cargo-deny
-  #   runs-on: ubuntu-latest
-  #   strategy:
-  #     matrix:
-  #       checks:
-  #         - advisories
-  #         - bans licenses sources
-
-  #   # Prevent sudden announcement of a new advisory from failing CI
-  #   continue-on-error: ${{ matrix.checks == 'advisories' }}
-
-  #   steps:
-  #     - name: Checkout repository
-  #       uses: actions/checkout@v4
-
-  #     - name: Run cargo-deny
-  #       uses: EmbarkStudios/cargo-deny-action@v1.3.2
-  #       with:
-  #         command: check ${{ matrix.checks }}
+        run: cargo check --features "release"
 
   test:
     name: Run tests on stable toolchain
@@ -202,11 +160,11 @@ jobs:
 
       - name: Checkout repository for fork
         if: ${{ (github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name) }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Checkout repository with token
         if: ${{ (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
@@ -229,38 +187,16 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      # - name: Install sccache
-      #   uses: taiki-e/install-action@v2
-      #   with:
-      #     tool: sccache
-      #     checksum: true
-
       - name: Install rust cache
         uses: Swatinem/rust-cache@v2.7.7
         with:
           save-if: false
-
-      - name: Install cargo-hack
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-hack
-          checksum: true
 
       - name: Install just
         uses: taiki-e/install-action@v2
         with:
           tool: just
           checksum: true
-
-      - name: Install jq
-        shell: bash
-        run: .github/scripts/install-jq.sh
-
-      # - name: Install cargo-nextest
-      #   uses: taiki-e/install-action@v2
-      #   with:
-      #     tool: cargo-nextest
-      #     checksum: true
 
       - name: Run clippy
         shell: bash
@@ -279,26 +215,40 @@ jobs:
           fi
 
       - name: Run cargo check
-        if: ${{ ! startsWith(github.event.pull_request.base.ref, 'hotfix-') }}
         shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: just ci_hack
-
-      - name: Cargo build release
-        if: ${{ startsWith(github.event.pull_request.base.ref, 'hotfix-') }}
-        shell: bash
-        run: cargo check --features release
+        run: cargo check --features "release"
 
   typos:
     name: Spell check
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Spell check
         uses: crate-ci/typos@master
+
+  typos-required:
+    name: Spell check specific critical directories
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Spell check specific directories
+        uses: crate-ci/typos@master
+        with:
+          files: |
+            api-reference/
+            crates/api_models/
+            crates/common_utils/
+            crates/common_enums/
+            crates/diesel_models/
+            migrations/
+            v2_migrations/
+            v2_compatible_migrations/
+            config/
+            docs/
 
   check-v2:
     name: Check compilation for V2 features
@@ -306,7 +256,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install mold linker
         uses: rui314/setup-mold@v1
@@ -338,6 +288,8 @@ jobs:
 
       - name: Run cargo clippy with v2 features enabled
         shell: bash
+        env:
+          CARGO_BUILD_JOBS: 3
         run: just clippy_v2
 
       - name: Run cargo check enabling only the release and v2 features

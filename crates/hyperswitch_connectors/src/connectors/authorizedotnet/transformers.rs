@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use api_models::webhooks::IncomingWebhookEvent;
+use api_models::{payments::AdditionalPaymentData, webhooks::IncomingWebhookEvent};
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
@@ -45,6 +45,7 @@ use crate::{
 };
 
 const MAX_ID_LENGTH: usize = 20;
+const ADDRESS_MAX_LENGTH: usize = 60;
 
 fn get_random_string() -> String {
     Alphanumeric.sample_string(&mut rand::thread_rng(), MAX_ID_LENGTH)
@@ -117,12 +118,6 @@ struct CreditCardDetails {
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-struct BankAccountDetails {
-    account_number: Secret<String>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
 enum PaymentDetails {
     CreditCard(CreditCardDetails),
     OpaqueData(WalletDetails),
@@ -172,7 +167,6 @@ struct TransactionRequest {
     processing_options: Option<ProcessingOptions>,
     #[serde(skip_serializing_if = "Option::is_none")]
     subsequent_auth_information: Option<SubsequentAuthInformation>,
-    authorization_indicator_type: Option<AuthorizationIndicator>,
 }
 
 #[derive(Debug, Serialize)]
@@ -265,12 +259,6 @@ pub enum Reason {
     Reauthorization,
     #[serde(rename = "noShow")]
     NoShow,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct AuthorizationIndicator {
-    authorization_indicator: AuthorizationType,
 }
 
 #[derive(Debug, Serialize)]
@@ -405,9 +393,15 @@ impl ForeignTryFrom<Value> for Vec<UserField> {
             .attach_printable("")?;
         let mut vector: Self = Self::new();
         for (key, value) in hashmap {
+            let string_value = match value {
+                Value::Bool(boolean) => boolean.to_string(),
+                Value::Number(number) => number.to_string(),
+                Value::String(string) => string.to_string(),
+                _ => value.to_string(),
+            };
             vector.push(UserField {
                 name: key,
-                value: value.to_string(),
+                value: string_value,
             });
         }
         Ok(vector)
@@ -472,7 +466,7 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerPaymentProfileRequest {
             .map(|address| BillTo {
                 first_name: address.first_name.clone(),
                 last_name: address.last_name.clone(),
-                address: address.line1.clone(),
+                address: get_address_line(&address.line1, &address.line2, &address.line3),
                 city: address.city.clone(),
                 state: address.state.clone(),
                 zip: address.zip.clone(),
@@ -563,7 +557,10 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerPaymentProfileRequest {
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
                 ))
@@ -665,6 +662,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetCustomerResponse, T, Pay
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: None,
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
@@ -714,6 +712,7 @@ impl<F, T>
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -738,6 +737,7 @@ impl<F, T>
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -817,7 +817,8 @@ impl TryFrom<&AuthorizedotnetRouterData<&PaymentsAuthorizeRouterData>>
             Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
                 connector_mandate_id,
             )) => TransactionRequest::try_from((item, connector_mandate_id))?,
-            Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_)) => {
+            Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_))
+            | Some(api_models::payments::MandateReferenceId::CardWithLimitedData) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
                 ))?
@@ -844,7 +845,10 @@ impl TryFrom<&AuthorizedotnetRouterData<&PaymentsAuthorizeRouterData>>
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::NetworkToken(_)
-                    | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                    | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                    | PaymentMethodData::CardWithLimitedDetails(_)
+                    | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+                    | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message(
                                 "authorizedotnet",
@@ -906,7 +910,10 @@ impl
                 | PaymentMethodData::OpenBanking(_)
                 | PaymentMethodData::CardToken(_)
                 | PaymentMethodData::NetworkToken(_)
-                | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                | PaymentMethodData::CardWithLimitedDetails(_)
+                | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+                | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
                     ))?
@@ -942,7 +949,7 @@ impl
                 .map(|address| BillTo {
                     first_name: address.first_name.clone(),
                     last_name: address.last_name.clone(),
-                    address: address.line1.clone(),
+                    address: get_address_line(&address.line1, &address.line2, &address.line3),
                     city: address.city.clone(),
                     state: address.state.clone(),
                     zip: address.zip.clone(),
@@ -961,14 +968,30 @@ impl
                 original_network_trans_id: Secret::new(network_trans_id),
                 reason: Reason::Resubmission,
             }),
-            authorization_indicator_type: match item.router_data.request.capture_method {
-                Some(capture_method) => Some(AuthorizationIndicator {
-                    authorization_indicator: capture_method.try_into()?,
-                }),
-                None => None,
-            },
         })
     }
+}
+fn get_address_line(
+    address_line1: &Option<Secret<String>>,
+    address_line2: &Option<Secret<String>>,
+    address_line3: &Option<Secret<String>>,
+) -> Option<Secret<String>> {
+    for lines in [
+        vec![address_line1, address_line2, address_line3],
+        vec![address_line1, address_line2],
+    ] {
+        let combined: String = lines
+            .into_iter()
+            .flatten()
+            .map(|s| s.clone().expose())
+            .collect::<Vec<_>>()
+            .join(" ");
+
+        if !combined.is_empty() && combined.len() <= ADDRESS_MAX_LENGTH {
+            return Some(Secret::new(combined));
+        }
+    }
+    address_line1.clone()
 }
 
 impl
@@ -1028,12 +1051,6 @@ impl
                 is_subsequent_auth: true,
             }),
             subsequent_auth_information: None,
-            authorization_indicator_type: match item.router_data.request.capture_method {
-                Some(capture_method) => Some(AuthorizationIndicator {
-                    authorization_indicator: capture_method.try_into()?,
-                }),
-                None => None,
-            },
         })
     }
 }
@@ -1051,6 +1068,13 @@ impl
             &Card,
         ),
     ) -> Result<Self, Self::Error> {
+        if item.router_data.is_three_ds() {
+            return Err(errors::ConnectorError::NotSupported {
+                message: "3DS flow".to_string(),
+                connector: "Authorizedotnet",
+            }
+            .into());
+        };
         let profile = if item
             .router_data
             .request
@@ -1118,7 +1142,7 @@ impl
                 .map(|address| BillTo {
                     first_name: address.first_name.clone(),
                     last_name: address.last_name.clone(),
-                    address: address.line1.clone(),
+                    address: get_address_line(&address.line1, &address.line2, &address.line3),
                     city: address.city.clone(),
                     state: address.state.clone(),
                     zip: address.zip.clone(),
@@ -1132,12 +1156,6 @@ impl
             },
             processing_options: None,
             subsequent_auth_information: None,
-            authorization_indicator_type: match item.router_data.request.capture_method {
-                Some(capture_method) => Some(AuthorizationIndicator {
-                    authorization_indicator: capture_method.try_into()?,
-                }),
-                None => None,
-            },
         })
     }
 }
@@ -1221,7 +1239,7 @@ impl
                 .map(|address| BillTo {
                     first_name: address.first_name.clone(),
                     last_name: address.last_name.clone(),
-                    address: address.line1.clone(),
+                    address: get_address_line(&address.line1, &address.line2, &address.line3),
                     city: address.city.clone(),
                     state: address.state.clone(),
                     zip: address.zip.clone(),
@@ -1235,12 +1253,6 @@ impl
             },
             processing_options: None,
             subsequent_auth_information: None,
-            authorization_indicator_type: match item.router_data.request.capture_method {
-                Some(capture_method) => Some(AuthorizationIndicator {
-                    authorization_indicator: capture_method.try_into()?,
-                }),
-                None => None,
-            },
         })
     }
 }
@@ -1506,6 +1518,7 @@ fn convert_to_additional_payment_method_connector_response(
                 payment_checks: Some(payment_checks),
                 card_network: None,
                 domestic_network: None,
+                auth_code: None,
             })
         }
     }
@@ -1538,6 +1551,7 @@ impl<F, T>
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: Some(transaction_response.transaction_id.clone()),
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
@@ -1548,7 +1562,10 @@ impl<F, T>
                     .account_number
                     .as_ref()
                     .map(|acc_no| {
-                        construct_refund_payment_details(acc_no.clone().expose()).encode_to_value()
+                        construct_refund_payment_details(PaymentDetailAccountNumber::Masked(
+                            acc_no.clone().expose(),
+                        ))
+                        .encode_to_value()
                     })
                     .transpose()
                     .change_context(errors::ConnectorError::MissingRequiredField {
@@ -1603,6 +1620,7 @@ impl<F, T>
                                 transaction_response.transaction_id.clone(),
                             ),
                             incremental_authorization_allowed: None,
+                            authentication_data: None,
                             charges: None,
                         }),
                     },
@@ -1639,6 +1657,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetVoidResponse, T, Payment
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: Some(transaction_response.transaction_id.clone()),
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
@@ -1649,7 +1668,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetVoidResponse, T, Payment
                     .account_number
                     .as_ref()
                     .map(|acc_no| {
-                        construct_refund_payment_details(acc_no.clone().expose()).encode_to_value()
+                        construct_refund_payment_details(PaymentDetailAccountNumber::Masked(
+                            acc_no.clone().expose(),
+                        ))
+                        .encode_to_value()
                     })
                     .transpose()
                     .change_context(errors::ConnectorError::MissingRequiredField {
@@ -1674,6 +1696,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetVoidResponse, T, Payment
                                 transaction_response.transaction_id.clone(),
                             ),
                             incremental_authorization_allowed: None,
+                            authentication_data: None,
                             charges: None,
                         }),
                     },
@@ -1719,28 +1742,16 @@ impl<F> TryFrom<&AuthorizedotnetRouterData<&RefundsRouterData<F>>> for CreateRef
     fn try_from(
         item: &AuthorizedotnetRouterData<&RefundsRouterData<F>>,
     ) -> Result<Self, Self::Error> {
-        let payment_details = item
-            .router_data
-            .request
-            .connector_metadata
-            .as_ref()
-            .get_required_value("connector_metadata")
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_metadata",
-            })?
-            .clone();
-
         let merchant_authentication =
             AuthorizedotnetAuthType::try_from(&item.router_data.connector_auth_type)?;
 
         let transaction_request = RefundTransactionRequest {
             transaction_type: TransactionType::Refund,
             amount: item.amount,
-            payment: payment_details
-                .parse_value("PaymentDetails")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "payment_details",
-                })?,
+            payment: get_refund_metadata(
+                &item.router_data.request.connector_metadata,
+                &item.router_data.request.additional_payment_method_data,
+            )?,
             currency_code: item.router_data.request.currency.to_string(),
             reference_transaction_id: item.router_data.request.connector_transaction_id.clone(),
         };
@@ -1754,6 +1765,42 @@ impl<F> TryFrom<&AuthorizedotnetRouterData<&RefundsRouterData<F>>> for CreateRef
     }
 }
 
+fn get_refund_metadata(
+    connector_metadata: &Option<Value>,
+    additional_payment_method: &Option<AdditionalPaymentData>,
+) -> Result<PaymentDetails, error_stack::Report<errors::ConnectorError>> {
+    let payment_details_from_metadata = connector_metadata
+        .as_ref()
+        .get_required_value("connector_metadata")
+        .ok()
+        .and_then(|value| {
+            value
+                .clone()
+                .parse_value::<PaymentDetails>("PaymentDetails")
+                .ok()
+        });
+    let payment_details_from_additional_payment_method = match additional_payment_method {
+        Some(AdditionalPaymentData::Card(additional_card_info)) => {
+            additional_card_info.last4.clone().map(|last4| {
+                construct_refund_payment_details(PaymentDetailAccountNumber::UnMasked(
+                    last4.to_string(),
+                ))
+            })
+        }
+        _ => None,
+    };
+    match (
+        payment_details_from_metadata,
+        payment_details_from_additional_payment_method,
+    ) {
+        (Some(payment_detail), _) => Ok(payment_detail),
+        (_, Some(payment_detail)) => Ok(payment_detail),
+        (None, None) => Err(errors::ConnectorError::MissingRequiredField {
+            field_name: "payment_details",
+        }
+        .into()),
+    }
+}
 impl From<AuthorizedotnetRefundStatus> for enums::RefundStatus {
     fn from(item: AuthorizedotnetRefundStatus) -> Self {
         match item {
@@ -1791,6 +1838,7 @@ impl<F> TryFrom<RefundsResponseRouterData<F, AuthorizedotnetRefundResponse>>
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(transaction_response.transaction_id.clone()),
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -2001,6 +2049,7 @@ impl<F, Req> TryFrom<ResponseRouterData<F, AuthorizedotnetSyncResponse, Req, Pay
                         network_txn_id: None,
                         connector_response_reference_id: Some(transaction.transaction_id.clone()),
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     }),
                     status: payment_status,
@@ -2009,13 +2058,14 @@ impl<F, Req> TryFrom<ResponseRouterData<F, AuthorizedotnetSyncResponse, Req, Pay
             }
 
             // E00053 indicates "server too busy"
-            // If the server is too busy, we return the already available data
+            // E00104 indicates "Server in maintenance"
+            // If the server is too busy or Server in maintenance, we return the already available data
             None => match item
                 .response
                 .messages
                 .message
                 .iter()
-                .find(|msg| msg.code == "E00053")
+                .find(|msg| msg.code == "E00053" || msg.code == "E00104")
             {
                 Some(_) => Ok(item.data),
                 None => Ok(Self {
@@ -2040,10 +2090,16 @@ pub struct ErrorDetails {
 pub struct AuthorizedotnetErrorResponse {
     pub error: ErrorDetails,
 }
-
-fn construct_refund_payment_details(masked_number: String) -> PaymentDetails {
+enum PaymentDetailAccountNumber {
+    Masked(String),
+    UnMasked(String),
+}
+fn construct_refund_payment_details(detail: PaymentDetailAccountNumber) -> PaymentDetails {
     PaymentDetails::CreditCard(CreditCardDetails {
-        card_number: masked_number.into(),
+        card_number: match detail {
+            PaymentDetailAccountNumber::Masked(masked) => masked.into(),
+            PaymentDetailAccountNumber::UnMasked(unmasked) => format!("XXXX{:}", unmasked).into(),
+        },
         expiration_date: "XXXX".to_string().into(),
         card_code: None,
     })
@@ -2088,6 +2144,7 @@ fn get_err_response(
         status_code,
         attempt_status: None,
         connector_transaction_id: None,
+        connector_response_reference_id: None,
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,

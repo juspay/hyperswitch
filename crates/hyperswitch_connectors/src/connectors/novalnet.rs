@@ -156,6 +156,7 @@ impl ConnectorCommon for Novalnet {
             reason: response.reason,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -815,8 +816,7 @@ impl webhooks::IncomingWebhook for Novalnet {
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let notif_item = get_webhook_object_from_body(request.body)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        let notif_item = get_webhook_object_from_body(request.body)?;
 
         hex::decode(notif_item.event.checksum)
             .change_context(errors::ConnectorError::WebhookVerificationSecretInvalid)
@@ -828,8 +828,7 @@ impl webhooks::IncomingWebhook for Novalnet {
         _merchant_id: &common_utils::id_type::MerchantId,
         connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let notif = get_webhook_object_from_body(request.body)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        let notif = get_webhook_object_from_body(request.body)?;
         let (amount, currency) = match notif.transaction {
             novalnet::NovalnetWebhookTransactionData::CaptureTransactionData(data) => {
                 (data.amount, data.currency)
@@ -843,6 +842,10 @@ impl webhooks::IncomingWebhook for Novalnet {
             }
 
             novalnet::NovalnetWebhookTransactionData::SyncTransactionData(data) => {
+                (data.amount, data.currency)
+            }
+
+            novalnet::NovalnetWebhookTransactionData::ChargebackTransactionData(data) => {
                 (data.amount, data.currency)
             }
         };
@@ -875,13 +878,15 @@ impl webhooks::IncomingWebhook for Novalnet {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let notif = get_webhook_object_from_body(request.body)
-            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        let notif = get_webhook_object_from_body(request.body)?;
         let transaction_order_no = match notif.transaction {
             novalnet::NovalnetWebhookTransactionData::CaptureTransactionData(data) => data.order_no,
             novalnet::NovalnetWebhookTransactionData::CancelTransactionData(data) => data.order_no,
             novalnet::NovalnetWebhookTransactionData::RefundsTransactionData(data) => data.order_no,
             novalnet::NovalnetWebhookTransactionData::SyncTransactionData(data) => data.order_no,
+            novalnet::NovalnetWebhookTransactionData::ChargebackTransactionData(data) => {
+                data.order_no
+            }
         };
 
         if novalnet::is_refund_event(&notif.event.event_type) {
@@ -905,19 +910,20 @@ impl webhooks::IncomingWebhook for Novalnet {
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        let notif = get_webhook_object_from_body(request.body)
-            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        let notif = get_webhook_object_from_body(request.body)?;
 
-        let optional_transaction_status = match notif.transaction {
-            novalnet::NovalnetWebhookTransactionData::CaptureTransactionData(data) => {
-                Some(data.status)
-            }
+        let optional_transaction_status = match &notif.transaction {
+            novalnet::NovalnetWebhookTransactionData::CaptureTransactionData(data) => data.status,
             novalnet::NovalnetWebhookTransactionData::CancelTransactionData(data) => data.status,
             novalnet::NovalnetWebhookTransactionData::RefundsTransactionData(data) => {
                 Some(data.status)
             }
             novalnet::NovalnetWebhookTransactionData::SyncTransactionData(data) => {
+                Some(data.status)
+            }
+            novalnet::NovalnetWebhookTransactionData::ChargebackTransactionData(data) => {
                 Some(data.status)
             }
         };
@@ -930,8 +936,18 @@ impl webhooks::IncomingWebhook for Novalnet {
         // But we are handling optional type here, since we are reusing TransactionData Struct from NovalnetPaymentsResponseTransactionData for Webhooks response too
         // In NovalnetPaymentsResponseTransactionData, transaction_status is optional
 
-        let incoming_webhook_event =
-            novalnet::get_incoming_webhook_event(notif.event.event_type, transaction_status);
+        let payment_type = match notif.transaction.clone() {
+            novalnet::NovalnetWebhookTransactionData::ChargebackTransactionData(_) => {
+                Some(novalnet::NovalNetPaymentTypes::ReturnDebitSepa)
+            }
+            _ => None,
+        };
+
+        let incoming_webhook_event = novalnet::get_incoming_webhook_event(
+            notif.event.event_type,
+            transaction_status,
+            payment_type,
+        );
         Ok(incoming_webhook_event)
     }
 
@@ -947,10 +963,10 @@ impl webhooks::IncomingWebhook for Novalnet {
     fn get_dispute_details(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<disputes::DisputePayload, errors::ConnectorError> {
-        let notif: transformers::NovalnetWebhookNotificationResponse =
-            get_webhook_object_from_body(request.body)
-                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let notif = get_webhook_object_from_body(request.body)?;
+
         let (amount, currency, reason, reason_code) = match notif.transaction {
             novalnet::NovalnetWebhookTransactionData::CaptureTransactionData(data) => {
                 (data.amount, data.currency, None, None)
@@ -964,6 +980,10 @@ impl webhooks::IncomingWebhook for Novalnet {
             }
 
             novalnet::NovalnetWebhookTransactionData::SyncTransactionData(data) => {
+                (data.amount, data.currency, data.reason, data.reason_code)
+            }
+
+            novalnet::NovalnetWebhookTransactionData::ChargebackTransactionData(data) => {
                 (data.amount, data.currency, data.reason, data.reason_code)
             }
         };
@@ -1078,6 +1098,28 @@ static NOVALNET_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 mandates: enums::FeatureStatus::Supported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        novalnet_supported_payment_methods.add(
+            enums::PaymentMethod::BankDebit,
+            enums::PaymentMethodType::Sepa,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::Supported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        novalnet_supported_payment_methods.add(
+            enums::PaymentMethod::BankDebit,
+            enums::PaymentMethodType::SepaGuarenteedDebit,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::Supported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods,
                 specific_features: None,
             },
         );

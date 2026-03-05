@@ -14,7 +14,11 @@ use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use router_env::logger;
 
-use crate::type_encryption::{crypto_operation, AsyncLift, CryptoOperation};
+use crate::{
+    behaviour::Conversion,
+    merchant_key_store,
+    type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
+};
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, serde::Serialize)]
@@ -212,6 +216,12 @@ impl MerchantAccount {
         &self.merchant_id
     }
 
+    #[cfg(feature = "v1")]
+    /// Get the unique identifier of MerchantAccount
+    pub fn get_default_profile(&self) -> &Option<common_utils::id_type::ProfileId> {
+        &self.default_profile
+    }
+
     #[cfg(feature = "v2")]
     /// Get the unique identifier of MerchantAccount
     pub fn get_id(&self) -> &common_utils::id_type::MerchantId {
@@ -282,7 +292,6 @@ pub enum MerchantAccountUpdate {
     },
     UnsetDefaultProfile,
     ModifiedAtUpdate,
-    ToPlatformAccount,
 }
 
 #[cfg(feature = "v2")]
@@ -301,7 +310,6 @@ pub enum MerchantAccountUpdate {
         recon_status: diesel_models::enums::ReconStatus,
     },
     ModifiedAtUpdate,
-    ToPlatformAccount,
 }
 
 #[cfg(feature = "v1")]
@@ -476,35 +484,6 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 is_platform_account: None,
                 product_type: None,
             },
-            MerchantAccountUpdate::ToPlatformAccount => Self {
-                modified_at: now,
-                merchant_name: None,
-                merchant_details: None,
-                return_url: None,
-                webhook_details: None,
-                sub_merchants_enabled: None,
-                parent_merchant_id: None,
-                enable_payment_response_hash: None,
-                payment_response_hash_key: None,
-                redirect_to_merchant_with_http_post: None,
-                publishable_key: None,
-                storage_scheme: None,
-                locker_id: None,
-                metadata: None,
-                routing_algorithm: None,
-                primary_business_details: None,
-                intent_fulfillment_time: None,
-                frm_routing_algorithm: None,
-                payout_routing_algorithm: None,
-                organization_id: None,
-                is_recon_enabled: None,
-                default_profile: None,
-                recon_status: None,
-                payment_link_config: None,
-                pm_collect_link_config: None,
-                is_platform_account: Some(true),
-                product_type: None,
-            },
         }
     }
 }
@@ -568,25 +547,13 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 is_platform_account: None,
                 product_type: None,
             },
-            MerchantAccountUpdate::ToPlatformAccount => Self {
-                modified_at: now,
-                merchant_name: None,
-                merchant_details: None,
-                publishable_key: None,
-                storage_scheme: None,
-                metadata: None,
-                organization_id: None,
-                recon_status: None,
-                is_platform_account: Some(true),
-                product_type: None,
-            },
         }
     }
 }
 
 #[cfg(feature = "v2")]
 #[async_trait::async_trait]
-impl super::behaviour::Conversion for MerchantAccount {
+impl Conversion for MerchantAccount {
     type DstType = diesel_models::merchant_account::MerchantAccount;
     type NewDstType = diesel_models::merchant_account::MerchantAccountNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
@@ -702,7 +669,7 @@ impl super::behaviour::Conversion for MerchantAccount {
 
 #[cfg(feature = "v1")]
 #[async_trait::async_trait]
-impl super::behaviour::Conversion for MerchantAccount {
+impl Conversion for MerchantAccount {
     type DstType = diesel_models::merchant_account::MerchantAccount;
     type NewDstType = diesel_models::merchant_account::MerchantAccountNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
@@ -877,4 +844,80 @@ impl MerchantAccount {
             });
         metadata.and_then(|a| a.compatible_connector)
     }
+}
+
+#[async_trait::async_trait]
+pub trait MerchantAccountInterface
+where
+    MerchantAccount: Conversion<
+        DstType = diesel_models::merchant_account::MerchantAccount,
+        NewDstType = diesel_models::merchant_account::MerchantAccountNew,
+    >,
+{
+    type Error;
+    async fn insert_merchant(
+        &self,
+        merchant_account: MerchantAccount,
+        merchant_key_store: &merchant_key_store::MerchantKeyStore,
+    ) -> CustomResult<MerchantAccount, Self::Error>;
+
+    async fn find_merchant_account_by_merchant_id(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_key_store: &merchant_key_store::MerchantKeyStore,
+    ) -> CustomResult<MerchantAccount, Self::Error>;
+
+    async fn update_all_merchant_account(
+        &self,
+        merchant_account: MerchantAccountUpdate,
+    ) -> CustomResult<usize, Self::Error>;
+
+    async fn update_merchant(
+        &self,
+        this: MerchantAccount,
+        merchant_account: MerchantAccountUpdate,
+        merchant_key_store: &merchant_key_store::MerchantKeyStore,
+    ) -> CustomResult<MerchantAccount, Self::Error>;
+
+    async fn update_specific_fields_in_merchant(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_account: MerchantAccountUpdate,
+        merchant_key_store: &merchant_key_store::MerchantKeyStore,
+    ) -> CustomResult<MerchantAccount, Self::Error>;
+
+    async fn find_merchant_account_by_publishable_key(
+        &self,
+        publishable_key: &str,
+    ) -> CustomResult<(MerchantAccount, merchant_key_store::MerchantKeyStore), Self::Error>;
+
+    #[cfg(feature = "olap")]
+    async fn list_merchant_accounts_by_organization_id(
+        &self,
+        organization_id: &common_utils::id_type::OrganizationId,
+    ) -> CustomResult<Vec<MerchantAccount>, Self::Error>;
+
+    async fn delete_merchant_account_by_merchant_id(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+    ) -> CustomResult<bool, Self::Error>;
+
+    #[cfg(feature = "olap")]
+    async fn list_multiple_merchant_accounts(
+        &self,
+        merchant_ids: Vec<common_utils::id_type::MerchantId>,
+    ) -> CustomResult<Vec<MerchantAccount>, Self::Error>;
+
+    #[cfg(feature = "olap")]
+    async fn list_merchant_and_org_ids(
+        &self,
+        limit: u32,
+        offset: Option<u32>,
+    ) -> CustomResult<
+        Vec<(
+            common_utils::id_type::MerchantId,
+            common_utils::id_type::OrganizationId,
+        )>,
+        Self::Error,
+    >;
 }

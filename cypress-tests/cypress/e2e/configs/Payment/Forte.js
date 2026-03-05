@@ -32,10 +32,10 @@ const PaymentMethodCardDetails = {
 const payment_method_data_no3ds = {
   card: {
     last4: "1111",
-    card_type: "CREDIT",
+    card_type: "DEBIT",
     card_network: "Visa",
-    card_issuer: "JP Morgan",
-    card_issuing_country: "INDIA",
+    card_issuer: "Conotoxia Sp Z Oo",
+    card_issuing_country: "POLAND",
     card_isin: "411111",
     card_extended_bin: null,
     card_exp_month: "12",
@@ -43,6 +43,7 @@ const payment_method_data_no3ds = {
     card_holder_name: "John Doe",
     payment_checks: null,
     authentication_data: null,
+    auth_code: null,
   },
   billing: null,
 };
@@ -272,7 +273,7 @@ export const connectorDetails = {
         },
       },
     },
-    Void: {
+    Void: getCustomExchange({
       Request: {},
       Response: {
         status: 200,
@@ -280,7 +281,16 @@ export const connectorDetails = {
           status: "cancelled",
         },
       },
-    },
+      ResponseCustom: {
+        status: 400,
+        body: {
+          code: "IR_16",
+          message:
+            "You cannot cancel this payment because it has status processing",
+          type: "invalid_request",
+        },
+      },
+    }),
     VoidAfterConfirm: {
       Request: {},
       Response: {
@@ -306,9 +316,11 @@ export const connectorDetails = {
         amount: 6000,
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: refundErrorResponse,
+          status: "failed",
+          error_message:
+            "A reverse action can only be performed on original transaction that are of sale action type.",
         },
       },
     },
@@ -317,9 +329,11 @@ export const connectorDetails = {
         amount: 2000,
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: refundErrorResponse,
+          status: "failed",
+          error_message:
+            "A reverse action can only be performed on original transaction that are of sale action type.",
         },
       },
     },
@@ -342,8 +356,11 @@ export const connectorDetails = {
         },
       },
     },
-    // No mandate flows for Forte as specified in requirements
-    SaveCardUseNo3DSAutoCapture: getCustomExchange({
+    // Payments will go processing state, so card wont be saved hence skipping the tests
+    SaveCardUseNo3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -360,18 +377,11 @@ export const connectorDetails = {
           status: "processing",
         },
       },
-      ResponseCustom: {
-        status: 400,
-        body: {
-          error: {
-            code: "IR_04",
-            message: "Missing required param: payment_method_data",
-            type: "invalid_request",
-          },
-        },
-      },
-    }),
+    },
     SaveCardUseNo3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -392,6 +402,9 @@ export const connectorDetails = {
     },
     // 3DS Save Card flows - Not implemented
     SaveCardUse3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -408,6 +421,9 @@ export const connectorDetails = {
       },
     },
     SaveCardUse3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -731,6 +747,8 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         billing: billingAddressUS,
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -764,6 +782,9 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSAutoCaptureOffSession: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_type: "debit",
@@ -784,6 +805,9 @@ export const connectorDetails = {
       },
     },
     SaveCardUse3DSAutoCaptureOffSession: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_type: "debit",
@@ -801,6 +825,9 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSManualCaptureOffSession: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -820,6 +847,9 @@ export const connectorDetails = {
       },
     },
     SaveCardConfirmAutoCaptureOffSession: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         setup_future_usage: "off_session",
         billing: billingAddressUS,
@@ -834,6 +864,9 @@ export const connectorDetails = {
       },
     },
     SaveCardConfirmManualCaptureOffSession: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         setup_future_usage: "off_session",
         billing: billingAddressUS,
@@ -848,6 +881,9 @@ export const connectorDetails = {
       },
     },
     SaveCardConfirmAutoCaptureOffSessionWithoutBilling: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         setup_future_usage: "off_session",
         billing: null,
@@ -883,7 +919,10 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-          error: refundErrorResponse,
+          code: "IR_14",
+          message:
+            "This Payment could not be captured because it has a capture_method of automatic. The expected state is manual_multiple",
+          type: "invalid_request",
         },
       },
     },

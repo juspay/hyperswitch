@@ -1,14 +1,17 @@
 use std::collections::HashMap;
 
 use api_models::revenue_recovery_data_backfill::{
-    BackfillError, ComprehensiveCardData, RevenueRecoveryBackfillRequest,
-    RevenueRecoveryDataBackfillResponse, UnlockStatusResponse,
+    BackfillError, ComprehensiveCardData, GetRedisDataQuery, RedisDataResponse, RedisKeyType,
+    RevenueRecoveryBackfillRequest, RevenueRecoveryDataBackfillResponse, ScheduledAtUpdate,
+    UnlockStatusResponse, UpdateTokenStatusRequest, UpdateTokenStatusResponse,
 };
 use common_enums::{CardNetwork, PaymentMethodType};
+use common_utils::id_type;
+use error_stack::ResultExt;
 use hyperswitch_domain_models::api::ApplicationResponse;
 use masking::ExposeInterface;
 use router_env::{instrument, logger};
-use time::{format_description, Date};
+use time::{macros::format_description, Date};
 
 use crate::{
     connection,
@@ -60,20 +63,46 @@ pub async fn revenue_recovery_data_backfill(
     Ok(ApplicationResponse::Json(response))
 }
 
-pub async fn unlock_connector_customer_status(
+pub async fn unlock_connector_customer_status_handler(
     state: SessionState,
     connector_customer_id: String,
+    payment_id: id_type::GlobalPaymentId,
 ) -> RouterResult<ApplicationResponse<UnlockStatusResponse>> {
     let unlocked = storage::revenue_recovery_redis_operation::
-        RedisTokenManager::unlock_connector_customer_status(&state, &connector_customer_id)
+        RedisTokenManager::unlock_connector_customer_status(&state, &connector_customer_id, &payment_id)
         .await
         .map_err(|e| {
             logger::error!(
-                "Failed to unlock connector customer status for {}: {}",
+                "Failed to unlock connector customer status for {}: {:?}",
                 connector_customer_id,
                 e
             );
-            errors::ApiErrorResponse::InternalServerError
+            match e.current_context() {
+                errors::StorageError::RedisError(redis_error) => {
+                    match redis_error.current_context() {
+                        storage_impl::errors::RedisError::DeleteFailed => {
+                            // This indicates the payment_id doesn't own the lock
+                            errors::ApiErrorResponse::InvalidPaymentIdProvided {
+                                resource: format!("The Status token for connector costumer id:- {} is locked by different PaymentIntent ID", connector_customer_id)
+                            }
+                        }
+                        _ => {
+                            // Other Redis errors - infrastructure issue
+                            errors::ApiErrorResponse::InternalServerError
+                        }
+                    }
+                }
+                errors::StorageError::ValueNotFound(_) => {
+                    // Lock doesn't exist
+                    errors::ApiErrorResponse::GenericNotFoundError {
+                        message: format!("Lock not found for connector customer id: {}", connector_customer_id)
+                    }
+                }
+                _ => {
+                    // Fallback for other storage errors
+                    errors::ApiErrorResponse::InternalServerError
+                }
+            }
         })?;
 
     let response = UnlockStatusResponse { unlocked };
@@ -82,6 +111,150 @@ pub async fn unlock_connector_customer_status(
         "Unlock operation completed for connector customer {}: {}",
         connector_customer_id,
         unlocked
+    );
+
+    Ok(ApplicationResponse::Json(response))
+}
+pub async fn get_redis_data(
+    state: SessionState,
+    connector_customer_id: &str,
+    key_type: &RedisKeyType,
+) -> RouterResult<ApplicationResponse<RedisDataResponse>> {
+    match storage::revenue_recovery_redis_operation::RedisTokenManager::get_redis_key_data_raw(
+        &state,
+        connector_customer_id,
+        key_type,
+    )
+    .await
+    {
+        Ok((exists, ttl_seconds, data)) => {
+            let response = RedisDataResponse {
+                exists,
+                ttl_seconds,
+                data,
+            };
+
+            logger::info!(
+                "Retrieved Redis data for connector customer {}, exists={}, ttl={}",
+                connector_customer_id,
+                exists,
+                ttl_seconds
+            );
+
+            Ok(ApplicationResponse::Json(response))
+        }
+        Err(error) => Err(
+            error.change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                message: format!(
+                    "Redis data not found for connector customer id:- '{}'",
+                    connector_customer_id
+                ),
+            }),
+        ),
+    }
+}
+
+pub async fn redis_update_additional_details_for_revenue_recovery(
+    state: SessionState,
+    request: UpdateTokenStatusRequest,
+) -> RouterResult<ApplicationResponse<UpdateTokenStatusResponse>> {
+    // Get existing token
+    let existing_token = storage::revenue_recovery_redis_operation::
+        RedisTokenManager::get_payment_processor_token_using_token_id(
+            &state,
+            &request.connector_customer_id,
+            &request.payment_processor_token.clone().expose(),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to retrieve existing token data")?;
+
+    // Check if token exists
+    let mut token_status = existing_token.ok_or_else(|| {
+        error_stack::Report::new(errors::ApiErrorResponse::GenericNotFoundError {
+            message: format!(
+                "Token '{:?}' not found for connector customer id:- '{}'",
+                request.payment_processor_token, request.connector_customer_id
+            ),
+        })
+    })?;
+
+    let mut updated_fields = Vec::new();
+
+    // Handle scheduled_at update
+    match request.scheduled_at {
+        Some(ScheduledAtUpdate::SetToDateTime(dt)) => {
+            // Field provided with datetime - update schedule_at field with datetime
+            token_status.scheduled_at = Some(dt);
+            updated_fields.push(format!("scheduled_at: {}", dt));
+            logger::info!(
+                "Set scheduled_at to '{}' for token '{:?}'",
+                dt,
+                request.payment_processor_token
+            );
+        }
+        Some(ScheduledAtUpdate::SetToNull) => {
+            // Field provided with "null" variable - set schedule_at field to null
+            token_status.scheduled_at = None;
+            updated_fields.push("scheduled_at: set to null".to_string());
+            logger::info!(
+                "Set scheduled_at to null for token '{:?}'",
+                request.payment_processor_token
+            );
+        }
+        None => {
+            // Field not provided - we don't update schedule_at field
+            logger::debug!("scheduled_at not provided in request - leaving unchanged");
+        }
+    }
+
+    // Update is_hard_decline field
+    request.is_hard_decline.map(|is_hard_decline| {
+        token_status.is_hard_decline = Some(is_hard_decline);
+        updated_fields.push(format!("is_hard_decline: {}", is_hard_decline));
+    });
+
+    // Update error_code field
+    request.error_code.as_ref().map(|error_code| {
+        token_status.error_code = Some(error_code.clone());
+        updated_fields.push(format!("error_code: {}", error_code));
+    });
+
+    // Update Redis with modified token
+    let mut tokens_map = HashMap::new();
+    tokens_map.insert(
+        request.payment_processor_token.clone().expose(),
+        token_status,
+    );
+
+    storage::revenue_recovery_redis_operation::
+        RedisTokenManager::update_or_add_connector_customer_payment_processor_tokens(
+            &state,
+            &request.connector_customer_id,
+            tokens_map,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update token status in Redis")?;
+
+    let updated_fields_str = if updated_fields.is_empty() {
+        "no fields were updated".to_string()
+    } else {
+        updated_fields.join(", ")
+    };
+
+    let response = UpdateTokenStatusResponse {
+        updated: true,
+        message: format!(
+            "Successfully updated token '{:?}' for connector customer '{}'. Updated fields: {}",
+            request.payment_processor_token, request.connector_customer_id, updated_fields_str
+        ),
+    };
+
+    logger::info!(
+        "Updated token status for connector customer {}, token: {:?}",
+        request.connector_customer_id,
+        request.payment_processor_token
     );
 
     Ok(ApplicationResponse::Json(response))
@@ -109,6 +282,8 @@ async fn process_payment_method_record(
                 card_issuer: None,
                 card_issuing_country: None,
                 daily_retry_history: None,
+                is_active: None,
+                account_update_history: None,
             }
         }
     };
@@ -158,43 +333,46 @@ async fn process_payment_method_record(
 }
 
 /// Parse daily retry history from CSV
-fn parse_daily_retry_history(json_str: Option<&str>) -> Option<HashMap<Date, i32>> {
+fn parse_daily_retry_history(
+    json_str: Option<&str>,
+) -> Option<HashMap<time::PrimitiveDateTime, i32>> {
     match json_str {
         Some(json) if !json.is_empty() => {
             match serde_json::from_str::<HashMap<String, i32>>(json) {
                 Ok(string_retry_history) => {
-                    // Convert string dates to Date objects
-                    let format = format_description::parse("[year]-[month]-[day]")
-                        .map_err(|e| {
-                            BackfillError::CsvParsingError(format!(
-                                "Invalid date format configuration: {}",
-                                e
-                            ))
-                        })
-                        .ok()?;
+                    let date_format = format_description!("[year]-[month]-[day]");
+                    let datetime_format = format_description!(
+                        "[year]-[month]-[day] [hour]:[minute]:[second].[subsecond]"
+                    );
 
-                    let mut date_retry_history = HashMap::new();
+                    let mut hourly_retry_history = HashMap::new();
 
-                    for (date_str, count) in string_retry_history {
-                        match Date::parse(&date_str, &format) {
-                            Ok(date) => {
-                                date_retry_history.insert(date, count);
+                    for (key, count) in string_retry_history {
+                        // Try parsing full datetime first
+                        let parsed_dt = time::PrimitiveDateTime::parse(&key, &datetime_format)
+                            .or_else(|_| {
+                                // Fallback to date only
+                                Date::parse(&key, &date_format).map(|date| {
+                                    time::PrimitiveDateTime::new(date, time::Time::MIDNIGHT)
+                                })
+                            });
+
+                        match parsed_dt {
+                            Ok(dt) => {
+                                hourly_retry_history.insert(dt, count);
                             }
-                            Err(e) => {
-                                logger::warn!(
-                                    "Failed to parse date '{}' in daily_retry_history: {}",
-                                    date_str,
-                                    e
-                                );
+                            Err(_) => {
+                                logger::error!("Error: failed to parse retry history key '{}'", key)
                             }
                         }
                     }
 
                     logger::debug!(
                         "Successfully parsed daily_retry_history with {} entries",
-                        date_retry_history.len()
+                        hourly_retry_history.len()
                     );
-                    Some(date_retry_history)
+
+                    Some(hourly_retry_history)
                 }
                 Err(e) => {
                     logger::warn!("Failed to parse daily_retry_history JSON '{}': {}", json, e);
@@ -214,7 +392,7 @@ fn build_comprehensive_card_data(
     record: &RevenueRecoveryBackfillRequest,
 ) -> Result<ComprehensiveCardData, BackfillError> {
     // Extract card type from request, if not present then update it with 'card'
-    let card_type = Some(determine_card_type(record.payment_method_sub_type));
+    let card_type = determine_card_type(record.payment_method_sub_type);
 
     // Parse expiration date
     let (exp_month, exp_year) = parse_expiration_date(
@@ -255,11 +433,13 @@ fn build_comprehensive_card_data(
         card_issuer,
         card_issuing_country,
         daily_retry_history,
+        is_active: record.is_active,
+        account_update_history: record.account_update_history.clone(),
     })
 }
 
 /// Determine card type with fallback logic: payment_method_sub_type if not present -> "Card"
-fn determine_card_type(payment_method_sub_type: Option<PaymentMethodType>) -> String {
+fn determine_card_type(payment_method_sub_type: Option<PaymentMethodType>) -> Option<String> {
     match payment_method_sub_type {
         Some(card_type_enum) => {
             let mapped_type = match card_type_enum {
@@ -274,11 +454,11 @@ fn determine_card_type(payment_method_sub_type: Option<PaymentMethodType>) -> St
                 card_type_enum,
                 mapped_type
             );
-            mapped_type
+            Some(mapped_type)
         }
         None => {
-            logger::info!("In CSV payment_method_sub_type not present, defaulting to 'card'");
-            "card".to_string()
+            logger::info!("In CSV payment_method_sub_type not present...");
+            None
         }
     }
 }

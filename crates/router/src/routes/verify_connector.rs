@@ -22,10 +22,16 @@ pub async fn payment_connector_verify(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            verify_connector::verify_connector_credentials(state, req, auth.profile_id)
+            verify_connector::verify_connector_credentials(
+                state,
+                req,
+                auth.profile.map(|profile| profile.get_id().clone()),
+            )
         },
         &auth::JWTAuth {
             permission: Permission::MerchantConnectorWrite,
+            allow_connected: true,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))

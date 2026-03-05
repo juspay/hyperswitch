@@ -122,7 +122,8 @@ impl TryFrom<&FlexitiRouterData<&PaymentsAuthorizeRouterData>> for FlexitiPaymen
                 hyperswitch_domain_models::payment_method_data::PayLaterData::PayBrightRedirect {  }  |
                 hyperswitch_domain_models::payment_method_data::PayLaterData::WalleyRedirect {  }  |
                 hyperswitch_domain_models::payment_method_data::PayLaterData::AlmaRedirect {  }  |
-                hyperswitch_domain_models::payment_method_data::PayLaterData::AtomeRedirect {  } => {
+                hyperswitch_domain_models::payment_method_data::PayLaterData::AtomeRedirect {  } |
+                hyperswitch_domain_models::payment_method_data::PayLaterData::PayjustnowRedirect {  } => {
                                 Err(errors::ConnectorError::NotImplemented(
                                 utils::get_unimplemented_payment_method_error_message("flexiti"),
                             ))
@@ -256,6 +257,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FlexitiSyncResponse, T, PaymentsRespons
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -285,6 +287,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FlexitiPaymentsResponse, T, PaymentsRes
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data

@@ -1,5 +1,3 @@
-#![allow(clippy::unwrap_used)]
-
 mod utils;
 use masking::PeekInterface;
 use test_utils::connector_auth::ConnectorAuthentication;

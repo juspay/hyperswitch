@@ -1,45 +1,44 @@
-use common_enums::AttemptStatus;
+use common_enums::IntentStatus;
 use masking::PeekInterface;
 
 use crate::{
-    core::revenue_recovery::types::RevenueRecoveryPaymentsAttemptStatus,
+    core::revenue_recovery::types::RevenueRecoveryPaymentIntentStatus,
     types::transformers::ForeignFrom,
 };
 
-impl ForeignFrom<AttemptStatus> for RevenueRecoveryPaymentsAttemptStatus {
-    fn foreign_from(s: AttemptStatus) -> Self {
-        match s {
-            AttemptStatus::Authorized
-            | AttemptStatus::Charged
-            | AttemptStatus::AutoRefunded
-            | AttemptStatus::PartiallyAuthorized => Self::Succeeded,
+impl ForeignFrom<IntentStatus> for RevenueRecoveryPaymentIntentStatus {
+    fn foreign_from(status: IntentStatus) -> Self {
+        match status {
+            IntentStatus::Succeeded => Self::Succeeded,
+            IntentStatus::PartiallyCapturedAndProcessing | IntentStatus::Processing => {
+                Self::Processing
+            }
+            IntentStatus::Failed => Self::Failed,
+            IntentStatus::PartiallyCaptured | IntentStatus::PartiallyCapturedAndCapturable => {
+                Self::PartialCharged
+            }
+            IntentStatus::Cancelled
+            | IntentStatus::CancelledPostCapture
+            | IntentStatus::RequiresCustomerAction
+            | IntentStatus::RequiresMerchantAction
+            | IntentStatus::RequiresPaymentMethod
+            | IntentStatus::RequiresConfirmation
+            | IntentStatus::RequiresCapture
+            | IntentStatus::PartiallyAuthorizedAndRequiresCapture
+            | IntentStatus::Conflicted
+            | IntentStatus::Expired => Self::InvalidStatus(status.to_string()),
+        }
+    }
+}
 
-            AttemptStatus::Started
-            | AttemptStatus::AuthenticationSuccessful
-            | AttemptStatus::Authorizing
-            | AttemptStatus::CodInitiated
-            | AttemptStatus::VoidInitiated
-            | AttemptStatus::CaptureInitiated
-            | AttemptStatus::Pending => Self::Processing,
-
-            AttemptStatus::AuthenticationFailed
-            | AttemptStatus::AuthorizationFailed
-            | AttemptStatus::VoidFailed
-            | AttemptStatus::RouterDeclined
-            | AttemptStatus::CaptureFailed
-            | AttemptStatus::Failure => Self::Failed,
-
-            AttemptStatus::Voided
-            | AttemptStatus::VoidedPostCharge
-            | AttemptStatus::ConfirmationAwaited
-            | AttemptStatus::PartialCharged
-            | AttemptStatus::PartialChargedAndChargeable
-            | AttemptStatus::PaymentMethodAwaited
-            | AttemptStatus::AuthenticationPending
-            | AttemptStatus::DeviceDataCollectionPending
-            | AttemptStatus::Unresolved
-            | AttemptStatus::IntegrityFailure
-            | AttemptStatus::Expired => Self::InvalidStatus(s.to_string()),
+impl From<RevenueRecoveryPaymentIntentStatus> for common_enums::EventType {
+    fn from(status: RevenueRecoveryPaymentIntentStatus) -> Self {
+        match status {
+            RevenueRecoveryPaymentIntentStatus::Succeeded => Self::PaymentSucceeded,
+            RevenueRecoveryPaymentIntentStatus::PartialCharged => Self::PaymentCaptured,
+            RevenueRecoveryPaymentIntentStatus::Processing => Self::PaymentProcessing,
+            RevenueRecoveryPaymentIntentStatus::Failed => Self::PaymentFailed,
+            RevenueRecoveryPaymentIntentStatus::InvalidStatus(_) => Self::ActionRequired,
         }
     }
 }
@@ -57,6 +56,7 @@ impl ForeignFrom<api_models::payments::RecoveryPaymentsCreate>
             next_billing_at: None,
             billing_started_at: data.billing_started_at,
             metadata: data.metadata,
+            enable_partial_authorization: data.enable_partial_authorization,
         }
     }
 }

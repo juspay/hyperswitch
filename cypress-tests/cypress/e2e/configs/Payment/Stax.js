@@ -63,10 +63,10 @@ const requiredFields = {
 const payment_method_data_no3ds = {
   card: {
     last4: "1111",
-    card_type: "CREDIT",
+    card_type: "DEBIT",
     card_network: "Visa",
-    card_issuer: "JP Morgan",
-    card_issuing_country: "INDIA",
+    card_issuer: "Conotoxia Sp Z Oo",
+    card_issuing_country: "POLAND",
     card_isin: "411111",
     card_extended_bin: null,
     card_exp_month: "12",
@@ -74,6 +74,7 @@ const payment_method_data_no3ds = {
     card_holder_name: "Joseph Doe",
     payment_checks: null,
     authentication_data: null,
+    auth_code: null,
   },
   billing: null,
 };
@@ -292,6 +293,10 @@ export const connectorDetails = {
       },
     },
     PartialRefund: {
+      //Skipping the partial refund test as Stax does not support multiple partial refunds at same time
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 2000,
       },
@@ -321,7 +326,11 @@ export const connectorDetails = {
         },
       },
     },
+
     manualPaymentPartialRefund: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 2000,
       },
@@ -711,6 +720,7 @@ export const connectorDetails = {
       },
       Request: {
         payment_method: "card",
+        authentication_type: "three_ds",
         payment_method_data: {
           card: successfulThreeDSCardDetails,
         },
@@ -807,6 +817,8 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 400,

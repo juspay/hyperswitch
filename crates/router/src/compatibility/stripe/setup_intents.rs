@@ -17,7 +17,7 @@ use crate::{
     core::{api_locking, payments},
     routes,
     services::{api, authentication as auth},
-    types::{api as api_types, domain},
+    types::api as api_types,
 };
 
 #[cfg(feature = "v1")]
@@ -59,9 +59,6 @@ pub async fn setup_intents_create(
         &req,
         create_payment_req,
         |state, auth: auth::AuthenticationData, req, req_state| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
             payments::payments_core::<
                 api_types::SetupMandate,
                 api_types::PaymentsResponse,
@@ -72,19 +69,20 @@ pub async fn setup_intents_create(
             >(
                 state,
                 req_state,
-                merchant_context,
+                auth.platform,
                 None,
                 payments::PaymentCreate,
                 req,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
                 None,
+                None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -113,12 +111,12 @@ pub async fn setup_intents_retrieve(
     };
 
     let api_auth = auth::ApiKeyAuth {
-        is_connected_allowed: false,
-        is_platform_allowed: false,
+        allow_connected_scope_operation: false,
+        allow_platform_self_operation: false,
     };
 
     let (auth_type, auth_flow) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
+        match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth) {
             Ok(auth) => auth,
             Err(err) => return api::log_and_return_error_response(report!(err)),
         };
@@ -139,10 +137,11 @@ pub async fn setup_intents_retrieve(
         state.into_inner(),
         &req,
         payload,
-        |state, auth, payload, req_state| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+        |state, auth, mut payload, req_state| {
+            if let Some(client_secret) = auth.client_secret {
+                payload.client_secret = Some(client_secret);
+            }
+
             payments::payments_core::<
                 api_types::PSync,
                 api_types::PaymentsResponse,
@@ -153,12 +152,13 @@ pub async fn setup_intents_retrieve(
             >(
                 state,
                 req_state,
-                merchant_context,
+                auth.platform,
                 None,
                 payments::PaymentStatus,
                 payload,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                None,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
             )
@@ -196,12 +196,12 @@ pub async fn setup_intents_update(
     payload.payment_id = Some(api_types::PaymentIdType::PaymentIntentId(setup_id));
 
     let api_auth = auth::ApiKeyAuth {
-        is_connected_allowed: false,
-        is_platform_allowed: false,
+        allow_connected_scope_operation: false,
+        allow_platform_self_operation: false,
     };
 
     let (auth_type, auth_flow) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
+        match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth) {
             Ok(auth) => auth,
             Err(err) => return api::log_and_return_error_response(err),
         };
@@ -222,10 +222,11 @@ pub async fn setup_intents_update(
         state.into_inner(),
         &req,
         payload,
-        |state, auth, req, req_state| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+        |state, auth, mut req, req_state| {
+            if let Some(client_secret) = auth.client_secret {
+                req.client_secret = Some(client_secret);
+            }
+
             payments::payments_core::<
                 api_types::SetupMandate,
                 api_types::PaymentsResponse,
@@ -236,12 +237,13 @@ pub async fn setup_intents_update(
             >(
                 state,
                 req_state,
-                merchant_context,
+                auth.platform,
                 None,
                 payments::PaymentUpdate,
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                None,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
             )
@@ -280,12 +282,12 @@ pub async fn setup_intents_confirm(
     payload.confirm = Some(true);
 
     let api_auth = auth::ApiKeyAuth {
-        is_connected_allowed: false,
-        is_platform_allowed: false,
+        allow_connected_scope_operation: false,
+        allow_platform_self_operation: false,
     };
 
     let (auth_type, auth_flow) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
+        match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth) {
             Ok(auth) => auth,
             Err(err) => return api::log_and_return_error_response(err),
         };
@@ -306,10 +308,11 @@ pub async fn setup_intents_confirm(
         state.into_inner(),
         &req,
         payload,
-        |state, auth, req, req_state| {
-            let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(
-                domain::Context(auth.merchant_account, auth.key_store),
-            ));
+        |state, auth, mut req, req_state| {
+            if let Some(client_secret) = auth.client_secret {
+                req.client_secret = Some(client_secret);
+            }
+
             payments::payments_core::<
                 api_types::SetupMandate,
                 api_types::PaymentsResponse,
@@ -320,12 +323,13 @@ pub async fn setup_intents_confirm(
             >(
                 state,
                 req_state,
-                merchant_context,
+                auth.platform,
                 None,
                 payments::PaymentConfirm,
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                None,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
             )

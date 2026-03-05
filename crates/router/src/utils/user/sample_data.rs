@@ -37,7 +37,6 @@ pub async fn generate_sample_data(
     )>,
 > {
     let sample_data_size: usize = req.record.unwrap_or(100);
-    let key_manager_state = &state.into();
     if !(10..=100).contains(&sample_data_size) {
         return Err(SampleDataError::InvalidRange.into());
     }
@@ -45,7 +44,6 @@ pub async fn generate_sample_data(
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
-            key_manager_state,
             merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -54,14 +52,17 @@ pub async fn generate_sample_data(
 
     let merchant_from_db = state
         .store
-        .find_merchant_account_by_merchant_id(key_manager_state, merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
         .await
         .change_context::<SampleDataError>(SampleDataError::DataDoesNotExist)?;
 
-    let merchant_context = domain::MerchantContext::NormalMerchant(Box::new(domain::Context(
+    let platform = domain::Platform::new(
+        merchant_from_db.clone(),
+        key_store.clone(),
         merchant_from_db.clone(),
         key_store,
-    )));
+        None,
+    );
     #[cfg(feature = "v1")]
     let (profile_id_result, business_country_default, business_label_default) = {
         let merchant_parsed_details: Vec<api_models::admin::PrimaryBusinessDetails> =
@@ -74,10 +75,9 @@ pub async fn generate_sample_data(
         let business_label_default = merchant_parsed_details.first().map(|x| x.business.clone());
 
         let profile_id = crate::core::utils::get_profile_id_from_business_details(
-            key_manager_state,
             business_country_default,
             business_label_default.as_ref(),
-            &merchant_context,
+            platform.get_processor(),
             req.profile_id.as_ref(),
             &*state.store,
             false,
@@ -106,11 +106,7 @@ pub async fn generate_sample_data(
 
             state
                 .store
-                .list_profile_by_merchant_id(
-                    key_manager_state,
-                    merchant_context.get_merchant_key_store(),
-                    merchant_id,
-                )
+                .list_profile_by_merchant_id(platform.get_processor().get_key_store(), merchant_id)
                 .await
                 .change_context(SampleDataError::InternalServerError)
                 .attach_printable("Failed to get business profile")?
@@ -298,6 +294,12 @@ pub async fn generate_sample_data(
             shipping_amount_tax: None,
             enable_partial_authorization: None,
             enable_overcapture: None,
+            mit_category: None,
+            billing_descriptor: None,
+            tokenization: None,
+            partner_merchant_identifier_details: None,
+            state_metadata: None,
+            installment_options: None,
         };
         let (connector_transaction_id, processor_transaction_data) =
             ConnectorTransactionId::form_id_and_data(attempt_id.clone());
@@ -385,6 +387,7 @@ pub async fn generate_sample_data(
             connector_mandate_detail: None,
             request_extended_authorization: None,
             extended_authorization_applied: None,
+            extended_authorization_last_applied_at: None,
             capture_before: None,
             card_discovery: None,
             processor_merchant_id: Some(merchant_id.clone()),
@@ -394,6 +397,10 @@ pub async fn generate_sample_data(
             connector_request_reference_id: None,
             network_transaction_id: None,
             network_details: None,
+            is_stored_credential: None,
+            authorized_amount: None,
+            tokenization: None,
+            encrypted_payment_method_data: None,
         };
 
         let refund = if refunds_count < number_of_refunds && !is_failed_payment {

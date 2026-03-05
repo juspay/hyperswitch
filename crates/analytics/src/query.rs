@@ -370,7 +370,7 @@ impl<T: AnalyticsDataSource> ToSql<T> for FilterCombinator {
 #[derive(Debug, Clone)]
 pub enum Filter {
     Plain(String, FilterTypes, String),
-    NestedFilter(FilterCombinator, Vec<Filter>),
+    NestedFilter(FilterCombinator, Vec<Self>),
 }
 
 impl Default for Filter {
@@ -449,6 +449,12 @@ impl<T: AnalyticsDataSource> ToSql<T> for ProfileId {
 }
 
 impl<T: AnalyticsDataSource> ToSql<T> for &common_utils::id_type::PaymentId {
+    fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
+        Ok(self.get_string_repr().to_owned())
+    }
+}
+
+impl<T: AnalyticsDataSource> ToSql<T> for &common_utils::id_type::PayoutId {
     fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
         Ok(self.get_string_repr().to_owned())
     }

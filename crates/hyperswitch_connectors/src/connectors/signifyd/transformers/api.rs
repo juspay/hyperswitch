@@ -163,7 +163,7 @@ impl TryFrom<&FrmSaleRouterData> for SignifydPaymentsSaleRequest {
                 item_is_digital: order_detail
                     .product_type
                     .as_ref()
-                    .map(|product| (product == &common_enums::ProductType::Digital)),
+                    .map(|product| product == &common_enums::ProductType::Digital),
             })
             .collect::<Vec<_>>();
         let metadata: SignifydFrmMetadata = item
@@ -397,7 +397,7 @@ impl TryFrom<&FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequest {
                 item_is_digital: order_detail
                     .product_type
                     .as_ref()
-                    .map(|product| (product == &common_enums::ProductType::Digital)),
+                    .map(|product| product == &common_enums::ProductType::Digital),
             })
             .collect::<Vec<_>>();
         let metadata: SignifydFrmMetadata = item

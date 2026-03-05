@@ -1,5 +1,4 @@
 use actix_web::{web, Responder};
-use hyperswitch_domain_models::merchant_context::{Context, MerchantContext};
 use router_env::{instrument, tracing, Flow};
 
 use crate::{
@@ -23,19 +22,11 @@ pub async fn execute_decision_rule(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let merchant_context = MerchantContext::NormalMerchant(Box::new(Context(
-                auth.merchant_account,
-                auth.key_store,
-            )));
-            three_ds_decision_rule_core::execute_three_ds_decision_rule(
-                state,
-                merchant_context,
-                req,
-            )
+            three_ds_decision_rule_core::execute_three_ds_decision_rule(state, auth.platform, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: false,
-            is_platform_allowed: false,
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))

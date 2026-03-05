@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use hyperswitch_domain_models::router_data_v2::PaymentFlowData;
 
 use super::ConstructFlowSpecificData;
 use crate::{
@@ -24,11 +25,12 @@ impl
         &self,
         state: &SessionState,
         connector_id: &str,
-        merchant_context: &domain::MerchantContext,
-        customer: &Option<domain::Customer>,
+        processor: &domain::Processor,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+        _payment_method: Option<common_enums::PaymentMethod>,
+        _payment_method_type: Option<common_enums::PaymentMethodType>,
     ) -> RouterResult<types::PaymentsIncrementalAuthorizationRouterData> {
         Box::pin(transformers::construct_payment_router_data::<
             api::IncrementalAuthorization,
@@ -37,11 +39,12 @@ impl
             state,
             self.clone(),
             connector_id,
-            merchant_context,
-            customer,
+            processor,
             merchant_connector_account,
             merchant_recipient_data,
             header_payload,
+            None,
+            None,
         ))
         .await
     }
@@ -51,7 +54,7 @@ impl
         &self,
         state: &SessionState,
         connector_id: &str,
-        merchant_context: &domain::MerchantContext,
+        processor: &domain::Processor,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -78,40 +81,34 @@ impl Feature<api::IncrementalAuthorization, types::PaymentsIncrementalAuthorizat
         _business_profile: &domain::Profile,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
         _return_raw_connector_response: Option<bool>,
+        gateway_context: payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<Self> {
-        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-            api::IncrementalAuthorization,
-            types::PaymentsIncrementalAuthorizationData,
-            types::PaymentsResponseData,
-        > = connector.connector.get_connector_integration();
-
-        let resp = services::execute_connector_processing_step(
+        payments::gateway::handle_gateway_call::<_, _, _, PaymentFlowData, _>(
             state,
-            connector_integration,
-            &self,
+            self,
+            connector,
+            &gateway_context,
             call_connector_action,
             connector_request,
             None,
         )
         .await
-        .to_payment_failed_response()?;
-
-        Ok(resp)
     }
 
     async fn add_access_token<'a>(
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        merchant_context: &domain::MerchantContext,
+        _processor: &domain::Processor,
         creds_identifier: Option<&str>,
+        gateway_context: &payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(
             state,
             connector,
-            merchant_context,
             self,
             creds_identifier,
+            gateway_context,
         ))
         .await
     }

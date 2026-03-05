@@ -152,8 +152,8 @@ impl ConnectorData {
                 enums::Connector::Bluesnap => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Bluesnap::new())))
                 }
-                enums::Connector::Bluecode => {
-                    Ok(ConnectorEnum::Old(Box::new(connector::Bluecode::new())))
+                enums::Connector::Calida => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Calida::new())))
                 }
                 enums::Connector::Boku => Ok(ConnectorEnum::Old(Box::new(connector::Boku::new()))),
                 enums::Connector::Braintree => {
@@ -183,6 +183,7 @@ impl ConnectorData {
                 enums::Connector::Coingate => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Coingate::new())))
                 }
+                enums::Connector::Zift => Ok(ConnectorEnum::Old(Box::new(connector::Zift::new()))),
                 enums::Connector::Cryptopay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Cryptopay::new())))
                 }
@@ -254,6 +255,9 @@ impl ConnectorData {
                 enums::Connector::Facilitapay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Facilitapay::new())))
                 }
+                enums::Connector::Finix => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Finix::new())))
+                }
                 enums::Connector::Fiserv => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Fiserv::new())))
                 }
@@ -269,6 +273,9 @@ impl ConnectorData {
                 }
                 enums::Connector::Getnet => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Getnet::new())))
+                }
+                enums::Connector::Gigadat => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Gigadat::new())))
                 }
                 enums::Connector::Globalpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Globalpay::new())))
@@ -288,6 +295,9 @@ impl ConnectorData {
                 enums::Connector::HyperswitchVault => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::HyperswitchVault)))
                 }
+                enums::Connector::Hyperpg => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Hyperpg::new())))
+                }
                 enums::Connector::Iatapay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Iatapay::new())))
                 }
@@ -305,6 +315,9 @@ impl ConnectorData {
                 ))),
                 enums::Connector::Klarna => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Klarna::new())))
+                }
+                enums::Connector::Loonio => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Loonio::new())))
                 }
                 enums::Connector::Mollie => {
                     // enums::Connector::Moneris => Ok(ConnectorEnum::Old(Box::new(connector::Moneris))),
@@ -343,6 +356,12 @@ impl ConnectorData {
                 enums::Connector::Payload => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Payload::new())))
                 }
+                enums::Connector::Payjustnow => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Payjustnow::new())))
+                }
+                enums::Connector::Payjustnowinstore => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Payjustnowinstore::new(),
+                ))),
                 enums::Connector::Payme => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Payme::new())))
                 }
@@ -357,7 +376,7 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Placetopay::new())))
                 }
                 enums::Connector::Powertranz => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Powertranz)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Powertranz::new())))
                 }
                 enums::Connector::Prophetpay => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Prophetpay)))
@@ -373,6 +392,9 @@ impl ConnectorData {
                 }
                 enums::Connector::Redsys => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Redsys::new())))
+                }
+                enums::Connector::Revolv3 => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Revolv3::new())))
                 }
                 enums::Connector::Santander => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Santander::new())))
@@ -398,6 +420,9 @@ impl ConnectorData {
                 enums::Connector::Worldpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Worldpay::new())))
                 }
+                enums::Connector::Worldpaymodular => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Worldpaymodular::new(),
+                ))),
                 enums::Connector::Worldpayvantiv => Ok(ConnectorEnum::Old(Box::new(
                     connector::Worldpayvantiv::new(),
                 ))),
@@ -432,9 +457,15 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Paystack::new())))
                 }
                 // enums::Connector::Thunes => Ok(ConnectorEnum::Old(Box::new(connector::Thunes))),
+                enums::Connector::Tesouro => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Tesouro::new())))
+                }
                 enums::Connector::Tokenex => Ok(ConnectorEnum::Old(Box::new(&connector::Tokenex))),
                 enums::Connector::Tokenio => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Tokenio::new())))
+                }
+                enums::Connector::Truelayer => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Truelayer::new())))
                 }
                 enums::Connector::Trustpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Trustpay::new())))
@@ -462,6 +493,7 @@ impl ConnectorData {
                 }
                 enums::Connector::Signifyd
                 | enums::Connector::Riskified
+                | enums::Connector::Cybersourcedecisionmanager
                 | enums::Connector::Gpayments
                 | enums::Connector::Threedsecureio
                 | enums::Connector::Cardinal

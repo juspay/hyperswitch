@@ -1,77 +1,115 @@
 //! Subscriptions Interface for V1
-#[cfg(feature = "v1")]
+
 use hyperswitch_domain_models::{
-    router_flow_types::subscriptions::SubscriptionCreate as SubscriptionCreateFlow,
-    router_flow_types::subscriptions::{GetSubscriptionPlanPrices, GetSubscriptionPlans},
-    router_request_types::subscriptions::{
-        GetSubscriptionPlanPricesRequest, GetSubscriptionPlansRequest, SubscriptionCreateRequest,
+    router_flow_types::{
+        subscriptions::{
+            GetSubscriptionEstimate, GetSubscriptionItemPrices, GetSubscriptionItems,
+            SubscriptionCreate as SubscriptionCreateFlow,
+        },
+        InvoiceRecordBack,
     },
-    router_response_types::subscriptions::{
-        GetSubscriptionPlanPricesResponse, GetSubscriptionPlansResponse, SubscriptionCreateResponse,
+    router_request_types::{
+        revenue_recovery::InvoiceRecordBackRequest,
+        subscriptions::{
+            GetSubscriptionEstimateRequest, GetSubscriptionItemPricesRequest,
+            GetSubscriptionItemsRequest, SubscriptionCreateRequest,
+        },
+    },
+    router_response_types::{
+        revenue_recovery::InvoiceRecordBackResponse,
+        subscriptions::{
+            GetSubscriptionEstimateResponse, GetSubscriptionItemPricesResponse,
+            GetSubscriptionItemsResponse, SubscriptionCreateResponse,
+        },
     },
 };
 
-#[cfg(feature = "v1")]
 use super::{
     payments::ConnectorCustomer as PaymentsConnectorCustomer, ConnectorCommon, ConnectorIntegration,
 };
 
-#[cfg(feature = "v1")]
-/// trait GetSubscriptionPlans for V1
-pub trait GetSubscriptionPlansFlow:
+/// trait GetSubscriptionItems for V1
+pub trait GetSubscriptionItemsFlow:
     ConnectorIntegration<
-    GetSubscriptionPlans,
-    GetSubscriptionPlansRequest,
-    GetSubscriptionPlansResponse,
+    GetSubscriptionItems,
+    GetSubscriptionItemsRequest,
+    GetSubscriptionItemsResponse,
 >
 {
 }
 
-#[cfg(feature = "v1")]
-/// trait GetSubscriptionPlanPrices for V1
+/// trait SubscriptionRecordBack for V1
+pub trait SubscriptionRecordBackFlow:
+    ConnectorIntegration<InvoiceRecordBack, InvoiceRecordBackRequest, InvoiceRecordBackResponse>
+{
+}
+
+/// trait SubscriptionPause for V1
+pub trait SubscriptionPauseFlow:
+    ConnectorIntegration<
+    hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionPause,
+    hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionPauseRequest,
+    hyperswitch_domain_models::router_response_types::subscriptions::SubscriptionPauseResponse,
+>
+{
+}
+
+/// trait SubscriptionResume for V1
+pub trait SubscriptionResumeFlow:
+    ConnectorIntegration<
+    hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionResume,
+    hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionResumeRequest,
+    hyperswitch_domain_models::router_response_types::subscriptions::SubscriptionResumeResponse,
+>
+{
+}
+
+/// trait SubscriptionCancel for V1
+pub trait SubscriptionCancelFlow:
+    ConnectorIntegration<
+    hyperswitch_domain_models::router_flow_types::subscriptions::SubscriptionCancel,
+    hyperswitch_domain_models::router_request_types::subscriptions::SubscriptionCancelRequest,
+    hyperswitch_domain_models::router_response_types::subscriptions::SubscriptionCancelResponse,
+>
+{
+}
+
+/// trait GetSubscriptionItemPrices for V1
 pub trait GetSubscriptionPlanPricesFlow:
     ConnectorIntegration<
-    GetSubscriptionPlanPrices,
-    GetSubscriptionPlanPricesRequest,
-    GetSubscriptionPlanPricesResponse,
+    GetSubscriptionItemPrices,
+    GetSubscriptionItemPricesRequest,
+    GetSubscriptionItemPricesResponse,
 >
 {
 }
 
-#[cfg(feature = "v1")]
 /// trait SubscriptionCreate
 pub trait SubscriptionCreate:
     ConnectorIntegration<SubscriptionCreateFlow, SubscriptionCreateRequest, SubscriptionCreateResponse>
 {
 }
 
+/// trait GetSubscriptionEstimate for V1
+pub trait GetSubscriptionEstimateFlow:
+    ConnectorIntegration<
+    GetSubscriptionEstimate,
+    GetSubscriptionEstimateRequest,
+    GetSubscriptionEstimateResponse,
+>
+{
+}
 /// trait Subscriptions
-#[cfg(feature = "v1")]
 pub trait Subscriptions:
     ConnectorCommon
-    + GetSubscriptionPlansFlow
+    + GetSubscriptionItemsFlow
     + GetSubscriptionPlanPricesFlow
     + SubscriptionCreate
     + PaymentsConnectorCustomer
+    + SubscriptionRecordBackFlow
+    + GetSubscriptionEstimateFlow
+    + SubscriptionPauseFlow
+    + SubscriptionResumeFlow
+    + SubscriptionCancelFlow
 {
 }
-
-/// trait Subscriptions (disabled when not V1)
-#[cfg(not(feature = "v1"))]
-pub trait Subscriptions {}
-
-/// trait GetSubscriptionPlansFlow (disabled when not V1)
-#[cfg(not(feature = "v1"))]
-pub trait GetSubscriptionPlansFlow {}
-
-/// trait GetSubscriptionPlanPricesFlow (disabled when not V1)
-#[cfg(not(feature = "v1"))]
-pub trait GetSubscriptionPlanPricesFlow {}
-
-#[cfg(not(feature = "v1"))]
-/// trait CreateCustomer (disabled when not V1)
-pub trait ConnectorCustomer {}
-
-/// trait SubscriptionCreate
-#[cfg(not(feature = "v1"))]
-pub trait SubscriptionCreate {}

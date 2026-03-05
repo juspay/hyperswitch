@@ -73,7 +73,7 @@ pub async fn construct_webhook_router_data(
     state: &SessionState,
     connector_name: &str,
     merchant_connector_account: domain::MerchantConnectorAccount,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     connector_wh_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     request_details: &api::IncomingWebhookRequestDetails<'_>,
 ) -> CustomResult<types::VerifyWebhookSourceRouterData, errors::ApiErrorResponse> {
@@ -85,7 +85,7 @@ pub async fn construct_webhook_router_data(
 
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: merchant_context.get_merchant_account().get_id().clone(),
+        merchant_id: platform.get_processor().get_account().get_id().clone(),
         connector: connector_name.to_string(),
         customer_id: None,
         tenant_id: state.tenant.tenant_id.clone(),
@@ -95,6 +95,7 @@ pub async fn construct_webhook_router_data(
         attempt_id: IRRELEVANT_ATTEMPT_ID_IN_SOURCE_VERIFICATION_FLOW.to_string(),
         status: diesel_models::enums::AttemptStatus::default(),
         payment_method: diesel_models::enums::PaymentMethod::default(),
+        payment_method_type: None,
         connector_auth_type: auth_type,
         description: None,
         address: PaymentAddress::default(),
@@ -107,6 +108,7 @@ pub async fn construct_webhook_router_data(
             webhook_headers: request_details.headers.clone(),
             webhook_body: request_details.body.to_vec().clone(),
             merchant_secret: connector_wh_secrets.to_owned(),
+            webhook_uri: request_details.uri.clone(),
         },
         response: Err(types::ErrorResponse::default()),
         access_token: None,
@@ -132,6 +134,7 @@ pub async fn construct_webhook_router_data(
         frm_metadata: None,
         refund_id: None,
         dispute_id: None,
+        payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
         additional_merchant_data: None,
@@ -143,6 +146,8 @@ pub async fn construct_webhook_router_data(
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
         minor_amount_capturable: None,
+        authorized_amount: None,
+        customer_document_details: None,
     };
     Ok(router_data)
 }

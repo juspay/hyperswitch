@@ -287,13 +287,6 @@ pub enum UsageMode {
     UseNetworkToken,
 }
 
-#[derive(Default, Debug, Serialize, Deserialize)]
-pub struct GlobalPayPayer {
-    /// Unique identifier for the Payer on the Global Payments system.
-    #[serde(rename = "id", skip_serializing_if = "Option::is_none")]
-    pub payer_id: Option<String>,
-}
-
 #[derive(Default, Debug, Serialize)]
 pub struct GlobalPayPaymentMethodsRequest {
     pub reference: String,

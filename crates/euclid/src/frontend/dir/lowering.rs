@@ -34,6 +34,7 @@ impl From<enums::PayLaterType> for global_enums::PaymentMethodType {
             enums::PayLaterType::Walley => Self::Walley,
             enums::PayLaterType::Atome => Self::Atome,
             enums::PayLaterType::Breadpay => Self::Breadpay,
+            enums::PayLaterType::Payjustnow => Self::Payjustnow,
         }
     }
 }
@@ -77,6 +78,7 @@ impl From<enums::BankDebitType> for global_enums::PaymentMethodType {
         match value {
             enums::BankDebitType::Ach => Self::Ach,
             enums::BankDebitType::Sepa => Self::Sepa,
+            enums::BankDebitType::SepaGuarenteedDebit => Self::SepaGuarenteedDebit,
             enums::BankDebitType::Bacs => Self::Bacs,
             enums::BankDebitType::Becs => Self::Becs,
         }
@@ -87,6 +89,7 @@ impl From<enums::UpiType> for global_enums::PaymentMethodType {
         match value {
             enums::UpiType::UpiCollect => Self::UpiCollect,
             enums::UpiType::UpiIntent => Self::UpiIntent,
+            enums::UpiType::UpiQr => Self::UpiQr,
         }
     }
 }
@@ -166,6 +169,14 @@ impl From<enums::MobilePaymentType> for global_enums::PaymentMethodType {
     }
 }
 
+impl From<enums::NetworkTokenType> for global_enums::PaymentMethodType {
+    fn from(value: enums::NetworkTokenType) -> Self {
+        match value {
+            enums::NetworkTokenType::NetworkToken => Self::NetworkToken,
+        }
+    }
+}
+
 impl From<enums::BankRedirectType> for global_enums::PaymentMethodType {
     fn from(value: enums::BankRedirectType) -> Self {
         match value {
@@ -188,6 +199,7 @@ impl From<enums::BankRedirectType> for global_enums::PaymentMethodType {
             enums::BankRedirectType::OpenBankingUk => Self::OpenBankingUk,
             enums::BankRedirectType::Przelewy24 => Self::Przelewy24,
             enums::BankRedirectType::Trustly => Self::Trustly,
+            enums::BankRedirectType::OpenBanking => Self::OpenBanking,
         }
     }
 }
@@ -224,6 +236,7 @@ impl From<enums::RealTimePaymentType> for global_enums::PaymentMethodType {
             enums::RealTimePaymentType::DuitNow => Self::DuitNow,
             enums::RealTimePaymentType::PromptPay => Self::PromptPay,
             enums::RealTimePaymentType::VietQr => Self::VietQr,
+            enums::RealTimePaymentType::Qris => Self::Qris,
         }
     }
 }
@@ -241,6 +254,7 @@ fn lower_value(dir_value: dir::DirValue) -> Result<EuclidValue, AnalysisErrorTyp
     Ok(match dir_value {
         dir::DirValue::PaymentMethod(pm) => EuclidValue::PaymentMethod(pm),
         dir::DirValue::CardBin(ci) => EuclidValue::CardBin(ci),
+        dir::DirValue::ExtendedCardBin(ecb) => EuclidValue::ExtendedCardBin(ecb),
         dir::DirValue::CardType(ct) => EuclidValue::PaymentMethodType(ct.into()),
         dir::DirValue::CardNetwork(cn) => EuclidValue::CardNetwork(cn),
         dir::DirValue::MetaData(md) => EuclidValue::Metadata(md),
@@ -285,6 +299,8 @@ fn lower_value(dir_value: dir::DirValue) -> Result<EuclidValue, AnalysisErrorTyp
         }
         dir::DirValue::AcquirerCountry(country) => EuclidValue::AcquirerCountry(country),
         dir::DirValue::AcquirerFraudRate(num_value) => EuclidValue::AcquirerFraudRate(num_value),
+        dir::DirValue::TransactionInitiator(ti) => EuclidValue::TransactionInitiator(ti),
+        dir::DirValue::NetworkTokenType(nt) => EuclidValue::PaymentMethodType(nt.into()),
     })
 }
 

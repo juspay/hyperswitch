@@ -91,6 +91,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                     merchant_order_reference_id: new_payout_attempt
                         .merchant_order_reference_id
                         .clone(),
+                    payout_connector_metadata: new_payout_attempt.payout_connector_metadata.clone(),
                 };
 
                 let redis_entry = kv::TypedSql {
@@ -574,6 +575,7 @@ impl DataModelExt for PayoutAttempt {
             unified_message: self.unified_message,
             additional_payout_method_data: self.additional_payout_method_data,
             merchant_order_reference_id: self.merchant_order_reference_id,
+            payout_connector_metadata: self.payout_connector_metadata,
         }
     }
 
@@ -602,6 +604,7 @@ impl DataModelExt for PayoutAttempt {
             unified_message: storage_model.unified_message,
             additional_payout_method_data: storage_model.additional_payout_method_data,
             merchant_order_reference_id: storage_model.merchant_order_reference_id,
+            payout_connector_metadata: storage_model.payout_connector_metadata,
         }
     }
 }
@@ -633,6 +636,7 @@ impl DataModelExt for PayoutAttemptNew {
             unified_message: self.unified_message,
             additional_payout_method_data: self.additional_payout_method_data,
             merchant_order_reference_id: self.merchant_order_reference_id,
+            payout_connector_metadata: self.payout_connector_metadata,
         }
     }
 
@@ -661,6 +665,7 @@ impl DataModelExt for PayoutAttemptNew {
             unified_message: storage_model.unified_message,
             additional_payout_method_data: storage_model.additional_payout_method_data,
             merchant_order_reference_id: storage_model.merchant_order_reference_id,
+            payout_connector_metadata: storage_model.payout_connector_metadata,
         }
     }
 }
@@ -676,6 +681,7 @@ impl DataModelExt for PayoutAttemptUpdate {
                 is_eligible,
                 unified_code,
                 unified_message,
+                payout_connector_metadata,
             } => DieselPayoutAttemptUpdate::StatusUpdate {
                 connector_payout_id,
                 status,
@@ -684,6 +690,7 @@ impl DataModelExt for PayoutAttemptUpdate {
                 is_eligible,
                 unified_code,
                 unified_message,
+                payout_connector_metadata,
             },
             Self::PayoutTokenUpdate { payout_token } => {
                 DieselPayoutAttemptUpdate::PayoutTokenUpdate { payout_token }
@@ -712,6 +719,21 @@ impl DataModelExt for PayoutAttemptUpdate {
                 additional_payout_method_data,
             } => DieselPayoutAttemptUpdate::AdditionalPayoutMethodDataUpdate {
                 additional_payout_method_data,
+            },
+            Self::ManualUpdate {
+                status,
+                error_code,
+                error_message,
+                unified_code,
+                unified_message,
+                connector_payout_id,
+            } => DieselPayoutAttemptUpdate::ManualUpdate {
+                status,
+                error_code,
+                error_message,
+                unified_code,
+                unified_message,
+                connector_payout_id,
             },
         }
     }

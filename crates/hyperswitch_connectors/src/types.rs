@@ -8,8 +8,10 @@ use hyperswitch_domain_models::{
         authentication::{
             Authentication, PostAuthentication, PreAuthentication, PreAuthenticationVersionCall,
         },
-        Accept, AccessTokenAuth, Authorize, Capture, CreateOrder, Defend, Dsync, Evidence, Fetch,
-        PSync, PostProcessing, PreProcessing, Retrieve, Session, Upload, Void,
+        unified_authentication_service::{Authenticate, PostAuthenticate, PreAuthenticate},
+        Accept, AccessTokenAuth, Authorize, Capture, CreateOrder, Defend, Dsync, Evidence,
+        ExtendAuthorization, Fetch, PSync, PostProcessing, PreProcessing, Retrieve, Session,
+        SettlementSplitCreate, Upload, Void,
     },
     router_request_types::{
         authentication::{
@@ -17,10 +19,12 @@ use hyperswitch_domain_models::{
             PreAuthNRequestData,
         },
         AcceptDisputeRequestData, AccessTokenRequestData, CreateOrderRequestData,
-        DefendDisputeRequestData, DisputeSyncData, FetchDisputesRequestData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsPostProcessingData,
-        PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData, RefundsData,
-        RetrieveFileRequestData, SubmitEvidenceRequestData, UploadFileRequestData,
+        DefendDisputeRequestData, DisputeSyncData, FetchDisputesRequestData,
+        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        PaymentsExtendAuthorizationData, PaymentsPostAuthenticateData, PaymentsPostProcessingData,
+        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsSessionData,
+        PaymentsSyncData, RefundsData, RetrieveFileRequestData, SettlementSplitRequestData,
+        SubmitEvidenceRequestData, UploadFileRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
@@ -49,15 +53,28 @@ pub(crate) type RefundsResponseRouterData<F, R> =
     ResponseRouterData<F, R, RefundsData, RefundsResponseData>;
 pub(crate) type RefreshTokenRouterData =
     RouterData<AccessTokenAuth, AccessTokenRequestData, AccessToken>;
-
+pub(crate) type PaymentsPostAuthenticateResponseRouterData<R> =
+    ResponseRouterData<PostAuthenticate, R, PaymentsPostAuthenticateData, PaymentsResponseData>;
+pub(crate) type PaymentsAuthenticateResponseRouterData<R> =
+    ResponseRouterData<Authenticate, R, PaymentsAuthenticateData, PaymentsResponseData>;
 pub(crate) type PaymentsCancelResponseRouterData<R> =
     ResponseRouterData<Void, R, PaymentsCancelData, PaymentsResponseData>;
+pub(crate) type PaymentsPreAuthenticateResponseRouterData<R> =
+    ResponseRouterData<PreAuthenticate, R, PaymentsPreAuthenticateData, PaymentsResponseData>;
+pub(crate) type PaymentsSettlementSplitCreateResponseRouterData<R> =
+    ResponseRouterData<SettlementSplitCreate, R, SettlementSplitRequestData, PaymentsResponseData>;
 pub(crate) type PaymentsPreprocessingResponseRouterData<R> =
     ResponseRouterData<PreProcessing, R, PaymentsPreProcessingData, PaymentsResponseData>;
 pub(crate) type PaymentsSessionResponseRouterData<R> =
     ResponseRouterData<Session, R, PaymentsSessionData, PaymentsResponseData>;
 pub(crate) type CreateOrderResponseRouterData<R> =
     ResponseRouterData<CreateOrder, R, CreateOrderRequestData, PaymentsResponseData>;
+pub(crate) type PaymentsExtendAuthorizationResponseRouterData<R> = ResponseRouterData<
+    ExtendAuthorization,
+    R,
+    PaymentsExtendAuthorizationData,
+    PaymentsResponseData,
+>;
 
 pub(crate) type AcceptDisputeRouterData =
     RouterData<Accept, AcceptDisputeRequestData, AcceptDisputeResponse>;

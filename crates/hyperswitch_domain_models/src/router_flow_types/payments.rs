@@ -51,6 +51,9 @@ pub struct PreProcessing;
 pub struct IncrementalAuthorization;
 
 #[derive(Debug, Clone)]
+pub struct ExtendAuthorization;
+
+#[derive(Debug, Clone)]
 pub struct PostProcessing;
 
 #[derive(Debug, Clone)]
@@ -88,3 +91,6 @@ pub struct ExternalVaultProxy;
 
 #[derive(Debug, Clone)]
 pub struct GiftCardBalanceCheck;
+
+#[derive(Debug, Clone)]
+pub struct SettlementSplitCreate;

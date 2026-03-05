@@ -47,16 +47,16 @@ impl VerifyConnectorData {
             setup_future_usage: None,
             payment_experience: None,
             payment_method_type: None,
-            statement_descriptor: None,
             setup_mandate_details: None,
             complete_authorize_url: None,
             related_transaction_id: None,
-            statement_descriptor_suffix: None,
             request_extended_authorization: None,
             request_incremental_authorization: false,
             authentication_data: None,
+            ucs_authentication_data: None,
             customer_acceptance: None,
             split_payments: None,
+            guest_customer: None,
             merchant_order_reference_id: None,
             integrity_object: None,
             additional_payment_method_data: None,
@@ -69,6 +69,13 @@ impl VerifyConnectorData {
             payment_channel: None,
             enable_partial_authorization: None,
             enable_overcapture: None,
+            is_stored_credential: None,
+            mit_category: None,
+            billing_descriptor: None,
+            tokenization: None,
+            partner_merchant_identifier_details: None,
+            rrn: None,
+            feature_metadata: None,
         }
     }
 
@@ -97,6 +104,7 @@ impl VerifyConnectorData {
             access_token,
             session_token: None,
             payment_method: storage_enums::PaymentMethod::Card,
+            payment_method_type: None,
             amount_captured: None,
             minor_amount_captured: None,
             preprocessing_id: None,
@@ -124,6 +132,7 @@ impl VerifyConnectorData {
             frm_metadata: None,
             refund_id: None,
             dispute_id: None,
+            payout_id: None,
             connector_response: None,
             integrity_check: Ok(()),
             additional_merchant_data: None,
@@ -135,6 +144,8 @@ impl VerifyConnectorData {
             is_payment_id_from_merchant: None,
             l2_l3_data: None,
             minor_amount_capturable: None,
+            authorized_amount: None,
+            customer_document_details: None,
         }
     }
 }

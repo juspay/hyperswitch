@@ -1,5 +1,6 @@
 use api_models::{payments as api_payments, webhooks};
 use common_enums::enums as common_enums;
+use common_types::primitive_wrappers;
 use common_utils::{id_type, pii, types as util_types};
 use time::PrimitiveDateTime;
 
@@ -79,6 +80,8 @@ pub struct RevenueRecoveryInvoiceData {
     pub billing_started_at: Option<PrimitiveDateTime>,
     /// metadata of the merchant
     pub metadata: Option<pii::SecretSerdeValue>,
+    /// Allow partial authorization for this payment
+    pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
 }
 
 #[derive(Clone, Debug)]
@@ -150,7 +153,7 @@ impl From<&RevenueRecoveryInvoiceData> for api_payments::PaymentsCreateIntentReq
             customer_present: Some(common_enums::PresenceOfCustomerDuringPayment::Absent),
             description: None,
             return_url: None,
-            setup_future_usage: None,
+            setup_future_usage: Some(common_enums::FutureUsage::OffSession),
             apply_mit_exemption: None,
             statement_descriptor: None,
             order_details: None,
@@ -166,6 +169,7 @@ impl From<&RevenueRecoveryInvoiceData> for api_payments::PaymentsCreateIntentReq
             request_external_three_ds_authentication: None,
             force_3ds_challenge: None,
             merchant_connector_details: None,
+            enable_partial_authorization: data.enable_partial_authorization,
         }
     }
 }
@@ -181,6 +185,7 @@ impl From<&BillingConnectorInvoiceSyncResponse> for RevenueRecoveryInvoiceData {
             next_billing_at: data.ends_at,
             billing_started_at: data.created_at,
             metadata: None,
+            enable_partial_authorization: None,
         }
     }
 }
@@ -245,6 +250,7 @@ impl From<&RevenueRecoveryAttemptData> for api_payments::PaymentAttemptAmountDet
             amount_capturable: data.amount,
             shipping_cost: None,
             order_tax_amount: None,
+            amount_captured: None,
         }
     }
 }
