@@ -24,10 +24,7 @@ describe("Card - SaveCard payment flow test", () => {
         let shouldContinue = true;
 
         step("Create Customer", shouldContinue, () => {
-          cy.createCustomerCallTest(
-            fixtures.customerCreateBody,
-            globalState
-          );
+          cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
         });
 
         step("Create and Confirm Payment", shouldContinue, () => {
@@ -97,10 +94,7 @@ describe("Card - SaveCard payment flow test", () => {
         let shouldContinue = true;
 
         step("Create Customer", shouldContinue, () => {
-          cy.createCustomerCallTest(
-            fixtures.customerCreateBody,
-            globalState
-          );
+          cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
         });
 
         step("Create and Confirm Payment", shouldContinue, () => {
@@ -200,10 +194,7 @@ describe("Card - SaveCard payment flow test", () => {
         let shouldContinue = true;
 
         step("Create Customer", shouldContinue, () => {
-          cy.createCustomerCallTest(
-            fixtures.customerCreateBody,
-            globalState
-          );
+          cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
         });
 
         step("Create and Confirm Payment", shouldContinue, () => {
@@ -310,10 +301,7 @@ describe("Card - SaveCard payment flow test", () => {
         let shouldContinue = true;
 
         step("Create Customer", shouldContinue, () => {
-          cy.createCustomerCallTest(
-            fixtures.customerCreateBody,
-            globalState
-          );
+          cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
         });
 
         step("Create and Confirm Payment", shouldContinue, () => {
@@ -383,10 +371,7 @@ describe("Card - SaveCard payment flow test", () => {
         let shouldContinue = true;
 
         step("Create Customer", shouldContinue, () => {
-          cy.createCustomerCallTest(
-            fixtures.customerCreateBody,
-            globalState
-          );
+          cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
         });
 
         step("Create and Confirm Payment", shouldContinue, () => {
@@ -503,10 +488,7 @@ describe("Card - SaveCard payment flow test", () => {
         let shouldContinue = true;
 
         step("Create Customer", shouldContinue, () => {
-          cy.createCustomerCallTest(
-            fixtures.customerCreateBody,
-            globalState
-          );
+          cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
         });
 
         step("Create Payment Intent", shouldContinue, () => {
@@ -551,35 +533,43 @@ describe("Card - SaveCard payment flow test", () => {
           cy.listCustomerPMCallTest(globalState);
         });
 
-        step("Create Payment Intent for Subsequent Payment", shouldContinue, () => {
-          const paymentIntentData = getConnectorDetails(
-            globalState.get("connectorId")
-          )["card_pm"]["PaymentIntentOffSession"];
-          cy.createPaymentIntentTest(
-            fixtures.createPaymentBody,
-            paymentIntentData,
-            "no_three_ds",
-            "automatic",
-            globalState
-          );
-          if (!utils.should_continue_further(paymentIntentData)) {
-            shouldContinue = false;
+        step(
+          "Create Payment Intent for Subsequent Payment",
+          shouldContinue,
+          () => {
+            const paymentIntentData = getConnectorDetails(
+              globalState.get("connectorId")
+            )["card_pm"]["PaymentIntentOffSession"];
+            cy.createPaymentIntentTest(
+              fixtures.createPaymentBody,
+              paymentIntentData,
+              "no_three_ds",
+              "automatic",
+              globalState
+            );
+            if (!utils.should_continue_further(paymentIntentData)) {
+              shouldContinue = false;
+            }
           }
-        });
+        );
 
-        step("Save Card Confirm Call for Subsequent Payment", shouldContinue, () => {
-          const saveCardBody = Cypress._.cloneDeep(
-            fixtures.saveCardConfirmBody
-          );
-          const saveCardConfirmData = getConnectorDetails(
-            globalState.get("connectorId")
-          )["card_pm"]["SaveCardConfirmAutoCaptureOffSession"];
-          cy.saveCardConfirmCallTest(
-            saveCardBody,
-            saveCardConfirmData,
-            globalState
-          );
-        });
+        step(
+          "Save Card Confirm Call for Subsequent Payment",
+          shouldContinue,
+          () => {
+            const saveCardBody = Cypress._.cloneDeep(
+              fixtures.saveCardConfirmBody
+            );
+            const saveCardConfirmData = getConnectorDetails(
+              globalState.get("connectorId")
+            )["card_pm"]["SaveCardConfirmAutoCaptureOffSession"];
+            cy.saveCardConfirmCallTest(
+              saveCardBody,
+              saveCardConfirmData,
+              globalState
+            );
+          }
+        );
       });
     }
   );
@@ -591,10 +581,7 @@ describe("Card - SaveCard payment flow test", () => {
         let shouldContinue = true;
 
         step("Create Customer", shouldContinue, () => {
-          cy.createCustomerCallTest(
-            fixtures.customerCreateBody,
-            globalState
-          );
+          cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
         });
 
         step("Create Payment Intent", shouldContinue, () => {
@@ -632,21 +619,25 @@ describe("Card - SaveCard payment flow test", () => {
           cy.listCustomerPMCallTest(globalState);
         });
 
-        step("Create Payment Intent for Subsequent Payment", shouldContinue, () => {
-          const paymentIntentData = getConnectorDetails(
-            globalState.get("connectorId")
-          )["card_pm"]["PaymentIntentOffSession"];
-          cy.createPaymentIntentTest(
-            fixtures.createPaymentBody,
-            paymentIntentData,
-            "no_three_ds",
-            "automatic",
-            globalState
-          );
-          if (!utils.should_continue_further(paymentIntentData)) {
-            shouldContinue = false;
+        step(
+          "Create Payment Intent for Subsequent Payment",
+          shouldContinue,
+          () => {
+            const paymentIntentData = getConnectorDetails(
+              globalState.get("connectorId")
+            )["card_pm"]["PaymentIntentOffSession"];
+            cy.createPaymentIntentTest(
+              fixtures.createPaymentBody,
+              paymentIntentData,
+              "no_three_ds",
+              "automatic",
+              globalState
+            );
+            if (!utils.should_continue_further(paymentIntentData)) {
+              shouldContinue = false;
+            }
           }
-        });
+        );
 
         step(
           "Save Card Confirm Call for Subsequent Payment without Billing Address",
@@ -676,10 +667,7 @@ describe("Card - SaveCard payment flow test", () => {
         let shouldContinue = true;
 
         step("Create Customer", shouldContinue, () => {
-          cy.createCustomerCallTest(
-            fixtures.customerCreateBody,
-            globalState
-          );
+          cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
         });
 
         step("Create and Confirm Payment", shouldContinue, () => {
