@@ -266,6 +266,19 @@ use crate::{
     transformers::{ForeignFrom, ForeignInto},
     type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
 };
+
+impl ForeignFrom<storage_types::WebhookDetailsStorage> for WebhookDetails {
+    fn foreign_from(storage: storage_types::WebhookDetailsStorage) -> Self {
+        serde_json::from_value(storage.0).unwrap()
+    }
+}
+
+impl ForeignFrom<WebhookDetails> for storage_types::WebhookDetailsStorage {
+    fn foreign_from(details: WebhookDetails) -> Self {
+        Self(serde_json::to_value(details).unwrap())
+    }
+}
+
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug)]
 pub struct Profile {
@@ -735,7 +748,11 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     enable_payment_response_hash,
                     payment_response_hash_key,
                     redirect_to_merchant_with_http_post,
-                    webhook_details: webhook_details.map(ForeignFrom::foreign_from),
+                    webhook_details: webhook_details.map(|wd| {
+                        diesel_models::business_profile::WebhookDetailsStorage::from_json(
+                            serde_json::to_value(wd).unwrap(),
+                        )
+                    }),
                     metadata,
                     routing_algorithm,
                     intent_fulfillment_time,
@@ -1202,63 +1219,70 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 billing_processor_id: None,
                 is_l2_l3_enabled: None,
             },
-            ProfileUpdate::WebhooksUpdate { webhook_details } => Self {
-                profile_name: None,
-                modified_at: now,
-                return_url: None,
-                enable_payment_response_hash: None,
-                payment_response_hash_key: None,
-                redirect_to_merchant_with_http_post: None,
-                webhook_details: Some(webhook_details.foreign_into()),
-                metadata: None,
-                routing_algorithm: None,
-                intent_fulfillment_time: None,
-                frm_routing_algorithm: None,
-                payout_routing_algorithm: None,
-                is_recon_enabled: None,
-                applepay_verified_domains: None,
-                payment_link_config: None,
-                session_expiry: None,
-                authentication_connector_details: None,
-                payout_link_config: None,
-                is_extended_card_info_enabled: None,
-                extended_card_info_config: None,
-                is_connector_agnostic_mit_enabled: None,
-                use_billing_as_payment_method_billing: None,
-                collect_shipping_details_from_wallet_connector: None,
-                collect_billing_details_from_wallet_connector: None,
-                outgoing_webhook_custom_http_headers: None,
-                always_collect_billing_details_from_wallet_connector: None,
-                always_collect_shipping_details_from_wallet_connector: None,
-                tax_connector_id: None,
-                is_tax_connector_enabled: None,
-                dynamic_routing_algorithm: None,
-                is_network_tokenization_enabled: None,
-                is_auto_retries_enabled: None,
-                max_auto_retries_enabled: None,
-                always_request_extended_authorization: None,
-                is_click_to_pay_enabled: None,
-                authentication_product_ids: None,
-                card_testing_guard_config: None,
-                card_testing_secret_key: None,
-                is_clear_pan_retries_enabled: None,
-                force_3ds_challenge: None,
-                is_debit_routing_enabled: None,
-                merchant_business_country: None,
-                is_iframe_redirection_enabled: None,
-                is_pre_network_tokenization_enabled: None,
-                three_ds_decision_rule_algorithm: None,
-                acquirer_config_map: None,
-                merchant_category_code: None,
-                merchant_country_code: None,
-                dispute_polling_interval: None,
-                is_manual_retry_enabled: None,
-                always_enable_overcapture: None,
-                is_external_vault_enabled: None,
-                external_vault_connector_details: None,
-                billing_processor_id: None,
-                is_l2_l3_enabled: None,
-            },
+            ProfileUpdate::WebhooksUpdate {
+                webhook_details, ..
+            } => {
+                let new_json = serde_json::to_value(webhook_details).unwrap();
+                Self {
+                    profile_name: None,
+                    modified_at: now,
+                    return_url: None,
+                    enable_payment_response_hash: None,
+                    payment_response_hash_key: None,
+                    redirect_to_merchant_with_http_post: None,
+                    webhook_details: Some(
+                        diesel_models::business_profile::WebhookDetailsStorage::from_json(new_json),
+                    ),
+                    metadata: None,
+                    routing_algorithm: None,
+                    intent_fulfillment_time: None,
+                    frm_routing_algorithm: None,
+                    payout_routing_algorithm: None,
+                    is_recon_enabled: None,
+                    applepay_verified_domains: None,
+                    payment_link_config: None,
+                    session_expiry: None,
+                    authentication_connector_details: None,
+                    payout_link_config: None,
+                    is_extended_card_info_enabled: None,
+                    extended_card_info_config: None,
+                    is_connector_agnostic_mit_enabled: None,
+                    use_billing_as_payment_method_billing: None,
+                    collect_shipping_details_from_wallet_connector: None,
+                    collect_billing_details_from_wallet_connector: None,
+                    outgoing_webhook_custom_http_headers: None,
+                    always_collect_billing_details_from_wallet_connector: None,
+                    always_collect_shipping_details_from_wallet_connector: None,
+                    tax_connector_id: None,
+                    is_tax_connector_enabled: None,
+                    dynamic_routing_algorithm: None,
+                    is_network_tokenization_enabled: None,
+                    is_auto_retries_enabled: None,
+                    max_auto_retries_enabled: None,
+                    always_request_extended_authorization: None,
+                    is_click_to_pay_enabled: None,
+                    authentication_product_ids: None,
+                    card_testing_guard_config: None,
+                    card_testing_secret_key: None,
+                    is_clear_pan_retries_enabled: None,
+                    force_3ds_challenge: None,
+                    is_debit_routing_enabled: None,
+                    merchant_business_country: None,
+                    is_iframe_redirection_enabled: None,
+                    is_pre_network_tokenization_enabled: None,
+                    three_ds_decision_rule_algorithm: None,
+                    acquirer_config_map: None,
+                    merchant_category_code: None,
+                    merchant_country_code: None,
+                    dispute_polling_interval: None,
+                    is_manual_retry_enabled: None,
+                    always_enable_overcapture: None,
+                    is_external_vault_enabled: None,
+                    external_vault_connector_details: None,
+                    billing_processor_id: None,
+                    is_l2_l3_enabled: None,
+                }
+            }
         }
     }
 }
@@ -1284,7 +1308,11 @@ impl Conversion for Profile {
             enable_payment_response_hash: self.enable_payment_response_hash,
             payment_response_hash_key: self.payment_response_hash_key,
             redirect_to_merchant_with_http_post: self.redirect_to_merchant_with_http_post,
-            webhook_details: self.webhook_details.map(ForeignFrom::foreign_from),
+            webhook_details: self.webhook_details.map(|wd| {
+                diesel_models::business_profile::WebhookDetailsStorage::from_json(
+                    serde_json::to_value(wd).unwrap(),
+                )
+            }),
             metadata: self.metadata,
             routing_algorithm: self.routing_algorithm,
             intent_fulfillment_time: self.intent_fulfillment_time,
@@ -1410,7 +1438,9 @@ impl Conversion for Profile {
             enable_payment_response_hash: item.enable_payment_response_hash,
             payment_response_hash_key: item.payment_response_hash_key,
             redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
-            webhook_details: item.webhook_details.map(ForeignFrom::foreign_from),
+            webhook_details: item
+                .webhook_details
+                .map(|wds| serde_json::from_value(wds.0).unwrap()),
             metadata: item.metadata,
             routing_algorithm: item.routing_algorithm,
             intent_fulfillment_time: item.intent_fulfillment_time,
@@ -1483,7 +1513,11 @@ impl Conversion for Profile {
             enable_payment_response_hash: self.enable_payment_response_hash,
             payment_response_hash_key: self.payment_response_hash_key,
             redirect_to_merchant_with_http_post: self.redirect_to_merchant_with_http_post,
-            webhook_details: self.webhook_details.map(ForeignFrom::foreign_from),
+            webhook_details: self.webhook_details.map(|wd| {
+                diesel_models::business_profile::WebhookDetailsStorage::from_json(
+                    serde_json::to_value(wd).unwrap(),
+                )
+            }),
             metadata: self.metadata,
             routing_algorithm: self.routing_algorithm,
             intent_fulfillment_time: self.intent_fulfillment_time,
@@ -2063,7 +2097,11 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     enable_payment_response_hash,
                     payment_response_hash_key,
                     redirect_to_merchant_with_http_post,
-                    webhook_details: webhook_details.map(ForeignFrom::foreign_from),
+                    webhook_details: webhook_details.map(|wd| {
+                        diesel_models::business_profile::WebhookDetailsStorage::from_json(
+                            serde_json::to_value(wd).unwrap(),
+                        )
+                    }),
                     metadata,
                     is_recon_enabled: None,
                     applepay_verified_domains,
@@ -2649,7 +2687,11 @@ impl Conversion for Profile {
             enable_payment_response_hash: self.enable_payment_response_hash,
             payment_response_hash_key: self.payment_response_hash_key,
             redirect_to_merchant_with_http_post: self.redirect_to_merchant_with_http_post,
-            webhook_details: self.webhook_details.map(ForeignFrom::foreign_from),
+            webhook_details: self.webhook_details.map(|wd| {
+                diesel_models::business_profile::WebhookDetailsStorage::from_json(
+                    serde_json::to_value(wd).unwrap(),
+                )
+            }),
             metadata: self.metadata,
             is_recon_enabled: self.is_recon_enabled,
             applepay_verified_domains: self.applepay_verified_domains,
@@ -2734,7 +2776,9 @@ impl Conversion for Profile {
                 enable_payment_response_hash: item.enable_payment_response_hash,
                 payment_response_hash_key: item.payment_response_hash_key,
                 redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
-                webhook_details: item.webhook_details.map(ForeignFrom::foreign_from),
+                webhook_details: item
+                    .webhook_details
+                    .map(|wds| serde_json::from_value(wds.0).unwrap()),
                 metadata: item.metadata,
                 is_recon_enabled: item.is_recon_enabled,
                 applepay_verified_domains: item.applepay_verified_domains,
@@ -2827,7 +2871,11 @@ impl Conversion for Profile {
             enable_payment_response_hash: self.enable_payment_response_hash,
             payment_response_hash_key: self.payment_response_hash_key,
             redirect_to_merchant_with_http_post: self.redirect_to_merchant_with_http_post,
-            webhook_details: self.webhook_details.map(ForeignFrom::foreign_from),
+            webhook_details: self.webhook_details.map(|wd| {
+                diesel_models::business_profile::WebhookDetailsStorage::from_json(
+                    serde_json::to_value(wd).unwrap(),
+                )
+            }),
             metadata: self.metadata,
             is_recon_enabled: self.is_recon_enabled,
             applepay_verified_domains: self.applepay_verified_domains,

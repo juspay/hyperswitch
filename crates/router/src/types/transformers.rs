@@ -2224,6 +2224,7 @@ impl ForeignFrom<hyperswitch_domain_models::business_profile::WebhookDetails>
         let multiple_webhooks_list = item.multiple_webhooks_list.as_ref().map(|urls| {
             urls.0
                 .iter()
+                .filter(|webhook_detail| !webhook_detail.is_legacy_url)
                 .map(|webhook| api_models::admin::MultipleWebhookDetail {
                     webhook_endpoint_id: webhook.webhook_endpoint_id.clone(),
                     webhook_url: webhook.webhook_url.clone().expose().to_owned(),
