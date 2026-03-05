@@ -689,7 +689,7 @@ where
             platform,
             auth_flow,
             &header_payload,
-            payment_method_info,
+            payment_method_info.clone(),
         )
         .await?;
 
@@ -721,10 +721,11 @@ where
         .get_or_create_customer_details(
             state,
             &mut payment_data,
-            customer_details, // TODO: Remove this field after implicit customer update is removed
+            customer_details.clone(), // TODO: Remove this field after implicit customer update is removed
             platform.get_provider(),
             platform.get_initiator(),
             dimensions,
+            mandate_type,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
@@ -1579,6 +1580,7 @@ where
             platform.get_provider(),
             platform.get_initiator(),
             dimensions,
+            None,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
@@ -11754,6 +11756,10 @@ pub trait OperationSessionSetters<F> {
         &mut self,
         authentication_type: Option<enums::AuthenticationType>,
     );
+    fn set_document_details_in_intent(
+        &mut self,
+        document_details: common_utils::crypto::OptionalEncryptableValue,
+    );
     fn set_recurring_mandate_payment_data(
         &mut self,
         recurring_mandate_payment_data:
@@ -12087,6 +12093,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
         self.payment_attempt.authentication_type = authentication_type;
     }
 
+    fn set_document_details_in_intent(
+        &mut self,
+        document_details: common_utils::crypto::OptionalEncryptableValue,
+    ) {
+        self.payment_intent.customer_details = document_details;
+    }
+
     fn set_recurring_mandate_payment_data(
         &mut self,
         recurring_mandate_payment_data:
@@ -12397,6 +12410,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
     fn set_authentication_type_in_attempt(
         &mut self,
         _authentication_type: Option<enums::AuthenticationType>,
+    ) {
+        todo!()
+    }
+
+    fn set_document_details_in_intent(
+        &mut self,
+        _document_details: common_utils::crypto::OptionalEncryptableValue,
     ) {
         todo!()
     }
@@ -12712,6 +12732,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
         todo!()
     }
 
+    fn set_document_details_in_intent(
+        &mut self,
+        _document_details: common_utils::crypto::OptionalEncryptableValue,
+    ) {
+        todo!()
+    }
+
     fn set_recurring_mandate_payment_data(
         &mut self,
         _recurring_mandate_payment_data:
@@ -13015,6 +13042,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
     fn set_authentication_type_in_attempt(
         &mut self,
         _authentication_type: Option<enums::AuthenticationType>,
+    ) {
+        todo!()
+    }
+
+    fn set_document_details_in_intent(
+        &mut self,
+        _document_details: common_utils::crypto::OptionalEncryptableValue,
     ) {
         todo!()
     }
@@ -13323,6 +13357,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
     fn set_authentication_type_in_attempt(
         &mut self,
         _authentication_type: Option<enums::AuthenticationType>,
+    ) {
+        todo!()
+    }
+
+    fn set_document_details_in_intent(
+        &mut self,
+        _document_details: common_utils::crypto::OptionalEncryptableValue,
     ) {
         todo!()
     }
@@ -13786,6 +13827,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCancelData<F> {
     fn set_authentication_type_in_attempt(
         &mut self,
         _authentication_type: Option<enums::AuthenticationType>,
+    ) {
+        todo!()
+    }
+
+    fn set_document_details_in_intent(
+        &mut self,
+        _document_details: common_utils::crypto::OptionalEncryptableValue,
     ) {
         todo!()
     }

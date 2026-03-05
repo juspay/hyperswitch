@@ -1,6 +1,9 @@
 use std::marker::PhantomData;
 
-use api_models::{enums::FrmSuggestion, payments::PaymentsIncrementalAuthorizationRequest};
+use api_models::{
+    enums::FrmSuggestion,
+    payments::{MandateTransactionType, PaymentsIncrementalAuthorizationRequest},
+};
 use async_trait::async_trait;
 use common_utils::errors::CustomResult;
 use diesel_models::authorization::AuthorizationNew;
@@ -328,6 +331,7 @@ impl<F: Clone + Send + Sync>
         provider: &domain::Provider,
         _initiator: Option<&domain::Initiator>,
         _dimensions: DimensionsWithMerchantId,
+        _mandate_type: Option<MandateTransactionType>,
     ) -> CustomResult<
         (
             BoxedOperation<

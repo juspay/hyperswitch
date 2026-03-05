@@ -3351,7 +3351,12 @@ impl ProfileCreateBridge for api::ProfileCreate {
         let outgoing_webhook_custom_http_headers = self
             .outgoing_webhook_custom_http_headers
             .async_map(|headers| {
-                cards::create_encrypted_data(&key_manager_state, processor.get_key_store(), headers)
+                core_utils::create_encrypted_data(
+                    &key_manager_state,
+                    processor.get_key_store(),
+                    headers,
+                    type_name!(payment_method::PaymentMethod),
+                )
             })
             .await
             .transpose()
@@ -3550,7 +3555,12 @@ impl ProfileCreateBridge for api::ProfileCreate {
         let outgoing_webhook_custom_http_headers = self
             .outgoing_webhook_custom_http_headers
             .async_map(|headers| {
-                cards::create_encrypted_data(&key_manager_state, key_store, headers)
+                core_utils::create_encrypted_data(
+                    &key_manager_state,
+                    key_store,
+                    headers,
+                    type_name!(payment_method::PaymentMethod),
+                )
             })
             .await
             .transpose()
@@ -3871,7 +3881,12 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
         let outgoing_webhook_custom_http_headers = self
             .outgoing_webhook_custom_http_headers
             .async_map(|headers| {
-                cards::create_encrypted_data(&key_manager_state, key_store, headers)
+                core_utils::create_encrypted_data(
+                    &key_manager_state,
+                    key_store,
+                    headers,
+                    type_name!(payment_method::PaymentMethod),
+                )
             })
             .await
             .transpose()
@@ -4067,7 +4082,12 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
         let outgoing_webhook_custom_http_headers = self
             .outgoing_webhook_custom_http_headers
             .async_map(|headers| {
-                cards::create_encrypted_data(&key_manager_state, key_store, headers)
+                core_utils::create_encrypted_data(
+                    &key_manager_state,
+                    key_store,
+                    headers,
+                    type_name!(payment_method::PaymentMethod),
+                )
             })
             .await
             .transpose()

@@ -1,8 +1,10 @@
 use std::marker::PhantomData;
 
 use api_models::{
-    enums::FrmSuggestion, mandates::RecurringDetails, payment_methods::PaymentMethodsData,
-    payments::GetAddressFromPaymentMethodData,
+    enums::FrmSuggestion,
+    mandates::RecurringDetails,
+    payment_methods::PaymentMethodsData,
+    payments::{GetAddressFromPaymentMethodData, MandateTransactionType},
 };
 use async_trait::async_trait;
 use common_types::payments as common_payments_types;
@@ -36,7 +38,10 @@ use crate::{
         mandate::helpers as m_helpers,
         payment_link,
         payment_methods::transformers as pm_transformers,
-        payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
+        payments::{
+            self, helpers, operations, CustomerDetails, OperationSessionGetters,
+            OperationSessionSetters, PaymentAddress, PaymentData,
+        },
         utils as core_utils,
     },
     db::StorageInterface,
@@ -178,7 +183,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         )
         .await?;
 
-        let customer_details = helpers::get_customer_details_from_request(request);
+        let customer_details = helpers::get_customer_details_from_request(request, None);
 
         let shipping_address = helpers::create_or_find_address_for_payment_by_request(
             state,
@@ -311,6 +316,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             session_expiry,
             &business_profile,
             request.is_payment_id_from_merchant,
+            payment_method_info.clone(),
         )
         .await?;
 
@@ -540,7 +546,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 }
             });
 
-        let additional_pm_data_from_locker = if let Some(ref pm) = payment_method_info {
+        let additional_pm_data_from_locker = if let Some(ref pm) = payment_method_info.clone() {
             let card_detail_from_locker: Option<api::CardDetailFromLocker> = pm
                 .payment_method_data
                 .clone()
@@ -698,15 +704,16 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         provider: &domain::Provider,
         initiator: Option<&domain::Initiator>,
         dimensions: DimensionsWithMerchantId,
+        mandate_type: Option<MandateTransactionType>,
     ) -> CustomResult<(PaymentCreateOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
     {
-        match provider.get_account().merchant_account_type {
+        let (operation, customer) = match provider.get_account().merchant_account_type {
             common_enums::MerchantAccountType::Standard => {
                 helpers::create_customer_if_not_exist(
                     state,
                     Box::new(self),
                     payment_data,
-                    request,
+                    request.clone(),
                     provider,
                     initiator,
                     dimensions,
@@ -724,8 +731,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 .inspect(|cust| {
                     payment_data.payment_intent.customer_id = Some(cust.customer_id.clone());
                 });
-
-                Ok((Box::new(self), customer))
+                let op: PaymentCreateOperation<'a, F> = Box::new(self);
+                Ok((op, customer))
             }
             common_enums::MerchantAccountType::Connected => {
                 Err(errors::StorageError::ValueNotFound(
@@ -733,7 +740,32 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 )
                 .into())
             }
+        }?;
+        // When no document details is passed in request but customer_id is passed, use that customers document details from customers table
+        if let Some(raw_customer_details_from_request) = request {
+            if raw_customer_details_from_request.customer_id.is_some()
+                && raw_customer_details_from_request.document_details.is_none()
+            {
+                if let Some(doc_details) = customer.as_ref().map(|doc| doc.document_details.clone())
+                {
+                    let encrypted_customer_details = core_utils::update_intent_customer_documents(
+                        payment_data.get_payment_intent(),
+                        doc_details,
+                        mandate_type,
+                        state,
+                        provider.get_key_store(),
+                        payment_data
+                            .payment_method_info
+                            .as_ref()
+                            .and_then(|pm| pm.customer_details.clone()),
+                    )
+                    .await
+                    .change_context(errors::StorageError::EncryptionError)?;
+                    payment_data.set_document_details_in_intent(encrypted_customer_details);
+                }
+            }
         }
+        return Ok((operation, customer));
     }
 
     async fn payments_dynamic_tax_calculation<'a>(
@@ -1575,6 +1607,7 @@ impl PaymentCreate {
         session_expiry: PrimitiveDateTime,
         business_profile: &domain::Profile,
         is_payment_id_from_merchant: bool,
+        payment_method_info: Option<domain::PaymentMethod>,
     ) -> RouterResult<storage::PaymentIntent> {
         let created_at @ modified_at @ last_synced = common_utils::date_time::now();
 
@@ -1620,9 +1653,27 @@ impl PaymentCreate {
 
         let split_payments = request.split_payments.clone();
 
+        // Extracting customer details from Payment Methods Table in case of MIT
+        let customer_details_from_pm = payment_method_info
+            .clone()
+            .and_then(|data| data.customer_details)
+            .as_ref()
+            .map(|encryptable| {
+                encryptable
+                    .clone()
+                    .into_inner()
+                    .parse_value::<api_models::customers::CustomerDocumentDetails>(
+                        "CustomerDocumentDetails",
+                    )
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to parse CustomerDocumentDetails from Payment Method")
+            })
+            .transpose()?;
+
         // Derivation of directly supplied Customer data in our Payment Create Request
         let raw_customer_details =
-            helpers::get_customer_details_from_request(request).get_customer_data();
+            helpers::get_customer_details_from_request(request, customer_details_from_pm)
+                .get_customer_data();
         let is_payment_processor_token_flow = request.recurring_details.as_ref().and_then(
             |recurring_details| match recurring_details {
                 RecurringDetails::ProcessorPaymentToken(_) => Some(true),
