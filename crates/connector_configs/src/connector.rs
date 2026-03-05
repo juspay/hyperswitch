@@ -432,7 +432,7 @@ impl ConnectorConfig {
             PayoutConnectors::Payone => Ok(connector_data.payone_payout),
             PayoutConnectors::Paypal => Ok(connector_data.paypal_payout),
             PayoutConnectors::Stripe => Ok(connector_data.stripe_payout),
-            PayoutConnectors::Truelayer => Ok(connector_data.truelayer),
+            PayoutConnectors::Truelayer => Ok(connector_data.truelayer_payout),
             PayoutConnectors::Wise => Ok(connector_data.wise_payout),
             PayoutConnectors::Worldpay => Ok(connector_data.worldpay_payout),
             PayoutConnectors::Worldpayxml => Ok(connector_data.worldpayxml_payout),
