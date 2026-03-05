@@ -727,6 +727,8 @@ pub enum Flow {
     GetEmbeddedToken,
     // Get embedded token info flow
     EmbeddedTokenInfo,
+    /// Superposition SDK Config Get flow
+    GetSuperpositionSdkConfig,
 }
 
 /// Trait for providing generic behaviour to flow metric

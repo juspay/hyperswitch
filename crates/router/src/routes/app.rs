@@ -3319,3 +3319,17 @@ impl RecoveryDataBackfill {
             ))
     }
 }
+
+#[cfg(feature = "v1")]
+pub struct SdkConfig;
+#[cfg(feature = "v1")]
+impl SdkConfig {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/v1/sdk/configs")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("{profile_id}/web/{sdk_config.json}")
+                    .route(web::get().to(super::superposition_sdk_config::create_sdk_config)),
+            )
+    }
+}
