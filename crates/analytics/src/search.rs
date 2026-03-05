@@ -241,6 +241,19 @@ pub async fn search_results(
         append_filter!(query_builder, filters, payment_id, "payment_id.keyword");
         append_filter!(query_builder, filters, amount, "amount");
         append_filter!(query_builder, filters, customer_id, "customer_id.keyword");
+        append_filter!(
+            query_builder,
+            filters,
+            authentication_type,
+            "authentication_type.keyword"
+        );
+        append_filter!(query_builder, filters, card_discovery, "card_discovery.keyword");
+        append_filter!(
+            query_builder,
+            filters,
+            merchant_order_reference_id,
+            "merchant_order_reference_id.keyword"
+        );
     };
 
     if let Some(time_range) = search_req.time_range {
