@@ -1392,7 +1392,6 @@ pub struct InstallmentOptionData {
     /// Billing frequency for each installment cycle
     pub billing_frequency: BillingFrequency,
     /// Interest rate per installment as a percentage max 2 decimal places
-    ///
     #[schema(value_type = f64)]
     pub interest_rate: InstallmentInterestRate,
 }
