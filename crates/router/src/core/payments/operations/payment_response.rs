@@ -93,7 +93,7 @@ where
             Some(payment_method_id) => {
                 let should_update = resp.status.should_update_payment_method();
                 logger::info!(
-                    "Payment method is card and eligible for modular update, should_update: {}",
+                    "Payment method is card; is eligible for modular update: {}",
                     should_update
                 );
 
@@ -182,11 +182,9 @@ where
                         }
                         _ => None,
                     });
-                let acknowledgement_status = Some(if should_update {
-                    common_enums::AcknowledgementStatus::Authenticated
-                } else {
-                    common_enums::AcknowledgementStatus::Failed
-                });
+                let acknowledgement_status = should_update
+                    .then_some(common_enums::AcknowledgementStatus::Authenticated)
+                    .or_else(|| Some(common_enums::AcknowledgementStatus::Failed));
 
                 let payload = UpdatePaymentMethodV1Payload {
                     payment_method_data,
