@@ -4,6 +4,77 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.03.04.0
+
+### Features
+
+- **connector:** [Truelayer] Implement Payouts ([#11352](https://github.com/juspay/hyperswitch/pull/11352)) ([`b78375b`](https://github.com/juspay/hyperswitch/commit/b78375b646d391523f608067aefe9b1f8e59de80))
+- **core:** Added Missing Payment Method Type in HS <> UCS Integration ([#11365](https://github.com/juspay/hyperswitch/pull/11365)) ([`baf11d6`](https://github.com/juspay/hyperswitch/commit/baf11d6e78ecf92b6007a5cb5717c87086345e12))
+- **core/connector:** [SANTANDER] Send back connector refund id in refund response and end_to_end_id in payments response ([#11244](https://github.com/juspay/hyperswitch/pull/11244)) ([`d70567b`](https://github.com/juspay/hyperswitch/commit/d70567b5e966e8ebb934850e50b9f9a024b7ba86))
+- **payment-methods:** Add 3ds complete authorize support for modular payment method flow ([#11354](https://github.com/juspay/hyperswitch/pull/11354)) ([`4a13dc6`](https://github.com/juspay/hyperswitch/commit/4a13dc64df61ac45130a4d3ac12f2b3f085b757d))
+
+**Full Changelog:** [`2026.03.03.0...2026.03.04.0`](https://github.com/juspay/hyperswitch/compare/2026.03.03.0...2026.03.04.0)
+
+- - -
+
+## 2026.03.03.0
+
+### Features
+
+- **platform:** Populate created_by and last_modified_by using initiator context ([#11318](https://github.com/juspay/hyperswitch/pull/11318)) ([`6ccc09e`](https://github.com/juspay/hyperswitch/commit/6ccc09e47c634c754fe92f417faedb50cd899efb))
+
+### Bug Fixes
+
+- **payouts:** Trigger webhook for payout cancel ([#11379](https://github.com/juspay/hyperswitch/pull/11379)) ([`d128950`](https://github.com/juspay/hyperswitch/commit/d1289505baf1e0514dbe4c77e4ac295687d69249))
+- **postman:** Update confirm payment test to allow multiple CVV error … ([#11393](https://github.com/juspay/hyperswitch/pull/11393)) ([`39192bf`](https://github.com/juspay/hyperswitch/commit/39192bf659c9b29345a961c9b1c618ee48a2eb4d))
+
+### Refactors
+
+- **euclid:** De-couple static routing from core ([#11001](https://github.com/juspay/hyperswitch/pull/11001)) ([`74f2212`](https://github.com/juspay/hyperswitch/commit/74f221248986d73052a4190becbd3ec0c23624d6))
+- **relay:** Add manual multiple capture for relay and fix database deserialization ([#11264](https://github.com/juspay/hyperswitch/pull/11264)) ([`37bf9bc`](https://github.com/juspay/hyperswitch/commit/37bf9bc23764240774902a83dc5d2ba496b61e01))
+
+### Miscellaneous Tasks
+
+- **postman:** Update Postman collection files ([`130187a`](https://github.com/juspay/hyperswitch/commit/130187a352a0a899c45f5e57354eef91ec9ebffd))
+
+**Full Changelog:** [`2026.03.02.0...2026.03.03.0`](https://github.com/juspay/hyperswitch/compare/2026.03.02.0...2026.03.03.0)
+
+- - -
+
+## 2026.03.02.0
+
+### Features
+
+- **connector:** [Revolv3] Integrate Card flows ([#11319](https://github.com/juspay/hyperswitch/pull/11319)) ([`dbe505f`](https://github.com/juspay/hyperswitch/commit/dbe505f23e33d4293a6bc616011fbc5aecd08636))
+- **payments:** Implemented support for sorting payment lists by the modified_at field ([#11333](https://github.com/juspay/hyperswitch/pull/11333)) ([`fa27f44`](https://github.com/juspay/hyperswitch/commit/fa27f44cb4a19b65597f6d74834c614588d19a2b))
+
+### Bug Fixes
+
+- **ucs:** Add connector_customer_id to PaymentMethod flow ([#11376](https://github.com/juspay/hyperswitch/pull/11376)) ([`fc14212`](https://github.com/juspay/hyperswitch/commit/fc1421294cc9ca20c5edcf615dd7d9d88b0aed6f))
+
+### Refactors
+
+- **routing:** De-couple dynamic and static routing ([#10854](https://github.com/juspay/hyperswitch/pull/10854)) ([`4d69890`](https://github.com/juspay/hyperswitch/commit/4d69890b6524094558e4b197fca5d6e70483f14f))
+
+### Miscellaneous Tasks
+
+- **connector:** Add warning comment about dtd validation to redsys soap api ([#11384](https://github.com/juspay/hyperswitch/pull/11384)) ([`03f2f05`](https://github.com/juspay/hyperswitch/commit/03f2f05fdb69fc6324455c5c3e492e6296a09195))
+
+**Full Changelog:** [`2026.02.27.0...2026.03.02.0`](https://github.com/juspay/hyperswitch/compare/2026.02.27.0...2026.03.02.0)
+
+- - -
+
+## 2026.02.27.0
+
+### Features
+
+- **customers:** Update billing and shipping address types to OptionalEncryptableValue and enhance decryption handling ([#11374](https://github.com/juspay/hyperswitch/pull/11374)) ([`6dfa403`](https://github.com/juspay/hyperswitch/commit/6dfa4037eec03c528a16a9086bbe1010502a4dba))
+- **reports:** Implement programmatic API trigger for reports ([#11289](https://github.com/juspay/hyperswitch/pull/11289)) ([`1e7eff5`](https://github.com/juspay/hyperswitch/commit/1e7eff50bb83f7462c79c7f2d8505a4457aab553))
+
+**Full Changelog:** [`2026.02.26.0...2026.02.27.0`](https://github.com/juspay/hyperswitch/compare/2026.02.26.0...2026.02.27.0)
+
+- - -
+
 ## 2026.02.26.0
 
 ### Features

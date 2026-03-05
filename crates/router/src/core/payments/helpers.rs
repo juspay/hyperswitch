@@ -464,6 +464,7 @@ pub async fn get_token_pm_type_mandate_details(
     pm_info: Option<domain::PaymentMethod>,
 ) -> RouterResult<MandateGenericData> {
     let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
+    let feature_config = core_utils::get_feature_config(state, platform).await;
     let (
         payment_token,
         payment_method,
@@ -743,9 +744,10 @@ pub async fn get_token_pm_type_mandate_details(
             }
         }
         None => {
-            let payment_method_info = match pm_info {
-                Some(pm) => Some(pm.clone()),
-                None => payment_method_id
+            let payment_method_info = if feature_config.is_payment_method_modular_allowed {
+                pm_info
+            } else {
+                payment_method_id
                     .async_map(|payment_method_id| async move {
                         state
                             .store
@@ -758,7 +760,7 @@ pub async fn get_token_pm_type_mandate_details(
                             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
                     })
                     .await
-                    .transpose()?,
+                    .transpose()?
             };
             let resolved_payment_method = request.payment_method.or_else(|| {
                 payment_method_info
@@ -1914,6 +1916,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     payment_data: &mut PaymentData<F>,
     req: Option<CustomerDetails>,
     provider: &domain::Provider,
+    initiator: Option<&domain::Initiator>,
     dimensions: DimensionsWithMerchantId,
 ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
     let merchant_id = provider.get_account().get_id();
@@ -2046,7 +2049,9 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                             address_id: None,
                             tax_registration_id: encryptable_customer.tax_registration_id,
                             document_details: Box::new(document_details),
-                            last_modified_by: None,
+                            last_modified_by: initiator
+                                .and_then(|initiator| initiator.to_created_by())
+                                .map(|last_modified_by| last_modified_by.to_string()),
                         };
 
                         db.update_customer_by_customer_id_merchant_id(
@@ -2089,9 +2094,8 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         version: common_types::consts::API_VERSION,
                         tax_registration_id: encryptable_customer.tax_registration_id,
                         document_details,
-                        // TODO: Populate created_by from authentication context once it is integrated in auth data
-                        created_by: None,
-                        last_modified_by: None, // Same as created_by on creation
+                        created_by: initiator.and_then(|initiator| initiator.to_created_by()),
+                        last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
                     };
                     metrics::CUSTOMER_CREATED.add(1, &[]);
                     db.insert_customer(new_customer, key_store, storage_scheme)
@@ -6287,18 +6291,14 @@ pub fn get_debit_routing_savings_amount(
 }
 
 #[cfg(all(feature = "retry", feature = "v1"))]
-pub async fn get_apple_pay_retryable_connectors<F, D>(
+pub async fn get_apple_pay_retryable_connectors(
     state: &SessionState,
     platform: &domain::Platform,
-    payment_data: &D,
+    creds_identifier: Option<&str>,
     pre_routing_connector_data_list: &[api::ConnectorRoutingData],
     merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
     business_profile: domain::Profile,
-) -> CustomResult<Option<Vec<api::ConnectorRoutingData>>, errors::ApiErrorResponse>
-where
-    F: Send + Clone,
-    D: OperationSessionGetters<F> + Send,
-{
+) -> CustomResult<Option<Vec<api::ConnectorRoutingData>>, errors::ApiErrorResponse> {
     let profile_id = business_profile.get_id();
 
     let pre_decided_connector_data_first = pre_routing_connector_data_list
@@ -6308,7 +6308,7 @@ where
     let merchant_connector_account_type = get_merchant_connector_account(
         state,
         platform.get_processor(),
-        payment_data.get_creds_identifier(),
+        creds_identifier,
         profile_id,
         &pre_decided_connector_data_first
             .connector_data

@@ -4,7 +4,7 @@ pub mod utils;
 use std::collections::hash_map;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use std::hash::{Hash, Hasher};
-use std::{collections::HashMap, str::FromStr, sync::Arc};
+use std::{collections::HashMap, future::Future, pin::Pin, str::FromStr, sync::Arc};
 
 #[cfg(feature = "v1")]
 use api_models::open_router::{self as or_types, DecidedGateway, OpenRouterDecideGatewayRequest};
@@ -32,7 +32,10 @@ use external_services::grpc_client::dynamic_routing::{
     elimination_based_client::EliminationBasedRouting,
     success_rate_client::SuccessBasedDynamicRouting, DynamicRoutingError,
 };
-use hyperswitch_domain_models::address::Address;
+use hyperswitch_domain_models::{
+    address::Address,
+    routing::{PreRoutingConnectorChoice, RoutingData},
+};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use hyperswitch_interfaces::events::routing_api_logs::{ApiMethod, RoutingEngine};
 use kgraph_utils::{
@@ -653,6 +656,527 @@ pub fn make_dsl_input(
     })
 }
 
+type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
+pub trait RoutingStage: Send + Sync {
+    type Input<'a>
+    where
+        Self: 'a;
+
+    type Output;
+    type Fut<'a>: Future<Output = RoutingResult<Self::Output>> + Send
+    where
+        Self: 'a;
+
+    fn route<'a>(&'a self, input: Self::Input<'a>) -> Self::Fut<'a>;
+
+    fn routing_approach(&self) -> common_enums::RoutingApproach;
+}
+
+#[derive(Clone)]
+pub struct RoutingContext {
+    pub routing_algorithm: Arc<CachedAlgorithm>,
+}
+
+pub struct RoutingConnectorOutcome {
+    pub connectors: Vec<routing_types::RoutableConnectorChoice>,
+}
+
+impl RoutingConnectorOutcome {
+    pub fn resolve_or_fallback_with_approach(
+        self,
+        stage: &'static str,
+        fallback: &[routing_types::RoutableConnectorChoice],
+        success_approach: common_enums::RoutingApproach,
+        fallback_approach: common_enums::RoutingApproach,
+    ) -> (
+        Vec<routing_types::RoutableConnectorChoice>,
+        common_enums::RoutingApproach,
+    ) {
+        if self.connectors.is_empty() {
+            logger::warn!("euclid: {} returned empty connectors, falling back", stage);
+            routing::log_connectors(stage, fallback);
+            (fallback.to_vec(), fallback_approach)
+        } else {
+            routing::log_connectors(stage, &self.connectors);
+            (self.connectors, success_approach)
+        }
+    }
+
+    pub fn empty() -> Self {
+        Self {
+            connectors: Vec::new(),
+        }
+    }
+}
+
+impl From<Vec<routing_types::RoutableConnectorChoice>> for RoutingConnectorOutcome {
+    fn from(connectors: Vec<routing_types::RoutableConnectorChoice>) -> Self {
+        Self { connectors }
+    }
+}
+
+pub struct StraightThroughRoutingStage {
+    pub algorithm: Arc<api_models::routing::StraightThroughAlgorithm>,
+}
+
+pub struct StraightThroughRoutingInput<'a> {
+    pub creds_identifier: Option<&'a str>,
+}
+
+pub struct ConnectorOutcomeWithEligibilityRequirement {
+    pub connectors: RoutingConnectorOutcome,
+    pub check_eligibility: bool,
+}
+
+impl RoutingStage for StraightThroughRoutingStage {
+    type Input<'a> = StraightThroughRoutingInput<'a>;
+    type Output = ConnectorOutcomeWithEligibilityRequirement;
+    type Fut<'a> = BoxFuture<'a, RoutingResult<Self::Output>>;
+
+    fn route<'a>(&'a self, input: Self::Input<'a>) -> Self::Fut<'a> {
+        Box::pin(async move {
+            let (connectors, check_eligibility) =
+                perform_straight_through_routing(&self.algorithm.clone(), input.creds_identifier)
+                    .change_context(errors::RoutingError::DslExecutionError)
+                    .attach_printable("euclid: unable to perform straight through routing")?;
+
+            Ok(ConnectorOutcomeWithEligibilityRequirement {
+                connectors: connectors.into(),
+                check_eligibility,
+            })
+        })
+    }
+
+    fn routing_approach(&self) -> common_enums::RoutingApproach {
+        common_enums::RoutingApproach::StraightThroughRouting
+    }
+}
+
+#[derive(Clone)]
+pub struct StaticRoutingInput<'a> {
+    pub platform: &'a domain::Platform,
+    pub business_profile: &'a domain::Profile,
+    pub eligible_connectors: Option<&'a Vec<api_enums::RoutableConnectors>>,
+    pub transaction_data: &'a routing::PaymentsDslInput<'a>,
+}
+
+#[derive(Clone)]
+pub struct StaticRoutingStage {
+    pub ctx: RoutingContext,
+}
+
+impl RoutingStage for StaticRoutingStage {
+    type Input<'a> = StaticRoutingInput<'a>;
+    type Output = RoutingConnectorOutcome;
+    type Fut<'a> = BoxFuture<'a, RoutingResult<Self::Output>>;
+
+    fn route<'a>(&'a self, input: Self::Input<'a>) -> Self::Fut<'a> {
+        Box::pin(async move {
+            let connectors = static_routing_v1(
+                &self.ctx.routing_algorithm,
+                &routing::TransactionData::Payment(input.transaction_data.clone()),
+            )
+            .await
+            .change_context(errors::RoutingError::DslExecutionError)
+            .attach_printable("euclid: unable to perform static routing")?;
+
+            Ok(RoutingConnectorOutcome { connectors })
+        })
+    }
+
+    fn routing_approach(&self) -> common_enums::RoutingApproach {
+        common_enums::RoutingApproach::RuleBasedRouting
+    }
+}
+
+pub struct RoutingConnectorOutcomeWithApproachAndEligibility {
+    pub connectors: Vec<routing_types::RoutableConnectorChoice>,
+    pub routing_approach: common_enums::RoutingApproach,
+    pub requires_eligibility: bool,
+}
+
+pub struct PreRoutingInput<'a> {
+    pub pre_routing_results:
+        &'a Option<HashMap<api_enums::PaymentMethodType, PreRoutingConnectorChoice>>,
+    pub payment_method_type: &'a storage_enums::PaymentMethodType,
+    pub connectors: &'a hyperswitch_interfaces::configs::Connectors,
+    pub platform: &'a domain::Platform,
+    pub business_profile: &'a domain::Profile,
+    pub creds_identifier: Option<&'a str>,
+}
+
+pub async fn resolve_pre_routed_connectors(
+    input: PreRoutingInput<'_>,
+) -> RoutingResult<Vec<api::ConnectorRoutingData>> {
+    let routable_connector_choice = input
+        .pre_routing_results
+        .as_ref()
+        .ok_or(errors::RoutingError::DslExecutionError)?
+        .get(input.payment_method_type)
+        .ok_or(errors::RoutingError::DslExecutionError)?;
+
+    let routable_connectors = match routable_connector_choice {
+        PreRoutingConnectorChoice::Single(c) => vec![c.clone()],
+        PreRoutingConnectorChoice::Multiple(cs) => cs.clone(),
+    };
+
+    let mut connector_routing_data = Vec::with_capacity(routable_connectors.len());
+
+    for connector_choice in routable_connectors {
+        let connector_data = api::ConnectorData::get_connector_by_name(
+            input.connectors,
+            &connector_choice.connector.to_string(),
+            api::GetToken::Connector,
+            connector_choice.merchant_connector_id.clone(),
+        )
+        .change_context(errors::RoutingError::DslExecutionError)
+        .attach_printable("Invalid connector name received")?
+        .into();
+
+        connector_routing_data.push(connector_data);
+    }
+    logger::debug!("euclid_routing: pre-routing connectors resolved");
+    Ok(connector_routing_data)
+}
+
+pub fn try_get_attempt_connector<F, D>(
+    connectors: &hyperswitch_interfaces::configs::Connectors,
+    payment_data: &D,
+    routing_data: &mut RoutingData,
+) -> errors::RouterResult<Option<api::ConnectorCallType>>
+where
+    F: Send + Clone,
+    D: OperationSessionGetters<F>,
+{
+    Ok(payment_data
+        .get_payment_attempt()
+        .connector
+        .as_ref()
+        .and_then(|connector_name| {
+            api::ConnectorData::get_connector_by_name(
+                connectors,
+                connector_name,
+                api::GetToken::Connector,
+                payment_data
+                    .get_payment_attempt()
+                    .merchant_connector_id
+                    .clone(),
+            )
+            .inspect_err(|err| {
+                logger::warn!(
+                    error=?err,
+                    "euclid: invalid predetermined connector, ignoring"
+                );
+            })
+            .ok()
+            .map(|connector_data| {
+                logger::debug!("euclid_routing: predetermined connector present in attempt");
+                routing_data.routed_through = Some(connector_name.clone());
+                api::ConnectorCallType::PreDetermined(connector_data.into())
+            })
+        }))
+}
+
+pub fn try_get_mandate_connector<F, D>(
+    connectors: &hyperswitch_interfaces::configs::Connectors,
+    payment_data: &D,
+    routing_data: &mut RoutingData,
+) -> errors::RouterResult<Option<api::ConnectorCallType>>
+where
+    F: Send + Clone,
+    D: OperationSessionGetters<F>,
+{
+    Ok(payment_data
+        .get_mandate_connector()
+        .and_then(|mandate_connector_details| {
+            api::ConnectorData::get_connector_by_name(
+                connectors,
+                &mandate_connector_details.connector,
+                api::GetToken::Connector,
+                mandate_connector_details.merchant_connector_id.clone(),
+            )
+            .inspect_err(|err| {
+                logger::warn!(
+                    error=?err,
+                    "euclid: invalid mandate connector, ignoring"
+                );
+            })
+            .ok()
+            .map(|connector_data| {
+                logger::debug!("euclid_routing: predetermined mandate connector");
+                routing_data.routed_through = Some(mandate_connector_details.connector.clone());
+                routing_data
+                    .merchant_connector_id
+                    .clone_from(&mandate_connector_details.merchant_connector_id);
+                api::ConnectorCallType::PreDetermined(connector_data.into())
+            })
+        }))
+}
+
+pub fn try_get_pre_determined_connector<F, D>(
+    connectors: &hyperswitch_interfaces::configs::Connectors,
+    payment_data: &D,
+    routing_data: &mut RoutingData,
+) -> errors::RouterResult<Option<api::ConnectorCallType>>
+where
+    F: Send + Clone,
+    D: OperationSessionGetters<F>,
+{
+    match try_get_attempt_connector::<F, D>(connectors, payment_data, routing_data)? {
+        Some(connector) => Ok(Some(connector)),
+        None => try_get_mandate_connector::<F, D>(connectors, payment_data, routing_data),
+    }
+}
+
+#[cfg(feature = "v1")]
+pub async fn try_pre_routing_connectors<F, D>(
+    state: &SessionState,
+    platform: &domain::Platform,
+    business_profile: &domain::Profile,
+    payment_data: &mut D,
+    routing_data: &mut RoutingData,
+) -> errors::RouterResult<Option<api::ConnectorCallType>>
+where
+    F: Send + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+{
+    let mut connector_call_type = None;
+
+    if let (None, Some(payment_method_type)) = (
+        payment_data.get_token_data(),
+        payment_data
+            .get_payment_attempt()
+            .payment_method_type
+            .as_ref(),
+    ) {
+        logger::debug!("euclid: considering pre-routing result");
+        let pre_routing_input = PreRoutingInput {
+            pre_routing_results: &routing_data.routing_info.pre_routing_results,
+            payment_method_type,
+            connectors: &state.conf.connectors,
+            platform,
+            business_profile,
+            creds_identifier: payment_data.get_creds_identifier(),
+        };
+
+        if let Ok(connectors) = resolve_pre_routed_connectors(pre_routing_input).await {
+            let first_connector = connectors
+                .first()
+                .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
+
+            #[cfg(feature = "retry")]
+            {
+                let should_do_retry = crate::core::payments::retry::config_should_call_gsm(
+                    &*state.store,
+                    platform.get_processor().get_account().get_id(),
+                    business_profile,
+                )
+                .await;
+
+                if payment_data.get_payment_attempt().payment_method_type
+                    == Some(storage_enums::PaymentMethodType::ApplePay)
+                    && should_do_retry
+                {
+                    let retryable_connector_data =
+                        crate::core::payments::helpers::get_apple_pay_retryable_connectors(
+                            state,
+                            platform,
+                            payment_data.get_creds_identifier(),
+                            &connectors.clone(),
+                            first_connector
+                                .connector_data
+                                .merchant_connector_id
+                                .clone()
+                                .as_ref(),
+                            business_profile.clone(),
+                        )
+                        .await?;
+
+                    if let Some(connector_data_list) = retryable_connector_data {
+                        if connector_data_list.len() > 1 {
+                            logger::info!("Constructed apple pay retryable connector list");
+                            connector_call_type =
+                                Some(api::ConnectorCallType::Retryable(connector_data_list));
+                        }
+                    }
+                }
+            }
+
+            if connector_call_type.is_none() {
+                routing_data.routed_through = Some(
+                    first_connector
+                        .connector_data
+                        .connector_name
+                        .to_string()
+                        .clone(),
+                );
+
+                routing_data.merchant_connector_id =
+                    first_connector.connector_data.merchant_connector_id.clone();
+
+                crate::core::payments::helpers::override_setup_future_usage_to_on_session(
+                    &*state.store,
+                    payment_data,
+                )
+                .await?;
+
+                connector_call_type = Some(api::ConnectorCallType::PreDetermined(
+                    first_connector.clone(),
+                ));
+            }
+        }
+    }
+
+    Ok(connector_call_type)
+}
+
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+pub struct DynamicRoutingStage;
+
+pub struct RoutingConnectorOutcomeWithApproach {
+    pub connectors: Vec<routing_types::RoutableConnectorChoice>,
+    pub routing_approach: common_enums::RoutingApproach,
+}
+
+impl RoutingConnectorOutcomeWithApproach {
+    pub fn resolve_or_fallback(
+        self,
+        stage: &'static str,
+        fallback_connectors: &[routing_types::RoutableConnectorChoice],
+        fallback_approach: common_enums::RoutingApproach,
+    ) -> (
+        Vec<routing_types::RoutableConnectorChoice>,
+        common_enums::RoutingApproach,
+    ) {
+        if self.connectors.is_empty() {
+            logger::warn!("euclid: {} returned empty connectors, falling back", stage);
+            routing::log_connectors(stage, fallback_connectors);
+            (fallback_connectors.to_vec(), fallback_approach)
+        } else {
+            routing::log_connectors(stage, &self.connectors);
+            (self.connectors, self.routing_approach)
+        }
+    }
+
+    pub fn empty() -> Self {
+        Self {
+            connectors: Vec::new(),
+            routing_approach: common_enums::RoutingApproach::DefaultFallback,
+        }
+    }
+}
+
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+impl DynamicRoutingStage {
+    async fn resolve_dynamic_connectors(
+        &self,
+        input: &DynamicRoutingInput<'_>,
+        routing_type: &api_models::routing::RoutingType,
+    ) -> RoutingResult<Option<RoutingConnectorOutcomeWithApproach>> {
+        if !routing_type.is_dynamic_routing()
+            || !input.state.conf.open_router.dynamic_routing_enabled
+        {
+            Ok(None)
+        } else {
+            let payment_attempt = input.transaction_data.payment_attempt.clone();
+            match perform_dynamic_routing_with_open_router(
+                input.state,
+                input.static_connectors.to_vec(),
+                input.business_profile,
+                payment_attempt,
+            )
+            .await
+            {
+                Ok(result) => Ok(result),
+                Err(e) => {
+                    logger::error!(euclid_open_router_error=?e);
+                    Ok(None)
+                }
+            }
+        }
+    }
+}
+
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+pub struct DynamicRoutingInput<'a> {
+    pub state: &'a SessionState,
+    pub business_profile: &'a domain::Profile,
+    pub transaction_data: &'a routing::PaymentsDslInput<'a>,
+    pub static_connectors: &'a [routing_types::RoutableConnectorChoice],
+}
+
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+impl RoutingStage for DynamicRoutingStage {
+    type Input<'a> = DynamicRoutingInput<'a>;
+    type Output = Option<RoutingConnectorOutcomeWithApproach>;
+    type Fut<'a> = BoxFuture<'a, RoutingResult<Self::Output>>;
+
+    fn route<'a>(&'a self, input: Self::Input<'a>) -> Self::Fut<'a> {
+        Box::pin(async move {
+            let Some(algo) = input.business_profile.dynamic_routing_algorithm.clone() else {
+                return Ok(None);
+            };
+
+            let dynamic_routing_config: api_models::routing::DynamicRoutingAlgorithmRef = algo
+                .parse_value("DynamicRoutingAlgorithmRef")
+                .change_context(errors::RoutingError::DeserializationError {
+                    from: "json".into(),
+                    to: "DynamicAlgorithmRef".into(),
+                })?;
+
+            let dynamic_split = api_models::routing::RoutingVolumeSplit {
+                routing_type: api_models::routing::RoutingType::Dynamic,
+                split: dynamic_routing_config
+                    .dynamic_routing_volume_split
+                    .unwrap_or_default(),
+            };
+
+            let static_split = api_models::routing::RoutingVolumeSplit {
+                routing_type: api_models::routing::RoutingType::Static,
+                split: crate::consts::DYNAMIC_ROUTING_MAX_VOLUME
+                    - dynamic_routing_config
+                        .dynamic_routing_volume_split
+                        .unwrap_or_default(),
+            };
+
+            let routing_choice =
+                perform_dynamic_routing_volume_split(vec![dynamic_split, static_split], None)
+                    .change_context(errors::RoutingError::VolumeSplitFailed)
+                    .attach_printable("euclid: failed to perform volume split on routing type")?;
+
+            self.resolve_dynamic_connectors(&input, &routing_choice.routing_type)
+                .await
+        })
+    }
+
+    fn routing_approach(&self) -> common_enums::RoutingApproach {
+        common_enums::RoutingApproach::Other("DynamicRouting".to_string())
+    }
+}
+
+pub async fn static_routing_v1(
+    routing_algorithm: &CachedAlgorithm,
+    transaction_data: &routing::TransactionData<'_>,
+) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
+    logger::debug!("euclid_routing: performing routing for connector selection");
+    let backend_input = match transaction_data {
+        routing::TransactionData::Payment(payment_data) => make_dsl_input(payment_data)?,
+        #[cfg(feature = "payouts")]
+        routing::TransactionData::Payout(payout_data) => make_dsl_input_for_payouts(payout_data)?,
+    };
+
+    let routable_connectors = match routing_algorithm {
+        CachedAlgorithm::Single(conn) => vec![(**conn).clone()],
+        CachedAlgorithm::Priority(plist) => plist.clone(),
+        CachedAlgorithm::VolumeSplit(splits) => perform_volume_split(splits.to_vec())
+            .change_context(errors::RoutingError::ConnectorSelectionFailed)?,
+        CachedAlgorithm::Advanced(interpreter) => {
+            execute_dsl_and_get_connector_v1(backend_input, interpreter)?
+        }
+    };
+    Ok(routable_connectors)
+}
+
 pub async fn perform_static_routing_v1(
     state: &SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
@@ -790,7 +1314,7 @@ pub async fn perform_static_routing_v1(
     ))
 }
 
-async fn ensure_algorithm_cached_v1(
+pub async fn ensure_algorithm_cached_v1(
     state: &SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
     algorithm_id: &common_utils::id_type::RoutingId,
@@ -834,6 +1358,30 @@ async fn ensure_algorithm_cached_v1(
     };
 
     Ok(algorithm)
+}
+
+pub async fn try_ensure_algorithm_cached_v1(
+    state: &SessionState,
+    merchant_id: &common_utils::id_type::MerchantId,
+    algorithm_id: &common_utils::id_type::RoutingId,
+    profile_id: &common_utils::id_type::ProfileId,
+    transaction_type: &api_enums::TransactionType,
+) -> Option<Arc<CachedAlgorithm>> {
+    ensure_algorithm_cached_v1(
+        state,
+        merchant_id,
+        algorithm_id,
+        profile_id,
+        transaction_type,
+    )
+    .await
+    .inspect_err(|err| {
+        logger::error!(
+            error=?err,
+            "euclid_routing: ensure_algorithm_cached failed, falling back"
+        );
+    })
+    .ok()
 }
 
 pub fn perform_straight_through_routing(
@@ -1892,17 +2440,12 @@ pub fn make_dsl_input_for_surcharge(
 }
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-pub async fn perform_dynamic_routing_with_open_router<F, D>(
+pub async fn perform_dynamic_routing_with_open_router(
     state: &SessionState,
     routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
     profile: &domain::Profile,
     payment_data: oss_storage::PaymentAttempt,
-    old_payment_data: &mut D,
-) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>>
-where
-    F: Send + Clone,
-    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-{
+) -> RoutingResult<Option<RoutingConnectorOutcomeWithApproach>> {
     let dynamic_routing_algo_ref: api_routing::DynamicRoutingAlgorithmRef = profile
         .dynamic_routing_algorithm
         .clone()
@@ -1934,7 +2477,6 @@ where
             profile.get_id(),
             &payment_data,
             is_elimination_enabled,
-            old_payment_data,
         )
         .await?;
 
@@ -1942,7 +2484,7 @@ where
             // This will initiate the elimination process for the connector.
             // Penalize the elimination score of the connector before making a payment.
             // Once the payment is made, we will update the score based on the payment status
-            if let Some(connector) = connectors.first() {
+            if let Some(connector) = connectors.connectors.first() {
                 logger::debug!(
                 "penalizing the elimination score of the gateway with id {} in open_router for profile {}",
                 connector, profile.get_id().get_string_repr()
@@ -1958,11 +2500,10 @@ where
                 .await?
             }
         }
-        connectors
+        Some(connectors)
     } else {
-        routable_connectors
+        None
     };
-
     Ok(connectors)
 }
 
@@ -2164,18 +2705,13 @@ where
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 #[instrument(skip_all)]
-pub async fn perform_decide_gateway_call_with_open_router<F, D>(
+pub async fn perform_decide_gateway_call_with_open_router(
     state: &SessionState,
     mut routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
     profile_id: &common_utils::id_type::ProfileId,
     payment_attempt: &oss_storage::PaymentAttempt,
     is_elimination_enabled: bool,
-    old_payment_data: &mut D,
-) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>>
-where
-    F: Send + Clone,
-    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-{
+) -> RoutingResult<RoutingConnectorOutcomeWithApproach> {
     logger::debug!(
         "performing decide_gateway call with open_router for profile {}",
         profile_id.get_string_repr()
@@ -2232,11 +2768,9 @@ where
                 .to_string(),
             );
 
-            old_payment_data.set_routing_approach_in_attempt(Some(
-                common_enums::RoutingApproach::from_decision_engine_approach(
-                    &decided_gateway.routing_approach,
-                ),
-            ));
+            let routing_approach = common_enums::RoutingApproach::from_decision_engine_approach(
+                &decided_gateway.routing_approach,
+            );
 
             if let Some(gateway_priority_map) = decided_gateway.gateway_priority_map {
                 logger::debug!(gateway_priority_map=?gateway_priority_map, routing_approach=decided_gateway.routing_approach, "open_router decide_gateway call response");
@@ -2258,7 +2792,10 @@ where
             routing_event.set_routable_connectors(routable_connectors.clone());
             state.event_handler().log_event(&routing_event);
 
-            Ok(routable_connectors)
+            Ok(RoutingConnectorOutcomeWithApproach {
+                connectors: routable_connectors,
+                routing_approach,
+            })
         }
         Err(err) => {
             logger::error!("open_router_error_response: {:?}", err);
@@ -2269,7 +2806,10 @@ where
         }
     }?;
 
-    Ok(sr_sorted_connectors)
+    Ok(RoutingConnectorOutcomeWithApproach {
+        connectors: sr_sorted_connectors.connectors,
+        routing_approach: sr_sorted_connectors.routing_approach,
+    })
 }
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]

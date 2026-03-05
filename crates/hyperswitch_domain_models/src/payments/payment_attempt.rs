@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 #[cfg(all(feature = "v1", feature = "olap"))]
 use api_models::enums::Connector;
 #[cfg(feature = "v2")]
@@ -53,7 +55,8 @@ use url::Url;
 use super::PaymentIntent;
 #[cfg(feature = "v2")]
 use crate::{
-    address::Address, consts, payment_method_data::PaymentMethodData, router_response_types,
+    address::Address, consts, payment_method_data::PaymentMethodData, platform,
+    router_response_types,
 };
 use crate::{
     behaviour, errors,
@@ -906,6 +909,7 @@ impl PaymentAttempt {
         storage_scheme: storage_enums::MerchantStorageScheme,
         request: &api_models::payments::PaymentsConfirmIntentRequest,
         encrypted_data: DecryptedPaymentAttempt,
+        initiator: Option<&platform::Initiator>,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let id = id_type::GlobalAttemptId::generate(&cell_id);
         let intent_amount_details = payment_intent.amount_details.clone();
@@ -988,7 +992,7 @@ impl PaymentAttempt {
             card_discovery: None,
             feature_metadata: None,
             processor_merchant_id: payment_intent.merchant_id.clone(),
-            created_by: None,
+            created_by: initiator.and_then(|initiator| initiator.to_created_by()),
             connector_request_reference_id: None,
             network_transaction_id: None,
             authorized_amount: None,
@@ -1002,6 +1006,7 @@ impl PaymentAttempt {
         storage_scheme: storage_enums::MerchantStorageScheme,
         request: &api_models::payments::ProxyPaymentsRequest,
         encrypted_data: DecryptedPaymentAttempt,
+        initiator: Option<&platform::Initiator>,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let id = id_type::GlobalAttemptId::generate(&cell_id);
         let intent_amount_details = payment_intent.amount_details.clone();
@@ -1080,7 +1085,7 @@ impl PaymentAttempt {
             id,
             card_discovery: None,
             processor_merchant_id: payment_intent.merchant_id.clone(),
-            created_by: None,
+            created_by: initiator.and_then(|initiator| initiator.to_created_by()),
             connector_request_reference_id: None,
             network_transaction_id: None,
             authorized_amount: None,
@@ -1094,6 +1099,7 @@ impl PaymentAttempt {
         storage_scheme: storage_enums::MerchantStorageScheme,
         request: &api_models::payments::ExternalVaultProxyPaymentsRequest,
         encrypted_data: DecryptedPaymentAttempt,
+        initiator: Option<&platform::Initiator>,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let id = id_type::GlobalAttemptId::generate(&cell_id);
         let intent_amount_details = payment_intent.amount_details.clone();
@@ -1179,7 +1185,7 @@ impl PaymentAttempt {
             id,
             card_discovery: None,
             processor_merchant_id: payment_intent.merchant_id.clone(),
-            created_by: None,
+            created_by: initiator.and_then(|initiator| initiator.to_created_by()),
             connector_request_reference_id: None,
             network_transaction_id: None,
             authorized_amount: None,
@@ -1194,6 +1200,7 @@ impl PaymentAttempt {
         storage_scheme: storage_enums::MerchantStorageScheme,
         request: &api_models::payments::PaymentsAttemptRecordRequest,
         encrypted_data: DecryptedPaymentAttempt,
+        initiator: Option<&platform::Initiator>,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let id = id_type::GlobalAttemptId::generate(&cell_id);
 
@@ -1302,7 +1309,7 @@ impl PaymentAttempt {
             card_discovery: None,
             charges: None,
             processor_merchant_id: payment_intent.merchant_id.clone(),
-            created_by: None,
+            created_by: initiator.and_then(|initiator| initiator.to_created_by()),
             connector_request_reference_id,
             network_transaction_id: None,
             authorized_amount: None,
@@ -1825,6 +1832,31 @@ impl PaymentAttempt {
                 .and_then(|method| unsupported_payment_methods.get(method))
                 .is_some_and(|unsupported_set| unsupported_set.contains(&pm_type))
         })
+    }
+
+    /// Extract connector response metadata from the payment attempt metadata based on the connector's configuration
+    pub fn get_connector_response_metadata_from_attempt_metadata(
+        &self,
+    ) -> Option<api_models::payments::ConnectorMetadataResponse> {
+        let connector = self
+            .connector
+            .as_deref()
+            .and_then(|s| Connector::from_str(s).ok())?;
+
+        self.connector_metadata
+            .clone()
+            .and_then(|metadata| match connector {
+                Connector::Santander => metadata
+                    .parse_value::<api_models::payments::SantanderData>("SantanderData")
+                    .map_err(|_| {
+                        router_env::logger::warn!(
+                            "Failed to parse payment_attempt.connector_metadata to SantanderData"
+                        )
+                    })
+                    .ok()
+                    .map(api_models::payments::ConnectorMetadataResponse::Santander),
+                _ => None,
+            })
     }
 }
 

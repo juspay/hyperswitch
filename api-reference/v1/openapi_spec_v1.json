@@ -11727,11 +11727,25 @@
                 "$ref": "#/components/schemas/Interac"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "open_banking_uk"
+            ],
+            "properties": {
+              "open_banking_uk": {
+                "$ref": "#/components/schemas/OpenBankingUk"
+              }
+            }
           }
         ]
       },
       "BankRedirectAdditionalData": {
         "oneOf": [
+          {
+            "$ref": "#/components/schemas/OpenBankingUkAdditionalData"
+          },
           {
             "$ref": "#/components/schemas/InteracAdditionalData"
           }
@@ -15045,6 +15059,7 @@
           "razorpay",
           "recurly",
           "redsys",
+          "revolv3",
           "santander",
           "shift4",
           "silverflow",
@@ -15057,6 +15072,7 @@
           "tesouro",
           "tokenex",
           "tokenio",
+          "truelayer",
           "trustpay",
           "trustpayments",
           "tsys",
@@ -15230,6 +15246,21 @@
             "nullable": true
           }
         }
+      },
+      "ConnectorMetadataResponse": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "santander"
+            ],
+            "properties": {
+              "santander": {
+                "$ref": "#/components/schemas/SantanderData"
+              }
+            }
+          }
+        ]
       },
       "ConnectorSelection": {
         "oneOf": [
@@ -24300,6 +24331,45 @@
           }
         }
       },
+      "OpenBankingUk": {
+        "type": "object",
+        "required": [
+          "account_holder_name",
+          "iban"
+        ],
+        "properties": {
+          "account_holder_name": {
+            "type": "string",
+            "description": "Account holder name",
+            "example": "John Doe"
+          },
+          "iban": {
+            "type": "string",
+            "description": "International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.",
+            "example": "DE89370400440532013000"
+          }
+        }
+      },
+      "OpenBankingUkAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for OpenBankingUK bank redirect payout method",
+        "required": [
+          "account_holder_name",
+          "iban"
+        ],
+        "properties": {
+          "account_holder_name": {
+            "type": "string",
+            "description": "Account holder name",
+            "example": "John Doe"
+          },
+          "iban": {
+            "type": "string",
+            "description": "International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.",
+            "example": "DE89370400440532013000"
+          }
+        }
+      },
       "OpenRouterDecideGatewayRequest": {
         "type": "object",
         "description": "Request to decide the optimal gateway for routing a payment",
@@ -29259,6 +29329,14 @@
             ],
             "nullable": true
           },
+          "connector_response_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorMetadataResponse"
+              }
+            ],
+            "nullable": true
+          },
           "feature_metadata": {
             "allOf": [
               {
@@ -30902,6 +30980,14 @@
             ],
             "nullable": true
           },
+          "connector_response_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorMetadataResponse"
+              }
+            ],
+            "nullable": true
+          },
           "feature_metadata": {
             "allOf": [
               {
@@ -32256,6 +32342,7 @@
           "payone",
           "paypal",
           "stripe",
+          "truelayer",
           "wise",
           "worldpay",
           "worldpayxml"
@@ -35650,6 +35737,11 @@
             "type": "string",
             "description": "Contains whole connector response",
             "nullable": true
+          },
+          "connector_refund_id": {
+            "type": "string",
+            "description": "A unique identifier for a payment provided by the connector",
+            "nullable": true
           }
         }
       },
@@ -35752,6 +35844,14 @@
           },
           "currency": {
             "$ref": "#/components/schemas/Currency"
+          },
+          "capture_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CaptureMethod"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -36630,6 +36730,7 @@
           "razorpay",
           "recurly",
           "redsys",
+          "revolv3",
           "riskified",
           "santander",
           "shift4",
@@ -36640,6 +36741,7 @@
           "stripe",
           "stripebilling",
           "tesouro",
+          "truelayer",
           "trustpay",
           "trustpayments",
           "tokenio",
@@ -37196,6 +37298,16 @@
             "$ref": "#/components/schemas/SamsungPayTokenData"
           }
         }
+      },
+      "SantanderData": {
+        "type": "object",
+        "properties": {
+          "end_to_end_id": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
       },
       "ScaExemptionType": {
         "type": "string",

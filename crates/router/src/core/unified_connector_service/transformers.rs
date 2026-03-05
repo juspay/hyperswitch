@@ -182,6 +182,7 @@ impl
             connector_metadata: None,
             return_url: router_data.request.router_return_url.clone(),
             test_mode: router_data.test_mode,
+            connector_customer_id: router_data.connector_customer.clone(),
         })
     }
 }
