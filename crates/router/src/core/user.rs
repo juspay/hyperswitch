@@ -3987,7 +3987,7 @@ pub async fn embedded_token_info(
     ))
 }
 
-pub async fn get_user_details_internally(
+pub async fn get_user_details_internal(
     state: SessionState,
     user_id: String,
 ) -> UserResponse<user_api::GetUserInternalDetailsResponse> {

@@ -1176,7 +1176,7 @@ pub async fn embedded_token_info(
     .await
 }
 
-pub async fn get_user_details_internally(
+pub async fn get_user_details_internal(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<String>,
@@ -1189,7 +1189,7 @@ pub async fn get_user_details_internally(
         state,
         &req,
         user_id.clone(),
-        |state, _auth: (), user_id, _| user_core::get_user_details_internally(state, user_id),
+        |state, _auth: (), user_id, _| user_core::get_user_details_internal(state, user_id),
         &auth::InternalMerchantIdProfileIdAuth(auth::AdminApiAuth),
         api_locking::LockAction::NotApplicable,
     ))

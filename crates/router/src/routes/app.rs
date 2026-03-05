@@ -3117,7 +3117,7 @@ impl User {
         route = route.service(
             web::scope("/internal").service(
                 web::resource("/user/{user_id}")
-                    .route(web::get().to(user::get_user_details_internally)),
+                    .route(web::get().to(user::get_user_details_internal)),
             ),
         );
 
