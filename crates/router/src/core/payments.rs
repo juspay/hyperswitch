@@ -10516,12 +10516,11 @@ where
 {
     let chosen = connectors.apply_filter_for_session_routing();
 
-    let active_mca_ids =
-        routing::get_active_mca_ids(&state, processor.get_key_store())
-            .await
-            .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-                message: "Active mca_ids not found".to_string(),
-            })?;
+    let active_mca_ids = routing::get_active_mca_ids(&state, processor.get_key_store())
+        .await
+        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "Active mca_ids not found".to_string(),
+        })?;
 
     let session_input = routing::SessionRoutingInput {
         state: &state,
