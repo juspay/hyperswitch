@@ -1149,7 +1149,7 @@ pub struct PreRoutingInput<'a> {
         &'a Option<HashMap<api_enums::PaymentMethodType, PreRoutingConnectorChoice>>,
     pub payment_method_type: &'a storage_enums::PaymentMethodType,
     pub connectors: &'a hyperswitch_interfaces::configs::Connectors,
-    pub platform: &'a domain::Platform,
+    pub processor: &'a domain::Processor,
     pub business_profile: &'a domain::Profile,
     pub creds_identifier: Option<&'a str>,
 }
@@ -1280,7 +1280,7 @@ where
 #[cfg(feature = "v1")]
 pub async fn try_pre_routing_connectors<F, D>(
     state: &SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     business_profile: &domain::Profile,
     payment_data: &mut D,
     routing_data: &mut RoutingData,
@@ -1303,7 +1303,7 @@ where
             pre_routing_results: &routing_data.routing_info.pre_routing_results,
             payment_method_type,
             connectors: &state.conf.connectors,
-            platform,
+            processor,
             business_profile,
             creds_identifier: payment_data.get_creds_identifier(),
         };
@@ -1317,7 +1317,7 @@ where
             {
                 let should_do_retry = crate::core::payments::retry::config_should_call_gsm(
                     &*state.store,
-                    platform.get_processor().get_account().get_id(),
+                    processor.get_account().get_id(),
                     business_profile,
                 )
                 .await;
@@ -1329,7 +1329,7 @@ where
                     let retryable_connector_data =
                         crate::core::payments::helpers::get_apple_pay_retryable_connectors(
                             state,
-                            platform,
+                            processor,
                             payment_data.get_creds_identifier(),
                             &connectors.clone(),
                             first_connector

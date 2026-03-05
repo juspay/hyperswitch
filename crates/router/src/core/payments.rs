@@ -734,8 +734,13 @@ where
         .as_ref()
         .and_then(|customer| customer.connector_customer.as_ref());
 
-    let authentication_type =
-        call_decision_manager(state, platform, &business_profile, &payment_data).await?;
+    let authentication_type = call_decision_manager(
+        state,
+        platform.get_processor(),
+        &business_profile,
+        &payment_data,
+    )
+    .await?;
 
     payment_data.set_authentication_type_in_attempt(authentication_type);
 
@@ -748,7 +753,7 @@ where
         &operation,
         state,
         &req,
-        platform,
+        platform.get_processor(),
         &business_profile,
         &mut payment_data,
         eligible_connectors,
@@ -1536,7 +1541,7 @@ where
     let connector_choice = operation
         .to_domain()?
         .get_connector(
-            &platform,
+            platform.get_processor(),
             &state.clone(),
             &req,
             payment_data.get_payment_intent(),
@@ -2054,7 +2059,7 @@ where
 #[cfg(feature = "v1")]
 pub async fn call_decision_manager<F, D>(
     state: &SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     _business_profile: &domain::Profile,
     payment_data: &D,
 ) -> RouterResult<Option<enums::AuthenticationType>>
@@ -2073,8 +2078,7 @@ where
         payment_data.get_recurring_details(),
         payment_data.get_currency(),
     );
-    let algorithm_ref: api::routing::RoutingAlgorithmRef = platform
-        .get_processor()
+    let algorithm_ref: api::routing::RoutingAlgorithmRef = processor
         .get_account()
         .routing_algorithm
         .clone()
@@ -2087,7 +2091,7 @@ where
     let output = perform_decision_management(
         state,
         algorithm_ref,
-        platform.get_processor().get_account().get_id(),
+        processor.get_account().get_id(),
         &payment_dsl_data,
     )
     .await
@@ -9233,7 +9237,7 @@ pub async fn choose_connector<F, Req, D>(
     operation: &BoxedOperation<'_, F, Req, D>,
     state: &SessionState,
     req: &Req,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     business_profile: &domain::Profile,
     payment_data: &mut D,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
@@ -9246,7 +9250,7 @@ where
     let connector_choice = operation
         .to_domain()?
         .get_connector(
-            platform,
+            processor,
             &state.clone(),
             req,
             payment_data.get_payment_intent(),
@@ -9286,7 +9290,7 @@ where
                     api::ConnectorChoice::SessionMultiple(connectors) => {
                         let routing_output = perform_session_token_routing(
                             state.clone(),
-                            platform,
+                            processor,
                             business_profile,
                             payment_data,
                             connectors,
@@ -9301,7 +9305,7 @@ where
                     api::ConnectorChoice::StraightThrough(straight_through) => {
                         perform_routing_for_connector_selection(
                             state,
-                            platform,
+                            processor,
                             business_profile,
                             payment_data,
                             Some(straight_through),
@@ -9316,7 +9320,7 @@ where
                     api::ConnectorChoice::Decide => {
                         perform_routing_for_connector_selection(
                             state,
-                            platform,
+                            processor,
                             business_profile,
                             payment_data,
                             None,
@@ -9514,7 +9518,7 @@ where
 #[allow(clippy::too_many_arguments)]
 pub async fn perform_routing_for_connector_selection<F, D>(
     state: &SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     business_profile: &domain::Profile,
     payment_data: &mut D,
     request_straight_through: Option<serde_json::Value>,
@@ -9559,7 +9563,7 @@ where
 
     let decided_connector = decide_connector(
         state.clone(),
-        platform,
+        processor,
         business_profile,
         payment_data,
         request_straight_through,
@@ -9751,7 +9755,7 @@ pub async fn decide_connector(
 #[cfg(feature = "v1")]
 pub async fn decide_connector<F, D>(
     state: SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     business_profile: &domain::Profile,
     payment_data: &mut D,
     request_straight_through: Option<api::routing::StraightThroughAlgorithm>,
@@ -9786,7 +9790,7 @@ where
         // Check if pre_routing connector is present
         routing::try_pre_routing_connectors::<F, D>(
             &state,
-            platform,
+            processor,
             business_profile,
             payment_data,
             routing_data,
@@ -9902,7 +9906,7 @@ where
     let final_connectors = if requires_eligibility {
         routing::perform_eligibility_analysis_with_fallback(
             &state,
-            platform.get_processor().get_key_store(),
+            processor.get_key_store(),
             connectors.clone(),
             &txn,
             eligible_connectors.clone(),
@@ -10568,7 +10572,7 @@ pub fn should_add_task_to_process_tracker<F: Clone, D: OperationSessionGetters<F
 #[allow(clippy::too_many_arguments)]
 pub async fn perform_session_token_routing<F, D>(
     state: SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     business_profile: &domain::Profile,
     payment_data: &mut D,
     connectors: api::SessionConnectorDatas,
@@ -10582,18 +10586,17 @@ where
 {
     let chosen = connectors.apply_filter_for_session_routing();
 
-    let active_mca_ids =
-        routing::get_active_mca_ids(&state, platform.get_processor().get_key_store())
-            .await
-            .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-                message: "Active mca_ids not found".to_string(),
-            })?;
+    let active_mca_ids = routing::get_active_mca_ids(&state, processor.get_key_store())
+        .await
+        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "Active mca_ids not found".to_string(),
+        })?;
 
     let session_input = routing::SessionRoutingInput {
         state: &state,
         business_profile,
-        key_store: platform.get_processor().get_key_store(),
-        merchant_account: platform.get_processor().get_account(),
+        key_store: processor.get_key_store(),
+        merchant_account: processor.get_account(),
         transaction_type: &transaction_type,
         chosen: &chosen,
         active_mca_ids: &active_mca_ids,
@@ -10779,7 +10782,7 @@ pub async fn static_dynamic_routing_v1_for_payments(
 #[allow(clippy::too_many_arguments)]
 pub async fn route_connector_v1_for_payouts(
     state: &SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     business_profile: &domain::Profile,
     transaction_data: &payouts::PayoutData,
     routing_data: &mut storage::RoutingData,
@@ -10793,7 +10796,7 @@ pub async fn route_connector_v1_for_payouts(
 #[allow(clippy::too_many_arguments)]
 pub async fn route_connector_v1_for_payouts(
     state: &SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     business_profile: &domain::Profile,
     transaction_data: &payouts::PayoutData,
     routing_data: &mut storage::RoutingData,
@@ -10813,7 +10816,7 @@ pub async fn route_connector_v1_for_payouts(
 
     let (connectors, _) = routing::perform_static_routing_v1(
         state,
-        platform.get_processor().get_account().get_id(),
+        processor.get_account().get_id(),
         routing_algorithm_id.as_ref(),
         business_profile,
         &TransactionData::Payout(transaction_data),
@@ -10822,7 +10825,7 @@ pub async fn route_connector_v1_for_payouts(
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let connectors = routing::perform_eligibility_analysis_with_fallback(
         &state.clone(),
-        platform.get_processor().get_key_store(),
+        processor.get_key_store(),
         connectors,
         &TransactionData::Payout(transaction_data),
         eligible_connectors,
