@@ -1869,7 +1869,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -1962,7 +1962,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -2053,7 +2053,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -2152,7 +2152,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -2244,7 +2244,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -2335,7 +2335,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -2435,7 +2435,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -2528,7 +2528,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -2619,7 +2619,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -2717,7 +2717,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -2809,7 +2809,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -2899,7 +2899,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -3006,7 +3006,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -3099,7 +3099,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -3190,7 +3190,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
