@@ -1202,6 +1202,10 @@ bank_redirect.eps.connector_list = "globalpay,nexinets,aci,multisafepay"
 card.credit = { connector_list = "cybersource" }
 card.debit = { connector_list = "cybersource" }
 
+[installments.supported_payment_methods]
+card.credit = "adyen"
+card.debit = "adyen"
+
 [network_transaction_id_supported_connectors]
 connector_list = "adyen,archipel,checkout,cybersource,novalnet,nuvei,stripe,worldpay,worldpayvantiv"
 
