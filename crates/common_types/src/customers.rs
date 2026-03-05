@@ -1,8 +1,7 @@
 //! Customer related types
 
 use common_utils::errors::ValidationError;
-use error_stack::ResultExt;
-use pleme_brazilian_validators::{cnpj, cpf};
+use cpf_cnpj::{cnpj, cpf};
 use utoipa::ToSchema;
 /// HashMap containing MerchantConnectorAccountId and corresponding customer id
 #[cfg(feature = "v2")]
@@ -71,19 +70,25 @@ impl DocumentKind {
         self,
         doc_number: &str,
     ) -> common_utils::errors::CustomResult<(), ValidationError> {
-        cpf::validate(doc_number).change_context(ValidationError::InvalidValue {
-            message: "Invalid CPF".to_string(),
-        })?;
-        Ok(())
+        if cpf::validate(doc_number) {
+            Ok(())
+        } else {
+            Err(error_stack::Report::new(ValidationError::InvalidValue {
+                message: "Invalid CPF".to_string(),
+            }))
+        }
     }
 
     fn validate_cnpj(
         self,
         doc_number: &str,
     ) -> common_utils::errors::CustomResult<(), ValidationError> {
-        cnpj::validate(doc_number).change_context(ValidationError::InvalidValue {
-            message: "Invalid CNPJ".to_string(),
-        })?;
-        Ok(())
+        if cnpj::validate(doc_number) {
+            Ok(())
+        } else {
+            Err(error_stack::Report::new(ValidationError::InvalidValue {
+                message: "Invalid CNPJ".to_string(),
+            }))
+        }
     }
 }
