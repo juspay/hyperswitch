@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.03.04.0-hotfix1
+
+### Bug Fixes
+
+- **wasm:** [Truelayer] Fix WASM for Truelayer Payouts ([#11427](https://github.com/juspay/hyperswitch/pull/11427)) ([`500240b`](https://github.com/juspay/hyperswitch/commit/500240b2552d8adec72ffcca8e1c50fe088b81d3))
+
+**Full Changelog:** [`2026.03.04.0...2026.03.04.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.03.04.0...2026.03.04.0-hotfix1)
+
+- - -
+
 ## 2026.03.04.0
 
 ### Features
