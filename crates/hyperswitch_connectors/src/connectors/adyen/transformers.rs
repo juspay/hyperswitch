@@ -1,4 +1,4 @@
-use std::{ops::Deref, str::FromStr};
+use std::{num::NonZeroU8, ops::Deref, str::FromStr};
 
 #[cfg(feature = "payouts")]
 use api_models::payouts::{self, PayoutMethodData};
@@ -370,6 +370,7 @@ pub struct AdyenPaymentRequest<'a> {
     metadata: Option<serde_json::Value>,
     platform_chargeback_logic: Option<AdyenPlatformChargeBackLogicMetadata>,
     application_info: Option<ApplicationInfo>,
+    installments: Option<AdyenInstallments>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -747,6 +748,11 @@ pub enum ActionType {
 pub struct Amount {
     pub currency: storage_enums::Currency,
     pub value: MinorUnit,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AdyenInstallments {
+    value: NonZeroU8,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -2197,6 +2203,18 @@ fn get_amount_data(item: &AdyenRouterData<&PaymentsAuthorizeRouterData>) -> Amou
     }
 }
 
+fn get_installment_details(
+    item: &AdyenRouterData<&PaymentsAuthorizeRouterData>,
+) -> Option<AdyenInstallments> {
+    item.router_data
+        .request
+        .installment_details
+        .as_ref()
+        .map(|d| AdyenInstallments {
+            value: d.number_of_installments,
+        })
+}
+
 pub fn get_address_info(
     address: Option<&hyperswitch_domain_models::address::Address>,
 ) -> Option<Result<Address, error_stack::Report<errors::ConnectorError>>> {
@@ -3309,6 +3327,7 @@ impl
                 .map(filter_adyen_metadata),
             platform_chargeback_logic,
             application_info,
+            installments: None,
         })
     }
 }
@@ -3358,6 +3377,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
         let telephone_number = item.router_data.get_optional_billing_phone_number();
         let application_info = get_application_info(item);
+        let installments = get_installment_details(item);
 
         let mpi_data =
             if let Some(auth_data) = value.0.router_data.request.authentication_data.as_ref() {
@@ -3445,6 +3465,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
                 .map(filter_adyen_metadata),
             platform_chargeback_logic,
             application_info,
+            installments,
         })
     }
 }
@@ -3538,6 +3559,7 @@ impl
                 .clone()
                 .map(filter_adyen_metadata),
             platform_chargeback_logic,
+            installments: None,
             application_info,
         };
         Ok(request)
@@ -3621,6 +3643,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &VoucherData)>
                 .map(filter_adyen_metadata),
 
             platform_chargeback_logic,
+            installments: None,
             application_info,
         };
         Ok(request)
@@ -3746,6 +3769,7 @@ impl
                 .map(filter_adyen_metadata),
 
             platform_chargeback_logic,
+            installments: None,
             application_info,
         };
         Ok(request)
@@ -3829,6 +3853,7 @@ impl
                 .clone()
                 .map(filter_adyen_metadata),
             platform_chargeback_logic,
+            installments: None,
             application_info,
         };
         Ok(request)
@@ -3917,6 +3942,7 @@ impl
                 .clone()
                 .map(filter_adyen_metadata),
             platform_chargeback_logic,
+            installments: None,
             application_info,
         })
     }
@@ -4088,6 +4114,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &WalletData)>
                 .clone()
                 .map(filter_adyen_metadata),
             platform_chargeback_logic,
+            installments: None,
             application_info,
         })
     }
@@ -4183,6 +4210,7 @@ impl
                 .clone()
                 .map(filter_adyen_metadata),
             platform_chargeback_logic,
+            installments: None,
             application_info,
         })
     }
@@ -4272,6 +4300,7 @@ impl
                 .clone()
                 .map(filter_adyen_metadata),
             platform_chargeback_logic,
+            installments: None,
             application_info,
         })
     }
@@ -6860,6 +6889,7 @@ impl
                 .clone()
                 .map(filter_adyen_metadata),
             platform_chargeback_logic,
+            installments: None,
             application_info,
         })
     }
