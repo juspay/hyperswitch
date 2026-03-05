@@ -3379,6 +3379,13 @@ impl UserInterface for KafkaStore {
         self.diesel_store.find_active_user_by_user_id(user_id).await
     }
 
+    async fn find_user_by_user_id(
+        &self,
+        user_id: &str,
+    ) -> CustomResult<storage::User, errors::StorageError> {
+        self.diesel_store.find_user_by_user_id(user_id).await
+    }
+
     async fn update_active_user_by_user_id(
         &self,
         user_id: &str,

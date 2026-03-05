@@ -53,6 +53,14 @@ impl User {
         .await
     }
 
+    pub async fn find_by_user_id(conn: &PgPooledConn, user_id: &str) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            users_dsl::user_id.eq(user_id.to_owned()),
+        )
+        .await
+    }
+
     pub async fn update_active_by_user_id(
         conn: &PgPooledConn,
         user_id: &str,

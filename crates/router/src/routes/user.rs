@@ -1175,3 +1175,23 @@ pub async fn embedded_token_info(
     ))
     .await
 }
+
+pub async fn get_user_details_internally(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::GetUserDetailsInternally;
+    let user_id = path.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        user_id.clone(),
+        |state, _auth, user_id, _| user_core::get_user_details_internally(state, user_id),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

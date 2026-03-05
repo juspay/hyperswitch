@@ -34,6 +34,11 @@ pub trait UserInterface {
         user_id: &str,
     ) -> CustomResult<storage::User, errors::StorageError>;
 
+    async fn find_user_by_user_id(
+        &self,
+        user_id: &str,
+    ) -> CustomResult<storage::User, errors::StorageError>;
+
     async fn update_active_user_by_user_id(
         &self,
         user_id: &str,
@@ -101,6 +106,17 @@ impl UserInterface for Store {
     ) -> CustomResult<storage::User, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::User::find_active_by_user_id(&conn, user_id)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    #[instrument(skip_all)]
+    async fn find_user_by_user_id(
+        &self,
+        user_id: &str,
+    ) -> CustomResult<storage::User, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::User::find_by_user_id(&conn, user_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -237,6 +253,23 @@ impl UserInterface for MockDb {
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
                     "No Active user available for user_id = {user_id}"
+                ))
+                .into(),
+            )
+    }
+
+    async fn find_user_by_user_id(
+        &self,
+        user_id: &str,
+    ) -> CustomResult<storage::User, errors::StorageError> {
+        let users = self.users.lock().await;
+        users
+            .iter()
+            .find(|user| user.user_id == user_id)
+            .cloned()
+            .ok_or(
+                errors::StorageError::ValueNotFound(format!(
+                    "No user available for user_id = {user_id}"
                 ))
                 .into(),
             )
