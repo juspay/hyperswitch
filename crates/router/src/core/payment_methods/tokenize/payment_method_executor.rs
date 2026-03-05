@@ -387,6 +387,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
         payment_method: domain::PaymentMethod,
         network_token_details: &NetworkTokenizationResponse,
         card_details: &domain::CardDetail,
+        initiator: Option<&domain::Initiator>,
     ) -> RouterResult<domain::PaymentMethod> {
         // Form encrypted network token data
         let enc_token_data = self
@@ -398,7 +399,9 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
             network_token_requestor_reference_id: network_token_details.1.clone(),
             network_token_locker_id: Some(store_token_response.card_reference.clone()),
             network_token_payment_method_data: Some(enc_token_data.into()),
-            last_modified_by: None,
+            last_modified_by: initiator
+                .and_then(|initiator| initiator.to_created_by())
+                .map(|last_modified_by| last_modified_by.to_string()),
         };
         self.state
             .store
