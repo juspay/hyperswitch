@@ -51,6 +51,7 @@ use transformers::{self as iatapay, IatapayPaymentsResponse};
 use crate::{
     constants::{headers, CONNECTOR_UNAUTHORIZED_ERROR},
     types::{RefreshTokenRouterData, ResponseRouterData},
+    utils as connector_utils,
     utils::{base64_decode, convert_amount, get_header_key_value},
 };
 
@@ -389,6 +390,13 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .response
             .parse_struct("Iatapay PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object = connector_utils::get_authorise_integrity_object(
+            self.amount_converter,
+            response.amount,
+            response.currency.clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -397,6 +405,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             http_code: res.status_code,
         })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        .map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
+        })
     }
 
     fn get_error_response(
@@ -461,6 +473,13 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Iat
             .response
             .parse_struct("iatapay PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object = connector_utils::get_sync_integrity_object(
+            self.amount_converter,
+            response.amount,
+            response.currency.clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -469,6 +488,10 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Iat
             http_code: res.status_code,
         })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        .map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
+        })
     }
 
     fn get_error_response(
@@ -568,6 +591,13 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Iatapay
             .response
             .parse_struct("iatapay RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object = connector_utils::get_refund_integrity_object(
+            self.amount_converter,
+            response.amount,
+            response.currency.clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -576,6 +606,10 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Iatapay
             http_code: res.status_code,
         })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        .map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
+        })
     }
 
     fn get_error_response(
@@ -641,6 +675,13 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Iatapay {
             .response
             .parse_struct("iatapay RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object = connector_utils::get_refund_integrity_object(
+            self.amount_converter,
+            response.amount,
+            response.currency.clone(),
+        )?;
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -649,6 +690,10 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Iatapay {
             http_code: res.status_code,
         })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        .map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
+        })
     }
 
     fn get_error_response(
