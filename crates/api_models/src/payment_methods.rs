@@ -2525,7 +2525,7 @@ pub struct PaymentMethodListIntentData {
 
     /// Additional metadata
     #[schema(value_type = Option<Object>)]
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 
     /// Order details for the payment
     #[schema(value_type = Option<Vec<Object>>)]
@@ -2586,6 +2586,76 @@ pub struct PaymentMethodListInstallmentAmountDetails {
     /// Total amount across all installments in major units (may differ slightly from order amount due to ceiling)
     #[schema(value_type = f64)]
     pub total_amount: FloatMajorUnit,
+}
+
+impl PaymentMethodListInstallmentPlan {
+    pub fn try_from_installment_option_data(
+        data: common_types::payments::InstallmentOptionData,
+        order_amount: MinorUnit,
+        net_amount: MinorUnit,
+        currency: api_enums::Currency,
+    ) -> errors::CustomResult<Vec<Self>, errors::ParsingError> {
+        use error_stack::ResultExt;
+        data.number_of_installments
+            .as_slice()
+            .iter()
+            .map(|&count| {
+                let interest = data
+                    .interest_rate
+                    .apply_and_ceil_result(order_amount)
+                    .change_context(errors::ParsingError::UnknownError)
+                    .attach_printable("Failed to apply installment interest rate")?;
+                let total_with_interest = net_amount + interest;
+                let per_installment = total_with_interest / count;
+                let amount_per_installment = per_installment
+                    .to_major_unit_as_f64(currency)
+                    .change_context(errors::ParsingError::UnknownError)
+                    .attach_printable("Failed to convert per installment amount to major unit")?;
+                let total_amount = total_with_interest
+                    .to_major_unit_as_f64(currency)
+                    .change_context(errors::ParsingError::UnknownError)
+                    .attach_printable("Failed to convert total installment amount to major unit")?;
+                Ok(Self {
+                    number_of_installments: count,
+                    billing_frequency: data.billing_frequency.clone(),
+                    interest_rate: data.interest_rate,
+                    amount_details: PaymentMethodListInstallmentAmountDetails {
+                        amount_per_installment,
+                        total_amount,
+                    },
+                })
+            })
+            .collect()
+    }
+}
+
+impl PaymentMethodListInstallmentOption {
+    pub fn try_from_installment_option(
+        opt: common_types::payments::InstallmentOption,
+        order_amount: MinorUnit,
+        net_amount: MinorUnit,
+        currency: api_enums::Currency,
+    ) -> errors::CustomResult<Self, errors::ParsingError> {
+        let available_plans = opt
+            .installments
+            .into_iter()
+            .map(|data| {
+                PaymentMethodListInstallmentPlan::try_from_installment_option_data(
+                    data,
+                    order_amount,
+                    net_amount,
+                    currency,
+                )
+            })
+            .collect::<errors::CustomResult<Vec<Vec<_>>, _>>()?
+            .into_iter()
+            .flatten()
+            .collect();
+        Ok(Self {
+            payment_method: opt.payment_method,
+            available_plans,
+        })
+    }
 }
 
 #[cfg(feature = "v1")]

@@ -6,18 +6,11 @@ use api_models::enums as api_enums;
 use api_models::payments as api_payments;
 #[cfg(feature = "v2")]
 use api_models::payments::RevenueRecoveryGetIntentResponse;
-use api_models::{
-    payment_methods::{
-        PaymentMethodListInstallmentAmountDetails, PaymentMethodListInstallmentOption,
-        PaymentMethodListInstallmentPlan, PaymentMethodListIntentData,
-    },
-    payments::{
-        Address, ConnectorMandateReferenceId, CustomerDetails, CustomerDetailsResponse, FrmMessage,
-        MandateIds, NetworkDetails, RequestSurchargeDetails,
-    },
+use api_models::payments::{
+    Address, ConnectorMandateReferenceId, CustomerDetails, CustomerDetailsResponse, FrmMessage,
+    MandateIds, NetworkDetails, RequestSurchargeDetails,
 };
 use common_enums::{Currency, MerchantAccountType, RequestIncrementalAuthorization};
-use common_types::payments as common_types_payments;
 #[cfg(feature = "v1")]
 use common_utils::{
     consts::X_HS_LATENCY,
@@ -4307,155 +4300,6 @@ pub fn construct_connector_invoke_hidden_frame(
     };
 
     Ok(api_models::payments::NextActionData::InvokeHiddenIframe { iframe_data })
-}
-
-#[cfg(feature = "v1")]
-pub(crate) trait IntoPaymentMethodListIntentData {
-    fn into_payment_method_list_intent_data(
-        self,
-        net_amount: MinorUnit,
-    ) -> PaymentMethodListIntentData;
-}
-
-#[cfg(feature = "v1")]
-impl IntoPaymentMethodListIntentData for storage::PaymentIntent {
-    fn into_payment_method_list_intent_data(
-        self,
-        net_amount: MinorUnit,
-    ) -> PaymentMethodListIntentData {
-        PaymentMethodListIntentData {
-            payment_id: self.payment_id,
-            status: self.status,
-            amount: self.amount,
-            currency: self.currency,
-            client_secret: self.client_secret.map(|s| s.into()),
-            description: self.description,
-            customer_id: self.customer_id,
-            return_url: self.return_url,
-            setup_future_usage: self.setup_future_usage,
-            billing: self.billing_details.and_then(|b| {
-                match b.into_inner().expose().parse_value::<Address>("Address") {
-                    Ok(parsed) => Some(parsed),
-                    Err(e) => {
-                        tracing::error!("Failed to parse billing address: {e:?}");
-                        None
-                    }
-                }
-            }),
-            shipping: self.shipping_details.and_then(|s| {
-                match s.into_inner().expose().parse_value::<Address>("Address") {
-                    Ok(parsed) => Some(parsed),
-                    Err(e) => {
-                        tracing::error!("Failed to parse shipping address: {e:?}");
-                        None
-                    }
-                }
-            }),
-            metadata: self.metadata,
-            order_details: self.order_details,
-            created: Some(self.created_at),
-            expires_on: self.session_expiry,
-            profile_id: self.profile_id,
-            merchant_order_reference_id: self.merchant_order_reference_id,
-            attempt_count: self.attempt_count,
-            installment_options: self.installment_options.and_then(|opts| {
-                let currency = self.currency?;
-                common_types_payments::InstallmentOptions(opts)
-                    .into_payment_method_list_installment_options(self.amount, net_amount, currency)
-                    .map_err(|e| {
-                        tracing::error!(
-                            "Failed to transform installment options for payment method list: {e:?}"
-                        )
-                    })
-                    .ok()
-            }),
-        }
-    }
-}
-
-trait IntoInstallmentPlan {
-    fn into_installment_plan(
-        self,
-        order_amount: MinorUnit,
-        net_amount: MinorUnit,
-        currency: Currency,
-    ) -> RouterResult<Vec<PaymentMethodListInstallmentPlan>>;
-}
-
-impl IntoInstallmentPlan for common_types_payments::InstallmentOptionData {
-    fn into_installment_plan(
-        self,
-        order_amount: MinorUnit,
-        net_amount: MinorUnit,
-        currency: Currency,
-    ) -> RouterResult<Vec<PaymentMethodListInstallmentPlan>> {
-        self.number_of_installments
-            .as_slice()
-            .iter()
-            .map(|&count| {
-                let interest = self
-                    .interest_rate
-                    .apply_and_ceil_result(order_amount)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to apply installment interest rate")?;
-                let total_with_interest = net_amount + interest;
-                let per_installment = total_with_interest / count;
-                let amount_per_installment = per_installment
-                    .to_major_unit_as_f64(currency)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to convert per installment amount to major unit")?;
-                let total_amount = total_with_interest
-                    .to_major_unit_as_f64(currency)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to convert total installment amount to major unit")?;
-                Ok(PaymentMethodListInstallmentPlan {
-                    number_of_installments: count,
-                    billing_frequency: self.billing_frequency.clone(),
-                    interest_rate: self.interest_rate,
-                    amount_details: PaymentMethodListInstallmentAmountDetails {
-                        amount_per_installment,
-                        total_amount,
-                    },
-                })
-            })
-            .collect()
-    }
-}
-
-trait IntoPaymentMethodListInstallmentOptions {
-    fn into_payment_method_list_installment_options(
-        self,
-        order_amount: MinorUnit,
-        net_amount: MinorUnit,
-        currency: Currency,
-    ) -> RouterResult<Vec<PaymentMethodListInstallmentOption>>;
-}
-
-impl IntoPaymentMethodListInstallmentOptions for common_types_payments::InstallmentOptions {
-    fn into_payment_method_list_installment_options(
-        self,
-        order_amount: MinorUnit,
-        net_amount: MinorUnit,
-        currency: Currency,
-    ) -> RouterResult<Vec<PaymentMethodListInstallmentOption>> {
-        self.0
-            .into_iter()
-            .map(|opt| {
-                let available_plans = opt
-                    .installments
-                    .into_iter()
-                    .map(|plan| plan.into_installment_plan(order_amount, net_amount, currency))
-                    .collect::<RouterResult<Vec<_>>>()?
-                    .into_iter()
-                    .flatten()
-                    .collect();
-                Ok(PaymentMethodListInstallmentOption {
-                    payment_method: opt.payment_method,
-                    available_plans,
-                })
-            })
-            .collect()
-    }
 }
 
 #[cfg(feature = "v1")]

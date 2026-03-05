@@ -70,7 +70,6 @@ use crate::core::payment_methods::{
     utils::{get_merchant_pm_filter_graph, make_pm_graph, refresh_pm_filters_cache},
 };
 #[cfg(feature = "v1")]
-use crate::core::payments::transformers::IntoPaymentMethodListIntentData;
 #[cfg(feature = "v1")]
 use crate::routes::app::SessionStateInfo;
 #[cfg(feature = "payouts")]
@@ -3887,13 +3886,18 @@ pub async fn list_payment_methods(
 
     let is_tax_connector_enabled = business_profile.get_is_tax_connector_enabled();
 
-    let intent_data = payment_intent.clone().and_then(|pi| {
-        let net_amount = payment_attempt
-            .as_ref()
-            .map(|pa| pa.net_amount.get_total_amount())
-            .unwrap_or(pi.amount);
-        Some(pi.into_payment_method_list_intent_data(net_amount))
-    });
+    let intent_data = payment_intent
+        .clone()
+        .map(|pi| {
+            let net_amount = payment_attempt
+                .as_ref()
+                .map(|pa| pa.net_amount.get_total_amount())
+                .unwrap_or(pi.amount);
+            pi.into_payment_method_list_intent_data(net_amount)
+        })
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to build intent data for payment method list")?;
 
     Ok(services::ApplicationResponse::Json(
         api::PaymentMethodListResponse {
