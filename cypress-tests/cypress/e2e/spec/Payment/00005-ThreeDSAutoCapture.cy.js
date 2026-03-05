@@ -17,40 +17,69 @@ describe("Card - ThreeDS payment flow test", () => {
 
   context("Card-ThreeDS payment flow test Create and Confirm", () => {
     it("create payment intent -> payment methods call -> confirm payment intent -> handle redirection", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["PaymentIntent"];
+      let shouldContinue = true;
 
-      cy.step("create payment intent", () =>
+      cy.step("create payment intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+          "PaymentIntent"
+        ];
+
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
           "three_ds",
           "automatic",
           globalState
-        )
-      );
+        );
 
-      if (!utils.should_continue_further(data)) return;
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
 
-      cy.step("payment methods call", () =>
-        cy.paymentMethodsCallTest(globalState)
-      );
+        cy.task("cli_log", "Completed step: create payment intent");
+      });
 
-      const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["3DSAutoCapture"];
+      cy.step("payment methods call", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: payment methods call");
+          return;
+        }
 
-      cy.step("confirm payment intent", () =>
-        cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState)
-      );
+        cy.paymentMethodsCallTest(globalState);
 
-      if (!utils.should_continue_further(confirmData)) return;
+        cy.task("cli_log", "Completed step: payment methods call");
+      });
 
-      const expected_redirection = fixtures.confirmBody["return_url"];
-      cy.step("handle redirection", () =>
-        cy.handleRedirection(globalState, expected_redirection)
-      );
+      cy.step("confirm payment intent", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: confirm payment intent");
+          return;
+        }
+
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["3DSAutoCapture"];
+
+        cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+
+        cy.task("cli_log", "Completed step: confirm payment intent");
+      });
+
+      cy.step("handle redirection", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: handle redirection");
+          return;
+        }
+
+        const expected_redirection = fixtures.confirmBody["return_url"];
+        cy.handleRedirection(globalState, expected_redirection);
+
+        cy.task("cli_log", "Completed step: handle redirection");
+      });
     });
   });
 });

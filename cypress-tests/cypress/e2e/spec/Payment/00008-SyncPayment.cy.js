@@ -17,39 +17,72 @@ describe("Card - Sync payment flow test", () => {
 
   context("Card - Sync payment flow test", () => {
     it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Retrieve Payment after Confirmation", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["PaymentIntent"];
+      let shouldContinue = true;
 
-      cy.step("Create Payment Intent", () =>
+      cy.step("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+          "PaymentIntent"
+        ];
+
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
           "no_three_ds",
           "automatic",
           globalState
-        )
-      );
+        );
 
-      if (!utils.should_continue_further(data)) return;
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
 
-      cy.step("Payment Methods Call", () =>
-        cy.paymentMethodsCallTest(globalState)
-      );
+        cy.task("cli_log", "Completed step: Create Payment Intent");
+      });
 
-      const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["No3DSAutoCapture"];
+      cy.step("Payment Methods Call", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Payment Methods Call");
+          return;
+        }
 
-      cy.step("Confirm Payment Intent", () =>
-        cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState)
-      );
+        cy.paymentMethodsCallTest(globalState);
 
-      if (!utils.should_continue_further(confirmData)) return;
+        cy.task("cli_log", "Completed step: Payment Methods Call");
+      });
 
-      cy.step("Retrieve Payment after Confirmation", () =>
-        cy.retrievePaymentCallTest({ globalState, data: confirmData })
-      );
+      cy.step("Confirm Payment Intent", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment Intent");
+          return;
+        }
+
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["No3DSAutoCapture"];
+
+        cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+
+        cy.task("cli_log", "Completed step: Confirm Payment Intent");
+      });
+
+      cy.step("Retrieve Payment after Confirmation", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment after Confirmation");
+          return;
+        }
+
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["No3DSAutoCapture"];
+
+        cy.retrievePaymentCallTest({ globalState, data: confirmData });
+
+        cy.task("cli_log", "Completed step: Retrieve Payment after Confirmation");
+      });
     });
   });
 });
