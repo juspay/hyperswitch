@@ -1682,6 +1682,20 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                 field_name: "payment_method",
                             },
                         )?;
+
+                        let merchant_details = Some(unified_authentication_service::MerchantDetails {
+                            merchant_id: Some(business_profile.merchant_id.get_string_repr().to_string()),
+                            merchant_name: None,
+                            merchant_category_code: business_profile.merchant_category_code.clone(),
+                            merchant_country_code: business_profile.merchant_country_code.clone(),
+                            endpoint_prefix: None,
+                            three_ds_requestor_url: None,
+                            three_ds_requestor_id: None,
+                            three_ds_requestor_name: None,
+                            notification_url: None,
+                            webhook_url: None,
+                        });
+
                         ClickToPay::pre_authentication(
                             state,
                             &payment_data.payment_attempt.merchant_id,
@@ -1695,7 +1709,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             payment_data.payment_intent.amount,
                             payment_data.payment_intent.currency,
                             payment_data.service_details.clone(),
-                            None,
+                            merchant_details.as_ref(),
                             None,
                             None,
                             None,
