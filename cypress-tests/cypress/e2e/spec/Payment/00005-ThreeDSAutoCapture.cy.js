@@ -20,9 +20,9 @@ describe("Card - ThreeDS payment flow test", () => {
       let shouldContinue = true;
 
       cy.step("create payment intent", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-          "PaymentIntent"
-        ];
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntent"];
 
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
@@ -60,7 +60,12 @@ describe("Card - ThreeDS payment flow test", () => {
           "card_pm"
         ]["3DSAutoCapture"];
 
-        cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
 
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
