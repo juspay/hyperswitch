@@ -462,6 +462,7 @@ export const CONNECTOR_LISTS = {
       "worldpayvantiv",
     ],
     PAYMENTS_WEBHOOK: ["noon", "stripe", "authorizedotnet"],
+    CARD_INSTALLMENTS: ["adyen"],
     // Add more inclusion lists
   },
 };
