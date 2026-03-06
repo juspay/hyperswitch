@@ -1066,4 +1066,14 @@ impl ConnectorSpecifications for Truelayer {
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&TRUELAYER_SUPPORTED_WEBHOOK_FLOWS)
     }
+
+    #[cfg(feature = "v1")]
+    fn generate_connector_customer_id(
+        &self,
+        _customer_id: &Option<common_utils::id_type::CustomerId>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+    ) -> Option<String> {
+        let connector_customer_id = uuid::Uuid::new_v4().to_string();
+        Some(connector_customer_id)
+    }
 }
