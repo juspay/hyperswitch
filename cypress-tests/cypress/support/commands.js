@@ -1051,7 +1051,7 @@ Cypress.Commands.add(
               );
 
               throw new Error(
-                `Connector Create Call Failed ${response.body.error.message}`
+                `Connector Create Call Failed ${response.body?.error?.message || response.status}`
               );
             }
           });
@@ -5210,3 +5210,167 @@ Cypress.Commands.add("IncomingWebhookTest", (globalState, webhookPayload) => {
       });
     });
 });
+
+// ==================== Platform Merchant Commands ====================
+
+Cypress.Commands.add(
+  "createPlatformMerchantCallTest",
+  (merchantCreateBody, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    const adminApiKey = globalState.get("adminApiKey");
+    const randomMerchantId = `cypress_platform_merchant_${Date.now()}`;
+    merchantCreateBody.merchant_id = randomMerchantId;
+
+    return cy
+      .request({
+        method: "POST",
+        url: `${baseUrl}/accounts`,
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "api-key": adminApiKey,
+        },
+        body: merchantCreateBody,
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        logRequestId(response.headers["x-request-id"]);
+
+        cy.wrap(response).then(() => {
+          if (response.status === 200) {
+            globalState.set("organizationId", response.body.organization_id);
+            globalState.set("platformMerchantId", response.body.merchant_id);
+            globalState.set("merchantId", response.body.merchant_id);
+            globalState.set("profileId", response.body.default_profile);
+            globalState.set("publishableKey", response.body.publishable_key);
+          }
+        });
+
+        return cy.wrap(response);
+      });
+  }
+);
+
+Cypress.Commands.add("merchantListByOrgCallTest", (globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  const adminApiKey = globalState.get("adminApiKey");
+  const organizationId = globalState.get("organizationId");
+
+  return cy
+    .request({
+      method: "GET",
+      url: `${baseUrl}/accounts/list?organization_id=${organizationId}`,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": adminApiKey,
+      },
+      failOnStatusCode: false,
+    })
+    .then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      return cy.wrap(response);
+    });
+});
+
+Cypress.Commands.add(
+  "createConnectedMerchantCallTest",
+  (merchantCreateBody, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    const adminApiKey = globalState.get("adminApiKey");
+
+    return cy
+      .request({
+        method: "POST",
+        url: `${baseUrl}/accounts`,
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "api-key": adminApiKey,
+        },
+        body: merchantCreateBody,
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        logRequestId(response.headers["x-request-id"]);
+        return cy.wrap(response);
+      });
+  }
+);
+
+// ==================== Platform Payment Commands ====================
+
+Cypress.Commands.add(
+  "createPaymentWithApiKeyCallTest",
+  (paymentBody, apiKey, globalState) => {
+    const baseUrl = globalState
+      ? globalState.get("baseUrl")
+      : Cypress.env("BASEURL");
+
+    return cy
+      .request({
+        method: "POST",
+        url: `${baseUrl}/payments`,
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": apiKey,
+        },
+        body: paymentBody,
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        logRequestId(response.headers["x-request-id"]);
+        return cy.wrap(response);
+      });
+  }
+);
+
+Cypress.Commands.add(
+  "createPaymentWithHeaderCallTest",
+  (paymentBody, apiKey, connectedMerchantId, globalState) => {
+    const baseUrl = globalState
+      ? globalState.get("baseUrl")
+      : Cypress.env("BASEURL");
+
+    return cy
+      .request({
+        method: "POST",
+        url: `${baseUrl}/payments`,
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": apiKey,
+          "x-connected-merchant-id": connectedMerchantId,
+        },
+        body: paymentBody,
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        logRequestId(response.headers["x-request-id"]);
+        return cy.wrap(response);
+      });
+  }
+);
+
+Cypress.Commands.add(
+  "listPaymentsWithApiKeyCallTest",
+  (apiKey, globalState) => {
+    const baseUrl = globalState
+      ? globalState.get("baseUrl")
+      : Cypress.env("BASEURL");
+
+    return cy
+      .request({
+        method: "GET",
+        url: `${baseUrl}/payments/list`,
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": apiKey,
+        },
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        logRequestId(response.headers["x-request-id"]);
+        return cy.wrap(response);
+      });
+  }
+);

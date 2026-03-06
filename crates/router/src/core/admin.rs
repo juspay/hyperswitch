@@ -171,7 +171,7 @@ pub async fn get_organization(
 ) -> RouterResponse<api::OrganizationResponse> {
     #[cfg(all(feature = "v1", feature = "olap"))]
     {
-        CreateOrValidateOrganization::new(Some(org_id.organization_id))
+        CreateOrValidateOrganization::new(Some(org_id.organization_id), None)
             .create_or_validate(state.accounts_store.as_ref())
             .await
             .map(ForeignFrom::foreign_from)
@@ -381,6 +381,20 @@ pub async fn create_merchant_account(
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
 
+    if merchant_account.is_platform_account() {
+        state
+            .accounts_store
+            .update_organization_by_org_id(
+                &merchant_account.organization_id,
+                diesel_models::organization::OrganizationUpdate::UpdatePlatformMerchant {
+                    platform_merchant_id: merchant_id.clone(),
+                },
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update organization with platform_merchant_id")?;
+    }
+
     let platform = domain::Platform::new(
         merchant_account.clone(),
         key_store.clone(),
@@ -484,7 +498,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             (req_org_id, _) => req_org_id.clone(),
         };
 
-        let organization = CreateOrValidateOrganization::new(org_id)
+        let organization = CreateOrValidateOrganization::new(org_id, self.merchant_account_type)
             .create_or_validate(db)
             .await?;
 
@@ -640,7 +654,9 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
 enum CreateOrValidateOrganization {
     /// Creates a new organization
     #[cfg(feature = "v1")]
-    Create,
+    Create {
+        merchant_account_type: Option<MerchantAccountType>,
+    },
     /// Validates if this organization exists in the records
     Validate {
         organization_id: id_type::OrganizationId,
@@ -653,11 +669,16 @@ impl CreateOrValidateOrganization {
     /// Create an action to either create or validate the given organization_id
     /// If organization_id is passed, then validate if this organization exists
     /// If not passed, create a new organization
-    fn new(organization_id: Option<id_type::OrganizationId>) -> Self {
+    fn new(
+        organization_id: Option<id_type::OrganizationId>,
+        merchant_account_type: Option<MerchantAccountType>,
+    ) -> Self {
         if let Some(organization_id) = organization_id {
             Self::Validate { organization_id }
         } else {
-            Self::Create
+            Self::Create {
+                merchant_account_type,
+            }
         }
     }
 
@@ -675,11 +696,22 @@ impl CreateOrValidateOrganization {
     ) -> RouterResult<diesel_models::organization::Organization> {
         match self {
             #[cfg(feature = "v1")]
-            Self::Create => {
-                let new_organization = api_models::organization::OrganizationNew::new(
-                    OrganizationType::Standard,
-                    None,
-                );
+            Self::Create {
+                merchant_account_type,
+            } => {
+                let org_type = match merchant_account_type {
+                    Some(MerchantAccountType::Platform) => OrganizationType::Platform,
+                    Some(MerchantAccountType::Connected) => {
+                        return Err(errors::ApiErrorResponse::InvalidRequestData {
+                            message: "Connected merchants cannot create an organization"
+                                .to_string(),
+                        }
+                        .into());
+                    }
+                    Some(MerchantAccountType::Standard) | None => OrganizationType::Standard,
+                };
+                let new_organization =
+                    api_models::organization::OrganizationNew::new(org_type, None);
                 let db_organization = ForeignFrom::foreign_from(new_organization);
                 db.insert_organization(db_organization)
                     .await
