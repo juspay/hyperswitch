@@ -181,3 +181,109 @@ pub enum GetMetaDataResponse {
     OnboardingSurvey(Option<OnboardingSurvey>),
     ReconStatus(Option<ReconStatus>),
 }
+
+// === Saved Views API Types ===
+
+/// Entity types that support saved views
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, EnumString)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum SavedViewEntity {
+    Payments,
+    Refunds,
+    Customers,
+    Disputes,
+    Payouts,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "entity", content = "filters")]
+#[serde(rename_all = "snake_case")]
+pub enum SavedViewFilters {
+    #[cfg(feature = "v1")]
+    Payments(crate::payments::PaymentListFilterConstraints),
+    Refunds(crate::refunds::RefundListRequest),
+    #[cfg(feature = "payouts")]
+    Payouts(crate::payouts::PayoutListFilterConstraints),
+    Disputes(crate::disputes::DisputeListGetConstraints),
+    Customers(crate::customers::CustomerListRequestWithConstraints),
+}
+
+impl SavedViewFilters {
+    pub fn get_entity(&self) -> SavedViewEntity {
+        match self {
+            #[cfg(feature = "v1")]
+            Self::Payments(_) => SavedViewEntity::Payments,
+            Self::Refunds(_) => SavedViewEntity::Refunds,
+            #[cfg(feature = "payouts")]
+            Self::Payouts(_) => SavedViewEntity::Payouts,
+            Self::Disputes(_) => SavedViewEntity::Disputes,
+            Self::Customers(_) => SavedViewEntity::Customers,
+        }
+    }
+}
+
+/// A single saved view
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct SavedView {
+    pub view_name: String,
+    #[serde(flatten)]
+    pub data: SavedViewFilters,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// Wrapper for the JSONB `filters` column
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct SavedViewsData {
+    pub views: Vec<SavedView>,
+}
+
+/// POST /user/views
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct CreateSavedViewRequest {
+    pub view_name: String,
+    #[serde(flatten)]
+    pub data: SavedViewFilters,
+}
+
+impl CreateSavedViewRequest {
+    pub fn validate(&self) -> Result<(), common_utils::errors::ValidationError> {
+        if self.view_name.trim().is_empty() {
+            return Err(
+                common_utils::errors::ValidationError::MissingRequiredField {
+                    field_name: "view_name".to_string(),
+                },
+            );
+        }
+        Ok(())
+    }
+}
+
+/// PUT /user/views
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct UpdateSavedViewRequest {
+    pub view_name: String,
+    #[serde(flatten)]
+    pub data: SavedViewFilters,
+}
+
+/// GET /user/views?entity=payments
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct ListSavedViewsRequest {
+    pub entity: SavedViewEntity,
+}
+
+/// DELETE /user/views
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct DeleteSavedViewRequest {
+    pub entity: SavedViewEntity,
+    pub view_name: String,
+}
+
+/// Response for saved view CRUD operations
+#[derive(Debug, serde::Serialize)]
+pub struct SavedViewResponse {
+    pub count: usize,
+    pub views: Vec<SavedView>,
+}

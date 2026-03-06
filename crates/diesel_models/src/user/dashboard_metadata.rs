@@ -18,6 +18,7 @@ pub struct DashboardMetadata {
     pub created_at: PrimitiveDateTime,
     pub last_modified_by: String,
     pub last_modified_at: PrimitiveDateTime,
+    pub profile_id: Option<String>,
 }
 
 #[derive(
@@ -34,6 +35,7 @@ pub struct DashboardMetadataNew {
     pub created_at: PrimitiveDateTime,
     pub last_modified_by: String,
     pub last_modified_at: PrimitiveDateTime,
+    pub profile_id: Option<String>,
 }
 
 #[derive(
@@ -42,7 +44,7 @@ pub struct DashboardMetadataNew {
 #[diesel(table_name = dashboard_metadata)]
 pub struct DashboardMetadataUpdateInternal {
     pub data_key: enums::DashboardMetadata,
-    pub data_value: Secret<serde_json::Value>,
+    pub data_value: Option<Secret<serde_json::Value>>,
     pub last_modified_by: String,
     pub last_modified_at: PrimitiveDateTime,
 }
@@ -66,7 +68,7 @@ impl From<DashboardMetadataUpdate> for DashboardMetadataUpdateInternal {
                 last_modified_by,
             } => Self {
                 data_key,
-                data_value,
+                data_value: Some(data_value),
                 last_modified_by,
                 last_modified_at,
             },

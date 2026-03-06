@@ -1,8 +1,9 @@
 use api_models::user::dashboard_metadata::{self as api, GetMultipleMetaDataPayload};
-#[cfg(feature = "email")]
+// #[cfg(feature = "email")]
 use common_enums::EntityType;
 use diesel_models::{
-    enums::DashboardMetadata as DBEnum, user::dashboard_metadata::DashboardMetadata,
+    enums::DashboardMetadata as DBEnum,
+    user::dashboard_metadata::{DashboardMetadata, DashboardMetadataNew, DashboardMetadataUpdate},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_interfaces::crm::CrmPayload;
@@ -235,6 +236,13 @@ fn into_response(
             let resp = utils::deserialize_to_response(data)?;
             Ok(api::GetMetaDataResponse::ReconStatus(resp))
         }
+        // Saved view variants use separate CRUD flow, not the generic GET metadata API
+        DBEnum::Payments
+        | DBEnum::Refunds
+        | DBEnum::Customers
+        | DBEnum::Disputes
+        | DBEnum::Payouts => Err(report!(UserErrors::InvalidMetadataRequest))
+            .attach_printable("Saved view keys should use /views endpoints"),
     }
 }
 
@@ -833,4 +841,333 @@ pub async fn get_merchant_connector_account_by_name(
         let _ = key_store;
         todo!()
     }
+}
+
+// === Saved Views CRUD ===
+
+const MAX_SAVED_VIEWS: usize = 5;
+
+fn entity_to_data_key(entity: &api::SavedViewEntity) -> DBEnum {
+    match entity {
+        api::SavedViewEntity::Payments => DBEnum::Payments,
+        api::SavedViewEntity::Refunds => DBEnum::Refunds,
+        api::SavedViewEntity::Customers => DBEnum::Customers,
+        api::SavedViewEntity::Disputes => DBEnum::Disputes,
+        api::SavedViewEntity::Payouts => DBEnum::Payouts,
+    }
+}
+
+pub async fn get_profile_id_from_role(
+    state: &SessionState,
+    user: &UserFromToken,
+) -> UserResult<Option<String>> {
+    let tenant_id = user
+        .tenant_id
+        .clone()
+        .unwrap_or(state.tenant.tenant_id.clone());
+
+    let role_info = crate::services::authorization::roles::RoleInfo::from_role_id_in_lineage(
+        state,
+        &user.role_id,
+        &user.merchant_id,
+        &user.org_id,
+        &user.profile_id,
+        &tenant_id,
+    )
+    .await
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("Failed to fetch role info")?;
+
+    match role_info.get_entity_type() {
+        EntityType::Profile => Ok(Some(user.profile_id.get_string_repr().to_owned())),
+        _ => Ok(None),
+    }
+}
+
+pub async fn create_saved_view(
+    state: SessionState,
+    user: UserFromToken,
+    request: api::CreateSavedViewRequest,
+    _req_state: ReqState,
+) -> UserResponse<api::SavedViewResponse> {
+    request.validate().map_err(|_| {
+        report!(UserErrors::InvalidSavedViewName)
+            .attach_printable("Validation failed for create saved view request")
+    })?;
+
+    let data_key = entity_to_data_key(&request.data.get_entity());
+    let profile_id = get_profile_id_from_role(&state, &user).await?;
+
+    // Fetch existing row (if any)
+    let existing = state
+        .store
+        .find_saved_view_metadata(
+            &user.user_id,
+            &user.merchant_id,
+            &user.org_id,
+            profile_id.clone(),
+            data_key,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Error fetching saved view metadata")?;
+
+    let now = common_utils::date_time::now().to_string();
+
+    let new_view = api::SavedView {
+        view_name: request.view_name.clone(),
+        data: request.data,
+        created_at: now.clone(),
+        updated_at: now,
+    };
+
+    let updated_views = if let Some(row) = existing {
+        // Deserialize existing filters
+        let mut views_data: api::SavedViewsData =
+            serde_json::from_value(row.data_value.peek().clone())
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Error deserializing saved views")?;
+
+        // Check max limit
+        if views_data.views.len() >= MAX_SAVED_VIEWS {
+            return Err(report!(UserErrors::MaxSavedViewsReached))
+                .attach_printable("Maximum of 5 saved views reached");
+        }
+
+        // Check duplicate name (case-insensitive)
+        let name_lower = request.view_name.to_lowercase();
+        if views_data
+            .views
+            .iter()
+            .any(|v| v.view_name.to_lowercase() == name_lower)
+        {
+            return Err(report!(UserErrors::SavedViewNameAlreadyExists))
+                .attach_printable("A saved view with this name already exists");
+        }
+
+        views_data.views.push(new_view);
+
+        let filters_json =
+            serde_json::to_value(&views_data).change_context(UserErrors::InternalServerError)?;
+
+        // Update the existing row
+        state
+            .store
+            .update_metadata(
+                Some(user.user_id.clone()),
+                user.merchant_id.clone(),
+                user.org_id.clone(),
+                profile_id,
+                data_key,
+                DashboardMetadataUpdate::UpdateData {
+                    data_key,
+                    data_value: Secret::new(filters_json),
+                    last_modified_by: user.user_id,
+                },
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)?;
+
+        views_data.views
+    } else {
+        // Insert new row
+        let views_data = api::SavedViewsData {
+            views: vec![new_view],
+        };
+        let filters_json =
+            serde_json::to_value(&views_data).change_context(UserErrors::InternalServerError)?;
+        let now_ts = common_utils::date_time::now();
+
+        state
+            .store
+            .insert_metadata(DashboardMetadataNew {
+                user_id: Some(user.user_id.clone()),
+                merchant_id: user.merchant_id,
+                org_id: user.org_id,
+                data_key,
+                data_value: Secret::from(filters_json),
+                created_by: user.user_id.clone(),
+                created_at: now_ts,
+                last_modified_by: user.user_id,
+                last_modified_at: now_ts,
+                profile_id,
+            })
+            .await
+            .change_context(UserErrors::InternalServerError)?;
+
+        views_data.views
+    };
+
+    Ok(ApplicationResponse::Json(api::SavedViewResponse {
+        count: updated_views.len(),
+        views: updated_views,
+    }))
+}
+
+pub async fn list_saved_views(
+    state: SessionState,
+    user: UserFromToken,
+    request: api::ListSavedViewsRequest,
+    _req_state: ReqState,
+) -> UserResponse<api::SavedViewResponse> {
+    let data_key = entity_to_data_key(&request.entity);
+    let profile_id = get_profile_id_from_role(&state, &user).await?;
+
+    let existing = state
+        .store
+        .find_saved_view_metadata(
+            &user.user_id,
+            &user.merchant_id,
+            &user.org_id,
+            profile_id,
+            data_key,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let views = match existing {
+        Some(row) => {
+            let views_data: api::SavedViewsData =
+                serde_json::from_value(row.data_value.peek().clone())
+                    .change_context(UserErrors::InternalServerError)
+                    .attach_printable("Error deserializing saved views")?;
+            views_data.views
+        }
+        None => vec![],
+    };
+
+    Ok(ApplicationResponse::Json(api::SavedViewResponse {
+        count: views.len(),
+        views,
+    }))
+}
+
+pub async fn update_saved_view(
+    state: SessionState,
+    user: UserFromToken,
+    request: api::UpdateSavedViewRequest,
+    _req_state: ReqState,
+) -> UserResponse<api::SavedViewResponse> {
+    let data_key = entity_to_data_key(&request.data.get_entity());
+    let profile_id = get_profile_id_from_role(&state, &user).await?;
+
+    let existing = state
+        .store
+        .find_saved_view_metadata(
+            &user.user_id,
+            &user.merchant_id,
+            &user.org_id,
+            profile_id.clone(),
+            data_key,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .ok_or(report!(UserErrors::SavedViewNotFound))
+        .attach_printable("No saved views found for this entity")?;
+
+    let mut views_data: api::SavedViewsData =
+        serde_json::from_value(existing.data_value.peek().clone())
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Error deserializing saved views")?;
+
+    let name_lower = request.view_name.to_lowercase();
+    let view = views_data
+        .views
+        .iter_mut()
+        .find(|v| v.view_name.to_lowercase() == name_lower)
+        .ok_or(report!(UserErrors::SavedViewNotFound))
+        .attach_printable("Saved view with this name not found")?;
+
+    view.data = request.data;
+    view.updated_at = common_utils::date_time::now().to_string();
+
+    let filters_json =
+        serde_json::to_value(&views_data).change_context(UserErrors::InternalServerError)?;
+
+    state
+        .store
+        .update_metadata(
+            Some(user.user_id.clone()),
+            user.merchant_id,
+            user.org_id,
+            profile_id,
+            data_key,
+            DashboardMetadataUpdate::UpdateData {
+                data_key,
+                data_value: Secret::new(filters_json),
+                last_modified_by: user.user_id,
+            },
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    Ok(ApplicationResponse::Json(api::SavedViewResponse {
+        count: views_data.views.len(),
+        views: views_data.views,
+    }))
+}
+
+pub async fn delete_saved_view(
+    state: SessionState,
+    user: UserFromToken,
+    request: api::DeleteSavedViewRequest,
+    _req_state: ReqState,
+) -> UserResponse<api::SavedViewResponse> {
+    let data_key = entity_to_data_key(&request.entity);
+    let profile_id = get_profile_id_from_role(&state, &user).await?;
+
+    let existing = state
+        .store
+        .find_saved_view_metadata(
+            &user.user_id,
+            &user.merchant_id,
+            &user.org_id,
+            profile_id.clone(),
+            data_key,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .ok_or(report!(UserErrors::SavedViewNotFound))
+        .attach_printable("No saved views found for this entity")?;
+
+    let mut views_data: api::SavedViewsData =
+        serde_json::from_value(existing.data_value.peek().clone())
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Error deserializing saved views")?;
+
+    let name_lower = request.view_name.to_lowercase();
+    let initial_len = views_data.views.len();
+    views_data
+        .views
+        .retain(|v| v.view_name.to_lowercase() != name_lower);
+
+    if views_data.views.len() == initial_len {
+        return Err(report!(UserErrors::SavedViewNotFound))
+            .attach_printable("Saved view with this name not found");
+    }
+
+    let filters_json =
+        serde_json::to_value(&views_data).change_context(UserErrors::InternalServerError)?;
+
+    state
+        .store
+        .update_metadata(
+            Some(user.user_id.clone()),
+            user.merchant_id,
+            user.org_id,
+            profile_id,
+            data_key,
+            DashboardMetadataUpdate::UpdateData {
+                data_key,
+                data_value: Secret::new(filters_json),
+                last_modified_by: user.user_id,
+            },
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    Ok(ApplicationResponse::Json(api::SavedViewResponse {
+        count: views_data.views.len(),
+        views: views_data.views,
+    }))
 }
