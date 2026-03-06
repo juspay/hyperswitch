@@ -222,6 +222,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsDynamicTaxCalculationRequest
         _payment_data: &mut PaymentData<F>,
         _request: Option<payments::CustomerDetails>,
         _provider: &domain::Provider,
+        _initiator: Option<&domain::Initiator>,
         _dimensions: DimensionWithMerchantIdAndProfileId,
     ) -> errors::CustomResult<
         (
@@ -355,7 +356,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsDynamicTaxCalculationRequest
 
     async fn get_connector<'a>(
         &'a self,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         state: &SessionState,
         _request: &api::PaymentsDynamicTaxCalculationRequest,
         _payment_intent: &storage::PaymentIntent,

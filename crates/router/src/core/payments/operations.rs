@@ -273,6 +273,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         payment_data: &mut D,
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
+        initiator: Option<&domain::Initiator>,
         _dimensions: DimensionWithMerchantIdAndProfileId,
     ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError>;
 
@@ -360,7 +361,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
     #[cfg(feature = "v1")]
     async fn get_connector<'a>(
         &'a self,
-        platform: &domain::Platform,
+        processor: &domain::Processor,
         state: &SessionState,
         request: &R,
         payment_intent: &storage::PaymentIntent,
@@ -585,6 +586,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         &'b self,
         db: &'b SessionState,
         processor: &domain::Processor,
+        initiator: Option<&domain::Initiator>,
         payment_data: D,
         response: types::RouterData<F, R, PaymentsResponseData>,
     ) -> RouterResult<D>
@@ -614,6 +616,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         &self,
         _state: &SessionState,
         _provider: &domain::Provider,
+        _initiator: Option<&domain::Initiator>,
         _payment_data: &D,
         _router_data: &types::RouterData<F, R, PaymentsResponseData>,
         _feature_set: &core_utils::FeatureConfig,
@@ -662,6 +665,7 @@ where
         _payment_data: &mut D,
         _request: Option<CustomerDetails>,
         _provider: &domain::Provider,
+        _initiator: Option<&domain::Initiator>,
         _dimensions: DimensionWithMerchantIdAndProfileId,
     ) -> CustomResult<
         (
@@ -679,7 +683,7 @@ where
 
     async fn get_connector<'a>(
         &'a self,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         state: &SessionState,
         _request: &api::PaymentsRetrieveRequest,
         _payment_intent: &storage::PaymentIntent,
@@ -731,6 +735,7 @@ where
         _payment_data: &mut D,
         _request: Option<CustomerDetails>,
         _provider: &domain::Provider,
+        _initiator: Option<&domain::Initiator>,
         _dimensions: DimensionWithMerchantIdAndProfileId,
     ) -> CustomResult<
         (
@@ -783,7 +788,7 @@ where
 
     async fn get_connector<'a>(
         &'a self,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         state: &SessionState,
         _request: &api::PaymentsCaptureRequest,
         _payment_intent: &storage::PaymentIntent,
@@ -818,6 +823,7 @@ where
         _payment_data: &mut D,
         _request: Option<CustomerDetails>,
         _provider: &domain::Provider,
+        _initiator: Option<&domain::Initiator>,
         _dimensions: DimensionWithMerchantIdAndProfileId,
     ) -> CustomResult<
         (
@@ -871,7 +877,7 @@ where
 
     async fn get_connector<'a>(
         &'a self,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         state: &SessionState,
         _request: &api::PaymentsCancelRequest,
         _payment_intent: &storage::PaymentIntent,
@@ -905,6 +911,7 @@ where
         _payment_data: &mut D,
         _request: Option<CustomerDetails>,
         _provider: &domain::Provider,
+        _initiator: Option<&domain::Initiator>,
         _dimensions: DimensionWithMerchantIdAndProfileId,
     ) -> CustomResult<
         (
@@ -953,7 +960,7 @@ where
 
     async fn get_connector<'a>(
         &'a self,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         state: &SessionState,
         _request: &api::PaymentsRejectRequest,
         _payment_intent: &storage::PaymentIntent,

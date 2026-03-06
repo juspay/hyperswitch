@@ -195,6 +195,9 @@ pub struct ConfigMetadata {
     pub jwt_mac_key: Option<InputData>,
     pub company_name: Option<InputData>,
     pub product_name: Option<InputData>,
+    pub kid: Option<InputData>,
+    pub account_holder_name: Option<InputData>,
+    pub private_key: Option<InputData>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -352,6 +355,7 @@ pub struct ConnectorConfig {
     pub riskified: Option<ConnectorTomlConfig>,
     pub rapyd: Option<ConnectorTomlConfig>,
     pub redsys: Option<ConnectorTomlConfig>,
+    pub revolv3: Option<ConnectorTomlConfig>,
     pub santander: Option<ConnectorTomlConfig>,
     pub shift4: Option<ConnectorTomlConfig>,
     pub sift: Option<ConnectorTomlConfig>,
@@ -365,6 +369,8 @@ pub struct ConnectorConfig {
     pub tokenex: Option<ConnectorTomlConfig>,
     pub tokenio: Option<ConnectorTomlConfig>,
     pub truelayer: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "payouts")]
+    pub truelayer_payout: Option<ConnectorTomlConfig>,
     pub trustpay: Option<ConnectorTomlConfig>,
     pub trustpayments: Option<ConnectorTomlConfig>,
     pub threedsecureio: Option<ConnectorTomlConfig>,
@@ -432,6 +438,7 @@ impl ConnectorConfig {
             PayoutConnectors::Payone => Ok(connector_data.payone_payout),
             PayoutConnectors::Paypal => Ok(connector_data.paypal_payout),
             PayoutConnectors::Stripe => Ok(connector_data.stripe_payout),
+            PayoutConnectors::Truelayer => Ok(connector_data.truelayer_payout),
             PayoutConnectors::Wise => Ok(connector_data.wise_payout),
             PayoutConnectors::Worldpay => Ok(connector_data.worldpay_payout),
             PayoutConnectors::Worldpayxml => Ok(connector_data.worldpayxml_payout),
@@ -590,6 +597,7 @@ impl ConnectorConfig {
             Connector::Rapyd => Ok(connector_data.rapyd),
             Connector::Recurly => Ok(connector_data.recurly),
             Connector::Redsys => Ok(connector_data.redsys),
+            Connector::Revolv3 => Ok(connector_data.revolv3),
             Connector::Riskified => Ok(connector_data.riskified),
             Connector::Santander => Ok(connector_data.santander),
             Connector::Shift4 => Ok(connector_data.shift4),
@@ -602,7 +610,7 @@ impl ConnectorConfig {
             Connector::Tesouro => Ok(connector_data.tesouro),
             Connector::Tokenex => Ok(connector_data.tokenex),
             Connector::Tokenio => Ok(connector_data.tokenio),
-            // Connector::Truelayer => Ok(connector_data.truelayer),
+            Connector::Truelayer => Ok(connector_data.truelayer),
             Connector::Trustpay => Ok(connector_data.trustpay),
             Connector::Trustpayments => Ok(connector_data.trustpayments),
             Connector::Threedsecureio => Ok(connector_data.threedsecureio),

@@ -2,6 +2,7 @@ use common_enums::enums;
 use common_utils::{
     self,
     errors::{CustomResult, ValidationError},
+    ext_traits::ValueExt,
     id_type::{self, GenerateId},
     pii,
     types::{keymanager, MinorUnit},
@@ -77,6 +78,7 @@ impl From<api_models::relay::RelayData> for RelayData {
                     authorized_amount: relay_capture_request.authorized_amount,
                     amount_to_capture: relay_capture_request.amount_to_capture,
                     currency: relay_capture_request.currency,
+                    capture_method: relay_capture_request.capture_method,
                 })
             }
             api_models::relay::RelayData::IncrementalAuthorization(
@@ -111,6 +113,7 @@ impl From<api_models::relay::RelayCaptureRequestData> for RelayCaptureData {
             authorized_amount: relay.authorized_amount,
             amount_to_capture: relay.amount_to_capture,
             currency: relay.currency,
+            capture_method: relay.capture_method,
         }
     }
 }
@@ -162,11 +165,23 @@ impl RelayUpdate {
         ),
     ) -> CustomResult<Self, ApiErrorResponse> {
         match response {
-            Err(error) => Ok(Self::ErrorUpdate {
-                error_code: error.code,
-                error_message: error.reason.unwrap_or(error.message),
-                status: common_enums::RelayStatus::Failure,
-            }),
+            Err(error) => {
+                let relay_status = common_enums::RelayStatus::from(status);
+
+                match relay_status {
+                    common_enums::RelayStatus::Failure => Ok(Self::ErrorUpdate {
+                        error_code: error.code,
+                        error_message: error.reason.unwrap_or(error.message),
+                        status: relay_status,
+                    }),
+                    common_enums::RelayStatus::Created
+                    | common_enums::RelayStatus::Pending
+                    | common_enums::RelayStatus::Success => Ok(Self::StatusUpdate {
+                        connector_reference_id: None,
+                        status: relay_status,
+                    }),
+                }
+            }
             Ok(response) => match response {
                 router_response_types::PaymentsResponseData::TransactionResponse {
                     resource_id,
@@ -262,7 +277,7 @@ impl RelayUpdate {
                     ..
                 } => Ok(Self::StatusUpdate {
                     connector_reference_id: resource_id.get_optional_response_id(),
-                    status: common_enums::RelayStatus::from(status),
+                    status: common_enums::RelayStatus::get_void_status(status),
                 }),
                 _ => Err(ApiErrorResponse::InternalServerError)
                     .attach_printable("Payment Response Not Supported"),
@@ -286,6 +301,7 @@ impl From<RelayData> for api_models::relay::RelayData {
                     authorized_amount: relay_capture_request.authorized_amount,
                     amount_to_capture: relay_capture_request.amount_to_capture,
                     currency: relay_capture_request.currency,
+                    capture_method: relay_capture_request.capture_method,
                 })
             }
             RelayData::IncrementalAuthorization(relay_incremental_authorization_request) => {
@@ -334,6 +350,7 @@ impl From<Relay> for api_models::relay::RelayResponse {
                     authorized_amount: relay_capture_request.authorized_amount,
                     amount_to_capture: relay_capture_request.amount_to_capture,
                     currency: relay_capture_request.currency,
+                    capture_method: relay_capture_request.capture_method,
                 })
             }
             RelayData::IncrementalAuthorization(relay_incremental_authorization_request) => {
@@ -378,6 +395,31 @@ pub enum RelayData {
 }
 
 impl RelayData {
+    pub fn parse_relay_data(
+        value: Option<pii::SecretSerdeValue>,
+        relay_type: enums::RelayType,
+    ) -> CustomResult<Option<Self>, ValidationError> {
+        match value {
+            Some(data) => match relay_type {
+                enums::RelayType::Capture => Ok(Some(Self::Capture(RelayCaptureData::from_value(
+                    data.expose(),
+                )?))),
+                enums::RelayType::Refund => Ok(Some(Self::Refund(RelayRefundData::from_value(
+                    data.expose(),
+                )?))),
+                enums::RelayType::IncrementalAuthorization => {
+                    Ok(Some(Self::IncrementalAuthorization(
+                        RelayIncrementalAuthorizationData::from_value(data.expose())?,
+                    )))
+                }
+                enums::RelayType::Void => {
+                    Ok(Some(Self::Void(RelayVoidData::from_value(data.expose())?)))
+                }
+            },
+            None => Ok(None),
+        }
+    }
+
     pub fn get_refund_data(&self) -> CustomResult<RelayRefundData, ApiErrorResponse> {
         match self.clone() {
             Self::Refund(refund_data) => Ok(refund_data),
@@ -415,10 +457,10 @@ impl RelayData {
     pub fn get_void_data(&self) -> CustomResult<RelayVoidData, ApiErrorResponse> {
         match self.clone() {
             Self::Void(void_data) => Ok(void_data),
-            Self::Refund(_) | Self::Capture(_) | Self::IncrementalAuthorization(_) => Err(
-                ApiErrorResponse::InternalServerError,
-            )
-            .attach_printable("relay data does not contain relay incremental authorization data"),
+            Self::Refund(_) | Self::Capture(_) | Self::IncrementalAuthorization(_) => {
+                Err(ApiErrorResponse::InternalServerError)
+                    .attach_printable("relay data does not contain relay void data")
+            }
         }
     }
 }
@@ -430,11 +472,32 @@ pub struct RelayRefundData {
     pub reason: Option<String>,
 }
 
+impl RelayRefundData {
+    pub fn from_value(value: serde_json::Value) -> CustomResult<Self, ValidationError> {
+        value
+            .parse_value("RelayRefundData")
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed while deserializing RelayRefundData".to_string(),
+            })
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RelayCaptureData {
     pub authorized_amount: MinorUnit,
     pub amount_to_capture: MinorUnit,
     pub currency: enums::Currency,
+    pub capture_method: Option<enums::CaptureMethod>,
+}
+
+impl RelayCaptureData {
+    pub fn from_value(value: serde_json::Value) -> CustomResult<Self, ValidationError> {
+        value
+            .parse_value("RelayCaptureData")
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed while deserializing RelayCaptureData".to_string(),
+            })
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -444,11 +507,31 @@ pub struct RelayIncrementalAuthorizationData {
     pub currency: enums::Currency,
 }
 
+impl RelayIncrementalAuthorizationData {
+    pub fn from_value(value: serde_json::Value) -> CustomResult<Self, ValidationError> {
+        value
+            .parse_value("RelayIncrementalAuthorizationData")
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed while deserializing RelayIncrementalAuthorizationData".to_string(),
+            })
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RelayVoidData {
     pub amount: Option<MinorUnit>,
     pub currency: Option<enums::Currency>,
     pub cancellation_reason: Option<String>,
+}
+
+impl RelayVoidData {
+    pub fn from_value(value: serde_json::Value) -> CustomResult<Self, ValidationError> {
+        value
+            .parse_value("RelayVoidData")
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed while deserializing RelayVoidData".to_string(),
+            })
+    }
 }
 
 #[derive(Debug)]
@@ -537,16 +620,7 @@ impl super::behaviour::Conversion for Relay {
             profile_id: item.profile_id,
             merchant_id: item.merchant_id,
             relay_type: item.relay_type,
-            request_data: item
-                .request_data
-                .map(|data| {
-                    serde_json::from_value(data.expose()).change_context(
-                        ValidationError::InvalidValue {
-                            message: "Failed while decrypting business profile data".to_string(),
-                        },
-                    )
-                })
-                .transpose()?,
+            request_data: RelayData::parse_relay_data(item.request_data, item.relay_type)?,
             status: item.status,
             connector_reference_id: item.connector_reference_id,
             error_code: item.error_code,
