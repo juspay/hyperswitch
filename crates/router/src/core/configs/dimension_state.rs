@@ -198,4 +198,4 @@ impl<M, O, P> DimensionsBase for Dimensions<M, O, P> {
 }
 
 pub type DimensionsWithMerchantId = Dimensions<HasMerchantId, NoOrgId, NoProfileId>;
-pub type DimensionWithMerchantIdAndProfileId = Dimensions<HasMerchantId, NoOrgId, HasProfileId>;
+pub type DimensionsWithMerchantIdAndProfileId = Dimensions<HasMerchantId, NoOrgId, HasProfileId>;

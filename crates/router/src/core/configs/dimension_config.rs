@@ -1,7 +1,7 @@
 use external_services::superposition;
 
 use super::{
-    dimension_state::{DimensionWithMerchantIdAndProfileId, DimensionsWithMerchantId},
+    dimension_state::{DimensionsWithMerchantId, DimensionsWithMerchantIdAndProfileId},
     fetch_db_config_for_dimensions, DatabaseBackedConfig,
 };
 use crate::{consts::superposition as superposition_consts, db::StorageInterface, utils::id_type};
@@ -137,7 +137,7 @@ config! {
     superposition_key = IMPLICIT_CUSTOMER_UPDATE,
     output = bool,
     default = false,
-    requires = DimensionWithMerchantIdAndProfileId,
+    requires = DimensionsWithMerchantIdAndProfileId,
     targeting_key = id_type::CustomerId
 }
 
