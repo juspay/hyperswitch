@@ -3120,7 +3120,9 @@ impl User {
                     web::resource("/user/{user_id}")
                         .route(web::get().to(user::get_user_details_internal)),
                 )
-                .service(web::resource("/users").route(web::post().to(user::list_users_internal))),
+                .service(
+                    web::resource("/user/list").route(web::post().to(user::list_users_internal)),
+                ),
         );
 
         route
