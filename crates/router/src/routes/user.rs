@@ -1181,7 +1181,7 @@ pub async fn get_user_details_internal(
     req: HttpRequest,
     path: web::Path<String>,
 ) -> HttpResponse {
-    let flow = Flow::GetUserDetailsInternally;
+    let flow = Flow::GetUserDetailsInternal;
     let user_id = path.into_inner();
 
     Box::pin(api::server_wrap(

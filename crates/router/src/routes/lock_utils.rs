@@ -319,7 +319,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::CloneConnector
             | Flow::EmbeddedTokenInfo
             | Flow::GetEmbeddedToken
-            | Flow::GetUserDetailsInternally => Self::User,
+            | Flow::GetUserDetailsInternal => Self::User,
 
             Flow::GetDataFromHyperswitchAiFlow | Flow::ListAllChatInteractions => Self::AiWorkflow,
 
