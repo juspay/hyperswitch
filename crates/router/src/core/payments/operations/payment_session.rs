@@ -10,7 +10,7 @@ use router_env::{instrument, logger, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
-        configs::dimension_state::DimensionWithMerchantIdAndProfileId,
+        configs::dimension_state::DimensionWithMerchantIdAndProfileIdAndProfileId,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{self, helpers, operations, PaymentData},
     },
@@ -328,7 +328,8 @@ where
         payment_data: &mut PaymentData<F>,
         request: Option<payments::CustomerDetails>,
         provider: &domain::Provider,
-        dimensions: &DimensionWithMerchantIdAndProfileId,
+        initiator: Option<&domain::Initiator>,
+        dimensions: &DimensionWithMerchantIdAndProfileIdAndProfileId,
     ) -> errors::CustomResult<
         (PaymentSessionOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,
@@ -341,6 +342,7 @@ where
                     payment_data,
                     request,
                     provider,
+                    initiator,
                     dimensions,
                 )
                 .await
@@ -393,7 +395,7 @@ where
     /// or from separate implementation ( for googlepay - from metadata and applepay - from metadata and call connector)
     async fn get_connector<'a>(
         &'a self,
-        platform: &domain::Platform,
+        processor: &domain::Processor,
         state: &SessionState,
         request: &api::PaymentsSessionRequest,
         payment_intent: &storage::PaymentIntent,
@@ -402,9 +404,9 @@ where
 
         let all_connector_accounts = db
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-                platform.get_processor().get_account().get_id(),
+                processor.get_account().get_id(),
                 false,
-                platform.get_processor().get_key_store(),
+                processor.get_key_store(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

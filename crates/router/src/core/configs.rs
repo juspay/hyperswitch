@@ -128,10 +128,10 @@ impl ConfigType for serde_json::Value {
 
 /// Fetch configuration value from Superposition with database fallback using dimension-aware key.
 /// This function accepts any type that implements DimensionsBase (including type aliases).
-/// This allows configs to be used with pre-defined dimension type aliases like DimensionsWithMerchantId or DimensionWithMerchantIdAndProfileId.
+/// This allows configs to be used with pre-defined dimension type aliases like DimensionsWithMerchantId or DimensionsWithMerchantIdAndProfileId.
 pub async fn fetch_db_config_for_dimensions<C>(
     storage: &dyn db::StorageInterface,
-    superposition_client: &superposition::SuperpositionClient,
+    superposition_client: Option<&superposition::SuperpositionClient>,
     dimensions: &impl dimension_state::DimensionsBase,
     targeting_key: Option<&C::TargetingKey>,
 ) -> C::Output
@@ -168,7 +168,7 @@ pub trait DatabaseBackedConfig: superposition::Config {
 /// that database fallback is used when superposition fetch fails.
 pub async fn fetch_db_config<C>(
     storage: &dyn db::StorageInterface,
-    superposition_client: &superposition::SuperpositionClient,
+    superposition_client: Option<&superposition::SuperpositionClient>,
     db_key: Option<&str>,
     context: Option<ConfigContext>,
     targeting_key: Option<&C::TargetingKey>,
@@ -185,8 +185,8 @@ where
 
     match superposition_result {
         Ok(value) => value,
-        Err(_) => {
-            if let Some(db_key) = db_key {
+        Err(_) => match db_key {
+            Some(db_key) => {
                 router_env::logger::info!(
                     "Retrieving config from database for key '{}'",
                     config_type
@@ -222,7 +222,8 @@ where
                         default_value
                     }
                 }
-            } else {
+            }
+            None => {
                 router_env::logger::info!(
                     "No database key provided for config '{}', using default value",
                     config_type
@@ -233,15 +234,15 @@ where
                 );
                 default_value
             }
-        }
+        },
     }
 }
 
-/// Fetch config with JSON-to-Type conversion for object configs.
+/// Fetch object-type config with JSON-to-Type conversion.
 /// Used when Config Output is serde_json::Value but caller wants a specific type.
-pub async fn fetch_db_config_converted<C, T>(
+pub async fn fetch_db_config_object<C, T>(
     storage: &dyn db::StorageInterface,
-    superposition_client: &superposition::SuperpositionClient,
+    superposition_client: Option<&superposition::SuperpositionClient>,
     db_key: Option<&str>,
     context: Option<ConfigContext>,
     targeting_key: Option<&C::TargetingKey>,
@@ -259,6 +260,7 @@ where
         targeting_key,
     )
     .await;
+    let config_type = C::KEY;
 
     serde_json::from_value(json_value).unwrap_or_else(|e| {
         router_env::logger::error!(
@@ -266,15 +268,18 @@ where
             stringify!(T),
             e
         );
+        metrics::CONFIG_DEFAULT_FALLBACK.add(
+            1,
+            router_env::metric_attributes!(("config_type", config_type)),
+        );
         T::default()
     })
 }
 
-/// Fetch dimension-aware config with JSON-to-Type conversion.
-/// Used for object-type configs that need JSON deserialization.
-pub async fn fetch_db_config_for_dimensions_converted<C, T>(
+/// Fetch dimension-aware object-type config with JSON deserialization.
+pub async fn fetch_db_config_for_objects<C, T>(
     storage: &dyn db::StorageInterface,
-    superposition_client: &superposition::SuperpositionClient,
+    superposition_client: Option<&superposition::SuperpositionClient>,
     dimensions: &impl dimension_state::DimensionsBase,
     targeting_key: Option<&C::TargetingKey>,
 ) -> T
@@ -286,7 +291,7 @@ where
     let db_key = <C as DatabaseBackedConfig>::db_key(dimensions);
     let context = dimensions.to_superposition_context();
 
-    fetch_db_config_converted::<C, T>(
+    fetch_db_config_object::<C, T>(
         storage,
         superposition_client,
         db_key.as_deref(),

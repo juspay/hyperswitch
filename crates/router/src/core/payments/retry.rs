@@ -83,8 +83,8 @@ where
 
     #[cfg(feature = "v1")]
     let is_no_three_ds_payment = matches!(
-        payment_data.get_payment_attempt().authentication_type,
-        Some(storage_enums::AuthenticationType::NoThreeDs)
+        router_data.auth_type,
+        storage_enums::AuthenticationType::NoThreeDs
     );
 
     #[cfg(feature = "v2")]
@@ -425,6 +425,7 @@ where
         payments::decide_unified_connector_service_call(
             state,
             platform.get_processor(),
+            platform.get_initiator(),
             connector.clone(),
             operation,
             payment_data,
@@ -853,6 +854,7 @@ pub fn make_new_auto_retry_payment_attempt(
         is_overcapture_enabled: Default::default(),
         error_details: Default::default(),
         retry_type: Some(storage_enums::RetryType::AutoRetry),
+        installment_data: Default::default(),
     }
 }
 

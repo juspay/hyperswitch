@@ -279,12 +279,9 @@ pub trait DimensionsBase {
 
     /// Get profile_id (if available)
     fn get_profile_id(&self) -> Option<&id_type::ProfileId>;
-
-    /// Get connector (if available)
-    fn get_connector(&self) -> Option<Connector>;
 }
 
-impl<M, O, P, Cn> DimensionsBase for Dimensions<M, O, P, Cn> {
+impl<M, O, P> DimensionsBase for Dimensions<M, O, P> {
     fn to_superposition_context(&self) -> Option<superposition::ConfigContext> {
         self.to_superposition_context()
     }
@@ -300,13 +297,9 @@ impl<M, O, P, Cn> DimensionsBase for Dimensions<M, O, P, Cn> {
     fn get_profile_id(&self) -> Option<&id_type::ProfileId> {
         self.get_profile_id()
     }
-
-    fn get_connector(&self) -> Option<Connector> {
-        self.get_connector()
-    }
 }
 
-pub type DimensionsWithMerchantId = Dimensions<HasMerchantId, NoOrgId, NoProfileId, NoConnector>;
+ppub type DimensionsWithMerchantId = Dimensions<HasMerchantId, NoOrgId, NoProfileId, NoConnector>;
 pub type DimensionsWithOrgIdAndMerchantId =
     Dimensions<HasMerchantId, HasOrgId, NoProfileId, NoConnector>;
 pub type DimensionsWithOrgIdAndMerchantIdAndProfileId =
@@ -316,3 +309,4 @@ pub type DimensionsWithMerchantIdAndConnector =
     Dimensions<HasMerchantId, NoOrgId, NoProfileId, HasConnector>;
 pub type DimensionWithMerchantIdAndProfileIdAndConnector =
     Dimensions<HasMerchantId, NoOrgId, HasProfileId, HasConnector>;
+

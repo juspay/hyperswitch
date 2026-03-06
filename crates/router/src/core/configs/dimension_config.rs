@@ -64,11 +64,11 @@ macro_rules! config {
                 pub async fn [<get_ $key:lower>](
                     &self,
                     storage: &dyn StorageInterface,
-                    superposition_client: &superposition::SuperpositionClient,
+                    superposition_client: Option<&superposition::SuperpositionClient>,
                     targeting_key: Option<&$targeting_type>,
                 ) -> $output {
                     // Fetch JSON and convert to $output using the conversion function
-                    crate::core::configs::fetch_db_config_for_dimensions_converted::<[<$key:camel>], $output>(
+                    crate::core::configs::fetch_db_config_for_objects::<[<$key:camel>], $output>(
                         storage, superposition_client, self, targeting_key
                     ).await
                 }
@@ -83,7 +83,7 @@ macro_rules! config {
         }
     };
 
-    // Primitive config variant (no helper function - use get_xxx() directly on Dimensions)
+    // Primitive config variant (no helper function - use get_{{key_name}}() directly on Dimensions)
     (
         superposition_key = $key:ident,
         output = $output:ty,
@@ -140,7 +140,7 @@ config! {
     superposition_key = IMPLICIT_CUSTOMER_UPDATE,
     output = bool,
     default = false,
-    requires = DimensionWithMerchantIdAndProfileId,
+    requires = DimensionsWithMerchantIdAndProfileId,
     targeting_key = id_type::CustomerId
 }
 

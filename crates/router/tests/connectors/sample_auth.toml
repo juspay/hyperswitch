@@ -387,3 +387,7 @@ api_secret = "Password"
 [payjustnowinstore]
 api_key = "Merchant API Key"
 key1 = "Merchant Terminal Id"
+
+[truelayer]
+api_key = "Client ID"
+key1 = "Client Secret"
