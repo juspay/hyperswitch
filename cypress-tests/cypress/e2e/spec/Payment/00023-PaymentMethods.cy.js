@@ -47,9 +47,8 @@ describe("Payment Methods Tests", () => {
       });
 
       step("Create Payment Method", shouldContinue, () => {
-        const pmData = getConnectorDetails("commons")["card_pm"][
-          "PaymentMethod"
-        ];
+        const pmData =
+          getConnectorDetails("commons")["card_pm"]["PaymentMethod"];
         cy.createPaymentMethodTest(globalState, pmData);
         if (!utils.should_continue_further(pmData)) {
           shouldContinue = false;
@@ -76,7 +75,12 @@ describe("Payment Methods Tests", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardUseNo3DSAutoCaptureOffSession"];
-        cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
         }
@@ -161,25 +165,21 @@ describe("Payment Methods Tests", () => {
 
     context("3DS save card", () => {
       it("Create+Confirm Payment (3DS Off Session) -> Handle Redirection -> List PM for Customer", () => {
-        step(
-          "Create+Confirm Payment (3DS Off Session)",
-          shouldContinue,
-          () => {
-            const data = getConnectorDetails(globalState.get("connectorId"))[
-              "card_pm"
-            ]["SaveCardUse3DSAutoCaptureOffSession"];
-            cy.createConfirmPaymentTest(
-              fixtures.createConfirmPaymentBody,
-              data,
-              "three_ds",
-              "automatic",
-              globalState
-            );
-            if (!utils.should_continue_further(data)) {
-              shouldContinue = false;
-            }
+        step("Create+Confirm Payment (3DS Off Session)", shouldContinue, () => {
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["SaveCardUse3DSAutoCaptureOffSession"];
+          cy.createConfirmPaymentTest(
+            fixtures.createConfirmPaymentBody,
+            data,
+            "three_ds",
+            "automatic",
+            globalState
+          );
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
           }
-        );
+        });
 
         step("Handle Redirection", shouldContinue, () => {
           const expectedRedirection = fixtures.confirmBody["return_url"];
@@ -211,7 +211,9 @@ describe("Payment Methods Tests", () => {
         });
 
         step("Confirm Save Card Payment", shouldContinue, () => {
-          const saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
+          const saveCardBody = Cypress._.cloneDeep(
+            fixtures.saveCardConfirmBody
+          );
           const confirmData = getConnectorDetails(
             globalState.get("connectorId")
           )["card_pm"]["SaveCardUseNo3DSAutoCapture"];
@@ -261,7 +263,9 @@ describe("Payment Methods Tests", () => {
         });
 
         step("Confirm Save Card Payment", shouldContinue, () => {
-          const saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
+          const saveCardBody = Cypress._.cloneDeep(
+            fixtures.saveCardConfirmBody
+          );
           const confirmData = getConnectorDetails(
             globalState.get("connectorId")
           )["card_pm"]["SaveCardUseNo3DSAutoCapture"];

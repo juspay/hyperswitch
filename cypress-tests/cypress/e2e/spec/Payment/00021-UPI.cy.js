@@ -41,9 +41,9 @@ describe("UPI Payments - Hyperswitch", () => {
       });
 
       step("Confirm UPI Collect Payment", shouldContinue, () => {
-        const confirmData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["upi_pm"]["UpiCollect"];
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "upi_pm"
+        ]["UpiCollect"];
         cy.confirmUpiCall(fixtures.confirmBody, confirmData, true, globalState);
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
@@ -61,9 +61,9 @@ describe("UPI Payments - Hyperswitch", () => {
       });
 
       step("Retrieve Payment", shouldContinue, () => {
-        const confirmData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["upi_pm"]["UpiCollect"];
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "upi_pm"
+        ]["UpiCollect"];
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
@@ -71,9 +71,9 @@ describe("UPI Payments - Hyperswitch", () => {
       });
 
       step("Refund Payment", shouldContinue, () => {
-        const refundData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["upi_pm"]["Refund"];
+        const refundData = getConnectorDetails(globalState.get("connectorId"))[
+          "upi_pm"
+        ]["Refund"];
         cy.refundCallTest(fixtures.refundBody, refundData, globalState);
       });
     });
@@ -105,9 +105,9 @@ describe("UPI Payments - Hyperswitch", () => {
       });
 
       step("Confirm UPI Intent Payment", shouldContinue, () => {
-        const confirmData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["upi_pm"]["UpiIntent"];
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "upi_pm"
+        ]["UpiIntent"];
         cy.confirmUpiCall(fixtures.confirmBody, confirmData, true, globalState);
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
@@ -125,9 +125,9 @@ describe("UPI Payments - Hyperswitch", () => {
       });
 
       step("Retrieve Payment", shouldContinue, () => {
-        const confirmData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["upi_pm"]["UpiIntent"];
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "upi_pm"
+        ]["UpiIntent"];
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
       });
     });

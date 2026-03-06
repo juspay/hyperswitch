@@ -18,7 +18,7 @@ describe("Corner cases", () => {
 
   context("[Payment] Invalid Info", () => {
     it("[Payment] Invalid card number", () => {
-      let shouldContinue = true;
+      const shouldContinue = true;
 
       step("Create and Confirm Payment Intent", shouldContinue, () => {
         const paymentIntentBody = Cypress._.cloneDeep(
@@ -38,7 +38,7 @@ describe("Corner cases", () => {
     });
 
     it("[Payment] Invalid expiry month", () => {
-      let shouldContinue = true;
+      const shouldContinue = true;
 
       step("Create and Confirm Payment Intent", shouldContinue, () => {
         const paymentIntentBody = Cypress._.cloneDeep(
@@ -58,7 +58,7 @@ describe("Corner cases", () => {
     });
 
     it("[Payment] Invalid expiry year", () => {
-      let shouldContinue = true;
+      const shouldContinue = true;
 
       step("Create and Confirm Payment Intent", shouldContinue, () => {
         const paymentIntentBody = Cypress._.cloneDeep(
@@ -78,7 +78,7 @@ describe("Corner cases", () => {
     });
 
     it("[Payment] Invalid card CVV", () => {
-      let shouldContinue = true;
+      const shouldContinue = true;
 
       step("Create and Confirm Payment Intent", shouldContinue, () => {
         const paymentIntentBody = Cypress._.cloneDeep(
@@ -98,7 +98,7 @@ describe("Corner cases", () => {
     });
 
     it("[Payment] Invalid currency", () => {
-      let shouldContinue = true;
+      const shouldContinue = true;
 
       step("Create and Confirm Payment Intent", shouldContinue, () => {
         const paymentIntentBody = Cypress._.cloneDeep(
@@ -118,7 +118,7 @@ describe("Corner cases", () => {
     });
 
     it("[Payment] Invalid capture method", () => {
-      let shouldContinue = true;
+      const shouldContinue = true;
 
       step("Create and Confirm Payment Intent", shouldContinue, () => {
         const paymentIntentBody = Cypress._.cloneDeep(
@@ -138,7 +138,7 @@ describe("Corner cases", () => {
     });
 
     it("[Payment] Invalid payment method", () => {
-      let shouldContinue = true;
+      const shouldContinue = true;
 
       step("Create and Confirm Payment Intent", shouldContinue, () => {
         const paymentIntentBody = Cypress._.cloneDeep(
@@ -158,7 +158,7 @@ describe("Corner cases", () => {
     });
 
     it("[Payment] Invalid `amount_to_capture`", () => {
-      let shouldContinue = true;
+      const shouldContinue = true;
 
       step("Create and Confirm Payment Intent", shouldContinue, () => {
         const paymentIntentBody = Cypress._.cloneDeep(
@@ -178,7 +178,7 @@ describe("Corner cases", () => {
     });
 
     it("[Payment] Missing required params", () => {
-      let shouldContinue = true;
+      const shouldContinue = true;
 
       step("Create and Confirm Payment Intent", shouldContinue, () => {
         const paymentIntentBody = Cypress._.cloneDeep(
@@ -198,7 +198,7 @@ describe("Corner cases", () => {
     });
 
     it("[Payment] return_url - too long", () => {
-      let shouldContinue = true;
+      const shouldContinue = true;
 
       step("Create and Confirm Payment Intent", shouldContinue, () => {
         const paymentCreateConfirmBody = Cypress._.cloneDeep(
@@ -218,7 +218,7 @@ describe("Corner cases", () => {
     });
 
     it("[Payment] return_url - invalid format", () => {
-      let shouldContinue = true;
+      const shouldContinue = true;
 
       step("Create and Confirm Payment Intent", shouldContinue, () => {
         const paymentCreateConfirmBody = Cypress._.cloneDeep(
@@ -238,7 +238,7 @@ describe("Corner cases", () => {
     });
 
     it("[Payment] mandate_id - too long", () => {
-      let shouldContinue = true;
+      const shouldContinue = true;
 
       step("Create and Confirm Payment Intent", shouldContinue, () => {
         const paymentCreateConfirmBody = Cypress._.cloneDeep(
@@ -269,7 +269,9 @@ describe("Corner cases", () => {
       let shouldContinue = true;
 
       step("Create Payment Intent", shouldContinue, () => {
-        const paymentIntentBody = Cypress._.cloneDeep(fixtures.createPaymentBody);
+        const paymentIntentBody = Cypress._.cloneDeep(
+          fixtures.createPaymentBody
+        );
         const createData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
@@ -289,7 +291,12 @@ describe("Corner cases", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntentErrored"];
-        cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
       });
     });
   });
@@ -797,7 +804,12 @@ describe("Corner cases", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["No3DSFailPayment"];
-        cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
       });
     });
   });
@@ -912,7 +924,11 @@ describe("Corner cases", () => {
           globalState.get("connectorId")
         )["card_pm"]["DuplicateRefundID"];
         duplicateRefundData.Request.refund_id = globalState.get("refundId");
-        cy.refundCallTest(fixtures.refundBody, duplicateRefundData, globalState);
+        cy.refundCallTest(
+          fixtures.refundBody,
+          duplicateRefundData,
+          globalState
+        );
       });
     });
   });
@@ -929,7 +945,7 @@ describe("Corner cases", () => {
     });
 
     it("Duplicate Customer ID", () => {
-      let shouldContinue = true;
+      const shouldContinue = true;
 
       step("Create Customer", shouldContinue, () => {
         cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);

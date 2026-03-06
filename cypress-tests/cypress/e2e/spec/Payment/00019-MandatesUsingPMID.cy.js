@@ -523,23 +523,27 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       it("CIT - Create 3DS Mandate (Manual Capture) -> Handle 3DS Redirection -> Capture CIT Payment -> Retrieve CIT Payment -> MIT - Auto Capture using PM Id", () => {
         let shouldContinue = true;
 
-        step("CIT - Create 3DS Mandate (Manual Capture)", shouldContinue, () => {
-          const citData = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["PaymentMethodIdMandate3DSManualCapture"];
-          cy.citForMandatesCallTest(
-            fixtures.citConfirmBody,
-            citData,
-            6000,
-            true,
-            "manual",
-            "new_mandate",
-            globalState
-          );
-          if (!utils.should_continue_further(citData)) {
-            shouldContinue = false;
+        step(
+          "CIT - Create 3DS Mandate (Manual Capture)",
+          shouldContinue,
+          () => {
+            const citData = getConnectorDetails(globalState.get("connectorId"))[
+              "card_pm"
+            ]["PaymentMethodIdMandate3DSManualCapture"];
+            cy.citForMandatesCallTest(
+              fixtures.citConfirmBody,
+              citData,
+              6000,
+              true,
+              "manual",
+              "new_mandate",
+              globalState
+            );
+            if (!utils.should_continue_further(citData)) {
+              shouldContinue = false;
+            }
           }
-        });
+        );
 
         step("Handle 3DS Redirection", shouldContinue, () => {
           const expected_redirection = fixtures.citConfirmBody["return_url"];

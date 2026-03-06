@@ -45,9 +45,9 @@ describe("Crypto Payment", () => {
       });
 
       step("Confirm Crypto Currency Payment", shouldContinue, () => {
-        const confirmData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["crypto_pm"]["CryptoCurrency"];
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "crypto_pm"
+        ]["CryptoCurrency"];
         cy.confirmRewardCallTest(
           fixtures.confirmBody,
           confirmData,

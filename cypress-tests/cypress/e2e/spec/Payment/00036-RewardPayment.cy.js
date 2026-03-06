@@ -45,9 +45,9 @@ describe("Reward Payment - Cashtocode", () => {
       });
 
       step("Confirm Evoucher Payment", shouldContinue, () => {
-        const confirmData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["reward_pm"]["Evoucher"];
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "reward_pm"
+        ]["Evoucher"];
         cy.confirmRewardCallTest(
           fixtures.confirmBody,
           confirmData,
@@ -70,9 +70,9 @@ describe("Reward Payment - Cashtocode", () => {
       });
 
       step("Retrieve Payment", shouldContinue, () => {
-        const confirmData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["reward_pm"]["Evoucher"];
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "reward_pm"
+        ]["Evoucher"];
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
       });
     });
@@ -103,9 +103,9 @@ describe("Reward Payment - Cashtocode", () => {
       });
 
       step("Confirm Classic Payment", shouldContinue, () => {
-        const confirmData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["reward_pm"]["Classic"];
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "reward_pm"
+        ]["Classic"];
         cy.confirmRewardCallTest(
           fixtures.confirmBody,
           confirmData,
@@ -128,9 +128,9 @@ describe("Reward Payment - Cashtocode", () => {
       });
 
       step("Retrieve Payment", shouldContinue, () => {
-        const confirmData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["reward_pm"]["Classic"];
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "reward_pm"
+        ]["Classic"];
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
       });
     });
