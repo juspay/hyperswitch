@@ -29,6 +29,7 @@ ENV CARGO_NET_RETRY=10
 ENV RUSTUP_MAX_RETRIES=10
 # Don't emit giant backtraces in the CI logs.
 ENV RUST_BACKTRACE="short"
+ENV RUSTFLAGS="--cfg tokio_unstable"
 
 COPY . .
 RUN cargo build \
@@ -69,7 +70,7 @@ ENV TZ=Etc/UTC \
     CONFIG_DIR=${CONFIG_DIR} \
     SCHEDULER_FLOW=${SCHEDULER_FLOW} \
     BINARY=${BINARY} \
-    RUST_MIN_STACK=6291456
+    RUST_MIN_STACK=10485760
 
 RUN mkdir -p ${BIN_DIR}
 
