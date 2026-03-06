@@ -4,7 +4,7 @@ use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -12,6 +12,7 @@ use crate::{
         configs::dimension_state::DimensionsWithMerchantId,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
+        utils,
     },
     routes::{app::ReqState, SessionState},
     services,
@@ -126,13 +127,22 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsStartReq
         )
         .await?;
 
-        let token_data = if let Some(token) = payment_attempt.payment_token.clone() {
-            Some(
+        let feature_config = utils::get_feature_config(state, platform).await;
+
+        // In case of modular payment method flow payment token in the request will belong to payment method modular service
+        // hence populating token data is not required
+        let token_data = match (
+            payment_attempt.payment_token.clone(),
+            feature_config.is_payment_method_modular_allowed,
+        ) {
+            (Some(token), false) => Some(
                 helpers::retrieve_payment_token_data(state, token, payment_attempt.payment_method)
                     .await?,
-            )
-        } else {
-            None
+            ),
+            _ => {
+                logger::debug!("skipping token data retrieval in payment start");
+                None
+            }
         };
 
         payment_intent.shipping_address_id = shipping_address.clone().map(|i| i.address_id);
@@ -342,7 +352,7 @@ where
 
     async fn get_connector<'a>(
         &'a self,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         state: &SessionState,
         _request: &api::PaymentsStartRequest,
         _payment_intent: &storage::PaymentIntent,
