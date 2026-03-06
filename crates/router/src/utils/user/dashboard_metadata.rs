@@ -42,6 +42,7 @@ pub async fn insert_merchant_scoped_metadata_to_db(
             created_at: now,
             last_modified_by: user_id,
             last_modified_at: now,
+            profile_id: None,
         })
         .await
         .map_err(|e| {
@@ -75,6 +76,7 @@ pub async fn insert_user_scoped_metadata_to_db(
             created_at: now,
             last_modified_by: user_id,
             last_modified_at: now,
+            profile_id: None,
         })
         .await
         .map_err(|e| {
@@ -140,6 +142,7 @@ pub async fn update_merchant_scoped_metadata(
             None,
             merchant_id,
             org_id,
+            None,
             metadata_key,
             DashboardMetadataUpdate::UpdateData {
                 data_key: metadata_key,
@@ -168,6 +171,7 @@ pub async fn update_user_scoped_metadata(
             Some(user_id.clone()),
             merchant_id,
             org_id,
+            None,
             metadata_key,
             DashboardMetadataUpdate::UpdateData {
                 data_key: metadata_key,
@@ -219,7 +223,12 @@ pub fn separate_metadata_type_based_on_scope(
             | DBEnum::OnboardingSurvey
             | DBEnum::IsMultipleConfiguration
             | DBEnum::ReconStatus
-            | DBEnum::ProdIntent => merchant_scoped.push(key),
+            | DBEnum::ProdIntent
+            | DBEnum::Payments
+            | DBEnum::Refunds
+            | DBEnum::Customers
+            | DBEnum::Disputes
+            | DBEnum::Payouts => merchant_scoped.push(key),
             DBEnum::Feedback | DBEnum::IsChangePasswordRequired => user_scoped.push(key),
         }
     }

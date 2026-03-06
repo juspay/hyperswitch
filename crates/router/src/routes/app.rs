@@ -2814,6 +2814,17 @@ impl User {
                 web::resource("/data")
                     .route(web::get().to(user::get_multiple_dashboard_metadata))
                     .route(web::post().to(user::set_dashboard_metadata)),
+            )
+            .service(
+                web::scope("/views")
+                    .service(web::resource("").route(web::get().to(user::list_saved_views)))
+                    .service(
+                        web::resource("/create").route(web::post().to(user::create_saved_view)),
+                    )
+                    .service(web::resource("/update").route(web::put().to(user::update_saved_view)))
+                    .service(
+                        web::resource("/delete").route(web::delete().to(user::delete_saved_view)),
+                    ),
             );
 
         if state.conf.platform.enabled {
