@@ -39,13 +39,12 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
   context(
     "Card - NoThreeDS Create and Confirm Automatic MIT payment flow test",
     () => {
-      it("MIT - Auto Capture using NTID", () => {
-        const shouldContinue = true;
-
-        step("MIT - Auto Capture using NTID", shouldContinue, () => {
+      it("Confirm No 3DS MIT", () => {
+        cy.step("Confirm No 3DS MIT", () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["MITAutoCapture"];
+
           cy.mitUsingNTID(
             fixtures.ntidConfirmBody,
             data,
@@ -62,13 +61,12 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
   context(
     "Card - NoThreeDS Create and Confirm Manual MIT payment flow test",
     () => {
-      it("MIT - Manual Capture using NTID", () => {
-        const shouldContinue = true;
-
-        step("MIT - Manual Capture using NTID", shouldContinue, () => {
+      it("Confirm No 3DS MIT", () => {
+        cy.step("Confirm No 3DS MIT", () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["MITManualCapture"];
+
           cy.mitUsingNTID(
             fixtures.ntidConfirmBody,
             data,
@@ -85,13 +83,14 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
   context(
     "Card - NoThreeDS Create and Confirm Automatic multiple MITs payment flow test",
     () => {
-      it("MIT 1 - Auto Capture using NTID -> MIT 2 - Auto Capture using NTID", () => {
+      it("Confirm No 3DS MIT -> Confirm No 3DS MIT", () => {
         let shouldContinue = true;
 
-        step("MIT 1 - Auto Capture using NTID", shouldContinue, () => {
+        cy.step("Confirm No 3DS MIT", () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["MITAutoCapture"];
+
           cy.mitUsingNTID(
             fixtures.ntidConfirmBody,
             data,
@@ -100,15 +99,21 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
             "automatic",
             globalState
           );
+
           if (!utils.should_continue_further(data)) {
             shouldContinue = false;
           }
         });
 
-        step("MIT 2 - Auto Capture using NTID", shouldContinue, () => {
+        cy.step("Confirm No 3DS MIT", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: Confirm No 3DS MIT");
+            return;
+          }
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["MITAutoCapture"];
+
           cy.mitUsingNTID(
             fixtures.ntidConfirmBody,
             data,
@@ -125,75 +130,96 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
   context(
     "Card - NoThreeDS Create and Confirm Manual multiple MITs payment flow test",
     () => {
-      it("MIT 1 - Manual Capture using NTID -> Capture MIT 1 Payment -> MIT 2 - Manual Capture using NTID -> Capture MIT 2 Payment", () => {
-        let shouldContinue = true;
+      it(
+        "Confirm No 3DS MIT 1 -> mit-capture-call-test -> Confirm No 3DS MIT 2 -> mit-capture-call-test",
+        () => {
+          let shouldContinue = true;
 
-        step("MIT 1 - Manual Capture using NTID", shouldContinue, () => {
-          const mitData = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["MITManualCapture"];
-          cy.mitUsingNTID(
-            fixtures.ntidConfirmBody,
-            mitData,
-            6000,
-            true,
-            "manual",
-            globalState
-          );
-          if (!utils.should_continue_further(mitData)) {
-            shouldContinue = false;
-          }
-        });
+          cy.step("Confirm No 3DS MIT 1", () => {
+            const data = getConnectorDetails(globalState.get("connectorId"))[
+              "card_pm"
+            ]["MITManualCapture"];
 
-        step("Capture MIT 1 Payment", shouldContinue, () => {
-          const captureData = getConnectorDetails(
-            globalState.get("connectorId")
-          )["card_pm"]["Capture"];
+            cy.mitUsingNTID(
+              fixtures.ntidConfirmBody,
+              data,
+              6000,
+              true,
+              "manual",
+              globalState
+            );
 
-          cy.captureCallTest(fixtures.captureBody, captureData, globalState);
+            if (!utils.should_continue_further(data)) {
+              shouldContinue = false;
+            }
+          });
 
-          if (!utils.should_continue_further(captureData)) {
-            shouldContinue = false;
-          }
-        });
+          cy.step("mit-capture-call-test", () => {
+            if (!shouldContinue) {
+              cy.task("cli_log", "Skipping step: mit-capture-call-test");
+              return;
+            }
+            const data = getConnectorDetails(globalState.get("connectorId"))[
+              "card_pm"
+            ]["Capture"];
 
-        step("MIT 2 - Manual Capture using NTID", shouldContinue, () => {
-          const mitData = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["MITManualCapture"];
-          cy.mitUsingNTID(
-            fixtures.ntidConfirmBody,
-            mitData,
-            6000,
-            true,
-            "manual",
-            globalState
-          );
-          if (!utils.should_continue_further(mitData)) {
-            shouldContinue = false;
-          }
-        });
+            cy.captureCallTest(fixtures.captureBody, data, globalState);
 
-        step("Capture MIT 2 Payment", shouldContinue, () => {
-          const captureData = getConnectorDetails(
-            globalState.get("connectorId")
-          )["card_pm"]["Capture"];
-          cy.captureCallTest(fixtures.captureBody, captureData, globalState);
-        });
-      });
+            if (!utils.should_continue_further(data)) {
+              shouldContinue = false;
+            }
+          });
+
+          cy.step("Confirm No 3DS MIT 2", () => {
+            if (!shouldContinue) {
+              cy.task("cli_log", "Skipping step: Confirm No 3DS MIT 2");
+              return;
+            }
+            const data = getConnectorDetails(globalState.get("connectorId"))[
+              "card_pm"
+            ]["MITManualCapture"];
+
+            cy.mitUsingNTID(
+              fixtures.ntidConfirmBody,
+              data,
+              6000,
+              true,
+              "manual",
+              globalState
+            );
+
+            if (!utils.should_continue_further(data)) {
+              shouldContinue = false;
+            }
+          });
+
+          cy.step("mit-capture-call-test", () => {
+            if (!shouldContinue) {
+              cy.task("cli_log", "Skipping step: mit-capture-call-test");
+              return;
+            }
+            const data = getConnectorDetails(globalState.get("connectorId"))[
+              "card_pm"
+            ]["Capture"];
+
+            cy.captureCallTest(fixtures.captureBody, data, globalState);
+          });
+        }
+      );
     }
   );
 
   context(
     "Card - ThreeDS Create and Confirm Automatic multiple MITs payment flow test",
     () => {
-      it("MIT 1 - Auto Capture using NTID -> MIT 2 - Auto Capture using NTID", () => {
+      it("Confirm No 3DS MIT -> Confirm No 3DS MIT", () => {
         let shouldContinue = true;
 
-        step("MIT 1 - Auto Capture using NTID", shouldContinue, () => {
+        cy.step("Confirm No 3DS MIT", () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["MITAutoCapture"];
+
           cy.mitUsingNTID(
             fixtures.ntidConfirmBody,
             data,
@@ -202,15 +228,21 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
             "automatic",
             globalState
           );
+
           if (!utils.should_continue_further(data)) {
             shouldContinue = false;
           }
         });
 
-        step("MIT 2 - Auto Capture using NTID", shouldContinue, () => {
+        cy.step("Confirm No 3DS MIT", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: Confirm No 3DS MIT");
+            return;
+          }
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["MITAutoCapture"];
+
           cy.mitUsingNTID(
             fixtures.ntidConfirmBody,
             data,
@@ -227,13 +259,12 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
   context(
     "Card - ThreeDS Create and Confirm Manual multiple MITs payment flow",
     () => {
-      it("MIT - Auto Capture using NTID", () => {
-        const shouldContinue = true;
-
-        step("MIT - Auto Capture using NTID", shouldContinue, () => {
+      it("Confirm No 3DS MIT", () => {
+        cy.step("Confirm No 3DS MIT", () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["MITAutoCapture"];
+
           cy.mitUsingNTID(
             fixtures.ntidConfirmBody,
             data,

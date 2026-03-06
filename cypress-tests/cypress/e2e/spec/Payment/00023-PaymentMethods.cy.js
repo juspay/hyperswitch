@@ -17,133 +17,140 @@ describe("Payment Methods Tests", () => {
   });
 
   context("Create payment method for customer", () => {
-    it("Create Customer -> Create Payment Method -> List PM for Customer", () => {
-      let shouldContinue = true;
-
-      step("Create Customer", shouldContinue, () => {
+    it("Create customer -> Create Payment Method -> List PM for customer", () => {
+      cy.step("Create customer", () => {
         cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
       });
 
-      step("Create Payment Method", shouldContinue, () => {
+      cy.step("Create Payment Method", () => {
         const data = getConnectorDetails("commons")["card_pm"]["PaymentMethod"];
+
         cy.createPaymentMethodTest(globalState, data);
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
-        }
       });
 
-      step("List PM for Customer", shouldContinue, () => {
+      cy.step("List PM for customer", () => {
         cy.listCustomerPMCallTest(globalState);
       });
     });
   });
 
   context("Set default payment method", () => {
-    it("List PM for Customer -> Create Payment Method -> Create Payment Intent -> Confirm Payment -> List PM for Customer -> Set Default Payment Method", () => {
-      let shouldContinue = true;
+    it(
+      "List PM for customer -> Create Payment Method -> create-payment-call-test -> confirm-payment-call-test -> List PM for customer -> Set default payment method",
+      () => {
+        let shouldContinue = true;
 
-      step("List PM for Customer", shouldContinue, () => {
-        cy.listCustomerPMCallTest(globalState);
-      });
+        cy.step("List PM for customer", () => {
+          cy.listCustomerPMCallTest(globalState);
+        });
 
-      step("Create Payment Method", shouldContinue, () => {
-        const pmData =
-          getConnectorDetails("commons")["card_pm"]["PaymentMethod"];
-        cy.createPaymentMethodTest(globalState, pmData);
-        if (!utils.should_continue_further(pmData)) {
-          shouldContinue = false;
-        }
-      });
+        cy.step("Create Payment Method", () => {
+          const data =
+            getConnectorDetails("commons")["card_pm"]["PaymentMethod"];
 
-      step("Create Payment Intent", shouldContinue, () => {
-        const intentData = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentIntentOffSession"];
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          intentData,
-          "no_three_ds",
-          "automatic",
-          globalState
-        );
-        if (!utils.should_continue_further(intentData)) {
-          shouldContinue = false;
-        }
-      });
+          cy.createPaymentMethodTest(globalState, data);
+        });
 
-      step("Confirm Payment", shouldContinue, () => {
-        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["SaveCardUseNo3DSAutoCaptureOffSession"];
-        cy.confirmCallTest(
-          fixtures.confirmBody,
-          confirmData,
-          true,
-          globalState
-        );
-        if (!utils.should_continue_further(confirmData)) {
-          shouldContinue = false;
-        }
-      });
+        cy.step("create-payment-call-test", () => {
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PaymentIntentOffSession"];
 
-      step("List PM for Customer", shouldContinue, () => {
-        cy.listCustomerPMCallTest(globalState);
-      });
+          cy.createPaymentIntentTest(
+            fixtures.createPaymentBody,
+            data,
+            "no_three_ds",
+            "automatic",
+            globalState
+          );
 
-      step("Set Default Payment Method", shouldContinue, () => {
-        cy.setDefaultPaymentMethodTest(globalState);
-      });
-    });
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        });
+
+        cy.step("confirm-payment-call-test", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: confirm-payment-call-test");
+            return;
+          }
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["SaveCardUseNo3DSAutoCaptureOffSession"];
+
+          cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        });
+
+        cy.step("List PM for customer", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: List PM for customer");
+            return;
+          }
+          cy.listCustomerPMCallTest(globalState);
+        });
+
+        cy.step("Set default payment method", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: Set default payment method");
+            return;
+          }
+          cy.setDefaultPaymentMethodTest(globalState);
+        });
+      }
+    );
   });
 
   context("Delete payment method for customer", () => {
-    it("Create Customer -> Create Payment Method -> List PM for Customer -> Delete Payment Method for Customer", () => {
-      let shouldContinue = true;
+    it(
+      "Create customer -> Create Payment Method -> List PM for customer -> Delete Payment Method for a customer",
+      () => {
+        cy.step("Create customer", () => {
+          cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+        });
 
-      step("Create Customer", shouldContinue, () => {
-        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
-      });
+        cy.step("Create Payment Method", () => {
+          const data =
+            getConnectorDetails("commons")["card_pm"]["PaymentMethod"];
+          cy.createPaymentMethodTest(globalState, data);
+        });
 
-      step("Create Payment Method", shouldContinue, () => {
-        const data = getConnectorDetails("commons")["card_pm"]["PaymentMethod"];
-        cy.createPaymentMethodTest(globalState, data);
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
-        }
-      });
+        cy.step("List PM for customer", () => {
+          cy.listCustomerPMCallTest(globalState);
+        });
 
-      step("List PM for Customer", shouldContinue, () => {
-        cy.listCustomerPMCallTest(globalState);
-      });
-
-      step("Delete Payment Method for Customer", shouldContinue, () => {
-        cy.deletePaymentMethodTest(globalState);
-      });
-    });
+        cy.step("Delete Payment Method for a customer", () => {
+          cy.deletePaymentMethodTest(globalState);
+        });
+      }
+    );
   });
 
   context("'Last Used' off-session token payments", () => {
     let shouldContinue = true;
 
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
+    afterEach("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
     });
 
-    context("No 3DS save card", () => {
-      it("Create Customer -> Create+Confirm Payment (No 3DS Off Session) -> List PM for Customer", () => {
-        step("Create Customer", shouldContinue, () => {
-          cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
-        });
+    it("Create customer", () => {
+      cy.step("Create customer", () => {
+        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+      });
+    });
 
-        step(
-          "Create+Confirm Payment (No 3DS Off Session)",
-          shouldContinue,
-          () => {
+    context("Create No 3DS off session save card payment", () => {
+      it(
+        "create+confirm-payment-call-test -> List PM for customer",
+        () => {
+          cy.step("create+confirm-payment-call-test", () => {
             const data = getConnectorDetails(globalState.get("connectorId"))[
               "card_pm"
             ]["SaveCardUseNo3DSAutoCaptureOffSession"];
+
             cy.createConfirmPaymentTest(
               fixtures.createConfirmPaymentBody,
               data,
@@ -151,134 +158,195 @@ describe("Payment Methods Tests", () => {
               "automatic",
               globalState
             );
+
             if (!utils.should_continue_further(data)) {
               shouldContinue = false;
             }
-          }
-        );
+          });
 
-        step("List PM for Customer", shouldContinue, () => {
-          cy.listCustomerPMCallTest(globalState);
-        });
-      });
+          cy.step("List PM for customer", () => {
+            if (!shouldContinue) {
+              cy.task("cli_log", "Skipping step: List PM for customer");
+              return;
+            }
+            cy.listCustomerPMCallTest(globalState);
+          });
+        }
+      );
     });
 
-    context("3DS save card", () => {
-      it("Create+Confirm Payment (3DS Off Session) -> Handle Redirection -> List PM for Customer", () => {
-        step("Create+Confirm Payment (3DS Off Session)", shouldContinue, () => {
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["SaveCardUse3DSAutoCaptureOffSession"];
-          cy.createConfirmPaymentTest(
-            fixtures.createConfirmPaymentBody,
-            data,
-            "three_ds",
-            "automatic",
-            globalState
-          );
-          if (!utils.should_continue_further(data)) {
-            shouldContinue = false;
-          }
-        });
+    context("Create 3DS off session save card payment", () => {
+      it(
+        "create+confirm-payment-call-test -> Handle redirection -> List PM for customer",
+        () => {
+          cy.step("create+confirm-payment-call-test", () => {
+            const data = getConnectorDetails(globalState.get("connectorId"))[
+              "card_pm"
+            ]["SaveCardUse3DSAutoCaptureOffSession"];
 
-        step("Handle Redirection", shouldContinue, () => {
-          const expectedRedirection = fixtures.confirmBody["return_url"];
-          cy.handleRedirection(globalState, expectedRedirection);
-        });
+            cy.createConfirmPaymentTest(
+              fixtures.createConfirmPaymentBody,
+              data,
+              "three_ds",
+              "automatic",
+              globalState
+            );
 
-        step("List PM for Customer", shouldContinue, () => {
-          cy.listCustomerPMCallTest(globalState);
-        });
-      });
+            if (!utils.should_continue_further(data)) {
+              shouldContinue = false;
+            }
+          });
+
+          cy.step("Handle redirection", () => {
+            if (!shouldContinue) {
+              cy.task("cli_log", "Skipping step: Handle redirection");
+              return;
+            }
+            const expectedRedirection = fixtures.confirmBody["return_url"];
+            cy.handleRedirection(globalState, expectedRedirection);
+          });
+
+          cy.step("List PM for customer", () => {
+            if (!shouldContinue) {
+              cy.task("cli_log", "Skipping step: List PM for customer");
+              return;
+            }
+            cy.listCustomerPMCallTest(globalState);
+          });
+        }
+      );
     });
 
-    context("3DS save card with token", () => {
-      it("Create Payment Intent -> Confirm Save Card Payment -> Handle Redirection -> List PM for Customer", () => {
-        step("Create Payment Intent", shouldContinue, () => {
-          const intentData = getConnectorDetails(
-            globalState.get("connectorId")
-          )["card_pm"]["PaymentIntent"];
-          cy.createPaymentIntentTest(
-            fixtures.createPaymentBody,
-            intentData,
-            "three_ds",
-            "automatic",
-            globalState
-          );
-          if (!utils.should_continue_further(intentData)) {
-            shouldContinue = false;
-          }
-        });
+    context("Create 3DS off session save card payment with token", () => {
+      it(
+        "create-payment-call-test -> confirm-save-card-payment-call-test -> Handle redirection -> List PM for customer",
+        () => {
+          const saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
 
-        step("Confirm Save Card Payment", shouldContinue, () => {
-          const saveCardBody = Cypress._.cloneDeep(
-            fixtures.saveCardConfirmBody
-          );
-          const confirmData = getConnectorDetails(
-            globalState.get("connectorId")
-          )["card_pm"]["SaveCardUseNo3DSAutoCapture"];
-          const newData = {
-            ...confirmData,
-            Response: {
-              ...confirmData.Response,
-              body: {
-                ...confirmData.Response.body,
-                status: "requires_customer_action",
+          cy.step("create-payment-call-test", () => {
+            const data = getConnectorDetails(globalState.get("connectorId"))[
+              "card_pm"
+            ]["PaymentIntent"];
+
+            cy.createPaymentIntentTest(
+              fixtures.createPaymentBody,
+              data,
+              "three_ds",
+              "automatic",
+              globalState
+            );
+
+            if (!utils.should_continue_further(data)) {
+              shouldContinue = false;
+            }
+          });
+
+          cy.step("confirm-save-card-payment-call-test", () => {
+            if (!shouldContinue) {
+              cy.task(
+                "cli_log",
+                "Skipping step: confirm-save-card-payment-call-test"
+              );
+              return;
+            }
+            const data = getConnectorDetails(globalState.get("connectorId"))[
+              "card_pm"
+            ]["SaveCardUseNo3DSAutoCapture"];
+
+            const newData = {
+              ...data,
+              Response: {
+                ...data.Response,
+                body: {
+                  ...data.Response.body,
+                  status: "requires_customer_action",
+                },
               },
-            },
-          };
-          cy.saveCardConfirmCallTest(saveCardBody, newData, globalState);
-          if (!utils.should_continue_further(confirmData)) {
-            shouldContinue = false;
-          }
-        });
+            };
 
-        step("Handle Redirection", shouldContinue, () => {
-          const expectedRedirection = fixtures.confirmBody["return_url"];
-          cy.handleRedirection(globalState, expectedRedirection);
-        });
+            cy.saveCardConfirmCallTest(saveCardBody, newData, globalState);
 
-        step("List PM for Customer", shouldContinue, () => {
-          cy.listCustomerPMCallTest(globalState, 1);
-        });
-      });
+            if (!utils.should_continue_further(data)) {
+              shouldContinue = false;
+            }
+          });
+
+          cy.step("Handle redirection", () => {
+            if (!shouldContinue) {
+              cy.task("cli_log", "Skipping step: Handle redirection");
+              return;
+            }
+            const expectedRedirection = fixtures.confirmBody["return_url"];
+            cy.handleRedirection(globalState, expectedRedirection);
+          });
+
+          cy.step("List PM for customer", () => {
+            if (!shouldContinue) {
+              cy.task("cli_log", "Skipping step: List PM for customer");
+              return;
+            }
+            cy.listCustomerPMCallTest(globalState, 1 /* order */);
+          });
+        }
+      );
     });
 
-    context("No 3DS save card with token", () => {
-      it("Create Payment Intent -> Confirm Save Card Payment -> List PM for Customer", () => {
-        step("Create Payment Intent", shouldContinue, () => {
-          const intentData = getConnectorDetails(
-            globalState.get("connectorId")
-          )["card_pm"]["PaymentIntent"];
-          cy.createPaymentIntentTest(
-            fixtures.createPaymentBody,
-            intentData,
-            "no_three_ds",
-            "automatic",
-            globalState
-          );
-          if (!utils.should_continue_further(intentData)) {
-            shouldContinue = false;
-          }
-        });
-
-        step("Confirm Save Card Payment", shouldContinue, () => {
-          const saveCardBody = Cypress._.cloneDeep(
-            fixtures.saveCardConfirmBody
-          );
-          const confirmData = getConnectorDetails(
-            globalState.get("connectorId")
-          )["card_pm"]["SaveCardUseNo3DSAutoCapture"];
-          cy.saveCardConfirmCallTest(saveCardBody, confirmData, globalState);
-          if (!utils.should_continue_further(confirmData)) {
-            shouldContinue = false;
-          }
-        });
-
-        step("List PM for Customer", shouldContinue, () => {
-          cy.listCustomerPMCallTest(globalState);
-        });
+    context("Create No 3DS off session save card payment with token", () => {
+      afterEach("flush global state", () => {
+        cy.task("setGlobalState", globalState.data);
       });
+
+      it(
+        "create-payment-call-test -> confirm-save-card-payment-call-test -> List PM for customer",
+        () => {
+          const saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
+
+          cy.step("create-payment-call-test", () => {
+            const data = getConnectorDetails(globalState.get("connectorId"))[
+              "card_pm"
+            ]["PaymentIntent"];
+
+            cy.createPaymentIntentTest(
+              fixtures.createPaymentBody,
+              data,
+              "no_three_ds",
+              "automatic",
+              globalState
+            );
+
+            if (!utils.should_continue_further(data)) {
+              shouldContinue = false;
+            }
+          });
+
+          cy.step("confirm-save-card-payment-call-test", () => {
+            if (!shouldContinue) {
+              cy.task(
+                "cli_log",
+                "Skipping step: confirm-save-card-payment-call-test"
+              );
+              return;
+            }
+            const data = getConnectorDetails(globalState.get("connectorId"))[
+              "card_pm"
+            ]["SaveCardUseNo3DSAutoCapture"];
+
+            cy.saveCardConfirmCallTest(saveCardBody, data, globalState);
+
+            if (!utils.should_continue_further(data)) {
+              shouldContinue = false;
+            }
+          });
+
+          cy.step("List PM for customer", () => {
+            if (!shouldContinue) {
+              cy.task("cli_log", "Skipping step: List PM for customer");
+              return;
+            }
+            cy.listCustomerPMCallTest(globalState);
+          });
+        }
+      );
     });
   });
 });
