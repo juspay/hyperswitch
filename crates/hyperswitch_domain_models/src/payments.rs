@@ -473,16 +473,19 @@ impl PaymentIntent {
                 opts.into_iter()
                     .map(|opt| {
                         PaymentMethodListInstallmentOption::from_installment_option(
-                            opt, self.amount, net_amount, currency,
+                            opt.clone(),
+                            self.amount,
+                            net_amount,
+                            currency,
                         )
+                        .change_context(
+                            errors::api_error_response::ApiErrorResponse::InternalServerError,
+                        )
+                        .attach_printable_lazy(|| {
+                            format!("Failed to transform installment option: {:?}", opt)
+                        })
                     })
                     .collect::<CustomResult<Vec<_>, _>>()
-                    .change_context(
-                        errors::api_error_response::ApiErrorResponse::InternalServerError,
-                    )
-                    .attach_printable(
-                        "Failed to transform installment options for payment method list",
-                    )
             })
             .transpose()?;
 

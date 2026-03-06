@@ -16,10 +16,11 @@ use common_utils::{
     id_type, link_utils, pii,
     types::{FloatMajorUnit, MinorUnit, Percentage, Surcharge},
 };
+use error_stack::ResultExt;
 use masking::PeekInterface;
 use serde::de;
 use utoipa::ToSchema;
-use error_stack::ResultExt;
+
 #[cfg(feature = "v1")]
 use crate::payments::BankCodeResponse;
 #[cfg(feature = "payouts")]
