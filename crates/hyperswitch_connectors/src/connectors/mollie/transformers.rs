@@ -1,6 +1,10 @@
 use cards::CardNumber;
 use common_enums::enums;
-use common_utils::{pii::Email, request::Method, types::{StringMajorUnit, MinorUnit}};
+use common_utils::{
+    pii::Email,
+    request::Method,
+    types::{MinorUnit, StringMajorUnit},
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{
@@ -152,7 +156,8 @@ impl TryFrom<(types::OrderDetailsWithAmount, enums::Currency)> for MollieLinesIt
         let discount_amount_value = order_details
             .get_optional_unit_discount_amount()
             .map(|unit_discount_amount| {
-                let total_discount_amount = unit_discount_amount * (order_details.get_order_quantity());
+                let total_discount_amount =
+                    unit_discount_amount * (order_details.get_order_quantity());
                 convert_amount(mollie_converter, total_discount_amount, currency)
             })
             .transpose()?;
@@ -202,10 +207,7 @@ impl MollieLinesItems {
                 currency,
                 value: value.clone(),
             },
-            total_amount: OrderItemUnitPrice {
-                currency,
-                value,
-            },
+            total_amount: OrderItemUnitPrice { currency, value },
             discount_amount: None,
             sku: None,
             image_url: None,
