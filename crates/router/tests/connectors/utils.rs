@@ -1028,6 +1028,7 @@ impl Default for PaymentAuthorizeType {
             partner_merchant_identifier_details: None,
             rrn: None,
             feature_metadata: None,
+            installment_details: None,
         };
         Self(data)
     }

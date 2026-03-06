@@ -7546,11 +7546,25 @@
                 "$ref": "#/components/schemas/Interac"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "open_banking_uk"
+            ],
+            "properties": {
+              "open_banking_uk": {
+                "$ref": "#/components/schemas/OpenBankingUk"
+              }
+            }
           }
         ]
       },
       "BankRedirectAdditionalData": {
         "oneOf": [
+          {
+            "$ref": "#/components/schemas/OpenBankingUkAdditionalData"
+          },
           {
             "$ref": "#/components/schemas/InteracAdditionalData"
           }
@@ -10606,6 +10620,7 @@
           "tesouro",
           "tokenex",
           "tokenio",
+          "truelayer",
           "trustpay",
           "trustpayments",
           "tsys",
@@ -10779,6 +10794,21 @@
             "nullable": true
           }
         }
+      },
+      "ConnectorMetadataResponse": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "santander"
+            ],
+            "properties": {
+              "santander": {
+                "$ref": "#/components/schemas/SantanderData"
+              }
+            }
+          }
+        ]
       },
       "ConnectorSelection": {
         "oneOf": [
@@ -18558,6 +18588,45 @@
           }
         }
       },
+      "OpenBankingUk": {
+        "type": "object",
+        "required": [
+          "account_holder_name",
+          "iban"
+        ],
+        "properties": {
+          "account_holder_name": {
+            "type": "string",
+            "description": "Account holder name",
+            "example": "John Doe"
+          },
+          "iban": {
+            "type": "string",
+            "description": "International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.",
+            "example": "DE89370400440532013000"
+          }
+        }
+      },
+      "OpenBankingUkAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for OpenBankingUK bank redirect payout method",
+        "required": [
+          "account_holder_name",
+          "iban"
+        ],
+        "properties": {
+          "account_holder_name": {
+            "type": "string",
+            "description": "Account holder name",
+            "example": "John Doe"
+          },
+          "iban": {
+            "type": "string",
+            "description": "International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.",
+            "example": "DE89370400440532013000"
+          }
+        }
+      },
       "Order": {
         "type": "object",
         "required": [
@@ -23974,6 +24043,7 @@
           "payone",
           "paypal",
           "stripe",
+          "truelayer",
           "wise",
           "worldpay",
           "worldpayxml"
@@ -27634,6 +27704,7 @@
           "stripe",
           "stripebilling",
           "tesouro",
+          "truelayer",
           "trustpay",
           "trustpayments",
           "tokenio",
@@ -28112,6 +28183,16 @@
             "$ref": "#/components/schemas/SamsungPayTokenData"
           }
         }
+      },
+      "SantanderData": {
+        "type": "object",
+        "properties": {
+          "end_to_end_id": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
       },
       "ScaExemptionType": {
         "type": "string",

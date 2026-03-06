@@ -160,7 +160,7 @@ ttl_for_storage_in_secs = 220752000 # Time to live for storage entries in locker
 connectors_with_delayed_session_response = "trustpay,payme" # List of connectors which has delayed session response
 
 [webhook_source_verification_call]
-connectors_with_webhook_source_verification_call = "paypal" # List of connectors which has additional source verification api-call
+connectors_with_webhook_source_verification_call = "paypal, truelayer" # List of connectors which has additional source verification api-call
 
 [jwekey] # 4 priv/pub key pair
 vault_encryption_key = ""       # public key in pem format, corresponding private key in basilisk-hs
@@ -332,6 +332,7 @@ thunes.base_url = "https://api.limonetikqualif.com/"
 tokenex.base_url = "https://test-api.tokenex.com"
 tokenio.base_url = "https://api.sandbox.token.io"
 truelayer.base_url = "https://api.truelayer-sandbox.com"
+truelayer.secondary_base_url = "https://auth.truelayer-sandbox.com"
 stripe.base_url_file_upload = "https://files.stripe.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 trustpayments.base_url = "https://webservices.securetrading.net/"
@@ -607,6 +608,10 @@ bank_redirect.giropay = { connector_list = "globalpay" }
 card.credit = { connector_list = "cybersource" } # Update Mandate supported payment method type and connector for card
 card.debit = { connector_list = "cybersource" }  # Update Mandate supported payment method type and connector for card
 
+[installments.supported_payment_methods]
+card.credit = "adyen" # Installment supported payment method type and connector for card
+card.debit = "adyen"  # Installment supported payment method type and connector for card
+
 # Required fields info used while listing the payment_method_data
 [required_fields.pay_later] # payment_method = "pay_later"
 afterpay_clearpay = { fields = { stripe = [ # payment_method_type = afterpay_clearpay, connector = "stripe"
@@ -717,6 +722,12 @@ upi_intent = { country = "IN", currency = "INR" }
 [pm_filters.hyperpg]
 credit = { currency = "INR,USD,GBP,EUR" }
 debit = { currency = "INR,USD,GBP,EUR" }
+
+[pm_filters.truelayer]
+open_banking_uk = { currency = "GBP,EUR" }
+
+[payout_method_filters.truelayer]
+open_banking_uk = { currency = "GBP,EUR,PLN" }
 
 [pm_filters.plaid]
 open_banking_pis = {currency = "EUR,GBP"}
@@ -1268,7 +1279,7 @@ webhook_source_verification_key= "" # webhook source verification key to verify 
 check_tokenize_eligibility_url="" # base url to check tokenization eligibility from token service
 
 [network_tokenization_supported_connectors]
-connector_list = "adyen,cybersource,peachpayments" # Supported connectors for network tokenization
+connector_list = "adyen,cybersource,peachpayments,trustpay" # Supported connectors for network tokenization
 
 [network_transaction_id_supported_connectors]
 connector_list = "adyen,archipel,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv" # Supported connectors for network transaction id
