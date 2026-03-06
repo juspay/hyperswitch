@@ -876,9 +876,7 @@ describe("Card - SaveCard payment flow test", () => {
             );
             const saveCardConfirmData = getConnectorDetails(
               globalState.get("connectorId")
-            )[
-              "card_pm"
-            ]["SaveCardConfirmAutoCaptureOffSessionWithoutBilling"];
+            )["card_pm"]["SaveCardConfirmAutoCaptureOffSessionWithoutBilling"];
             cy.saveCardConfirmCallTest(
               saveCardBody,
               saveCardConfirmData,
