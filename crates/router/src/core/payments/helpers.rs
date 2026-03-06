@@ -3008,6 +3008,7 @@ pub async fn fetch_network_token_details_from_locker(
         card_issuing_country: None,
         bank_code: None,
         eci: None,
+        par: None,
     };
     Ok(network_token_data)
 }

@@ -17527,6 +17527,11 @@
             "type": "string",
             "description": "The ECI(Electronic Commerce Indicator) value for this authentication.",
             "nullable": true
+          },
+          "par": {
+            "type": "string",
+            "description": "The Payment Account Reference (PAR) for this card.",
+            "nullable": true
           }
         }
       },
@@ -17591,6 +17596,11 @@
           },
           "saved_to_locker": {
             "type": "boolean"
+          },
+          "par": {
+            "type": "string",
+            "example": "522134KAVJ1JPZ8L77N0Z2LRYZS7J",
+            "nullable": true
           }
         }
       },
@@ -21775,6 +21785,14 @@
           "keep_alive": {
             "type": "boolean",
             "description": "Whether the card with new status should be listed in the session"
+          },
+          "network_tokenization_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokenResponse"
+              }
+            ],
+            "nullable": true
           }
         }
       },
