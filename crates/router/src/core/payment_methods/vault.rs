@@ -1,12 +1,13 @@
 use common_enums::PaymentMethodType;
+#[cfg(feature = "v2")]
+use common_utils::encryption::Encryption;
 use common_utils::{
     crypto::{DecodeMessage, EncodeMessage, GcmAes256},
     ext_traits::{BytesExt, Encode},
     generate_id_with_default_len, id_type,
     pii::Email,
+    request,
 };
-#[cfg(feature = "v2")]
-use common_utils::{encryption::Encryption, request};
 use error_stack::{report, ResultExt};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::router_flow_types::{
@@ -25,27 +26,27 @@ use crate::{
     consts,
     core::{
         errors::{self, ConnectorErrorExt, CustomResult, RouterResult},
+        payment_methods::transformers as pm_transforms,
         payments, utils as core_utils,
     },
-    db, logger,
+    db, headers, logger,
     routes::{self, metrics},
     services::{self, connector_integration_interface::RouterDataConversion},
+    settings,
     types::{
-        self, api, domain,
+        self, api, domain, payment_methods as pm_types,
         storage::{self, enums},
     },
-    utils::StringExt,
+    utils::{ConnectorResponseExt, StringExt},
 };
 #[cfg(feature = "v2")]
 use crate::{
     core::{
         errors::StorageErrorExt,
-        payment_methods::{cards as pm_cards, transformers as pm_transforms, utils},
+        payment_methods::{cards as pm_cards, utils},
         payments::{self as payments_core, helpers as payment_helpers},
     },
-    headers, settings,
-    types::payment_methods as pm_types,
-    utils::{ext_traits::OptionExt, ConnectorResponseExt},
+    utils::ext_traits::OptionExt,
 };
 
 const VAULT_SERVICE_NAME: &str = "CARD";
@@ -981,8 +982,16 @@ impl Vaultable for api::BankRedirectPayout {
     ) -> CustomResult<String, errors::VaultError> {
         let value1 = match self {
             Self::Interac(interac_data) => TokenizedBankRedirectSensitiveValues {
-                email: interac_data.email.clone(),
+                email: Some(interac_data.email.clone()),
                 bank_redirect_type: PaymentMethodType::Interac,
+                account_holder_name: None,
+                iban: None,
+            },
+            Self::OpenBankingUk(open_banking_uk_data) => TokenizedBankRedirectSensitiveValues {
+                email: None,
+                iban: Some(open_banking_uk_data.iban.clone()),
+                account_holder_name: Some(open_banking_uk_data.account_holder_name.clone()),
+                bank_redirect_type: PaymentMethodType::OpenBankingUk,
             },
         };
 
@@ -1021,9 +1030,21 @@ impl Vaultable for api::BankRedirectPayout {
             .attach_printable("Could not deserialize into wallet data value2")?;
 
         let bank_redirect = match value1.bank_redirect_type {
-            PaymentMethodType::Interac => Self::Interac(api_models::payouts::Interac {
-                email: value1.email,
-            }),
+            PaymentMethodType::Interac => match value1.email {
+                Some(email) => Self::Interac(api_models::payouts::Interac { email }),
+                _ => Err(errors::VaultError::ResponseDeserializationFailed)
+                    .attach_printable("Failed to deserialize into Interac")?,
+            },
+            PaymentMethodType::OpenBankingUk => match (value1.account_holder_name, value1.iban) {
+                (Some(account_holder_name), Some(iban)) => {
+                    Self::OpenBankingUk(api_models::payouts::OpenBankingUk {
+                        account_holder_name,
+                        iban,
+                    })
+                }
+                _ => Err(errors::VaultError::ResponseDeserializationFailed)
+                    .attach_printable("Failed to deserialize into OpenBankingUk")?,
+            },
             _ => Err(errors::VaultError::PayoutMethodNotSupported)
                 .attach_printable("Payout method not supported")?,
         };
@@ -1100,7 +1121,9 @@ impl Vaultable for api::PassthroughPayout {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedBankRedirectSensitiveValues {
-    pub email: Email,
+    pub email: Option<Email>,
+    pub iban: Option<masking::Secret<String>>,
+    pub account_holder_name: Option<masking::Secret<String>>,
     pub bank_redirect_type: PaymentMethodType,
 }
 
@@ -1469,7 +1492,6 @@ pub async fn delete_tokenized_data(
     }
 }
 
-#[cfg(feature = "v2")]
 async fn create_vault_request<R: pm_types::VaultingInterface>(
     jwekey: &settings::Jwekey,
     locker: &settings::Locker,
@@ -1493,7 +1515,7 @@ async fn create_vault_request<R: pm_types::VaultingInterface>(
     let mut request = request::Request::new(services::Method::Post, &url);
     request.add_header(
         headers::CONTENT_TYPE,
-        consts::VAULT_HEADER_CONTENT_TYPE.into(),
+        consts::V2_VAULT_HEADER_CONTENT_TYPE.into(),
     );
     request.add_header(
         headers::X_TENANT_ID,
@@ -1503,7 +1525,6 @@ async fn create_vault_request<R: pm_types::VaultingInterface>(
     Ok(request)
 }
 
-#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn call_to_vault<V: pm_types::VaultingInterface>(
     state: &routes::SessionState,
@@ -1986,7 +2007,7 @@ pub async fn retrieve_payment_method_data_from_storage(
     let card_cvc = retrieve_and_delete_cvc_from_payment_token(
         state,
         &pm.id.get_string_repr().to_string(),
-        platform.get_processor().get_key_store(),
+        platform.get_provider().get_key_store(),
     )
     .await
     .inspect_err(|err| {

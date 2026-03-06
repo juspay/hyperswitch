@@ -45,8 +45,8 @@ use crate::{
         payments::{
             self, helpers, operations,
             operations::payment_confirm::unified_authentication_service::ThreeDsMetaData,
-            populate_surcharge_details, CustomerDetails, OperationSessionSetters, PaymentAddress,
-            PaymentData,
+            populate_installment_details, populate_surcharge_details, CustomerDetails,
+            OperationSessionGetters, OperationSessionSetters, PaymentAddress, PaymentData,
         },
         three_ds_decision_rule,
         unified_authentication_service::{
@@ -890,6 +890,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 _ => None,
             });
 
+        payment_attempt.installment_data = request.installment_data.clone().map(Into::into);
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -994,6 +996,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
+        initiator: Option<&domain::Initiator>,
         dimensions: DimensionsWithMerchantId,
     ) -> CustomResult<
         (PaymentConfirmOperation<'a, F>, Option<domain::Customer>),
@@ -1007,6 +1010,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     payment_data,
                     request,
                     provider,
+                    initiator,
                     dimensions,
                 )
                 .await
@@ -1117,6 +1121,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             match pm_transformers::create_payment_method_in_modular_service(
                                 state,
                                 platform.get_provider().get_account().get_id(),
+                                platform.get_processor().get_account().get_id(),
                                 business_profile.get_id(),
                                 payment_method,
                                 payment_method_type,
@@ -1186,7 +1191,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     .profile_id
                     .clone()
                     .or(platform
-                        .get_provider()
+                        .get_processor()
                         .get_account()
                         .get_default_profile()
                         .clone())
@@ -1217,6 +1222,18 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     )
                     .await?;
                     logger::info!("Payment method fetched from PM Modular Service.");
+
+                    utils::when(
+                        pm_info.payment_method.0.customer_id
+                            != req
+                                .get_customer_id()
+                                .get_required_value("customer_id")?
+                                .clone(),
+                        || {
+                            logger::info!("Payment method id does not belong to the customer id provided in the request.");
+                            Err(errors::ApiErrorResponse::PaymentMethodNotFound)
+                        },
+                    )?;
 
                     Some(pm_info)
                 } else {
@@ -1297,7 +1314,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
     async fn get_connector<'a>(
         &'a self,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         state: &SessionState,
         request: &api::PaymentsRequest,
         _payment_intent: &storage::PaymentIntent,
@@ -1317,6 +1334,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         connector_data: &api::ConnectorData,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         populate_surcharge_details(state, payment_data).await?;
+        populate_installment_details(payment_data)?;
         payment_data.payment_attempt.request_extended_authorization = payment_data
             .payment_intent
             .get_request_extended_authorization_bool_if_connector_supports(
@@ -1667,6 +1685,20 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                 field_name: "payment_method",
                             },
                         )?;
+
+                        let merchant_details = Some(unified_authentication_service::MerchantDetails {
+                            merchant_id: Some(business_profile.merchant_id.get_string_repr().to_string()),
+                            merchant_name: None,
+                            merchant_category_code: business_profile.merchant_category_code.clone(),
+                            merchant_country_code: business_profile.merchant_country_code.clone(),
+                            endpoint_prefix: None,
+                            three_ds_requestor_url: None,
+                            three_ds_requestor_id: None,
+                            three_ds_requestor_name: None,
+                            notification_url: None,
+                            webhook_url: None,
+                        });
+
                         ClickToPay::pre_authentication(
                             state,
                             &payment_data.payment_attempt.merchant_id,
@@ -1680,7 +1712,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             payment_data.payment_intent.amount,
                             payment_data.payment_intent.currency,
                             payment_data.service_details.clone(),
-                            None,
+                            merchant_details.as_ref(),
                             None,
                             None,
                             None,
@@ -2396,6 +2428,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         };
 
         let card_discovery = payment_data.get_card_discovery_for_card_payment_method();
+        let installment_data = payment_data.get_installment_details().cloned();
         let is_stored_credential = helpers::is_stored_credential(
             &payment_data.recurring_details,
             &payment_data.pm_token,
@@ -2447,6 +2480,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                                     .get_order_tax_amount(),
                                 surcharge_amount,
                                 tax_amount,
+                                payment_data
+                                    .payment_attempt
+                                    .net_amount
+                                    .get_installment_interest(),
                             ),
 
                         connector_mandate_detail: payment_data
@@ -2465,6 +2502,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .payment_attempt
                             .request_extended_authorization,
                         tokenization: payment_data.payment_attempt.get_tokenization_strategy(),
+                        installment_data,
                     },
                     storage_scheme,
                     &cloned_key_store,
@@ -2567,6 +2605,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .enable_partial_authorization,
                         enable_overcapture: payment_data.payment_intent.enable_overcapture,
                         shipping_cost: None,
+                        installment_options: payment_data
+                            .payment_intent
+                            .installment_options
+                            .clone(),
                     })),
                     &m_key_store,
                     storage_scheme,
@@ -2656,6 +2698,11 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
                 message: "Invalid straight through routing rules format".to_string(),
             })
             .attach_printable("Invalid straight through routing rules format")?;
+
+        request.validate_installment_options().map_err(|err| {
+            let message = format!("invalid installment options: {err}");
+            err.change_context(errors::ApiErrorResponse::InvalidRequestData { message })
+        })?;
 
         Ok((
             Box::new(self),

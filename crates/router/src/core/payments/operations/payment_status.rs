@@ -67,6 +67,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
+        initiator: Option<&domain::Initiator>,
         dimensions: DimensionsWithMerchantId,
     ) -> CustomResult<
         (
@@ -83,6 +84,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     payment_data,
                     request,
                     provider,
+                    initiator,
                     dimensions,
                 )
                 .await
@@ -137,7 +139,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
     async fn get_connector<'a>(
         &'a self,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         state: &SessionState,
         request: &api::PaymentsRequest,
         _payment_intent: &storage::PaymentIntent,

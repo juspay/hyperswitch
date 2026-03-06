@@ -1086,6 +1086,7 @@ diesel::table! {
         error_details -> Nullable<Jsonb>,
         #[max_length = 64]
         retry_type -> Nullable<Varchar>,
+        installment_data -> Nullable<Jsonb>,
         payment_method_type_v2 -> Nullable<Varchar>,
         #[max_length = 128]
         connector_payment_id -> Nullable<Varchar>,
@@ -1190,6 +1191,7 @@ diesel::table! {
         tokenization -> Nullable<Varchar>,
         partner_merchant_identifier_details -> Nullable<Jsonb>,
         state_metadata -> Nullable<Jsonb>,
+        installment_options -> Nullable<Jsonb>,
         #[max_length = 64]
         merchant_reference_id -> Nullable<Varchar>,
         billing_address -> Nullable<Bytea>,
@@ -1787,6 +1789,7 @@ diesel::table! {
         totp_recovery_codes -> Nullable<Array<Nullable<Text>>>,
         last_password_modified_at -> Nullable<Timestamp>,
         lineage_context -> Nullable<Jsonb>,
+        is_active -> Nullable<Bool>,
     }
 }
 
