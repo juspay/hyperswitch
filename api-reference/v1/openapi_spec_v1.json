@@ -23977,6 +23977,11 @@
                 "type": "string",
                 "nullable": true
               },
+              "raw_qr_data": {
+                "type": "string",
+                "description": "The raw QR code data (EMV copy and paste) used for Brazilian payment methods like Pix",
+                "nullable": true
+              },
               "type": {
                 "type": "string",
                 "enum": [
