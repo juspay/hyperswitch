@@ -1,6 +1,7 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
+import step from "../../../utils/customStep";
 
 let globalState;
 
@@ -21,109 +22,117 @@ describe("Reward Payment - Cashtocode", () => {
 
   context("Evoucher payment method flow", () => {
     it("Create Payment Intent for Evoucher -> Payment Methods Call -> Confirm Evoucher Payment -> Handle Redirection -> Retrieve Payment", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "reward_pm"
-      ]["PaymentIntentUSD"];
+      let shouldContinue = true;
 
-      cy.step("Create Payment Intent for Evoucher", () =>
+      step("Create Payment Intent for Evoucher", shouldContinue, () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "reward_pm"
+        ]["PaymentIntentUSD"];
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
           "no_three_ds",
           "automatic",
           globalState
-        )
-      );
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
 
-      if (!utils.should_continue_further(data)) return;
+      step("Payment Methods Call", shouldContinue, () => {
+        cy.paymentMethodsCallTest(globalState);
+      });
 
-      cy.step("Payment Methods Call", () =>
-        cy.paymentMethodsCallTest(globalState)
-      );
-
-      const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-        "reward_pm"
-      ]["Evoucher"];
-
-      cy.step("Confirm Evoucher Payment", () =>
+      step("Confirm Evoucher Payment", shouldContinue, () => {
+        const confirmData = getConnectorDetails(
+          globalState.get("connectorId")
+        )["reward_pm"]["Evoucher"];
         cy.confirmRewardCallTest(
           fixtures.confirmBody,
           confirmData,
           true,
           globalState
-        )
-      );
+        );
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
 
-      if (!utils.should_continue_further(confirmData)) return;
-
-      const expected_redirection = fixtures.confirmBody["return_url"];
-      const payment_method_type = globalState.get("paymentMethodType");
-
-      cy.step("Handle Redirection", () =>
+      step("Handle Redirection", shouldContinue, () => {
+        const expected_redirection = fixtures.confirmBody["return_url"];
+        const payment_method_type = globalState.get("paymentMethodType");
         cy.handleRewardRedirection(
           globalState,
           payment_method_type,
           expected_redirection
-        )
-      );
+        );
+      });
 
-      cy.step("Retrieve Payment", () =>
-        cy.retrievePaymentCallTest({ globalState, data: confirmData })
-      );
+      step("Retrieve Payment", shouldContinue, () => {
+        const confirmData = getConnectorDetails(
+          globalState.get("connectorId")
+        )["reward_pm"]["Evoucher"];
+        cy.retrievePaymentCallTest({ globalState, data: confirmData });
+      });
     });
   });
 
   context("Classic payment method flow", () => {
     it("Create Payment Intent for Classic -> Payment Methods Call -> Confirm Classic Payment -> Handle Redirection for Classic -> Retrieve Payment", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "reward_pm"
-      ]["PaymentIntentEUR"];
+      let shouldContinue = true;
 
-      cy.step("Create Payment Intent for Classic", () =>
+      step("Create Payment Intent for Classic", shouldContinue, () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "reward_pm"
+        ]["PaymentIntentEUR"];
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
           "no_three_ds",
           "automatic",
           globalState
-        )
-      );
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
 
-      if (!utils.should_continue_further(data)) return;
+      step("Payment Methods Call", shouldContinue, () => {
+        cy.paymentMethodsCallTest(globalState);
+      });
 
-      cy.step("Payment Methods Call", () =>
-        cy.paymentMethodsCallTest(globalState)
-      );
-
-      const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-        "reward_pm"
-      ]["Classic"];
-
-      cy.step("Confirm Classic Payment", () =>
+      step("Confirm Classic Payment", shouldContinue, () => {
+        const confirmData = getConnectorDetails(
+          globalState.get("connectorId")
+        )["reward_pm"]["Classic"];
         cy.confirmRewardCallTest(
           fixtures.confirmBody,
           confirmData,
           true,
           globalState
-        )
-      );
+        );
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
 
-      if (!utils.should_continue_further(confirmData)) return;
-
-      const expected_redirection = fixtures.confirmBody["return_url"];
-      const payment_method_type = globalState.get("paymentMethodType");
-
-      cy.step("Handle Redirection for Classic", () =>
+      step("Handle Redirection for Classic", shouldContinue, () => {
+        const expected_redirection = fixtures.confirmBody["return_url"];
+        const payment_method_type = globalState.get("paymentMethodType");
         cy.handleRewardRedirection(
           globalState,
           payment_method_type,
           expected_redirection
-        )
-      );
+        );
+      });
 
-      cy.step("Retrieve Payment", () =>
-        cy.retrievePaymentCallTest({ globalState, data: confirmData })
-      );
+      step("Retrieve Payment", shouldContinue, () => {
+        const confirmData = getConnectorDetails(
+          globalState.get("connectorId")
+        )["reward_pm"]["Classic"];
+        cy.retrievePaymentCallTest({ globalState, data: confirmData });
+      });
     });
   });
 });
