@@ -65,7 +65,7 @@ macro_rules! config {
                     targeting_key: Option<&$targeting_type>,
                 ) -> $output {
                     // Fetch JSON and convert to $output using the conversion function
-                    crate::core::configs::fetch_db_config_for_dimensions_converted::<[<$key:camel>], $output>(
+                    crate::core::configs::fetch_db_config_for_objects::<[<$key:camel>], $output>(
                         storage, superposition_client, self, targeting_key
                     ).await
                 }
