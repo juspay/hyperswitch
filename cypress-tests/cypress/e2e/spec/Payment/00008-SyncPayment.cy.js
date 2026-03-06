@@ -1,7 +1,6 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
-import step from "../../../utils/customStep";
 
 let globalState;
 
@@ -20,7 +19,7 @@ describe("Card - Sync payment flow test", () => {
     it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Retrieve Payment after Confirmation", () => {
       let shouldContinue = true;
 
-      step("Create Payment Intent", shouldContinue, () => {
+      cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
@@ -38,11 +37,19 @@ describe("Card - Sync payment flow test", () => {
         }
       });
 
-      step("Payment Methods Call", shouldContinue, () => {
+      cy.step("Payment Methods Call", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Payment Methods Call");
+          return;
+        }
         cy.paymentMethodsCallTest(globalState);
       });
 
-      step("Confirm Payment Intent", shouldContinue, () => {
+      cy.step("Confirm Payment Intent", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment Intent");
+          return;
+        }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["No3DSAutoCapture"];
@@ -59,7 +66,14 @@ describe("Card - Sync payment flow test", () => {
         }
       });
 
-      step("Retrieve Payment after Confirmation", shouldContinue, () => {
+      cy.step("Retrieve Payment after Confirmation", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Retrieve Payment after Confirmation"
+          );
+          return;
+        }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["No3DSAutoCapture"];
