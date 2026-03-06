@@ -18,7 +18,7 @@ use hyperswitch_domain_models::{
     },
     types::{
         ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
-        RefundsRouterData, SetupMandateRouterData,
+        PaymentsSyncRouterData, RefundsRouterData, SetupMandateRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -416,6 +416,46 @@ impl From<responses::PayloadPaymentStatus> for common_enums::AttemptStatus {
     }
 }
 
+pub fn get_attempt_status(
+    status: responses::PayloadPaymentStatus,
+    router_data: &dyn std::any::Any,
+) -> enums::AttemptStatus {
+    let status = enums::AttemptStatus::from(status);
+    if status == enums::AttemptStatus::Charged {
+        // For ACH bank debit payments, keep Processed as Pending for the 3-day
+        // pending window. This allows reject/decline webhooks during this period
+        // to be treated as payment failures instead of disputes.
+        let is_ach_auth = router_data
+            .downcast_ref::<PaymentsAuthorizeRouterData>()
+            .is_some_and(|rd| {
+                matches!(
+                    rd.request.payment_method_data,
+                    PaymentMethodData::BankDebit(BankDebitData::AchBankDebit { .. })
+                )
+            });
+
+        let is_ach_sync = router_data
+            .downcast_ref::<PaymentsSyncRouterData>()
+            .is_some_and(|rd| {
+                rd.request.payment_method_type == Some(enums::PaymentMethodType::Ach)
+            });
+
+        let is_ach_setup_mandate = router_data
+            .downcast_ref::<SetupMandateRouterData>()
+            .is_some_and(|rd| {
+                matches!(
+                    rd.request.payment_method_data,
+                    PaymentMethodData::BankDebit(BankDebitData::AchBankDebit { .. })
+                )
+            });
+
+        if is_ach_auth || is_ach_sync || is_ach_setup_mandate {
+            return enums::AttemptStatus::Pending;
+        }
+    }
+    status
+}
+
 impl<F: 'static, T>
     TryFrom<ResponseRouterData<F, responses::PayloadPaymentsResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
@@ -428,30 +468,8 @@ where
     ) -> Result<Self, Self::Error> {
         match item.response.clone() {
             responses::PayloadPaymentsResponse::PayloadCardsResponse(response) => {
-                let status = enums::AttemptStatus::from(response.status);
-
                 let router_data: &dyn std::any::Any = &item.data;
-
-                // For ACH bank debit payments, keep Processed as Pending for the 3-day
-                // pending window. This allows reject/decline webhooks during this period
-                // to be treated as payment failures instead of disputes.
-                let status = if status == enums::AttemptStatus::Charged {
-                    let is_ach = router_data
-                        .downcast_ref::<PaymentsAuthorizeRouterData>()
-                        .is_some_and(|rd| {
-                            matches!(
-                                rd.request.payment_method_data,
-                                PaymentMethodData::BankDebit(BankDebitData::AchBankDebit { .. })
-                            )
-                        });
-                    if is_ach {
-                        enums::AttemptStatus::Pending
-                    } else {
-                        status
-                    }
-                } else {
-                    status
-                };
+                let status = get_attempt_status(response.status, router_data);
                 let is_mandate_payment = router_data
                     .downcast_ref::<PaymentsAuthorizeRouterData>()
                     .is_some_and(|router_data| router_data.request.is_mandate_payment())

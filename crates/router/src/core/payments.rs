@@ -8930,6 +8930,16 @@ pub async fn add_pending_promotion_task(
 }
 
 #[cfg(feature = "v2")]
+pub async fn add_process_sync_task(
+    _db: &dyn StorageInterface,
+    _payment_attempt: &storage::PaymentAttempt,
+    _schedule_time: time::PrimitiveDateTime,
+    _application_source: enums::ApplicationSource,
+) -> CustomResult<(), errors::StorageError> {
+    todo!()
+}
+
+#[cfg(feature = "v2")]
 pub async fn reset_process_sync_task(
     db: &dyn StorageInterface,
     payment_attempt: &storage::PaymentAttempt,

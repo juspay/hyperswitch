@@ -203,6 +203,9 @@ cards = [
 max_attempts = 10
 max_age = 365
 
+[payment_lifecycle_config]
+payload_ach_pending_window_seconds = 259200
+
 [webhooks]
 outgoing_enabled = true
 redis_lock_expiry_seconds = 180             # 3 * 60 seconds
