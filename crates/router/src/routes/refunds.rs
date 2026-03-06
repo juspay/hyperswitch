@@ -69,8 +69,9 @@ pub async fn refunds_create(
                 allow_connected_scope_operation: false,
                 allow_platform_self_operation: false,
             }),
-            &auth::JWTAuth {
-                permission: Permission::ProfileRefundWrite,
+            &auth::JWTAndEmbeddedAuth {
+                merchant_id_from_route: None,
+                permission: Some(Permission::ProfileRefundWrite),
                 allow_connected: false,
                 allow_platform: false,
             },
