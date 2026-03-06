@@ -1,0 +1,10 @@
+{
+  "billing": {
+    "address": {
+      "first_name": "John",
+      "last_name": "Dough"
+    },
+    "email": "example@example.com"
+  },
+  "storage_type": "volatile"
+}
