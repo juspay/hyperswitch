@@ -9993,6 +9993,7 @@ where
                 && matches!(
                     payment_data.get_payment_method_data(),
                     Some(domain::PaymentMethodData::MandatePayment)
+                        | Some(domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_))
                 )
                 && payment_data.get_payment_method_info().is_some()) =>
         {
