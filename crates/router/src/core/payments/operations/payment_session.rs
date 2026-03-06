@@ -10,7 +10,7 @@ use router_env::{instrument, logger, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
-        configs::dimension_state::DimensionsWithMerchantId,
+        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{self, helpers, operations, PaymentData},
     },
@@ -321,7 +321,7 @@ where
         payment_data: &mut PaymentData<F>,
         request: Option<payments::CustomerDetails>,
         provider: &domain::Provider,
-        dimensions: DimensionsWithMerchantId,
+        dimensions: DimensionsWithMerchantIdAndProfileId,
     ) -> errors::CustomResult<
         (PaymentSessionOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,

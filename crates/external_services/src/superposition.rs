@@ -212,7 +212,10 @@ pub trait Config {
     const SUPERPOSITION_KEY: &'static str;
 
     /// Get the default value for this config
-    const DEFAULT_VALUE: Self::Output;
+    /// Default implementation uses `Default::default()`, can be overridden for custom defaults
+    fn default_value() -> Self::Output {
+        Self::Output::default()
+    }
 
     /// Fetch config value from Superposition.
     fn fetch(
