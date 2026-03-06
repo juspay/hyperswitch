@@ -3415,6 +3415,13 @@ impl UserInterface for KafkaStore {
             .await
     }
 
+    async fn find_users_by_user_ids(
+        &self,
+        user_ids: Vec<String>,
+    ) -> CustomResult<Vec<storage::User>, errors::StorageError> {
+        self.diesel_store.find_users_by_user_ids(user_ids).await
+    }
+
     async fn reactivate_user_by_user_id(
         &self,
         user_id: &str,

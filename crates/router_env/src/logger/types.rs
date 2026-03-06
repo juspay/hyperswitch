@@ -729,6 +729,8 @@ pub enum Flow {
     EmbeddedTokenInfo,
     // Get user details internal
     GetUserDetailsInternal,
+    // List users internal
+    ListUsersInternal,
 }
 
 /// Trait for providing generic behaviour to flow metric

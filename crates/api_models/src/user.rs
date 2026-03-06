@@ -446,6 +446,11 @@ pub struct UserKeyTransferRequest {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct ListUsersInternalRequest {
+    pub user_ids: Vec<String>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct UserTransferKeyResponse {
     pub total_transferred: usize,
 }
@@ -487,6 +492,19 @@ pub struct EmbeddedTokenInfoResponse {
 
 #[derive(Debug, serde::Serialize)]
 pub struct GetUserInternalDetailsResponse {
+    pub name: Secret<String>,
+    pub email: pii::Email,
+    pub is_active: bool,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct ListUsersInternalResponse {
+    pub users: Vec<MinimalUserDetails>,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct MinimalUserDetails {
+    pub user_id: String,
     pub name: Secret<String>,
     pub email: pii::Email,
     pub is_active: bool,

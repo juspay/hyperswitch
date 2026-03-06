@@ -128,6 +128,19 @@ impl User {
         .await
     }
 
+    pub async fn find_users_by_user_ids(
+        conn: &PgPooledConn,
+        user_ids: Vec<String>,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<
+            <Self as HasTable>::Table,
+            _,
+            <<Self as HasTable>::Table as diesel::Table>::PrimaryKey,
+            _,
+        >(conn, users_dsl::user_id.eq_any(user_ids), None, None, None)
+        .await
+    }
+
     pub async fn reactivate_by_user_id(
         conn: &PgPooledConn,
         user_id: &str,

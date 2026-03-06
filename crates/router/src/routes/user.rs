@@ -1195,3 +1195,22 @@ pub async fn get_user_details_internal(
     ))
     .await
 }
+
+pub async fn list_users_internal(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<user_api::ListUsersInternalRequest>,
+) -> HttpResponse {
+    let flow = Flow::ListUsersInternal;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, _auth: (), req, _| user_core::list_users_internal(state, req),
+        &auth::InternalMerchantIdProfileIdAuth(auth::AdminApiAuth),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

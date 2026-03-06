@@ -17,11 +17,12 @@ use crate::user::{
     CreateUserAuthenticationMethodResponse, EmbeddedTokenInfoResponse, ForgotPasswordRequest,
     GetSsoAuthUrlRequest, GetUserAuthenticationMethodsRequest, GetUserDetailsResponse,
     GetUserInternalDetailsResponse, GetUserRoleDetailsRequest, GetUserRoleDetailsResponseV2,
-    InviteUserRequest, IssueEmbeddedTokenResponse, PlatformAccountCreateRequest,
-    PlatformAccountCreateResponse, ReInviteUserRequest, RecoveryCodes, ResetPasswordRequest,
-    RotatePasswordRequest, SendVerifyEmailRequest, SignUpRequest, SignUpWithMerchantIdRequest,
-    SsoSignInRequest, SwitchMerchantRequest, SwitchOrganizationRequest, SwitchProfileRequest,
-    TokenResponse, TwoFactorAuthStatusResponse, TwoFactorStatus, UpdateUserAccountDetailsRequest,
+    InviteUserRequest, IssueEmbeddedTokenResponse, ListUsersInternalRequest,
+    ListUsersInternalResponse, PlatformAccountCreateRequest, PlatformAccountCreateResponse,
+    ReInviteUserRequest, RecoveryCodes, ResetPasswordRequest, RotatePasswordRequest,
+    SendVerifyEmailRequest, SignUpRequest, SignUpWithMerchantIdRequest, SsoSignInRequest,
+    SwitchMerchantRequest, SwitchOrganizationRequest, SwitchProfileRequest, TokenResponse,
+    TwoFactorAuthStatusResponse, TwoFactorStatus, UpdateUserAccountDetailsRequest,
     UpdateUserAuthenticationMethodRequest, UserFromEmailRequest, UserMerchantAccountResponse,
     UserMerchantCreate, UserOrgMerchantCreateRequest, VerifyEmailRequest,
     VerifyRecoveryCodeRequest, VerifyTotpRequest,
@@ -80,7 +81,9 @@ common_utils::impl_api_event_type!(
         CloneConnectorRequest,
         IssueEmbeddedTokenResponse,
         EmbeddedTokenInfoResponse,
-        GetUserInternalDetailsResponse
+        GetUserInternalDetailsResponse,
+        ListUsersInternalRequest,
+        ListUsersInternalResponse
     )
 );
 
