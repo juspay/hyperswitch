@@ -965,6 +965,10 @@ pub enum Currency {
 }
 
 impl Currency {
+    pub fn supports_installments(&self) -> bool {
+        matches!(self, Self::BRL | Self::MXN | Self::JPY)
+    }
+
     /// Convert the amount to its base denomination based on Currency and return String
     pub fn to_currency_base_unit(self, amount: i64) -> Result<String, TryFromIntError> {
         let amount_f64 = self.to_currency_base_unit_asf64(amount)?;
