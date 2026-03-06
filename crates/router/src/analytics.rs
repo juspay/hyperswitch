@@ -556,7 +556,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             api_locking::LockAction::NotApplicable,
@@ -612,7 +612,7 @@ pub mod routes {
                 },
                 &auth::JWTAuth {
                     permission: Permission::OrganizationAnalyticsRead,
-                    allow_connected: false,
+                    allow_connected: true,
                     allow_platform: false,
                 },
                 req.headers(),
@@ -674,7 +674,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             api_locking::LockAction::NotApplicable,
@@ -726,7 +726,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             api_locking::LockAction::NotApplicable,
@@ -782,7 +782,7 @@ pub mod routes {
                 },
                 &auth::JWTAuth {
                     permission: Permission::OrganizationAnalyticsRead,
-                    allow_connected: false,
+                    allow_connected: true,
                     allow_platform: false,
                 },
                 req.headers(),
@@ -844,7 +844,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             api_locking::LockAction::NotApplicable,
@@ -1181,7 +1181,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             api_locking::LockAction::NotApplicable,
@@ -1231,7 +1231,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             api_locking::LockAction::NotApplicable,
@@ -1277,7 +1277,7 @@ pub mod routes {
                 },
                 &auth::JWTAuth {
                     permission: Permission::OrganizationAnalyticsRead,
-                    allow_connected: false,
+                    allow_connected: true,
                     allow_platform: false,
                 },
                 req.headers(),
@@ -1344,7 +1344,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             api_locking::LockAction::NotApplicable,
@@ -1381,7 +1381,7 @@ pub mod routes {
                 },
                 &auth::JWTAuth {
                     permission: Permission::OrganizationAnalyticsRead,
-                    allow_connected: false,
+                    allow_connected: true,
                     allow_platform: false,
                 },
                 req.headers(),
@@ -1423,7 +1423,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             api_locking::LockAction::NotApplicable,
@@ -1869,7 +1869,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -1962,7 +1962,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -2053,7 +2053,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -2152,7 +2152,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -2244,7 +2244,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -2335,7 +2335,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -2435,7 +2435,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -2528,7 +2528,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -2619,7 +2619,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -2717,7 +2717,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -2809,7 +2809,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -2899,7 +2899,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -3006,7 +3006,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -3099,7 +3099,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -3190,7 +3190,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -3759,7 +3759,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             api_locking::LockAction::NotApplicable,
@@ -3799,7 +3799,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             api_locking::LockAction::NotApplicable,
@@ -3835,7 +3835,7 @@ pub mod routes {
                 },
                 &auth::JWTAuth {
                     permission: Permission::OrganizationAnalyticsRead,
-                    allow_connected: false,
+                    allow_connected: true,
                     allow_platform: false,
                 },
                 req.headers(),
@@ -3879,7 +3879,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             api_locking::LockAction::NotApplicable,
@@ -3929,7 +3929,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             api_locking::LockAction::NotApplicable,
@@ -3975,7 +3975,7 @@ pub mod routes {
                 },
                 &auth::JWTAuth {
                     permission: Permission::OrganizationAnalyticsRead,
-                    allow_connected: false,
+                    allow_connected: true,
                     allow_platform: false,
                 },
                 req.headers(),
@@ -4010,7 +4010,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             api_locking::LockAction::NotApplicable,
@@ -4160,7 +4160,7 @@ pub mod routes {
                 },
                 &auth::JWTAuth {
                     permission: Permission::OrganizationAnalyticsRead,
-                    allow_connected: false,
+                    allow_connected: true,
                     allow_platform: false,
                 },
                 req.headers(),
@@ -4203,7 +4203,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             api_locking::LockAction::NotApplicable,

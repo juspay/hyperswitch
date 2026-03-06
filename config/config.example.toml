@@ -608,6 +608,10 @@ bank_redirect.giropay = { connector_list = "globalpay" }
 card.credit = { connector_list = "cybersource" } # Update Mandate supported payment method type and connector for card
 card.debit = { connector_list = "cybersource" }  # Update Mandate supported payment method type and connector for card
 
+[installments.supported_payment_methods]
+card.credit = "adyen" # Installment supported payment method type and connector for card
+card.debit = "adyen"  # Installment supported payment method type and connector for card
+
 # Required fields info used while listing the payment_method_data
 [required_fields.pay_later] # payment_method = "pay_later"
 afterpay_clearpay = { fields = { stripe = [ # payment_method_type = afterpay_clearpay, connector = "stripe"
@@ -1275,7 +1279,7 @@ webhook_source_verification_key= "" # webhook source verification key to verify 
 check_tokenize_eligibility_url="" # base url to check tokenization eligibility from token service
 
 [network_tokenization_supported_connectors]
-connector_list = "adyen,cybersource,peachpayments" # Supported connectors for network tokenization
+connector_list = "adyen,cybersource,peachpayments,trustpay" # Supported connectors for network tokenization
 
 [network_transaction_id_supported_connectors]
 connector_list = "adyen,archipel,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv" # Supported connectors for network transaction id
