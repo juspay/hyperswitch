@@ -924,6 +924,7 @@ pub async fn update_dispute_data(
         dispute_data,
         platform.get_processor().get_account().get_id(),
         &platform.get_processor().get_account().organization_id,
+        platform.get_initiator(),
         &payment_attempt,
         dispute_details.dispute_status,
         &business_profile,
