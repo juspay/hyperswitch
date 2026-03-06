@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.03.04.0-hotfix2
+
+### Refactors
+
+- **euclid:** De-couple sessions routing from core ([#11442](https://github.com/juspay/hyperswitch/pull/11442)) ([`8644b91`](https://github.com/juspay/hyperswitch/commit/8644b91d4d6dd6567a6e5d8ed84486f8cfad81e3))
+
+**Full Changelog:** [`2026.03.04.0-hotfix1...2026.03.04.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2026.03.04.0-hotfix1...2026.03.04.0-hotfix2)
+
+- - -
+
 ## 2026.03.04.0-hotfix1
 
 ### Bug Fixes
