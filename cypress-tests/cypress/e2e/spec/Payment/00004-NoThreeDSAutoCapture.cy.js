@@ -148,7 +148,10 @@ describe("Card - NoThreeDS payment flow test", () => {
 
       cy.step("Confirm Payment with shipping cost", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Payment with shipping cost");
+          cy.task(
+            "cli_log",
+            "Skipping step: Confirm Payment with shipping cost"
+          );
           return;
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
@@ -169,7 +172,10 @@ describe("Card - NoThreeDS payment flow test", () => {
 
       cy.step("Retrieve Payment with shipping cost", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Retrieve Payment with shipping cost");
+          cy.task(
+            "cli_log",
+            "Skipping step: Retrieve Payment with shipping cost"
+          );
           return;
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
