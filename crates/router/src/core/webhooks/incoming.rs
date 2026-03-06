@@ -9,6 +9,7 @@ use api_models::{
 };
 pub use common_enums::{connector_enums::InvoiceStatus, enums::ProcessTrackerRunner};
 use common_utils::{
+    crypto::{EncodeMessage, GcmAes256},
     errors::ReportSwitchExt,
     events::ApiEventsType,
     ext_traits::{AsyncExt, ByteSliceExt},
@@ -768,6 +769,28 @@ async fn process_non_ucs_webhook<'a>(
             object_reference_id: object_ref_id,
         }),
         None => {
+            let master_key = state
+                .conf
+                .secrets
+                .get_inner()
+                .master_enc_key
+                .clone()
+                .expose();
+            let key = match hex::decode(&master_key) {
+                Ok(key) => key,
+                Err(e) => {
+                    router_env::logger::error!("Failed to decode encryption key: {}", e);
+                    // Fallback to using the string as bytes, which was the previous behavior
+                    master_key.as_bytes().to_vec()
+                }
+            };
+            let encrypted_body = GcmAes256
+                .encode_message(&key, updated_request_details.body)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to encrypt user query")?;
+
+            logger::info!(encrypted_webhook_body=?encrypted_body);
+
             metrics::WEBHOOK_EVENT_TYPE_IDENTIFICATION_FAILURE_COUNT.add(
                 1,
                 router_env::metric_attributes!(
