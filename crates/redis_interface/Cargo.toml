@@ -16,7 +16,7 @@ fred = { git = "https://github.com/su-shivanshmathur/fred.rs", branch= "test/deb
 futures = "0.3"
 serde = { version = "1.0.219", features = ["derive"] }
 thiserror = "1.0.69"
-tokio = "1.48.0"
+tokio = { version = "1.48.0" , feature = ["tracing"]}
 tokio-stream = { version = "0.1.17", features = ["sync"] }
 tracing = { workspace = true }
 
