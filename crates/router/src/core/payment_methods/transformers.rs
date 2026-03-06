@@ -25,9 +25,9 @@ use payment_methods::client::{
     retrieve::{RetrievePaymentMethodResponse, RetrievePaymentMethodV1Request},
     UpdatePaymentMethod, UpdatePaymentMethodV1Payload, UpdatePaymentMethodV1Request,
 };
-use router_env::RequestId;
 #[cfg(feature = "v1")]
-use router_env::{logger, RequestIdentifier};
+use router_env::logger;
+use router_env::RequestId;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "v1")]
@@ -1180,12 +1180,10 @@ pub async fn call_modular_payment_method_update(
             .to_string()
             .into_masked(),
     ));
-    let trace = RequestIdentifier::new(&state.conf.trace_header.header_name)
-        .use_incoming_id(state.conf.trace_header.id_reuse_strategy);
     let client = pm_client::PaymentMethodClient::new(
         &state.conf.micro_services.payment_methods_base_url,
         &parent_headers,
-        &trace,
+        &state.conf.trace_header.header_name,
     );
 
     UpdatePaymentMethod::call(
@@ -1738,14 +1736,11 @@ pub async fn retrieve_pm_modular_service_call(
             .into_masked(),
     ));
 
-    let trace = RequestIdentifier::new(&state.conf.trace_header.header_name)
-        .use_incoming_id(state.conf.trace_header.id_reuse_strategy);
-
     //pm client construction
     let client = pm_client::PaymentMethodClient::new(
         &state.conf.micro_services.payment_methods_base_url,
         &parent_headers,
-        &trace,
+        &state.conf.trace_header.header_name,
     );
 
     //Modular service call
@@ -1828,14 +1823,11 @@ pub async fn create_pm_modular_service_call(
         merchant_id.get_string_repr().to_string().into_masked(),
     ));
 
-    let trace = RequestIdentifier::new(&state.conf.trace_header.header_name)
-        .use_incoming_id(state.conf.trace_header.id_reuse_strategy);
-
     //pm client construction
     let client = pm_client::PaymentMethodClient::new(
         &state.conf.micro_services.payment_methods_base_url,
         &parent_headers,
-        &trace,
+        &state.conf.trace_header.header_name,
     );
 
     //Modular service call

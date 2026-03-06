@@ -241,6 +241,7 @@ async fn payments_create_core() {
         payment_method_tokenization_details: None,
         error_details: None,
         installment_options: None,
+        installment_data: None,
         state_metadata: None,
         connector_response_metadata: None,
     };
@@ -551,6 +552,7 @@ async fn payments_create_core_adyen_no_redirect() {
             payment_method_tokenization_details: None,
             error_details: None,
             installment_options: None,
+            installment_data: None,
             state_metadata: None,
             connector_response_metadata: None,
         },

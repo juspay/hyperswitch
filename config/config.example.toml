@@ -1275,7 +1275,7 @@ webhook_source_verification_key= "" # webhook source verification key to verify 
 check_tokenize_eligibility_url="" # base url to check tokenization eligibility from token service
 
 [network_tokenization_supported_connectors]
-connector_list = "adyen,cybersource,peachpayments" # Supported connectors for network tokenization
+connector_list = "adyen,cybersource,peachpayments,trustpay" # Supported connectors for network tokenization
 
 [network_transaction_id_supported_connectors]
 connector_list = "adyen,archipel,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv" # Supported connectors for network transaction id

@@ -492,6 +492,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         partner_merchant_identifier_details: None,
         rrn,
         feature_metadata: None,
+        installment_details: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -4140,6 +4141,7 @@ where
             partner_merchant_identifier_details: payment_intent.partner_merchant_identifier_details,
             payment_method_tokenization_details,
             installment_options: payment_intent.installment_options,
+            installment_data: payment_data.get_installment_details().cloned(),
             connector_response_metadata,
         };
 
@@ -4457,6 +4459,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             partner_merchant_identifier_details: pi.partner_merchant_identifier_details,
             payment_method_tokenization_details: None,
             installment_options: pi.installment_options,
+            installment_data: pa.installment_data,
         }
     }
 }
@@ -4824,6 +4827,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             partner_merchant_identifier_details: None,
             rrn,
             feature_metadata: None,
+            installment_details: None,
         })
     }
 }
@@ -5091,6 +5095,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .partner_merchant_identifier_details,
             rrn,
             feature_metadata,
+            installment_details: payment_data.payment_attempt.installment_data.clone(),
         })
     }
 }
