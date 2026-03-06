@@ -126,7 +126,7 @@ impl ConfigType for serde_json::Value {
 /// This allows configs to be used with pre-defined dimension type aliases like DimensionsWithMerchantId or DimensionWithMerchantIdAndProfileId.
 pub async fn fetch_db_config_for_dimensions<C>(
     storage: &dyn db::StorageInterface,
-    superposition_client: &superposition::SuperpositionClient,
+    superposition_client: Option<&superposition::SuperpositionClient>,
     dimensions: &impl dimension_state::DimensionsBase,
     targeting_key: Option<&C::TargetingKey>,
 ) -> C::Output
@@ -163,7 +163,7 @@ pub trait DatabaseBackedConfig: superposition::Config {
 /// that database fallback is used when superposition fetch fails.
 pub async fn fetch_db_config<C>(
     storage: &dyn db::StorageInterface,
-    superposition_client: &superposition::SuperpositionClient,
+    superposition_client: Option<&superposition::SuperpositionClient>,
     db_key: Option<&str>,
     context: Option<ConfigContext>,
     targeting_key: Option<&C::TargetingKey>,
@@ -176,7 +176,14 @@ where
     let config_type = C::KEY;
     let default_value = C::default_value();
 
-    let superposition_result = C::fetch(superposition_client, context, targeting_key).await;
+    let superposition_result = match superposition_client {
+        Some(client) => C::fetch(client, context, targeting_key).await,
+        None => Err(error_stack::report!(
+            superposition::SuperpositionError::ClientError(
+                "No superposition client available".to_string()
+            )
+        )),
+    };
 
     match superposition_result {
         Ok(value) => value,
@@ -236,7 +243,7 @@ where
 /// Used when Config Output is serde_json::Value but caller wants a specific type.
 pub async fn fetch_db_config_converted<C, T>(
     storage: &dyn db::StorageInterface,
-    superposition_client: &superposition::SuperpositionClient,
+    superposition_client: Option<&superposition::SuperpositionClient>,
     db_key: Option<&str>,
     context: Option<ConfigContext>,
     targeting_key: Option<&C::TargetingKey>,
@@ -269,7 +276,7 @@ where
 /// Used for object-type configs that need JSON deserialization.
 pub async fn fetch_db_config_for_dimensions_converted<C, T>(
     storage: &dyn db::StorageInterface,
-    superposition_client: &superposition::SuperpositionClient,
+    superposition_client: Option<&superposition::SuperpositionClient>,
     dimensions: &impl dimension_state::DimensionsBase,
     targeting_key: Option<&C::TargetingKey>,
 ) -> T

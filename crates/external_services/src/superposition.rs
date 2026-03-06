@@ -128,17 +128,8 @@ impl SuperpositionClient {
             }),
         };
 
-        // Create provider
+        // Create provider and set up OpenFeature
         let provider = superposition_provider::SuperpositionProvider::new(provider_options);
-
-        // Initialize provider and validate connection to Superposition service
-        // This ensures we fail fast if the service is unavailable
-        provider.init().await.map_err(|e| {
-            report!(SuperpositionError::ClientInitError(format!(
-                "Failed to connect to Superposition service: {}",
-                e
-            )))
-        })?;
 
         // Initialize OpenFeature API and set provider
         let mut api = open_feature::OpenFeature::singleton_mut().await;
@@ -208,7 +199,8 @@ impl SuperpositionClient {
     }
 }
 
-/// Each config type implements this trait to define how its value should be retrieved from Superposition.
+/// Each config type implements this trait to define how its value should be
+/// retrieved from Superposition.
 pub trait Config {
     /// The output type of this configuration
     type Output: Default + Clone;
