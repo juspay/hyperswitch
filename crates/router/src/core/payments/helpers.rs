@@ -719,10 +719,22 @@ pub async fn get_token_pm_type_mandate_details(
                                 .transpose()?,
                         };
 
+                        let resolved_payment_method = request.payment_method.or_else(|| {
+                            payment_method_info
+                                .as_ref()
+                                .and_then(|pm_info| pm_info.get_payment_method_type())
+                        });
+                        let resolved_payment_method_type =
+                            request.payment_method_type.or_else(|| {
+                                payment_method_info
+                                    .as_ref()
+                                    .and_then(|pm_info| pm_info.get_payment_method_subtype())
+                            });
+
                         (
                             request.payment_token.to_owned(),
-                            request.payment_method,
-                            request.payment_method_type,
+                            resolved_payment_method,
+                            resolved_payment_method_type,
                             None,
                             None,
                             None,
@@ -751,11 +763,22 @@ pub async fn get_token_pm_type_mandate_details(
                     .await
                     .transpose()?
             };
+            let resolved_payment_method = request.payment_method.or_else(|| {
+                payment_method_info
+                    .as_ref()
+                    .and_then(|pm_info| pm_info.get_payment_method_type())
+            });
+            let resolved_payment_method_type = request.payment_method_type.or_else(|| {
+                payment_method_info
+                    .as_ref()
+                    .and_then(|pm_info| pm_info.get_payment_method_subtype())
+            });
+
             (
                 request.payment_token.to_owned(),
-                request.payment_method,
-                request.payment_method_type,
-                mandate_data,
+                resolved_payment_method,
+                resolved_payment_method_type,
+                None,
                 None,
                 None,
                 payment_method_info,
