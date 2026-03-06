@@ -692,6 +692,7 @@ where
             payment_method_info,
         )
         .await?;
+    let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
 
     operation
         .to_get_tracker()?
@@ -1519,6 +1520,7 @@ where
             None,
         )
         .await?;
+    let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
 
     validate_for_proxy_payment(
         state,
