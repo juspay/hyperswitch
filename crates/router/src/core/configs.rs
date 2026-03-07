@@ -1,6 +1,11 @@
 pub mod dimension_config;
 pub mod dimension_state;
 use common_utils::errors::CustomResult;
+pub use dimension_config::{
+    AuthenticationServiceEligible, EnableExtendedCardBin, ImplicitCustomerUpdate, RequiresCvv,
+    ShouldCallGsm, ShouldEnableMitWithLimitedCardData, ShouldPerformEligibility,
+    ShouldStoreEligibilityCheckDataForAuthentication, StepUpEnabled,
+};
 use error_stack::ResultExt;
 use external_services::superposition::{self, ConfigContext};
 
@@ -176,14 +181,7 @@ where
     let config_type = C::KEY;
     let default_value = C::default_value();
 
-    let superposition_result = match superposition_client {
-        Some(client) => C::fetch(client, context, targeting_key).await,
-        None => Err(error_stack::report!(
-            superposition::SuperpositionError::ClientError(
-                "No superposition client available".to_string()
-            )
-        )),
-    };
+    let superposition_result = C::fetch(superposition_client, context, targeting_key).await;
 
     match superposition_result {
         Ok(value) => value,

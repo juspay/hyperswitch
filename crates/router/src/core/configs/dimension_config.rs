@@ -1,7 +1,10 @@
 use external_services::superposition;
 
 use super::{
-    dimension_state::{DimensionsWithMerchantId, DimensionsWithMerchantIdAndProfileId},
+    dimension_state::{
+        DimensionWithMerchantIdAndProfileId, DimensionWithMerchantIdAndProfileIdAndConnector,
+        DimensionsWithMerchantId, DimensionsWithOrgIdAndMerchantId,
+    },
     fetch_db_config_for_dimensions, DatabaseBackedConfig,
 };
 use crate::{consts::superposition as superposition_consts, db::StorageInterface, utils::id_type};
@@ -104,7 +107,7 @@ macro_rules! config {
                 pub async fn [<get_ $key:lower>](
                     &self,
                     storage: &dyn StorageInterface,
-                    superposition_client: Option<&superposition::SuperpositionClient>,
+                    superposition_client: &superposition::SuperpositionClient,
                     targeting_key: Option<&$targeting_type>,
                 ) -> $output {
                     fetch_db_config_for_dimensions::<[<$key:camel>]>(storage, superposition_client, self, targeting_key).await
@@ -149,5 +152,142 @@ impl DatabaseBackedConfig for ImplicitCustomerUpdate {
             .map(|id| id.get_string_repr())
             .unwrap_or_default();
         Some(format!("{}_{}", merchant_id, Self::KEY))
+    }
+}
+
+config! {
+    superposition_key = SHOULD_CALL_GSM,
+    output = bool,
+    default = false,
+    requires = DimensionWithMerchantIdAndProfileId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for ShouldCallGsm {
+    const KEY: &'static str = "should_call_gsm";
+
+    fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+        let merchant_id = dimensions
+            .get_merchant_id()
+            .map(|id| id.get_string_repr())
+            .unwrap_or_default();
+        Some(format!("{}_{}", merchant_id, Self::KEY))
+    }
+}
+
+config! {
+    superposition_key = SHOULD_PERFORM_ELIGIBILITY,
+    output = bool,
+    default = false,
+    requires = DimensionsWithMerchantId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for ShouldPerformEligibility {
+    const KEY: &'static str = "should_perform_eligibility";
+
+    fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+        let merchant_id = dimensions
+            .get_merchant_id()
+            .map(|id| id.get_string_repr())
+            .unwrap_or_default();
+        // Matches the existing key format: "should_perform_eligibility_{merchant_id}"
+        Some(format!("{}_{}", Self::KEY, merchant_id))
+    }
+}
+
+config! {
+    superposition_key = SHOULD_ENABLE_MIT_WITH_LIMITED_CARD_DATA,
+    output = bool,
+    default = false,
+    requires = DimensionWithMerchantIdAndProfileId,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for ShouldEnableMitWithLimitedCardData {
+    const KEY: &'static str = "should_enable_mit_with_limited_card_data";
+
+    fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+        let merchant_id = dimensions
+            .get_merchant_id()
+            .map(|id| id.get_string_repr())
+            .unwrap_or_default();
+        Some(format!("{}_{}", merchant_id, Self::KEY))
+    }
+}
+
+config! {
+    superposition_key = SHOULD_STORE_ELIGIBILITY_CHECK_DATA_FOR_AUTHENTICATION,
+    output = bool,
+    default = false,
+    requires = DimensionsWithMerchantId,
+    targeting_key = id_type::AuthenticationId
+}
+
+impl DatabaseBackedConfig for ShouldStoreEligibilityCheckDataForAuthentication {
+    const KEY: &'static str = "should_store_eligibility_check_data_for_authentication";
+
+    fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+        let merchant_id = dimensions
+            .get_merchant_id()
+            .map(|id| id.get_string_repr())
+            .unwrap_or_default();
+        // Matches the existing key format: "should_store_eligibility_check_data_for_authentication_{merchant_id}"
+        Some(format!("{}_{}", Self::KEY, merchant_id))
+    }
+}
+
+config! {
+    superposition_key = STEP_UP_ENABLED,
+    output = bool,
+    default = false,
+    requires = DimensionWithMerchantIdAndProfileIdAndConnector,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for StepUpEnabled {
+    const KEY: &'static str = "step_up_enabled";
+
+    // The old DB format stored a Vec<Connector> under "step_up_enabled_{merchant_id}".
+    // That schema is not compatible with a per-connector boolean, so no DB fallback.
+    fn db_key(_dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+        None
+    }
+}
+
+config! {
+    superposition_key = ENABLE_EXTENDED_CARD_BIN,
+    output = bool,
+    default = false,
+    requires = DimensionWithMerchantIdAndProfileId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for EnableExtendedCardBin {
+    const KEY: &'static str = "enable_extended_card_bin";
+
+    fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+        let profile_id = dimensions
+            .get_profile_id()
+            .map(|id| id.get_string_repr())
+            .unwrap_or_default();
+        // Matches the existing key format: "{profile_id}_enable_extended_card_bin"
+        Some(format!("{}_{}", profile_id, Self::KEY))
+    }
+}
+
+config! {
+    superposition_key = AUTHENTICATION_SERVICE_ELIGIBLE,
+    output = bool,
+    default = false,
+    requires = DimensionsWithOrgIdAndMerchantId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for AuthenticationServiceEligible {
+    const KEY: &'static str = "authentication_service_eligible";
+
+    fn db_key(_dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+        None
     }
 }
