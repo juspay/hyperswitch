@@ -180,14 +180,14 @@ pub(crate) async fn trigger_webhook_and_raise_event(
     );
 
     let merchant_id = business_profile.merchant_id.clone();
-    let trigger_webhook_result = trigger_webhook_to_merchant(
+    let trigger_webhook_result = Box::pin(trigger_webhook_to_merchant(
         state.clone(),
         business_profile,
         merchant_key_store,
         event.clone(),
         request_content,
         delivery_attempt,
-    )
+    ))
     .await;
 
     let _ =

@@ -37,29 +37,46 @@ pub async fn msearch_results(
         OpenSearchQuery::Msearch(indexes.clone()),
         req.query,
         search_params,
+        None,
     );
 
     if let Some(filters) = req.filters {
         if let Some(currency) = filters.currency {
             if !currency.is_empty() {
+                let currency_strings: Vec<String> = currency
+                    .iter()
+                    .map(|currency| currency.to_string())
+                    .collect();
                 query_builder
-                    .add_filter_clause("currency.keyword".to_string(), convert_to_value(currency))
+                    .add_filter_clause(
+                        "currency.keyword".to_string(),
+                        convert_to_value(currency_strings),
+                    )
                     .switch()?;
             }
         };
         if let Some(status) = filters.status {
             if !status.is_empty() {
+                let status_strings: Vec<String> =
+                    status.iter().map(|status| status.to_string()).collect();
                 query_builder
-                    .add_filter_clause("status.keyword".to_string(), convert_to_value(status))
+                    .add_filter_clause(
+                        "status.keyword".to_string(),
+                        convert_to_value(status_strings),
+                    )
                     .switch()?;
             }
         };
         if let Some(payment_method) = filters.payment_method {
             if !payment_method.is_empty() {
+                let payment_method_strings: Vec<String> = payment_method
+                    .iter()
+                    .map(|payment_method| payment_method.to_string())
+                    .collect();
                 query_builder
                     .add_filter_clause(
                         "payment_method.keyword".to_string(),
-                        convert_to_value(payment_method),
+                        convert_to_value(payment_method_strings),
                     )
                     .switch()?;
             }
@@ -106,27 +123,40 @@ pub async fn msearch_results(
         };
         if let Some(connector) = filters.connector {
             if !connector.is_empty() {
+                let connector_strings: Vec<String> =
+                    connector.iter().map(|c| c.to_string()).collect();
                 query_builder
-                    .add_filter_clause("connector.keyword".to_string(), convert_to_value(connector))
+                    .add_filter_clause(
+                        "connector.keyword".to_string(),
+                        convert_to_value(connector_strings),
+                    )
                     .switch()?;
             }
         };
         if let Some(payment_method_type) = filters.payment_method_type {
             if !payment_method_type.is_empty() {
+                let payment_method_type_strings: Vec<String> = payment_method_type
+                    .iter()
+                    .map(|payment_method_type| payment_method_type.to_string())
+                    .collect();
                 query_builder
                     .add_filter_clause(
                         "payment_method_type.keyword".to_string(),
-                        convert_to_value(payment_method_type),
+                        convert_to_value(payment_method_type_strings),
                     )
                     .switch()?;
             }
         };
         if let Some(card_network) = filters.card_network {
             if !card_network.is_empty() {
+                let card_network_strings: Vec<String> = card_network
+                    .iter()
+                    .map(|card_network| card_network.to_string())
+                    .collect();
                 query_builder
                     .add_filter_clause(
                         "card_network.keyword".to_string(),
-                        convert_to_value(card_network),
+                        convert_to_value(card_network_strings),
                     )
                     .switch()?;
             }
@@ -143,10 +173,14 @@ pub async fn msearch_results(
         };
         if let Some(payment_id) = filters.payment_id {
             if !payment_id.is_empty() {
+                let payment_id_strings: Vec<String> = payment_id
+                    .iter()
+                    .map(|id| id.get_string_repr().to_string())
+                    .collect();
                 query_builder
                     .add_filter_clause(
                         "payment_id.keyword".to_string(),
-                        convert_to_value(payment_id),
+                        convert_to_value(payment_id_strings),
                     )
                     .switch()?;
             }
@@ -160,10 +194,14 @@ pub async fn msearch_results(
         };
         if let Some(customer_id) = filters.customer_id {
             if !customer_id.is_empty() {
+                let customer_id_strings: Vec<String> = customer_id
+                    .iter()
+                    .map(|id| id.get_string_repr().to_string())
+                    .collect();
                 query_builder
                     .add_filter_clause(
                         "customer_id.keyword".to_string(),
-                        convert_to_value(customer_id),
+                        convert_to_value(customer_id_strings),
                     )
                     .switch()?;
             }
@@ -233,9 +271,10 @@ pub async fn search_results(
             .filters
             .as_ref()
             .is_none_or(|filters| filters.is_all_none())
+        && search_params.is_empty()
     {
         return Err(OpenSearchError::BadRequestError(
-            "Both query and filters are empty".to_string(),
+            "Query, filters and search_params are all empty".to_string(),
         )
         .into());
     }
@@ -243,29 +282,41 @@ pub async fn search_results(
         OpenSearchQuery::Search(req.index),
         search_req.query,
         search_params,
+        search_req.order,
     );
 
     if let Some(filters) = search_req.filters {
         if let Some(currency) = filters.currency {
             if !currency.is_empty() {
+                let currency_strings: Vec<String> =
+                    currency.iter().map(|c| c.to_string()).collect();
                 query_builder
-                    .add_filter_clause("currency.keyword".to_string(), convert_to_value(currency))
+                    .add_filter_clause(
+                        "currency.keyword".to_string(),
+                        convert_to_value(currency_strings),
+                    )
                     .switch()?;
             }
         };
         if let Some(status) = filters.status {
             if !status.is_empty() {
+                let status_strings: Vec<String> = status.iter().map(|s| s.to_string()).collect();
                 query_builder
-                    .add_filter_clause("status.keyword".to_string(), convert_to_value(status))
+                    .add_filter_clause(
+                        "status.keyword".to_string(),
+                        convert_to_value(status_strings),
+                    )
                     .switch()?;
             }
         };
         if let Some(payment_method) = filters.payment_method {
             if !payment_method.is_empty() {
+                let payment_method_strings: Vec<String> =
+                    payment_method.iter().map(|pm| pm.to_string()).collect();
                 query_builder
                     .add_filter_clause(
                         "payment_method.keyword".to_string(),
-                        convert_to_value(payment_method),
+                        convert_to_value(payment_method_strings),
                     )
                     .switch()?;
             }
@@ -310,29 +361,87 @@ pub async fn search_results(
                     .switch()?;
             }
         };
+        if let Some(authentication_type) = filters.authentication_type {
+            if !authentication_type.is_empty() {
+                let authentication_type_strings: Vec<String> = authentication_type
+                    .iter()
+                    .map(|at| at.to_string())
+                    .collect();
+                query_builder
+                    .add_filter_clause(
+                        "authentication_type.keyword".to_string(),
+                        convert_to_value(authentication_type_strings),
+                    )
+                    .switch()?;
+            }
+        };
+        if let Some(card_discovery) = filters.card_discovery {
+            if !card_discovery.is_empty() {
+                let card_discovery_strings: Vec<String> = card_discovery
+                    .iter()
+                    .map(|card_discovery| card_discovery.to_string())
+                    .collect();
+                query_builder
+                    .add_filter_clause(
+                        "card_discovery.keyword".to_string(),
+                        convert_to_value(card_discovery_strings),
+                    )
+                    .switch()?;
+            }
+        };
+        if let Some(merchant_order_reference_id) = filters.merchant_order_reference_id {
+            if !merchant_order_reference_id.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "merchant_order_reference_id.keyword".to_string(),
+                        convert_to_value(merchant_order_reference_id),
+                    )
+                    .switch()?;
+            }
+        };
+        if let Some(amount_filter) = filters.amount_filter.as_ref() {
+            if amount_filter.start_amount.is_some() || amount_filter.end_amount.is_some() {
+                let amount_range = crate::opensearch::OpensearchRange {
+                    gte: amount_filter.start_amount,
+                    lte: amount_filter.end_amount,
+                };
+                query_builder.set_amount_range(amount_range).switch()?;
+            }
+        };
         if let Some(connector) = filters.connector {
             if !connector.is_empty() {
+                let connector_strings: Vec<String> =
+                    connector.iter().map(|c| c.to_string()).collect();
                 query_builder
-                    .add_filter_clause("connector.keyword".to_string(), convert_to_value(connector))
+                    .add_filter_clause(
+                        "connector.keyword".to_string(),
+                        convert_to_value(connector_strings),
+                    )
                     .switch()?;
             }
         };
         if let Some(payment_method_type) = filters.payment_method_type {
             if !payment_method_type.is_empty() {
+                let payment_method_type_strings: Vec<String> = payment_method_type
+                    .iter()
+                    .map(|pmt| pmt.to_string())
+                    .collect();
                 query_builder
                     .add_filter_clause(
                         "payment_method_type.keyword".to_string(),
-                        convert_to_value(payment_method_type),
+                        convert_to_value(payment_method_type_strings),
                     )
                     .switch()?;
             }
         };
         if let Some(card_network) = filters.card_network {
             if !card_network.is_empty() {
+                let card_network_strings: Vec<String> =
+                    card_network.iter().map(|cn| cn.to_string()).collect();
                 query_builder
                     .add_filter_clause(
                         "card_network.keyword".to_string(),
-                        convert_to_value(card_network),
+                        convert_to_value(card_network_strings),
                     )
                     .switch()?;
             }
@@ -349,10 +458,14 @@ pub async fn search_results(
         };
         if let Some(payment_id) = filters.payment_id {
             if !payment_id.is_empty() {
+                let payment_id_strings: Vec<String> = payment_id
+                    .iter()
+                    .map(|id| id.get_string_repr().to_string())
+                    .collect();
                 query_builder
                     .add_filter_clause(
                         "payment_id.keyword".to_string(),
-                        convert_to_value(payment_id),
+                        convert_to_value(payment_id_strings),
                     )
                     .switch()?;
             }
@@ -366,10 +479,14 @@ pub async fn search_results(
         };
         if let Some(customer_id) = filters.customer_id {
             if !customer_id.is_empty() {
+                let customer_id_strings: Vec<String> = customer_id
+                    .iter()
+                    .map(|id| id.get_string_repr().to_string())
+                    .collect();
                 query_builder
                     .add_filter_clause(
                         "customer_id.keyword".to_string(),
-                        convert_to_value(customer_id),
+                        convert_to_value(customer_id_strings),
                     )
                     .switch()?;
             }
