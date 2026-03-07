@@ -1,4 +1,6 @@
-pub use hyperswitch_domain_models::errors::api_error_response;
+pub use hyperswitch_domain_models::{
+    errors::api_error_response, router_request_types::subscriptions as subscription_request_types,
+};
 
 pub const X_PROFILE_ID: &str = "X-Profile-Id";
 pub const X_TENANT_ID: &str = "x-tenant-id";
@@ -57,5 +59,29 @@ impl<T> StorageErrorExt<T, api_error_response::ApiErrorResponse>
             };
             err.change_context(new_err)
         })
+    }
+}
+/// Extension trait for adding addons to subscription items
+pub trait AddonsExt {
+    fn add_to_subscription_items(
+        self,
+        subscription_items: Vec<subscription_request_types::SubscriptionItem>,
+    ) -> Vec<subscription_request_types::SubscriptionItem>;
+}
+
+impl AddonsExt for Option<Vec<api_models::subscription::AddonsDetails>> {
+    fn add_to_subscription_items(
+        self,
+        mut subscription_items: Vec<subscription_request_types::SubscriptionItem>,
+    ) -> Vec<subscription_request_types::SubscriptionItem> {
+        if let Some(addon_list) = self {
+            for addon in addon_list {
+                subscription_items.push(subscription_request_types::SubscriptionItem {
+                    item_price_id: addon.item_price_id.clone(),
+                    quantity: addon.quantity,
+                });
+            }
+        }
+        subscription_items
     }
 }
