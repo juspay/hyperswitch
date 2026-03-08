@@ -5241,3 +5241,68 @@ Cypress.Commands.add("step", (stepName, fn) => {
     Cypress.log({ groupEnd: true, emitOnly: true });
   });
 });
+
+Cypress.Commands.add("stepTest", (stepName, errorStack, fn) => {
+  cy.task("cli_log", `\nSTEP: ${stepName}`);
+
+  const log = Cypress.log({
+    name: "step",
+    displayName: "⬡ STEP",
+    message: `**${stepName}**`,
+    groupStart: true,
+    consoleProps: () => ({ Step: stepName }),
+  });
+
+  cy.then(() => {
+    const originalAssert = chai.Assertion.prototype.assert;
+
+    // If a Cypress command fails (timeout, network error, etc.) the cleanup
+    // cy.then() below will never run because the queue is cleared. Register a
+    // fail handler that restores chai in that case. It does NOT return false,
+    // so command failures still propagate and fail the test hard.
+    const restoreOnCommandFail = () => {
+      chai.Assertion.prototype.assert = originalAssert;
+    };
+    cy.on("fail", restoreOnCommandFail);
+
+    // Patch chai's core assert so assertion failures inside .then() callbacks
+    // are caught softly — the callback never throws, Cypress never sees a
+    // failure, and the queue continues to the next step.
+    // Only soft-assert when the current command is 'then' (runs once, never
+    // retried). For everything else — 'assert', 'should', 'and', or any
+    // retryable command — re-throw so Cypress retries until timeout as normal.
+    chai.Assertion.prototype.assert = function (...args) {
+      try {
+        return originalAssert.apply(this, args);
+      } catch (err) {
+        const currentCmd = cy.state("current");
+        const cmdName = currentCmd && currentCmd.get("name");
+        if (cmdName !== "then") {
+          throw err; // re-throw for retryable commands
+        }
+        errorStack.push({ step: stepName, error: err });
+        // No re-throw — queue keeps running
+      }
+    };
+
+    fn();
+
+    cy.then(() => {
+      cy.off("fail", restoreOnCommandFail);
+      chai.Assertion.prototype.assert = originalAssert;
+      const stepFailures = errorStack.filter((e) => e.step === stepName);
+      stepFailures.forEach((failure) => {
+        cy.task(
+          "cli_log",
+          `[SOFT ASSERT FAIL] ${stepName}: ${failure.error.message}`
+        );
+      });
+      if (stepFailures.length > 0) {
+        log.set({ displayName: "✗ STEP", message: stepName });
+      } else {
+        log.set({ displayName: "✓ STEP", message: stepName, collapsed: true });
+      }
+      Cypress.log({ groupEnd: true, emitOnly: true });
+    });
+  });
+});

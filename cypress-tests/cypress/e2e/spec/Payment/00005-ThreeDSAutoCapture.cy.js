@@ -1,6 +1,7 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
+import reportErrors from "../../../utils/reportErrors";
 
 let globalState;
 
@@ -17,9 +18,10 @@ describe("Card - ThreeDS payment flow test", () => {
 
   context("Card-ThreeDS payment flow test Create and Confirm", () => {
     it("create payment intent -> payment methods call -> confirm payment intent -> handle redirection", () => {
+      const errorStack = [];
       let shouldContinue = true;
 
-      cy.step("create payment intent", () => {
+      cy.stepTest("create payment intent", errorStack, () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
@@ -37,7 +39,7 @@ describe("Card - ThreeDS payment flow test", () => {
         }
       });
 
-      cy.step("payment methods call", () => {
+      cy.stepTest("payment methods call", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: payment methods call");
           return;
@@ -45,7 +47,7 @@ describe("Card - ThreeDS payment flow test", () => {
         cy.paymentMethodsCallTest(globalState);
       });
 
-      cy.step("confirm payment intent", () => {
+      cy.stepTest("confirm payment intent", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: confirm payment intent");
           return;
@@ -66,13 +68,19 @@ describe("Card - ThreeDS payment flow test", () => {
         }
       });
 
-      cy.step("handle redirection", () => {
+      cy.stepTest("handle redirection", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: handle redirection");
           return;
         }
         const expected_redirection = fixtures.confirmBody["return_url"];
         cy.handleRedirection(globalState, expected_redirection);
+      });
+
+      cy.then(() => {
+        if (errorStack.length > 0) {
+          reportErrors(errorStack);
+        }
       });
     });
   });
