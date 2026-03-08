@@ -88,10 +88,7 @@ use crate::{
     consts::{self, BASE64_ENGINE},
     core::{
         authentication,
-        configs::{
-            self as configs,
-            dimension_state::DimensionsWithMerchantIdAndProfileId,
-        },
+        configs::{self as configs, dimension_state::DimensionsWithMerchantIdAndProfileId},
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers::MandateGenericData,
         payment_methods::{
@@ -5394,11 +5391,7 @@ pub async fn get_additional_payment_data(
             //todo!
             let card_isin = Some(card_data.card_number.get_card_isin());
             let enable_extended_bin = dimensions
-                .get_enable_extended_card_bin(
-                    db,
-                    superposition_service,
-                    customer_id,
-                )
+                .get_enable_extended_card_bin(db, superposition_service, customer_id)
                 .await;
 
             let card_extended_bin = if enable_extended_bin {
@@ -5771,11 +5764,7 @@ pub async fn get_additional_payment_data(
         domain::PaymentMethodData::CardDetailsForNetworkTransactionId(card_data) => {
             let card_isin = Some(card_data.card_number.get_card_isin());
             let enable_extended_bin = dimensions
-                .get_enable_extended_card_bin(
-                    db,
-                    superposition_service,
-                    customer_id,
-                )
+                .get_enable_extended_card_bin(db, superposition_service, customer_id)
                 .await;
 
             let card_extended_bin = if enable_extended_bin {
@@ -5888,15 +5877,15 @@ pub async fn get_additional_payment_data(
         domain::PaymentMethodData::CardWithLimitedDetails(card_with_limited_details) => {
             let card_isin = Some(card_with_limited_details.card_number.get_card_isin());
             let enable_extended_bin = dimensions
-                .get_enable_extended_card_bin(
-                    db,
-                    superposition_service,
-                    customer_id,
-                )
+                .get_enable_extended_card_bin(db, superposition_service, customer_id)
                 .await;
 
             let card_extended_bin = if enable_extended_bin {
-                Some(card_with_limited_details.card_number.get_extended_card_bin())
+                Some(
+                    card_with_limited_details
+                        .card_number
+                        .get_extended_card_bin(),
+                )
             } else {
                 None
             };

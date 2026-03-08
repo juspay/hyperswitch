@@ -1558,7 +1558,9 @@ impl EligibilityHandler {
                 &self.state,
                 &self.platform,
                 &self.dimensions,
-                &self.authentication_eligibility_check_request.authentication_id,
+                &self
+                    .authentication_eligibility_check_request
+                    .authentication_id,
             )
             .await?;
         Ok(match should_run {
@@ -1587,7 +1589,8 @@ pub async fn authentication_eligibility_check_core(
     let merchant_account = platform.get_processor().get_account();
     let merchant_id = merchant_account.get_id();
     let key_manager_state = (&state).into();
-    let dimensions = configs::dimension_state::Dimensions::new().with_merchant_id(merchant_id.clone());
+    let dimensions =
+        configs::dimension_state::Dimensions::new().with_merchant_id(merchant_id.clone());
 
     let authentication = db
         .find_authentication_by_merchant_id_authentication_id(

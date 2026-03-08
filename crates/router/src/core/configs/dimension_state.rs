@@ -59,7 +59,7 @@ pub struct Dimensions<M, O, P, Cn> {
     _phantom: PhantomData<(M, O, P, Cn)>,
 }
 
-impl Dimensions<NoMerchantId, NoOrgId, NoProfileId,NoConnector> {
+impl Dimensions<NoMerchantId, NoOrgId, NoProfileId, NoConnector> {
     pub fn new() -> Self {
         Self {
             merchant_id: None,
@@ -73,10 +73,7 @@ impl Dimensions<NoMerchantId, NoOrgId, NoProfileId,NoConnector> {
 
 /// Can only add merchant_id if not already present
 impl<O, P, Cn> Dimensions<NoMerchantId, O, P, Cn> {
-    pub fn with_merchant_id(
-        &self,
-        id: id_type::MerchantId,
-    ) -> Dimensions<HasMerchantId, O, P, Cn> {
+    pub fn with_merchant_id(&self, id: id_type::MerchantId) -> Dimensions<HasMerchantId, O, P, Cn> {
         Dimensions {
             merchant_id: Some(id),
             organization_id: self.organization_id.clone(),
@@ -279,7 +276,7 @@ pub trait DimensionsBase {
 
     /// Get profile_id (if available)
     fn get_profile_id(&self) -> Option<&id_type::ProfileId>;
-    
+
     /// Get connector (if available)
     fn get_connector(&self) -> Option<Connector>;
 }
@@ -311,9 +308,9 @@ pub type DimensionsWithOrgIdAndMerchantId =
     Dimensions<HasMerchantId, HasOrgId, NoProfileId, NoConnector>;
 pub type DimensionsWithOrgIdAndMerchantIdAndProfileId =
     Dimensions<HasMerchantId, HasOrgId, HasProfileId, NoConnector>;
-pub type DimensionsWithMerchantIdAndProfileId = Dimensions<HasMerchantId, NoOrgId, HasProfileId, NoConnector>;
+pub type DimensionsWithMerchantIdAndProfileId =
+    Dimensions<HasMerchantId, NoOrgId, HasProfileId, NoConnector>;
 pub type DimensionsWithMerchantIdAndConnector =
     Dimensions<HasMerchantId, NoOrgId, NoProfileId, HasConnector>;
 pub type DimensionsWithMerchantIdAndProfileIdAndConnector =
     Dimensions<HasMerchantId, NoOrgId, HasProfileId, HasConnector>;
-

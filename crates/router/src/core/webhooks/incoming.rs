@@ -39,8 +39,7 @@ use super::{types, utils, MERCHANT_ID};
 use crate::{
     consts,
     core::{
-        configs,
-        api_locking,
+        api_locking, configs,
         errors::{self, ConnectorErrorExt, CustomResult, RouterResponse, StorageErrorExt},
         metrics, payment_methods,
         payment_methods::cards,
@@ -246,7 +245,8 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     // If No, then it will return Direct
     // Direct Signifies its not a authentication connector
     let three_ds_execution_path =
-        fetch_three_ds_execution_path(&platform, connector_name_or_mca_id, &state, &dimensions).await?;
+        fetch_three_ds_execution_path(&platform, connector_name_or_mca_id, &state, &dimensions)
+            .await?;
 
     // Decodes webhook body based on execution path, and returns connector Integration, connector_name and webhook_processing_result back to the flow without disturbing the current flow
     let (connector, connector_name, webhook_processing_result) = match three_ds_execution_path {
@@ -508,11 +508,7 @@ async fn fetch_three_ds_execution_path(
         })
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
     let is_merchant_eligible_for_uas =
-        payments::helpers::is_merchant_eligible_authentication_service(
-            dimensions,
-            state,
-        )
-        .await?;
+        payments::helpers::is_merchant_eligible_authentication_service(dimensions, state).await?;
 
     if is_merchant_eligible_for_uas && eligible_connector_list.contains(&connector_enum) {
         Ok(ThreeDsProcessingMode::UnifiedAuthenticationService(
