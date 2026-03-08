@@ -5242,6 +5242,36 @@ Cypress.Commands.add("step", (stepName, fn) => {
   });
 });
 
+const ANSI_GREEN = "\x1b[32m";
+const ANSI_RED = "\x1b[31m";
+const ANSI_RESET = "\x1b[0m";
+
+function buildDiff(actual, expected) {
+  const actualLines = actual.trim().split("\n");
+  const expectedLines = expected.trim().split("\n");
+
+  const diffLines = [];
+  const maxLen = Math.max(actualLines.length, expectedLines.length);
+
+  for (let i = 0; i < maxLen; i++) {
+    const aLine = actualLines[i];
+    const eLine = expectedLines[i];
+
+    if (aLine !== eLine) {
+      if (aLine !== undefined)
+        diffLines.push(`${ANSI_RED}  -   ${aLine.trim()}${ANSI_RESET}`);
+      if (eLine !== undefined)
+        diffLines.push(`${ANSI_GREEN}  +   ${eLine.trim()}${ANSI_RESET}`);
+    }
+  }
+
+  return [
+    `      ${ANSI_GREEN}+ expected${ANSI_RESET} - actual`,
+    "",
+    ...diffLines,
+  ].join("\n");
+}
+
 Cypress.Commands.add("stepTest", (stepName, errorStack, fn) => {
   cy.task("cli_log", `\nSTEP: ${stepName}`);
 
@@ -5292,10 +5322,12 @@ Cypress.Commands.add("stepTest", (stepName, errorStack, fn) => {
       chai.Assertion.prototype.assert = originalAssert;
       const stepFailures = errorStack.filter((e) => e.step === stepName);
       stepFailures.forEach((failure) => {
-        cy.task(
-          "cli_log",
-          `[SOFT ASSERT FAIL] ${stepName}: ${failure.error.message}`
-        );
+        const { error } = failure;
+        let logMsg = `${ANSI_RED}[SOFT ASSERT FAIL]${ANSI_RESET} ${stepName}: ${error.message}`;
+        if (error.actual !== undefined && error.expected !== undefined) {
+          logMsg += `\n${buildDiff(String(error.actual), String(error.expected))}`;
+        }
+        cy.task("cli_log", logMsg);
       });
       if (stepFailures.length > 0) {
         log.set({ displayName: "✗ STEP", message: stepName });
