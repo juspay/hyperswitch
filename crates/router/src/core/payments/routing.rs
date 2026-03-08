@@ -67,6 +67,7 @@ use crate::{
             OperationSessionSetters,
         },
         routing,
+        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
     },
     logger, services,
     types::{
@@ -1284,6 +1285,7 @@ pub async fn try_pre_routing_connectors<F, D>(
     business_profile: &domain::Profile,
     payment_data: &mut D,
     routing_data: &mut RoutingData,
+    dimensions: &DimensionsWithMerchantIdAndProfileId,
 ) -> errors::RouterResult<Option<api::ConnectorCallType>>
 where
     F: Send + Clone,
@@ -1316,9 +1318,10 @@ where
             #[cfg(feature = "retry")]
             {
                 let should_do_retry = crate::core::payments::retry::config_should_call_gsm(
-                    &*state.store,
-                    processor.get_account().get_id(),
+                    state,
+                    dimensions,
                     business_profile,
+                    payment_data.get_payment_intent().customer_id.as_ref(),
                 )
                 .await;
 

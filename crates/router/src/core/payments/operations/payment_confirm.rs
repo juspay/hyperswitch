@@ -37,7 +37,7 @@ use crate::{
         authentication,
         blocklist::utils as blocklist_utils,
         card_testing_guard::utils as card_testing_guard_utils,
-        configs::dimension_state::DimensionWithMerchantIdAndProfileIdAndProfileId,
+        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         metrics,
@@ -529,7 +529,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         helpers::get_additional_payment_data(
                             &payment_method_data,
                             store.as_ref(),
-                            superposition_service.as_ref(),
+                            superposition_service.as_deref(),
                             &merchant_id,
                             &profile_id,
                             customer_id.as_ref(),
@@ -1003,7 +1003,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
         initiator: Option<&domain::Initiator>,
-        dimensions: &DimensionWithMerchantIdAndProfileIdAndProfileId,
+        dimensions: &DimensionsWithMerchantIdAndProfileId,
     ) -> CustomResult<
         (PaymentConfirmOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,
@@ -2324,7 +2324,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                 helpers::get_additional_payment_data(
                     payment_method_data,
                     &*state.store,
-                    state.superposition_service.as_ref(),
+                    state.superposition_service.as_deref(),
                     &payment_data.payment_intent.merchant_id,
                     profile_id,
                     customer_id,

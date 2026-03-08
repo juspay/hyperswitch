@@ -12,7 +12,7 @@ use router_env::{
 use crate::{
     consts,
     core::{
-        configs::dimension_state::DimensionWithMerchantIdAndProfileId,
+        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{
             self, complete_connector_service,
@@ -50,7 +50,7 @@ pub async fn do_gsm_actions<'a, F, ApiRequest, FData, D>(
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
     business_profile: &domain::Profile,
     feature_config: &core_utils::FeatureConfig,
-    dimensions: &DimensionWithMerchantIdAndProfileId,
+    dimensions: &DimensionsWithMerchantIdAndProfileId,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync + std::fmt::Debug + 'static,
@@ -249,14 +249,14 @@ where
 pub async fn is_step_up_enabled_for_merchant_connector(
     state: &app::SessionState,
     connector_name: types::Connector,
-    dimensions: &DimensionWithMerchantIdAndProfileId,
+    dimensions: &DimensionsWithMerchantIdAndProfileId,
     customer_id: Option<&common_utils::id_type::CustomerId>,
 ) -> bool {
     let dimensions = dimensions.with_connector(connector_name);
     dimensions
         .get_step_up_enabled(
             state.store.as_ref(),
-            state.superposition_service.as_ref(),
+            state.superposition_service.as_deref(),
             customer_id,
         )
         .await
@@ -872,14 +872,14 @@ pub fn make_new_payment_attempt(
 #[cfg(feature = "v1")]
 pub async fn config_should_call_gsm(
     state: &app::SessionState,
-    dimensions: &DimensionWithMerchantIdAndProfileId,
+    dimensions: &DimensionsWithMerchantIdAndProfileId,
     profile: &domain::Profile,
     customer_id: Option<&common_utils::id_type::CustomerId>,
 ) -> bool {
     let merchant_config_gsm = dimensions
         .get_should_call_gsm(
             state.store.as_ref(),
-            state.superposition_service.as_ref(),
+            state.superposition_service.as_deref(),
             customer_id,
         )
         .await;

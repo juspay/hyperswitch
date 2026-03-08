@@ -90,7 +90,7 @@ use crate::{
         authentication,
         configs::{
             self as configs,
-            dimension_state::DimensionWithMerchantIdAndProfileId,
+            dimension_state::DimensionsWithMerchantIdAndProfileId,
         },
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers::MandateGenericData,
@@ -1883,7 +1883,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     _payment_data: &mut PaymentData<F>,
     _req: Option<CustomerDetails>,
     _provider: &domain::Provider,
-    _dimensions: &DimensionWithMerchantIdAndProfileIdAndProfileId,
+    _dimensions: &DimensionsWithMerchantIdAndProfileId,
 ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
     todo!()
 }
@@ -1898,7 +1898,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     req: Option<CustomerDetails>,
     provider: &domain::Provider,
     initiator: Option<&domain::Initiator>,
-    dimensions: &DimensionWithMerchantIdAndProfileIdAndProfileId,
+    dimensions: &DimensionsWithMerchantIdAndProfileId,
 ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
     let merchant_id = provider.get_account().get_id();
     let storage_scheme = provider.get_account().storage_scheme;
@@ -1997,7 +1997,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                     let implicit_customer_update = dimensions
                         .get_implicit_customer_update(
                             state.store.as_ref(),
-                            &state.superposition_service,
+                            state.superposition_service.as_deref(),
                             Some(&customer_id),
                         )
                         .await;
@@ -5376,7 +5376,7 @@ mod test {
 pub async fn get_additional_payment_data(
     pm_data: &domain::PaymentMethodData,
     db: &dyn StorageInterface,
-    superposition_service: &external_services::superposition::SuperpositionClient,
+    superposition_service: Option<&external_services::superposition::SuperpositionClient>,
     merchant_id: &id_type::MerchantId,
     profile_id: &id_type::ProfileId,
     customer_id: Option<&id_type::CustomerId>,
@@ -8509,7 +8509,7 @@ pub async fn is_merchant_eligible_authentication_service(
     Ok(dimensions
         .get_authentication_service_eligible(
             &*state.store,
-            state.superposition_service.as_ref(),
+            state.superposition_service.as_deref(),
             None::<&id_type::CustomerId>,
         )
         .await)

@@ -2,7 +2,7 @@ use external_services::superposition;
 
 use super::{
     dimension_state::{
-        DimensionWithMerchantIdAndProfileId, DimensionWithMerchantIdAndProfileIdAndConnector,
+        DimensionsWithMerchantIdAndProfileId, DimensionsWithMerchantIdAndProfileIdAndConnector,
         DimensionsWithMerchantId, DimensionsWithOrgIdAndMerchantId,
     },
     fetch_db_config_for_dimensions, DatabaseBackedConfig,
@@ -107,7 +107,7 @@ macro_rules! config {
                 pub async fn [<get_ $key:lower>](
                     &self,
                     storage: &dyn StorageInterface,
-                    superposition_client: &superposition::SuperpositionClient,
+                    superposition_client: Option<&superposition::SuperpositionClient>,
                     targeting_key: Option<&$targeting_type>,
                 ) -> $output {
                     fetch_db_config_for_dimensions::<[<$key:camel>]>(storage, superposition_client, self, targeting_key).await
@@ -159,7 +159,7 @@ config! {
     superposition_key = SHOULD_CALL_GSM,
     output = bool,
     default = false,
-    requires = DimensionWithMerchantIdAndProfileId,
+    requires = DimensionsWithMerchantIdAndProfileId,
     targeting_key = id_type::CustomerId
 }
 
@@ -200,7 +200,7 @@ config! {
     superposition_key = SHOULD_ENABLE_MIT_WITH_LIMITED_CARD_DATA,
     output = bool,
     default = false,
-    requires = DimensionWithMerchantIdAndProfileId,
+    requires = DimensionsWithMerchantIdAndProfileId,
     targeting_key = id_type::PaymentId
 }
 
@@ -241,7 +241,7 @@ config! {
     superposition_key = STEP_UP_ENABLED,
     output = bool,
     default = false,
-    requires = DimensionWithMerchantIdAndProfileIdAndConnector,
+    requires = DimensionsWithMerchantIdAndProfileIdAndConnector,
     targeting_key = id_type::CustomerId
 }
 
@@ -259,7 +259,7 @@ config! {
     superposition_key = ENABLE_EXTENDED_CARD_BIN,
     output = bool,
     default = false,
-    requires = DimensionWithMerchantIdAndProfileId,
+    requires = DimensionsWithMerchantIdAndProfileId,
     targeting_key = id_type::CustomerId
 }
 

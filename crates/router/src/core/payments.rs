@@ -124,7 +124,7 @@ use crate::core::routing::helpers as routing_helpers;
 use crate::core::{
     blocklist::utils as blocklist_utils,
     configs::{
-        self as configs, dimension_state::DimensionWithMerchantIdAndProfileId,
+        self as configs, dimension_state::DimensionsWithMerchantIdAndProfileId,
         dimension_state::DimensionsWithMerchantId,
     },
 };
@@ -9254,7 +9254,7 @@ pub async fn choose_connector<F, Req, D>(
     payment_data: &mut D,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     mandate_type: Option<api::MandateTransactionType>,
-    dimensions: &DimensionWithMerchantIdAndProfileId,
+    dimensions: &DimensionsWithMerchantIdAndProfileId,
 ) -> RouterResult<Option<ConnectorCallType>>
 where
     F: Send + Clone,
@@ -9324,6 +9324,7 @@ where
                             Some(straight_through),
                             eligible_connectors,
                             mandate_type,
+                            dimensions,
                             fallback_config,
                             backend_input,
                         )
@@ -9339,6 +9340,7 @@ where
                             None,
                             eligible_connectors,
                             mandate_type,
+                            dimensions,
                             fallback_config,
                             backend_input,
                         )
@@ -9488,7 +9490,7 @@ where
 pub async fn validate_for_proxy_payment<F, D>(
     state: &SessionState,
     payment_data: &D,
-    dimensions: &DimensionWithMerchantIdAndProfileId,
+    dimensions: &DimensionsWithMerchantIdAndProfileId,
 ) -> RouterResult<()>
 where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -9503,7 +9505,7 @@ where
     let is_mit_with_limited_card_data_enabled = dimensions
         .get_should_enable_mit_with_limited_card_data(
             state.store.as_ref(),
-            state.superposition_service.as_ref(),
+            state.superposition_service.as_deref(),
             Some(&payment_data.get_payment_intent().payment_id),
         )
         .await;
@@ -9530,7 +9532,7 @@ pub async fn perform_routing_for_connector_selection<F, D>(
     request_straight_through: Option<serde_json::Value>,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     mandate_type: Option<api::MandateTransactionType>,
-    dimensions: &DimensionWithMerchantIdAndProfileId,
+    dimensions: &DimensionsWithMerchantIdAndProfileId,
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
     backend_input: dsl_inputs::BackendInput,
 ) -> RouterResult<ConnectorCallType>
@@ -9770,7 +9772,7 @@ pub async fn decide_connector<F, D>(
     routing_data: &mut storage::RoutingData,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     mandate_type: Option<api::MandateTransactionType>,
-    dimensions: &DimensionWithMerchantIdAndProfileId,
+    dimensions: &DimensionsWithMerchantIdAndProfileId,
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
     backend_input: dsl_inputs::BackendInput,
 ) -> RouterResult<ConnectorCallType>
@@ -9803,6 +9805,7 @@ where
             business_profile,
             payment_data,
             routing_data,
+            dimensions,
         )
         .await
         .inspect_err(|err| {

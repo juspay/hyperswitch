@@ -181,7 +181,14 @@ where
     let config_type = C::KEY;
     let default_value = C::default_value();
 
-    let superposition_result = C::fetch(superposition_client, context, targeting_key).await;
+    let superposition_result = match superposition_client {
+        Some(client) => C::fetch(client, context, targeting_key).await,
+        None => Err(error_stack::report!(
+            superposition::SuperpositionError::ClientError(
+                "No superposition client available".to_string()
+            )
+        )),
+    };
 
     match superposition_result {
         Ok(value) => value,

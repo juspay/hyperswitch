@@ -2764,7 +2764,7 @@ pub async fn payout_create_db_entries(
     locale: &str,
     customer: Option<&domain::Customer>,
     payment_method: Option<PaymentMethod>,
-    dimensions: &configs::dimension_state::DimensionWithMerchantIdAndProfileId,
+    dimensions: &configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
 ) -> RouterResult<PayoutData> {
     let db = &*state.store;
     let merchant_id = platform.get_processor().get_account().get_id();
