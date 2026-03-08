@@ -450,6 +450,15 @@ pub struct PanMetadataUpdateBody {
     pub card: NetworkTokenRequestorData,
 }
 
+/// Write mode for vault operations
+#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum WriteMode {
+    #[default]
+    Insert,
+    Upsert,
+}
+
 #[cfg(feature = "v2")]
 pub struct PaymentMethodUpdateHandler<'a> {
     pub platform: &'a hyperswitch_domain_models::platform::Platform,

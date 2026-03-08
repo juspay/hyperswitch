@@ -1497,6 +1497,7 @@ async fn create_vault_request<R: pm_types::VaultingInterface>(
     locker: &settings::Locker,
     payload: Vec<u8>,
     tenant_id: id_type::TenantId,
+    write_mode: Option<pm_types::WriteMode>,
 ) -> CustomResult<request::Request, errors::VaultError> {
     let private_key = jwekey.vault_private_key.peek().as_bytes();
 
@@ -1512,6 +1513,16 @@ async fn create_vault_request<R: pm_types::VaultingInterface>(
 
     let mut url = locker.host.to_owned();
     url.push_str(R::get_vaulting_request_url());
+
+    // Add query param for write mode if specified
+    if let Some(mode) = write_mode {
+        let mode_str = match mode {
+            pm_types::WriteMode::Insert => "insert",
+            pm_types::WriteMode::Upsert => "upsert",
+        };
+        url.push_str(&format!("?mode={}", mode_str));
+    }
+
     let mut request = request::Request::new(services::Method::Post, &url);
     request.add_header(
         headers::CONTENT_TYPE,
@@ -1529,13 +1540,19 @@ async fn create_vault_request<R: pm_types::VaultingInterface>(
 pub async fn call_to_vault<V: pm_types::VaultingInterface>(
     state: &routes::SessionState,
     payload: Vec<u8>,
+    write_mode: Option<pm_types::WriteMode>,
 ) -> CustomResult<String, errors::VaultError> {
     let locker = &state.conf.locker;
     let jwekey = state.conf.jwekey.get_inner();
 
-    let request =
-        create_vault_request::<V>(jwekey, locker, payload, state.tenant.tenant_id.to_owned())
-            .await?;
+    let request = create_vault_request::<V>(
+        jwekey,
+        locker,
+        payload,
+        state.tenant.tenant_id.to_owned(),
+        write_mode,
+    )
+    .await?;
     let response = services::call_connector_api(state, request, V::get_vaulting_flow_name())
         .await
         .change_context(errors::VaultError::VaultAPIError);
@@ -1584,7 +1601,7 @@ async fn get_fingerprint_id_from_vault<D: domain::VaultingDataInterface + serde:
         .change_context(errors::VaultError::RequestEncodingFailed)
         .attach_printable("Failed to encode VaultFingerprintRequest")?;
 
-    let resp = call_to_vault::<pm_types::GetVaultFingerprint>(state, payload)
+    let resp = call_to_vault::<pm_types::GetVaultFingerprint>(state, payload, None)
         .await
         .change_context(errors::VaultError::VaultAPIError)
         .attach_printable("Call to vault failed")?;
@@ -1605,6 +1622,7 @@ pub async fn add_payment_method_to_vault(
     pmd: &domain::PaymentMethodVaultingData,
     existing_vault_id: Option<domain::VaultId>,
     customer_id: &id_type::GlobalCustomerId,
+    write_mode: Option<pm_types::WriteMode>,
 ) -> CustomResult<pm_types::AddVaultResponse, errors::VaultError> {
     let payload = pm_types::AddVaultRequest {
         entity_id: customer_id.to_owned(),
@@ -1617,7 +1635,7 @@ pub async fn add_payment_method_to_vault(
     .change_context(errors::VaultError::RequestEncodingFailed)
     .attach_printable("Failed to encode AddVaultRequest")?;
 
-    let resp = call_to_vault::<pm_types::AddVault>(state, payload)
+    let resp = call_to_vault::<pm_types::AddVault>(state, payload, write_mode)
         .await
         .change_context(errors::VaultError::VaultAPIError)
         .attach_printable("Call to vault failed")?;
@@ -1646,7 +1664,7 @@ pub async fn retrieve_payment_method_from_vault_internal(
     .change_context(errors::VaultError::RequestEncodingFailed)
     .attach_printable("Failed to encode VaultRetrieveRequest")?;
 
-    let resp = call_to_vault::<pm_types::VaultRetrieve>(state, payload)
+    let resp = call_to_vault::<pm_types::VaultRetrieve>(state, payload, None)
         .await
         .change_context(errors::VaultError::VaultAPIError)
         .attach_printable("Call to vault failed")?;
@@ -1670,7 +1688,7 @@ pub async fn retrieve_value_from_vault(
         .change_context(errors::VaultError::RequestEncodingFailed)
         .attach_printable("Failed to encode VaultRetrieveRequest")?;
 
-    let resp = call_to_vault::<pm_types::VaultRetrieve>(state, payload)
+    let resp = call_to_vault::<pm_types::VaultRetrieve>(state, payload, None)
         .await
         .change_context(errors::VaultError::VaultAPIError)
         .attach_printable("Call to vault failed")?;
@@ -2143,7 +2161,7 @@ pub async fn delete_payment_method_data_from_vault_internal(
     .change_context(errors::VaultError::RequestEncodingFailed)
     .attach_printable("Failed to encode VaultDeleteRequest")?;
 
-    let resp = call_to_vault::<pm_types::VaultDelete>(state, payload)
+    let resp = call_to_vault::<pm_types::VaultDelete>(state, payload, None)
         .await
         .change_context(errors::VaultError::VaultAPIError)
         .attach_printable("Call to vault failed")?;
