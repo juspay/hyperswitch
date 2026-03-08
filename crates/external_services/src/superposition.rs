@@ -5,6 +5,7 @@ pub mod types;
 
 use std::collections::HashMap;
 
+use aws_smithy_types::Document;
 use common_utils::{errors::CustomResult, id_type::TargetingKey};
 use error_stack::report;
 use masking::ExposeInterface;
@@ -97,15 +98,21 @@ impl GetValue<serde_json::Value> for open_feature::Client {
 // Debug trait cannot be derived because open_feature::Client doesn't implement Debug
 #[allow(missing_debug_implementations)]
 pub struct SuperpositionClient {
+    /// OpenFeature client for reading configs
     client: open_feature::Client,
+    /// SDK client for writing configs (create/update operations)
+    sdk_client: superposition_sdk::Client,
 }
 
 impl SuperpositionClient {
     /// Create a new Superposition client
     pub async fn new(config: SuperpositionClientConfig) -> CustomResult<Self, SuperpositionError> {
+        // Extract token value once to be used by both provider and SDK client
+        let token_value = config.token.expose();
+
         let provider_options = superposition_provider::SuperpositionProviderOptions {
             endpoint: config.endpoint.clone(),
-            token: config.token.expose(),
+            token: token_value.clone(),
             org_id: config.org_id.clone(),
             workspace_id: config.workspace_id.clone(),
             fallback_config: None,
@@ -140,7 +147,21 @@ impl SuperpositionClient {
 
         router_env::logger::info!("Superposition client initialized successfully");
 
-        Ok(Self { client })
+        // Initialize SDK client for write operations
+        // Use the same token_value extracted earlier for the provider
+        let sdk_config = superposition_sdk::Config::builder()
+            .endpoint_url(config.endpoint.clone())
+            .bearer_token(superposition_sdk::config::Token::new(token_value, None))
+            .build();
+
+        let sdk_client = superposition_sdk::Client::from_conf(sdk_config);
+
+        router_env::logger::info!("Superposition SDK client initialized successfully");
+
+        Ok(Self {
+            client,
+            sdk_client,
+        })
     }
 
     /// Build evaluation context for Superposition requests
@@ -196,6 +217,60 @@ impl SuperpositionClient {
                     "Failed to get {type_name} value for key '{key}': {e:?}"
                 )))
             })
+    }
+
+    /// Create a fingerprint secret override for a merchant in Superposition
+    ///
+    /// # Arguments
+    /// * `merchant_id` - The merchant ID to use as dimension
+    /// * `fingerprint_secret` - The fingerprint secret value to store
+    /// * `org_id` - Organization ID for Superposition
+    /// * `workspace_id` - Workspace ID for Superposition
+    ///
+    /// # Returns
+    /// * `CustomResult<(), SuperpositionError>` - Success or error
+    pub async fn create_fingerprint_secret_override(
+        &self,
+        merchant_id: &str,
+        fingerprint_secret: &str,
+        org_id: &str,
+        workspace_id: &str,
+    ) -> CustomResult<(), SuperpositionError> {
+        // Build the ContextPut request
+        let context_put = superposition_sdk::types::ContextPut::builder()
+            .context("merchant_id", Document::String(merchant_id.to_string()))
+            .r#override(
+                "fingerprint_secret",
+                Document::String(fingerprint_secret.to_string()),
+            )
+            .change_reason("Created during merchant creation")
+            .build()
+            .map_err(|e| {
+                report!(SuperpositionError::ClientError(format!(
+                    "Failed to build ContextPut: {e:?}"
+                )))
+            })?;
+
+        // Call create_context API
+        self.sdk_client
+            .create_context()
+            .workspace_id(workspace_id.to_string())
+            .org_id(org_id.to_string())
+            .request(context_put)
+            .send()
+            .await
+            .map_err(|e| {
+                report!(SuperpositionError::ClientError(format!(
+                    "Failed to create fingerprint_secret override for merchant '{merchant_id}': {e:?}"
+                )))
+            })?;
+
+        router_env::logger::info!(
+            "Created fingerprint_secret override for merchant '{}'",
+            merchant_id
+        );
+
+        Ok(())
     }
 }
 

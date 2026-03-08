@@ -151,3 +151,22 @@ impl DatabaseBackedConfig for ImplicitCustomerUpdate {
         Some(format!("{}_{}", merchant_id, Self::KEY))
     }
 }
+
+config! {
+    superposition_key = FINGERPRINT_SECRET,
+    output = String,
+    default = String::new(),
+    requires = DimensionsWithMerchantId,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for FingerprintSecret {
+    const KEY: &'static str = "fingerprint_secret";
+    fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+        let merchant_id = dimensions
+            .get_merchant_id()
+            .map(|id| id.get_string_repr())
+            .unwrap_or_default();
+        Some(format!("{}_{}", merchant_id, Self::KEY))
+    }
+}

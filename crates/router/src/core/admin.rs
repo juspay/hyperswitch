@@ -13,7 +13,7 @@ use common_utils::{
 };
 #[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap"))]
 use diesel_models::{business_profile::CardTestingGuardConfig, organization::OrganizationBridge};
-use diesel_models::{configs, payment_method};
+use diesel_models::payment_method;
 use error_stack::{report, FutureExt, ResultExt};
 use external_services::http_client::client;
 use hyperswitch_domain_models::merchant_connector_account::{
@@ -73,26 +73,27 @@ pub fn create_merchant_publishable_key() -> String {
     )
 }
 
-pub async fn insert_merchant_configs(
-    db: &dyn StorageInterface,
+
+/// Insert merchant configs using Superposition for fingerprint_secret
+pub async fn insert_merchant_configs_with_superposition(
+    state: &SessionState,
     merchant_id: &id_type::MerchantId,
 ) -> RouterResult<()> {
-    db.insert_config(configs::ConfigNew {
-        key: merchant_id.get_requires_cvv_key(),
-        config: "true".to_string(),
-    })
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Error while setting requires_cvv config")?;
+    use crate::core::configs::dimension_state::Dimensions;
+    let fingerprint_secret = utils::generate_id(consts::FINGERPRINT_SECRET_LENGTH, "fs");
+    let dimensions = Dimensions::new().with_merchant_id(merchant_id.clone());
 
-    db.insert_config(configs::ConfigNew {
-        key: merchant_id.get_merchant_fingerprint_secret_key(),
-        config: utils::generate_id(consts::FINGERPRINT_SECRET_LENGTH, "fs"),
-    })
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Error while inserting merchant fingerprint secret")?;
+    // Get org_id and workspace_id from state config
+    let conf = state.conf();
+    let superposition_config = conf.superposition.get_inner();
+    let org_id = &superposition_config.org_id;
+    let workspace_id = &superposition_config.workspace_id;
 
+    dimensions
+        .create_fingerprint_secret(state.superposition_service.as_deref(), &fingerprint_secret, org_id, workspace_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to create fingerprint_secret in Superposition")?;
     Ok(())
 }
 
@@ -390,7 +391,7 @@ pub async fn create_merchant_account(
     );
     add_publishable_key_to_decision_service(&state, &platform);
 
-    insert_merchant_configs(db, &merchant_id).await?;
+    insert_merchant_configs_with_superposition(&state, &merchant_id).await?;
 
     Ok(service_api::ApplicationResponse::Json(
         api::MerchantAccountResponse::foreign_try_from(merchant_account)
