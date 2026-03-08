@@ -64,6 +64,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Finix => Self::Finix,
             api_enums::Connector::Fiserv => Self::Fiserv,
             api_enums::Connector::Fiservemea => Self::Fiservemea,
+            api_enums::Connector::Fiservcommercehub => Self::Fiservcommercehub,
             api_enums::Connector::Fiuu => Self::Fiuu,
             api_enums::Connector::Flexiti => Self::Flexiti,
             api_enums::Connector::Forte => Self::Forte,

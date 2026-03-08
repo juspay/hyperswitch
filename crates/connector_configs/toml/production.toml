@@ -7085,3 +7085,7 @@ payment_method_type = "CartesBancaires"
 payment_method_type = "UnionPay"
 [revolv3.connector_auth.HeaderKey]
 api_key = "Static Tokens"
+
+[fiservcommercehub]
+[fiservcommercehub.connector_auth.HeaderKey]
+api_key = "API Key"

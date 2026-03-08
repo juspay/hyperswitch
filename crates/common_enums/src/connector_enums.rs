@@ -107,6 +107,7 @@ pub enum Connector {
     Finix,
     Fiserv,
     Fiservemea,
+    Fiservcommercehub,
     Fiuu,
     Flexiti,
     Forte,
@@ -332,6 +333,7 @@ impl Connector {
             | Self::Finix
             | Self::Fiserv
             | Self::Fiservemea
+            | Self::Fiservcommercehub
             | Self::Fiuu
             | Self::Flexiti
             | Self::Forte
