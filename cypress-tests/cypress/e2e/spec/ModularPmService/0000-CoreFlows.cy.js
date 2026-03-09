@@ -15,7 +15,8 @@ describe("Core flows", () => {
     after("flush global state", () => {
       cy.task("setGlobalState", globalState.data);
     });
-
+ 
+    
     it("merchant create call", () => {
       cy.merchantCreateCallTest(fixtures.merchantCreateBody, globalState);
     });
@@ -38,11 +39,15 @@ describe("Core flows", () => {
     });
 
     it("Modular PM Service - Merchant Config create call", () => {
-      cy.merchantConfigCall(globalState, fixtures.merchantConfig);
+      const key = `should_return_raw_payment_method_details_${globalState.get("merchantId")}`;
+
+      cy.setConfigs(globalState, key, "true", "CREATE");
     });
 
     it("Modular PM Service - Organization Config create call", () => {
-      cy.orgConfigCreateCall(globalState, fixtures.orgConfig);
+      const key = `should_call_pm_modular_service_${globalState.get("organizationId")}`;
+
+      cy.setConfigs(globalState, key, "true", "CREATE");
     });
     it("Modular PM Service - Payment Method Create call", () => {
       cy.paymentMethodCreateCall(globalState, fixtures.paymentMethodCreate);
@@ -51,7 +56,8 @@ describe("Core flows", () => {
     it("Modular PM Service - Payments call with pm_id", () => {
       cy.paymentWithSavedPMCall(
         globalState,
-        fixtures.modularPmServicePaymentsCall
+        fixtures.modularPmServicePaymentsCall,
+        false
       );
     });
 

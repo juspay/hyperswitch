@@ -28,8 +28,6 @@ import blocklistCreateBody from "./blocklist-create-body.json";
 import eligibilityCheckBody from "./eligibility-check-body.json";
 import * as IncomingWebhookBody from "./webhooks/import";
 import customerCreate from "./modularPmService/modularPmServiceCustomerCreate.json";
-import merchantConfig from "./modularPmService/modular-pm-service-merchant-config-create.json";
-import orgConfig from "./modularPmService/modular-pm-service-org-config-create.json";
 import paymentMethodCreate from "./modularPmService/modular-pm-service-pm-create.json";
 import paymentMethodUpdate from "./modularPmService/modular-pm-service-pm-update.json";
 import paymentMethodSessionCreate from "./modularPmService/modular-pm-service-pms-create.json";
@@ -67,8 +65,6 @@ export {
   voidBody,
   IncomingWebhookBody,
   customerCreate,
-  merchantConfig,
-  orgConfig,
   paymentMethodCreate,
   paymentMethodUpdate,
   paymentMethodSessionCreate,

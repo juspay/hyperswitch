@@ -6,5 +6,6 @@
     },
     "email": "example@example.com"
   },
-  "storage_type": "volatile"
+  "storage_type": "persistent",
+  "keep_alive": true
 }

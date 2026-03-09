@@ -5213,60 +5213,6 @@ Cypress.Commands.add("IncomingWebhookTest", (globalState, webhookPayload) => {
 });
 
 Cypress.Commands.add(
-  "merchantConfigCall",
-  (globalState, merchantConfigBody) => {
-    const req_data = { ...merchantConfigBody };
-    req_data.key = `should_return_raw_payment_method_details_${globalState.get("merchantId")}`;
-    cy.request({
-      method: "POST",
-      url: `${globalState.get("pmServiceUrl")}/v2/configs/`,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `admin-api-key=${globalState.get("adminApiKey")}`,
-      },
-      body: req_data,
-      failOnStatusCode: false,
-    }).then((response) => {
-      if (response.status !== 200) {
-        throw new Error(
-          `Merchant config create call failed with status: ${response.status} and message: ${response.body?.error?.message}`
-        );
-      } else {
-        expect(response.body).to.have.property("key").to.equal(req_data.key);
-        expect(response.body)
-          .to.have.property("value")
-          .to.equal(req_data.value);
-      }
-    });
-  }
-);
-
-Cypress.Commands.add("orgConfigCreateCall", (globalState, orgConfigBody) => {
-  const reqData = { ...orgConfigBody };
-  reqData.key = `should_call_pm_modular_service_${globalState.get("organizationId")}`;
-
-  cy.request({
-    method: "POST",
-    url: `${globalState.get("pmServiceUrl")}/v2/configs/`,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `admin-api-key=${globalState.get("adminApiKey")}`,
-    },
-    body: reqData,
-    failOnStatusCode: false,
-  }).then((response) => {
-    if (response.status !== 200) {
-      throw new Error(
-        `Org config create call failed with status: ${response.status} and message: ${response.body?.error?.message}`
-      );
-    } else {
-      expect(response.body).to.have.property("key").to.equal(reqData.key);
-      expect(response.body).to.have.property("value").to.equal(reqData.value);
-    }
-  });
-});
-
-Cypress.Commands.add(
   "customerCreateCall",
   (globalState, customerCreateBody) => {
     const reqData = { ...customerCreateBody };
@@ -5612,12 +5558,6 @@ Cypress.Commands.add(
         ? globalState.get("paymentMethodToken")
         : globalState.get("paymentMethodId"),
     };
-
-    if (useToken) {
-      requestBody.payment_token = globalState.get("paymentMethodToken");
-    } else {
-      requestBody.payment_token = globalState.get("paymentMethodId");
-    }
 
     cy.request({
       method: "POST",
