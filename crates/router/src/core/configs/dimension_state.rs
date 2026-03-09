@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use common_utils::{errors::CustomResult, id_type};
+use common_utils::id_type;
 use external_services::superposition;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
@@ -101,33 +101,6 @@ impl<O, P> Dimensions<HasMerchantId, O, P> {
         self.merchant_id
             .as_ref()
             .ok_or(DimensionError::MissingMerchantId)
-    }
-
-    /// Create a fingerprint secret override in Superposition for this merchant
-    ///
-    /// # Arguments
-    /// * `superposition_client` - The Superposition client
-    /// * `fingerprint_secret` - The fingerprint secret value to store
-    /// * `org_id` - Organization ID for Superposition
-    /// * `workspace_id` - Workspace ID for Superposition
-    ///
-    /// # Returns
-    /// * `CustomResult<(), superposition::SuperpositionError>` - Success or error
-    pub async fn create_fingerprint_secret(
-        &self,
-        superposition_client: Option<&superposition::SuperpositionClient>,
-        fingerprint_secret: &str,
-        org_id: &str,
-        workspace_id: &str,
-    ) -> CustomResult<(), superposition::SuperpositionError> {
-        let merchant_id = self
-            .merchant_id()
-            .map_err(|e| error_stack::report!(superposition::SuperpositionError::ClientError(e.to_string())))?
-            .get_string_repr();
-        superposition_client
-            .ok_or_else(|| error_stack::report!(superposition::SuperpositionError::ClientError("Superposition client not available".to_string())))?
-            .create_fingerprint_secret_override(&merchant_id, fingerprint_secret, org_id, workspace_id)
-            .await
     }
 }
 

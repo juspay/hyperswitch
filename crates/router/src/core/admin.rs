@@ -79,9 +79,9 @@ pub async fn insert_merchant_configs_with_superposition(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
 ) -> RouterResult<()> {
-    use crate::core::configs::dimension_state::Dimensions;
+    use crate::core::configs::dimension_config::DimensionsWithMerchantId;
     let fingerprint_secret = utils::generate_id(consts::FINGERPRINT_SECRET_LENGTH, "fs");
-    let dimensions = Dimensions::new().with_merchant_id(merchant_id.clone());
+    let dimensions = DimensionsWithMerchantId::from_merchant_id(merchant_id.clone());
 
     // Get org_id and workspace_id from state config
     let conf = state.conf();
@@ -90,7 +90,7 @@ pub async fn insert_merchant_configs_with_superposition(
     let workspace_id = &superposition_config.workspace_id;
 
     dimensions
-        .create_fingerprint_secret(state.superposition_service.as_deref(), &fingerprint_secret, org_id, workspace_id)
+        .set_fingerprint_secret(state.superposition_service.as_deref(), &fingerprint_secret, org_id, workspace_id, None)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to create fingerprint_secret in Superposition")?;

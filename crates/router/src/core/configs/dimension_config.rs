@@ -1,10 +1,61 @@
+use common_utils::errors::CustomResult;
 use external_services::superposition;
 
-use super::{
-    dimension_state::{DimensionsWithMerchantId, DimensionsWithMerchantIdAndProfileId},
-    fetch_db_config_for_dimensions, DatabaseBackedConfig,
-};
+use super::{fetch_db_config_for_dimensions, DatabaseBackedConfig};
 use crate::{consts::superposition as superposition_consts, db::StorageInterface, utils::id_type};
+
+// Re-export dimension types for convenience
+pub use super::dimension_state::{DimensionsWithMerchantId, DimensionsWithMerchantIdAndProfileId};
+
+/// Macro to generate write support for configs.
+/// This adds `WritableConfig` trait implementation and `set_<key>()` method.
+///
+/// # Usage
+/// - Use this after `config!` macro for configs that need both read and write
+/// - Use this alone for write-only configs (struct must be defined separately)
+///
+/// # Generated Methods
+/// - `set_<key>()` - Write the value to Superposition
+macro_rules! writable_config {
+    (
+        superposition_key = $key:ident,
+        input = $input:ty,
+        requires = $requirement:ty
+    ) => {
+        paste::paste! {
+            impl superposition::WritableConfig for [<$key:camel>] {
+                type Input = $input;
+                const SUPERPOSITION_KEY: &'static str = superposition_consts::$key;
+            }
+
+            impl $requirement {
+                pub async fn [<set_ $key:lower>](
+                    &self,
+                    superposition_client: Option<&superposition::SuperpositionClient>,
+                    value: &$input,
+                    org_id: &str,
+                    workspace_id: &str,
+                    change_reason: Option<&str>,
+                ) -> CustomResult<(), superposition::SuperpositionError> {
+                    let client = superposition_client.ok_or_else(|| {
+                        error_stack::report!(superposition::SuperpositionError::ClientError(
+                            "Superposition client not available".to_string()
+                        ))
+                    })?;
+
+                    let context = self.to_superposition_context()
+                        .ok_or_else(|| error_stack::report!(superposition::SuperpositionError::ClientError(
+                            "Missing required context dimensions".to_string()
+                        )))?;
+
+                    client
+                        .set_config_value::<[<$key:camel>]>(value, &context, org_id, workspace_id, change_reason)
+                        .await
+                }
+            }
+        }
+    };
+}
 
 /// Macro to generate config struct and superposition::Config trait implementation.
 /// Note: Manually implement `DatabaseBackedConfig` for the config struct:
@@ -169,4 +220,11 @@ impl DatabaseBackedConfig for FingerprintSecret {
             .unwrap_or_default();
         Some(format!("{}_{}", merchant_id, Self::KEY))
     }
+}
+
+// Write support for FingerprintSecret
+writable_config! {
+    superposition_key = FINGERPRINT_SECRET,
+    input = String,
+    requires = DimensionsWithMerchantId
 }

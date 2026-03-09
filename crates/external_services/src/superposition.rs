@@ -10,8 +10,13 @@ use common_utils::{errors::CustomResult, id_type::TargetingKey};
 use error_stack::report;
 use masking::ExposeInterface;
 
-pub use self::types::{ConfigContext, SuperpositionClientConfig, SuperpositionError};
+pub use self::types::{ConfigContext, SuperpositionClientConfig, SuperpositionError, ToDocument};
 use crate::config_metrics;
+
+/// Generate a default change reason from the config key
+fn generate_change_reason(key: &str) -> String {
+    format!("Updating {key} configuration")
+}
 
 fn convert_open_feature_value(value: open_feature::Value) -> Result<serde_json::Value, String> {
     match value {
@@ -219,6 +224,85 @@ impl SuperpositionClient {
             })
     }
 
+    /// Generic method to set a configuration value in Superposition
+    ///
+    /// # Type Parameters
+    /// * `T` - A type implementing `WritableConfig` that defines the config key and input type
+    ///
+    /// # Arguments
+    /// * `value` - The value to write
+    /// * `context` - The context (dimensions) for this config
+    /// * `org_id` - Organization ID for Superposition
+    /// * `workspace_id` - Workspace ID for Superposition
+    /// * `change_reason` - Optional custom change reason (defaults to generated reason from key)
+    ///
+    /// # Returns
+    /// * `CustomResult<(), SuperpositionError>` - Success or error
+    pub async fn set_config_value<T: WritableConfig>(
+        &self,
+        value: &T::Input,
+        context: &ConfigContext,
+        org_id: &str,
+        workspace_id: &str,
+        change_reason: Option<&str>,
+    ) -> CustomResult<(), SuperpositionError> {
+        let mut builder = superposition_sdk::types::ContextPut::builder();
+
+        // Add context entries (dimensions)
+        for (key, val) in &context.values {
+            builder = builder.context(key, Document::String(val.clone()));
+        }
+
+        // Add override value
+        let change_reason = change_reason
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| generate_change_reason(T::SUPERPOSITION_KEY));
+
+        // Log request details before API call
+        router_env::logger::info!(
+            "Superposition set_config_value request: key='{}', org_id='{}', workspace_id='{}', context={:?}, change_reason='{}'",
+            T::SUPERPOSITION_KEY,
+            org_id,
+            workspace_id,
+            context.values,
+            change_reason
+        );
+
+        builder = builder
+            .r#override(T::SUPERPOSITION_KEY, value.to_document())
+            .change_reason(change_reason)
+            .description(format!("Config update for {}", T::SUPERPOSITION_KEY));
+
+        let context_put = builder.build().map_err(|e| {
+            report!(SuperpositionError::ClientError(format!(
+                "Failed to build ContextPut: {e:?}"
+            )))
+        })?;
+
+        // Call create_context API
+        let response = self.sdk_client
+            .create_context()
+            .workspace_id(workspace_id.to_string())
+            .org_id(org_id.to_string())
+            .request(context_put)
+            .send()
+            .await;
+
+        response.map_err(|e| {
+            report!(SuperpositionError::ClientError(format!(
+                "Failed to set {} config: {e:?}",
+                T::SUPERPOSITION_KEY
+            )))
+        })?;
+
+        router_env::logger::info!(
+            "Set {} config successfully",
+            T::SUPERPOSITION_KEY
+        );
+
+        Ok(())
+    }
+
     /// Create a fingerprint secret override for a merchant in Superposition
     ///
     /// # Arguments
@@ -229,6 +313,7 @@ impl SuperpositionClient {
     ///
     /// # Returns
     /// * `CustomResult<(), SuperpositionError>` - Success or error
+    #[deprecated(note = "Use set_config_value with WritableConfig trait instead")]
     pub async fn create_fingerprint_secret_override(
         &self,
         merchant_id: &str,
@@ -272,6 +357,17 @@ impl SuperpositionClient {
 
         Ok(())
     }
+}
+
+/// Trait for configs that can be written to Superposition.
+/// This is separate from the Config trait - a config type can implement
+/// one or both traits depending on whether it supports read and/or write operations.
+pub trait WritableConfig {
+    /// The type of value to write (input type)
+    type Input: ToDocument;
+
+    /// The Superposition key for this config
+    const SUPERPOSITION_KEY: &'static str;
 }
 
 /// Each config type implements this trait to define how its value should be
