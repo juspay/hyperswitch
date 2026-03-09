@@ -154,8 +154,6 @@ impl ConnectorCommon for Trustpay {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-
-        
         let response: Result<
             trustpay::TrustpayErrorResponse,
             Report<common_utils::errors::ParsingError>,
