@@ -1,8 +1,12 @@
-use std::collections::{HashMap, HashSet};
 #[cfg(feature = "v2")]
 use std::str::FromStr;
+use std::{
+    collections::{HashMap, HashSet},
+    num::NonZeroU8,
+};
 
 use cards::CardNumber;
+use common_types::payments::{BillingFrequency, InstallmentInterestRate};
 #[cfg(feature = "v1")]
 use common_utils::crypto::OptionalEncryptableName;
 use common_utils::{
@@ -10,8 +14,9 @@ use common_utils::{
     errors,
     ext_traits::OptionExt,
     id_type, link_utils, pii,
-    types::{MinorUnit, Percentage, Surcharge},
+    types::{FloatMajorUnit, MinorUnit, Percentage, Surcharge},
 };
+use error_stack::ResultExt;
 use masking::PeekInterface;
 use serde::de;
 use utoipa::ToSchema;
@@ -2470,6 +2475,187 @@ pub struct PaymentMethodListResponse {
 
     /// indicates whether this is a guest customer flow
     pub is_guest_customer: bool,
+
+    /// Payment intent details associated with this payment method list request
+    pub intent_data: Option<PaymentMethodListIntentData>,
+}
+
+/// Intent-only payment details returned as part of the Payment Method List response
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct PaymentMethodListIntentData {
+    /// Unique identifier for the payment
+    #[schema(value_type = String)]
+    pub payment_id: id_type::PaymentId,
+
+    /// The status of the payment
+    #[schema(value_type = IntentStatus)]
+    pub status: api_enums::IntentStatus,
+
+    /// The payment amount
+    pub amount: MinorUnit,
+
+    /// The currency of the payment
+    #[schema(example = "USD", value_type = Option<Currency>)]
+    pub currency: Option<api_enums::Currency>,
+
+    /// Client secret for client-side payment confirmation
+    #[schema(value_type = Option<String>)]
+    pub client_secret: Option<masking::Secret<String>>,
+
+    /// A description for the payment
+    pub description: Option<String>,
+
+    /// The customer identifier
+    #[schema(value_type = Option<String>)]
+    pub customer_id: Option<id_type::CustomerId>,
+
+    /// The URL to redirect to after payment completion
+    pub return_url: Option<String>,
+
+    /// Whether to save payment method for future use
+    #[schema(value_type = Option<FutureUsage>)]
+    pub setup_future_usage: Option<api_enums::FutureUsage>,
+
+    /// The billing address for the payment
+    #[schema(value_type = Option<Address>)]
+    pub billing: Option<payments::Address>,
+
+    /// The shipping address for the payment
+    #[schema(value_type = Option<Address>)]
+    pub shipping: Option<payments::Address>,
+
+    /// Additional metadata
+    #[schema(value_type = Option<Object>)]
+    pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// Order details for the payment
+    #[schema(value_type = Option<Vec<Object>>)]
+    pub order_details: Option<Vec<masking::Secret<serde_json::Value>>>,
+
+    /// Timestamp when the payment was created
+    pub created: Option<time::PrimitiveDateTime>,
+
+    /// Timestamp when the client secret expires
+    pub expires_on: Option<time::PrimitiveDateTime>,
+
+    /// The profile identifier
+    #[schema(value_type = Option<String>)]
+    pub profile_id: Option<id_type::ProfileId>,
+
+    /// Merchant-provided reference identifier
+    pub merchant_order_reference_id: Option<String>,
+
+    /// Number of payment attempts made
+    pub attempt_count: i16,
+
+    /// Installment options available for this payment
+    pub installment_options: Option<Vec<PaymentMethodListInstallmentOption>>,
+}
+
+/// Installment options for a payment method, as returned in the payment method list response
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct PaymentMethodListInstallmentOption {
+    /// The payment method these plans apply to
+    #[schema(value_type = PaymentMethod)]
+    pub payment_method: api_enums::PaymentMethod,
+    /// Individual installment plans with computed amounts
+    pub available_plans: Vec<PaymentMethodListInstallmentPlan>,
+}
+
+/// A single installment plan with pre-computed amount breakdown
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct PaymentMethodListInstallmentPlan {
+    /// Number of installments for this plan
+    #[schema(value_type = u8)]
+    pub number_of_installments: NonZeroU8,
+    /// Billing frequency
+    #[schema(value_type = BillingFrequency)]
+    pub billing_frequency: BillingFrequency,
+    /// Interest rate as a percentage
+    #[schema(value_type = f64)]
+    pub interest_rate: InstallmentInterestRate,
+    /// Pre-computed amount breakdown
+    pub amount_details: PaymentMethodListInstallmentAmountDetails,
+}
+
+/// Amount breakdown for a single installment plan
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct PaymentMethodListInstallmentAmountDetails {
+    /// Amount charged per installment in major units
+    #[schema(value_type = f64)]
+    pub amount_per_installment: FloatMajorUnit,
+    /// Total amount across all installments in major units (may differ slightly from order amount due to ceiling)
+    #[schema(value_type = f64)]
+    pub total_amount: FloatMajorUnit,
+}
+
+impl PaymentMethodListInstallmentPlan {
+    pub fn from_installment_option_data(
+        data: common_types::payments::InstallmentOptionData,
+        order_amount: MinorUnit,
+        net_amount: MinorUnit,
+        currency: api_enums::Currency,
+    ) -> errors::CustomResult<Vec<Self>, errors::ParsingError> {
+        data.number_of_installments
+            .as_slice()
+            .iter()
+            .map(|&count| {
+                let interest = data
+                    .interest_rate
+                    .apply_and_ceil_result(order_amount)
+                    .change_context(errors::ParsingError::UnknownError)
+                    .attach_printable("Failed to apply installment interest rate")?;
+                let total_with_interest = net_amount + interest;
+                let per_installment = total_with_interest / count;
+                let amount_per_installment = per_installment
+                    .to_major_unit_as_f64(currency)
+                    .change_context(errors::ParsingError::UnknownError)
+                    .attach_printable("Failed to convert per installment amount to major unit")?;
+                let total_amount = total_with_interest
+                    .to_major_unit_as_f64(currency)
+                    .change_context(errors::ParsingError::UnknownError)
+                    .attach_printable("Failed to convert total installment amount to major unit")?;
+                Ok(Self {
+                    number_of_installments: count,
+                    billing_frequency: data.billing_frequency.clone(),
+                    interest_rate: data.interest_rate,
+                    amount_details: PaymentMethodListInstallmentAmountDetails {
+                        amount_per_installment,
+                        total_amount,
+                    },
+                })
+            })
+            .collect()
+    }
+}
+
+impl PaymentMethodListInstallmentOption {
+    pub fn from_installment_option(
+        opt: common_types::payments::InstallmentOption,
+        order_amount: MinorUnit,
+        net_amount: MinorUnit,
+        currency: api_enums::Currency,
+    ) -> errors::CustomResult<Self, errors::ParsingError> {
+        let available_plans = opt
+            .installments
+            .into_iter()
+            .map(|data| {
+                PaymentMethodListInstallmentPlan::from_installment_option_data(
+                    data,
+                    order_amount,
+                    net_amount,
+                    currency,
+                )
+            })
+            .collect::<errors::CustomResult<Vec<Vec<_>>, _>>()?
+            .into_iter()
+            .flatten()
+            .collect();
+        Ok(Self {
+            payment_method: opt.payment_method,
+            available_plans,
+        })
+    }
 }
 
 #[cfg(feature = "v1")]

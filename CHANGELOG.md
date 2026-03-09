@@ -4,6 +4,26 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.03.09.0
+
+### Features
+
+- **connector:**
+  - [Peachpayments] Perform PSync and RSync using reference_id ([#11448](https://github.com/juspay/hyperswitch/pull/11448)) ([`8bc5008`](https://github.com/juspay/hyperswitch/commit/8bc500845c1322848760396615d4c8cb5207338b))
+  - [Cybersource] added 3ds support to setup mandate flow in Cybersource ([#11419](https://github.com/juspay/hyperswitch/pull/11419)) ([`0d538e1`](https://github.com/juspay/hyperswitch/commit/0d538e1af2802c2c842fc3b444cd250a26c55626))
+- **core:** Voucher-support-ucs-hs-tunnel ([#11247](https://github.com/juspay/hyperswitch/pull/11247)) ([`820ace0`](https://github.com/juspay/hyperswitch/commit/820ace0df6fff1954663a4f927cd8d75bb59fbef))
+- **payments:** Expose installment options and intent data in PML response ([#11398](https://github.com/juspay/hyperswitch/pull/11398)) ([`d7ff830`](https://github.com/juspay/hyperswitch/commit/d7ff8307099e5c1a7878e49ef4409810495a2afe))
+- **superposition:** Add profile level context in payments ([#11392](https://github.com/juspay/hyperswitch/pull/11392)) ([`7c097df`](https://github.com/juspay/hyperswitch/commit/7c097dfb4466766cd7418ce1d5d985fa65d3e7db))
+
+### Bug Fixes
+
+- **connector:** [Mollie] Pass Shipping Fee to Connector and Fix Discount Handling ([#11443](https://github.com/juspay/hyperswitch/pull/11443)) ([`e486b48`](https://github.com/juspay/hyperswitch/commit/e486b48f1aa40d89a15a6340cb10e698a4b26250))
+- **users:** Check key manager runtime feature flag when calling transfer key ([#10859](https://github.com/juspay/hyperswitch/pull/10859)) ([`1ff53be`](https://github.com/juspay/hyperswitch/commit/1ff53be3647c95330203371c36b5976949034cfc))
+
+**Full Changelog:** [`2026.03.06.0...2026.03.09.0`](https://github.com/juspay/hyperswitch/compare/2026.03.06.0...2026.03.09.0)
+
+- - -
+
 ## 2026.03.06.0
 
 ### Features
