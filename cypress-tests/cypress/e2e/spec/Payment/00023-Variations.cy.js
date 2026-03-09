@@ -830,159 +830,153 @@ describe("Corner cases", () => {
   });
 
   context("Duplicate Payment ID", () => {
-    it(
-      "Create new payment -> Retrieve payment -> Create a payment with a duplicate payment ID",
-      () => {
-        let shouldContinue = true;
+    it("Create new payment -> Retrieve payment -> Create a payment with a duplicate payment ID", () => {
+      let shouldContinue = true;
 
-        cy.step("Create new payment", () => {
-          const createConfirmBody = Cypress._.cloneDeep(
-            fixtures.createConfirmPaymentBody
+      cy.step("Create new payment", () => {
+        const createConfirmBody = Cypress._.cloneDeep(
+          fixtures.createConfirmPaymentBody
+        );
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["No3DSAutoCapture"];
+
+        cy.createConfirmPaymentTest(
+          createConfirmBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Retrieve payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve payment");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["No3DSAutoCapture"];
+
+        cy.retrievePaymentCallTest({ globalState, data });
+      });
+
+      cy.step("Create a payment with a duplicate payment ID", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Create a payment with a duplicate payment ID"
           );
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["No3DSAutoCapture"];
+          return;
+        }
+        const createConfirmBody = Cypress._.cloneDeep(
+          fixtures.createConfirmPaymentBody
+        );
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["DuplicatePaymentID"];
 
-          cy.createConfirmPaymentTest(
-            createConfirmBody,
-            data,
-            "no_three_ds",
-            "automatic",
-            globalState
-          );
+        data.Request.payment_id = globalState.get("paymentID");
 
-          if (!utils.should_continue_further(data)) {
-            shouldContinue = false;
-          }
-        });
-
-        cy.step("Retrieve payment", () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: Retrieve payment");
-            return;
-          }
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["No3DSAutoCapture"];
-
-          cy.retrievePaymentCallTest({ globalState, data });
-        });
-
-        cy.step("Create a payment with a duplicate payment ID", () => {
-          if (!shouldContinue) {
-            cy.task(
-              "cli_log",
-              "Skipping step: Create a payment with a duplicate payment ID"
-            );
-            return;
-          }
-          const createConfirmBody = Cypress._.cloneDeep(
-            fixtures.createConfirmPaymentBody
-          );
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["DuplicatePaymentID"];
-
-          data.Request.payment_id = globalState.get("paymentID");
-
-          cy.createConfirmPaymentTest(
-            createConfirmBody,
-            data,
-            "no_three_ds",
-            "automatic",
-            globalState
-          );
-        });
-      }
-    );
+        cy.createConfirmPaymentTest(
+          createConfirmBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+      });
+    });
   });
 
   context("Duplicate Refund ID", () => {
-    it(
-      "Create new payment -> retrieve-payment-call-test -> Create new refund -> Sync refund -> Create a refund with  a duplicate refund ID",
-      () => {
-        let shouldContinue = true;
+    it("Create new payment -> retrieve-payment-call-test -> Create new refund -> Sync refund -> Create a refund with  a duplicate refund ID", () => {
+      let shouldContinue = true;
 
-        cy.step("Create new payment", () => {
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["No3DSAutoCapture"];
+      cy.step("Create new payment", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["No3DSAutoCapture"];
 
-          cy.createConfirmPaymentTest(
-            fixtures.createConfirmPaymentBody,
-            data,
-            "no_three_ds",
-            "automatic",
-            globalState
+        cy.createConfirmPaymentTest(
+          fixtures.createConfirmPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("retrieve-payment-call-test", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: retrieve-payment-call-test");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["No3DSAutoCapture"];
+
+        cy.retrievePaymentCallTest({ globalState, data });
+      });
+
+      cy.step("Create new refund", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Create new refund");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PartialRefund"];
+
+        cy.refundCallTest(fixtures.refundBody, data, globalState);
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Sync refund", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Sync refund");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["SyncRefund"];
+
+        cy.syncRefundCallTest(data, globalState);
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Create a refund with  a duplicate refund ID", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Create a refund with  a duplicate refund ID"
           );
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["DuplicateRefundID"];
 
-          if (!utils.should_continue_further(data)) {
-            shouldContinue = false;
-          }
-        });
+        data.Request.refund_id = globalState.get("refundId");
 
-        cy.step("retrieve-payment-call-test", () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: retrieve-payment-call-test");
-            return;
-          }
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["No3DSAutoCapture"];
-
-          cy.retrievePaymentCallTest({ globalState, data });
-        });
-
-        cy.step("Create new refund", () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: Create new refund");
-            return;
-          }
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["PartialRefund"];
-
-          cy.refundCallTest(fixtures.refundBody, data, globalState);
-
-          if (!utils.should_continue_further(data)) {
-            shouldContinue = false;
-          }
-        });
-
-        cy.step("Sync refund", () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: Sync refund");
-            return;
-          }
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["SyncRefund"];
-
-          cy.syncRefundCallTest(data, globalState);
-
-          if (!utils.should_continue_further(data)) {
-            shouldContinue = false;
-          }
-        });
-
-        cy.step("Create a refund with  a duplicate refund ID", () => {
-          if (!shouldContinue) {
-            cy.task(
-              "cli_log",
-              "Skipping step: Create a refund with  a duplicate refund ID"
-            );
-            return;
-          }
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["DuplicateRefundID"];
-
-          data.Request.refund_id = globalState.get("refundId");
-
-          cy.refundCallTest(fixtures.refundBody, data, globalState);
-        });
-      }
-    );
+        cy.refundCallTest(fixtures.refundBody, data, globalState);
+      });
+    });
   });
 
   context("Duplicate Customer ID", () => {
@@ -1011,102 +1005,92 @@ describe("Corner cases", () => {
   });
 
   context("Confirm Payment with Invalid Publishable Key", () => {
-    it(
-      "Create Payment Intent -> Confirm payment with invalid publishable key",
-      () => {
-        let shouldContinue = true;
+    it("Create Payment Intent -> Confirm payment with invalid publishable key", () => {
+      let shouldContinue = true;
 
-        cy.step("Create Payment Intent", () => {
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["PaymentIntent"];
+      cy.step("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntent"];
 
-          cy.createPaymentIntentTest(
-            fixtures.createPaymentBody,
-            data,
-            "no_three_ds",
-            "automatic",
-            globalState
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Confirm payment with invalid publishable key", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Confirm payment with invalid publishable key"
           );
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["InvalidPublishableKey"];
 
-          if (!utils.should_continue_further(data)) {
-            shouldContinue = false;
-          }
-        });
+        const originalKey = globalState.get("publishableKey");
+        //set invalid publishable key
+        cy.then(() => globalState.set("publishableKey", "pk_snd_invalid_key"));
+        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
-        cy.step("Confirm payment with invalid publishable key", () => {
-          if (!shouldContinue) {
-            cy.task(
-              "cli_log",
-              "Skipping step: Confirm payment with invalid publishable key"
-            );
-            return;
-          }
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["InvalidPublishableKey"];
-
-          const originalKey = globalState.get("publishableKey");
-          //set invalid publishable key
-          cy.then(() =>
-            globalState.set("publishableKey", "pk_snd_invalid_key")
-          );
-          cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
-
-          // Restore key synchronously after test
-          cy.then(() => globalState.set("publishableKey", originalKey));
-        });
-      }
-    );
+        // Restore key synchronously after test
+        cy.then(() => globalState.set("publishableKey", originalKey));
+      });
+    });
   });
 
   context("Retrieve session token with invalid publishable key", () => {
-    it(
-      "Create Payment Intent -> Session call with invalid publishable key",
-      () => {
-        let shouldContinue = true;
+    it("Create Payment Intent -> Session call with invalid publishable key", () => {
+      let shouldContinue = true;
 
-        cy.step("Create Payment Intent", () => {
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["PaymentIntent"];
+      cy.step("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntent"];
 
-          cy.createPaymentIntentTest(
-            fixtures.createPaymentBody,
-            data,
-            "no_three_ds",
-            "automatic",
-            globalState
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Session call with invalid publishable key", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Session call with invalid publishable key"
           );
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["InvalidPublishableKey"];
 
-          if (!utils.should_continue_further(data)) {
-            shouldContinue = false;
-          }
-        });
+        const originalKey = globalState.get("publishableKey");
+        // set invalid publishable key
+        cy.then(() => globalState.set("publishableKey", "pk_snd_invalid_key"));
+        cy.sessionTokenCall(fixtures.sessionTokenBody, data, globalState);
 
-        cy.step("Session call with invalid publishable key", () => {
-          if (!shouldContinue) {
-            cy.task(
-              "cli_log",
-              "Skipping step: Session call with invalid publishable key"
-            );
-            return;
-          }
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["InvalidPublishableKey"];
-
-          const originalKey = globalState.get("publishableKey");
-          // set invalid publishable key
-          cy.then(() =>
-            globalState.set("publishableKey", "pk_snd_invalid_key")
-          );
-          cy.sessionTokenCall(fixtures.sessionTokenBody, data, globalState);
-
-          // Restore key synchronously after test
-          cy.then(() => globalState.set("publishableKey", originalKey));
-        });
-      }
-    );
+        // Restore key synchronously after test
+        cy.then(() => globalState.set("publishableKey", originalKey));
+      });
+    });
   });
 });
