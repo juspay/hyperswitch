@@ -109,6 +109,8 @@ use super::{
     },
 };
 #[cfg(feature = "v1")]
+use crate::core::blocklist::utils as blocklist_utils;
+#[cfg(feature = "v1")]
 use crate::core::card_testing_guard::utils as card_testing_guard_utils;
 #[cfg(feature = "v1")]
 use crate::core::debit_routing;
@@ -120,13 +122,6 @@ use crate::core::revenue_recovery::get_workflow_entries;
 use crate::core::revenue_recovery::map_to_recovery_payment_item;
 #[cfg(feature = "v1")]
 use crate::core::routing::helpers as routing_helpers;
-#[cfg(feature = "v1")]
-use crate::core::{
-    blocklist::utils as blocklist_utils,
-};
-use crate::core::configs::{
-    self as configs, dimension_state,
-};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use crate::types::api::convert_connector_data_to_routable_connectors;
 use crate::{
@@ -135,6 +130,7 @@ use crate::{
     },
     consts,
     core::{
+        configs::{self as configs, dimension_state},
         errors::{self, CustomResult, RouterResponse, RouterResult},
         payment_methods::{cards, network_tokenization, transformers as pm_transformers, vault},
         payments::helpers::{
@@ -1531,7 +1527,13 @@ where
         .await?;
     let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
 
-    validate_for_proxy_payment(state, &payment_data, &dimensions, &payment_data.get_payment_intent().payment_id).await?;
+    validate_for_proxy_payment(
+        state,
+        &payment_data,
+        &dimensions,
+        &payment_data.get_payment_intent().payment_id,
+    )
+    .await?;
 
     core_utils::validate_profile_id_from_auth_layer(
         profile_id_from_auth_layer,
