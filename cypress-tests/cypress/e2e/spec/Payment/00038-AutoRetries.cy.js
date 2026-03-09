@@ -34,7 +34,6 @@ describe("Auto Retry Tests", () => {
       "profile",
       "merchantConnectorSecondary"
     ).then(() => {
-
       globalState.set("connectorId", primaryConnector);
     });
   });
@@ -54,9 +53,7 @@ describe("Auto Retry Tests", () => {
           utils.CONNECTOR_LISTS.INCLUDE.AUTO_RETRY
         )
       ) {
-        cy.log(
-          `Skipping Auto Retry - connector not supported: ${connectorId}`
-        );
+        cy.log(`Skipping Auto Retry - connector not supported: ${connectorId}`);
         this.skip();
       }
     });
@@ -144,9 +141,7 @@ describe("Auto Retry Tests", () => {
           utils.CONNECTOR_LISTS.INCLUDE.AUTO_RETRY
         )
       ) {
-        cy.log(
-          `Skipping Auto Retry - connector not supported: ${connectorId}`
-        );
+        cy.log(`Skipping Auto Retry - connector not supported: ${connectorId}`);
         this.skip();
       }
     });
