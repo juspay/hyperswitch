@@ -753,7 +753,7 @@ pub enum WechatClient {
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
-pub struct GooglepayPayment {
+pub struct GooglePayPayment {
     #[serde(rename = "payment_method_data[card][token]")]
     pub token: Secret<String>,
     #[serde(rename = "payment_method_data[type]")]
