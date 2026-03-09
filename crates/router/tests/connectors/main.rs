@@ -109,6 +109,7 @@ mod prophetpay;
 mod rapyd;
 mod razorpay;
 mod redsys;
+mod revolv3;
 mod santander;
 mod shift4;
 mod sift;

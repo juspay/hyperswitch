@@ -492,6 +492,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         partner_merchant_identifier_details: None,
         rrn,
         feature_metadata: None,
+        installment_details: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -1576,6 +1577,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         billing_descriptor: None,
         split_payments: None,
         partner_merchant_identifier_details: None,
+        authentication_data: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -3995,6 +3997,9 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse feature metadata")?;
 
+        let connector_response_metadata =
+            payment_attempt.get_connector_response_metadata_from_attempt_metadata();
+
         let payments_response = api::PaymentsResponse {
             payment_id: payment_intent.payment_id,
             merchant_id: payment_intent.merchant_id,
@@ -4136,6 +4141,9 @@ where
             billing_descriptor: payment_intent.billing_descriptor,
             partner_merchant_identifier_details: payment_intent.partner_merchant_identifier_details,
             payment_method_tokenization_details,
+            installment_options: payment_intent.installment_options,
+            installment_data: payment_data.get_installment_details().cloned(),
+            connector_response_metadata,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -4300,6 +4308,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
     fn foreign_from((pi, pa): (storage::PaymentIntent, storage::PaymentAttempt)) -> Self {
         let connector_transaction_id = pa.get_connector_payment_id().map(ToString::to_string);
         Self {
+            connector_response_metadata: pa.get_connector_response_metadata_from_attempt_metadata(),
             payment_id: pi.payment_id,
             merchant_id: pi.merchant_id,
             status: pi.status,
@@ -4450,6 +4459,8 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             billing_descriptor: pi.billing_descriptor,
             partner_merchant_identifier_details: pi.partner_merchant_identifier_details,
             payment_method_tokenization_details: None,
+            installment_options: pi.installment_options,
+            installment_data: pa.installment_data,
         }
     }
 }
@@ -4817,6 +4828,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             partner_merchant_identifier_details: None,
             rrn,
             feature_metadata: None,
+            installment_details: None,
         })
     }
 }
@@ -5084,6 +5096,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .partner_merchant_identifier_details,
             rrn,
             feature_metadata,
+            installment_details: payment_data.payment_attempt.installment_data.clone(),
         })
     }
 }
@@ -6140,6 +6153,16 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             partner_merchant_identifier_details: payment_data
                 .payment_intent
                 .partner_merchant_identifier_details,
+            authentication_data: payment_data
+                .authentication
+                .as_ref()
+                .map(AuthenticationData::foreign_try_from)
+                .transpose()?
+                .or(payment_data
+                    .external_authentication_data
+                    .as_ref()
+                    .map(AuthenticationData::foreign_try_from)
+                    .transpose()?),
         })
     }
 }

@@ -2596,6 +2596,27 @@ impl PaymentMethod {
         }
     }
 
+    pub fn supports_installments(&self) -> bool {
+        match self {
+            Self::Card => true,
+            Self::CardRedirect
+            | Self::PayLater
+            | Self::Wallet
+            | Self::BankRedirect
+            | Self::BankTransfer
+            | Self::Crypto
+            | Self::BankDebit
+            | Self::Reward
+            | Self::RealTimePayment
+            | Self::Upi
+            | Self::Voucher
+            | Self::GiftCard
+            | Self::OpenBanking
+            | Self::MobilePayment
+            | Self::NetworkToken => false,
+        }
+    }
+
     pub fn is_additional_payment_method_data_sensitive(&self) -> bool {
         match self {
             Self::BankTransfer | Self::BankRedirect => true,
@@ -2788,6 +2809,7 @@ pub enum PaymentType {
     NewMandate,
     SetupMandate,
     RecurringMandate,
+    Installment,
 }
 
 /// SCA Exemptions types available for authentication
@@ -2933,6 +2955,40 @@ pub enum RelayStatus {
     Pending,
     Success,
     Failure,
+}
+
+impl RelayStatus {
+    pub fn get_void_status(attempt_status: AttemptStatus) -> Self {
+        match attempt_status {
+            AttemptStatus::Failure
+            | AttemptStatus::AuthenticationFailed
+            | AttemptStatus::RouterDeclined
+            | AttemptStatus::AuthorizationFailed
+            | AttemptStatus::CaptureFailed
+            | AttemptStatus::VoidFailed
+            | AttemptStatus::IntegrityFailure
+            | AttemptStatus::AutoRefunded
+            | AttemptStatus::Expired => Self::Failure,
+            AttemptStatus::Pending
+            | AttemptStatus::PaymentMethodAwaited
+            | AttemptStatus::Authorized
+            | AttemptStatus::PartiallyAuthorized
+            | AttemptStatus::AuthenticationSuccessful
+            | AttemptStatus::ConfirmationAwaited
+            | AttemptStatus::DeviceDataCollectionPending
+            | AttemptStatus::VoidInitiated
+            | AttemptStatus::Unresolved
+            | AttemptStatus::Charged
+            | AttemptStatus::PartialChargedAndChargeable
+            | AttemptStatus::CodInitiated
+            | AttemptStatus::PartialCharged
+            | AttemptStatus::Authorizing
+            | AttemptStatus::CaptureInitiated
+            | AttemptStatus::AuthenticationPending
+            | AttemptStatus::Started => Self::Pending,
+            AttemptStatus::Voided | AttemptStatus::VoidedPostCharge => Self::Success,
+        }
+    }
 }
 
 #[derive(

@@ -438,6 +438,7 @@ pub struct DecryptedWalletTokenDetailsForNetworkTransactionId {
     pub card_holder_name: Option<Secret<String>>,
     pub eci: Option<String>,
     pub token_source: Option<common_types::payments::TokenSource>,
+    pub card_network: Option<common_enums::CardNetwork>,
 }
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
@@ -683,6 +684,7 @@ impl From<common_types::payments::NetworkTransactionIdAndDecryptedWalletTokenDet
             card_holder_name: decrypted_token_details_for_nti.card_holder_name,
             token_source: decrypted_token_details_for_nti.token_source,
             eci: decrypted_token_details_for_nti.eci,
+            card_network: decrypted_token_details_for_nti.card_network,
         }
     }
 }
