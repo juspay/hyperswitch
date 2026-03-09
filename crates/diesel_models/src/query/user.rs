@@ -128,7 +128,7 @@ impl User {
         .await
     }
 
-    pub async fn find_users_by_user_ids(
+    pub async fn list_users_by_user_ids(
         conn: &PgPooledConn,
         user_ids: Vec<String>,
     ) -> StorageResult<Vec<Self>> {

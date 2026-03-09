@@ -4014,7 +4014,7 @@ pub async fn list_users_internal(
 ) -> UserResponse<user_api::ListUsersInternalResponse> {
     let users = state
         .global_store
-        .find_users_by_user_ids(req.user_ids)
+        .list_users_by_user_ids(req.user_ids)
         .await
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to fetch users from database")?;

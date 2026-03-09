@@ -56,7 +56,7 @@ pub trait UserInterface {
         user_ids: Vec<String>,
     ) -> CustomResult<Vec<storage::User>, errors::StorageError>;
 
-    async fn find_users_by_user_ids(
+    async fn list_users_by_user_ids(
         &self,
         user_ids: Vec<String>,
     ) -> CustomResult<Vec<storage::User>, errors::StorageError>;
@@ -162,12 +162,12 @@ impl UserInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    async fn find_users_by_user_ids(
+    async fn list_users_by_user_ids(
         &self,
         user_ids: Vec<String>,
     ) -> CustomResult<Vec<storage::User>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::User::find_users_by_user_ids(&conn, user_ids)
+        storage::User::list_users_by_user_ids(&conn, user_ids)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -444,7 +444,7 @@ impl UserInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 
-    async fn find_users_by_user_ids(
+    async fn list_users_by_user_ids(
         &self,
         _user_ids: Vec<String>,
     ) -> CustomResult<Vec<storage::User>, errors::StorageError> {
