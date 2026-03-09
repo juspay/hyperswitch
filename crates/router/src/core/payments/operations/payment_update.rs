@@ -190,7 +190,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
         payment_attempt.payment_method_type =
             payment_method_type.or(payment_attempt.payment_method_type);
-        let customer_details = helpers::get_customer_details_from_request(request, None);
+        let customer_details =
+            helpers::get_customer_details_from_request_or_pm_table(request, &None)?;
 
         payment_intent.customer_details = helpers::merge_request_and_intent_customer_data(
             state,

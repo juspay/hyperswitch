@@ -1655,10 +1655,28 @@ pub async fn validate_blocking_threshold(
 /// Get the customer details from customer field if present
 /// or from the individual fields in `PaymentsRequest`
 #[instrument(skip_all)]
-pub fn get_customer_details_from_request(
+pub fn get_customer_details_from_request_or_pm_table(
     request: &api_models::payments::PaymentsRequest,
-    optional_customer_details_from_pm_table: Option<CustomerDocumentDetails>,
-) -> CustomerDetails {
+    payment_method: &Option<domain::PaymentMethod>,
+) -> Result<
+    CustomerDetails,
+    error_stack::Report<hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse>,
+> {
+    // Extracting customer details from Payment Methods Table in case of MIT
+    let customer_details_from_pm = payment_method
+        .clone()
+        .and_then(|data| data.customer_details)
+        .as_ref()
+        .map(|encryptable| {
+            encryptable
+                .clone()
+                .into_inner()
+                .parse_value::<CustomerDocumentDetails>("CustomerDocumentDetails")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse CustomerDocumentDetails from Payment Method")
+        })
+        .transpose()?;
+
     let customer_id = request.get_customer_id().map(ToOwned::to_owned);
 
     let customer_name = request
@@ -1692,12 +1710,12 @@ pub fn get_customer_details_from_request(
         .as_ref()
         .and_then(|customer_details| customer_details.tax_registration_id.clone());
 
-    let document_details = optional_customer_details_from_pm_table.or(request
+    let document_details = customer_details_from_pm.or(request
         .customer
         .as_ref()
         .and_then(|customer_details| customer_details.document_details.clone()));
 
-    CustomerDetails {
+    Ok(CustomerDetails {
         customer_id,
         name: customer_name,
         email: customer_email,
@@ -1705,7 +1723,7 @@ pub fn get_customer_details_from_request(
         phone_country_code: customer_phone_code,
         tax_registration_id,
         document_details,
-    }
+    })
 }
 
 pub async fn get_connector_default(
