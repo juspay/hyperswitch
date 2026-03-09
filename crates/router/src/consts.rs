@@ -354,6 +354,12 @@ pub mod superposition {
     pub const REQUIRES_CVV: &str = "requires_cvv";
     /// implicit customer update configuration key
     pub const IMPLICIT_CUSTOMER_UPDATE: &str = "implicit_customer_update";
+    /// Max auto single connector payout retries configuration key
+    pub const MAX_AUTO_SINGLE_CONNECTOR_PAYOUT_RETRIES: &str =
+        "max_auto_single_connector_payout_retries";
+    /// Max auto multiple connector payout retries configuration key
+    pub const MAX_AUTO_MULTIPLE_CONNECTOR_PAYOUT_RETRIES: &str =
+        "max_auto_multiple_connector_payout_retries";
 }
 
 #[cfg(test)]
