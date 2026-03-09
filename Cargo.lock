@@ -3506,7 +3506,7 @@ checksum = "28dd6caf6059519a65843af8fe2a3ae298b14b80179855aeb4adc2c1934ee619"
 [[package]]
 name = "fred"
 version = "7.1.2"
-source = "git+https://github.com/su-shivanshmathur/fred.rs?branch=test%2Fdebug-build#c2282ff943090b938bed888a1a3b939f9f568f8e"
+source = "git+https://github.com/su-shivanshmathur/fred.rs?branch=test%2Fdebug-build#9a148fb0aa0a6e1c8b69ce01439af3d9f406596a"
 dependencies = [
  "arc-swap",
  "async-trait",
