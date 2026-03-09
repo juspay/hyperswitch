@@ -1502,7 +1502,7 @@ payments_base_url = "http://localhost:8080"
 
 [superposition]
 enabled = false # Enable Superposition integration
-endpoint = "http://localhost:8080" # Superposition service endpoint
+endpoint = "http://localhost:8081" # Superposition service endpoint
 token = "123456" # Superposition token
 org_id = "localorg" # Organization ID in Superposition
 workspace_id = "dev" # Workspace ID in Superposition
