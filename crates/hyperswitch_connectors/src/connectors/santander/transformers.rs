@@ -1,7 +1,7 @@
 use api_models::payments::{
     BeneficiaryDetails, BoletoPaymentTypeConstraints, CalculationType, ConnectorMetadata,
-    DiscountTier, DiscountType, ProtestType, QrCodeInformation, SantanderPaymentDiscountRules,
-    SantanderData, VoucherNextStepData,
+    DiscountTier, DiscountType, ProtestType, QrCodeInformation, SantanderData,
+    SantanderPaymentDiscountRules, VoucherNextStepData,
 };
 use common_enums::{enums, AttemptStatus, BoletoDocumentKind, ExpiryType, PixKey};
 use common_utils::{
