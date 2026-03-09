@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.02.0-hotfix6
+
+### Features
+
+- **connector:** [Peachpayments] Perform PSync and RSync using reference_id ([#11457](https://github.com/juspay/hyperswitch/pull/11457)) ([`f6b79fc`](https://github.com/juspay/hyperswitch/commit/f6b79fc730ad2f988257bf4b7d3a72bc7a16b01b))
+
+**Full Changelog:** [`2026.02.02.0-hotfix5...2026.02.02.0-hotfix6`](https://github.com/juspay/hyperswitch/compare/2026.02.02.0-hotfix5...2026.02.02.0-hotfix6)
+
+- - -
+
 ## 2026.02.02.0-hotfix5
 
 ### Features
