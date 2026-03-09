@@ -33,7 +33,6 @@ import paymentMethodUpdate from "./modularPmService/modular-pm-service-pm-update
 import paymentMethodSessionCreate from "./modularPmService/modular-pm-service-pms-create.json";
 import paymentMethodSessionUpadte from "./modularPmService/modular-pm-service-update-pms-saved-pm.json";
 import paymentMethodSessionConfirm from "./modularPmService/modular-pm-service-pms-confim.json";
-import modularPmServicePaymentsCall from "./modularPmService/modular-pm-service-payments-call.json";
 export {
   apiKeyCreateBody,
   apiKeyUpdateBody,
@@ -70,5 +69,4 @@ export {
   paymentMethodSessionCreate,
   paymentMethodSessionUpadte,
   paymentMethodSessionConfirm,
-  modularPmServicePaymentsCall,
 };

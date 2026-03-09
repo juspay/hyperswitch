@@ -5550,8 +5550,17 @@ Cypress.Commands.add(
     const customerId = globalState.get("customerId");
     const profileId = globalState.get("profileId");
 
+    // Destructure to remove unwanted fields
+    const {
+      card_type: _cardType,
+      payment_method_data: _paymentMethodData,
+      customer_acceptance: _customerAcceptance,
+      setup_future_usage: _setupFutureUsage,
+      ...filteredPaymentData
+    } = paymentData;
+
     const requestBody = {
-      ...paymentData,
+      ...filteredPaymentData,
       customer_id: customerId,
       profile_id: profileId,
       payment_token: useToken
