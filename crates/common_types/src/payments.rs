@@ -1267,6 +1267,11 @@ impl InstallmentCounts {
         self.0.contains(&count)
     }
 
+    /// Returns a slice of the installment counts.
+    pub fn as_slice(&self) -> &[NonZeroU8] {
+        &self.0
+    }
+
     fn validate_not_empty(counts: &[NonZeroU8]) -> Result<(), errors::ValidationError> {
         (!counts.is_empty()).then_some(()).ok_or_else(|| {
             error_stack::report!(errors::ValidationError::InvalidValue {
@@ -1387,7 +1392,6 @@ pub struct InstallmentOptionData {
     /// Billing frequency for each installment cycle
     pub billing_frequency: BillingFrequency,
     /// Interest rate per installment as a percentage max 2 decimal places
-    ///
     #[schema(value_type = f64)]
     pub interest_rate: InstallmentInterestRate,
 }
