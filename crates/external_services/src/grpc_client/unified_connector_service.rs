@@ -171,7 +171,7 @@ impl UnifiedConnectorServiceClient {
 
         self.client
             .clone()
-            .create_payment_method_token(request)
+            .payment_method_token_create(request)
             .await
             .change_context(UnifiedConnectorServiceError::PaymentMethodTokenCreateFailure)
             .inspect_err(|error| {

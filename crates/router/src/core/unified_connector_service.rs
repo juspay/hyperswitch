@@ -1864,7 +1864,7 @@ pub fn handle_unified_connector_service_response_for_payment_post_authenticate(
 }
 
 pub fn handle_unified_connector_service_response_for_payment_method_token_create(
-    response: payments_grpc::PaymentServiceCreatePaymentMethodTokenResponse,
+    response: payments_grpc::PaymentMethodServiceTokenizeResponse,
 ) -> CustomResult<(Result<PaymentsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>
 {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
