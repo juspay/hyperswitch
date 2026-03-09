@@ -3561,17 +3561,11 @@ pub mod routes {
                     })
                     .collect();
 
-                analytics::search::msearch_results(
-                    state
-                        .opensearch_client
-                        .as_ref()
-                        .ok_or_else(|| error_stack::report!(OpenSearchError::NotEnabled))?,
-                    req,
-                    search_params,
-                    SEARCH_INDEXES.to_vec(),
-                )
-                .await
-                .map(ApplicationResponse::Json)
+                state
+                    .search_provider
+                    .msearch_results(req, search_params, SEARCH_INDEXES.to_vec())
+                    .await
+                    .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
@@ -3714,16 +3708,11 @@ pub mod routes {
                             })
                     })
                     .collect();
-                analytics::search::search_results(
-                    state
-                        .opensearch_client
-                        .as_ref()
-                        .ok_or_else(|| error_stack::report!(OpenSearchError::NotEnabled))?,
-                    req,
-                    search_params,
-                )
-                .await
-                .map(ApplicationResponse::Json)
+                state
+                    .search_provider
+                    .search_results(req, search_params)
+                    .await
+                    .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
