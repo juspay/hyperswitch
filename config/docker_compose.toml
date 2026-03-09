@@ -1104,6 +1104,10 @@ bank_redirect.giropay = { connector_list = "globalpay,aci" }
 card.credit = { connector_list = "cybersource" }
 card.debit = { connector_list = "cybersource" }
 
+[installments.supported_payment_methods]
+card.credit = "adyen"
+card.debit = "adyen"
+
 [network_transaction_id_supported_connectors]
 connector_list = "adyen,archipel,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv"
 

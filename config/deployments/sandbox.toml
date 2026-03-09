@@ -287,6 +287,10 @@ bank_redirect.eps.connector_list="globalpay,nexinets,aci,multisafepay"
 card.credit = { connector_list = "cybersource" }            # Update Mandate supported payment method type and connector for card
 card.debit = { connector_list = "cybersource" }             # Update Mandate supported payment method type and connector for card
 
+[installments.supported_payment_methods]
+card.credit = "adyen"
+card.debit = "adyen"
+
 [network_transaction_id_supported_connectors]
 connector_list = "adyen,archipel,checkout,cybersource,novalnet,nuvei,stripe,worldpay,worldpayvantiv"
 
