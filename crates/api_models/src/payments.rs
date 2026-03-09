@@ -123,7 +123,9 @@ pub struct BankCodeResponse {
 }
 
 /// Passing this object creates a new customer or attaches an existing customer to the payment
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, PartialEq, SmithyModel)]
+#[derive(
+    Debug, Default, serde::Deserialize, serde::Serialize, Clone, ToSchema, PartialEq, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct CustomerDetails {
     /// The identifier for the customer.
@@ -6663,6 +6665,10 @@ pub enum NextActionData {
         display_text: Option<String>,
         #[smithy(value_type = "Option<String>")]
         border_color: Option<String>,
+        /// The raw QR code data (EMV copy and paste) used for Brazilian payment methods like Pix
+        #[smithy(value_type = "Option<String>")]
+        #[schema(value_type = Option<String>)]
+        raw_qr_data: Option<String>,
     },
     /// Contains url to fetch Qr code data
     FetchQrCodeInformation {
@@ -6847,6 +6853,7 @@ pub enum QrCodeInformation {
         qr_code_url: Url,
         display_to_timestamp: Option<i64>,
         expiry_type: Option<common_enums::enums::ExpiryType>,
+        raw_qr_data: Option<String>,
     },
     QrDataUrl {
         image_data_url: Url,
@@ -6932,6 +6939,10 @@ pub struct VoucherNextStepData {
     #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub qr_code_url: Option<Url>,
+    /// The raw QR code data (EMV copy and paste) used for Brazilian payment methods like Pix
+    #[smithy(value_type = "Option<String>")]
+    #[schema(value_type = Option<String>)]
+    pub raw_qr_data: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
