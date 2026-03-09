@@ -3379,7 +3379,7 @@ pub mod routes {
                 .map(ApplicationResponse::Json)
             },
             &auth::JWTAndEmbeddedAuth {
-                merchant_id_from_route: None,s
+                merchant_id_from_route: None,
                 permission: Some(Permission::ProfileAnalyticsRead),
                 allow_connected: true,
                 allow_platform: false,
