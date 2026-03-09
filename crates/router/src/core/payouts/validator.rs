@@ -61,7 +61,7 @@ pub async fn validate_create_request(
 ) -> RouterResult<(
     String,
     Option<payouts::PayoutMethodData>,
-    String,
+    id_type::ProfileId,
     Option<domain::Customer>,
     Option<PaymentMethod>,
 )> {

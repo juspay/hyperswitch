@@ -2742,11 +2742,12 @@ pub async fn payout_create_db_entries(
     _platform: &domain::Platform,
     _req: &payouts::PayoutCreateRequest,
     _payout_id: &str,
-    _profile_id: &str,
+    _profile_id: &id_type::ProfileId,
     _stored_payout_method_data: Option<&payouts::PayoutMethodData>,
     _locale: &str,
     _customer: Option<&domain::Customer>,
     _payment_method: Option<PaymentMethod>,
+    _dimesnions: &configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
 ) -> RouterResult<PayoutData> {
     todo!()
 }

@@ -8499,7 +8499,7 @@ pub async fn is_merchant_eligible_authentication_service(
         .get_authentication_service_eligible(
             &*state.store,
             state.superposition_service.as_deref(),
-            None::<&id_type::CustomerId>,
+            None,
         )
         .await)
 }
