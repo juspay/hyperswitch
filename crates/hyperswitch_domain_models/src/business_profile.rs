@@ -143,10 +143,8 @@ pub struct WebhookDetails {
 
 impl ForeignFrom<storage_types::WebhookDetails> for WebhookDetails {
     fn foreign_from(item: storage_types::WebhookDetails) -> Self {
-        let webhook_urls = WebhookUrls::get_multiple_webhook_urls(
-            item.webhook_url,
-            item.multiple_webhooks_list,
-        );
+        let webhook_urls =
+            WebhookUrls::get_multiple_webhook_urls(item.webhook_url, item.multiple_webhooks_list);
 
         Self {
             webhook_version: item.webhook_version,
