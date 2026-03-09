@@ -637,10 +637,27 @@ pub fn normalize_payment_id(payment_id: &str) -> String {
         .collect()
 }
 
-pub fn is_payout_webhook_event(event: &TruelayerPayoutsWebhookEvent) -> bool {
+pub fn is_payout_webhook_event(event_type: TruelayerWebhookEventType) -> bool {
     matches!(
-        event,
-        TruelayerPayoutsWebhookEvent::PayoutExecuted | TruelayerPayoutsWebhookEvent::PayoutFailed
+        event_type,
+        TruelayerWebhookEventType::PayoutExecuted | TruelayerWebhookEventType::PayoutFailed
+    )
+}
+
+pub fn is_payment_webhook_event(event_type: TruelayerWebhookEventType) -> bool {
+    matches!(
+        event_type,
+        TruelayerWebhookEventType::PaymentAuthorized | TruelayerWebhookEventType::PaymentExecuted
+        | TruelayerWebhookEventType::PaymentSettled | TruelayerWebhookEventType::PaymentFailed
+        | TruelayerWebhookEventType::PaymentCreditable
+        | TruelayerWebhookEventType::PaymentSettlementStalled
+    )
+}
+
+pub fn is_refund_webhook_event(event_type: TruelayerWebhookEventType) -> bool {
+    matches!(
+        event_type,
+        TruelayerWebhookEventType::RefundExecuted | TruelayerWebhookEventType::RefundFailed
     )
 }
 
@@ -649,6 +666,33 @@ pub fn is_payout_webhook_event(event: &TruelayerPayoutsWebhookEvent) -> bool {
 pub enum TruelayerPayoutsWebhookEvent {
     PayoutExecuted,
     PayoutFailed,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum TruelayerWebhookEventType {
+    PaymentAuthorized,
+    PaymentExecuted,
+    PaymentCreditable,
+    PaymentSettled,
+    PaymentFailed,
+    PaymentSettlementStalled,
+    PaymentDisputed,
+    PaymentReversed,
+    PaymentFundsReceived,
+    RefundExecuted,
+    RefundFailed,
+    PayoutExecuted,
+    PayoutFailed
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TruelayerWebhookEventBody {
+    #[serde(rename = "type")]
+    pub _type: TruelayerWebhookEventType,
+    pub payout_id: Option<String>,
+    pub refund_id: Option<String>,
+    pub payment_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
