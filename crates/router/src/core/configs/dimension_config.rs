@@ -1,11 +1,10 @@
 use common_utils::errors::CustomResult;
 use external_services::superposition;
 
-use super::{fetch_db_config_for_dimensions, DatabaseBackedConfig};
-use crate::{consts::superposition as superposition_consts, db::StorageInterface, utils::id_type};
-
 // Re-export dimension types for convenience
 pub use super::dimension_state::{DimensionsWithMerchantId, DimensionsWithMerchantIdAndProfileId};
+use super::{fetch_db_config_for_dimensions, DatabaseBackedConfig};
+use crate::{consts::superposition as superposition_consts, db::StorageInterface, utils::id_type};
 
 /// Macro to generate write support for configs.
 /// This adds `WritableConfig` trait implementation and `set_<key>()` method.

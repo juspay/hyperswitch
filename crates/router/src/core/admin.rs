@@ -11,9 +11,9 @@ use common_utils::{
     fp_utils, id_type, pii, type_name,
     types::keymanager::{self as km_types, KeyManagerState, ToEncryptable},
 };
+use diesel_models::payment_method;
 #[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap"))]
 use diesel_models::{business_profile::CardTestingGuardConfig, organization::OrganizationBridge};
-use diesel_models::payment_method;
 use error_stack::{report, FutureExt, ResultExt};
 use external_services::http_client::client;
 use hyperswitch_domain_models::merchant_connector_account::{
@@ -73,7 +73,6 @@ pub fn create_merchant_publishable_key() -> String {
     )
 }
 
-
 /// Insert merchant configs using Superposition for fingerprint_secret
 pub async fn insert_merchant_configs_with_superposition(
     state: &SessionState,
@@ -90,7 +89,13 @@ pub async fn insert_merchant_configs_with_superposition(
     let workspace_id = &superposition_config.workspace_id;
 
     dimensions
-        .set_fingerprint_secret(state.superposition_service.as_deref(), &fingerprint_secret, org_id, workspace_id, None)
+        .set_fingerprint_secret(
+            state.superposition_service.as_deref(),
+            &fingerprint_secret,
+            org_id,
+            workspace_id,
+            None,
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to create fingerprint_secret in Superposition")?;

@@ -163,10 +163,7 @@ impl SuperpositionClient {
 
         router_env::logger::info!("Superposition SDK client initialized successfully");
 
-        Ok(Self {
-            client,
-            sdk_client,
-        })
+        Ok(Self { client, sdk_client })
     }
 
     /// Build evaluation context for Superposition requests
@@ -280,7 +277,8 @@ impl SuperpositionClient {
         })?;
 
         // Call create_context API
-        let response = self.sdk_client
+        let response = self
+            .sdk_client
             .create_context()
             .workspace_id(workspace_id.to_string())
             .org_id(org_id.to_string())
@@ -295,10 +293,7 @@ impl SuperpositionClient {
             )))
         })?;
 
-        router_env::logger::info!(
-            "Set {} config successfully",
-            T::SUPERPOSITION_KEY
-        );
+        router_env::logger::info!("Set {} config successfully", T::SUPERPOSITION_KEY);
 
         Ok(())
     }
