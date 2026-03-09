@@ -2517,7 +2517,7 @@ where
             .flat_map(|c| c.foreign_try_into())
             .collect()
     });
-    let dimensions = configs::dimension_state::Dimensions::new()
+    let dimensions = dimension_state::Dimensions::new()
         .with_merchant_id(platform.get_processor().get_account().get_id().clone());
     let (payment_data, _req, connector_http_status_code, external_latency) =
         payments_operation_core::<_, _, _, _, _>(
@@ -2581,7 +2581,7 @@ where
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData, Data = D>,
 {
-    let dimensions = configs::dimension_state::Dimensions::new()
+    let dimensions = dimension_state::Dimensions::new()
         .with_merchant_id(platform.get_processor().get_account().get_id().clone());
     let (payment_data, _req, connector_http_status_code, external_latency) =
         proxy_for_payments_operation_core::<_, _, _, _, _>(
@@ -10899,7 +10899,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
     let storage_scheme = platform.get_processor().get_account().storage_scheme;
     let payment_id = req.payment_id;
     let dimensions =
-        configs::dimension_state::Dimensions::new().with_merchant_id(processor_merchant_id.clone());
+        dimension_state::Dimensions::new().with_merchant_id(processor_merchant_id.clone());
     let payment_intent = db
         .find_payment_intent_by_payment_id_processor_merchant_id(
             &payment_id,
