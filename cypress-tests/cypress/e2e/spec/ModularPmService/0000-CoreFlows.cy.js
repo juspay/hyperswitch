@@ -56,8 +56,7 @@ describe("Core flows", () => {
     it("Modular PM Service - Payments call with pm_id", () => {
       cy.paymentWithSavedPMCall(
         globalState,
-        fixtures.createConfirmPaymentBody,
-        false
+        fixtures.createConfirmPaymentBody
       );
     });
 
