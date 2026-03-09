@@ -2,7 +2,7 @@
 use std::fmt;
 use std::{
     collections::{HashMap, HashSet},
-    num::NonZeroI64,
+    num::{NonZeroI64, NonZeroU8},
 };
 pub mod additional_info;
 pub mod trait_impls;
@@ -1101,6 +1101,29 @@ impl AmountDetailsUpdate {
         self.tax_on_surcharge
     }
 }
+
+/// Installment selection sent by the customer during payment confirmation.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct InstallmentRequest {
+    /// Number of installments chosen by the customer
+    #[schema(value_type = u8)]
+    pub number_of_installments: NonZeroU8,
+    /// Billing frequency for the chosen installment plan
+    #[schema(value_type = BillingFrequency)]
+    pub billing_frequency: common_payments_types::BillingFrequency,
+}
+
+impl From<InstallmentRequest> for common_payments_types::InstallmentData {
+    fn from(data: InstallmentRequest) -> Self {
+        Self {
+            number_of_installments: data.number_of_installments,
+            billing_frequency: data.billing_frequency,
+            installment_interest: None,
+        }
+    }
+}
+
 #[cfg(feature = "v1")]
 #[derive(
     Default,
@@ -1563,6 +1586,9 @@ pub struct PaymentsRequest {
     /// Installment payment options grouped by payment method. When provided, the payment is treated as an installment payment.
     #[schema(value_type = Option<Vec<InstallmentOption>>)]
     pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
+
+    /// Installment data selected by the customer during payment confirmation. This is used to specify the chosen number of installments and billing frequency.
+    pub installment_data: Option<InstallmentRequest>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -7692,6 +7718,10 @@ pub struct PaymentsResponse {
     /// Installment payment options associated with this payment, grouped by payment method
     #[schema(value_type = Option<Vec<InstallmentOption>>)]
     pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
+
+    /// Installment selection confirmed by the customer for this payment
+    #[schema(value_type = Option<InstallmentData>)]
+    pub installment_data: Option<common_types::payments::InstallmentData>,
 }
 
 #[cfg(feature = "v1")]
@@ -8975,6 +9005,8 @@ pub struct PaymentListFilterConstraints {
     pub merchant_order_reference_id: Option<String>,
     /// Indicates the method by which a card is discovered during a payment
     pub card_discovery: Option<Vec<enums::CardDiscovery>>,
+    /// The customer email to filter payments list
+    pub customer_email: Option<Email>,
 }
 
 #[cfg(feature = "v1")]

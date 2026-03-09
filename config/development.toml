@@ -1202,6 +1202,10 @@ bank_redirect.eps.connector_list = "globalpay,nexinets,aci,multisafepay"
 card.credit = { connector_list = "cybersource" }
 card.debit = { connector_list = "cybersource" }
 
+[installments.supported_payment_methods]
+card.credit = "adyen"
+card.debit = "adyen"
+
 [network_transaction_id_supported_connectors]
 connector_list = "adyen,archipel,checkout,cybersource,novalnet,nuvei,stripe,worldpay,worldpayvantiv"
 
@@ -1398,7 +1402,7 @@ id = "12345"
 card_networks = "Visa, AmericanExpress, Mastercard"
 
 [network_tokenization_supported_connectors]
-connector_list = "adyen,cybersource,peachpayments"
+connector_list = "adyen,cybersource,peachpayments,trustpay"
 
 [grpc_client.dynamic_routing_client]
 host = "localhost"
@@ -1439,7 +1443,7 @@ enabled = "true"
 [grpc_client.unified_connector_service]
 base_url = "http://localhost:8000"
 connection_timeout = 10
-ucs_only_connectors = "paytm, phonepe, hyperpg, revolv3"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "paytm, phonepe, hyperpg, revolv3, truelayer"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode"    # Comma-separated list of connectors to disable UCS PSync call
 
 [revenue_recovery]

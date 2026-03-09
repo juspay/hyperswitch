@@ -236,7 +236,7 @@ pub async fn verify_recon_token(
 ) -> UserResponse<recon_api::VerifyTokenResponse> {
     let user = user_with_role.user;
     let user_in_db = user
-        .get_user_from_db(&state)
+        .get_active_user_from_db(&state)
         .await
         .attach_printable_lazy(|| {
             format!(
