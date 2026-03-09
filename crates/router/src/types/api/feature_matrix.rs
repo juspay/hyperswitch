@@ -313,6 +313,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Redsys => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Redsys::new())))
                 }
+                enums::Connector::Revolv3 => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Revolv3::new())))
+                }
                 enums::Connector::Santander => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Santander::new())))
                 }
@@ -378,9 +381,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Tokenio => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Tokenio::new())))
                 }
-                // enums::Connector::Truelayer => {
-                //     Ok(ConnectorEnum::Old(Box::new(connector::Truelayer::new())))
-                // }
+                enums::Connector::Truelayer => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Truelayer::new())))
+                }
                 enums::Connector::Trustpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Trustpay::new())))
                 }
