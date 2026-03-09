@@ -734,7 +734,7 @@ impl PaymentMethodsController for PmCards<'_> {
             .attach_printable("Failed to encode AddVaultRequest")?;
 
             let resp =
-                vault::call_to_vault_with_mode::<pm_types::AddVault>(self.state, payload, None)
+                vault::call_to_vault::<pm_types::AddVault>(self.state, payload)
                     .await
                     .change_context(errors::VaultError::VaultAPIError)
                     .attach_printable("Call to vault failed")?;
