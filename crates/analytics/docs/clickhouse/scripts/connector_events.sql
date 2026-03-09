@@ -13,7 +13,7 @@ CREATE TABLE connector_events_queue
     `latency` UInt128,
     `method` LowCardinality(String),
     `dispute_id` Nullable(String),
-    `refund_id` Nullable(String)
+    `refund_id` Nullable(String),
     `payout_id` Nullable(String)
 )
 ENGINE = Kafka
@@ -56,7 +56,7 @@ CREATE TABLE connector_events (
     `method` LowCardinality(String),
     `dispute_id` Nullable(String),
     `refund_id` Nullable(String),
-    `payout_id` Nullable(String)
+    `payout_id` Nullable(String),
     INDEX flowIndex flow TYPE bloom_filter GRANULARITY 1,
     INDEX connectorIndex connector_name TYPE bloom_filter GRANULARITY 1,
     INDEX statusIndex status_code TYPE bloom_filter GRANULARITY 1

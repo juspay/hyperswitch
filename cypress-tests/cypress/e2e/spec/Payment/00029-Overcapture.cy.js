@@ -87,7 +87,7 @@ describe("[Payment] Overcapture", () => {
         "card_pm"
       ]["Overcapture"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
   });
 });

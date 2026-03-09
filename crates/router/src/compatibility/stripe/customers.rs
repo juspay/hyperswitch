@@ -50,11 +50,17 @@ pub async fn customer_create(
         &req,
         create_cust_req,
         |state, auth: auth::AuthenticationData, req, _| {
-            customers::create_customer(state, auth.platform.get_provider().clone(), req, None)
+            customers::create_customer(
+                state,
+                auth.platform.get_provider().clone(),
+                auth.platform.get_initiator().cloned(),
+                req,
+                None,
+            )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: true,
-            is_platform_allowed: true,
+            allow_connected_scope_operation: true,
+            allow_platform_self_operation: true,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -95,8 +101,8 @@ pub async fn customer_retrieve(
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: true,
-            is_platform_allowed: true,
+            allow_connected_scope_operation: true,
+            allow_platform_self_operation: true,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -146,12 +152,13 @@ pub async fn customer_update(
             customers::update_customer(
                 state,
                 auth.platform.get_provider().clone(),
+                auth.platform.get_initiator().cloned(),
                 request_internal,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: true,
-            is_platform_allowed: true,
+            allow_connected_scope_operation: true,
+            allow_platform_self_operation: true,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -184,11 +191,16 @@ pub async fn customer_delete(
         &req,
         customer_id,
         |state, auth: auth::AuthenticationData, customer_id, _| {
-            customers::delete_customer(state, auth.platform.get_provider().clone(), customer_id)
+            customers::delete_customer(
+                state,
+                auth.platform.get_provider().clone(),
+                auth.platform.get_initiator().cloned(),
+                customer_id,
+            )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: true,
-            is_platform_allowed: true,
+            allow_connected_scope_operation: true,
+            allow_platform_self_operation: true,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -231,8 +243,8 @@ pub async fn list_customer_payment_method_api(
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            is_connected_allowed: true,
-            is_platform_allowed: true,
+            allow_connected_scope_operation: true,
+            allow_platform_self_operation: true,
         }),
         api_locking::LockAction::NotApplicable,
     ))

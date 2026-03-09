@@ -53,8 +53,10 @@ impl VerifyConnectorData {
             request_extended_authorization: None,
             request_incremental_authorization: false,
             authentication_data: None,
+            ucs_authentication_data: None,
             customer_acceptance: None,
             split_payments: None,
+            guest_customer: None,
             merchant_order_reference_id: None,
             integrity_object: None,
             additional_payment_method_data: None,
@@ -72,6 +74,9 @@ impl VerifyConnectorData {
             billing_descriptor: None,
             tokenization: None,
             partner_merchant_identifier_details: None,
+            rrn: None,
+            feature_metadata: None,
+            installment_details: None,
         }
     }
 
@@ -141,6 +146,7 @@ impl VerifyConnectorData {
             l2_l3_data: None,
             minor_amount_capturable: None,
             authorized_amount: None,
+            customer_document_details: None,
         }
     }
 }

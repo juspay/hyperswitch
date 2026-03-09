@@ -189,7 +189,6 @@ where
                     req_state,
                     platform.get_processor(),
                     payment_data.clone(),
-                    customer.clone(),
                     None,
                     header_payload.clone(),
                 )
@@ -197,7 +196,7 @@ where
             // todo: call surcharge manager for session token call.
             Box::pin(call_multiple_connectors_service(
                 state,
-                &platform,
+                platform.get_processor(),
                 connectors,
                 &operation,
                 payment_data,

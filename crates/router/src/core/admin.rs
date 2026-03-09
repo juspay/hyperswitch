@@ -2,9 +2,9 @@ use std::str::FromStr;
 
 use api_models::{
     admin::{self as admin_types},
-    enums as api_enums, routing as routing_types,
+    enums as api_enums, organization as org_types, routing as routing_types,
 };
-use common_enums::{MerchantAccountRequestType, MerchantAccountType, OrganizationType};
+use common_enums::{MerchantAccountType, OrganizationType};
 use common_utils::{
     date_time,
     ext_traits::{AsyncExt, Encode, OptionExt, ValueExt},
@@ -22,6 +22,11 @@ use hyperswitch_domain_models::merchant_connector_account::{
 use masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::types as pm_auth_types;
 use uuid::Uuid;
+#[cfg(feature = "olap")]
+use {
+    base64::Engine,
+    common_utils::{keymanager, types::keymanager::EncryptionTransferRequest},
+};
 
 use super::routing::helpers::redact_cgraph_cache;
 #[cfg(any(feature = "v1", feature = "v2"))]
@@ -40,7 +45,7 @@ use crate::{
     },
     db::{AccountsStorageInterface, StorageInterface},
     logger,
-    routes::{metrics, SessionState},
+    routes::{app::SessionStateInfo, metrics, SessionState},
     services::{
         self,
         api::{self as service_api},
@@ -143,7 +148,6 @@ pub async fn update_organization(
         organization_name: req.organization_name,
         organization_details: req.organization_details,
         metadata: req.metadata,
-        platform_merchant_id: req.platform_merchant_id,
     };
     state
         .accounts_store
@@ -183,15 +187,145 @@ pub async fn get_organization(
     }
 }
 
+#[cfg(all(feature = "olap", feature = "v1"))]
+fn create_platform_merchant_account_request(
+    merchant_id: id_type::MerchantId,
+    merchant_name: String,
+    organization_id: id_type::OrganizationId,
+) -> admin_types::MerchantAccountCreate {
+    admin_types::MerchantAccountCreate {
+        merchant_id,
+        merchant_name: Some(Secret::new(merchant_name)),
+        organization_id: Some(organization_id),
+        merchant_account_type: Some(MerchantAccountType::Platform),
+        merchant_details: None,
+        return_url: None,
+        webhook_details: None,
+        sub_merchants_enabled: None,
+        parent_merchant_id: None,
+        enable_payment_response_hash: None,
+        payment_response_hash_key: None,
+        redirect_to_merchant_with_http_post: None,
+        publishable_key: None,
+        locker_id: None,
+        metadata: None,
+        routing_algorithm: None,
+        primary_business_details: None,
+        frm_routing_algorithm: None,
+        #[cfg(feature = "payouts")]
+        payout_routing_algorithm: None,
+        pm_collect_link_config: None,
+        product_type: Some(consts::user::DEFAULT_PRODUCT_TYPE),
+    }
+}
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+pub async fn convert_organization_to_platform_organization(
+    state: SessionState,
+    org_id: api::OrganizationId,
+    req: org_types::ConvertOrganizationToPlatformRequest,
+) -> RouterResponse<org_types::ConvertOrganizationToPlatformResponse> {
+    // Validate platform feature is enabled
+    fp_utils::when(!state.conf().platform.enabled, || {
+        Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Platform feature is not enabled".to_string()
+        }))
+    })?;
+
+    let organization = state
+        .accounts_store
+        .find_organization_by_org_id(&org_id.organization_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "Organization with the given id does not exist".to_string(),
+        })?;
+
+    // Validate organization is not already of type Platform
+    fp_utils::when(
+        organization.get_organization_type() == OrganizationType::Platform,
+        || {
+            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: format!(
+                    "Organization is already of type {:?}",
+                    OrganizationType::Platform
+                ),
+            }))
+        },
+    )?;
+
+    // Validate organization doesn't already have a platform_merchant_id
+    fp_utils::when(organization.platform_merchant_id.is_some(), || {
+        Err(report!(errors::ApiErrorResponse::InternalServerError))
+    })?;
+
+    state
+        .accounts_store
+        .update_organization_by_org_id(
+            &org_id.organization_id,
+            diesel_models::organization::OrganizationUpdate::ConvertToPlatform,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update organization type to Platform")?;
+
+    let platform_merchant_name = req
+        .platform_merchant_name
+        .map(|merchant_name| merchant_name.peek().to_string())
+        .unwrap_or_else(|| {
+            format!(
+                "{} Platform",
+                organization.get_organization_name().unwrap_or_default()
+            )
+        });
+
+    let platform_merchant_id =
+        utils::user::generate_env_specific_merchant_id(platform_merchant_name.clone())
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Invalid platform merchant name".to_string(),
+            })?;
+
+    let merchant_create_request = create_platform_merchant_account_request(
+        platform_merchant_id.clone(),
+        platform_merchant_name.clone(),
+        org_id.organization_id.clone(),
+    );
+
+    Box::pin(create_merchant_account(
+        state.clone(),
+        merchant_create_request,
+        Some(authentication::AuthenticationDataWithOrg {
+            organization_id: org_id.organization_id.clone(),
+        }),
+    ))
+    .await?;
+
+    let updated_organization = state
+        .accounts_store
+        .update_organization_by_org_id(
+            &org_id.organization_id,
+            diesel_models::organization::OrganizationUpdate::UpdatePlatformMerchant {
+                platform_merchant_id: platform_merchant_id.clone(),
+            },
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update organization type to Platform")?;
+
+    Ok(service_api::ApplicationResponse::Json(
+        org_types::ConvertOrganizationToPlatformResponse {
+            organization_id: updated_organization.get_organization_id(),
+            organization_type: updated_organization.get_organization_type(),
+            platform_merchant_id,
+        },
+    ))
+}
+
 #[cfg(feature = "olap")]
 pub async fn create_merchant_account(
     state: SessionState,
     req: api::MerchantAccountCreate,
     org_data_from_auth: Option<authentication::AuthenticationDataWithOrg>,
 ) -> RouterResponse<api::MerchantAccountResponse> {
-    #[cfg(feature = "keymanager_create")]
-    use common_utils::{keymanager, types::keymanager::EncryptionTransferRequest};
-
     let db = state.store.as_ref();
     let key = services::generate_aes256_key()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -202,25 +336,16 @@ pub async fn create_merchant_account(
     let key_manager_state: &KeyManagerState = &(&state).into();
     let merchant_id = req.get_merchant_reference_id();
     let identifier = km_types::Identifier::Merchant(merchant_id.clone());
-    #[cfg(feature = "keymanager_create")]
-    {
-        use base64::Engine;
-
-        use crate::consts::BASE64_ENGINE;
-
-        if key_manager_state.enabled {
-            keymanager::transfer_key_to_key_manager(
-                key_manager_state,
-                EncryptionTransferRequest {
-                    identifier: identifier.clone(),
-                    key: masking::StrongSecret::new(BASE64_ENGINE.encode(key)),
-                },
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::DuplicateMerchantAccount)
-            .attach_printable("Failed to insert key to KeyManager")?;
-        }
-    }
+    keymanager::transfer_key_to_key_manager(
+        key_manager_state,
+        EncryptionTransferRequest {
+            identifier: identifier.clone(),
+            key: masking::StrongSecret::new(consts::BASE64_ENGINE.encode(key)),
+        },
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::DuplicateMerchantAccount)
+    .attach_printable("Failed to insert key to KeyManager")?;
 
     let key_store = domain::MerchantKeyStore {
         merchant_id: merchant_id.clone(),
@@ -364,20 +489,25 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             .await?;
 
         let merchant_account_type = match organization.get_organization_type() {
-            OrganizationType::Standard => {
-                match self.merchant_account_type.unwrap_or_default() {
-                    // Allow only if explicitly Standard or not provided
-                    MerchantAccountRequestType::Standard => MerchantAccountType::Standard,
-                    MerchantAccountRequestType::Connected => {
-                        return Err(errors::ApiErrorResponse::InvalidRequestData {
-                            message:
-                                "Merchant account type must be Standard for a Standard Organization"
-                                    .to_string(),
-                        }
-                        .into());
+            OrganizationType::Standard => match self.merchant_account_type.unwrap_or_default() {
+                MerchantAccountType::Standard => MerchantAccountType::Standard,
+                MerchantAccountType::Connected => {
+                    return Err(errors::ApiErrorResponse::InvalidRequestData {
+                        message:
+                            "Merchant account type must be Standard for a Standard Organization"
+                                .to_string(),
                     }
+                    .into());
                 }
-            }
+                MerchantAccountType::Platform => {
+                    return Err(errors::ApiErrorResponse::InvalidRequestData {
+                        message:
+                            "Merchant account type cannot be Platform for a Standard Organization"
+                                .to_string(),
+                    }
+                    .into());
+                }
+            },
 
             OrganizationType::Platform => {
                 let accounts = state
@@ -395,8 +525,8 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     MerchantAccountType::Platform
                 } else {
                     match self.merchant_account_type.unwrap_or_default() {
-                        MerchantAccountRequestType::Standard => MerchantAccountType::Standard,
-                        MerchantAccountRequestType::Connected => {
+                        MerchantAccountType::Standard => MerchantAccountType::Standard,
+                        MerchantAccountType::Connected => {
                             if state.conf.platform.allow_connected_merchants {
                                 MerchantAccountType::Connected
                             } else {
@@ -406,6 +536,14 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                                 }
                                 .into());
                             }
+                        }
+                        MerchantAccountType::Platform => {
+                            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                                message:
+                                    "Only one Platform merchant account is allowed per Organization"
+                                        .to_string(),
+                            }
+                            .into());
                         }
                     }
                 }
@@ -2367,6 +2505,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             business_sub_label: self.business_sub_label.clone(),
             additional_merchant_data: encrypted_data.additional_merchant_data,
             version: common_types::consts::API_VERSION,
+            connector_webhook_registration_details: None,
         })
     }
 
@@ -4558,32 +4697,6 @@ async fn locker_recipient_create_call(
         .attach_printable("Failed to encrypt merchant bank account data")?;
 
     Ok(store_resp.card_reference)
-}
-
-pub async fn enable_platform_account(
-    state: SessionState,
-    merchant_id: id_type::MerchantId,
-) -> RouterResponse<()> {
-    let db = state.store.as_ref();
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-
-    let merchant_account = db
-        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-
-    db.update_merchant(
-        merchant_account,
-        storage::MerchantAccountUpdate::ToPlatformAccount,
-        &key_store,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Error while enabling platform merchant account")
-    .map(|_| services::ApplicationResponse::StatusOk)
 }
 
 impl From<&types::MerchantAccountData> for pm_auth_types::RecipientCreateRequest {

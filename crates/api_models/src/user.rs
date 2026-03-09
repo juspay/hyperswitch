@@ -18,6 +18,7 @@ pub struct SignUpWithMerchantIdRequest {
     pub email: pii::Email,
     pub password: Secret<String>,
     pub company_name: String,
+    pub organization_type: Option<common_enums::OrganizationType>,
 }
 
 pub type SignUpWithMerchantIdResponse = AuthorizeResponse;

@@ -1,6 +1,7 @@
 #[cfg(feature = "v2")]
 use std::marker::PhantomData;
 
+use api_models::customers::CustomerDocumentDetails;
 #[cfg(feature = "v2")]
 use api_models::payments::{ConnectorMetadata, SessionToken, VaultSessionDetails};
 use common_types::primitive_wrappers;
@@ -37,11 +38,19 @@ pub mod payment_intent;
 #[cfg(feature = "v2")]
 pub mod split_payments;
 
+#[cfg(feature = "v1")]
+use api_models::{
+    payment_methods::{PaymentMethodListInstallmentOption, PaymentMethodListIntentData},
+    payments::Address,
+};
 use common_enums as storage_enums;
 #[cfg(feature = "v2")]
 use diesel_models::types::{FeatureMetadata, OrderDetailsWithAmount};
+#[cfg(feature = "v1")]
+use error_stack::ResultExt;
+use masking::ExposeInterface;
 
-use self::payment_attempt::PaymentAttempt;
+use self::{payment_attempt::PaymentAttempt, payment_intent::CustomerData};
 #[cfg(feature = "v2")]
 use crate::{
     address::Address, business_profile, customer, errors, merchant_connector_account,
@@ -50,7 +59,7 @@ use crate::{
     ApiModelToDieselModelConvertor,
 };
 #[cfg(feature = "v1")]
-use crate::{payment_method_data, RemoteStorageObject};
+use crate::{errors, ext_traits::OptionExt, payment_method_data, RemoteStorageObject};
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToEncryption)]
@@ -139,6 +148,7 @@ pub struct PaymentIntent {
     pub partner_merchant_identifier_details:
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
     pub state_metadata: Option<common_types::payments::PaymentIntentStateMetadata>,
+    pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
 }
 
 impl PaymentIntent {
@@ -339,6 +349,28 @@ impl PaymentIntent {
     }
 
     #[cfg(feature = "v1")]
+    pub fn prevent_refund_after_post_capture_void(
+        &self,
+    ) -> CustomResult<(), errors::api_error_response::ApiErrorResponse> {
+        if self
+            .state_metadata
+            .as_ref()
+            .map(|state_metadata| state_metadata.is_post_capture_void_issued())
+            .unwrap_or(false)
+        {
+            Err(error_stack::report!(
+                errors::api_error_response::ApiErrorResponse::PreconditionFailed {
+                    message:
+                        "Refund void cannot be performed after a post-capture void has been issued"
+                            .into()
+                }
+            ))
+        } else {
+            Ok(())
+        }
+    }
+
+    #[cfg(feature = "v1")]
     pub fn validate_amount_against_intent_state_metadata(
         &self,
         requested_amount: Option<MinorUnit>,
@@ -377,6 +409,107 @@ impl PaymentIntent {
         } else {
             Ok(())
         }
+    }
+
+    pub fn get_customer_document_details(
+        &self,
+    ) -> Result<Option<CustomerDocumentDetails>, common_utils::errors::ParsingError> {
+        self.customer_details
+            .as_ref()
+            .map(|details| {
+                let decrypted_value = details.clone().into_inner().expose();
+
+                ValueExt::parse_value::<CustomerData>(decrypted_value, "CustomerData")
+                    .map(|data| data.customer_document_details)
+            })
+            .transpose()
+            .map(|opt| opt.flatten())
+            .map_err(|report| (*report.current_context()).clone())
+    }
+    #[cfg(feature = "v1")]
+    pub fn get_optional_feature_metadata(
+        &self,
+    ) -> CustomResult<
+        Option<api_models::payments::FeatureMetadata>,
+        common_utils::errors::ParsingError,
+    > {
+        self.feature_metadata
+            .as_ref()
+            .map(|details| {
+                ValueExt::parse_value::<api_models::payments::FeatureMetadata>(
+                    details.clone(),
+                    "FeatureMetadata",
+                )
+            })
+            .transpose()
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn into_payment_method_list_intent_data(
+        self,
+        net_amount: MinorUnit,
+    ) -> CustomResult<PaymentMethodListIntentData, errors::api_error_response::ApiErrorResponse>
+    {
+        let billing: Option<Address> = self
+            .billing_details
+            .map(|b| b.deserialize_inner_value(|value| value.parse_value("Address")))
+            .transpose()
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse billing address")?
+            .map(|enc| enc.into_inner());
+
+        let shipping: Option<Address> = self
+            .shipping_details
+            .map(|s| s.deserialize_inner_value(|value| value.parse_value("Address")))
+            .transpose()
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse shipping address")?
+            .map(|enc| enc.into_inner());
+
+        let installment_options = self
+            .installment_options
+            .map(|opts| {
+                let currency = self.currency.get_required_value("currency")?;
+                opts.into_iter()
+                    .map(|opt| {
+                        PaymentMethodListInstallmentOption::from_installment_option(
+                            opt.clone(),
+                            self.amount,
+                            net_amount,
+                            currency,
+                        )
+                        .change_context(
+                            errors::api_error_response::ApiErrorResponse::InternalServerError,
+                        )
+                        .attach_printable_lazy(|| {
+                            format!("Failed to transform installment option: {:?}", opt)
+                        })
+                    })
+                    .collect::<CustomResult<Vec<_>, _>>()
+            })
+            .transpose()?;
+
+        Ok(PaymentMethodListIntentData {
+            payment_id: self.payment_id,
+            status: self.status,
+            amount: self.amount,
+            currency: self.currency,
+            client_secret: self.client_secret.map(|s| s.into()),
+            description: self.description,
+            customer_id: self.customer_id,
+            return_url: self.return_url,
+            setup_future_usage: self.setup_future_usage,
+            billing,
+            shipping,
+            metadata: self.metadata.map(Secret::new),
+            order_details: self.order_details,
+            created: Some(self.created_at),
+            expires_on: self.session_expiry,
+            profile_id: self.profile_id,
+            merchant_order_reference_id: self.merchant_order_reference_id,
+            attempt_count: self.attempt_count,
+            installment_options,
+        })
     }
 }
 
@@ -898,7 +1031,9 @@ impl PaymentIntent {
             force_3ds_challenge: None,
             force_3ds_challenge_trigger: None,
             processor_merchant_id: platform.get_processor().get_account().get_id().clone(),
-            created_by: None,
+            created_by: platform
+                .get_initiator()
+                .and_then(|initiator| initiator.to_created_by()),
             is_iframe_redirection_enabled: None,
             is_payment_id_from_merchant: None,
             enable_partial_authorization: request
@@ -1357,6 +1492,12 @@ where
                 .as_ref()
                 .and_then(|data| data.apple_pay_recurring_details.clone()),
             payment_revenue_recovery_metadata,
+            pix_additional_details: payment_intent_feature_metadata
+                .as_ref()
+                .and_then(|data| data.pix_additional_details.clone()),
+            boleto_additional_details: payment_intent_feature_metadata
+                .as_ref()
+                .and_then(|data| data.boleto_additional_details.clone()),
         }))
     }
 }
@@ -1456,4 +1597,10 @@ impl VaultData {
             Self::CardAndNetworkToken(vault_data) => Some(vault_data.network_token_data.clone()),
         }
     }
+}
+
+/// Guest customer details for connectors
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq)]
+pub struct GuestCustomer {
+    pub customer_id: String,
 }

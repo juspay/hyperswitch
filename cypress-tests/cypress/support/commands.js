@@ -2054,6 +2054,11 @@ Cypress.Commands.add(
         if (response.status === 200) {
           globalState.set("paymentID", paymentIntentID);
           globalState.set("connectorId", response.body.connector);
+          globalState.set(
+            "connectorTransactionID",
+            response.body.connector_transaction_id
+          );
+          globalState.set("paymentIntentStatus", response.body.status);
           expect(response.body.connector, "connector").to.equal(
             globalState.get("connectorId")
           );
@@ -2832,7 +2837,13 @@ Cypress.Commands.add("voidCallTest", (requestBody, data, globalState) => {
 
 Cypress.Commands.add(
   "retrievePaymentCallTest",
-  (globalState, data, autoretries = false, attempt = 1) => {
+  ({
+    globalState,
+    data = null,
+    autoretries = false,
+    attempt = 1,
+    expectedIntentStatus,
+  }) => {
     const { Configs: configs = {} } = data || {};
 
     const configInfo = execConfig(validateConfig(configs));
@@ -2865,6 +2876,13 @@ Cypress.Commands.add(
           expect(response.body.profile_id, "profile_id").to.not.be.null;
           expect(response.body.billing, "billing_address").to.not.be.null;
           expect(response.body.customer, "customer").to.not.be.empty;
+
+          if (expectedIntentStatus) {
+            expect(
+              response.body.status,
+              "payment status should match stored intent_status"
+            ).to.equal(expectedIntentStatus);
+          }
 
           if (
             ["succeeded", "processing", "requires_customer_action"].includes(
@@ -3732,6 +3750,24 @@ Cypress.Commands.add(
 
     handleRedirection(
       "crypto",
+      { redirectionUrl, expectedUrl },
+      connectorId,
+      paymentMethodType
+    );
+  }
+);
+
+Cypress.Commands.add(
+  "handleWalletRedirection",
+  (globalState, paymentMethodType, expectedRedirection) => {
+    const connectorId = globalState.get("connectorId");
+    const nextActionUrl = globalState.get("nextActionUrl");
+
+    const expectedUrl = new URL(expectedRedirection);
+    const redirectionUrl = new URL(nextActionUrl);
+
+    handleRedirection(
+      "bank_redirect",
       { redirectionUrl, expectedUrl },
       connectorId,
       paymentMethodType
@@ -5105,4 +5141,72 @@ Cypress.Commands.add("diffCheckResult", (globalState) => {
       return processResultsSequentially(matchingResults, 0, 0, 0);
     });
   });
+});
+
+Cypress.Commands.add(
+  "manualPaymentStatusUpdateTest",
+  (globalState, PaymentsManualUpdateRequestBody) => {
+    const merchantId = globalState.get("merchantId");
+    const paymentId = globalState.get("paymentID");
+    const completeUrl = `${Cypress.env("BASEURL")}/payments/${paymentId}/manual-update`;
+    const adminApiKey = globalState.get("adminApiKey");
+
+    cy.request({
+      method: "PUT",
+      url: completeUrl,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": adminApiKey,
+        "X-Merchant-Id": merchantId,
+      },
+      body: PaymentsManualUpdateRequestBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+        if (response.status === 200) {
+          expect(response.status).to.eq(200);
+          expect(response.body.payment_id).to.equal(paymentId);
+          expect(response.body.merchant_id).to.equal(merchantId);
+          expect(response.body.attempt_status).to.equal(
+            PaymentsManualUpdateRequestBody.attempt_status
+          );
+        } else {
+          throw new Error(
+            `Payment Update Call Failed with error code "${response.body.error.code}" error message "${response.body.error.message}"`
+          );
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add("IncomingWebhookTest", (globalState, webhookPayload) => {
+  const connector = globalState.get("connectorId");
+  const merchantId = globalState.get("merchantId");
+  const completeUrl = `${Cypress.env("BASEURL")}/webhooks/${merchantId}/${connector}`;
+
+  // Send webhook POST request
+  return cy
+    .request({
+      method: "POST",
+      url: completeUrl,
+      headers: { "Content-Type": "application/json" },
+      body: webhookPayload,
+      failOnStatusCode: false,
+    })
+    .then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      return cy.wrap(response).then(() => {
+        // Throw for failed status
+        if (response.status !== 200) {
+          throw new Error(
+            `Webhook failed with error code "${response.body.error.code}" error message "${response.body.error.message}"`
+          );
+        }
+      });
+    });
 });

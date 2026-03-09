@@ -56,6 +56,6 @@ describe("Card - Sync payment flow test", () => {
     const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
       "No3DSAutoCapture"
     ];
-    cy.retrievePaymentCallTest(globalState, data);
+    cy.retrievePaymentCallTest({ globalState, data });
   });
 });

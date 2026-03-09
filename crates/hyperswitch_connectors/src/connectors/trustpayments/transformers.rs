@@ -617,6 +617,7 @@ impl
                 network_txn_id: None,
                 connector_response_reference_id: Some(transaction_id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -691,6 +692,7 @@ impl
                 network_txn_id: None,
                 connector_response_reference_id: Some(transaction_id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -765,6 +767,7 @@ impl
                 network_txn_id: None,
                 connector_response_reference_id: Some(transaction_id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -839,6 +842,7 @@ impl
                 network_txn_id: None,
                 connector_response_reference_id: Some(transaction_id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data

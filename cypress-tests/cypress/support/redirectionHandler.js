@@ -674,6 +674,44 @@ function bankRedirectRedirection(
             }
             break;
 
+          case "loonio":
+            switch (paymentMethodType) {
+              case "interac":
+                cy.contains("p", "Pay with Interac e-transfer").click();
+
+                verifyUrl = true;
+                break;
+              default:
+                throw new Error(
+                  `Unsupported loonio payment method type: ${paymentMethodType}`
+                );
+            }
+            break;
+
+          case "gigadat":
+            switch (paymentMethodType) {
+              case "interac":
+                cy.contains("button", /Return To Merchant/i, {
+                  timeout: constants.TIMEOUT / 3,
+                })
+                  .should("be.visible")
+                  .click();
+
+                cy.contains("button", /^Yes$/i, {
+                  timeout: constants.TIMEOUT / 3,
+                })
+                  .should("be.visible")
+                  .click();
+
+                verifyUrl = true;
+                break;
+              default:
+                throw new Error(
+                  `Unsupported loonio payment method type: ${paymentMethodType}`
+                );
+            }
+            break;
+
           case "multisafepay":
             if (["sofort", "eps", "mbway"].includes(paymentMethodType)) {
               // Multisafe pay has CSRF blocking cannot actually test redirection flow via cypress
@@ -684,6 +722,45 @@ function bankRedirectRedirection(
               throw new Error(
                 `Unsupported multisafe payment method type: ${paymentMethodType}`
               );
+            }
+            break;
+
+          case "calida":
+            switch (paymentMethodType) {
+              case "bluecode":
+                cy.log("Handling Bluecode redirect flow");
+
+                cy.contains("body", /Open your Bluecode compatible App/i, {
+                  timeout: constants.TIMEOUT / 3,
+                }).should("be.visible");
+
+                // Bluecode shows a QR that the shopper scans inside their wallet app.
+                cy.get(
+                  "canvas:visible, img:visible, svg:visible, picture:visible",
+                  {
+                    timeout: constants.TIMEOUT / 2,
+                  }
+                )
+                  .first()
+                  .scrollIntoView()
+                  .should("be.visible")
+                  .then(($el) => {
+                    cy.log(
+                      "Verified Bluecode QR code is visible",
+                      $el.prop("tagName")
+                    );
+                  });
+
+                cy.contains("button, a", /Cancel/i, {
+                  timeout: constants.TIMEOUT / 3,
+                }).should("be.visible");
+
+                verifyUrl = false;
+                break;
+              default:
+                throw new Error(
+                  `Unsupported Calida payment method type: ${paymentMethodType}`
+                );
             }
             break;
 
@@ -1285,6 +1362,7 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
           break;
 
         case "worldpay":
+        case "worldpayxml":
           cy.get("iframe", { timeout: constants.WAIT_TIME })
             .its("0.contentDocument.body")
             .within(() => {

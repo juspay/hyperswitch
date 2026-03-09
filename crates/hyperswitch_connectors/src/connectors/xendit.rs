@@ -216,6 +216,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 common_types::payments::XenditSplitRequest::MultipleSplits(_),
             )) => {
                 if let Ok(PaymentsResponseData::TransactionResponse {
+                    authentication_data: None,
                     charges:
                         Some(common_types::payments::ConnectorChargeResponseData::XenditSplitPayment(
                             common_types::payments::XenditChargeResponseData::MultipleSplits(
@@ -1043,6 +1044,7 @@ impl webhooks::IncomingWebhook for Xendit {
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         let body: XenditWebhookEvent = request
             .body

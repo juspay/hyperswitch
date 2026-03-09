@@ -254,6 +254,17 @@ export const payment_methods_enabled = [
         recurring_enabled: true,
         installment_payment_enabled: true,
       },
+      {
+        payment_method_type: "interac",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
     ],
   },
   {
@@ -405,6 +416,14 @@ export const payment_methods_enabled = [
         recurring_enabled: true,
         installment_payment_enabled: true,
         payment_experience: "invoke_sdk_client",
+      },
+      {
+        payment_method_type: "bluecode",
+        payment_experience: "redirect_to_url",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
       },
       {
         payment_method_type: "skrill",
@@ -767,6 +786,58 @@ export const connectorDetails = {
             country: "PL",
             first_name: "john",
             last_name: "doe",
+          },
+        },
+      },
+    }),
+    Interac: getCustomExchange({
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "interac",
+        payment_method_data: {
+          bank_redirect: {
+            interac: {
+              bank_name: "ing",
+            },
+          },
+        },
+        billing: {
+          ...standardBillingAddress,
+          address: {
+            ...standardBillingAddress.address,
+            country: "CA",
+          },
+        },
+      },
+    }),
+  },
+  wallet_pm: {
+    PaymentIntent: (paymentMethodType) =>
+      getCustomExchange({
+        Request: {
+          currency: getCurrency(paymentMethodType),
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      }),
+    Bluecode: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "bluecode",
+        payment_method_data: {
+          wallet: {
+            bluecode_redirect: {},
+          },
+        },
+        billing: {
+          ...standardBillingAddress,
+          address: {
+            ...standardBillingAddress.address,
+            country: "AT",
           },
         },
       },
@@ -1510,7 +1581,7 @@ export const connectorDetails = {
           card: {
             card_number: "4242424242424242",
             card_exp_month: "01",
-            card_exp_year: "2026",
+            card_exp_year: "2030",
             card_holder_name: "joseph Doe",
             card_cvc: "123",
           },
@@ -1537,7 +1608,7 @@ export const connectorDetails = {
           card: {
             card_number: "4242424242424242",
             card_exp_month: "01",
-            card_exp_year: "2026",
+            card_exp_year: "2030",
             card_holder_name: "joseph Doe",
             card_cvc: "123",
           },

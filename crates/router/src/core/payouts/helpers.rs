@@ -1,5 +1,5 @@
 use ::payment_methods::controller::PaymentMethodsController;
-use api_models::{enums, payment_methods::Card, payouts};
+use api_models::{customers::CustomerDocumentDetails, enums, payment_methods::Card, payouts};
 use common_utils::{
     crypto::Encryptable,
     encryption::Encryption,
@@ -652,6 +652,9 @@ pub async fn save_payout_data_to_locker(
                 None,
                 None,
                 Default::default(),
+                None,
+                None,
+                platform.get_initiator(),
             )
             .await?,
         );
@@ -706,7 +709,10 @@ pub async fn save_payout_data_to_locker(
         // Update card's metadata in payment_methods table
         let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
             payment_method_data: card_details_encrypted.map(Into::into),
-            last_modified_by: None,
+            last_modified_by: platform
+                .get_initiator()
+                .and_then(|initiator| initiator.to_created_by())
+                .map(|last_modified_by| last_modified_by.to_string()),
         };
         payout_data.payment_method = Some(
             db.update_payment_method(
@@ -843,6 +849,35 @@ pub(super) async fn get_or_create_customer_details(
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed to form EncryptableCustomer")?;
 
+                let document_details = customer_details
+                    .document_details
+                    .clone()
+                    .async_lift(|inner| async move {
+                        let encrypted_inner = inner
+                            .as_ref()
+                            .map(CustomerDocumentDetails::to)
+                            .transpose()
+                            .change_context(common_utils::errors::CryptoError::EncodingFailed)
+                            .attach_printable(
+                                "Failed to convert CustomerDocumentDetails to SecretSerdeValue",
+                            )?;
+
+                        crypto_operation(
+                            &state.into(),
+                            common_utils::type_name!(domain::Customer),
+                            CryptoOperation::EncryptOptional(encrypted_inner),
+                            Identifier::Merchant(
+                                platform.get_processor().get_key_store().merchant_id.clone(),
+                            ),
+                            platform.get_processor().get_key_store().key.peek(),
+                        )
+                        .await
+                        .and_then(|val| val.try_into_optionaloperation())
+                    })
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to encrypt document_details")?;
+
                 let customer = domain::Customer {
                     customer_id: customer_id.clone(),
                     merchant_id: merchant_id.to_owned().clone(),
@@ -867,9 +902,13 @@ pub(super) async fn get_or_create_customer_details(
                     updated_by: None,
                     version: common_types::consts::API_VERSION,
                     tax_registration_id: encryptable_customer.tax_registration_id,
-                    // TODO: Populate created_by from authentication context once it is integrated in auth data
-                    created_by: None,
-                    last_modified_by: None, // Same as created_by on creation
+                    document_details,
+                    created_by: platform
+                        .get_initiator()
+                        .and_then(|initiator| initiator.to_created_by()),
+                    last_modified_by: platform
+                        .get_initiator()
+                        .and_then(|initiator| initiator.to_created_by()), // Same as created_by on creation
                 };
 
                 Ok(Some(
@@ -898,7 +937,7 @@ pub(super) async fn get_or_create_customer_details(
 #[cfg(all(feature = "payouts", feature = "v1"))]
 pub async fn decide_payout_connector(
     state: &SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     request_straight_through: Option<api::routing::StraightThroughAlgorithm>,
     routing_data: &mut storage::RoutingData,
     payout_data: &mut PayoutData,
@@ -924,7 +963,7 @@ pub async fn decide_payout_connector(
     // Validate and get the business_profile from payout_attempt
     let business_profile = core_utils::validate_and_get_business_profile(
         state.store.as_ref(),
-        platform.get_processor(),
+        processor,
         Some(&payout_attempt.profile_id),
     )
     .await?
@@ -940,7 +979,7 @@ pub async fn decide_payout_connector(
         if check_eligibility {
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 state,
-                platform.get_processor().get_key_store(),
+                processor.get_key_store(),
                 connectors,
                 &TransactionData::Payout(payout_data),
                 eligible_connectors,
@@ -989,7 +1028,7 @@ pub async fn decide_payout_connector(
         if check_eligibility {
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 state,
-                platform.get_processor().get_key_store(),
+                processor.get_key_store(),
                 connectors,
                 &TransactionData::Payout(payout_data),
                 eligible_connectors,
@@ -1032,7 +1071,7 @@ pub async fn decide_payout_connector(
     // 4. Route connector
     route_connector_v1_for_payouts(
         state,
-        platform,
+        processor,
         &payout_data.business_profile,
         payout_data,
         routing_data,
@@ -1417,6 +1456,11 @@ pub(super) fn get_customer_details_from_request(
         .as_ref()
         .and_then(|customer_details| customer_details.tax_registration_id.clone());
 
+    let document_details = request
+        .customer
+        .as_ref()
+        .and_then(|customer_details| customer_details.document_details.clone());
+
     CustomerDetails {
         customer_id,
         name: customer_name,
@@ -1424,6 +1468,7 @@ pub(super) fn get_customer_details_from_request(
         phone: customer_phone,
         phone_country_code: customer_phone_code,
         tax_registration_id,
+        document_details,
     }
 }
 

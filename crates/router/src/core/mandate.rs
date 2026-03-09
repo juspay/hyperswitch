@@ -86,9 +86,8 @@ pub async fn revoke_mandate(
 
             let merchant_connector_account = payment_helper::get_merchant_connector_account(
                 &state,
-                platform.get_processor().get_account().get_id(),
+                platform.get_processor(),
                 None,
-                platform.get_processor().get_key_store(),
                 &profile_id,
                 &mandate.connector.clone(),
                 mandate.merchant_connector_id.as_ref(),
@@ -113,7 +112,7 @@ pub async fn revoke_mandate(
             let (execution_path, updated_state) =
                 unified_connector_service::should_call_unified_connector_service(
                     &state,
-                    &platform,
+                    &platform.get_processor(),
                     &router_data,
                     None,
                     CallConnectorAction::Trigger,
@@ -134,7 +133,7 @@ pub async fn revoke_mandate(
 
             let gateway_context = RouterGatewayContext {
                 creds_identifier: None,
-                platform: platform.clone(),
+                processor: platform.get_processor().clone(),
                 header_payload: HeaderPayload::default(),
                 lineage_ids,
                 merchant_connector_account,

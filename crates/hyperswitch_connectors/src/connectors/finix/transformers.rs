@@ -433,6 +433,7 @@ pub(crate) fn get_setup_mandate_router_data<Request>(
             network_txn_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
+            authentication_data: None,
             charges: None,
         }),
         ..item.data
@@ -568,6 +569,7 @@ pub(crate) fn get_finix_response<F, T>(
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             })
         },

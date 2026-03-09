@@ -115,8 +115,8 @@ pub struct MerchantAccountCreate {
     pub product_type: Option<api_enums::MerchantProductType>,
 
     /// Merchant Account Type of this merchant account
-    #[schema(value_type = Option<MerchantAccountRequestType>, example = "standard")]
-    pub merchant_account_type: Option<api_enums::MerchantAccountRequestType>,
+    #[schema(value_type = Option<MerchantAccountType>, example = "standard")]
+    pub merchant_account_type: Option<api_enums::MerchantAccountType>,
 }
 
 #[cfg(feature = "v1")]

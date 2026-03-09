@@ -266,7 +266,7 @@ describe("Corner cases", () => {
         "card_pm"
       ]["No3DSManualCapture"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
 
     it("Capture call", () => {
@@ -320,7 +320,7 @@ describe("Corner cases", () => {
         "card_pm"
       ]["No3DSAutoCapture"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
 
     it("Capture call", () => {
@@ -374,7 +374,7 @@ describe("Corner cases", () => {
         "card_pm"
       ]["No3DSAutoCapture"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
 
     it("Confirm call", () => {
@@ -428,7 +428,7 @@ describe("Corner cases", () => {
         "card_pm"
       ]["No3DSAutoCapture"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
 
     it("Void call", () => {
@@ -494,7 +494,7 @@ describe("Corner cases", () => {
         "card_pm"
       ]["3DSManualCapture"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
 
     it("Handle redirection", () => {
@@ -507,7 +507,7 @@ describe("Corner cases", () => {
         "card_pm"
       ]["3DSManualCapture"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
 
     it("Capture call", () => {
@@ -561,7 +561,7 @@ describe("Corner cases", () => {
         "card_pm"
       ]["No3DSAutoCapture"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
 
     it("Refund call", () => {
@@ -614,7 +614,7 @@ describe("Corner cases", () => {
         "card_pm"
       ]["No3DSAutoCapture"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
 
     it("Refund call", () => {
@@ -678,7 +678,7 @@ describe("Corner cases", () => {
         "card_pm"
       ]["Capture"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
 
     it("Confirm No 3DS MIT", () => {
@@ -775,7 +775,7 @@ describe("Corner cases", () => {
         "card_pm"
       ]["No3DSAutoCapture"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
 
     it("Create a payment with a duplicate payment ID", () => {
@@ -826,7 +826,7 @@ describe("Corner cases", () => {
         "card_pm"
       ]["No3DSAutoCapture"];
 
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
 
     it("Create new refund", () => {
