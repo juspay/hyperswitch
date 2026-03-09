@@ -492,6 +492,7 @@ pub struct EmbeddedTokenInfoResponse {
 
 #[derive(Debug, serde::Serialize)]
 pub struct GetUserInternalDetailsResponse {
+    pub user_id: String,
     pub name: Secret<String>,
     pub email: pii::Email,
     pub is_active: bool,
@@ -499,13 +500,5 @@ pub struct GetUserInternalDetailsResponse {
 
 #[derive(Debug, serde::Serialize)]
 pub struct ListUsersInternalResponse {
-    pub users: Vec<MinimalUserDetails>,
-}
-
-#[derive(Debug, serde::Serialize)]
-pub struct MinimalUserDetails {
-    pub user_id: String,
-    pub name: Secret<String>,
-    pub email: pii::Email,
-    pub is_active: bool,
+    pub users: Vec<GetUserInternalDetailsResponse>,
 }

@@ -4001,6 +4001,7 @@ pub async fn get_user_details_internal(
 
     Ok(ApplicationResponse::Json(
         user_api::GetUserInternalDetailsResponse {
+            user_id: user.get_user_id().to_string(),
             name: user.get_name(),
             email: user.get_email(),
             is_active: user.is_active(),
@@ -4022,7 +4023,7 @@ pub async fn list_users_internal(
     let users_minimal_details = users
         .into_iter()
         .map(domain::UserFromStorage::from)
-        .map(|user| user_api::MinimalUserDetails {
+        .map(|user| user_api::GetUserInternalDetailsResponse {
             user_id: user.get_user_id().to_string(),
             name: user.get_name(),
             email: user.get_email(),
