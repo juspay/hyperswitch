@@ -1335,6 +1335,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
                 .clone(),
             rrn: None,
             feature_metadata: None,
+            installment_details: None,
         }
     }
 }

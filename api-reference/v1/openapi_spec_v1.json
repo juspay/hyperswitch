@@ -11500,6 +11500,26 @@
                   },
                   "routing_number": {
                     "type": "string"
+                  },
+                  "bank_account_holder_name": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "bank_type": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankType"
+                      }
+                    ],
+                    "nullable": true
+                  },
+                  "bank_holder_type": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankHolderType"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -11707,11 +11727,25 @@
                 "$ref": "#/components/schemas/Interac"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "open_banking_uk"
+            ],
+            "properties": {
+              "open_banking_uk": {
+                "$ref": "#/components/schemas/OpenBankingUk"
+              }
+            }
           }
         ]
       },
       "BankRedirectAdditionalData": {
         "oneOf": [
+          {
+            "$ref": "#/components/schemas/OpenBankingUkAdditionalData"
+          },
           {
             "$ref": "#/components/schemas/InteracAdditionalData"
           }
@@ -13064,6 +13098,13 @@
             "nullable": true
           }
         }
+      },
+      "BillingFrequency": {
+        "type": "string",
+        "description": "Billing frequency for a card installment plan",
+        "enum": [
+          "month"
+        ]
       },
       "BlikBankRedirectAdditionalData": {
         "type": "object",
@@ -15129,6 +15170,7 @@
           "razorpay",
           "recurly",
           "redsys",
+          "revolv3",
           "santander",
           "shift4",
           "silverflow",
@@ -15141,6 +15183,7 @@
           "tesouro",
           "tokenex",
           "tokenio",
+          "truelayer",
           "trustpay",
           "trustpayments",
           "tsys",
@@ -15322,6 +15365,21 @@
             "nullable": true
           }
         }
+      },
+      "ConnectorMetadataResponse": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "santander"
+            ],
+            "properties": {
+              "santander": {
+                "$ref": "#/components/schemas/SantanderData"
+              }
+            }
+          }
+        ]
       },
       "ConnectorSelection": {
         "oneOf": [
@@ -17965,10 +18023,9 @@
         "type": "object",
         "properties": {
           "amount": {
-            "type": "number",
-            "format": "double",
+            "type": "string",
             "description": "The discount value (e.g., \"5.50\").",
-            "example": 38.02,
+            "example": "5.50",
             "nullable": true
           },
           "end_date": {
@@ -21028,6 +21085,33 @@
           "connected"
         ]
       },
+      "InstallmentData": {
+        "type": "object",
+        "description": "Installment selection made by the customer during payment confirmation.",
+        "required": [
+          "number_of_installments",
+          "billing_frequency"
+        ],
+        "properties": {
+          "number_of_installments": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of installments chosen by the customer",
+            "minimum": 0
+          },
+          "billing_frequency": {
+            "$ref": "#/components/schemas/BillingFrequency"
+          },
+          "installment_interest": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "InstallmentDetails": {
         "type": "object",
         "properties": {
@@ -21046,6 +21130,69 @@
               }
             ],
             "nullable": true
+          }
+        }
+      },
+      "InstallmentOption": {
+        "type": "object",
+        "description": "Installment options grouped by payment method",
+        "required": [
+          "payment_method",
+          "installments"
+        ],
+        "properties": {
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "installments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InstallmentOptionData"
+            },
+            "description": "List of available installment configurations"
+          }
+        }
+      },
+      "InstallmentOptionData": {
+        "type": "object",
+        "description": "A single installment plan option accepted in request payloads",
+        "required": [
+          "number_of_installments",
+          "billing_frequency",
+          "interest_rate"
+        ],
+        "properties": {
+          "number_of_installments": {
+            "type": "string",
+            "format": "binary",
+            "description": "Number of installments (e.g., [3, 6, 12])"
+          },
+          "billing_frequency": {
+            "$ref": "#/components/schemas/BillingFrequency"
+          },
+          "interest_rate": {
+            "type": "number",
+            "format": "double",
+            "description": "Interest rate per installment as a percentage max 2 decimal places"
+          }
+        }
+      },
+      "InstallmentRequest": {
+        "type": "object",
+        "description": "Installment selection sent by the customer during payment confirmation.",
+        "required": [
+          "number_of_installments",
+          "billing_frequency"
+        ],
+        "properties": {
+          "number_of_installments": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of installments chosen by the customer",
+            "minimum": 0
+          },
+          "billing_frequency": {
+            "$ref": "#/components/schemas/BillingFrequency"
           }
         }
       },
@@ -23751,6 +23898,14 @@
               }
             ],
             "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -24427,6 +24582,45 @@
           "open_banking_session_token": {
             "type": "string",
             "description": "The session token for OpenBanking Connectors"
+          }
+        }
+      },
+      "OpenBankingUk": {
+        "type": "object",
+        "required": [
+          "account_holder_name",
+          "iban"
+        ],
+        "properties": {
+          "account_holder_name": {
+            "type": "string",
+            "description": "Account holder name",
+            "example": "John Doe"
+          },
+          "iban": {
+            "type": "string",
+            "description": "International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.",
+            "example": "DE89370400440532013000"
+          }
+        }
+      },
+      "OpenBankingUkAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for OpenBankingUK bank redirect payout method",
+        "required": [
+          "account_holder_name",
+          "iban"
+        ],
+        "properties": {
+          "account_holder_name": {
+            "type": "string",
+            "description": "Account holder name",
+            "example": "John Doe"
+          },
+          "iban": {
+            "type": "string",
+            "description": "International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.",
+            "example": "DE89370400440532013000"
           }
         }
       },
@@ -27166,6 +27360,197 @@
           "jp_bacs"
         ]
       },
+      "PaymentMethodListInstallmentAmountDetails": {
+        "type": "object",
+        "description": "Amount breakdown for a single installment plan",
+        "required": [
+          "amount_per_installment",
+          "total_amount"
+        ],
+        "properties": {
+          "amount_per_installment": {
+            "type": "number",
+            "format": "double",
+            "description": "Amount charged per installment in major units"
+          },
+          "total_amount": {
+            "type": "number",
+            "format": "double",
+            "description": "Total amount across all installments in major units (may differ slightly from order amount due to ceiling)"
+          }
+        }
+      },
+      "PaymentMethodListInstallmentOption": {
+        "type": "object",
+        "description": "Installment options for a payment method, as returned in the payment method list response",
+        "required": [
+          "payment_method",
+          "available_plans"
+        ],
+        "properties": {
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "available_plans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentMethodListInstallmentPlan"
+            },
+            "description": "Individual installment plans with computed amounts"
+          }
+        }
+      },
+      "PaymentMethodListInstallmentPlan": {
+        "type": "object",
+        "description": "A single installment plan with pre-computed amount breakdown",
+        "required": [
+          "number_of_installments",
+          "billing_frequency",
+          "interest_rate",
+          "amount_details"
+        ],
+        "properties": {
+          "number_of_installments": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of installments for this plan",
+            "minimum": 0
+          },
+          "billing_frequency": {
+            "$ref": "#/components/schemas/BillingFrequency"
+          },
+          "interest_rate": {
+            "type": "number",
+            "format": "double",
+            "description": "Interest rate as a percentage"
+          },
+          "amount_details": {
+            "$ref": "#/components/schemas/PaymentMethodListInstallmentAmountDetails"
+          }
+        }
+      },
+      "PaymentMethodListIntentData": {
+        "type": "object",
+        "description": "Intent-only payment details returned as part of the Payment Method List response",
+        "required": [
+          "payment_id",
+          "status",
+          "amount",
+          "attempt_count"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "Unique identifier for the payment"
+          },
+          "status": {
+            "$ref": "#/components/schemas/IntentStatus"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
+            "nullable": true
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "Client secret for client-side payment confirmation",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "A description for the payment",
+            "nullable": true
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "The customer identifier",
+            "nullable": true
+          },
+          "return_url": {
+            "type": "string",
+            "description": "The URL to redirect to after payment completion",
+            "nullable": true
+          },
+          "setup_future_usage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FutureUsage"
+              }
+            ],
+            "nullable": true
+          },
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "shipping": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Additional metadata",
+            "nullable": true
+          },
+          "order_details": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            },
+            "description": "Order details for the payment",
+            "nullable": true
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the payment was created",
+            "nullable": true
+          },
+          "expires_on": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the client secret expires",
+            "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The profile identifier",
+            "nullable": true
+          },
+          "merchant_order_reference_id": {
+            "type": "string",
+            "description": "Merchant-provided reference identifier",
+            "nullable": true
+          },
+          "attempt_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of payment attempts made"
+          },
+          "installment_options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentMethodListInstallmentOption"
+            },
+            "description": "Installment options available for this payment",
+            "nullable": true
+          }
+        }
+      },
       "PaymentMethodListResponse": {
         "type": "object",
         "required": [
@@ -27239,6 +27624,14 @@
           "is_guest_customer": {
             "type": "boolean",
             "description": "indicates whether this is a guest customer flow"
+          },
+          "intent_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodListIntentData"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -27806,7 +28199,8 @@
           "normal",
           "new_mandate",
           "setup_mandate",
-          "recurring_mandate"
+          "recurring_mandate",
+          "installment"
         ]
       },
       "PaymentsCancelPostCaptureRequest": {
@@ -28423,6 +28817,22 @@
               }
             ],
             "nullable": true
+          },
+          "installment_options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InstallmentOption"
+            },
+            "description": "Installment payment options grouped by payment method. When provided, the payment is treated as an installment payment.",
+            "nullable": true
+          },
+          "installment_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InstallmentRequest"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -28951,6 +29361,22 @@
               }
             ],
             "nullable": true
+          },
+          "installment_options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InstallmentOption"
+            },
+            "description": "Installment payment options grouped by payment method. When provided, the payment is treated as an installment payment.",
+            "nullable": true
+          },
+          "installment_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InstallmentRequest"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -29372,6 +29798,14 @@
             ],
             "nullable": true
           },
+          "connector_response_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorMetadataResponse"
+              }
+            ],
+            "nullable": true
+          },
           "feature_metadata": {
             "allOf": [
               {
@@ -29668,6 +30102,22 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/PaymentMethodTokenizationDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "installment_options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InstallmentOption"
+            },
+            "description": "Installment payment options associated with this payment, grouped by payment method",
+            "nullable": true
+          },
+          "installment_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InstallmentData"
               }
             ],
             "nullable": true
@@ -30552,6 +31002,22 @@
               }
             ],
             "nullable": true
+          },
+          "installment_options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InstallmentOption"
+            },
+            "description": "Installment payment options grouped by payment method. When provided, the payment is treated as an installment payment.",
+            "nullable": true
+          },
+          "installment_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InstallmentRequest"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -30999,6 +31465,14 @@
             ],
             "nullable": true
           },
+          "connector_response_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorMetadataResponse"
+              }
+            ],
+            "nullable": true
+          },
           "feature_metadata": {
             "allOf": [
               {
@@ -31298,6 +31772,22 @@
               }
             ],
             "nullable": true
+          },
+          "installment_options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InstallmentOption"
+            },
+            "description": "Installment payment options associated with this payment, grouped by payment method",
+            "nullable": true
+          },
+          "installment_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InstallmentData"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -31433,6 +31923,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/FeatureMetadata"
+              }
+            ],
+            "nullable": true
+          },
+          "connector_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorMetadata"
               }
             ],
             "nullable": true
@@ -31984,6 +32482,22 @@
               }
             ],
             "nullable": true
+          },
+          "installment_options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InstallmentOption"
+            },
+            "description": "Installment payment options grouped by payment method. When provided, the payment is treated as an installment payment.",
+            "nullable": true
+          },
+          "installment_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InstallmentRequest"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -32337,6 +32851,7 @@
           "payone",
           "paypal",
           "stripe",
+          "truelayer",
           "wise",
           "worldpay",
           "worldpayxml"
@@ -35799,6 +36314,11 @@
             "type": "string",
             "description": "Contains whole connector response",
             "nullable": true
+          },
+          "connector_refund_id": {
+            "type": "string",
+            "description": "A unique identifier for a payment provided by the connector",
+            "nullable": true
           }
         }
       },
@@ -35901,6 +36421,14 @@
           },
           "currency": {
             "$ref": "#/components/schemas/Currency"
+          },
+          "capture_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CaptureMethod"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -36779,6 +37307,7 @@
           "razorpay",
           "recurly",
           "redsys",
+          "revolv3",
           "riskified",
           "santander",
           "shift4",
@@ -36789,6 +37318,7 @@
           "stripe",
           "stripebilling",
           "tesouro",
+          "truelayer",
           "trustpay",
           "trustpayments",
           "tokenio",
@@ -37411,6 +37941,16 @@
             "nullable": true
           }
         }
+      },
+      "SantanderData": {
+        "type": "object",
+        "properties": {
+          "end_to_end_id": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
       },
       "SantanderPaymentDiscountRules": {
         "type": "object",
