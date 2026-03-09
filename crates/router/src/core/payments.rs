@@ -130,7 +130,7 @@ use crate::{
     },
     consts,
     core::{
-        configs::{self as configs, dimension_state},
+        configs::dimension_state,
         errors::{self, CustomResult, RouterResponse, RouterResult},
         payment_methods::{cards, network_tokenization, transformers as pm_transformers, vault},
         payments::helpers::{
