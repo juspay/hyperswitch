@@ -1,4 +1,4 @@
-use api_models::payments::{QrCodeInformation, VoucherNextStepData};
+use api_models::payments::{QrCodeInformation, SantanderData, VoucherNextStepData};
 use common_enums::{
     enums, AttemptStatus, BoletoDocumentKind, BoletoPaymentType, ExpiryType, PixKey,
 };
@@ -802,13 +802,16 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                     _ => {
                         let connector_metadata = pix_data
                             .pix
-                            .ok_or_else(|| errors::ConnectorError::ParsingFailed)?
-                            .first()
+                            .as_ref()
+                            .and_then(|pix_list| pix_list.first())
                             .map(|pix| {
-                                serde_json::json!({
-                                    "end_to_end_id": pix.end_to_end_id.clone().expose()
-                                })
-                            });
+                                let data = SantanderData {
+                                    end_to_end_id: Some(pix.end_to_end_id.clone().expose()),
+                                };
+                                serde_json::to_value(data)
+                                    .change_context(errors::ConnectorError::ParsingFailed)
+                            })
+                            .transpose()?;
                         Ok(Self {
                             status: AttemptStatus::from(pix_data.status),
                             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -927,7 +930,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
             }
             SantanderPaymentsResponse::Boleto(boleto_data) => {
                 let qr_code_url = if let Some(data) = boleto_data.qr_code_pix.clone() {
-                    router_env::logger::debug!("Data to be converted into QR code: {}", data);
                     let qr_image = QrImage::new_from_data(data)
                         .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
                     let url_str = &qr_image.data;
@@ -1137,11 +1139,6 @@ fn convert_pix_data_to_value(
     data: String,
     variant: Option<ExpiryType>,
 ) -> CustomResult<Option<Value>, errors::ConnectorError> {
-    if router_env::which() != router_env::env::Env::Production {
-        // The data string is the EMV string which is used to generate the QR code. We are generating the QR code and then converting it to a data URL to be sent to the client. This is because the client can directly use the data URL to display the QR code without needing to generate it on their end.
-        // We are logging it because in dev env, we won't be able to scan this QR and complete the payment. We would need to send this EMV to the Santander Support Team to finish the payment on their end so that we can test other flows like PSync/Refund/RSync etc
-        router_env::logger::debug!("Data to be converted into QR code: {}", data);
-    }
     let image_data = QrImage::new_from_data(data.clone())
         .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
