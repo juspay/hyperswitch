@@ -5552,10 +5552,10 @@ Cypress.Commands.add(
 
     // Destructure to remove unwanted fields
     const {
-      card_type: _cardType,
-      payment_method_data: _paymentMethodData,
-      customer_acceptance: _customerAcceptance,
-      setup_future_usage: _setupFutureUsage,
+      payment_method_type,
+      payment_method_data,
+      customer_acceptance,
+      setup_future_usage,
       ...filteredPaymentData
     } = paymentData;
 
