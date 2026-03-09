@@ -1797,15 +1797,6 @@ impl PaymentsRequest {
         &self,
     ) -> common_utils::errors::CustomResult<(), ValidationError> {
         if let Some(installment_options) = &self.installment_options {
-            self.currency
-                .is_some_and(|c| c.supports_installments())
-                .then_some(())
-                .ok_or_else(|| {
-                    error_stack::report!(ValidationError::InvalidValue {
-                        message: "installment_options is not supported for the provided currency."
-                            .to_string(),
-                    })
-                })?;
             installment_options
                 .iter()
                 .try_fold(HashSet::new(), |mut seen, opt| {
