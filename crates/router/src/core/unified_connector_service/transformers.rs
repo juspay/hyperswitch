@@ -616,26 +616,19 @@ impl
             .as_ref()
             .map(ConnectorState::foreign_from);
 
-        let merchant_account_metadata = router_data
-            .connector_meta_data
-            .as_ref()
-            .map(serde_json::to_string)
-            .transpose()
-            .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
-            .map(|s| s.into());
-
         Ok(Self {
-            request_ref_id: Some(Identifier {
+            merchant_order_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     router_data.connector_request_reference_id.clone(),
                 )),
             }),
-            amount: router_data.request.minor_amount.get_amount_as_i64(),
-            currency: currency.into(),
+            amount: Some(payments_grpc::Money {
+                minor_amount: router_data.request.amount.get_amount_as_i64(),
+                currency: currency.into(),
+            }),
             metadata: None,
             webhook_url: None,
-            connector_metadata: None,
-            merchant_account_metadata,
+            connector_feature_data: None,
             state,
             test_mode: router_data.test_mode,
             payment_method_type: router_data
@@ -4502,21 +4495,34 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentMethodServiceTokenizeReq
         let response = if let Some(error_info) = response.error.as_ref() {
             Err(ErrorResponse {
                 code: error_info.connector_details.and_then(|cd| cd.code).ok_or(
-                    error_stack::Report::new(UnifiedConnectorServiceError::ResponseDeserializationFailed)
-                        .attach_printable("Missing error code in UCS response ErrorInfo"),
+                    error_stack::Report::new(
+                        UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                    )
+                    .attach_printable("Missing error code in UCS response ErrorInfo"),
                 )?,
-                message: error_info.connector_details.and_then(|cd| cd.message).ok_or(
-                    error_stack::Report::new(UnifiedConnectorServiceError::ResponseDeserializationFailed)
+                message: error_info
+                    .connector_details
+                    .and_then(|cd| cd.message)
+                    .ok_or(
+                        error_stack::Report::new(
+                            UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                        )
                         .attach_printable("Missing error message in UCS response ErrorInfo"),
-                )?,
+                    )?,
                 reason: error_info.connector_details.and_then(|cd| cd.reason),
                 status_code,
                 attempt_status: None,
                 connector_transaction_id: None,
                 connector_response_reference_id: None,
-                network_decline_code: error_info.issuer_details.and_then(|id| id.network_details.and_then(|nd| nd.decline_code)),
-                network_advice_code: error_info.issuer_details.and_then(|id| id.network_details.and_then(|nd| nd.advice_code)),
-                network_error_message: error_info.issuer_details.and_then(|id| id.network_details.and_then(|nd| nd.error_message)),
+                network_decline_code: error_info
+                    .issuer_details
+                    .and_then(|id| id.network_details.and_then(|nd| nd.decline_code)),
+                network_advice_code: error_info
+                    .issuer_details
+                    .and_then(|id| id.network_details.and_then(|nd| nd.advice_code)),
+                network_error_message: error_info
+                    .issuer_details
+                    .and_then(|id| id.network_details.and_then(|nd| nd.error_message)),
                 connector_metadata: None,
             })
         } else {
@@ -4542,21 +4548,34 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceIncrementalAuthor
         let response = if let Some(error_info) = response.error.as_ref() {
             Err(ErrorResponse {
                 code: error_info.connector_details.and_then(|cd| cd.code).ok_or(
-                    error_stack::Report::new(UnifiedConnectorServiceError::ResponseDeserializationFailed)
-                        .attach_printable("Missing error code in UCS response ErrorInfo"),
+                    error_stack::Report::new(
+                        UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                    )
+                    .attach_printable("Missing error code in UCS response ErrorInfo"),
                 )?,
-                message: error_info.connector_details.and_then(|cd| cd.message).ok_or(
-                    error_stack::Report::new(UnifiedConnectorServiceError::ResponseDeserializationFailed)
+                message: error_info
+                    .connector_details
+                    .and_then(|cd| cd.message)
+                    .ok_or(
+                        error_stack::Report::new(
+                            UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                        )
                         .attach_printable("Missing error message in UCS response ErrorInfo"),
-                )?,
+                    )?,
                 reason: error_info.connector_details.and_then(|cd| cd.reason),
                 status_code,
                 attempt_status: None,
                 connector_transaction_id: resource_id.get_optional_response_id(),
                 connector_response_reference_id: None,
-                network_decline_code: error_info.issuer_details.and_then(|id| id.network_details.and_then(|nd| nd.decline_code)),
-                network_advice_code: error_info.issuer_details.and_then(|id| id.network_details.and_then(|nd| nd.advice_code)),
-                network_error_message: error_info.issuer_details.and_then(|id| id.network_details.and_then(|nd| nd.error_message)),
+                network_decline_code: error_info
+                    .issuer_details
+                    .and_then(|id| id.network_details.and_then(|nd| nd.decline_code)),
+                network_advice_code: error_info
+                    .issuer_details
+                    .and_then(|id| id.network_details.and_then(|nd| nd.advice_code)),
+                network_error_message: error_info
+                    .issuer_details
+                    .and_then(|id| id.network_details.and_then(|nd| nd.error_message)),
                 connector_metadata: None,
             })
         } else {

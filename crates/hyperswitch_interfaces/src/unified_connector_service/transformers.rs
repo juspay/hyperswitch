@@ -182,7 +182,7 @@ pub enum WebhookTransformationStatus {
 pub struct WebhookTransformData {
     pub event_type: api_models::webhooks::IncomingWebhookEvent,
     pub source_verified: bool,
-    pub webhook_content: Option<payments_grpc::WebhookResponseContent>,
+    pub webhook_content: Option<payments_grpc::EventResponse>,
     pub response_ref_id: Option<String>,
     pub webhook_transformation_status: WebhookTransformationStatus,
 }
@@ -195,19 +195,19 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
     fn foreign_try_from(
         (response, prev_status): (payments_grpc::PaymentServiceGetResponse, AttemptStatus),
     ) -> Result<Self, Self::Error> {
-        let connector_response_reference_id =
-            response.response_ref_id.as_ref().and_then(|identifier| {
-                identifier
-                    .id_type
-                    .clone()
-                    .and_then(|id_type| match id_type {
-                        payments_grpc::identifier::IdType::Id(id) => Some(id),
-                        payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
-                            Some(encoded_data)
-                        }
-                        payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
-                    })
-            });
+        // let connector_response_reference_id =
+        //     response.response_ref_id.as_ref().and_then(|identifier| {
+        //         identifier
+        //             .id_type
+        //             .clone()
+        //             .and_then(|id_type| match id_type {
+        //                 payments_grpc::identifier::IdType::Id(id) => Some(id),
+        //                 payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
+        //                     Some(encoded_data)
+        //                 }
+        //                 payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
+        //             })
+        //     });
 
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
@@ -227,22 +227,49 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
             };
 
             Err(ErrorResponse {
-                code: error_info.connector_details.and_then(|cd| cd.code).ok_or(
-                    error_stack::Report::new(UnifiedConnectorServiceError::ResponseDeserializationFailed)
+                code: error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.code.clone())
+                    .ok_or(
+                        error_stack::Report::new(
+                            UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                        )
                         .attach_printable("Missing error code in UCS response ErrorInfo"),
-                )?,
-                message: error_info.connector_details.and_then(|cd| cd.message).ok_or(
-                    error_stack::Report::new(UnifiedConnectorServiceError::ResponseDeserializationFailed)
+                    )?,
+                message: error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.message.clone())
+                    .ok_or(
+                        error_stack::Report::new(
+                            UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                        )
                         .attach_printable("Missing error message in UCS response ErrorInfo"),
-                )?,
-                reason: error_info.connector_details.and_then(|cd| cd.reason),
+                    )?,
+                reason: error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.reason.clone()),
                 status_code,
                 attempt_status,
                 connector_transaction_id: resource_id.get_optional_response_id(),
-                connector_response_reference_id,
-                network_decline_code: error_info.issuer_details.and_then(|id| id.network_details.and_then(|nd| nd.decline_code)),
-                network_advice_code: error_info.issuer_details.and_then(|id| id.network_details.and_then(|nd| nd.advice_code)),
-                network_error_message: error_info.issuer_details.and_then(|id| id.network_details.and_then(|nd| nd.error_message)),
+                connector_response_reference_id: None,
+                network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
+                    id.network_details
+                        .as_ref()
+                        .and_then(|nd| nd.decline_code.clone())
+                }),
+                network_advice_code: error_info.issuer_details.as_ref().and_then(|id| {
+                    id.network_details
+                        .as_ref()
+                        .and_then(|nd| nd.advice_code.clone())
+                }),
+                network_error_message: error_info.issuer_details.as_ref().and_then(|id| {
+                    id.network_details
+                        .as_ref()
+                        .and_then(|nd| nd.error_message.clone())
+                }),
                 connector_metadata: None,
             })
         } else {
@@ -261,7 +288,7 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
                     mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata: None,
                     network_txn_id: response.network_transaction_id.clone(),
-                    connector_response_reference_id,
+                    connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
@@ -274,19 +301,24 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
     }
 }
 
-impl ForeignTryFrom<payments_grpc::MandateReference> for hyperswitch_domain_models::router_response_types::MandateReference {
+impl ForeignTryFrom<payments_grpc::MandateReference>
+    for hyperswitch_domain_models::router_response_types::MandateReference
+{
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(value: payments_grpc::MandateReference) -> Result<Self, Self::Error> {
         match value.mandate_id_type {
-            Some(payments_grpc::mandate_reference::MandateIdType::ConnectorMandateId(connector_mandate_id)) => Ok(Self {
+            Some(payments_grpc::mandate_reference::MandateIdType::ConnectorMandateId(
+                connector_mandate_id,
+            )) => Ok(Self {
                 connector_mandate_id: connector_mandate_id.connector_mandate_id,
                 payment_method_id: connector_mandate_id.payment_method_id,
                 mandate_metadata: None,
-                connector_mandate_request_reference_id: connector_mandate_id.connector_mandate_request_reference_id,
+                connector_mandate_request_reference_id: connector_mandate_id
+                    .connector_mandate_request_reference_id,
             }),
             _ => Err(UnifiedConnectorServiceError::ResponseDeserializationFailed)
-                    .attach_printable("Recieved Invalid MandateReference from UCS")
+                .attach_printable("Recieved Invalid MandateReference from UCS"),
         }
     }
 }
