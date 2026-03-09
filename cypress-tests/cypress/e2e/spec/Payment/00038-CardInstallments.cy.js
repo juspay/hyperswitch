@@ -43,32 +43,34 @@ describe("Card - Installment payment flow test", () => {
       }
     });
 
-    it("create-and-confirm-installment-payment", () => {
-      const createData = getConnectorDetails(globalState.get("connectorId"))[
+    it("create-installment-payment-intent", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["PaymentIntentWithInstallments"];
 
-      const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["CardInstallmentConfirm"];
-
       cy.createPaymentIntentTest(
-        Cypress._.cloneDeep(fixtures.createPaymentBody),
-        createData,
+        fixtures.createPaymentBody,
+        data,
         "no_three_ds",
         "automatic",
         globalState
       );
 
-      cy.confirmCallTest(
-        Cypress._.cloneDeep(fixtures.confirmBody),
-        confirmData,
-        true,
-        globalState
-      );
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
 
-      if (shouldContinue)
-        shouldContinue = utils.should_continue_further(confirmData);
+    it("payment_methods-call-test", () => {
+      cy.paymentMethodsCallTest(globalState);
+    });
+
+    it("confirm-installment-payment", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["CardInstallmentConfirm"];
+
+      cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -80,7 +82,7 @@ describe("Card - Installment payment flow test", () => {
     });
   });
   context(
-    "Card installment payment - Create+Confirm with installment options should fail",
+    "Card installment payment - Create with confirm true should fail",
     () => {
       let shouldContinue = true;
 
@@ -96,7 +98,7 @@ describe("Card - Installment payment flow test", () => {
         ]["PaymentIntentWithInstallmentsAndConfirmTrue"];
 
         cy.createPaymentIntentTest(
-          Cypress._.cloneDeep(fixtures.createPaymentBody),
+          fixtures.createPaymentBody,
           data,
           "no_three_ds",
           "automatic",

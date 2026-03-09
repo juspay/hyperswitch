@@ -769,7 +769,7 @@ export const connectorDetails = {
         },
       },
     },
-    CardInstallmentConfirm: getCustomExchange({
+    CardInstallmentConfirm: {
       Request: {
         payment_method: "card",
         payment_method_type: "credit",
@@ -791,7 +791,7 @@ export const connectorDetails = {
           net_amount: 6300,
         },
       },
-    }),
+    },
     PaymentIntentWithInstallmentsAndConfirmTrue: {
       Request: {
         currency: "BRL",
