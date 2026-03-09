@@ -33,7 +33,7 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     consts,
     core::{
-        configs::dimension_state::DimensionsWithMerchantId,
+        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payment_link,
@@ -703,7 +703,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
         initiator: Option<&domain::Initiator>,
-        dimensions: DimensionsWithMerchantId,
+        dimensions: DimensionsWithMerchantIdAndProfileId,
         mandate_type: Option<MandateTransactionType>,
     ) -> CustomResult<(PaymentCreateOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
     {
@@ -913,7 +913,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
                     utils::when(
                         pm_info.payment_method.0.customer_id
-                            != req.customer_id.clone().get_required_value("customer_id")?,
+                            != req
+                                .get_customer_id()
+                                .get_required_value("customer_id")?
+                                .clone(),
                         || {
                             logger::info!("Payment method id does not belong to the customer id provided in the request.");
                             Err(errors::ApiErrorResponse::PaymentMethodNotFound)
@@ -973,7 +976,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
     async fn get_connector<'a>(
         &'a self,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         state: &SessionState,
         request: &api::PaymentsRequest,
         _payment_intent: &storage::PaymentIntent,
@@ -1196,6 +1199,13 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
             let message = format!("invalid installment options: {err}");
             err.change_context(errors::ApiErrorResponse::InvalidRequestData { message })
         })?;
+
+        if request.confirm.unwrap_or(false) {
+            helpers::validate_installment_data_in_create(
+                &request.installment_options,
+                &request.installment_data,
+            )?;
+        }
 
         if request.confirm.unwrap_or(false) {
             helpers::validate_pm_or_token_given(
@@ -1585,6 +1595,7 @@ impl PaymentCreate {
                 encrypted_payment_method_data: None,
                 error_details: None,
                 retry_type: None,
+                installment_data: None,
             },
             additional_pm_data,
 

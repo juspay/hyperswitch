@@ -13,7 +13,7 @@ use router_env::{instrument, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
-        configs::dimension_state::DimensionsWithMerchantId,
+        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{
             self, helpers, operations, CustomerDetails, IncrementalAuthorizationDetails,
@@ -330,7 +330,7 @@ impl<F: Clone + Send + Sync>
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
         _initiator: Option<&domain::Initiator>,
-        _dimensions: DimensionsWithMerchantId,
+        _dimensions: DimensionsWithMerchantIdAndProfileId,
         _mandate_type: Option<MandateTransactionType>,
     ) -> CustomResult<
         (
@@ -377,7 +377,7 @@ impl<F: Clone + Send + Sync>
 
     async fn get_connector<'a>(
         &'a self,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         state: &SessionState,
         _request: &PaymentsIncrementalAuthorizationRequest,
         _payment_intent: &storage::PaymentIntent,

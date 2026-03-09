@@ -92,7 +92,7 @@ async fn generate_and_store_authorization_code(
 ) -> OidcResult<String> {
     let user_from_db = state
         .global_store
-        .find_user_by_id(user_id)
+        .find_active_user_by_user_id(user_id)
         .await
         .change_context(OidcErrors::ServerError)
         .attach_printable("Failed to fetch user from database")?;

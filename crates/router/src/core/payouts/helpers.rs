@@ -939,7 +939,7 @@ pub(super) async fn get_or_create_customer_details(
 #[cfg(all(feature = "payouts", feature = "v1"))]
 pub async fn decide_payout_connector(
     state: &SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     request_straight_through: Option<api::routing::StraightThroughAlgorithm>,
     routing_data: &mut storage::RoutingData,
     payout_data: &mut PayoutData,
@@ -965,7 +965,7 @@ pub async fn decide_payout_connector(
     // Validate and get the business_profile from payout_attempt
     let business_profile = core_utils::validate_and_get_business_profile(
         state.store.as_ref(),
-        platform.get_processor(),
+        processor,
         Some(&payout_attempt.profile_id),
     )
     .await?
@@ -981,7 +981,7 @@ pub async fn decide_payout_connector(
         if check_eligibility {
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 state,
-                platform.get_processor().get_key_store(),
+                processor.get_key_store(),
                 connectors,
                 &TransactionData::Payout(payout_data),
                 eligible_connectors,
@@ -1030,7 +1030,7 @@ pub async fn decide_payout_connector(
         if check_eligibility {
             connectors = routing::perform_eligibility_analysis_with_fallback(
                 state,
-                platform.get_processor().get_key_store(),
+                processor.get_key_store(),
                 connectors,
                 &TransactionData::Payout(payout_data),
                 eligible_connectors,
@@ -1073,7 +1073,7 @@ pub async fn decide_payout_connector(
     // 4. Route connector
     route_connector_v1_for_payouts(
         state,
-        platform,
+        processor,
         &payout_data.business_profile,
         payout_data,
         routing_data,

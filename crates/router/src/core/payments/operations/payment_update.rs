@@ -21,7 +21,7 @@ use router_env::{instrument, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
-        configs::dimension_state::DimensionsWithMerchantId,
+        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
@@ -500,6 +500,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         });
 
         payment_intent.shipping_cost = request.shipping_cost.or(payment_intent.shipping_cost);
+        payment_intent.installment_options = request
+            .installment_options
+            .clone()
+            .or(payment_intent.installment_options);
         payment_attempt
             .net_amount
             .set_order_tax_amount(request.order_tax_amount.or(order_tax_amount));
@@ -584,7 +588,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
         initiator: Option<&domain::Initiator>,
-        dimensions: DimensionsWithMerchantId,
+        dimensions: DimensionsWithMerchantIdAndProfileId,
         _mandate_type: Option<MandateTransactionType>,
     ) -> CustomResult<(PaymentUpdateOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
     {
@@ -770,7 +774,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
     async fn get_connector<'a>(
         &'a self,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         state: &SessionState,
         request: &api::PaymentsRequest,
         _payment_intent: &storage::PaymentIntent,
@@ -920,6 +924,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                                 .get_order_tax_amount(),
                             surcharge_amount,
                             tax_amount,
+                            None,
                         ),
                     shipping_cost: payment_data.payment_intent.shipping_cost,
                     order_tax_amount: payment_data

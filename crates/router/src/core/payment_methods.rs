@@ -5721,6 +5721,10 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
                     payment_method_data,
                 )
             })
+            .transpose()
+            .change_context(errors::ApiErrorResponse::NotSupported {
+                message: "Payment method type not supported for update".to_string(),
+            })?
             .ok_or(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "payment_method_data",
             })?;

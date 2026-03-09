@@ -8,7 +8,7 @@ use router_env::{instrument, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
-        configs::dimension_state::DimensionsWithMerchantId,
+        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{self, helpers, operations, PaymentData},
     },
@@ -247,7 +247,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCancelPostCaptureRequest, Pa
         _request: Option<payments::CustomerDetails>,
         _provider: &domain::Provider,
         _initiator: Option<&domain::Initiator>,
-        _dimensions: DimensionsWithMerchantId,
+        _dimensions: DimensionsWithMerchantIdAndProfileId,
         _mandate_type: Option<MandateTransactionType>,
     ) -> errors::CustomResult<
         (
@@ -278,7 +278,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCancelPostCaptureRequest, Pa
 
     async fn get_connector<'a>(
         &'a self,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         state: &SessionState,
         _request: &api::PaymentsCancelPostCaptureRequest,
         _payment_intent: &storage::PaymentIntent,

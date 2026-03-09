@@ -25,9 +25,9 @@ use payment_methods::client::{
     retrieve::{RetrievePaymentMethodResponse, RetrievePaymentMethodV1Request},
     UpdatePaymentMethod, UpdatePaymentMethodV1Payload, UpdatePaymentMethodV1Request,
 };
-use router_env::RequestId;
 #[cfg(feature = "v1")]
-use router_env::{logger, RequestIdentifier};
+use router_env::logger;
+use router_env::RequestId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -554,12 +554,12 @@ pub fn mk_add_card_response_hs(
 pub fn generate_pm_vaulting_req_from_update_request(
     pm_create: domain::PaymentMethodVaultingData,
     pm_update: api::PaymentMethodUpdateData,
-) -> domain::PaymentMethodVaultingData {
+) -> CustomResult<domain::PaymentMethodVaultingData, errors::VaultError> {
     match (pm_create, pm_update) {
         (
             domain::PaymentMethodVaultingData::Card(card_create),
             api::PaymentMethodUpdateData::Card(update_card),
-        ) => domain::PaymentMethodVaultingData::Card(api::CardDetail {
+        ) => Ok(domain::PaymentMethodVaultingData::Card(api::CardDetail {
             card_number: card_create.card_number,
             card_exp_month: card_create.card_exp_month,
             card_exp_year: card_create.card_exp_year,
@@ -572,8 +572,9 @@ pub fn generate_pm_vaulting_req_from_update_request(
                 .or(card_create.card_holder_name),
             nick_name: update_card.nick_name.or(card_create.nick_name),
             card_cvc: None,
-        }),
-        _ => todo!(), //todo! - since support for network tokenization is not added PaymentMethodUpdateData. should be handled later.
+        })),
+        _ => Err(errors::VaultError::PaymentMethodNotSupported)
+            .attach_printable("Payment method type not supported for update"),
     }
 }
 
@@ -1174,12 +1175,10 @@ pub async fn call_modular_payment_method_update(
             .to_string()
             .into_masked(),
     ));
-    let trace = RequestIdentifier::new(&state.conf.trace_header.header_name)
-        .use_incoming_id(state.conf.trace_header.id_reuse_strategy);
     let client = pm_client::PaymentMethodClient::new(
         &state.conf.micro_services.payment_methods_base_url,
         &parent_headers,
-        &trace,
+        &state.conf.trace_header.header_name,
     );
 
     UpdatePaymentMethod::call(
@@ -1672,14 +1671,11 @@ pub async fn retrieve_pm_modular_service_call(
             .into_masked(),
     ));
 
-    let trace = RequestIdentifier::new(&state.conf.trace_header.header_name)
-        .use_incoming_id(state.conf.trace_header.id_reuse_strategy);
-
     //pm client construction
     let client = pm_client::PaymentMethodClient::new(
         &state.conf.micro_services.payment_methods_base_url,
         &parent_headers,
-        &trace,
+        &state.conf.trace_header.header_name,
     );
 
     //Modular service call
@@ -1762,14 +1758,11 @@ pub async fn create_pm_modular_service_call(
         merchant_id.get_string_repr().to_string().into_masked(),
     ));
 
-    let trace = RequestIdentifier::new(&state.conf.trace_header.header_name)
-        .use_incoming_id(state.conf.trace_header.id_reuse_strategy);
-
     //pm client construction
     let client = pm_client::PaymentMethodClient::new(
         &state.conf.micro_services.payment_methods_base_url,
         &parent_headers,
-        &trace,
+        &state.conf.trace_header.header_name,
     );
 
     //Modular service call
