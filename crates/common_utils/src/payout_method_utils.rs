@@ -270,6 +270,8 @@ pub struct ApplePayDecryptAdditionalData {
 #[diesel(sql_type = Jsonb)]
 #[serde(untagged)]
 pub enum BankRedirectAdditionalData {
+    /// Additional data for OpenBankingUK bank redirect payout method
+    OpenBankingUk(Box<OpenBankingUkAdditionalData>),
     /// Additional data for interac bank redirect payout method
     Interac(Box<InteracAdditionalData>),
 }
@@ -283,6 +285,20 @@ pub struct InteracAdditionalData {
     /// Email linked with interac account
     #[schema(value_type = Option<String>, example = "john.doe@example.com")]
     pub email: Option<MaskedEmail>,
+}
+
+/// Masked payout method details for OpenBankingUK bank redirect payout method
+#[derive(
+    Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct OpenBankingUkAdditionalData {
+    /// Account holder name
+    #[schema(value_type = String, example = "John Doe")]
+    pub account_holder_name: Secret<String>,
+    /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
+    #[schema(value_type = String, example = "DE89370400440532013000")]
+    pub iban: Secret<String>,
 }
 
 /// additional payout method details for passthrough payout method
