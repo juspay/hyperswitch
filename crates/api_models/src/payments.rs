@@ -9,9 +9,7 @@ pub mod trait_impls;
 use cards::{CardNumber, NetworkToken};
 #[cfg(feature = "v2")]
 use common_enums::enums::PaymentConnectorTransmission;
-use common_enums::{
-    BoletoDocumentKind, BoletoPaymentType, GooglePayCardFundingSource, ProductType,
-};
+use common_enums::{self, GooglePayCardFundingSource, ProductType};
 #[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
     ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
@@ -314,7 +312,7 @@ pub struct PaymentsCreateIntentRequest {
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    /// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
+    /// Some connectors like Airwallex and Noon might require some additional information, find specific details in the child attributes below.
     pub connector_metadata: Option<ConnectorMetadata>,
 
     /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
@@ -11514,12 +11512,14 @@ pub struct BoletoAdditionalDetails {
     #[schema(value_type = Option<String>, example="2026-12-31")]
     #[serde(default, with = "common_utils::custom_serde::date_only_optional")]
     pub due_date: Option<PrimitiveDateTime>,
-    // It tells the bank what type of commercial document created the boleto. Why does this boleto exist? What kind of transaction or contract caused it?
+    /// It tells the bank what type of commercial document created the boleto. Why does this boleto exist? What kind of transaction or contract caused it?
+    /// Depcreated since it has been moved to connector_metadata
     #[schema(value_type = Option<BoletoDocumentKind>, example="commercial_invoice", deprecated)]
-    pub document_kind: Option<BoletoDocumentKind>,
-    // This field tells the bank how the boleto can be paid — whether the payer must pay the exact amount, can pay a different amount, or pay in parts.
+    pub document_kind: Option<common_enums::BoletoDocumentKind>,
+    /// This field tells the bank how the boleto can be paid — whether the payer must pay the exact amount, can pay a different amount, or pay in parts.
+    /// Depcreated since it has been moved to connector_metadata
     #[schema(value_type = Option<BoletoPaymentType>, example="fixed_amount", deprecated)]
-    pub payment_type: Option<BoletoPaymentType>,
+    pub payment_type: Option<common_enums::BoletoPaymentType>,
     // It is a number which shows a contract between merchant and bank
     #[schema(value_type = Option<String>, example="3568253")]
     pub covenant_code: Option<Secret<String>>,
@@ -12940,7 +12940,7 @@ pub struct CartesBancairesParams {
 }
 
 impl PaymentsUpdateMetadataRequest {
-    /// Helper function to validate that at least one of `metadata` or `feature_metadata` is present in the request
+    /// Helper function to validate that at least one of `metadata` or `feature_metadata` or `connector_metadata` is present in the request
     pub fn validate(&self) -> common_utils::errors::CustomResult<(), ValidationError> {
         let Self {
             metadata,
@@ -12959,13 +12959,16 @@ impl PaymentsUpdateMetadataRequest {
     }
 }
 
+/// Represents the connector-specific metadata for Santander payments, including boleto data and related rules.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SantanderConnectorMetadataData {
+    /// Boleto-specific data and rules for Santander payments
     #[smithy(value_type = "Option<SantanderBoletoData>")]
     pub boleto: Option<SantanderBoletoData>,
 }
 
+/// Represents the specific data and rules related to Santander Boleto payments, including discounts, penalties, collection actions, payment constraints, beneficiary details, and document kind.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SantanderBoletoData {
@@ -12990,7 +12993,7 @@ pub struct SantanderBoletoData {
     pub beneficiary: Option<BeneficiaryDetails>,
     #[smithy(value_type = "Option<BoletoDocumentKind>")]
     #[schema(value_type = Option<BoletoDocumentKind>, example = "commercial_invoice")]
-    pub document_kind: Option<BoletoDocumentKind>,
+    pub document_kind: Option<common_enums::BoletoDocumentKind>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -13014,6 +13017,7 @@ pub struct BeneficiaryDetails {
     pub document_type: Option<DocumentKind>,
 }
 
+/// Represents the rules for applying discounts to a payment, such as a percentage discount or a fixed amount discount, along with any applicable grace periods.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PenaltyRules {
@@ -13027,6 +13031,7 @@ pub struct PenaltyRules {
     pub interest: Option<InterestDetail>,
 }
 
+/// Represents the rules for applying discounts to a payment, such as a percentage discount or a fixed amount discount, along with any applicable grace periods.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct InterestDetail {
@@ -13041,6 +13046,7 @@ pub struct InterestDetail {
     pub iof_percentage: Option<StringMajorUnit>,
 }
 
+/// Represents the rules for applying discounts to a payment, such as a percentage discount or a fixed amount discount, along with any applicable grace periods.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PenaltyDetail {
@@ -13054,6 +13060,7 @@ pub struct PenaltyDetail {
     pub grace_period_days: Option<u32>,
 }
 
+/// Represents the legal or administrative actions that may be taken for non-payment, such as protest rules and automatic write-off timelines.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct CollectionActions {
@@ -13067,6 +13074,7 @@ pub struct CollectionActions {
     pub auto_write_off_days: Option<u32>,
 }
 
+/// Represents the rules for legal protest (official debt registration) for non-payment, including the type of protest and the number of days after which the protest is initiated.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[serde(rename_all = "snake_case", tag = "type", content = "details")]
 pub enum BoletoPaymentTypeConstraints {
@@ -13078,6 +13086,7 @@ pub enum BoletoPaymentTypeConstraints {
     Installment(InstallmentDetails),
 }
 
+/// Represents the rules for legal protest (official debt registration) for non-payment, including the type of protest and the number of days after which the protest is initiated.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 pub struct FlexibleAmountDetails {
     /// Minimum value allowed (e.g., "10.00")
@@ -13094,6 +13103,7 @@ pub struct FlexibleAmountDetails {
     pub value_type: Option<CalculationType>,
 }
 
+/// Represents the rules for legal protest (official debt registration) for non-payment, including the type of protest and the number of days after which the protest is initiated.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 pub struct InstallmentDetails {
     /// Maximum number of partial payments allowed (Up to 99 for Santander).
@@ -13106,6 +13116,7 @@ pub struct InstallmentDetails {
     pub value_type: Option<CalculationType>,
 }
 
+/// Defines how the payment amount is calculated for penalties or discounts, either as a percentage or as a flat amount.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 #[serde(rename_all = "snake_case")]
@@ -13120,6 +13131,7 @@ pub enum CalculationType {
     FlatAmount,
 }
 
+/// Defines the type of payment allowance for a boleto, such as whether only the exact amount is accepted, partial payments are allowed, or overpayment is permitted.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum PaymentAllowanceType {
@@ -13131,6 +13143,7 @@ pub enum PaymentAllowanceType {
     Flexible,
 }
 
+/// Defines the type of protest for non-payment, such as whether the count is based on calendar days, business days, or if the protest logic is determined by a pre-signed contract with the bank.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 #[serde(rename_all = "snake_case")]
@@ -13145,6 +13158,7 @@ pub enum ProtestType {
     ContractDefault,
 }
 
+/// Defines the type of discount applied to a payment, such as whether it's a fixed date discount, a daily calendar discount, or a daily business discount.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SantanderPaymentDiscountRules {
@@ -13158,6 +13172,7 @@ pub struct SantanderPaymentDiscountRules {
     pub tiers: Vec<DiscountTier>,
 }
 
+/// Defines the type of discount applied to a payment, such as whether it's a fixed date discount, a daily calendar discount, or a daily business discount.
 #[derive(
     Debug,
     Default,

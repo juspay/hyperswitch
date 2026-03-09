@@ -9155,6 +9155,7 @@
             }
           }
         ],
+        "description": "Represents the rules for legal protest (official debt registration) for non-payment, including the type of protest and the number of days after which the protest is initiated.",
         "discriminator": {
           "propertyName": "type"
         }
@@ -9440,6 +9441,7 @@
       },
       "CalculationType": {
         "type": "string",
+        "description": "Defines how the payment amount is calculated for penalties or discounts, either as a percentage or as a flat amount.",
         "enum": [
           "percentage",
           "flat_amount"
@@ -10549,6 +10551,7 @@
       },
       "CollectionActions": {
         "type": "object",
+        "description": "Represents the legal or administrative actions that may be taken for non-payment, such as protest rules and automatic write-off timelines.",
         "properties": {
           "legal_protest": {
             "allOf": [
@@ -12822,6 +12825,7 @@
       },
       "DiscountType": {
         "type": "string",
+        "description": "Defines the type of discount applied to a payment, such as whether it's a fixed date discount, a daily calendar discount, or a daily business discount.",
         "enum": [
           "standard",
           "fixed_date",
@@ -14297,6 +14301,7 @@
       },
       "FlexibleAmountDetails": {
         "type": "object",
+        "description": "Represents the rules for legal protest (official debt registration) for non-payment, including the type of protest and the number of days after which the protest is initiated.",
         "properties": {
           "min_value": {
             "type": "string",
@@ -15790,6 +15795,7 @@
       },
       "InstallmentDetails": {
         "type": "object",
+        "description": "Represents the rules for legal protest (official debt registration) for non-payment, including the type of protest and the number of days after which the protest is initiated.",
         "properties": {
           "max_partial_payments": {
             "type": "integer",
@@ -15867,6 +15873,7 @@
       },
       "InterestDetail": {
         "type": "object",
+        "description": "Represents the rules for applying discounts to a payment, such as a percentage discount or a fixed amount discount, along with any applicable grace periods.",
         "properties": {
           "interest_percentage": {
             "type": "string",
@@ -25458,6 +25465,7 @@
       },
       "PenaltyDetail": {
         "type": "object",
+        "description": "Represents the rules for applying discounts to a payment, such as a percentage discount or a fixed amount discount, along with any applicable grace periods.",
         "properties": {
           "value": {
             "type": "string",
@@ -25477,6 +25485,7 @@
       },
       "PenaltyRules": {
         "type": "object",
+        "description": "Represents the rules for applying discounts to a payment, such as a percentage discount or a fixed amount discount, along with any applicable grace periods.",
         "properties": {
           "fixed_penalty": {
             "allOf": [
@@ -26521,6 +26530,7 @@
       },
       "ProtestType": {
         "type": "string",
+        "description": "Defines the type of protest for non-payment, such as whether the count is based on calendar days, business days, or if the protest logic is determined by a pre-signed contract with the bank.",
         "enum": [
           "disabled",
           "calendar_days",
@@ -28462,6 +28472,7 @@
       },
       "SantanderBoletoData": {
         "type": "object",
+        "description": "Represents the specific data and rules related to Santander Boleto payments, including discounts, penalties, collection actions, payment constraints, beneficiary details, and document kind.",
         "properties": {
           "discount_rules": {
             "allOf": [
@@ -28515,6 +28526,7 @@
       },
       "SantanderConnectorMetadataData": {
         "type": "object",
+        "description": "Represents the connector-specific metadata for Santander payments, including boleto data and related rules.",
         "properties": {
           "boleto": {
             "allOf": [
@@ -28538,6 +28550,7 @@
       },
       "SantanderPaymentDiscountRules": {
         "type": "object",
+        "description": "Defines the type of discount applied to a payment, such as whether it's a fixed date discount, a daily calendar discount, or a daily business discount.",
         "required": [
           "tiers"
         ],
