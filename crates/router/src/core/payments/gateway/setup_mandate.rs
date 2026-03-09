@@ -75,7 +75,7 @@ where
             .attach_printable("Failed to fetch Unified Connector Service client")?;
 
         let setup_mandate_request =
-            payments_grpc::PaymentServiceRegisterRequest::foreign_try_from(router_data)
+            payments_grpc::PaymentServiceSetupRecurringRequest::foreign_try_from(router_data)
                 .change_context(ConnectorError::RequestEncodingFailed)
                 .attach_printable("Failed to construct Payment Get Request")?;
 
