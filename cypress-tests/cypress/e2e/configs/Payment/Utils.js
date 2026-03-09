@@ -499,6 +499,7 @@ export const CONNECTOR_LISTS = {
       "worldpay",
     ],
     CARD_INSTALLMENTS: ["adyen"],
+    AUTO_RETRY: ["stripe", "adyen"],
     // Add more inclusion lists
   },
 };

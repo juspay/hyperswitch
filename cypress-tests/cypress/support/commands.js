@@ -2387,6 +2387,70 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add(
+  "confirmCallAutoRetryTest",
+  (confirmBody, data, confirm, globalState) => {
+    const { Request: reqData = {}, Response: resData = {} } = data || {};
+
+    const apiKey = globalState.get("publishableKey");
+    const baseUrl = globalState.get("baseUrl");
+
+    const paymentIntentID = globalState.get("paymentID");
+    const profileId = globalState.get("profileId");
+
+    const maxRetries = globalState.get("max_auto_retries_enabled");
+    const primaryConnector = globalState.get("connectorId");
+    const secondaryConnector = globalState.get("secondaryConnector");
+
+    const url = `${baseUrl}/payments/${paymentIntentID}/confirm`;
+
+    confirmBody.client_secret = globalState.get("clientSecret");
+    confirmBody.confirm = confirm;
+    confirmBody.profile_id = profileId;
+
+    for (const key in reqData) {
+      confirmBody[key] = reqData[key];
+    }
+
+    cy.request({
+      method: "POST",
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      failOnStatusCode: false,
+      body: confirmBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      storeRequestId(response.headers["x-request-id"], globalState);
+
+      expect(response.headers["content-type"]).to.include("application/json");
+
+      if (response.status === 200) {
+        expect(paymentIntentID).to.equal(response.body.payment_id);
+
+        if (maxRetries === 0) {
+          // If retries are disabled, it MUST stay on the primary connector and FAIL
+          expect(response.body.connector).to.equal(primaryConnector);
+          expect(response.body.status).to.equal("failed");
+        } else {
+          // If retries are enabled, it should have fallen back to the secondary connector
+          expect(response.body.connector).to.equal(secondaryConnector);
+        }
+
+        globalState.set("paymentIntentStatus", response.body.status);
+        globalState.set(
+          "connectorTransactionID",
+          response.body.connector_transaction_id
+        );
+      } else {
+        defaultErrorHandler(response, resData);
+      }
+    });
+  }
+);
+
+Cypress.Commands.add(
   "confirmBankRedirectCallTest",
   (confirmBody, data, confirm, globalState) => {
     const {
@@ -3263,6 +3327,66 @@ Cypress.Commands.add(
           );
         }
       });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "retrievePaymentCallAutoRetryTest",
+  ({ globalState, attempt = null, expectedIntentStatus }) => {
+    const paymentId = globalState.get("paymentID");
+    const baseUrl = globalState.get("baseUrl");
+    const apiKey = globalState.get("apiKey");
+
+    cy.request({
+      method: "GET",
+      url: `${baseUrl}/payments/${paymentId}?force_sync=true&expand_attempts=true`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      storeRequestId(response.headers["x-request-id"], globalState);
+
+      expect(response.status).to.equal(200);
+      expect(response.headers["content-type"]).to.include("application/json");
+
+      expect(response.body.payment_id).to.equal(paymentId);
+
+      /**
+       * Basic validations
+       */
+
+      expect(response.body.amount).to.equal(globalState.get("paymentAmount"));
+
+      expect(response.body.profile_id).to.not.be.null;
+      expect(response.body.billing).to.not.be.null;
+      expect(response.body.customer).to.not.be.empty;
+
+      if (expectedIntentStatus) {
+        expect(response.body.status).to.equal(expectedIntentStatus);
+      }
+
+      /**
+       * Attempts validation
+       */
+
+      if (response.body.attempts && response.body.attempts.length > 0) {
+        expect(response.body.attempts).to.be.an("array");
+
+        if (attempt) {
+          expect(response.body.attempt_count).to.equal(attempt);
+        }
+
+        const attempts = response.body.attempts;
+
+        attempts.forEach((attemptObj) => {
+          expect(attemptObj.attempt_id).to.include(paymentId);
+          expect(attemptObj.connector).to.not.be.null;
+        });
+      }
     });
   }
 );
