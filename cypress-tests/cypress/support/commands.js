@@ -5211,6 +5211,37 @@ Cypress.Commands.add("IncomingWebhookTest", (globalState, webhookPayload) => {
     });
 });
 
+Cypress.Commands.add("step", (stepName, fn) => {
+  cy.task("cli_log", `\nSTEP: ${stepName}`);
+
+  const log = Cypress.log({
+    name: "step",
+    displayName: "⬡ STEP",
+    message: `**${stepName}**`,
+    groupStart: true,
+    consoleProps: () => ({ Step: stepName }),
+  });
+
+  let failed = false;
+
+  try {
+    fn();
+  } catch (err) {
+    failed = true;
+    Cypress.log({ groupEnd: true, emitOnly: true });
+    throw err;
+  }
+
+  cy.then(() => {
+    if (failed) {
+      log.set({ displayName: "✗ STEP", message: stepName });
+    } else {
+      log.set({ displayName: "✓ STEP", message: stepName, collapsed: true });
+    }
+    Cypress.log({ groupEnd: true, emitOnly: true });
+  });
+});
+
 // ==================== Platform Merchant Commands ====================
 
 Cypress.Commands.add(
