@@ -3,6 +3,8 @@ import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
+let paymentIntentBody;
+let paymentCreateConfirmBody;
 
 describe("Corner cases", () => {
   context("[Payment] Invalid Info", () => {
@@ -14,6 +16,13 @@ describe("Corner cases", () => {
 
     after("flush global state", () => {
       cy.task("setGlobalState", globalState.data);
+    });
+
+    beforeEach("seed global state", () => {
+      paymentIntentBody = Cypress._.cloneDeep(fixtures.createPaymentBody);
+      paymentCreateConfirmBody = Cypress._.cloneDeep(
+        fixtures.createConfirmPaymentBody
+      );
     });
 
     it("[Payment] Invalid card number", () => {

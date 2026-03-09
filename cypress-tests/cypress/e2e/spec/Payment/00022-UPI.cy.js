@@ -13,9 +13,9 @@ describe("UPI Payments - Hyperswitch", () => {
       });
     });
 
-  afterEach("flush global state", () => {
-    cy.task("setGlobalState", globalState.data);
-  });
+    afterEach("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
 
     it(
       "Create payment intent -> List Merchant payment methods -> Confirm payment -> Handle UPI Redirection -> Retrieve payment -> Refund payment",

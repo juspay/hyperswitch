@@ -40,7 +40,6 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
     "Card - NoThreeDS Create and Confirm Automatic MIT payment flow test",
     () => {
       it("Confirm No 3DS MIT", () => {
-        cy.step("Confirm No 3DS MIT", () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["MITAutoCapture"];
@@ -53,7 +52,6 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
             "automatic",
             globalState
           );
-        });
       });
     }
   );
@@ -62,7 +60,6 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
     "Card - NoThreeDS Create and Confirm Manual MIT payment flow test",
     () => {
       it("Confirm No 3DS MIT", () => {
-        cy.step("Confirm No 3DS MIT", () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["MITManualCapture"];
@@ -75,7 +72,6 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
             "manual",
             globalState
           );
-        });
       });
     }
   );
@@ -260,7 +256,6 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
     "Card - ThreeDS Create and Confirm Manual multiple MITs payment flow",
     () => {
       it("Confirm No 3DS MIT", () => {
-        cy.step("Confirm No 3DS MIT", () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["MITAutoCapture"];
@@ -273,7 +268,6 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
             "automatic",
             globalState
           );
-        });
       });
     }
   );
