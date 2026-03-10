@@ -134,14 +134,9 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Envoy
             req.request.minor_amount,
             req.request.destination_currency,
         )?;
-
         let connector_router_data = envoy::EnvoyRouterData::from((amount, req));
         let payout_request = envoy::PayToBankAccountV3::try_from(&connector_router_data)?;
         let soap_envelope = envoy::SoapEnvelope::new(payout_request);
-        println!(
-            "Constructed SOAP Envelope:  {}",
-            quick_xml::se::to_string(&soap_envelope).expect("Failed to serialize SOAP envelope")
-        );
         Ok(RequestContent::Xml(Box::new(soap_envelope)))
     }
 
@@ -169,7 +164,6 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Envoy
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PayoutsRouterData<PoFulfill>, errors::ConnectorError> {
-        println!("Raw response body: {:?}", res.response);
         let response: envoy::EnvoyPayoutSoapResponse =
             utils::deserialize_xml_to_struct(&res.response)?;
         event_builder.map(|i| i.set_response_body(&response));
@@ -246,8 +240,6 @@ impl ConnectorCommon for Envoy {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        println!("Raw response body Error: {:?}", res.response);
-
         let response: envoy::EnvoyErrorResponse =
             res.response
                 .parse_struct("EnvoyErrorResponse")
