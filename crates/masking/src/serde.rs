@@ -146,14 +146,17 @@ mod pii_serializer {
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
         // Mask the value if the serializer is of type PIISerializer
-        // or send empty map if the serializer is of type FlatMapSerializer over PiiSerializer
-        if std::any::type_name::<S>() == std::any::type_name::<PIISerializer>() {
+        // For FlatMapSerializer (used by #[serde(flatten)]), we detect it by checking
+        // if the type name contains "FlatMapSerializer". This is necessary because
+        // FlatMapSerializer is private in serde and expects map entries, not direct values.
+        // When a Secret is flattened, we return an empty map to avoid serialization errors.
+        let type_name = std::any::type_name::<S>();
+        if type_name == std::any::type_name::<PIISerializer>() {
             format!("{value:?}").serialize(serializer)
-        } else if std::any::type_name::<S>()
-            == std::any::type_name::<
-                serde::__private::ser::FlatMapSerializer<'_, SerializeMap<PIISerializer>>,
-            >()
-        {
+        } else if type_name.contains("FlatMapSerializer") {
+            // FlatMapSerializer is used by serde for #[serde(flatten)] attributes.
+            // It expects key-value pairs, but a Secret serializes as a single value.
+            // We return an empty map to skip the secret in flattened contexts.
             std::collections::HashMap::<String, String>::from([]).serialize(serializer)
         } else {
             value.peek().serialize(serializer)
