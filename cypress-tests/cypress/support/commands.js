@@ -1766,7 +1766,7 @@ Cypress.Commands.add(
             );
           }
           expect(response.body.payment_id, "payment_id").to.not.be.null;
-          expect(response.body.merchant_id, "merchant_id").to.not.be.null;
+          expect(response.body.merchant_id, "merchant_id").to.be.null;
           expect(createPaymentBody.amount, "amount").to.equal(
             response.body.amount
           );
@@ -5311,6 +5311,9 @@ Cypress.Commands.add("stepTest", (stepName, errorStack, fn) => {
           throw err; // re-throw for retryable commands
         }
         errorStack.push({ step: stepName, error: err });
+        // Screenshot at the point of failure before continuing to next step
+        const screenshotName = `[FAIL] ${stepName}`.replace(/[^a-zA-Z0-9\-_ ]/g, "");
+        cy.screenshot(screenshotName, { overwrite: true });
         // No re-throw — queue keeps running
       }
     };

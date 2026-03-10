@@ -16,8 +16,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
   });
 
   context(
-    "Card - NoThreeDS Manual Full Capture payment flow test - Create and Confirm",
-    () => {
+    "Card - NoThreeDS Manual Full Capture payment flow test - Create and Confirm", () => {
       it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Retrieve Payment after Confirmation -> Capture Payment -> Retrieve Payment after Capture", () => {
         let shouldContinue = true;
 
