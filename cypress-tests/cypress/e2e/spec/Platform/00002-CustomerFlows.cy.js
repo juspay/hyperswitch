@@ -52,7 +52,10 @@ describe("Platform Customer Flows", () => {
       cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
 
       cy.then(() => {
-        globalState.set("customerId_CM1_Created", globalState.get("customerId"));
+        globalState.set(
+          "customerId_CM1_Created",
+          globalState.get("customerId")
+        );
         globalState.set("apiKey", savedApiKey);
         globalState.set("merchantId", savedMerchantId);
       });
