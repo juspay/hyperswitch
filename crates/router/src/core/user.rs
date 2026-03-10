@@ -88,6 +88,7 @@ pub async fn signup_with_merchant_id(
             state.clone(),
             common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
             UserStatus::Active,
+            user_from_db.get_user_id().to_string(),
         )
         .await?;
 
@@ -120,11 +121,11 @@ pub async fn signup_with_merchant_id(
     }))
 }
 
-pub async fn get_user_details(
+pub async fn get_active_user_details(
     state: SessionState,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<user_api::GetUserDetailsResponse> {
-    let user = user_from_token.get_user_from_db(&state).await?;
+    let user = user_from_token.get_active_user_from_db(&state).await?;
     let verification_days_left = utils::user::get_verification_days_left(&state, &user)?;
     let role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
         &state,
@@ -233,6 +234,7 @@ pub async fn signup_token_only_flow(
             state.clone(),
             common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
             UserStatus::Active,
+            user_from_db.get_user_id().to_string(),
         )
         .await?;
 
@@ -265,7 +267,7 @@ pub async fn signin_token_only_flow(
 
     let user_from_db: domain::UserFromStorage = state
         .global_store
-        .find_user_by_email(&user_email)
+        .find_active_user_by_user_email(&user_email)
         .await
         .to_not_found_response(UserErrors::InvalidCredentials)?
         .into();
@@ -300,7 +302,10 @@ pub async fn connect_account(
     )
     .await?;
 
-    let find_user = state.global_store.find_user_by_email(&user_email).await;
+    let find_user = state
+        .global_store
+        .find_active_user_by_user_email(&user_email)
+        .await;
 
     if let Ok(found_user) = find_user {
         let user_from_db: domain::UserFromStorage = found_user.into();
@@ -358,6 +363,7 @@ pub async fn connect_account(
                 state.clone(),
                 common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
                 UserStatus::Active,
+                user_from_db.get_user_id().to_string(),
             )
             .await?;
 
@@ -434,7 +440,7 @@ pub async fn change_password(
 ) -> UserResponse<()> {
     let user: domain::UserFromStorage = state
         .global_store
-        .find_user_by_id(&user_from_token.user_id)
+        .find_active_user_by_user_id(&user_from_token.user_id)
         .await
         .change_context(UserErrors::InternalServerError)?
         .into();
@@ -452,7 +458,7 @@ pub async fn change_password(
 
     let _ = state
         .global_store
-        .update_user_by_user_id(
+        .update_active_user_by_user_id(
             user.get_user_id(),
             diesel_models::user::UserUpdate::PasswordUpdate {
                 password: new_password_hash,
@@ -501,7 +507,7 @@ pub async fn forgot_password(
 
     let user_from_db = state
         .global_store
-        .find_user_by_email(&user_email)
+        .find_active_user_by_user_email(&user_email)
         .await
         .map_err(|e| {
             if e.current_context().is_db_not_found() {
@@ -546,7 +552,7 @@ pub async fn rotate_password(
 ) -> UserResponse<()> {
     let user: domain::UserFromStorage = state
         .global_store
-        .find_user_by_id(&user_token.user_id)
+        .find_active_user_by_user_id(&user_token.user_id)
         .await
         .change_context(UserErrors::InternalServerError)?
         .into();
@@ -560,7 +566,7 @@ pub async fn rotate_password(
 
     let user = state
         .global_store
-        .update_user_by_user_id(
+        .update_active_user_by_user_id(
             &user_token.user_id,
             storage_user::UserUpdate::PasswordUpdate {
                 password: hash_password,
@@ -591,7 +597,7 @@ pub async fn reset_password_token_only_flow(
 
     let user_from_db: domain::UserFromStorage = state
         .global_store
-        .find_user_by_email(&email_token.get_email()?)
+        .find_active_user_by_user_email(&email_token.get_email()?)
         .await
         .change_context(UserErrors::InternalServerError)?
         .into();
@@ -605,7 +611,7 @@ pub async fn reset_password_token_only_flow(
 
     let user = state
         .global_store
-        .update_user_by_user_id(
+        .update_active_user_by_user_id(
             user_from_db.get_user_id(),
             storage_user::UserUpdate::PasswordUpdate {
                 password: hash_password,
@@ -617,7 +623,7 @@ pub async fn reset_password_token_only_flow(
     if !user_from_db.is_verified() {
         let _ = state
             .global_store
-            .update_user_by_user_id(
+            .update_active_user_by_user_id(
                 user_from_db.get_user_id(),
                 storage_user::UserUpdate::VerifyUser,
             )
@@ -674,7 +680,7 @@ async fn handle_invitation(
     req_state: &ReqState,
     auth_id: &Option<String>,
 ) -> UserResult<InviteMultipleUserResponse> {
-    let inviter_user = user_from_token.get_user_from_db(state).await?;
+    let inviter_user = user_from_token.get_active_user_from_db(state).await?;
 
     if inviter_user.get_email() == request.email {
         Err(report!(UserErrors::InvalidRoleOperationWithMessage(
@@ -727,7 +733,10 @@ async fn handle_invitation(
     }
 
     let invitee_email = domain::UserEmail::from_pii_email(request.email.clone())?;
-    let invitee_user = state.global_store.find_user_by_email(&invitee_email).await;
+    let invitee_user = state
+        .global_store
+        .find_active_user_by_user_email(&invitee_email)
+        .await;
 
     if let Ok(invitee_user) = invitee_user {
         handle_existing_user_invitation(
@@ -745,7 +754,7 @@ async fn handle_invitation(
         .err()
         .unwrap_or(false)
     {
-        handle_new_user_invitation(
+        handle_new_or_inactive_user_invitation(
             state,
             user_from_token,
             request,
@@ -987,7 +996,7 @@ async fn handle_existing_user_invitation(
 }
 
 #[allow(unused_variables)]
-async fn handle_new_user_invitation(
+async fn handle_new_or_inactive_user_invitation(
     state: &SessionState,
     user_from_token: &auth::UserFromToken,
     request: &user_api::InviteUserRequest,
@@ -997,10 +1006,9 @@ async fn handle_new_user_invitation(
 ) -> UserResult<InviteMultipleUserResponse> {
     let new_user = domain::NewUser::try_from((request.clone(), user_from_token.clone()))?;
 
-    new_user
-        .insert_user_in_db(state.global_store.as_ref())
-        .await
-        .change_context(UserErrors::InternalServerError)?;
+    let user_from_storage = new_user
+        .insert_or_reactivate_user_in_db(state.global_store.as_ref())
+        .await?;
 
     let invitation_status = if cfg!(feature = "email") {
         UserStatus::InvitationSent
@@ -1011,7 +1019,7 @@ async fn handle_new_user_invitation(
     let now = common_utils::date_time::now();
 
     let user_role = domain::NewUserRole {
-        user_id: new_user.get_user_id().to_owned(),
+        user_id: user_from_storage.get_user_id().to_string(),
         role_id: request.role_id.clone(),
         status: invitation_status,
         created_by: user_from_token.user_id.clone(),
@@ -1132,7 +1140,7 @@ async fn handle_new_user_invitation(
         is_email_sent = false;
 
         let invited_user_token = auth::UserFromToken {
-            user_id: new_user.get_user_id(),
+            user_id: user_from_storage.get_user_id().to_string(),
             merchant_id: user_from_token.merchant_id.clone(),
             org_id: user_from_token.org_id.clone(),
             role_id: request.role_id.clone(),
@@ -1170,7 +1178,7 @@ pub async fn resend_invite(
     let invitee_email = domain::UserEmail::from_pii_email(request.email)?;
     let user: domain::UserFromStorage = state
         .global_store
-        .find_user_by_email(&invitee_email)
+        .find_active_user_by_user_email(&invitee_email)
         .await
         .map_err(|e| {
             if e.current_context().is_db_not_found() {
@@ -1301,7 +1309,7 @@ pub async fn accept_invite_from_email_token_only_flow(
 
     let user_from_db: domain::UserFromStorage = state
         .global_store
-        .find_user_by_email(&email_token.get_email()?)
+        .find_active_user_by_user_email(&email_token.get_email()?)
         .await
         .change_context(UserErrors::InternalServerError)?
         .into();
@@ -1407,7 +1415,7 @@ pub async fn accept_invite_from_email_token_only_flow(
     if !user_from_db.is_verified() {
         let _ = state
             .global_store
-            .update_user_by_user_id(
+            .update_active_user_by_user_id(
                 user_from_db.get_user_id(),
                 storage_user::UserUpdate::VerifyUser,
             )
@@ -1454,7 +1462,7 @@ pub async fn terminate_accept_invite_only_flow(
 
     let user_from_db: domain::UserFromStorage = state
         .global_store
-        .find_user_by_email(&email_token.get_email()?)
+        .find_active_user_by_user_email(&email_token.get_email()?)
         .await
         .change_context(UserErrors::InternalServerError)?
         .into();
@@ -1611,7 +1619,7 @@ pub async fn create_internal_user(
     let mut store_user: storage_user::UserNew = new_user.clone().try_into()?;
     store_user.set_is_verified(true);
 
-    state
+    let user_from_storage = state
         .global_store
         .insert_user(store_user)
         .await
@@ -1625,7 +1633,11 @@ pub async fn create_internal_user(
         .map(domain::user::UserFromStorage::from)?;
 
     new_user
-        .get_no_level_user_role(role_info.get_role_id().to_string(), UserStatus::Active)
+        .get_no_level_user_role(
+            role_info.get_role_id().to_string(),
+            UserStatus::Active,
+            user_from_storage.get_user_id().to_string(),
+        )
         .add_entity(domain::MerchantLevel {
             tenant_id: default_tenant_id,
             org_id: internal_merchant.organization_id,
@@ -1662,7 +1674,7 @@ pub async fn create_tenant_user(
     let mut store_user: storage_user::UserNew = new_user.clone().try_into()?;
     store_user.set_is_verified(true);
 
-    state
+    let user_from_storage = state
         .global_store
         .insert_user(store_user)
         .await
@@ -1679,6 +1691,7 @@ pub async fn create_tenant_user(
         .get_no_level_user_role(
             common_utils::consts::ROLE_ID_TENANT_ADMIN.to_string(),
             UserStatus::Active,
+            user_from_storage.get_user_id().to_string(),
         )
         .add_entity(domain::TenantLevel {
             tenant_id: state.tenant.tenant_id.clone(),
@@ -1700,7 +1713,7 @@ pub async fn create_platform_account(
         Err(report!(UserErrors::InvalidPlatformOperation))
     })?;
 
-    let user_from_db = user_from_token.get_user_from_db(&state).await?;
+    let user_from_db = user_from_token.get_active_user_from_db(&state).await?;
 
     let new_merchant = domain::NewUserMerchant::try_from(req)?;
     let new_organization = new_merchant.get_new_organization();
@@ -1793,7 +1806,7 @@ pub async fn create_merchant_account(
     user_from_token: auth::UserFromToken,
     req: user_api::UserMerchantCreate,
 ) -> UserResponse<user_api::UserMerchantAccountResponse> {
-    let user_from_db = user_from_token.get_user_from_db(&state).await?;
+    let user_from_db = user_from_token.get_active_user_from_db(&state).await?;
 
     let new_merchant = domain::NewUserMerchant::try_from((user_from_db, req, user_from_token))?;
     let domain_merchant_account = new_merchant
@@ -1817,9 +1830,10 @@ pub async fn list_user_roles_details(
     request: user_api::GetUserRoleDetailsRequest,
     _req_state: ReqState,
 ) -> UserResponse<Vec<user_api::GetUserRoleDetailsResponseV2>> {
-    let required_user = utils::user::get_user_from_db_by_email(&state, request.email.try_into()?)
-        .await
-        .to_not_found_response(UserErrors::InvalidRoleOperation)?;
+    let required_user =
+        utils::user::get_active_user_from_db_by_email(&state, request.email.try_into()?)
+            .await
+            .to_not_found_response(UserErrors::InvalidRoleOperation)?;
 
     let requestor_role_info = roles::RoleInfo::from_role_id_org_id_tenant_id(
         &state,
@@ -2079,7 +2093,7 @@ pub async fn verify_email_token_only_flow(
 
     let user_from_email = state
         .global_store
-        .find_user_by_email(&email_token.get_email()?)
+        .find_active_user_by_user_email(&email_token.get_email()?)
         .await
         .change_context(UserErrors::InternalServerError)?;
 
@@ -2089,7 +2103,7 @@ pub async fn verify_email_token_only_flow(
 
     let user_from_db: domain::UserFromStorage = state
         .global_store
-        .update_user_by_user_id(
+        .update_active_user_by_user_id(
             user_from_email.user_id.as_str(),
             storage_user::UserUpdate::VerifyUser,
         )
@@ -2131,7 +2145,7 @@ pub async fn send_verification_mail(
 
     let user = state
         .global_store
-        .find_user_by_email(&user_email)
+        .find_active_user_by_user_email(&user_email)
         .await
         .map_err(|e| {
             if e.current_context().is_db_not_found() {
@@ -2178,7 +2192,7 @@ pub async fn update_user_details(
 ) -> UserResponse<()> {
     let user: domain::UserFromStorage = state
         .global_store
-        .find_user_by_id(&user_token.user_id)
+        .find_active_user_by_user_id(&user_token.user_id)
         .await
         .change_context(UserErrors::InternalServerError)?
         .into();
@@ -2192,7 +2206,7 @@ pub async fn update_user_details(
 
     state
         .global_store
-        .update_user_by_user_id(user.get_user_id(), user_update)
+        .update_active_user_by_user_id(user.get_user_id(), user_update)
         .await
         .change_context(UserErrors::InternalServerError)?;
 
@@ -2213,7 +2227,7 @@ pub async fn user_from_email(
 
     let user_from_db: domain::UserFromStorage = state
         .global_store
-        .find_user_by_email(&email_token.get_email()?)
+        .find_active_user_by_user_email(&email_token.get_email()?)
         .await
         .change_context(UserErrors::InternalServerError)?
         .into();
@@ -2236,7 +2250,7 @@ pub async fn begin_totp(
 ) -> UserResponse<user_api::BeginTotpResponse> {
     let user_from_db: domain::UserFromStorage = state
         .global_store
-        .find_user_by_id(&user_token.user_id)
+        .find_active_user_by_user_id(&user_token.user_id)
         .await
         .change_context(UserErrors::InternalServerError)?
         .into();
@@ -2269,7 +2283,7 @@ pub async fn reset_totp(
 ) -> UserResponse<user_api::BeginTotpResponse> {
     let user_from_db: domain::UserFromStorage = state
         .global_store
-        .find_user_by_id(&user_token.user_id)
+        .find_active_user_by_user_id(&user_token.user_id)
         .await
         .change_context(UserErrors::InternalServerError)?
         .into();
@@ -2308,7 +2322,7 @@ pub async fn verify_totp(
 ) -> UserResponse<user_api::TokenResponse> {
     let user_from_db: domain::UserFromStorage = state
         .global_store
-        .find_user_by_id(&user_token.user_id)
+        .find_active_user_by_user_id(&user_token.user_id)
         .await
         .change_context(UserErrors::InternalServerError)?
         .into();
@@ -2362,7 +2376,7 @@ pub async fn update_totp(
 ) -> UserResponse<()> {
     let user_from_db: domain::UserFromStorage = state
         .global_store
-        .find_user_by_id(&user_token.user_id)
+        .find_active_user_by_user_id(&user_token.user_id)
         .await
         .change_context(UserErrors::InternalServerError)?
         .into();
@@ -2389,7 +2403,7 @@ pub async fn update_totp(
 
     state
         .global_store
-        .update_user_by_user_id(
+        .update_active_user_by_user_id(
             &user_token.user_id,
             storage_user::UserUpdate::TotpUpdate {
                 totp_status: None,
@@ -2440,7 +2454,7 @@ pub async fn generate_recovery_codes(
 
     state
         .global_store
-        .update_user_by_user_id(
+        .update_active_user_by_user_id(
             &user_token.user_id,
             storage_user::UserUpdate::TotpUpdate {
                 totp_status: None,
@@ -2491,7 +2505,7 @@ pub async fn verify_recovery_code(
 ) -> UserResponse<()> {
     let user_from_db: domain::UserFromStorage = state
         .global_store
-        .find_user_by_id(&user_token.user_id)
+        .find_active_user_by_user_id(&user_token.user_id)
         .await
         .change_context(UserErrors::InternalServerError)?
         .into();
@@ -2531,7 +2545,7 @@ pub async fn verify_recovery_code(
 
     state
         .global_store
-        .update_user_by_user_id(
+        .update_active_user_by_user_id(
             user_from_db.get_user_id(),
             storage_user::UserUpdate::TotpUpdate {
                 totp_status: None,
@@ -2552,7 +2566,7 @@ pub async fn terminate_two_factor_auth(
 ) -> UserResponse<user_api::TokenResponse> {
     let user_from_db: domain::UserFromStorage = state
         .global_store
-        .find_user_by_id(&user_token.user_id)
+        .find_active_user_by_user_id(&user_token.user_id)
         .await
         .change_context(UserErrors::InternalServerError)?
         .into();
@@ -2571,7 +2585,7 @@ pub async fn terminate_two_factor_auth(
         if user_from_db.get_totp_status() != TotpStatus::Set {
             state
                 .global_store
-                .update_user_by_user_id(
+                .update_active_user_by_user_id(
                     user_from_db.get_user_id(),
                     storage_user::UserUpdate::TotpUpdate {
                         totp_status: Some(TotpStatus::Set),
@@ -2623,7 +2637,7 @@ pub async fn check_two_factor_auth_status_with_attempts(
 ) -> UserResponse<user_api::TwoFactorStatus> {
     let user_from_db: domain::UserFromStorage = state
         .global_store
-        .find_user_by_id(&user_token.user_id)
+        .find_active_user_by_user_id(&user_token.user_id)
         .await
         .change_context(UserErrors::InternalServerError)?
         .into();
@@ -3011,7 +3025,7 @@ pub async fn sso_sign(
     // TODO: Use config to handle not found error
     let user_from_db: domain::UserFromStorage = state
         .global_store
-        .find_user_by_email(&email)
+        .find_active_user_by_user_email(&email)
         .await
         .map(Into::into)
         .to_not_found_response(UserErrors::UserNotFound)?;
@@ -3019,7 +3033,7 @@ pub async fn sso_sign(
     if !user_from_db.is_verified() {
         state
             .global_store
-            .update_user_by_user_id(
+            .update_active_user_by_user_id(
                 user_from_db.get_user_id(),
                 storage_user::UserUpdate::VerifyUser,
             )
@@ -3051,7 +3065,7 @@ pub async fn terminate_auth_select(
 ) -> UserResponse<user_api::TokenResponse> {
     let user_from_db: domain::UserFromStorage = state
         .global_store
-        .find_user_by_id(&user_token.user_id)
+        .find_active_user_by_user_id(&user_token.user_id)
         .await
         .change_context(UserErrors::InternalServerError)?
         .into();

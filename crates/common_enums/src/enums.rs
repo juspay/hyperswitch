@@ -2957,6 +2957,40 @@ pub enum RelayStatus {
     Failure,
 }
 
+impl RelayStatus {
+    pub fn get_void_status(attempt_status: AttemptStatus) -> Self {
+        match attempt_status {
+            AttemptStatus::Failure
+            | AttemptStatus::AuthenticationFailed
+            | AttemptStatus::RouterDeclined
+            | AttemptStatus::AuthorizationFailed
+            | AttemptStatus::CaptureFailed
+            | AttemptStatus::VoidFailed
+            | AttemptStatus::IntegrityFailure
+            | AttemptStatus::AutoRefunded
+            | AttemptStatus::Expired => Self::Failure,
+            AttemptStatus::Pending
+            | AttemptStatus::PaymentMethodAwaited
+            | AttemptStatus::Authorized
+            | AttemptStatus::PartiallyAuthorized
+            | AttemptStatus::AuthenticationSuccessful
+            | AttemptStatus::ConfirmationAwaited
+            | AttemptStatus::DeviceDataCollectionPending
+            | AttemptStatus::VoidInitiated
+            | AttemptStatus::Unresolved
+            | AttemptStatus::Charged
+            | AttemptStatus::PartialChargedAndChargeable
+            | AttemptStatus::CodInitiated
+            | AttemptStatus::PartialCharged
+            | AttemptStatus::Authorizing
+            | AttemptStatus::CaptureInitiated
+            | AttemptStatus::AuthenticationPending
+            | AttemptStatus::Started => Self::Pending,
+            AttemptStatus::Voided | AttemptStatus::VoidedPostCharge => Self::Success,
+        }
+    }
+}
+
 #[derive(
     Clone,
     Copy,

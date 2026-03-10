@@ -16,7 +16,8 @@ pub mod routes {
     use api_models::analytics::{
         api_event::QueryType,
         search::{
-            GetGlobalSearchRequest, GetSearchRequest, GetSearchRequestWithIndex, SearchIndex,
+            GetGlobalSearchRequest, GetSearchRequest, GetSearchRequestWithIndex, SearchFilters,
+            SearchIndex,
         },
         AnalyticsRequest, GenerateReportRequest, GetActivePaymentsMetricRequest,
         GetApiEventFiltersRequest, GetApiEventMetricRequest, GetAuthEventFilterRequest,
@@ -30,13 +31,14 @@ pub mod routes {
     use error_stack::{report, ResultExt};
     use futures::{stream::FuturesUnordered, StreamExt};
     use masking::ExposeInterface;
+    use router_env::logger;
 
     use crate::{
         analytics_validator::request_validator,
         consts::opensearch::SEARCH_INDEXES,
         core::{api_locking, errors::user::UserErrors, verification::utils},
         db::user_role::ListUserRolesByUserIdPayload,
-        routes::AppState,
+        routes::{metrics, AppState},
         services::{
             api,
             authentication::{self as auth, AuthenticationData, UserFromToken},
@@ -184,6 +186,10 @@ pub mod routes {
                         .service(
                             web::resource("search/{domain}")
                                 .route(web::post().to(get_search_results)),
+                        )
+                        .service(
+                            web::resource("payments/list")
+                                .route(web::post().to(get_payment_list_from_opensearch)),
                         )
                         .service(
                             web::resource("metrics/disputes")
@@ -451,7 +457,10 @@ pub mod routes {
                                 .service(
                                     web::resource("metrics/auth_events/sankey")
                                         .route(web::post().to(get_profile_auth_event_sankey)),
-                                ),
+                                )
+                                .service(web::resource("payments/list").route(
+                                    web::post().to(get_profile_payment_list_from_opensearch),
+                                )),
                         ),
                 )
                 .service(
@@ -556,7 +565,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             api_locking::LockAction::NotApplicable,
@@ -612,7 +621,7 @@ pub mod routes {
                 },
                 &auth::JWTAuth {
                     permission: Permission::OrganizationAnalyticsRead,
-                    allow_connected: false,
+                    allow_connected: true,
                     allow_platform: false,
                 },
                 req.headers(),
@@ -674,7 +683,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             api_locking::LockAction::NotApplicable,
@@ -726,7 +735,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             api_locking::LockAction::NotApplicable,
@@ -782,7 +791,7 @@ pub mod routes {
                 },
                 &auth::JWTAuth {
                     permission: Permission::OrganizationAnalyticsRead,
-                    allow_connected: false,
+                    allow_connected: true,
                     allow_platform: false,
                 },
                 req.headers(),
@@ -844,7 +853,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             api_locking::LockAction::NotApplicable,
@@ -1181,7 +1190,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             api_locking::LockAction::NotApplicable,
@@ -1231,7 +1240,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             api_locking::LockAction::NotApplicable,
@@ -1277,7 +1286,7 @@ pub mod routes {
                 },
                 &auth::JWTAuth {
                     permission: Permission::OrganizationAnalyticsRead,
-                    allow_connected: false,
+                    allow_connected: true,
                     allow_platform: false,
                 },
                 req.headers(),
@@ -1344,7 +1353,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             api_locking::LockAction::NotApplicable,
@@ -1381,7 +1390,7 @@ pub mod routes {
                 },
                 &auth::JWTAuth {
                     permission: Permission::OrganizationAnalyticsRead,
-                    allow_connected: false,
+                    allow_connected: true,
                     allow_platform: false,
                 },
                 req.headers(),
@@ -1423,7 +1432,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             api_locking::LockAction::NotApplicable,
@@ -1872,7 +1881,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -1965,7 +1974,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -2056,7 +2065,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -2155,7 +2164,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -2247,7 +2256,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -2338,7 +2347,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -2438,7 +2447,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -2531,7 +2540,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -2622,7 +2631,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -2720,7 +2729,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -2812,7 +2821,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -2902,7 +2911,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -3009,7 +3018,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -3102,7 +3111,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -3193,7 +3202,7 @@ pub mod routes {
                     Some(user_id) => {
                         let user = state
                             .global_store
-                            .find_user_by_id(&user_id)
+                            .find_active_user_by_user_id(&user_id)
                             .await
                             .change_context(AnalyticsError::UnknownError)?;
 
@@ -3434,6 +3443,158 @@ pub mod routes {
                 },
                 req.headers(),
             ),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    #[cfg(feature = "v1")]
+    pub async fn get_payment_list_from_opensearch(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<api_models::payments::PaymentListFilterConstraints>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetPaymentListFromOpenSearch;
+        let payload = json_payload.into_inner();
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            payload,
+            |state, auth: AuthenticationData, constraints, _| async move {
+                let req_merchant_id = auth.platform.get_processor().get_account().get_id().clone();
+                common_utils::metrics::utils::record_operation_time(
+                    Box::pin(async move {
+                        let merchant_id = auth.platform.get_processor().get_account().get_id();
+                        let org_id = auth.platform.get_processor().get_account().get_org_id();
+
+                        let auth_info = vec![AuthInfo::MerchantLevel {
+                            org_id: org_id.clone(),
+                            merchant_ids: vec![merchant_id.clone()],
+                        }];
+
+                        let filters: SearchFilters = (&constraints).into();
+
+                        let search_req = GetSearchRequestWithIndex {
+                            index: SearchIndex::SessionizerPaymentIntents,
+                            search_req: GetSearchRequest {
+                                query: String::new(),
+                                filters: Some(filters),
+                                time_range: constraints.time_range,
+                                offset: constraints.offset.map(i64::from).unwrap_or(0),
+                                count: i64::from(constraints.limit),
+                                order: Some(constraints.order),
+                            },
+                        };
+
+                        analytics::search::search_results(
+                            state
+                                .opensearch_client
+                                .as_ref()
+                                .ok_or_else(|| error_stack::report!(OpenSearchError::NotEnabled))?,
+                            search_req,
+                            auth_info,
+                        )
+                        .await
+                        .map(|response| {
+                            logger::info!(
+                                count = response.hits.len(),
+                                total = response.count,
+                                "Successfully retrieved payments from OpenSearch"
+                            );
+                            ApplicationResponse::Json(response)
+                        })
+                    }),
+                    &metrics::PAYMENT_LIST_OPENSEARCH_LATENCY,
+                    router_env::metric_attributes!(("merchant_id", req_merchant_id.clone())),
+                )
+                .await
+            },
+            &auth::JWTAuth {
+                permission: Permission::MerchantPaymentRead,
+                allow_connected: true,
+                allow_platform: false,
+            },
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    #[cfg(feature = "v1")]
+    pub async fn get_profile_payment_list_from_opensearch(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<api_models::payments::PaymentListFilterConstraints>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetPaymentListFromOpenSearch;
+        let payload = json_payload.into_inner();
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            payload,
+            |state, auth: AuthenticationData, constraints, _| async move {
+                let req_merchant_id = auth.platform.get_processor().get_account().get_id().clone();
+                common_utils::metrics::utils::record_operation_time(
+                    Box::pin(async move {
+                        let merchant_id = auth.platform.get_processor().get_account().get_id();
+                        let org_id = auth.platform.get_processor().get_account().get_org_id();
+
+                        let profile_id = auth
+                            .profile
+                            .ok_or(report!(UserErrors::JwtProfileIdMissing))
+                            .change_context(OpenSearchError::AccessForbiddenError)?
+                            .get_id()
+                            .clone();
+
+                        let auth_info = vec![AuthInfo::ProfileLevel {
+                            org_id: org_id.clone(),
+                            merchant_id: merchant_id.clone(),
+                            profile_ids: vec![profile_id.clone()],
+                        }];
+
+                        let filters: SearchFilters = (&constraints).into();
+
+                        let search_req = GetSearchRequestWithIndex {
+                            index: SearchIndex::SessionizerPaymentIntents,
+                            search_req: GetSearchRequest {
+                                query: String::new(),
+                                filters: Some(filters),
+                                time_range: constraints.time_range,
+                                offset: constraints.offset.map(i64::from).unwrap_or(0),
+                                count: i64::from(constraints.limit),
+                                order: Some(constraints.order),
+                            },
+                        };
+
+                        analytics::search::search_results(
+                            state
+                                .opensearch_client
+                                .as_ref()
+                                .ok_or_else(|| error_stack::report!(OpenSearchError::NotEnabled))?,
+                            search_req,
+                            auth_info,
+                        )
+                        .await
+                        .map(|response| {
+                            logger::info!(
+                                count = response.hits.len(),
+                                total = response.count,
+                                "Successfully retrieved payments for profile from OpenSearch"
+                            );
+                            ApplicationResponse::Json(response)
+                        })
+                    }),
+                    &metrics::PAYMENT_LIST_OPENSEARCH_LATENCY,
+                    router_env::metric_attributes!(("merchant_id", req_merchant_id.clone())),
+                )
+                .await
+            },
+            &auth::JWTAuth {
+                permission: Permission::ProfilePaymentRead,
+                allow_connected: true,
+                allow_platform: false,
+            },
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -3764,7 +3925,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             api_locking::LockAction::NotApplicable,
@@ -3804,7 +3965,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             api_locking::LockAction::NotApplicable,
@@ -3840,7 +4001,7 @@ pub mod routes {
                 },
                 &auth::JWTAuth {
                     permission: Permission::OrganizationAnalyticsRead,
-                    allow_connected: false,
+                    allow_connected: true,
                     allow_platform: false,
                 },
                 req.headers(),
@@ -3884,7 +4045,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             api_locking::LockAction::NotApplicable,
@@ -3934,7 +4095,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             api_locking::LockAction::NotApplicable,
@@ -3980,7 +4141,7 @@ pub mod routes {
                 },
                 &auth::JWTAuth {
                     permission: Permission::OrganizationAnalyticsRead,
-                    allow_connected: false,
+                    allow_connected: true,
                     allow_platform: false,
                 },
                 req.headers(),
@@ -4015,7 +4176,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             api_locking::LockAction::NotApplicable,
@@ -4165,7 +4326,7 @@ pub mod routes {
                 },
                 &auth::JWTAuth {
                     permission: Permission::OrganizationAnalyticsRead,
-                    allow_connected: false,
+                    allow_connected: true,
                     allow_platform: false,
                 },
                 req.headers(),
@@ -4208,7 +4369,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             api_locking::LockAction::NotApplicable,
