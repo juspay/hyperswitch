@@ -29,7 +29,6 @@ ENV CARGO_NET_RETRY=10
 ENV RUSTUP_MAX_RETRIES=10
 # Don't emit giant backtraces in the CI logs.
 ENV RUST_BACKTRACE="short"
-ENV RUSTFLAGS="--cfg tokio_unstable"
 
 COPY . .
 RUN cargo build \
