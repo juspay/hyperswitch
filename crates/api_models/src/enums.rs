@@ -57,6 +57,7 @@ pub enum PayoutConnectors {
     Payone,
     Paypal,
     Stripe,
+    Truelayer,
     Wise,
     Worldpay,
     Worldpayxml,
@@ -70,6 +71,16 @@ pub enum UpdateActiveAttempt {
     #[schema(value_type = Option<String>)]
     Set(common_utils::id_type::GlobalAttemptId),
     /// To unset the active attempt id
+    Unset,
+}
+
+/// Generic enum to handle updating or clearing a field
+#[derive(Debug, ToSchema, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SetOrUnset<T> {
+    /// Set the field to a specific value
+    Set(T),
+    /// Clear/unset the field
     Unset,
 }
 
@@ -88,6 +99,7 @@ impl From<PayoutConnectors> for RoutableConnectors {
             PayoutConnectors::Payone => Self::Payone,
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Stripe => Self::Stripe,
+            PayoutConnectors::Truelayer => Self::Truelayer,
             PayoutConnectors::Wise => Self::Wise,
             PayoutConnectors::Worldpay => Self::Worldpay,
             PayoutConnectors::Worldpayxml => Self::Worldpayxml,
@@ -110,6 +122,7 @@ impl From<PayoutConnectors> for Connector {
             PayoutConnectors::Payone => Self::Payone,
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Stripe => Self::Stripe,
+            PayoutConnectors::Truelayer => Self::Truelayer,
             PayoutConnectors::Wise => Self::Wise,
             PayoutConnectors::Worldpay => Self::Worldpay,
             PayoutConnectors::Worldpayxml => Self::Worldpayxml,
@@ -133,6 +146,7 @@ impl TryFrom<Connector> for PayoutConnectors {
             Connector::Payone => Ok(Self::Payone),
             Connector::Paypal => Ok(Self::Paypal),
             Connector::Stripe => Ok(Self::Stripe),
+            Connector::Truelayer => Ok(Self::Truelayer),
             Connector::Wise => Ok(Self::Wise),
             Connector::Worldpay => Ok(Self::Worldpay),
             Connector::Worldpayxml => Ok(Self::Worldpayxml),
@@ -294,6 +308,7 @@ pub enum FieldType {
     UserShippingAddressPincode,
     UserShippingAddressState,
     UserShippingAddressCountry { options: Vec<String> },
+    UserDocumentType { options: Vec<String> },
     UserSocialSecurityNumber,
     UserBlikCode,
     UserBank,

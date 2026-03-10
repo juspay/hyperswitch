@@ -8,6 +8,7 @@ use router_env::{instrument, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
+        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{self, helpers, operations, PaymentData},
     },
@@ -155,7 +156,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsExtendAu
             payment_attempt,
             currency,
             amount,
-            email: None,
             mandate_id: None,
             mandate_connector: None,
             setup_mandate: None,
@@ -228,6 +228,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsExtendAuthorizationRequest, 
         _payment_data: &mut PaymentData<F>,
         _request: Option<payments::CustomerDetails>,
         _provider: &domain::Provider,
+        _initiator: Option<&domain::Initiator>,
+        _dimensions: DimensionsWithMerchantIdAndProfileId,
     ) -> errors::CustomResult<
         (
             PaymentExtendAuthorizationOperation<'a, F>,
@@ -257,7 +259,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsExtendAuthorizationRequest, 
 
     async fn get_connector<'a>(
         &'a self,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         state: &SessionState,
         _request: &api::PaymentsExtendAuthorizationRequest,
         _payment_intent: &storage::PaymentIntent,

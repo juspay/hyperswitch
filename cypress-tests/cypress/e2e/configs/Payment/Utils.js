@@ -15,6 +15,7 @@ import { connectorDetails as barclaycardConnectorDetails } from "./Barclaycard.j
 import { connectorDetails as billwerkConnectorDetails } from "./Billwerk.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
 import { connectorDetails as braintreeConnectorDetails } from "./Braintree.js";
+import { connectorDetails as calidaConnectorDetails } from "./Calida.js";
 import { connectorDetails as cashtocodeConnectorDetails } from "./Cashtocode.js";
 import { connectorDetails as celeroConnectorDetails } from "./Celero.js";
 import { connectorDetails as checkbookConnectorDetails } from "./Checkbook.js";
@@ -87,6 +88,7 @@ const connectorDetails = {
   billwerk: billwerkConnectorDetails,
   bluesnap: bluesnapConnectorDetails,
   braintree: braintreeConnectorDetails,
+  calida: calidaConnectorDetails,
   cashtocode: cashtocodeConnectorDetails,
   celero: celeroConnectorDetails,
   checkout: checkoutConnectorDetails,
@@ -442,7 +444,28 @@ export const CONNECTOR_LISTS = {
     // ucs connectors
     UCS_CONNECTORS: ["authorizedotnet"],
     OVERCAPTURE: ["adyen"],
-    MANUAL_RETRY: ["cybersource"],
+    MANUAL_RETRY: [
+      "cybersource",
+      "checkout",
+      "stripe",
+      "adyen",
+      "airwallex",
+      "authorizedotnet",
+      "bankofamerica",
+      "datatrans",
+      "finix",
+      "fiuu",
+      "globalpay",
+      "nexinets",
+      "nuvei",
+      "paypal",
+      "powertranz",
+      "shift4",
+      "trustpay",
+      "worldpay",
+      "worldpayvantiv",
+      "worldpayxml",
+    ],
     PAYMENTS_WEBHOOK: ["noon", "stripe", "authorizedotnet"],
     // Add more inclusion lists
   },

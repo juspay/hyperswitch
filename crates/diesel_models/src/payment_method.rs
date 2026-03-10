@@ -66,6 +66,7 @@ pub struct PaymentMethod {
     pub created_by: Option<String>,
     pub last_modified_by: Option<String>,
     pub customer_details: Option<Encryption>,
+    pub locker_fingerprint_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -159,6 +160,7 @@ pub struct PaymentMethodNew {
     pub created_by: Option<String>,
     pub last_modified_by: Option<String>,
     pub customer_details: Option<Encryption>,
+    pub locker_fingerprint_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -257,6 +259,9 @@ pub enum PaymentMethodUpdate {
         network_token_locker_id: Option<String>,
         network_token_payment_method_data: Option<Encryption>,
         last_modified_by: Option<String>,
+        metadata: Option<serde_json::Value>,
+        last_used_at: Option<PrimitiveDateTime>,
+        connector_mandate_details: Option<serde_json::Value>,
     },
     ConnectorMandateDetailsUpdate {
         connector_mandate_details: Option<serde_json::Value>,
@@ -489,6 +494,7 @@ impl PaymentMethodUpdateInternal {
             swift_code: source.swift_code,
             direct_debit_token: source.direct_debit_token,
             created_at: source.created_at,
+            locker_fingerprint_id: source.locker_fingerprint_id,
             last_modified,
             payment_method: payment_method.or(source.payment_method),
             payment_method_type: payment_method_type.or(source.payment_method_type),
@@ -675,16 +681,19 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_locker_id,
                 network_token_payment_method_data,
                 last_modified_by,
+                metadata,
+                last_used_at,
+                connector_mandate_details,
             } => Self {
-                metadata: None,
+                metadata,
                 payment_method_data,
-                last_used_at: None,
+                last_used_at,
                 network_transaction_id: None,
                 status,
                 locker_id,
                 network_token_requestor_reference_id,
                 payment_method,
-                connector_mandate_details: None,
+                connector_mandate_details,
                 updated_by: None,
                 payment_method_issuer,
                 payment_method_type,
@@ -1044,6 +1053,7 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             created_by: payment_method_new.created_by.clone(),
             last_modified_by: payment_method_new.last_modified_by.clone(),
             customer_details: payment_method_new.customer_details.clone(),
+            locker_fingerprint_id: payment_method_new.locker_fingerprint_id.clone(),
         }
     }
 }

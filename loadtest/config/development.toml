@@ -90,6 +90,7 @@ adyenplatform.base_url = "https://balanceplatform-api-test.adyen.com/"
 affirm.base_url = "https://sandbox.affirm.com/api"
 adyen.payout_base_url = "https://pal-test.adyen.com/"
 adyen.dispute_base_url = "https://ca-test.adyen.com/"
+adyen.management_base_url = "https://management-test.adyen.com/"
 airwallex.base_url = "https://api-demo.airwallex.com/"
 amazonpay.base_url = "https://pay-api.amazon.com/sandbox/v2"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
@@ -202,9 +203,10 @@ rapyd.base_url = "https://sandboxapi.rapyd.net"
 razorpay.base_url = "https://api.razorpay.com/"
 recurly.base_url = "https://v3.recurly.com"
 redsys.base_url = "https://sis-t.redsys.es:25443"
+revolv3.base_url = "https://api-sandbox.revolv3.com"
 riskified.base_url = "https://sandbox.riskified.com/api"
-santander.base_url = "https://pix.santander.com.br/api/v1/sandbox/"
-santander.secondary_base_url = "https://trust-sandbox.api.santander.com.br/collection_bill_management/"
+santander.base_url = "https://trust-pix-h.santander.com.br/"
+santander.secondary_base_url = "https://trust-open-h.api.santander.com.br/"
 shift4.base_url = "https://api.shift4.com/"
 sift.base_url = "https://api.sift.com/v205"
 silverflow.base_url = "https://api-sbx.silverflow.co/v1"
@@ -220,6 +222,8 @@ threedsecureio.base_url = "https://service.sandbox.3dsecure.io"
 thunes.base_url = "https://api.limonetikqualif.com/"
 tokenex.base_url = "https://test-api.tokenex.com"
 tokenio.base_url = "https://api.sandbox.token.io"
+truelayer.base_url = "https://api.truelayer-sandbox.com"
+truelayer.secondary_base_url = "https://auth.truelayer-sandbox.com"
 stripe.base_url_file_upload = "https://files.stripe.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 trustpayments.base_url = "https://webservices.securetrading.net/"
@@ -366,8 +370,8 @@ google_pay = { country = "AL, DZ, AS, AO, AG, AR, AU, AT, AZ, BH, BY, BE, BR, CA
 apple_pay = { country = "AM, AT, AZ, BY, BE, BG, HR, CY, DK, EE, FO, FI, FR, GE, DE, GR, GL, GG, HU, IS, IE, IM, IT, KZ, JE, LV, LI, LT, LU, MT, MD, MC, ME, NL, NO, PL, PT, RO, SM, RS, SK, SI, ES, SE, CH, UA, GB, VA, AU , HK, JP , MY , MN, NZ, SG, TW, VN, EG , MA, ZA, AR, BR, CL, CO, CR, DO, EC, SV, GT, HN, MX, PA, PY, PE, UY, BH, IL, JO, KW, OM,QA, SA, AE, CA", currency = "EGP, MAD, ZAR, AUD, CNY, HKD, JPY, MOP, MYR, MNT, NZD, SGD, KRW, TWD, VND, AMD, EUR, BGN, CZK, DKK, GEL, GBP, HUF, ISK, KZT, CHF, MDL, NOK, PLN, RON, RSD, SEK, UAH, BRL, COP, CRC, DOP, GTQ, HNL, MXN, PAB, PYG, PEN, BSD, UYU, BHD, ILS, JOD, KWD, OMR, QAR, SAR, AED, CAD, USD" }
 
 [pm_filters.cybersource]
-credit = { currency = "USD,GBP,EUR,PLN,SEK,XOF,CAD,KWD" }
-debit = { currency = "USD,GBP,EUR,PLN,SEK,XOF,CAD,KWD" }
+credit = { currency = "USD,GBP,EUR,PLN,SEK,XOF,CAD,KWD,QAR" }
+debit = { currency = "USD,GBP,EUR,PLN,SEK,XOF,CAD,KWD,QAR" }
 apple_pay = { currency = "ARS, CAD, CLP, COP, CNY, EUR, HKD, KWD, MYR, MXN, NZD, PEN, QAR, SAR, SGD, ZAR, UAH, GBP, AED, USD, PLN, SEK" }
 google_pay = { currency = "ARS, AUD, CAD, CLP, COP, EUR, HKD, INR, KWD, MYR, MXN, NZD, PEN, QAR, SAR, SGD, ZAR, UAH, AED, GBP, USD, PLN, SEK" }
 samsung_pay = { currency = "USD,GBP,EUR,SEK" }
@@ -444,6 +448,12 @@ upi_intent = { country = "IN", currency = "INR" }
 [pm_filters.hyperpg]
 credit = { currency = "INR,USD,GBP,EUR" }
 debit = { currency = "INR,USD,GBP,EUR" }
+
+[pm_filters.truelayer]
+open_banking_uk = { currency = "GBP,EUR" }
+
+[payout_method_filters.truelayer]
+open_banking_uk = { currency = "GBP,EUR,PLN" }
 
 [pm_filters.adyen]
 boleto = { country = "BR", currency = "BRL" }
@@ -627,6 +637,9 @@ interac = { currency = "CAD"}
 [pm_filters.loonio]
 interac = { currency = "CAD"}
 
+[pm_filters.dlocal]
+oxxo = { currency = "MXN" }
+
 [pm_filters.authorizedotnet]
 credit = { currency = "CAD,USD" }
 debit = { currency = "CAD,USD" }
@@ -664,6 +677,7 @@ eft = { country = "NG, ZA, GH, KE, CI", currency = "NGN, GHS, ZAR, KES, USD" }
 
 [pm_filters.santander]
 pix = { country = "BR", currency = "BRL" }
+boleto = { country = "BR", currency = "BRL" }
 
 [pm_filters.calida]
 bluecode = { country = "AT,BE,BG,HR,CY,CZ,DK,EE,FI,FR,DE,GR,HU,IE,IT,LV,LT,LU,MT,NL,PL,PT,RO,SK,SI,ES,SE,IS,LI,NO", currency = "EUR" }
@@ -780,9 +794,9 @@ bank_debit.sepa = { connector_list = "gocardless,adyen,stripe,deutschebank" }
 card.credit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,worldpayvantiv,payload,mollie,airwallex"
 card.debit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,worldpayvantiv,payload,mollie,airwallex"
 pay_later.klarna.connector_list = "adyen,aci"
-wallet.apple_pay.connector_list = "stripe,adyen,braintree,cybersource,noon,bankofamerica,nexinets,novalnet,authorizedotnet"
+wallet.apple_pay.connector_list = "stripe,adyen,braintree,cybersource,noon,bankofamerica,nexinets,novalnet,authorizedotnet,worldpayxml"
 wallet.samsung_pay.connector_list = "cybersource"
-wallet.google_pay.connector_list = "stripe,adyen,cybersource,bankofamerica,noon,globalpay,multisafepay,novalnet,authorizedotnet"
+wallet.google_pay.connector_list = "stripe,adyen,cybersource,bankofamerica,noon,globalpay,multisafepay,novalnet,authorizedotnet,worldpayxml"
 wallet.paypal.connector_list = "adyen,globalpay,nexinets,novalnet,paypal,authorizedotnet"
 wallet.momo.connector_list = "adyen"
 wallet.kakao_pay.connector_list = "adyen"
