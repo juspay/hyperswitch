@@ -59,7 +59,6 @@ pub struct KafkaPaymentIntentEvent<'a> {
     pub merchant_order_reference_id: Option<&'a String>,
     pub organization_id: &'a id_type::OrganizationId,
     pub processor_merchant_id: &'a id_type::MerchantId,
-    
     #[serde(flatten)]
     pub infra_values: Option<Value>,
 }
