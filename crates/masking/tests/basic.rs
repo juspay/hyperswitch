@@ -63,6 +63,7 @@ fn basic() {
     // end
 }
 
+#[allow(clippy::indexing_slicing)]
 #[cfg(feature = "serde")]
 #[test]
 fn test_flatten_with_secret() {
