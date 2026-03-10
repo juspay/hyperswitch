@@ -361,11 +361,11 @@ impl UnifiedConnectorServiceClient {
     /// Performs Payment Pre Authenticate
     pub async fn payment_pre_authenticate(
         &self,
-        payment_pre_authenticate_request: payments_grpc::PaymentServicePreAuthenticateRequest,
+        payment_pre_authenticate_request: payments_grpc::PaymentMethodAuthenticationServicePreAuthenticateRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
     ) -> UnifiedConnectorServiceResult<
-        tonic::Response<payments_grpc::PaymentServicePreAuthenticateResponse>,
+        tonic::Response<payments_grpc::PaymentMethodAuthenticationServicePreAuthenticateResponse>,
     > {
         let mut request = tonic::Request::new(payment_pre_authenticate_request);
 
@@ -375,7 +375,7 @@ impl UnifiedConnectorServiceClient {
 
         *request.metadata_mut() = metadata;
 
-        self.client
+        self.payment_method_authentication_client
             .clone()
             .pre_authenticate(request)
             .await
@@ -393,11 +393,11 @@ impl UnifiedConnectorServiceClient {
     /// Performs Payment Authenticate
     pub async fn payment_authenticate(
         &self,
-        payment_authenticate_request: payments_grpc::PaymentServiceAuthenticateRequest,
+        payment_authenticate_request: payments_grpc::PaymentMethodAuthenticationServiceAuthenticateRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
     ) -> UnifiedConnectorServiceResult<
-        tonic::Response<payments_grpc::PaymentServiceAuthenticateResponse>,
+        tonic::Response<payments_grpc::PaymentMethodAuthenticationServiceAuthenticateResponse>,
     > {
         let mut request = tonic::Request::new(payment_authenticate_request);
 
@@ -407,7 +407,7 @@ impl UnifiedConnectorServiceClient {
 
         *request.metadata_mut() = metadata;
 
-        self.client
+        self.payment_method_authentication_client
             .clone()
             .authenticate(request)
             .await
@@ -456,11 +456,11 @@ impl UnifiedConnectorServiceClient {
     /// Performs Payment Post Authenticate
     pub async fn payment_post_authenticate(
         &self,
-        payment_post_authenticate_request: payments_grpc::PaymentServicePostAuthenticateRequest,
+        payment_post_authenticate_request: payments_grpc::PaymentMethodAuthenticationServicePostAuthenticateRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
     ) -> UnifiedConnectorServiceResult<
-        tonic::Response<payments_grpc::PaymentServicePostAuthenticateResponse>,
+        tonic::Response<payments_grpc::PaymentMethodAuthenticationServicePostAuthenticateResponse>,
     > {
         let mut request = tonic::Request::new(payment_post_authenticate_request);
 
@@ -470,7 +470,7 @@ impl UnifiedConnectorServiceClient {
 
         *request.metadata_mut() = metadata;
 
-        self.client
+        self.payment_method_authentication_client
             .clone()
             .post_authenticate(request)
             .await
