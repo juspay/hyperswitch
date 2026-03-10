@@ -174,6 +174,7 @@ pub async fn make_connector_decision(
     platform: &domain::Platform,
     connector_call_type: api::ConnectorCallType,
     payout_data: &mut PayoutData,
+    dimensions: &configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
 ) -> RouterResult<()> {
     match connector_call_type {
         api::ConnectorCallType::PreDetermined(routing_data) => {
@@ -188,9 +189,10 @@ pub async fn make_connector_decision(
             #[cfg(feature = "payout_retry")]
             {
                 let config_bool = retry::config_should_call_gsm_payout(
-                    &*state.store,
-                    platform.get_processor().get_account().get_id(),
+                    state,
+                    dimensions,
                     PayoutRetryType::SingleConnector,
+                    payout_data.payouts.customer_id.as_ref(),
                 )
                 .await;
 
@@ -223,9 +225,10 @@ pub async fn make_connector_decision(
             #[cfg(feature = "payout_retry")]
             {
                 let config_multiple_connector_bool = retry::config_should_call_gsm_payout(
-                    &*state.store,
-                    platform.get_processor().get_account().get_id(),
+                    state,
+                    dimensions,
                     PayoutRetryType::MultiConnector,
+                    payout_data.payouts.customer_id.as_ref(),
                 )
                 .await;
 
@@ -241,9 +244,10 @@ pub async fn make_connector_decision(
                 }
 
                 let config_single_connector_bool = retry::config_should_call_gsm_payout(
-                    &*state.store,
-                    platform.get_processor().get_account().get_id(),
+                    state,
+                    dimensions,
                     PayoutRetryType::SingleConnector,
+                    payout_data.payouts.customer_id.as_ref(),
                 )
                 .await;
 
@@ -274,6 +278,7 @@ pub async fn payouts_core(
     payout_data: &mut PayoutData,
     routing_algorithm: Option<serde_json::Value>,
     eligible_connectors: Option<Vec<api_enums::PayoutConnectors>>,
+    dimensions: &configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
 ) -> RouterResult<()> {
     let payout_attempt = &payout_data.payout_attempt;
 
@@ -294,6 +299,7 @@ pub async fn payouts_core(
         platform,
         connector_call_type,
         payout_data,
+        dimensions,
     ))
     .await
 }
@@ -369,6 +375,7 @@ pub async fn payouts_create_core(
             &mut payout_data,
             req.routing.clone(),
             req.connector.clone(),
+            &dimensions,
         )
         .await?
     };
@@ -392,6 +399,9 @@ pub async fn payouts_confirm_core(
     .await?;
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let status = payout_attempt.status;
+    let dimensions = configs::dimension_state::Dimensions::new()
+        .with_merchant_id(payout_data.payout_attempt.merchant_id.clone())
+        .with_profile_id(payout_data.profile_id.clone());
 
     helpers::validate_payout_status_against_not_allowed_statuses(
         status,
@@ -426,12 +436,14 @@ pub async fn payouts_confirm_core(
         .await
         .transpose()?;
 
+    
     payouts_core(
         &state,
         &platform,
         &mut payout_data,
         req.routing.clone(),
         req.connector.clone(),
+        &dimensions,
     )
     .await?;
 
@@ -452,6 +464,10 @@ pub async fn payouts_update_core(
         &state.locale,
     ))
     .await?;
+
+    let dimensions = configs::dimension_state::Dimensions::new()
+        .with_merchant_id(payout_data.payout_attempt.merchant_id.clone())
+        .with_profile_id(payout_data.profile_id.clone());
 
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let status = payout_attempt.status;
@@ -496,12 +512,14 @@ pub async fn payouts_update_core(
     }
 
     if let Some(true) = payout_data.payouts.confirm {
+        
         payouts_core(
             &state,
             &platform,
             &mut payout_data,
             req.routing.clone(),
             req.connector.clone(),
+            &dimensions,
         )
         .await?;
     }

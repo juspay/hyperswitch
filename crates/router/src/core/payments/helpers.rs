@@ -8171,8 +8171,8 @@ pub async fn config_skip_saving_wallet_at_connector(
 
 #[cfg(feature = "v1")]
 pub async fn override_setup_future_usage_to_on_session<F, D>(
-    state: &crate::routes::SessionState,
-    dimensions: &configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
+    state: &SessionState,
+    dimensions: &DimensionsWithMerchantIdAndProfileId,
     payment_data: &mut D,
 ) -> CustomResult<(), errors::ApiErrorResponse>
 where

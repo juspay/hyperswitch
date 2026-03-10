@@ -4,7 +4,8 @@ use super::{
     dimension_state::{
         DimensionsWithMerchantId, DimensionsWithMerchantIdAndProfileId,
         DimensionsWithMerchantIdAndProfileIdAndConnector,
-        DimensionsWithMerchantIdAndProfileIdAndPaymentMethodType, DimensionsWithOrgIdAndMerchantId,
+        DimensionsWithMerchantIdAndProfileIdAndPaymentMethodType,
+        DimensionsWithMerchantIdAndProfileIdAndPayoutRetryType, DimensionsWithOrgIdAndMerchantId,
     },
     fetch_db_config_for_dimensions, DatabaseBackedConfig,
 };
@@ -326,5 +327,21 @@ impl DatabaseBackedConfig for PaymentUpdateEnabledForClientAuth {
             .map(|id| id.get_string_repr())
             .unwrap_or_default();
         Some(format!("{}_{}", Self::KEY, merchant_id))
+    }
+}
+
+config! {
+    superposition_key = GSM_PAYOUT_CALL,
+    output = bool,
+    default = false,
+    requires = DimensionsWithMerchantIdAndProfileIdAndPayoutRetryType,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for GsmPayoutCall {
+    const KEY: &'static str = "gsm_payout_call";
+
+    fn db_key(_dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+        None
     }
 }

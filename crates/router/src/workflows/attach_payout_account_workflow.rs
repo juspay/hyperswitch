@@ -63,7 +63,12 @@ impl ProcessTrackerWorkflow<SessionState> for AttachPayoutAccountWorkflow {
         ))
         .await?;
 
-        payouts::payouts_core(state, &platform, &mut payout_data, None, None).await?;
+        let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+            .with_merchant_id(merchant_id.clone())
+            .with_profile_id(payout_data.profile_id.clone());
+
+        payouts::payouts_core(state, &platform, &mut payout_data, None, None, &dimensions)
+            .await?;
 
         Ok(())
     }
