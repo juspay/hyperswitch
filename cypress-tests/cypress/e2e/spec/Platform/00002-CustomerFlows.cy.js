@@ -42,6 +42,50 @@ describe("Platform Customer Flows", () => {
     });
   });
 
+  context("CM1 Creates Customer - Accessible by CM2 and Platform", () => {
+    it("cm1-creates-customer", () => {
+      const savedApiKey = globalState.get("apiKey");
+      const savedMerchantId = globalState.get("merchantId");
+      globalState.set("apiKey", globalState.get("apiKey_CM1"));
+      globalState.set("merchantId", globalState.get("connectedMerchantId_1"));
+
+      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+
+      cy.then(() => {
+        globalState.set("customerId_CM1_Created", globalState.get("customerId"));
+        globalState.set("apiKey", savedApiKey);
+        globalState.set("merchantId", savedMerchantId);
+      });
+    });
+
+    it("verify-connected-merchant-2-can-access-cm1-customer", () => {
+      const savedApiKey = globalState.get("apiKey");
+      const savedCustomerId = globalState.get("customerId");
+      globalState.set("apiKey", globalState.get("apiKey_CM2"));
+      globalState.set("customerId", globalState.get("customerId_CM1_Created"));
+
+      cy.customerRetrieveCall(globalState);
+
+      cy.then(() => {
+        globalState.set("apiKey", savedApiKey);
+        globalState.set("customerId", savedCustomerId);
+      });
+    });
+
+    it("verify-platform-merchant-can-access-cm1-customer", () => {
+      const savedApiKey = globalState.get("apiKey");
+      const savedCustomerId = globalState.get("customerId");
+      globalState.set("customerId", globalState.get("customerId_CM1_Created"));
+
+      cy.customerRetrieveCall(globalState);
+
+      cy.then(() => {
+        globalState.set("apiKey", savedApiKey);
+        globalState.set("customerId", savedCustomerId);
+      });
+    });
+  });
+
   context("Standard Merchant Cannot Access Shared Customer", () => {
     it("standard-merchant-cannot-retrieve-shared-customer", () => {
       const savedApiKey = globalState.get("apiKey");

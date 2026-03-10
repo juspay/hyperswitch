@@ -111,8 +111,8 @@ describe("Platform Payment Flows", () => {
     });
   });
 
-  context("Connected Merchant Cannot Act On Behalf Of Another", () => {
-    it("cm1-tries-to-create-payment-for-cm2-using-header", () => {
+  context("Connected Merchant Cannot Act On Behalf Of Another Merchant", () => {
+    it("connected-merchant-cannot-act-on-behalf-of-another-merchant", () => {
       const paymentRequestBody = {
         ...fixtures.createConfirmPaymentBody,
         customer_id: globalState.get("customerId"),

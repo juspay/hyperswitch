@@ -82,6 +82,9 @@ describe("Platform Setup & Connected Merchant Onboarding", () => {
 
   context("Create Connected Merchant 2", () => {
     it("create-connected-merchant-2", () => {
+      const savedAdminApiKey = globalState.get("adminApiKey");
+      globalState.set("adminApiKey", globalState.get("apiKey"));
+
       const merchantCreateBody = {
         ...fixtures.merchantCreateBody,
         merchant_account_type: "connected",
@@ -101,12 +104,18 @@ describe("Platform Setup & Connected Merchant Onboarding", () => {
           globalState.set("profileId_CM2", response.body.default_profile);
         }
       );
+
+      cy.then(() => {
+        globalState.set("adminApiKey", savedAdminApiKey);
+      });
     });
 
     it("create-api-key-for-connected-merchant-2", () => {
       const savedMerchantId = globalState.get("merchantId");
       const savedApiKey = globalState.get("apiKey");
+      const savedAdminApiKey = globalState.get("adminApiKey");
       globalState.set("merchantId", globalState.get("connectedMerchantId_2"));
+      globalState.set("adminApiKey", savedApiKey);
 
       cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
 
@@ -114,6 +123,7 @@ describe("Platform Setup & Connected Merchant Onboarding", () => {
         globalState.set("apiKey_CM2", globalState.get("apiKey"));
         globalState.set("merchantId", savedMerchantId);
         globalState.set("apiKey", savedApiKey);
+        globalState.set("adminApiKey", savedAdminApiKey);
       });
     });
   });
