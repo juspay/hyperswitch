@@ -790,7 +790,7 @@ fn get_ucs_webhook_resource_object(
     webhook_response_content: &payments_grpc::EventResponse,
 ) -> errors::RouterResult<Box<dyn masking::ErasedMaskSerialize>> {
     let resource_object = match &webhook_response_content.content {
-        Some(payments_grpc::EventResponse::Content::IncompleteTransformation(
+        Some(payments_grpc::event_response::Content::IncompleteTransformation(
             incomplete_transformation_response,
         )) => {
             // Deserialize resource object

@@ -139,14 +139,6 @@ impl
             )),
         };
 
-        let merchant_account_metadata = router_data
-            .connector_meta_data
-            .as_ref()
-            .map(serde_json::to_string)
-            .transpose()
-            .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
-            .map(|s| s.into());
-
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
         // Always build payment_method using payment_method_data (which is non-optional).
@@ -160,12 +152,6 @@ impl
             )?;
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
-
-        let amount = router_data.request.amount.ok_or(report!(
-            UnifiedConnectorServiceError::MissingRequiredField {
-                field_name: "amount"
-            }
-        ))?;
 
         Ok(Self {
             merchant_payment_method_id: Some(connector_ref_id),
@@ -468,13 +454,6 @@ impl
             authentication_data
         };
 
-        let merchant_account_metadata = router_data
-            .connector_meta_data
-            .as_ref()
-            .map(serde_json::to_string)
-            .transpose()
-            .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
-            .map(|s| s.into());
         let metadata = router_data
             .request
             .metadata
@@ -1089,13 +1068,6 @@ impl
             .transpose()?;
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
-        let merchant_account_metadata = router_data
-            .connector_meta_data
-            .as_ref()
-            .map(serde_json::to_string)
-            .transpose()
-            .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
-            .map(|s| s.into());
         let metadata = router_data
             .request
             .metadata
@@ -1104,8 +1076,6 @@ impl
             .transpose()
             .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
             .map(|s| s.into());
-        let amount = router_data.request.amount;
-        let minor_amount = router_data.request.minor_amount;
 
         Ok(Self {
             merchant_order_id: Some(Identifier {
@@ -1282,13 +1252,6 @@ impl
             .map(payments_grpc::CaptureMethod::foreign_try_from)
             .transpose()?;
 
-        let merchant_account_metadata = router_data
-            .connector_meta_data
-            .as_ref()
-            .map(serde_json::to_string)
-            .transpose()
-            .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
-            .map(|s| s.into());
         let metadata = router_data
             .request
             .metadata
@@ -2601,13 +2564,13 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceCaptureResponse,
     }
 }
 
-impl transformers::ForeignTryFrom<payments_grpc::CustomerServiceCreateRequest>
+impl transformers::ForeignTryFrom<payments_grpc::CustomerServiceCreateResponse>
     for Result<PaymentsResponseData, ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        response: payments_grpc::CustomerServiceCreateRequest,
+        response: payments_grpc::CustomerServiceCreateResponse,
     ) -> Result<Self, Self::Error> {
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
@@ -4394,7 +4357,7 @@ impl ForeignFrom<common_enums::PaymentMethodType> for payments_grpc::PaymentMeth
 
 impl
     transformers::ForeignTryFrom<(
-        payments_grpc::MerchantAuthenticationServiceCreateSessionTokenRequest,
+        payments_grpc::PaymentServiceCreateOrderResponse,
         AttemptStatus,
     )> for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
@@ -4402,7 +4365,7 @@ impl
 
     fn foreign_try_from(
         (response, prev_status): (
-            payments_grpc::MerchantAuthenticationServiceCreateSessionTokenRequest,
+            payments_grpc::PaymentServiceCreateOrderResponse,
             AttemptStatus,
         ),
     ) -> Result<Self, Self::Error> {
@@ -5652,14 +5615,6 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             .access_token
             .as_ref()
             .map(ConnectorState::foreign_from);
-
-        let merchant_account_metadata = router_data
-            .connector_meta_data
-            .as_ref()
-            .map(serde_json::to_string)
-            .transpose()
-            .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
-            .map(|s| s.into());
 
         let payment_method_type = router_data
             .payment_method_type
