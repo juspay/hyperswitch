@@ -776,9 +776,6 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "BRL",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
         installment_data: {
           number_of_installments: 3,
           billing_frequency: "month",
