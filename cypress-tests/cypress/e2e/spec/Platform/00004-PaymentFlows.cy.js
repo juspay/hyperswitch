@@ -62,7 +62,6 @@ describe("Platform Payment Flows", () => {
     it("platform-cannot-create-payment-without-header", () => {
       const paymentRequestBody = {
         ...fixtures.createConfirmPaymentBody,
-        amount: 6000,
         customer_id: globalState.get("customerId"),
       };
 

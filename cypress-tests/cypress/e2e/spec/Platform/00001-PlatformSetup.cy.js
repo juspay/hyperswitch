@@ -118,7 +118,7 @@ describe("Platform Setup & Connected Merchant Onboarding", () => {
     });
   });
 
-  context("Create Standard Merchant (In Platform Organization)", () => {
+  context("Create Standard Merchant", () => {
     it("create-standard-merchant", () => {
       const merchantCreateBody = {
         ...fixtures.merchantCreateBody,
