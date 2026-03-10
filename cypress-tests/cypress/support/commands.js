@@ -5311,9 +5311,13 @@ Cypress.Commands.add("stepTest", (stepName, errorStack, fn) => {
           throw err; // re-throw for retryable commands
         }
         errorStack.push({ step: stepName, error: err });
-        // Screenshot at the point of failure before continuing to next step
-        const screenshotName = `[FAIL] ${stepName}`.replace(/[^a-zA-Z0-9\-_ ]/g, "");
-        cy.screenshot(screenshotName, { capture: "runner" });
+        // cy.now() runs the command immediately without queuing it,
+        // capturing the page state at the exact instant of assertion failure.
+        const screenshotName = `[FAIL] ${stepName}`.replace(
+          /[^a-zA-Z0-9\-_ ]/g,
+          ""
+        );
+        cy.now("screenshot", screenshotName, { capture: "fullPage" });
         // No re-throw — queue keeps running
       }
     };
