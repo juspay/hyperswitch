@@ -9994,6 +9994,11 @@ where
                     payment_data.get_payment_method_data(),
                     Some(domain::PaymentMethodData::MandatePayment)
                         | Some(domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_))
+                        | Some(
+                            domain::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(
+                                _
+                            )
+                        )
                 )
                 && payment_data.get_payment_method_info().is_some()) =>
         {
@@ -10006,6 +10011,7 @@ where
                 payment_data,
                 routing_data,
                 connectors,
+                is_payment_method_modular_allowed,
                 is_connector_agnostic_mit_enabled,
                 is_network_tokenization_enabled,
             )
@@ -10025,6 +10031,7 @@ where
                 payment_data,
                 routing_data,
                 connectors,
+                is_payment_method_modular_allowed,
                 is_connector_agnostic_mit_enabled,
                 is_network_tokenization_enabled,
             )
@@ -10084,6 +10091,7 @@ async fn route_token_based_mit_connectors<F: Clone, D>(
     payment_data: &mut D,
     routing_data: &mut storage::RoutingData,
     connectors: Vec<api::ConnectorRoutingData>,
+    is_payment_method_modular_allowed: bool,
     is_connector_agnostic_mit_enabled: Option<bool>,
     is_network_tokenization_enabled: bool,
 ) -> RouterResult<ConnectorCallType>
@@ -10094,15 +10102,19 @@ where
         .get_payment_method_info()
         .get_required_value("payment_method_info")?
         .clone();
+    let payment_method_data = payment_data.get_payment_method_data().cloned();
 
     let retryable_connectors = join_all(connectors.into_iter().map(|connector_routing_data| {
         let payment_method = payment_method_info.clone();
+        let payment_method_data = payment_method_data.clone();
         async move {
             let action_types = get_all_action_types(
                 state,
+                is_payment_method_modular_allowed,
                 is_connector_agnostic_mit_enabled,
                 is_network_tokenization_enabled,
                 &payment_method.clone(),
+                payment_method_data.as_ref(),
                 connector_routing_data.connector_data.clone(),
             )
             .await;
@@ -10167,6 +10179,14 @@ where
     let mandate_reference_id = match action_type {
         Some(ActionType::NetworkTokenWithNetworkTransactionId(network_token_data)) => {
             logger::info!("using network token with network_transaction_id for MIT flow");
+            if let Some(domain::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(
+                network_token_details,
+            )) = payment_data.get_payment_method_data().cloned()
+            {
+                payment_data.set_payment_method_data(Some(
+                    domain::PaymentMethodData::NetworkToken(network_token_details.into()),
+                ));
+            }
 
             Some(payments_api::MandateReferenceId::NetworkTokenWithNTI(
                 network_token_data.into(),
@@ -10435,6 +10455,7 @@ impl ActionTypesBuilder {
         is_network_token_with_ntid_flow: IsNtWithNtiFlow,
         is_nt_with_ntid_supported_connector: bool,
         payment_method_info: &domain::PaymentMethod,
+        raw_network_token_with_ntid_ref: Option<NTWithNTIRef>,
     ) -> Self {
         match is_network_token_with_ntid_flow {
             IsNtWithNtiFlow::NtWithNtiSupported(network_transaction_id)
@@ -10459,7 +10480,12 @@ impl ActionTypesBuilder {
                     }),
                 );
             }
-            _ => (),
+            _ => {
+                self.action_types.extend(
+                    raw_network_token_with_ntid_ref
+                        .map(ActionType::NetworkTokenWithNetworkTransactionId),
+                );
+            }
         }
         self
     }
@@ -10488,9 +10514,11 @@ impl ActionTypesBuilder {
 #[cfg(feature = "v1")]
 pub async fn get_all_action_types(
     state: &SessionState,
+    is_payment_method_modular_allowed: bool,
     is_connector_agnostic_mit_enabled: Option<bool>,
     is_network_tokenization_enabled: bool,
     payment_method_info: &domain::PaymentMethod,
+    payment_method_data: Option<&domain::PaymentMethodData>,
     connector: api::ConnectorData,
 ) -> Vec<ActionType> {
     let merchant_connector_id = connector.merchant_connector_id.as_ref();
@@ -10506,6 +10534,12 @@ pub async fn get_all_action_types(
         .conf
         .network_tokenization_supported_connectors
         .connector_list;
+
+    let has_network_transaction_id = payment_method_info.network_transaction_id.is_some();
+    let has_network_token_locker_id = payment_method_info.network_token_locker_id.is_some();
+    let has_network_token_requestor_reference_id = payment_method_info
+        .network_token_requestor_reference_id
+        .is_some();
 
     let is_network_token_with_ntid_flow = is_network_token_with_network_transaction_id_flow(
         is_connector_agnostic_mit_enabled,
@@ -10536,18 +10570,84 @@ pub async fn get_all_action_types(
     let is_nt_with_ntid_supported_connector = ntid_supported_connectors
         .contains(&connector.connector_name)
         && network_tokenization_supported_connectors.contains(&connector.connector_name);
+    let raw_network_token_with_ntid_ref = if matches!(
+        is_network_token_with_ntid_flow,
+        IsNtWithNtiFlow::NTWithNTINotSupported
+    ) && is_connector_agnostic_mit_enabled == Some(true)
+        && is_network_tokenization_enabled
+        && is_nt_with_ntid_supported_connector
+    {
+        match (
+            payment_method_info.network_transaction_id.clone(),
+            payment_method_data,
+        ) {
+            (
+                Some(network_transaction_id),
+                Some(domain::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(
+                    network_token_details,
+                )),
+            ) => Some(NTWithNTIRef {
+                network_transaction_id,
+                token_exp_month: Some(network_token_details.token_exp_month.clone()),
+                token_exp_year: Some(network_token_details.token_exp_year.clone()),
+            }),
+            _ => None,
+        }
+    } else {
+        None
+    };
+    let should_add_card_with_ntid_flow =
+        is_card_with_ntid_flow && raw_network_token_with_ntid_ref.is_none();
 
-    ActionTypesBuilder::new()
-        .with_mandate_flow(is_mandate_flow, payments_mandate_reference)
-        .with_network_tokenization(
-            state,
-            is_network_token_with_ntid_flow,
-            is_nt_with_ntid_supported_connector,
-            payment_method_info,
-        )
-        .await
-        .with_card_network_transaction_id(is_card_with_ntid_flow, payment_method_info)
-        .build()
+    logger::info!(
+        connector=?connector.connector_name,
+        payment_method_type=?payment_method_info.get_payment_method_type(),
+        is_connector_agnostic_mit_enabled=?is_connector_agnostic_mit_enabled,
+        is_network_tokenization_enabled,
+        has_network_transaction_id,
+        has_network_token_locker_id,
+        has_network_token_requestor_reference_id,
+        is_nt_with_ntid_supported_connector,
+        is_network_token_with_ntid_flow=?is_network_token_with_ntid_flow,
+        is_card_with_ntid_flow,
+        has_raw_network_token_with_ntid_ref=raw_network_token_with_ntid_ref.is_some(),
+        "mit action-type eligibility decision"
+    );
+
+    if raw_network_token_with_ntid_ref.is_some() {
+        logger::info!(
+            connector=?connector.connector_name,
+            "using raw network token details to derive network token with network_transaction_id action"
+        );
+    }
+
+    if is_payment_method_modular_allowed {
+        ActionTypesBuilder::new()
+            .with_network_tokenization(
+                state,
+                is_network_token_with_ntid_flow,
+                is_nt_with_ntid_supported_connector,
+                payment_method_info,
+                raw_network_token_with_ntid_ref.clone(),
+            )
+            .await
+            .with_card_network_transaction_id(should_add_card_with_ntid_flow, payment_method_info)
+            .with_mandate_flow(is_mandate_flow, payments_mandate_reference)
+            .build()
+    } else {
+        ActionTypesBuilder::new()
+            .with_mandate_flow(is_mandate_flow, payments_mandate_reference)
+            .with_network_tokenization(
+                state,
+                is_network_token_with_ntid_flow,
+                is_nt_with_ntid_supported_connector,
+                payment_method_info,
+                raw_network_token_with_ntid_ref,
+            )
+            .await
+            .with_card_network_transaction_id(should_add_card_with_ntid_flow, payment_method_info)
+            .build()
+    }
 }
 
 pub fn is_network_transaction_id_flow(

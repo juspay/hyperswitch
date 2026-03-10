@@ -2762,23 +2762,23 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
             }
         }
         VaultFetchAction::FetchNetworkTokenDetailsFromLocker(nt_data) => {
+            if let Some(network_token_data) =
+                vault_data.and_then(|vault_data| vault_data.get_network_token_data())
+            {
+                return Ok(domain::PaymentMethodData::NetworkToken(network_token_data));
+            }
+
             if let Some(network_token_locker_id) =
                 payment_method_info.network_token_locker_id.as_ref()
             {
-                let network_token_data = vault_data
-                    .and_then(|vault_data| vault_data.get_network_token_data())
-                    .map(Ok)
-                    .async_unwrap_or_else(|| async {
-                        fetch_network_token_details_from_locker(
-                            state,
-                            customer_id,
-                            &payment_intent.merchant_id,
-                            network_token_locker_id,
-                            nt_data,
-                        )
-                        .await
-                    })
-                    .await?;
+                let network_token_data = fetch_network_token_details_from_locker(
+                    state,
+                    customer_id,
+                    &payment_intent.merchant_id,
+                    network_token_locker_id,
+                    nt_data,
+                )
+                .await?;
                 Ok(domain::PaymentMethodData::NetworkToken(network_token_data))
             } else {
                 Err(errors::ApiErrorResponse::InternalServerError)
