@@ -467,10 +467,11 @@ pub struct AddVaultQueryParam {
 pub enum VaultQueryParam {
     Add(AddVaultQueryParam),
 }
+
 impl VaultQueryParam {
     pub fn to_query_value(&self) -> Option<serde_json::Value> {
         match self {
-            VaultQueryParam::Add(params) => serde_json::to_value(params).ok(),
+            Self::Add(params) => serde_json::to_value(params).ok(),
         }
     }
 }

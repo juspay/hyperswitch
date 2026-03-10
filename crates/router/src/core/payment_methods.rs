@@ -3482,6 +3482,7 @@ pub fn get_vault_response_for_insert_payment_method_data<F>(
 
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
 pub async fn vault_payment_method(
     state: &SessionState,
     pmd: &domain::PaymentMethodVaultingData,
@@ -4300,10 +4301,10 @@ async fn execute_payment_method_update_handler(
         .await
         .attach_printable("Failed to update card cvc")?;
 
-    let (vaulting_data, vaulting_resp) = handler
-        .perform_vaulting_operations_if_required()
-        .await
-        .attach_printable("Failed to perform vaulting operations for payment method update")?;
+    let (vaulting_data, vaulting_resp) =
+        Box::pin(handler.perform_vaulting_operations_if_required())
+            .await
+            .attach_printable("Failed to perform vaulting operations for payment method update")?;
 
     handler
         .update_payment_method_if_required(vaulting_data, vaulting_resp, network_tokenization_resp)
