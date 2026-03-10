@@ -152,13 +152,6 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                     .find_merchant_account_by_merchant_id(&tracking_data.merchant_id, &key_store)
                     .await?;
 
-                let platform = domain::Platform::new(
-                    merchant_account.clone(),
-                    key_store.clone(),
-                    merchant_account.clone(),
-                    key_store.clone(),
-                    None,
-                );
                 // TODO: Add request state for the PT flows as well
                 let (content, event_type) = Box::pin(get_outgoing_webhook_content_and_event_type(
                     state.clone(),
@@ -181,7 +174,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                         };
 
                         let request_content = webhooks_core::get_outgoing_webhook_request(
-                            platform.get_processor(),
+                            merchant_account.get_compatible_connector(),
                             outgoing_webhook,
                             &business_profile,
                         )

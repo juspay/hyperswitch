@@ -1538,10 +1538,14 @@ mod tests {
             api_webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(expected_response));
 
         // Run 10 concurrent webhook creations
+        let processor_compatible_connector = platform
+            .get_processor()
+            .get_account()
+            .get_compatible_connector();
         let mut handles = vec![];
         for _ in 0..10 {
             let state_clone = state.clone();
-            let cloned_processor = platform.get_processor().clone();
+            let cloned_key_store = platform.get_processor().get_key_store().clone();
             let business_profile_clone = business_profile.clone();
             let content_clone = content.clone();
             let primary_object_id_clone = primary_object_id.clone();
@@ -1549,8 +1553,9 @@ mod tests {
             let handle = tokio::spawn(async move {
                 webhooks_core::create_event_and_trigger_outgoing_webhook(
                     state_clone,
-                    cloned_processor,
+                    cloned_key_store,
                     business_profile_clone,
+                    processor_compatible_connector,
                     event_type,
                     event_class,
                     (*primary_object_id_clone).to_string(),

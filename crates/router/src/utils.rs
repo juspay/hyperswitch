@@ -61,7 +61,10 @@ use crate::{
     types::{self, domain, transformers::ForeignInto},
 };
 #[cfg(feature = "v1")]
-use crate::{core::webhooks as webhooks_core, types::storage};
+use crate::{
+    core::webhooks::{self as webhooks_core, utils as webhooks_utils},
+    types::storage,
+};
 
 pub mod error_parser {
     use std::fmt::Display;
@@ -1161,8 +1164,7 @@ where
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn trigger_payments_webhook<F, Op, D>(
-    processor: &domain::Processor,
-    initiator: Option<&domain::Initiator>,
+    platform: &domain::Platform,
     business_profile: domain::Profile,
     payment_data: D,
     state: &SessionState,
@@ -1173,6 +1175,8 @@ where
     Op: Debug,
     D: payments_core::OperationSessionGetters<F>,
 {
+    let processor = platform.get_processor();
+    let initiator = platform.get_initiator();
     let status = payment_data.get_payment_intent().status;
 
     // Trigger an outgoing webhook regardless of the current payment intent status if nothing is configured in the profile.
@@ -1211,20 +1215,26 @@ where
         if let services::ApplicationResponse::JsonWithHeaders((payments_response_json, _)) =
             payments_response
         {
-            let cloned_state = state.clone();
             // This spawns this futures in a background thread, the exception inside this future won't affect
             // the current thread and the lifecycle of spawn thread is not handled by runtime.
             // So when server shutdown won't wait for this thread's completion.
-
             if let Some(event_type) = event_type {
-                let cloned_processor = processor.clone();
+                let (resolved_merchant_key_store, resolved_business_profile, compatible_connector) =
+                    webhooks_utils::resolve_webhook_recipient_from_initiator(
+                        state,
+                        platform,
+                        business_profile,
+                    )
+                    .await?;
+                let cloned_state = state.clone();
                 tokio::spawn(
                     async move {
                         let primary_object_created_at = payments_response_json.created;
                         Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
                             cloned_state,
-                            cloned_processor,
-                            business_profile,
+                            resolved_merchant_key_store,
+                            resolved_business_profile,
+                            compatible_connector,
                             event_type,
                             diesel_models::enums::EventClass::Payments,
                             payment_id.get_string_repr().to_owned(),
@@ -1288,16 +1298,23 @@ pub async fn trigger_refund_outgoing_webhook(
         let event_type = refund_status.into();
         let refund_response: api_models::refunds::RefundResponse = refund.clone().foreign_into();
         let refund_id = refund_response.refund_id.clone();
-        let cloned_state = state.clone();
         let primary_object_created_at = refund_response.created_at;
         if let Some(outgoing_event_type) = event_type {
-            let processor = platform.get_processor().clone();
+            let (resolved_merchant_key_store, resolved_business_profile, compatible_connector) =
+                webhooks_utils::resolve_webhook_recipient_from_initiator(
+                    state,
+                    platform,
+                    business_profile,
+                )
+                .await?;
+            let cloned_state = state.clone();
             tokio::spawn(
                 async move {
                     Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
                         cloned_state,
-                        processor,
-                        business_profile,
+                        resolved_merchant_key_store,
+                        resolved_business_profile,
+                        compatible_connector,
                         outgoing_event_type,
                         diesel_models::enums::EventClass::Refunds,
                         refund_id.to_string(),
@@ -1361,9 +1378,15 @@ pub async fn trigger_payouts_webhook(
     if should_trigger_webhook {
         let event_type = (*status).into();
         if let Some(event_type) = event_type {
-            let cloned_state = state.clone();
             let cloned_response = payout_response.clone();
-            let processor = platform.get_processor().clone();
+            let (resolved_merchant_key_store, resolved_business_profile, compatible_connector) =
+                webhooks_utils::resolve_webhook_recipient_from_initiator(
+                    state,
+                    platform,
+                    business_profile,
+                )
+                .await?;
+            let cloned_state = state.clone();
 
             // This spawns this futures in a background thread, the exception inside this future won't affect
             // the current thread and the lifecycle of spawn thread is not handled by runtime.
@@ -1373,8 +1396,9 @@ pub async fn trigger_payouts_webhook(
                     let primary_object_created_at = cloned_response.created;
                     Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
                         cloned_state,
-                        processor,
-                        business_profile,
+                        resolved_merchant_key_store,
+                        resolved_business_profile,
+                        compatible_connector,
                         event_type,
                         diesel_models::enums::EventClass::Payouts,
                         cloned_response.payout_id.get_string_repr().to_owned(),
@@ -1419,25 +1443,19 @@ pub async fn trigger_subscriptions_outgoing_webhook(
     let response = InvoiceSyncHandler::generate_response(subscription, invoice, &payment_response)
         .attach_printable("Subscriptions: Failed to generate response for outgoing webhook")?;
 
-    let platform = domain::Platform::new(
-        merchant_account.clone(),
-        key_store.clone(),
-        merchant_account.clone(),
-        key_store.clone(),
-        None,
-    );
-
     let cloned_state = state.clone();
     let cloned_profile = profile.clone();
     let invoice_id = invoice.id.get_string_repr().to_owned();
     let created_at = subscription.created_at;
-    let processor = platform.get_processor().clone();
+    let compatible_connector = merchant_account.get_compatible_connector();
+    let cloned_key_store = key_store.clone();
 
     tokio::spawn(async move {
         Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
             cloned_state,
-            processor,
+            cloned_key_store,
             cloned_profile,
+            compatible_connector,
             common_enums::enums::EventType::InvoicePaid,
             common_enums::enums::EventClass::Subscriptions,
             invoice_id,
