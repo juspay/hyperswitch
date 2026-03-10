@@ -1,7 +1,4 @@
-use common_utils::{
-    errors::CustomResult,
-    id_type::{PaymentId, PayoutId},
-};
+use common_utils::{errors::CustomResult, id_type::PaymentId};
 use error_stack::{Report, ResultExt};
 
 use crate::{
@@ -11,7 +8,8 @@ use crate::{
     },
     logger,
     routes::SessionState,
-    types::{self, domain, storage},
+    services::authentication::AuthenticationData,
+    types::{self, storage},
 };
 
 pub async fn check_existence_and_add_domain_to_db(
@@ -133,91 +131,27 @@ pub fn log_applepay_verification_response_if_error(
 pub async fn check_if_profile_id_is_present_in_payment_intent(
     payment_id: PaymentId,
     state: &SessionState,
-    processor: &domain::Processor,
-    profile_id: Option<common_utils::id_type::ProfileId>,
+    auth_data: &AuthenticationData,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     todo!()
-}
-
-#[cfg(feature = "v2")]
-pub async fn check_if_profile_id_is_present_in_intent_table(
-    payment_id: Option<PaymentId>,
-    payout_id: Option<PayoutId>,
-    state: &SessionState,
-    processor: &domain::Processor,
-    profile_id: Option<common_utils::id_type::ProfileId>,
-) -> CustomResult<(), errors::ApiErrorResponse> {
-    todo!()
-}
-
-#[cfg(feature = "v2")]
-pub async fn check_if_profile_id_is_present_in_payouts(
-    payout_id: PayoutId,
-    state: &SessionState,
-    processor: &domain::Processor,
-    profile_id: Option<common_utils::id_type::ProfileId>,
-) -> CustomResult<(), errors::ApiErrorResponse> {
-    todo!()
-}
-
-#[cfg(feature = "v1")]
-pub async fn check_if_profile_id_is_present_in_intent_table(
-    payment_id: Option<PaymentId>,
-    payout_id: Option<PayoutId>,
-    state: &SessionState,
-    processor: &domain::Processor,
-    profile_id: Option<common_utils::id_type::ProfileId>,
-) -> CustomResult<(), errors::ApiErrorResponse> {
-    match (payment_id, payout_id) {
-        (Some(payment_id), _) => {
-            check_if_profile_id_is_present_in_payment_intent(
-                payment_id, state, processor, profile_id,
-            )
-            .await
-        }
-        (None, Some(payout_id)) => {
-            check_if_profile_id_is_present_in_payouts(payout_id, state, processor, profile_id).await
-        }
-        (None, None) => Err(errors::ApiErrorResponse::Unauthorized.into()),
-    }
 }
 
 #[cfg(feature = "v1")]
 pub async fn check_if_profile_id_is_present_in_payment_intent(
     payment_id: PaymentId,
     state: &SessionState,
-    processor: &domain::Processor,
-    profile_id: Option<common_utils::id_type::ProfileId>,
+    auth_data: &AuthenticationData,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let db = &*state.store;
     let payment_intent = db
-        .find_payment_intent_by_payment_id_processor_merchant_id(
+        .find_payment_intent_by_payment_id_merchant_id(
             &payment_id,
-            processor.get_account().get_id(),
-            processor.get_key_store(),
-            processor.get_account().storage_scheme,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::Unauthorized)?;
-    utils::validate_profile_id_from_auth_layer(profile_id, &payment_intent)
-}
-
-#[cfg(feature = "v1")]
-pub async fn check_if_profile_id_is_present_in_payouts(
-    payout_id: PayoutId,
-    state: &SessionState,
-    processor: &domain::Processor,
-    profile_id: Option<common_utils::id_type::ProfileId>,
-) -> CustomResult<(), errors::ApiErrorResponse> {
-    let db = &*state.store;
-    let payouts = db
-        .find_payout_by_merchant_id_payout_id(
-            processor.get_account().get_id(),
-            &payout_id,
-            processor.get_account().storage_scheme,
+            auth_data.merchant_account.get_id(),
+            &auth_data.key_store,
+            auth_data.merchant_account.storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::Unauthorized)?;
 
-    utils::validate_profile_id_from_auth_layer(profile_id, &payouts)
+    utils::validate_profile_id_from_auth_layer(auth_data.profile_id.clone(), &payment_intent)
 }

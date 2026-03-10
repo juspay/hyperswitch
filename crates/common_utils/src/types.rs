@@ -13,8 +13,8 @@ use std::{
     borrow::Cow,
     fmt::Display,
     iter::Sum,
-    num::{NonZeroI64, NonZeroU8},
-    ops::{Add, Div, Mul, Sub},
+    num::NonZeroI64,
+    ops::{Add, Mul, Sub},
     primitive::i64,
     str::FromStr,
 };
@@ -427,7 +427,7 @@ impl MinorUnit {
     }
 
     /// Convert the amount to its major denomination based on Currency and return f64
-    pub fn to_major_unit_as_f64(
+    fn to_major_unit_as_f64(
         self,
         currency: enums::Currency,
     ) -> Result<FloatMajorUnit, error_stack::Report<ParsingError>> {
@@ -517,14 +517,6 @@ impl Mul<u16> for MinorUnit {
 
     fn mul(self, a2: u16) -> Self::Output {
         Self(self.0 * i64::from(a2))
-    }
-}
-
-impl Div<NonZeroU8> for MinorUnit {
-    type Output = Self;
-
-    fn div(self, a2: NonZeroU8) -> Self::Output {
-        Self(self.0 / i64::from(a2.get()))
     }
 }
 
@@ -689,10 +681,6 @@ impl StringMajorUnit {
     /// Get string amount from struct to be removed in future
     pub fn get_amount_as_string(&self) -> String {
         self.0.clone()
-    }
-    /// forms a new default 2-decimal major unit
-    pub fn zero_decimal() -> Self {
-        Self("0.00".to_string())
     }
 }
 
@@ -1450,11 +1438,6 @@ impl_enum_str!(
         Jwt {
             /// user id of creator.
             user_id: String,
-        },
-        /// EmbeddedToken variant
-        EmbeddedToken {
-            /// merchant id of creator.
-            merchant_id: String,
         },
     }
 );

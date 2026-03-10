@@ -43,7 +43,7 @@ use hyperswitch_interfaces::{
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
 use masking::{ExposeInterface, Mask};
 use transformers as paybox;
@@ -157,7 +157,6 @@ impl ConnectorCommon for Paybox {
             reason: response.reason,
             attempt_status: None,
             connector_transaction_id: None,
-            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -587,7 +586,6 @@ impl IncomingWebhook for Paybox {
     fn get_webhook_event_type(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }

@@ -48,15 +48,16 @@ pub async fn create_token_vault_api(
         |state, auth: auth::AuthenticationData, request, _| async move {
             tokenization::create_vault_token_core(
                 state,
-                auth.platform.get_provider().clone(),
+                &auth.merchant_account,
+                &auth.key_store,
                 request,
             )
             .await
         },
         auth::api_or_client_auth(
             &auth::V2ApiKeyAuth {
-                allow_connected_scope_operation: false,
-                allow_platform_self_operation: false,
+                is_connected_allowed: false,
+                is_platform_allowed: false,
             },
             &auth::V2ClientAuth(common_utils::types::authentication::ResourceId::Customer(
                 customer_id,
@@ -87,12 +88,13 @@ pub async fn delete_tokenized_data_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            tokenization::delete_tokenized_data_core(state, auth.platform, &token_id, req)
+            let platform = auth.into();
+            tokenization::delete_tokenized_data_core(state, platform, &token_id, req)
         },
         auth::api_or_client_auth(
             &auth::V2ApiKeyAuth {
-                allow_connected_scope_operation: false,
-                allow_platform_self_operation: false,
+                is_connected_allowed: false,
+                is_platform_allowed: false,
             },
             &auth::V2ClientAuth(
                 common_utils::types::authentication::ResourceId::PaymentMethodSession(session_id),

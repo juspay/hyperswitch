@@ -47,17 +47,15 @@ pub async fn files_create(
         &req,
         create_file_request,
         |state, auth: auth::AuthenticationData, req, _| {
-            files_create_core(state, auth.platform, req)
+            let platform = auth.into();
+            files_create_core(state, platform, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
-                allow_platform_self_operation: false,
+                is_connected_allowed: false,
+                is_platform_allowed: false,
             }),
-            &auth::DashboardNoPermissionAuth {
-                allow_connected: false,
-                allow_platform: false,
-            },
+            &auth::DashboardNoPermissionAuth,
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -99,17 +97,15 @@ pub async fn files_delete(
         &req,
         file_id,
         |state, auth: auth::AuthenticationData, req, _| {
-            files_delete_core(state, auth.platform, req)
+            let platform = auth.into();
+            files_delete_core(state, platform, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
-                allow_platform_self_operation: false,
+                is_connected_allowed: false,
+                is_platform_allowed: false,
             }),
-            &auth::DashboardNoPermissionAuth {
-                allow_connected: false,
-                allow_platform: false,
-            },
+            &auth::DashboardNoPermissionAuth,
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -153,17 +149,15 @@ pub async fn files_retrieve(
         &req,
         file_id,
         |state, auth: auth::AuthenticationData, req, _| {
-            files_retrieve_core(state, auth.platform, req)
+            let platform = auth.into();
+            files_retrieve_core(state, platform, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
-                allow_platform_self_operation: false,
+                is_connected_allowed: false,
+                is_platform_allowed: false,
             }),
-            &auth::DashboardNoPermissionAuth {
-                allow_connected: false,
-                allow_platform: false,
-            },
+            &auth::DashboardNoPermissionAuth,
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,

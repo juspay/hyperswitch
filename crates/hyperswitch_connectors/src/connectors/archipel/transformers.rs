@@ -794,14 +794,9 @@ impl TryFrom<ArchipelRouterData<&PaymentsAuthorizeRouterData>>
             | PaymentMethodData::CardToken(..)
             | PaymentMethodData::OpenBanking(..)
             | PaymentMethodData::NetworkToken(..)
-            | PaymentMethodData::MobilePayment(..)
-            | PaymentMethodData::CardWithLimitedDetails(..)
-            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(..)
-            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(..) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Archipel"),
-                ))?
-            }
+            | PaymentMethodData::MobilePayment(..) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Archipel"),
+            ))?,
         };
 
         let three_ds: Option<Archipel3DS> = if item.router_data.is_three_ds() {
@@ -851,9 +846,6 @@ impl TryFrom<ArchipelRouterData<&PaymentsAuthorizeRouterData>>
             }
             PaymentMethodData::Card(..)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(..)
-            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::CardWithLimitedDetails(..)
             | PaymentMethodData::CardRedirect(..)
             | PaymentMethodData::PayLater(..)
             | PaymentMethodData::BankRedirect(..)
@@ -926,7 +918,6 @@ impl TryFrom<PaymentsResponseRouterData<ArchipelPaymentsResponse>> for PaymentsA
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.order.id),
-                authentication_data: None,
                 charges: None,
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
@@ -978,7 +969,6 @@ impl TryFrom<PaymentsSyncResponseRouterData<ArchipelPaymentsResponse>> for Payme
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.order.id),
-                authentication_data: None,
                 charges: None,
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
@@ -1043,7 +1033,6 @@ impl TryFrom<PaymentsCaptureResponseRouterData<ArchipelPaymentsResponse>>
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.order.id),
-                authentication_data: None,
                 charges: None,
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
@@ -1166,7 +1155,6 @@ impl<F>
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.order.id),
-                authentication_data: None,
                 charges: None,
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
@@ -1224,7 +1212,6 @@ impl TryFrom<PaymentsCancelResponseRouterData<ArchipelPaymentsResponse>>
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.order.id),
-                authentication_data: None,
                 charges: None,
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
@@ -1432,7 +1419,6 @@ impl From<ArchipelErrorMessageWithHttpCode> for ErrorResponse {
             code: error_message.code,
             attempt_status: None,
             connector_transaction_id: None,
-            connector_response_reference_id: None,
             message: error_message
                 .description
                 .clone()

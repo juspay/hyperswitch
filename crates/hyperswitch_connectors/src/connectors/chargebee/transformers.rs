@@ -21,8 +21,8 @@ use hyperswitch_domain_models::{
     router_response_types::{
         revenue_recovery::InvoiceRecordBackResponse,
         subscriptions::{
-            self, GetSubscriptionEstimateResponse, GetSubscriptionItemPricesResponse,
-            GetSubscriptionItemsResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
+            self, GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
+            GetSubscriptionPlansResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
             SubscriptionInvoiceData, SubscriptionLineItem, SubscriptionPauseResponse,
             SubscriptionResumeResponse, SubscriptionStatus,
         },
@@ -314,7 +314,6 @@ convert_connector_response_to_domain_response!(
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
-                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -711,7 +710,6 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
                 card_issuer: None,
                 card_type: None,
                 card_issuing_country: None,
-                card_issuing_country_code: None,
                 bank_code: None,
                 last4: None,
                 card_extended_bin: None,
@@ -722,7 +720,6 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
                 authentication_data: None,
                 is_regulated: None,
                 signature_network: None,
-                auth_code: None,
             },
         })
     }
@@ -1021,20 +1018,20 @@ convert_connector_response_to_domain_response!(
 
 convert_connector_response_to_domain_response!(
     ChargebeeListPlansResponse,
-    GetSubscriptionItemsResponse,
+    GetSubscriptionPlansResponse,
     |item: ResponseRouterData<_, ChargebeeListPlansResponse, _, _>| {
         let plans = item
             .response
             .list
             .into_iter()
-            .map(|plan| subscriptions::SubscriptionItems {
-                subscription_provider_item_id: plan.item.id,
+            .map(|plan| subscriptions::SubscriptionPlans {
+                subscription_provider_plan_id: plan.item.id,
                 name: plan.item.name,
                 description: plan.item.description,
             })
             .collect();
         Ok(Self {
-            response: Ok(GetSubscriptionItemsResponse { list: plans }),
+            response: Ok(GetSubscriptionPlansResponse { list: plans }),
             ..item.data
         })
     }
@@ -1224,15 +1221,15 @@ pub enum ChargebeeTrialPeriodUnit {
 
 convert_connector_response_to_domain_response!(
     ChargebeeGetPlanPricesResponse,
-    GetSubscriptionItemPricesResponse,
+    GetSubscriptionPlanPricesResponse,
     |item: ResponseRouterData<_, ChargebeeGetPlanPricesResponse, _, _>| {
         let plan_prices = item
             .response
             .list
             .into_iter()
-            .map(|prices| subscriptions::SubscriptionItemPrices {
+            .map(|prices| subscriptions::SubscriptionPlanPrices {
                 price_id: prices.item_price.id,
-                item_id: prices.item_price.item_id,
+                plan_id: prices.item_price.item_id,
                 amount: prices.item_price.price,
                 currency: prices.item_price.currency_code,
                 interval: match prices.item_price.period_unit {
@@ -1251,7 +1248,7 @@ convert_connector_response_to_domain_response!(
             })
             .collect();
         Ok(Self {
-            response: Ok(GetSubscriptionItemPricesResponse { list: plan_prices }),
+            response: Ok(GetSubscriptionPlanPricesResponse { list: plan_prices }),
             ..item.data
         })
     }

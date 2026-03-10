@@ -720,21 +720,6 @@ impl DataModelExt for PayoutAttemptUpdate {
             } => DieselPayoutAttemptUpdate::AdditionalPayoutMethodDataUpdate {
                 additional_payout_method_data,
             },
-            Self::ManualUpdate {
-                status,
-                error_code,
-                error_message,
-                unified_code,
-                unified_message,
-                connector_payout_id,
-            } => DieselPayoutAttemptUpdate::ManualUpdate {
-                status,
-                error_code,
-                error_message,
-                unified_code,
-                unified_message,
-                connector_payout_id,
-            },
         }
     }
 

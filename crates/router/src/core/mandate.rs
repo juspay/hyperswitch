@@ -82,8 +82,9 @@ pub async fn revoke_mandate(
 
             let merchant_connector_account = payment_helper::get_merchant_connector_account(
                 &state,
-                platform.get_processor(),
+                platform.get_processor().get_account().get_id(),
                 None,
+                platform.get_processor().get_key_store(),
                 &profile_id,
                 &mandate.connector.clone(),
                 mandate.merchant_connector_id.as_ref(),

@@ -4,15 +4,13 @@ use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
-        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
-        utils,
     },
     routes::{app::ReqState, SessionState},
     services,
@@ -44,23 +42,22 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsStartReq
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        _payment_method_wrapper: Option<operations::PaymentMethodWithRawData>,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsStartRequest, PaymentData<F>>,
     > {
         let (mut payment_intent, payment_attempt, currency, amount);
         let db = &*state.store;
 
-        let processor_merchant_id = platform.get_processor().get_account().get_id();
+        let merchant_id = platform.get_processor().get_account().get_id();
         let storage_scheme = platform.get_processor().get_account().storage_scheme;
         let payment_id = payment_id
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
         payment_intent = db
-            .find_payment_intent_by_payment_id_processor_merchant_id(
+            .find_payment_intent_by_payment_id_merchant_id(
                 &payment_id,
-                processor_merchant_id,
+                merchant_id,
                 platform.get_processor().get_key_store(),
                 storage_scheme,
             )
@@ -84,12 +81,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsStartReq
         )?;
 
         payment_attempt = db
-            .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+            .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 &payment_intent.payment_id,
-                processor_merchant_id,
+                merchant_id,
                 payment_intent.active_attempt.get_id().as_str(),
                 storage_scheme,
-                platform.get_processor().get_key_store(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -102,7 +98,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsStartReq
             payment_intent.shipping_address_id.clone(),
             platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
-            processor_merchant_id,
+            merchant_id,
             platform.get_processor().get_account().storage_scheme,
         )
         .await?;
@@ -112,7 +108,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsStartReq
             payment_intent.billing_address_id.clone(),
             platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
-            processor_merchant_id,
+            merchant_id,
             platform.get_processor().get_account().storage_scheme,
         )
         .await?;
@@ -122,27 +118,18 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsStartReq
             payment_attempt.payment_method_billing_address_id.clone(),
             platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
-            processor_merchant_id,
+            merchant_id,
             platform.get_processor().get_account().storage_scheme,
         )
         .await?;
 
-        let feature_config = utils::get_feature_config(state, platform).await;
-
-        // In case of modular payment method flow payment token in the request will belong to payment method modular service
-        // hence populating token data is not required
-        let token_data = match (
-            payment_attempt.payment_token.clone(),
-            feature_config.is_payment_method_modular_allowed,
-        ) {
-            (Some(token), false) => Some(
+        let token_data = if let Some(token) = payment_attempt.payment_token.clone() {
+            Some(
                 helpers::retrieve_payment_token_data(state, token, payment_attempt.payment_method)
                     .await?,
-            ),
-            _ => {
-                logger::debug!("skipping token data retrieval in payment start");
-                None
-            }
+            )
+        } else {
+            None
         };
 
         payment_intent.shipping_address_id = shipping_address.clone().map(|i| i.address_id);
@@ -175,6 +162,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsStartReq
             payment_intent,
             currency,
             amount,
+            email: None,
             mandate_id: None,
             mandate_connector: None,
             setup_mandate: None,
@@ -203,6 +191,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsStartReq
             pm_token: None,
             connector_customer_id: None,
             recurring_mandate_payment_data: None,
+            ephemeral_key: None,
             multiple_capture_data: None,
             redirect_response: None,
             surcharge_details: None,
@@ -244,8 +233,11 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest
         &'b self,
         _state: &'b SessionState,
         _req_state: ReqState,
-        _processor: &domain::Processor,
         payment_data: PaymentData<F>,
+        _customer: Option<domain::Customer>,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
+        _updated_customer: Option<storage::CustomerUpdate>,
+        _mechant_key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentSessionOperation<'b, F>, PaymentData<F>)>
@@ -263,23 +255,26 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsStartRequest, Payme
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsStartRequest,
-        processor: &'a domain::Processor,
+        platform: &'a domain::Platform,
     ) -> RouterResult<(PaymentSessionOperation<'b, F>, operations::ValidateResult)> {
         let request_merchant_id = Some(&request.merchant_id);
-        helpers::validate_merchant_id(processor.get_account().get_id(), request_merchant_id)
-            .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                field_name: "merchant_id".to_string(),
-                expected_format: "merchant_id from merchant account".to_string(),
-            })?;
+        helpers::validate_merchant_id(
+            platform.get_processor().get_account().get_id(),
+            request_merchant_id,
+        )
+        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "merchant_id".to_string(),
+            expected_format: "merchant_id from merchant account".to_string(),
+        })?;
 
         let payment_id = request.payment_id.clone();
 
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: processor.get_account().get_id().to_owned(),
+                merchant_id: platform.get_processor().get_account().get_id().to_owned(),
                 payment_id: api::PaymentIdType::PaymentIntentId(payment_id),
-                storage_scheme: processor.get_account().storage_scheme,
+                storage_scheme: platform.get_processor().get_account().storage_scheme,
                 requeue: false,
             },
         ))
@@ -297,21 +292,25 @@ where
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
-        _state: &SessionState,
-        _payment_data: &mut PaymentData<F>,
-        _request: Option<CustomerDetails>,
-        _provider: &domain::Provider,
-        _initiator: Option<&domain::Initiator>,
-        _dimensions: DimensionsWithMerchantIdAndProfileId,
+        state: &SessionState,
+        payment_data: &mut PaymentData<F>,
+        request: Option<CustomerDetails>,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: common_enums::enums::MerchantStorageScheme,
     ) -> CustomResult<
         (PaymentSessionOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,
     > {
-        // We don't need to fetch customer here.
-        // Customer details have already been populated in the payment_intent during Confirm
-        // The customer returned from this method is only used for updating connector_customer_id
-        // which does not happen in case of PaymentStart
-        Ok((Box::new(self), None))
+        helpers::create_customer_if_not_exist(
+            state,
+            Box::new(self),
+            payment_data,
+            request,
+            &key_store.merchant_id,
+            key_store,
+            storage_scheme,
+        )
+        .await
     }
 
     #[instrument(skip_all)]
@@ -320,7 +319,8 @@ where
         state: &'a SessionState,
         payment_data: &mut PaymentData<F>,
         storage_scheme: storage_enums::MerchantStorageScheme,
-        platform: &domain::Platform,
+        merchant_key_store: &domain::MerchantKeyStore,
+        customer: &Option<domain::Customer>,
         business_profile: &domain::Profile,
         should_retry_with_pan: bool,
     ) -> RouterResult<(
@@ -339,7 +339,8 @@ where
                 Box::new(self),
                 state,
                 payment_data,
-                platform,
+                merchant_key_store,
+                customer,
                 storage_scheme,
                 business_profile,
                 should_retry_with_pan,
@@ -352,7 +353,7 @@ where
 
     async fn get_connector<'a>(
         &'a self,
-        _processor: &domain::Processor,
+        _platform: &domain::Platform,
         state: &SessionState,
         _request: &api::PaymentsStartRequest,
         _payment_intent: &storage::PaymentIntent,
@@ -364,7 +365,7 @@ where
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
-        _processor: &domain::Processor,
+        _platform: &domain::Platform,
         _payment_data: &mut PaymentData<F>,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)

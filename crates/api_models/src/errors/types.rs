@@ -16,6 +16,8 @@ pub struct ApiError {
     pub error_identifier: u16,
     pub error_message: String,
     pub extra: Option<Extra>,
+    #[cfg(feature = "detailed_errors")]
+    pub stacktrace: Option<serde_json::Value>,
 }
 
 impl ApiError {
@@ -30,6 +32,8 @@ impl ApiError {
             error_identifier,
             error_message: error_message.to_string(),
             extra,
+            #[cfg(feature = "detailed_errors")]
+            stacktrace: None,
         }
     }
 }
@@ -55,6 +59,10 @@ pub struct ErrorResponse {
     pub code: String,
     #[serde(flatten)]
     pub extra: Option<Extra>,
+
+    #[cfg(feature = "detailed_errors")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stacktrace: Option<serde_json::Value>,
 }
 
 impl From<&ApiErrorResponse> for ErrorResponse {
@@ -66,6 +74,9 @@ impl From<&ApiErrorResponse> for ErrorResponse {
             message: error_info.error_message.clone(),
             error_type,
             extra: error_info.extra.clone(),
+
+            #[cfg(feature = "detailed_errors")]
+            stacktrace: error_info.stacktrace.clone(),
         }
     }
 }

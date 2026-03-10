@@ -195,7 +195,6 @@ impl ConnectorCommon for Cryptopay {
             reason: response.error.reason,
             attempt_status: None,
             connector_transaction_id: None,
-            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -473,7 +472,6 @@ impl webhooks::IncomingWebhook for Cryptopay {
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
-        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let notif: CryptopayWebhookDetails =
             request

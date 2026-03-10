@@ -180,6 +180,7 @@ where
         payment_data: &mut D,
         frm_data: &mut FrmData,
         platform: &domain::Platform,
+        customer: &Option<domain::Customer>,
     ) -> RouterResult<Option<FrmRouterData>> {
         if frm_data.fraud_check.last_step != FraudCheckLastStep::Processing {
             logger::debug!("post_flow::Sale Skipped");
@@ -190,6 +191,7 @@ where
             payment_data,
             &mut frm_data.to_owned(),
             platform,
+            customer,
         )
         .await?;
         frm_data.fraud_check.last_step = FraudCheckLastStep::CheckoutOrSale;
@@ -219,6 +221,7 @@ where
         _frm_configs: FrmConfigsObject,
         _frm_suggestion: &mut Option<FrmSuggestion>,
         _payment_data: &mut D,
+        _customer: &Option<domain::Customer>,
         _should_continue_capture: &mut bool,
     ) -> RouterResult<Option<FrmData>> {
         todo!()
@@ -235,6 +238,7 @@ where
         _frm_configs: FrmConfigsObject,
         frm_suggestion: &mut Option<FrmSuggestion>,
         payment_data: &mut D,
+        customer: &Option<domain::Customer>,
         _should_continue_capture: &mut bool,
     ) -> RouterResult<Option<FrmData>> {
         if matches!(frm_data.fraud_check.frm_status, FraudCheckStatus::Fraud)
@@ -249,7 +253,6 @@ where
                 payment_id: frm_data.payment_intent.get_id().to_owned(),
                 cancellation_reason: frm_data.fraud_check.frm_error.clone(),
                 merchant_connector_details: None,
-                all_keys_required: None,
             };
             let cancel_res = Box::pin(payments::payments_core::<
                 Void,
@@ -283,6 +286,7 @@ where
                 payment_data,
                 &mut frm_data.to_owned(),
                 platform,
+                customer,
             )
             .await?;
             frm_data.fraud_check.last_step = FraudCheckLastStep::TransactionOrRecordRefund;
@@ -345,12 +349,14 @@ where
         payment_data: &mut D,
         frm_data: &mut FrmData,
         platform: &domain::Platform,
+        customer: &Option<domain::Customer>,
     ) -> RouterResult<FrmRouterData> {
         let router_data = frm_core::call_frm_service::<F, frm_api::Sale, _, D>(
             state,
             payment_data,
             &mut frm_data.to_owned(),
             platform,
+            customer,
         )
         .await?;
         Ok(FrmRouterData {
@@ -580,7 +586,6 @@ where
                     payment_data.get_payment_attempt().clone(),
                     payment_attempt_update,
                     frm_data.merchant_account.storage_scheme,
-                    key_store,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;

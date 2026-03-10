@@ -268,28 +268,27 @@ pub async fn get_subscription() {}
 )]
 pub async fn update_subscription() {}
 
-/// Subscription - Get Items
+/// Subscription - Get Plans
 ///
-/// Retrieves available subscription items.
+/// Retrieves available subscription plans.
 #[utoipa::path(
     get,
-    path = "/subscriptions/items",
+    path = "/subscriptions/plans",
     params(
         ("X-Profile-Id" = String, Header, description = "Profile ID for authentication"),
-        ("limit" = Option<u32>, Query, description = "Number of items to retrieve"),
-        ("offset" = Option<u32>, Query, description = "Number of items to skip"),
-        ("product_id" = Option<String>, Query, description = "Filter by product ID"),
-        ("item_type" = SubscriptionItemType, Query, description = "Filter by subscription item type plan or addon")
+        ("limit" = Option<u32>, Query, description = "Number of plans to retrieve"),
+        ("offset" = Option<u32>, Query, description = "Number of plans to skip"),
+        ("product_id" = Option<String>, Query, description = "Filter by product ID")
     ),
     responses(
-        (status = 200, description = "List of available subscription items", body = Vec<GetSubscriptionItemsResponse>),
+        (status = 200, description = "List of available subscription plans", body = Vec<GetPlansResponse>),
         (status = 400, description = "Invalid query parameters")
     ),
     tag = "Subscriptions",
-    operation_id = "Get Subscription Items",
+    operation_id = "Get Subscription Plans",
     security(("api_key" = []), ("client_secret" = []))
 )]
-pub async fn get_subscription_items() {}
+pub async fn get_subscription_plans() {}
 
 /// Subscription - Get Estimate
 ///

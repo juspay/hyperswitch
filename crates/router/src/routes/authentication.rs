@@ -6,7 +6,6 @@ use api_models::authentication::{
     AuthenticationRetrieveEligibilityCheckRequest, AuthenticationSessionTokenRequest,
     AuthenticationSyncPostUpdateRequest, AuthenticationSyncRequest,
 };
-use masking::Secret;
 use router_env::{instrument, tracing, Flow};
 
 use crate::{
@@ -30,11 +29,12 @@ pub async fn authentication_create(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            unified_authentication_service::authentication_create_core(state, auth.platform, req)
+            let platform = auth.into();
+            unified_authentication_service::authentication_create_core(state, platform, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            allow_connected_scope_operation: false,
-            allow_platform_self_operation: false,
+            is_connected_allowed: false,
+            is_platform_allowed: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -54,7 +54,8 @@ pub async fn authentication_eligibility(
     let api_auth = auth::ApiKeyAuth::default();
     let payload = json_payload.into_inner();
 
-    let (auth, _) = match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth) {
+    let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth)
+    {
         Ok((auth, _auth_flow)) => (auth, _auth_flow),
         Err(e) => return api::log_and_return_error_response(e),
     };
@@ -65,14 +66,11 @@ pub async fn authentication_eligibility(
         state,
         &req,
         payload,
-        |state, auth, mut req, _| {
-            if let Some(client_secret) = auth.client_secret {
-                req.client_secret = Some(Secret::new(client_secret));
-            }
-
+        |state, auth: auth::AuthenticationData, req, _| {
+            let platform = auth.into();
             unified_authentication_service::authentication_eligibility_core(
                 state,
-                auth.platform,
+                platform,
                 req,
                 authentication_id.clone(),
             )
@@ -100,7 +98,7 @@ pub async fn authentication_authenticate(
     };
 
     let (auth, auth_flow) =
-        match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth) {
+        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
             Ok((auth, auth_flow)) => (auth, auth_flow),
             Err(e) => return api::log_and_return_error_response(e),
         };
@@ -110,16 +108,10 @@ pub async fn authentication_authenticate(
         state,
         &req,
         payload,
-        |state, auth, mut req, _| {
-            if let Some(client_secret) = auth.client_secret {
-                req.client_secret = Some(Secret::new(client_secret));
-            }
-
+        |state, auth: auth::AuthenticationData, req, _| {
+            let platform = auth.into();
             unified_authentication_service::authentication_authenticate_core(
-                state,
-                auth.platform,
-                req,
-                auth_flow,
+                state, platform, req, auth_flow,
             )
         },
         &*auth,
@@ -145,7 +137,7 @@ pub async fn authentication_eligibility_check(
     };
 
     let (auth, auth_flow) =
-        match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth) {
+        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
             Ok((auth, auth_flow)) => (auth, auth_flow),
             Err(e) => return api::log_and_return_error_response(e),
         };
@@ -155,16 +147,10 @@ pub async fn authentication_eligibility_check(
         state,
         &req,
         payload,
-        |state, auth, mut req, _| {
-            if let Some(client_secret) = auth.client_secret {
-                req.client_secret = Some(Secret::new(client_secret));
-            }
-
+        |state, auth: auth::AuthenticationData, req, _| {
+            let platform = auth.into();
             unified_authentication_service::authentication_eligibility_check_core(
-                state,
-                auth.platform,
-                req,
-                auth_flow,
+                state, platform, req, auth_flow,
             )
         },
         &*auth,
@@ -190,15 +176,14 @@ pub async fn authentication_retrieve_eligibility_check(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
+            let platform = auth.into();
             unified_authentication_service::authentication_retrieve_eligibility_check_core(
-                state,
-                auth.platform,
-                req,
+                state, platform, req,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            allow_connected_scope_operation: false,
-            allow_platform_self_operation: false,
+            is_connected_allowed: false,
+            is_platform_allowed: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -224,7 +209,7 @@ pub async fn authentication_sync(
         ..json_payload.into_inner()
     };
     let (auth, auth_flow) =
-        match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth) {
+        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
             Ok((auth, auth_flow)) => (auth, auth_flow),
             Err(e) => return api::log_and_return_error_response(e),
         };
@@ -234,16 +219,10 @@ pub async fn authentication_sync(
         state,
         &req,
         payload,
-        |state, auth, mut req, _| {
-            if let Some(client_secret) = auth.client_secret {
-                req.client_secret = Some(Secret::new(client_secret));
-            }
-
+        |state, auth: auth::AuthenticationData, req, _| {
+            let platform = auth.into();
             unified_authentication_service::authentication_sync_core(
-                state,
-                auth.platform,
-                auth_flow,
-                req,
+                state, platform, auth_flow, req,
             )
         },
         &*auth,
@@ -272,7 +251,8 @@ pub async fn authentication_sync_post_update(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            unified_authentication_service::authentication_post_sync_core(state, auth.platform, req)
+            let platform = auth.into();
+            unified_authentication_service::authentication_post_sync_core(state, platform, req)
         },
         &auth::MerchantIdAuth(merchant_id),
         api_locking::LockAction::NotApplicable,
@@ -298,7 +278,7 @@ pub async fn authentication_session_token(
     };
 
     let (auth, _auth_flow) =
-        match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth) {
+        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
             Ok((auth, auth_flow)) => (auth, auth_flow),
             Err(e) => return api::log_and_return_error_response(e),
         };
@@ -308,11 +288,9 @@ pub async fn authentication_session_token(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, mut req, _| {
-            if let Some(client_secret) = auth.client_secret {
-                req.client_secret = Some(Secret::new(client_secret));
-            }
-            unified_authentication_service::authentication_session_core(state, auth.platform, req)
+        |state, auth: auth::AuthenticationData, req, _| {
+            let platform = auth.into();
+            unified_authentication_service::authentication_session_core(state, platform, req)
         },
         &*auth,
         api_locking::LockAction::NotApplicable,

@@ -116,6 +116,24 @@ const requiredFields = {
   ],
 };
 
+const payment_method_data_3ds = {
+  card: {
+    last4: "1111",
+    card_type: "CREDIT",
+    card_network: "Visa",
+    card_issuer: "JP Morgan",
+    card_issuing_country: "INDIA",
+    card_isin: "411111",
+    card_extended_bin: null,
+    card_exp_month: "12",
+    card_exp_year: "30",
+    card_holder_name: "Joseph Doe",
+    payment_checks: null,
+    authentication_data: null,
+  },
+  billing: null,
+};
+
 const payment_method_data_no3ds = {
   card: {
     last4: "1111",
@@ -130,7 +148,6 @@ const payment_method_data_no3ds = {
     card_holder_name: "Joseph Doe",
     payment_checks: null,
     authentication_data: null,
-    auth_code: null,
   },
   billing: null,
 };
@@ -153,7 +170,6 @@ const payment_method_data_mastercard = {
       address_postal_code_check: "pass",
     },
     authentication_data: null,
-    auth_code: null,
   },
   billing: null,
 };
@@ -205,14 +221,11 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            code: "IR_19",
-            message: "Payment method type not supported",
-            reason: "Cards 3DS is not supported by Fiserv",
-            type: "invalid_request",
-          },
+          status: "requires_capture",
+          setup_future_usage: "on_session",
+          payment_method_data: payment_method_data_3ds,
         },
       },
     },
@@ -227,14 +240,11 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            code: "IR_19",
-            message: "Payment method type not supported",
-            reason: "Cards 3DS is not supported by Fiserv",
-            type: "invalid_request",
-          },
+          status: "succeeded",
+          setup_future_usage: "on_session",
+          payment_method_data: payment_method_data_3ds,
         },
       },
     },
@@ -322,7 +332,7 @@ export const connectorDetails = {
         body: {
           status: "failed",
           error_code: "104",
-          error_message: "first 6 digits of the account number - 401288",
+          error_message: "Unable to assign card to brand: Invalid",
           unified_code: "UE_9000",
           unified_message: "Something went wrong",
         },
@@ -611,14 +621,9 @@ export const connectorDetails = {
         customer_acceptance: customerAcceptance,
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            code: "IR_19",
-            message: "Payment method type not supported",
-            reason: "Cards 3DS is not supported by Fiserv",
-            type: "invalid_request",
-          },
+          status: "succeeded",
         },
       },
     },
@@ -862,8 +867,6 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        mandate_data: null,
-        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 400,

@@ -5,7 +5,7 @@ use masking::Secret;
 use smithy::SmithyModel;
 use utoipa::ToSchema;
 
-use crate::{enums as api_enums, payments};
+use crate::enums as api_enums;
 
 #[derive(
     Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
@@ -196,38 +196,13 @@ pub struct GiropayBankRedirectAdditionalData {
 #[derive(
     Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
 )]
-#[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub struct SepaBankTransferPaymentAdditionalData {
-    ///   debitor IBAN
-    #[schema(value_type = Option<String>, example =  "DE89370400440532013000")]
-    #[smithy(value_type = "Option<String>")]
-    pub debitor_iban: Option<Secret<String>>,
-
-    /// debitor BIC
-    #[schema(value_type = Option<String>, example = "MARKDEF1100")]
-    #[smithy(value_type = "Option<String>")]
-    pub debitor_bic: Option<Secret<String>>,
-
-    ///  debitor name
-    #[schema(value_type = Option<String>, example = "John Doe")]
-    #[smithy(value_type = "Option<String>")]
-    pub debitor_name: Option<Secret<String>>,
-
-    ///  debitor email
-    #[schema(value_type = Option<String>, example = "johndoe@example.com")]
-    #[smithy(value_type = "Option<String>")]
-    pub debitor_email: Option<Secret<String>>,
-}
-#[derive(
-    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
-)]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum BankTransferAdditionalData {
     #[smithy(nested_value_type)]
     Ach {},
-    #[smithy(value_type = "SepaBankTransferPaymentAdditionalData")]
-    Sepa(Box<SepaBankTransferPaymentAdditionalData>),
+    #[smithy(nested_value_type)]
+    Sepa {},
     #[smithy(nested_value_type)]
     Bacs {},
     #[smithy(nested_value_type)]
@@ -374,9 +349,6 @@ pub struct UpiCollectAdditionalData {
     #[schema(value_type = Option<String>, example = "ab********@okhdfcbank")]
     #[smithy(value_type = "Option<String>")]
     pub vpa_id: Option<MaskedUpiVpaId>,
-    #[schema(value_type = Option<UpiSource>)]
-    #[smithy(value_type = "Option<UpiSource>")]
-    pub upi_source: Option<payments::UpiSource>,
 }
 
 #[derive(
@@ -400,7 +372,4 @@ pub struct WalletAdditionalDataForCard {
     /// The card's expiry year
     #[schema(value_type = Option<String>, example = "25")]
     pub card_exp_year: Option<Secret<String>>,
-    /// Unique authorisation code generated for the payment
-    #[schema(value_type = Option<String>, example = "009825")]
-    pub auth_code: Option<String>,
 }

@@ -65,7 +65,7 @@ dependencies = [
  "mime",
  "percent-encoding",
  "pin-project-lite",
- "rand 0.9.2",
+ "rand 0.9.1",
  "sha1",
  "smallvec 1.15.0",
  "tokio 1.48.0",
@@ -697,17 +697,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
-name = "atty"
-version = "0.2.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9b39be18770d11421cdb1b9947a45dd3f37e93092cbf377614828a319d5fee8"
-dependencies = [
- "hermit-abi 0.1.19",
- "libc",
- "winapi 0.3.9",
-]
-
-[[package]]
 name = "autocfg"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -739,7 +728,7 @@ dependencies = [
  "mime",
  "percent-encoding",
  "pin-project-lite",
- "rand 0.9.2",
+ "rand 0.9.1",
  "rustls 0.20.9",
  "serde",
  "serde_json",
@@ -1811,25 +1800,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "37b2a672a2cb129a2e41c10b1224bb368f9f37a2b16b612598138befd7b37eb5"
 
 [[package]]
-name = "cbindgen"
-version = "0.26.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da6bc11b07529f16944307272d5bd9b22530bc7d05751717c9d416586cedab49"
-dependencies = [
- "clap 3.2.25",
- "heck 0.4.1",
- "indexmap 1.9.3",
- "log",
- "proc-macro2",
- "quote",
- "serde",
- "serde_json",
- "syn 1.0.109",
- "tempfile",
- "toml 0.5.11",
-]
-
-[[package]]
 name = "cc"
 version = "1.2.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1966,21 +1936,6 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "3.2.25"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ea181bf566f71cb9a5d17a59e1871af638180a18fb0035c92ae62b705207123"
-dependencies = [
- "atty",
- "bitflags 1.3.2",
- "clap_lex 0.2.4",
- "indexmap 1.9.3",
- "strsim 0.10.0",
- "termcolor",
- "textwrap",
-]
-
-[[package]]
-name = "clap"
 version = "4.5.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed93b9805f8ba930df42c2590f05453d5ec36cbb85d018868a5b24d31f6ac000"
@@ -1997,7 +1952,7 @@ checksum = "379026ff283facf611b0ea629334361c4211d1b12ee01024eec1591133b04120"
 dependencies = [
  "anstream",
  "anstyle",
- "clap_lex 0.7.4",
+ "clap_lex",
  "strsim 0.11.1",
 ]
 
@@ -2011,15 +1966,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.101",
-]
-
-[[package]]
-name = "clap_lex"
-version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2850f2f5a82cbf437dd5af4d49848fbdfc27c157c3d010345776f952765261c5"
-dependencies = [
- "os_str_bytes",
 ]
 
 [[package]]
@@ -2075,7 +2021,6 @@ dependencies = [
  "cards",
  "common_enums",
  "common_utils",
- "cpf_cnpj",
  "diesel",
  "error-stack 0.4.1",
  "euclid",
@@ -2174,21 +2119,11 @@ name = "config_importer"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 4.5.38",
+ "clap",
  "indexmap 2.9.0",
  "serde",
  "serde_json",
  "toml 0.8.22",
-]
-
-[[package]]
-name = "config_patch_derive"
-version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=95144b0829b8b3d8c4b0914921b43540abb6ac50#95144b0829b8b3d8c4b0914921b43540abb6ac50"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.101",
 ]
 
 [[package]]
@@ -2308,15 +2243,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
-name = "cpf_cnpj"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3564ecde97fae9d4d28ae212e207337c0e92ee6c438930ae9b75ec3e9355a924"
-dependencies = [
- "rand 0.9.2",
-]
-
-[[package]]
 name = "cpufeatures"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2373,7 +2299,7 @@ dependencies = [
  "anes",
  "cast",
  "ciborium",
- "clap 4.5.38",
+ "clap",
  "criterion-plot",
  "is-terminal",
  "itertools 0.10.5",
@@ -2975,7 +2901,7 @@ dependencies = [
  "async-bb8-diesel",
  "async-trait",
  "bb8",
- "clap 4.5.38",
+ "clap",
  "common_utils",
  "config",
  "diesel",
@@ -3198,6 +3124,7 @@ checksum = "27a72baa257b5e0e2de241967bc5ee8f855d6072351042688621081d66b2a76b"
 dependencies = [
  "anyhow",
  "rustc_version 0.4.1",
+ "serde",
 ]
 
 [[package]]
@@ -3228,11 +3155,9 @@ dependencies = [
  "common_enums",
  "common_utils",
  "criterion",
- "diesel",
  "euclid_macros",
  "hyperswitch_constraint_graph",
  "nom 7.1.3",
- "router_derive",
  "rustc-hash 1.1.0",
  "serde",
  "serde_json",
@@ -3515,17 +3440,17 @@ checksum = "28dd6caf6059519a65843af8fe2a3ae298b14b80179855aeb4adc2c1934ee619"
 
 [[package]]
 name = "fred"
-version = "8.0.6"
+version = "7.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b8e3a1339ed45ad8fde94530c4bdcbd5f371a3c6bd3bf57682923792830aa37"
+checksum = "b99c2b48934cd02a81032dd7428b7ae831a27794275bc94eba367418db8a9e55"
 dependencies = [
  "arc-swap",
  "async-trait",
  "bytes 1.10.1",
  "bytes-utils",
- "crossbeam-queue 0.3.12",
  "float-cmp",
  "futures 0.3.31",
+ "lazy_static",
  "log",
  "parking_lot 0.12.3",
  "rand 0.8.5",
@@ -3864,14 +3789,14 @@ dependencies = [
 [[package]]
 name = "grpc-api-types"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=95144b0829b8b3d8c4b0914921b43540abb6ac50#95144b0829b8b3d8c4b0914921b43540abb6ac50"
+source = "git+https://github.com/juspay/connector-service?rev=b5a367c1c775c32503feb00cdc6cd063cc97ea3b#b5a367c1c775c32503feb00cdc6cd063cc97ea3b"
 dependencies = [
  "axum 0.8.4",
  "error-stack 0.5.0",
  "g2h",
  "heck 0.5.0",
  "http 1.3.1",
- "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2025.11.24.0)",
+ "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2025.09.24.0)",
  "prost",
  "prost-build",
  "prost-types",
@@ -4015,15 +3940,6 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
 name = "hermit-abi"
-version = "0.1.19"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62b467343b94ba476dcb2500d242dadbb39557df889310ac77c5d99100aaac33"
-dependencies = [
- "libc",
-]
-
-[[package]]
-name = "hermit-abi"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d231dfb89cfffdbc30e7fc41579ed6066ad03abda9e567ccafae602b97ec5024"
@@ -4088,7 +4004,7 @@ dependencies = [
 name = "hsdev"
 version = "0.1.0"
 dependencies = [
- "clap 4.5.38",
+ "clap",
  "diesel",
  "diesel_migrations",
  "serde",
@@ -4448,7 +4364,6 @@ dependencies = [
  "actix-web",
  "api_models",
  "async-trait",
- "base64 0.22.1",
  "cards",
  "common_enums",
  "common_types",
@@ -4487,7 +4402,7 @@ dependencies = [
  "http 0.2.12",
  "hyperswitch_domain_models",
  "masking 0.1.0",
- "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2025.11.24.0)",
+ "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2025.09.24.0)",
  "mime",
  "reqwest 0.11.27",
  "router_env",
@@ -4498,7 +4413,6 @@ dependencies = [
  "thiserror 1.0.69",
  "time",
  "tokio 1.48.0",
- "url",
 ]
 
 [[package]]
@@ -4944,17 +4858,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "juspay_jsonlogic"
-version = "0.5.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8eeb5ea313a880c663adfd8dd6e018778c987cad06091621952a3ef640c58983"
-dependencies = [
- "regex",
- "serde_json",
- "unicode-normalization",
-]
-
-[[package]]
 name = "kernel32-sys"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5068,7 +4971,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "07033963ba89ebaf1584d767badaa2e8fcec21aedea6b8c0346d487d49c28667"
 dependencies = [
  "cfg-if 1.0.0",
- "windows-targets 0.53.5",
+ "windows-targets 0.52.6",
 ]
 
 [[package]]
@@ -5258,7 +5161,7 @@ dependencies = [
 [[package]]
 name = "masking"
 version = "0.1.0"
-source = "git+https://github.com/juspay/hyperswitch?tag=2025.11.24.0#19723f8c9c6c89057624061fef429f6f574dd358"
+source = "git+https://github.com/juspay/hyperswitch?tag=2025.09.24.0#85da1b2bc80d4befd392cf7a9d2060d1e2f5cbe9"
 dependencies = [
  "bytes 1.10.1",
  "diesel",
@@ -5927,15 +5830,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d05e27ee213611ffe7d6348b942e8f942b37114c00cc03cec254295a4a17852e"
 
 [[package]]
-name = "openssl-src"
-version = "300.5.4+3.5.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a507b3792995dae9b0df8a1c1e3771e8418b7c2d9f0baeba32e6fe8b06c7cb72"
-dependencies = [
- "cc",
-]
-
-[[package]]
 name = "openssl-sys"
 version = "0.9.108"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5943,7 +5837,6 @@ checksum = "e145e1651e858e820e4860f7b9c5e169bc1d8ce1c86043be79fa7b7634821847"
 dependencies = [
  "cc",
  "libc",
- "openssl-src",
  "pkg-config",
  "vcpkg",
 ]
@@ -6041,12 +5934,6 @@ dependencies = [
  "dlv-list",
  "hashbrown 0.14.5",
 ]
-
-[[package]]
-name = "os_str_bytes"
-version = "6.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2355d85b9a3786f481747ced0e0ff2ba35213a1f9bd406ed906554d7af805a1"
 
 [[package]]
 name = "outref"
@@ -6177,12 +6064,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "paste"
-version = "1.0.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
-
-[[package]]
 name = "pathdiff"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6233,8 +6114,6 @@ dependencies = [
  "serde_json",
  "storage_impl",
  "thiserror 1.0.69",
- "time",
- "url",
 ]
 
 [[package]]
@@ -6866,7 +6745,7 @@ dependencies = [
  "bytes 1.10.1",
  "getrandom 0.3.3",
  "lru-slab",
- "rand 0.9.2",
+ "rand 0.9.1",
  "ring 0.17.14",
  "rustc-hash 2.1.1",
  "rustls 0.23.27",
@@ -6943,9 +6822,9 @@ dependencies = [
 
 [[package]]
 name = "rand"
-version = "0.9.2"
+version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6db2770f06117d490610c7488547d543617b21bfa07796d7a12f6f1bd53850d1"
+checksum = "9fbfd9d094a40bf3ae768db9361049ace4c0e04a4fd6b359518bd7b73a73dd97"
 dependencies = [
  "rand_chacha 0.9.0",
  "rand_core 0.9.3",
@@ -7331,9 +7210,9 @@ dependencies = [
 
 [[package]]
 name = "rkyv"
-version = "0.7.46"
+version = "0.7.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2297bf9c81a3f0dc96bc9521370b88f054168c29826a75e89c55ff196e7ed6a1"
+checksum = "9008cd6385b9e161d8229e1f6549dd23c3d022f132a2ea37ac3a10ac4935779b"
 dependencies = [
  "bitvec",
  "bytecheck",
@@ -7349,9 +7228,9 @@ dependencies = [
 
 [[package]]
 name = "rkyv_derive"
-version = "0.7.46"
+version = "0.7.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "84d7b42d4b8d06048d3ac8db0eb31bcb942cbeb709f0b5f2b2ebde398d3038f5"
+checksum = "503d1d27590a2b0a3a4ca4c94755aa2875657196ecbf401a42eff41d7de532c0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -7403,7 +7282,7 @@ dependencies = [
  "blake3",
  "bytes 1.10.1",
  "cards",
- "clap 4.5.38",
+ "clap",
  "common_enums",
  "common_types",
  "common_utils",
@@ -7433,7 +7312,7 @@ dependencies = [
  "jsonwebtoken",
  "kgraph_utils",
  "masking 0.1.0",
- "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2025.11.24.0)",
+ "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2025.09.24.0)",
  "maud",
  "mimalloc",
  "mime",
@@ -7441,10 +7320,8 @@ dependencies = [
  "num-traits",
  "num_cpus",
  "once_cell",
- "open-feature",
  "openidconnect",
  "openssl",
- "paste",
  "payment_link",
  "payment_methods",
  "pm_auth",
@@ -7571,7 +7448,7 @@ dependencies = [
 [[package]]
 name = "rust-grpc-client"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=95144b0829b8b3d8c4b0914921b43540abb6ac50#95144b0829b8b3d8c4b0914921b43540abb6ac50"
+source = "git+https://github.com/juspay/connector-service?rev=b5a367c1c775c32503feb00cdc6cd063cc97ea3b#b5a367c1c775c32503feb00cdc6cd063cc97ea3b"
 dependencies = [
  "grpc-api-types",
 ]
@@ -7639,9 +7516,9 @@ dependencies = [
 
 [[package]]
 name = "rust_decimal"
-version = "1.40.0"
+version = "1.37.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61f703d19852dbf87cbc513643fa81428361eb6940f1ac14fd58155d295a3eb0"
+checksum = "faa7de2ba56ac291bd90c6b9bece784a52ae1411f9506544b3eae36dd2356d50"
 dependencies = [
  "arrayvec",
  "borsh",
@@ -7897,8 +7774,8 @@ dependencies = [
 
 [[package]]
 name = "rusty-money"
-version = "0.5.0"
-source = "git+https://github.com/varunsrin/rusty_money?tag=v0.5.0#c16d258fcc1d88b882009a3c2c560d1043445014"
+version = "0.4.1"
+source = "git+https://github.com/varunsrin/rusty_money?rev=bbc0150742a0fff905225ff11ee09388e9babdcc#bbc0150742a0fff905225ff11ee09388e9babdcc"
 dependencies = [
  "rust_decimal",
 ]
@@ -9033,13 +8910,12 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "superposition_core"
-version = "0.97.4"
+version = "0.88.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d175b1f122c71bed5ee46d673913fa9da1bbc3209215c633fcaa02959a67396d"
+checksum = "a0ea3804ca840e2329ee43d27f4bfb27b6fb4abf4f5441e33abe2aded2244387"
 dependencies = [
  "actix-web",
  "anyhow",
- "cbindgen",
  "cfg-if 1.0.0",
  "chrono",
  "derive_more 0.99.19",
@@ -9047,7 +8923,7 @@ dependencies = [
  "log",
  "mini-moka",
  "once_cell",
- "rand 0.9.2",
+ "rand 0.9.1",
  "reqwest 0.11.27",
  "serde",
  "serde_json",
@@ -9061,9 +8937,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_derives"
-version = "0.97.4"
+version = "0.88.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69975e8279bf31a5d6d7a2e1b5ed58ee3654293fbead0bcbd8c9c1cb579c1f68"
+checksum = "99060e97964918193b87fe387baf5ff5a5b3b48de05ffd2bd9b9e022f960762a"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -9072,9 +8948,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_provider"
-version = "0.97.4"
+version = "0.88.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd6a040632a384bd5ab0929f89c826fe745038a7df79551f9b7d798f810718d5"
+checksum = "8023fbfd3195a1c66d1f69367eb11c984e9b4dc5e2147a1de68a32172e401e50"
 dependencies = [
  "async-trait",
  "aws-smithy-types",
@@ -9094,9 +8970,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_sdk"
-version = "0.97.4"
+version = "0.88.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a34a90239b55a3466651d2b952da2a2b82dde69ce3ea8cee156cc314d0b0d62d"
+checksum = "2b37344622f87b506e1afb21ba81b435814e95b3ff092a2dea40706d3db36eae"
 dependencies = [
  "aws-smithy-async",
  "aws-smithy-http 0.62.1",
@@ -9112,14 +8988,13 @@ dependencies = [
 
 [[package]]
 name = "superposition_types"
-version = "0.97.4"
+version = "0.88.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "372c30ac54dded10c9981719d3d7cbd83a7d06744f13c73517512625b890fd69"
+checksum = "165524147049a9332077d163658759d477bef9985ae20c3e4a142c9d4c7a3873"
 dependencies = [
  "bigdecimal 0.3.1",
  "chrono",
  "derive_more 0.99.19",
- "juspay_jsonlogic",
  "log",
  "regex",
  "serde",
@@ -9383,15 +9258,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "termcolor"
-version = "1.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06794f8f6c5c898b3275aebefa6b8a1cb24cd2c6c79397ab15774837a0bc5755"
-dependencies = [
- "winapi-util",
-]
-
-[[package]]
 name = "termtree"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9437,7 +9303,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "base64 0.22.1",
- "clap 4.5.38",
+ "clap",
  "common_enums",
  "masking 0.1.0",
  "rand 0.8.5",
@@ -10095,7 +9961,7 @@ dependencies = [
  "base32",
  "constant_time_eq",
  "hmac",
- "rand 0.9.2",
+ "rand 0.9.1",
  "sha1",
  "sha2",
  "url",
@@ -10372,11 +10238,11 @@ checksum = "ed646292ffc8188ef8ea4d1e0e0150fb15a5c2e12ad9b8fc191ae7a8a7f3c4b9"
 [[package]]
 name = "ucs_cards"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=95144b0829b8b3d8c4b0914921b43540abb6ac50#95144b0829b8b3d8c4b0914921b43540abb6ac50"
+source = "git+https://github.com/juspay/connector-service?rev=b5a367c1c775c32503feb00cdc6cd063cc97ea3b#b5a367c1c775c32503feb00cdc6cd063cc97ea3b"
 dependencies = [
  "bytes 1.10.1",
  "error-stack 0.4.1",
- "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2025.11.24.0)",
+ "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2025.09.24.0)",
  "prost",
  "regex",
  "serde",
@@ -10388,7 +10254,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_enums"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=95144b0829b8b3d8c4b0914921b43540abb6ac50#95144b0829b8b3d8c4b0914921b43540abb6ac50"
+source = "git+https://github.com/juspay/connector-service?rev=b5a367c1c775c32503feb00cdc6cd063cc97ea3b#b5a367c1c775c32503feb00cdc6cd063cc97ea3b"
 dependencies = [
  "serde",
  "strum 0.26.3",
@@ -10399,22 +10265,20 @@ dependencies = [
 [[package]]
 name = "ucs_common_utils"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=95144b0829b8b3d8c4b0914921b43540abb6ac50#95144b0829b8b3d8c4b0914921b43540abb6ac50"
+source = "git+https://github.com/juspay/connector-service?rev=b5a367c1c775c32503feb00cdc6cd063cc97ea3b#b5a367c1c775c32503feb00cdc6cd063cc97ea3b"
 dependencies = [
  "anyhow",
  "base64 0.21.7",
  "blake3",
  "bytes 1.10.1",
  "chrono",
- "config_patch_derive",
  "error-stack 0.4.1",
  "hex",
  "http 1.3.1",
- "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2025.11.24.0)",
+ "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2025.09.24.0)",
  "md5",
  "nanoid",
  "once_cell",
- "openssl",
  "quick-xml",
  "rand 0.8.5",
  "regex",
@@ -10555,7 +10419,7 @@ dependencies = [
  "anyhow",
  "camino",
  "cargo_metadata 0.19.2",
- "clap 4.5.38",
+ "clap",
  "uniffi_bindgen",
  "uniffi_core",
  "uniffi_macros",
@@ -10759,9 +10623,9 @@ dependencies = [
 
 [[package]]
 name = "uuid"
-version = "1.18.1"
+version = "1.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2f87b8aa10b915a06587d0dec516c282ff295b475d94abf425d62b57710070a2"
+checksum = "3cf4199d1e5d15ddd86a694e4d0dffa9c323ce759fea589f00fef9d81cc1931d"
 dependencies = [
  "getrandom 0.3.3",
  "js-sys",

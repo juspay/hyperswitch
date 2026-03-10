@@ -393,7 +393,6 @@ impl TryFrom<PaymentsResponseRouterData<KlarnaAuthResponse>>
                         network_txn_id: None,
                         connector_response_reference_id: Some(response.order_id.clone()),
                         incremental_authorization_allowed: None,
-                        authentication_data: None,
                         charges: None,
                     }),
                     status: get_fraud_status(
@@ -415,7 +414,6 @@ impl TryFrom<PaymentsResponseRouterData<KlarnaAuthResponse>>
                     network_txn_id: None,
                     connector_response_reference_id: Some(response.order_id.clone()),
                     incremental_authorization_allowed: None,
-                    authentication_data: None,
                     charges: None,
                 }),
                 status: get_checkout_status(
@@ -578,7 +576,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, KlarnaPsyncResponse, T, PaymentsRespons
                         .klarna_reference
                         .or(Some(response.order_id.clone())),
                     incremental_authorization_allowed: None,
-                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -593,7 +590,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, KlarnaPsyncResponse, T, PaymentsRespons
                     network_txn_id: None,
                     connector_response_reference_id: Some(response.order_id.clone()),
                     incremental_authorization_allowed: None,
-                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -641,6 +637,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<KlarnaCaptureResponse>>
         let connector_meta = serde_json::json!(KlarnaMeta {
             capture_id: item.response.capture_id,
         });
+
         // https://docs.klarna.com/api/ordermanagement/#operation/captureOrder
         // If 201 status code, then order is captured, other status codes are handled by the error handler
         let status = if item.http_code == 201 {
@@ -659,7 +656,6 @@ impl TryFrom<PaymentsCaptureResponseRouterData<KlarnaCaptureResponse>>
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
-                authentication_data: None,
                 charges: None,
             }),
             status,

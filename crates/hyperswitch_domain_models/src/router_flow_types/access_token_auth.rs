@@ -1,6 +1,5 @@
-use serde;
 #[derive(Clone, Debug)]
 pub struct AccessTokenAuthentication;
 
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug)]
 pub struct AccessTokenAuth;

@@ -26,8 +26,6 @@ use josekit::jwe;
 use masking::{ErasedMaskSerialize, ExposeInterface, Mask, PeekInterface, Secret};
 
 use super::transformers::DeleteCardResp;
-#[cfg(feature = "v2")]
-use crate::utils::ext_traits::OptionExt;
 use crate::{
     core::{errors, payment_methods, payments::helpers},
     headers, logger,
@@ -152,79 +150,6 @@ pub async fn mk_tokenization_req(
         serde_json::from_str(&card_network_token_response)
             .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)?;
     Ok((cn_response.clone(), Some(cn_response.card_reference)))
-}
-
-#[cfg(feature = "v2")]
-pub async fn make_nt_eligibility_call(
-    state: &routes::SessionState,
-    payload: api_payment_methods::NetworkTokenEligibilityRequest,
-) -> CustomResult<pm_types::NTEligibilityResponse, errors::NetworkTokenizationError> {
-    let tokenization_service = match &state.conf.network_tokenization_service {
-        Some(nt_service) => Ok(nt_service.get_inner()),
-        None => Err(report!(
-            errors::NetworkTokenizationError::NetworkTokenizationServiceNotConfigured
-        )),
-    }?;
-
-    let url_string = format!(
-        "{}/{}?options.check_tokenize_support={}",
-        tokenization_service.check_tokenize_eligibility_url.as_str(),
-        payload.card_bin.clone(),
-        true
-    );
-
-    let mut request = services::Request::new(services::Method::Get, &url_string);
-    request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.add_header(
-        headers::AUTHORIZATION,
-        tokenization_service
-            .token_service_api_key
-            .peek()
-            .clone()
-            .into_masked(),
-    );
-    request.add_default_headers();
-
-    let response = services::call_connector_api(state, request, "fetch_nt_eligibility")
-        .await
-        .change_context(errors::NetworkTokenizationError::ApiError);
-
-    let res = response
-        .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)
-        .attach_printable("Error while receiving response")
-        .and_then(|inner| match inner {
-            Err(err_res) => {
-                logger::error!("Error response from nt eligibility call: {:?}", err_res);
-                let parsed_error: pm_types::NetworkTokenErrorResponse = err_res
-                    .response
-                    .parse_struct("Card Network Tokenization Response")
-                    .change_context(
-                        errors::NetworkTokenizationError::ResponseDeserializationFailed,
-                    )?;
-                logger::error!(
-                    error_code = %parsed_error.error_info.code,
-                    developer_message = %parsed_error.error_info.developer_message,
-                    "Network tokenization error: {:?}",
-                    parsed_error.error_message
-                );
-                Err(errors::NetworkTokenizationError::ApiError).attach_printable(format!(
-                    "Network Tokenization ApiError : {:?}",
-                    parsed_error.error_info.code
-                ))
-            }
-            Ok(res) => Ok(res),
-        })
-        .inspect_err(|err| {
-            logger::error!("Error while deserializing response: {:?}", err);
-        })?;
-
-    let network_response: pm_types::NTEligibilityResponse = res
-        .response
-        .parse_struct("NTEligibilityResponse")
-        .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)?;
-    logger::debug!("Network Token Response: {:?}", network_response);
-
-    Ok(network_response)
 }
 
 #[cfg(feature = "v2")]
@@ -673,17 +598,13 @@ pub async fn get_token_from_tokenization_service(
     network_token_requestor_ref_id: String,
     pm_data: &domain::PaymentMethod,
 ) -> errors::RouterResult<domain::NetworkTokenData> {
-    let customer_id = &pm_data
-        .customer_id
-        .clone()
-        .get_required_value("GlobalCustomerId")?;
     let token_response =
         if let Some(network_tokenization_service) = &state.conf.network_tokenization_service {
             record_operation_time(
                 async {
                     get_network_token(
                 state,
-                customer_id,
+                &pm_data.customer_id,
                 network_token_requestor_ref_id,
                 network_tokenization_service.get_inner(),
             )
@@ -884,10 +805,10 @@ pub async fn check_token_status_with_tokenization_service(
         .parse_struct("Delete Network Tokenization Response")
         .change_context(errors::NetworkTokenizationError::ResponseDeserializationFailed)?;
 
-    match check_token_status_response.payload.token_status {
+    match check_token_status_response.token_status {
         pm_types::TokenStatus::Active => Ok((
-            check_token_status_response.payload.token_expiry_month,
-            check_token_status_response.payload.token_expiry_year,
+            Some(check_token_status_response.token_expiry_month),
+            Some(check_token_status_response.token_expiry_year),
         )),
         _ => Ok((None, None)),
     }
@@ -970,22 +891,18 @@ pub async fn check_token_status_with_tokenization_service(
 pub async fn do_status_check_for_network_token(
     state: &routes::SessionState,
     payment_method_info: &domain::PaymentMethod,
-) -> CustomResult<pm_types::CheckTokenStatusResponse, errors::ApiErrorResponse> {
+) -> CustomResult<pm_types::CheckTokenStatusResponse, errors::NetworkTokenizationError> {
     let network_token_requestor_reference_id = payment_method_info
         .network_token_requestor_reference_id
         .clone();
 
-    let customer_id = &payment_method_info
-        .customer_id
-        .clone()
-        .get_required_value("GlobalCustomerId")?;
     if let Some(ref_id) = network_token_requestor_reference_id {
         if let Some(network_tokenization_service) = &state.conf.network_tokenization_service {
             let network_token_details = record_operation_time(
                 async {
                     check_token_status_with_tokenization_service(
                         state,
-                        customer_id,
+                        &payment_method_info.customer_id,
                         ref_id,
                         network_tokenization_service.get_inner(),
                     )
@@ -993,9 +910,8 @@ pub async fn do_status_check_for_network_token(
                     .inspect_err(
                         |e| logger::error!(error=?e, "Error while fetching token from tokenization service")
                     )
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable(
-                    "Check network token status with tokenization service failed",
+                        "Check network token status with tokenization service failed",
                     )
                 },
                 &metrics::CHECK_NETWORK_TOKEN_STATUS_TIME,
@@ -1005,7 +921,6 @@ pub async fn do_status_check_for_network_token(
             Ok(network_token_details)
         } else {
             Err(errors::NetworkTokenizationError::NetworkTokenizationServiceNotConfigured)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Network Tokenization Service not configured")
                 .inspect_err(|_| {
                     logger::error!("Network Tokenization Service not configured");
@@ -1013,7 +928,6 @@ pub async fn do_status_check_for_network_token(
         }
     } else {
         Err(errors::NetworkTokenizationError::FetchNetworkTokenFailed)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Check network token status failed")?
     }
 }
@@ -1026,10 +940,10 @@ pub async fn delete_network_token_from_locker_and_token_service(
     payment_method_id: String,
     network_token_locker_id: Option<String>,
     network_token_requestor_reference_id: String,
-    provider: &domain::Provider,
+    platform: &domain::Platform,
 ) -> errors::RouterResult<DeleteCardResp> {
     //deleting network token from locker
-    let resp = payment_methods::cards::PmCards { state, provider }
+    let resp = payment_methods::cards::PmCards { state, platform }
         .delete_card_from_locker(
             customer_id,
             merchant_id,

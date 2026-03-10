@@ -266,8 +266,7 @@ pub async fn handle_metadata_update(
             let mut card = cards::get_card_from_locker(state, customer_id, merchant_id, &locker_id)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to fetch token information from the locker")?
-                .get_card();
+                .attach_printable("Failed to fetch token information from the locker")?;
 
             card.card_exp_year = metadata.expiry_year.clone();
             card.card_exp_month = metadata.expiry_month.clone();
@@ -288,10 +287,7 @@ pub async fn handle_metadata_update(
             let payment_method_request: api::payment_methods::PaymentMethodCreate =
                 PaymentMethodCreateWrapper::from((&card_data, payment_method)).get_inner();
 
-            let pm_cards = cards::PmCards {
-                state,
-                provider: platform.get_provider(),
-            };
+            let pm_cards = cards::PmCards { state, platform };
 
             pm_cards
                 .delete_card_from_locker(customer_id, merchant_id, &locker_id)
@@ -336,13 +332,7 @@ pub async fn handle_metadata_update(
                     network_token_requestor_reference_id: None,
                     network_token_locker_id: None,
                     network_token_payment_method_data: None,
-                    last_modified_by: platform
-                        .get_initiator()
-                        .and_then(|initiator| initiator.to_created_by())
-                        .map(|last_modified_by| last_modified_by.to_string()),
-                    metadata: None,
-                    last_used_at: None,
-                    connector_mandate_details: None,
+                    last_modified_by: None,
                 }
             } else {
                 storage::PaymentMethodUpdate::AdditionalDataUpdate {
@@ -355,13 +345,7 @@ pub async fn handle_metadata_update(
                     network_token_requestor_reference_id: None,
                     network_token_locker_id: Some(res.payment_method_id),
                     network_token_payment_method_data: pm_data_encrypted.map(Into::into),
-                    last_modified_by: platform
-                        .get_initiator()
-                        .and_then(|initiator| initiator.to_created_by())
-                        .map(|last_modified_by| last_modified_by.to_string()),
-                    metadata: None,
-                    last_used_at: None,
-                    connector_mandate_details: None,
+                    last_modified_by: None,
                 }
             };
             let db = &*state.store;
@@ -448,7 +432,6 @@ pub async fn fetch_merchant_account_for_network_token_webhooks(
         key_store.clone(),
         merchant_account,
         key_store,
-        None,
     );
 
     Ok(platform)

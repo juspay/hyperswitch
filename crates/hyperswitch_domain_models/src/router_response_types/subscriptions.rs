@@ -52,20 +52,20 @@ impl From<SubscriptionStatus> for common_enums::SubscriptionStatus {
 }
 
 #[derive(Debug, Clone)]
-pub struct GetSubscriptionItemsResponse {
-    pub list: Vec<SubscriptionItems>,
+pub struct GetSubscriptionPlansResponse {
+    pub list: Vec<SubscriptionPlans>,
 }
 
 #[derive(Debug, Clone)]
-pub struct SubscriptionItems {
-    pub subscription_provider_item_id: String,
+pub struct SubscriptionPlans {
+    pub subscription_provider_plan_id: String,
     pub name: String,
     pub description: Option<String>,
 }
 
 #[derive(Debug, Clone)]
-pub struct GetSubscriptionItemPricesResponse {
-    pub list: Vec<SubscriptionItemPrices>,
+pub struct GetSubscriptionPlanPricesResponse {
+    pub list: Vec<SubscriptionPlanPrices>,
 }
 
 #[derive(Debug, Clone)]
@@ -90,9 +90,9 @@ pub struct SubscriptionCancelResponse {
 }
 
 #[derive(Debug, Clone)]
-pub struct SubscriptionItemPrices {
+pub struct SubscriptionPlanPrices {
     pub price_id: String,
-    pub item_id: Option<String>,
+    pub plan_id: Option<String>,
     pub amount: MinorUnit,
     pub currency: Currency,
     pub interval: PeriodUnit,
@@ -101,11 +101,11 @@ pub struct SubscriptionItemPrices {
     pub trial_period_unit: Option<PeriodUnit>,
 }
 
-impl From<SubscriptionItemPrices> for api_models::subscription::SubscriptionItemPrices {
-    fn from(item: SubscriptionItemPrices) -> Self {
+impl From<SubscriptionPlanPrices> for api_models::subscription::SubscriptionPlanPrices {
+    fn from(item: SubscriptionPlanPrices) -> Self {
         Self {
             price_id: item.price_id,
-            item_id: item.item_id,
+            plan_id: item.plan_id,
             amount: item.amount,
             currency: item.currency,
             interval: item.interval.into(),

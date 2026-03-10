@@ -12,9 +12,7 @@ use common_utils::{
     errors::{CustomResult, ReportSwitchExt},
     ext_traits::{ByteSliceExt, BytesExt},
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{
-        AmountConvertor, StringMajorUnit, StringMajorUnitForConnector, StringMinorUnitForConnector,
-    },
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -22,25 +20,21 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
-        payments::{
-            Authorize, Capture, CreateConnectorCustomer, PSync, PaymentMethodToken, Session,
-            SetupMandate, Void,
-        },
+        payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
     },
     router_request_types::{
-        AccessTokenRequestData, ConnectorCustomerData, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
-        PaymentsSyncData, RefundsData, SetupMandateRequestData,
+        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
+        RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
         SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
-        ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
-        PaymentsCaptureRouterData, PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
-        SetupMandateRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData, SetupMandateRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -49,20 +43,15 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
-    disputes::DisputePayload,
     errors,
     events::connector_api_logs::ConnectorEvent,
-    types::{self, ConnectorCustomerType, PaymentsVoidType, Response, SetupMandateType},
+    types::{self, PaymentsVoidType, Response, SetupMandateType},
     webhooks,
 };
 use masking::{ExposeInterface, Mask};
 use transformers as payload;
 
-use crate::{
-    constants::headers,
-    types::ResponseRouterData,
-    utils::{self, PaymentsSyncRequestData, RefundsRequestData},
-};
+use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
 pub struct Payload {
@@ -89,88 +78,6 @@ impl api::Refund for Payload {}
 impl api::RefundExecute for Payload {}
 impl api::RefundSync for Payload {}
 impl api::PaymentToken for Payload {}
-impl api::ConnectorCustomer for Payload {}
-
-impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>
-    for Payload
-{
-    fn get_headers(
-        &self,
-        req: &ConnectorCustomerRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            "application/json".to_string().into(),
-        )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
-    }
-    fn get_url(
-        &self,
-        _req: &ConnectorCustomerRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/customers", self.base_url(connectors),))
-    }
-
-    fn get_request_body(
-        &self,
-        req: &ConnectorCustomerRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = requests::CustomerRequest::try_from(req)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
-    }
-
-    fn build_request(
-        &self,
-        req: &ConnectorCustomerRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Post)
-                .url(&ConnectorCustomerType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(ConnectorCustomerType::get_headers(self, req, connectors)?)
-                .set_body(ConnectorCustomerType::get_request_body(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &ConnectorCustomerRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<ConnectorCustomerRouterData, errors::ConnectorError> {
-        let response: responses::CustomerResponse =
-            res.response
-                .parse_struct("CustomerResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
-}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Payload
@@ -259,7 +166,6 @@ impl ConnectorCommon for Payload {
                 .map(|details_value| details_value.to_string()),
             attempt_status: None,
             connector_transaction_id: None,
-            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -274,10 +180,8 @@ impl ConnectorValidation for Payload {
         pm_type: Option<enums::PaymentMethodType>,
         pm_data: PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            utils::PaymentMethodDataType::Card,
-            utils::PaymentMethodDataType::AchBankDebit,
-        ]);
+        let mandate_supported_pmd =
+            std::collections::HashSet::from([utils::PaymentMethodDataType::Card]);
         utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
@@ -301,18 +205,10 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
 
     fn get_url(
         &self,
-        req: &SetupMandateRouterData,
+        _req: &SetupMandateRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        // Use /payment_methods for ACH, /transactions for cards
-        match &req.request.payment_method_data {
-            PaymentMethodData::BankDebit(
-                hyperswitch_domain_models::payment_method_data::BankDebitData::AchBankDebit {
-                    ..
-                },
-            ) => Ok(format!("{}/payment_methods", self.base_url(connectors))),
-            _ => Ok(format!("{}/transactions", self.base_url(connectors))),
-        }
+        Ok(format!("{}/transactions", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -320,21 +216,8 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         req: &SetupMandateRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        // Use different request struct for ACH vs cards
-        match &req.request.payment_method_data {
-            PaymentMethodData::BankDebit(
-                hyperswitch_domain_models::payment_method_data::BankDebitData::AchBankDebit {
-                    ..
-                },
-            ) => {
-                let connector_req = requests::PayloadPaymentMethodRequest::try_from(req)?;
-                Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
-            }
-            _ => {
-                let connector_req = requests::PayloadPaymentRequestData::try_from(req)?;
-                Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
-            }
-        }
+        let connector_req = requests::PayloadCardsRequestData::try_from(req)?;
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -358,42 +241,19 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<SetupMandateRouterData, errors::ConnectorError> {
-        match &data.request.payment_method_data {
-            PaymentMethodData::BankDebit(
-                hyperswitch_domain_models::payment_method_data::BankDebitData::AchBankDebit {
-                    ..
-                },
-            ) => {
-                let response: responses::PayloadPaymentMethodResponse = res
-                    .response
-                    .parse_struct("PayloadPaymentMethodResponse")
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: responses::PayloadPaymentsResponse = res
+            .response
+            .parse_struct("PayloadPaymentsResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-                event_builder.map(|i| i.set_response_body(&response));
-                router_env::logger::info!(connector_response=?response);
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
 
-                RouterData::try_from(ResponseRouterData {
-                    response,
-                    data: data.clone(),
-                    http_code: res.status_code,
-                })
-            }
-            _ => {
-                let response: responses::PayloadPaymentsResponse = res
-                    .response
-                    .parse_struct("PayloadPaymentsResponse")
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-                event_builder.map(|i| i.set_response_body(&response));
-                router_env::logger::info!(connector_response=?response);
-
-                RouterData::try_from(ResponseRouterData {
-                    response,
-                    data: data.clone(),
-                    http_code: res.status_code,
-                })
-            }
-        }
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
     }
 
     fn get_error_response(
@@ -499,12 +359,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pay
     fn get_headers(
         &self,
         req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = Vec::new();
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
+        self.build_headers(req, connectors)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -516,7 +373,12 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pay
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let payment_id = req.request.get_connector_transaction_id()?;
+        let payment_id = req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+
         Ok(format!(
             "{}/transactions/{}",
             self.base_url(connectors),
@@ -833,9 +695,13 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Payload {
     fn get_headers(
         &self,
         req: &RefundSyncRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.get_auth_header(&req.connector_auth_type)
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
     }
 
     fn get_url(
@@ -843,7 +709,11 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Payload {
         req: &RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_refund_id = req.request.get_connector_refund_id()?;
+        let connector_refund_id = req
+            .request
+            .connector_refund_id
+            .as_ref()
+            .ok_or_else(|| errors::ConnectorError::MissingConnectorRefundID)?;
         Ok(format!(
             "{}/transactions/{}",
             self.base_url(connectors),
@@ -862,6 +732,9 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Payload {
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
+                .set_body(types::RefundSyncType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .build(),
         ))
     }
@@ -912,49 +785,6 @@ impl webhooks::IncomingWebhook for Payload {
         Ok(request.body.to_vec())
     }
 
-    fn get_dispute_details(
-        &self,
-        request: &webhooks::IncomingWebhookRequestDetails<'_>,
-        snapshot: Option<&webhooks::WebhookContext>,
-    ) -> CustomResult<DisputePayload, errors::ConnectorError> {
-        let webhook_body: responses::PayloadWebhookEvent = request
-            .body
-            .parse_struct("PayloadWebhookEvent")
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        let payment_context = snapshot.map(|s| s.get_payment_context()).ok_or(
-            errors::ConnectorError::GenericError {
-                error_message: "Payment context not found".to_string(),
-                error_object: serde_json::Value::Null,
-            },
-        )?;
-        let currency = payment_context.currency.ok_or_else(|| {
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "currency",
-            }
-        })?;
-
-        let amount = StringMinorUnitForConnector
-            .convert(payment_context.amount, currency)
-            .change_context(errors::ConnectorError::AmountConversionFailed)?;
-
-        Ok(DisputePayload {
-            amount,
-            currency,
-            dispute_stage: api_models::enums::DisputeStage::Dispute,
-            connector_dispute_id: webhook_body.triggered_on.transaction_id.ok_or_else(|| {
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "connector_dispute_id",
-                }
-            })?,
-            connector_reason: None,
-            connector_reason_code: None,
-            challenge_required_by: None,
-            connector_status: webhook_body.trigger.as_str().to_string(),
-            created_at: None,
-            updated_at: None,
-        })
-    }
-
     fn get_webhook_source_verification_signature(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -990,9 +820,12 @@ impl webhooks::IncomingWebhook for Payload {
             | responses::PayloadWebhooksTrigger::Decline
             | responses::PayloadWebhooksTrigger::Deposit
             | responses::PayloadWebhooksTrigger::Reject
+            | responses::PayloadWebhooksTrigger::PaymentActivationStatus
+            | responses::PayloadWebhooksTrigger::PaymentLinkStatus
             | responses::PayloadWebhooksTrigger::ProcessingStatus
             | responses::PayloadWebhooksTrigger::BankAccountReject
-            | responses::PayloadWebhooksTrigger::Chargeback => {
+            | responses::PayloadWebhooksTrigger::TransactionOperation
+            | responses::PayloadWebhooksTrigger::TransactionOperationClear => {
                 let reference_id = webhook_body
                     .triggered_on
                     .transaction_id
@@ -1004,12 +837,9 @@ impl webhooks::IncomingWebhook for Payload {
             }
             // Refund handling not implemented since refund webhook payloads cannot be uniquely identified.
             // The only differentiator is the distinct IDs received for payment and refund.
-            responses::PayloadWebhooksTrigger::TransactionOperation
-            | responses::PayloadWebhooksTrigger::TransactionOperationClear
-            | responses::PayloadWebhooksTrigger::ChargebackReversal
-            | responses::PayloadWebhooksTrigger::PaymentActivationStatus
-            | responses::PayloadWebhooksTrigger::PaymentLinkStatus
-            | responses::PayloadWebhooksTrigger::Refund => {
+            responses::PayloadWebhooksTrigger::Refund
+            | responses::PayloadWebhooksTrigger::Chargeback
+            | responses::PayloadWebhooksTrigger::ChargebackReversal => {
                 Err(errors::ConnectorError::WebhooksNotImplemented.into())
             }
         }
@@ -1018,34 +848,13 @@ impl webhooks::IncomingWebhook for Payload {
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
-        snapshot: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let webhook_body: responses::PayloadWebhookEvent =
             request.body.parse_struct("PayloadWebhookEvent").switch()?;
 
-        // Check if this is an ACH late failure (network rejection after payment was already Charged)
-        // These should be treated as disputes, unlike regular Chargeback which uses normal flow
-        let is_ach_late_failure = snapshot
-            .map(|s| {
-                let payment_context = s.get_payment_context();
-                let is_ach =
-                    payment_context.payment_method_type == Some(enums::PaymentMethodType::Ach);
-                let is_charged = payment_context.previous_status == enums::AttemptStatus::Charged;
-                let is_late_failure_trigger = matches!(
-                    webhook_body.trigger,
-                    responses::PayloadWebhooksTrigger::Decline
-                        | responses::PayloadWebhooksTrigger::Reject
-                        | responses::PayloadWebhooksTrigger::BankAccountReject
-                );
-                is_ach && is_charged && is_late_failure_trigger
-            })
-            .unwrap_or(false);
-
-        Ok(if is_ach_late_failure {
-            api_models::webhooks::IncomingWebhookEvent::DisputeLost
-        } else {
-            api_models::webhooks::IncomingWebhookEvent::from(webhook_body.trigger)
-        })
+        Ok(api_models::webhooks::IncomingWebhookEvent::from(
+            webhook_body.trigger,
+        ))
     }
 
     fn get_webhook_resource_object(
@@ -1075,7 +884,6 @@ static PAYLOAD_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
         common_enums::CardNetwork::Discover,
         common_enums::CardNetwork::Mastercard,
         common_enums::CardNetwork::Visa,
-        common_enums::CardNetwork::DinersClub,
     ];
 
     payload_supported_payment_methods.add(
@@ -1114,16 +922,6 @@ static PAYLOAD_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
             ),
         },
     );
-    payload_supported_payment_methods.add(
-        enums::PaymentMethod::BankDebit,
-        enums::PaymentMethodType::Ach,
-        PaymentMethodDetails {
-            mandates: enums::FeatureStatus::Supported,
-            refunds: enums::FeatureStatus::Supported,
-            supported_capture_methods,
-            specific_features: None,
-        },
-    );
     payload_supported_payment_methods
 });
 
@@ -1131,7 +929,7 @@ static PAYLOAD_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Payload",
     description: "Payload is an embedded finance solution for modern platforms and businesses, automating inbound and outbound payments with an industry-leading platform and driving innovation into the future.",
     connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
-    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
 static PAYLOAD_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 3] = [
@@ -1151,15 +949,5 @@ impl ConnectorSpecifications for Payload {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&PAYLOAD_SUPPORTED_WEBHOOK_FLOWS)
-    }
-    fn should_call_connector_customer(
-        &self,
-        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
-    ) -> bool {
-        #[cfg(feature = "v1")]
-        return payment_attempt.customer_acceptance.is_some()
-            && payment_attempt.setup_future_usage_applied == Some(enums::FutureUsage::OffSession);
-        #[cfg(feature = "v2")]
-        return false;
     }
 }

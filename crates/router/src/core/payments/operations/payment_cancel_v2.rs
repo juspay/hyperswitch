@@ -200,8 +200,11 @@ impl<F: Clone + Send + Sync>
         &'b self,
         state: &'b SessionState,
         req_state: ReqState,
-        processor: &domain::Processor,
         mut payment_data: hyperswitch_domain_models::payments::PaymentCancelData<F>,
+        _customer: Option<domain::Customer>,
+        storage_scheme: enums::MerchantStorageScheme,
+        _updated_customer: Option<storage::CustomerUpdate>,
+        merchant_key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(
@@ -212,8 +215,6 @@ impl<F: Clone + Send + Sync>
         F: 'b + Send,
     {
         let db = &*state.store;
-        let storage_scheme = processor.get_account().storage_scheme;
-        let merchant_key_store = processor.get_key_store();
 
         let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::VoidUpdate {
             status: enums::AttemptStatus::VoidInitiated,
@@ -259,7 +260,8 @@ impl<F: Send + Clone + Sync>
         _state: &'a SessionState,
         _payment_data: &mut hyperswitch_domain_models::payments::PaymentCancelData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
-        _platform: &domain::Platform,
+        _merchant_key_store: &domain::MerchantKeyStore,
+        _customer: &Option<domain::Customer>,
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
     ) -> RouterResult<(
@@ -319,7 +321,6 @@ impl ValidateStatusForOperation for PaymentsCancel {
             | common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Processing
-            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::RequiresPaymentMethod

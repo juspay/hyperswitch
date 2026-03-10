@@ -1,7 +1,7 @@
 use common_enums::enums;
 use common_utils::{pii::Email, request::Method, types::FloatMajorUnit};
 use hyperswitch_domain_models::{
-    payment_method_data::{PaymentMethodData, VoucherData},
+    payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::{refunds::Execute, RSync},
     router_request_types::ResponseId,
@@ -45,8 +45,6 @@ pub struct ThreeDSecureReqData {
 pub enum PaymentMethodId {
     #[default]
     Card,
-    #[serde(rename = "OX")]
-    Oxxo,
 }
 
 #[derive(Debug, Serialize, Default, Deserialize, Clone, Eq, PartialEq)]
@@ -82,7 +80,6 @@ pub struct DlocalPaymentsRequest {
     pub payment_method_id: PaymentMethodId,
     pub payment_method_flow: PaymentMethodFlow,
     pub payer: Payer,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub card: Option<Card>,
     pub order_id: String,
     pub three_dsecure: Option<ThreeDSecureReqData>,
@@ -99,22 +96,7 @@ impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalP
         let address = item.router_data.get_billing_address()?;
         let country = *address.get_country()?;
         let name = address.get_full_name()?;
-        let amount = item.amount;
-        let payer = Payer {
-            name,
-            email,
-            document: item
-                .router_data
-                .get_customer_document_details()?
-                .map(|details| details.document_number)
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "customer.document_details.document_number",
-                })?,
-        };
-        let order_id = item.router_data.connector_request_reference_id.clone();
-        let callback_url = item.router_data.request.get_router_return_url()?;
-        let description = item.router_data.description.clone();
-        match item.router_data.request.payment_method_data.clone() {
+        match item.router_data.request.payment_method_data {
             PaymentMethodData::Card(ref ccard) => {
                 let should_capture = matches!(
                     item.router_data.request.capture_method,
@@ -122,12 +104,17 @@ impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalP
                         | Some(enums::CaptureMethod::SequentialAutomatic)
                 );
                 let payment_request = Self {
-                    amount,
+                    amount: item.amount,
                     currency: item.router_data.request.currency,
                     payment_method_id: PaymentMethodId::Card,
                     payment_method_flow: PaymentMethodFlow::Direct,
                     country,
-                    payer,
+                    payer: Payer {
+                        name,
+                        email,
+                        // [#589]: Allow securely collecting PII from customer in payments request
+                        document: get_doc_from_currency(country.to_string()),
+                    },
                     card: Some(Card {
                         holder_name: ccard.card_holder_name.clone(),
                         number: ccard.card_number.clone(),
@@ -136,39 +123,18 @@ impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalP
                         expiration_year: ccard.card_exp_year.clone(),
                         capture: should_capture.to_string(),
                     }),
-                    order_id,
+                    order_id: item.router_data.connector_request_reference_id.clone(),
                     three_dsecure: match item.router_data.auth_type {
                         enums::AuthenticationType::ThreeDs => {
                             Some(ThreeDSecureReqData { force: true })
                         }
                         enums::AuthenticationType::NoThreeDs => None,
                     },
-                    callback_url: Some(callback_url),
-                    description,
+                    callback_url: Some(item.router_data.request.get_router_return_url()?),
+                    description: item.router_data.description.clone(),
                 };
                 Ok(payment_request)
             }
-            PaymentMethodData::Voucher(voucher_data) => match voucher_data {
-                VoucherData::Oxxo => {
-                    let payment_request = Self {
-                        amount: item.amount,
-                        currency: item.router_data.request.currency,
-                        payment_method_id: PaymentMethodId::Oxxo,
-                        payment_method_flow: PaymentMethodFlow::Direct,
-                        country,
-                        payer,
-                        card: None,
-                        order_id,
-                        three_dsecure: None,
-                        callback_url: Some(callback_url),
-                        description,
-                    };
-                    Ok(payment_request)
-                }
-                _ => Err(errors::ConnectorError::NotImplemented(
-                    crate::utils::get_unimplemented_payment_method_error_message("Dlocal"),
-                ))?,
-            },
             PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Wallet(_)
             | PaymentMethodData::PayLater(_)
@@ -181,14 +147,12 @@ impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalP
             | PaymentMethodData::RealTimePayment(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::CardWithLimitedDetails(_)
-            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     crate::utils::get_unimplemented_payment_method_error_message("Dlocal"),
                 ))?
@@ -269,26 +233,6 @@ impl From<DlocalPaymentStatus> for enums::AttemptStatus {
     }
 }
 
-fn map_dlocal_status_to_attempt_status(
-    status: DlocalPaymentStatus,
-    has_redirect: bool,
-) -> enums::AttemptStatus {
-    match status {
-        DlocalPaymentStatus::Authorized => enums::AttemptStatus::Authorized,
-        DlocalPaymentStatus::Paid => enums::AttemptStatus::Charged,
-        DlocalPaymentStatus::Cancelled => enums::AttemptStatus::Voided,
-        DlocalPaymentStatus::Rejected => enums::AttemptStatus::Failure,
-
-        DlocalPaymentStatus::Pending => {
-            if has_redirect {
-                enums::AttemptStatus::AuthenticationPending
-            } else {
-                enums::AttemptStatus::Pending
-            }
-        }
-    }
-}
-
 #[derive(Eq, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ThreeDSecureResData {
     pub redirect_url: Option<Url>,
@@ -300,12 +244,6 @@ pub struct DlocalPaymentsResponse {
     id: String,
     three_dsecure: Option<ThreeDSecureResData>,
     order_id: Option<String>,
-    ticket: Option<TicketData>,
-}
-
-#[derive(Eq, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct TicketData {
-    pub image_url: Option<Url>,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, DlocalPaymentsResponse, T, PaymentsResponseData>>
@@ -315,36 +253,24 @@ impl<F, T> TryFrom<ResponseRouterData<F, DlocalPaymentsResponse, T, PaymentsResp
     fn try_from(
         item: ResponseRouterData<F, DlocalPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let payment_method = item.data.payment_method;
-        let redirection_data = match payment_method {
-            enums::PaymentMethod::Card => item
-                .response
-                .three_dsecure
-                .and_then(|three_secure_data| three_secure_data.redirect_url)
-                .map(|redirect_url| RedirectForm::from((redirect_url, Method::Get))),
-            enums::PaymentMethod::Voucher => item
-                .response
-                .ticket
-                .and_then(|ticket_data| ticket_data.image_url)
-                .map(|image_url| RedirectForm::from((image_url, Method::Get))),
-            _ => None,
-        };
+        let redirection_data = item
+            .response
+            .three_dsecure
+            .and_then(|three_secure_data| three_secure_data.redirect_url)
+            .map(|redirect_url| RedirectForm::from((redirect_url, Method::Get)));
 
         let response = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
-            redirection_data: Box::new(redirection_data.clone()),
+            redirection_data: Box::new(redirection_data),
             mandate_reference: Box::new(None),
             connector_metadata: None,
             network_txn_id: None,
             connector_response_reference_id: item.response.order_id.clone(),
             incremental_authorization_allowed: None,
-            authentication_data: None,
             charges: None,
         };
-        let status =
-            map_dlocal_status_to_attempt_status(item.response.status, redirection_data.is_some());
         Ok(Self {
-            status,
+            status: enums::AttemptStatus::from(item.response.status),
             response: Ok(response),
             ..item.data
         })
@@ -375,7 +301,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, DlocalPaymentsSyncResponse, T, Payments
                 network_txn_id: None,
                 connector_response_reference_id: item.response.order_id.clone(),
                 incremental_authorization_allowed: None,
-                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -407,7 +332,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, DlocalPaymentsCaptureResponse, T, Payme
                 network_txn_id: None,
                 connector_response_reference_id: item.response.order_id.clone(),
                 incremental_authorization_allowed: None,
-                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -437,7 +361,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, DlocalPaymentsCancelResponse, T, Paymen
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order_id.clone()),
                 incremental_authorization_allowed: None,
-                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -534,4 +457,23 @@ pub struct DlocalErrorResponse {
     pub code: i32,
     pub message: String,
     pub param: Option<String>,
+}
+
+fn get_doc_from_currency(country: String) -> Secret<String> {
+    let doc = match country.as_str() {
+        "BR" => "91483309223",
+        "ZA" => "2001014800086",
+        "BD" | "GT" | "HN" | "PK" | "SN" | "TH" => "1234567890001",
+        "CR" | "SV" | "VN" => "123456789",
+        "DO" | "NG" => "12345678901",
+        "EG" => "12345678901112",
+        "GH" | "ID" | "RW" | "UG" => "1234567890111123",
+        "IN" => "NHSTP6374G",
+        "CI" => "CA124356789",
+        "JP" | "MY" | "PH" => "123456789012",
+        "NI" => "1234567890111A",
+        "TZ" => "12345678912345678900",
+        _ => "12345678",
+    };
+    Secret::new(doc.to_string())
 }

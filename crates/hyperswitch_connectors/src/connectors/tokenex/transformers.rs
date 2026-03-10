@@ -6,7 +6,7 @@ use hyperswitch_domain_models::{
     router_request_types::VaultRequestData,
     router_response_types::{VaultIdType, VaultResponseData},
     types::VaultRouterData,
-    vault::{PaymentMethodCustomVaultingData, PaymentMethodVaultingData},
+    vault::PaymentMethodVaultingData,
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
@@ -37,12 +37,8 @@ impl<F> TryFrom<&VaultRouterData<F>> for TokenexInsertRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &VaultRouterData<F>) -> Result<Self, Self::Error> {
         match item.request.payment_method_vaulting_data.clone() {
-            Some(PaymentMethodCustomVaultingData::CardData(req_card)) => Ok(Self {
-                data: req_card.card_number.clone().ok_or(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "card_number",
-                    },
-                )?,
+            Some(PaymentMethodVaultingData::Card(req_card)) => Ok(Self {
+                data: req_card.card_number.clone(),
             }),
             _ => Err(errors::ConnectorError::NotImplemented(
                 "Payment method apart from card".to_string(),
@@ -126,7 +122,6 @@ impl
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
-                    connector_response_reference_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
@@ -217,7 +212,6 @@ impl
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
-                    connector_response_reference_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,

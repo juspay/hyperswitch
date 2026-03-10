@@ -282,7 +282,6 @@ impl From<&HipayTokenResponse> for AdditionalPaymentMethodConnectorResponse {
             payment_checks: None,
             card_network: Some(hipay_token_response.brand.clone()),
             domestic_network: hipay_token_response.domestic_network.clone(),
-            auth_code: None,
         }
     }
 }
@@ -364,7 +363,6 @@ impl TryFrom<PaymentsResponseRouterData<HipayPaymentsResponse>> for PaymentsAuth
                 reason: Some(item.response.message.clone()),
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.transaction_reference),
-                connector_response_reference_id: None,
                 status_code: item.http_code,
                 network_advice_code: None,
                 network_decline_code: None,
@@ -389,7 +387,6 @@ impl TryFrom<PaymentsResponseRouterData<HipayPaymentsResponse>> for PaymentsAuth
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
-                authentication_data: None,
                 charges: None,
             })
         };
@@ -624,7 +621,6 @@ impl TryFrom<PaymentsCaptureResponseRouterData<HipayMaintenanceResponse<HipayPay
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
-                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -650,7 +646,6 @@ impl TryFrom<PaymentsCancelResponseRouterData<HipayMaintenanceResponse<HipayPaym
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
-                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -721,7 +716,6 @@ impl TryFrom<PaymentsSyncResponseRouterData<HipaySyncResponse>> for PaymentsSync
                     reason: Some(message.clone()),
                     attempt_status: None,
                     connector_transaction_id: None,
-                    connector_response_reference_id: None,
                     status_code: item.http_code,
                     network_advice_code: None,
                     network_decline_code: None,
@@ -751,7 +745,6 @@ impl TryFrom<PaymentsSyncResponseRouterData<HipaySyncResponse>> for PaymentsSync
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: None,
-                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
@@ -766,7 +759,6 @@ impl TryFrom<PaymentsSyncResponseRouterData<HipaySyncResponse>> for PaymentsSync
                         network_txn_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
-                        authentication_data: None,
                         charges: None,
                     })
                 };

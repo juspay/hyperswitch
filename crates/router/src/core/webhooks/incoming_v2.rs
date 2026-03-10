@@ -92,7 +92,6 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
     let api_event = ApiEventsType::Webhooks {
         connector: connector_id.clone(),
         payment_id: webhooks_response_tracker.get_payment_id(),
-        refund_id: webhooks_response_tracker.get_refund_id(),
     };
     let response_value = serde_json::to_value(&webhooks_response_tracker)
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -176,7 +175,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     request_details.body = &decoded_body;
 
     let event_type = match connector
-        .get_webhook_event_type(&request_details, None)
+        .get_webhook_event_type(&request_details)
         .allow_webhook_event_type_not_found(
             state
                 .clone()

@@ -28,11 +28,12 @@ pub async fn get_mandate(
         &req,
         mandate_id,
         |state, auth: auth::AuthenticationData, req, _| {
-            mandate::get_mandate(state, auth.platform, req)
+            let platform = auth.into();
+            mandate::get_mandate(state, platform, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            allow_connected_scope_operation: false,
-            allow_platform_self_operation: false,
+            is_connected_allowed: false,
+            is_platform_allowed: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -56,11 +57,12 @@ pub async fn revoke_mandate(
         &req,
         mandate_id,
         |state, auth: auth::AuthenticationData, req, _| {
-            mandate::revoke_mandate(state, auth.platform, req)
+            let platform = auth.into();
+            mandate::revoke_mandate(state, platform, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            allow_connected_scope_operation: false,
-            allow_platform_self_operation: false,
+            is_connected_allowed: false,
+            is_platform_allowed: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))
@@ -81,17 +83,16 @@ pub async fn retrieve_mandates_list(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            mandate::retrieve_mandates_list(state, auth.platform, req)
+            let platform = auth.into();
+            mandate::retrieve_mandates_list(state, platform, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
-                allow_platform_self_operation: false,
+                is_connected_allowed: false,
+                is_platform_allowed: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantMandateRead,
-                allow_connected: false,
-                allow_platform: false,
             },
             req.headers(),
         ),

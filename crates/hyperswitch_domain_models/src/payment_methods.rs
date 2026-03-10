@@ -9,20 +9,17 @@ use common_enums::enums::MerchantStorageScheme;
 #[cfg(feature = "v1")]
 use common_utils::crypto::OptionalEncryptableValue;
 #[cfg(feature = "v2")]
-use common_utils::{
-    crypto::Encryptable, encryption::Encryption, ext_traits::OptionExt,
-    types::keymanager::ToEncryptable,
-};
+use common_utils::{crypto::Encryptable, encryption::Encryption, types::keymanager::ToEncryptable};
 use common_utils::{
     errors::{CustomResult, ParsingError, ValidationError},
     id_type, pii, type_name,
     types::{keymanager, CreatedBy},
 };
-pub use diesel_models::{
-    enums as storage_enums, PaymentMethodUpdate as StoragePaymentMethodUpdate,
-};
+pub use diesel_models::{enums as storage_enums, PaymentMethodUpdate};
 use error_stack::ResultExt;
-use masking::{ExposeInterface, PeekInterface, Secret};
+#[cfg(feature = "v1")]
+use masking::ExposeInterface;
+use masking::{PeekInterface, Secret};
 #[cfg(feature = "v1")]
 use router_env::logger;
 #[cfg(feature = "v2")]
@@ -31,10 +28,10 @@ use rustc_hash::FxHashMap;
 use serde_json::Value;
 use time::PrimitiveDateTime;
 
+#[cfg(feature = "v2")]
+use crate::address::Address;
 #[cfg(feature = "v1")]
 use crate::type_encryption::AsyncLift;
-#[cfg(feature = "v2")]
-use crate::{address::Address, platform::Initiator};
 use crate::{
     mandates::{self, CommonMandateReference},
     merchant_key_store::MerchantKeyStore,
@@ -95,19 +92,16 @@ pub struct PaymentMethod {
     pub vault_source_details: PaymentMethodVaultSourceDetails,
     pub created_by: Option<CreatedBy>,
     pub last_modified_by: Option<CreatedBy>,
-    pub customer_details: OptionalEncryptableValue,
-    pub locker_fingerprint_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug, router_derive::ToEncryption, serde::Serialize)]
+#[derive(Clone, Debug, router_derive::ToEncryption)]
 pub struct PaymentMethod {
     /// The identifier for the payment method. Using this recurring payments can be made
     pub id: id_type::GlobalPaymentMethodId,
 
     /// The customer id against which the payment method is saved
-    /// It is made optional to support guest checkout tokenization
-    pub customer_id: Option<id_type::GlobalCustomerId>,
+    pub customer_id: id_type::GlobalCustomerId,
 
     /// The merchant id against which the payment method is saved
     pub merchant_id: id_type::MerchantId,
@@ -137,12 +131,11 @@ pub struct PaymentMethod {
     pub network_token_payment_method_data:
         Option<Encryptable<domain_payment_method_data::PaymentMethodsData>>,
     #[encrypt(ty = Value)]
-    pub external_vault_token_data: Option<Encryptable<payment_methods::ExternalVaultTokenData>>,
+    pub external_vault_token_data:
+        Option<Encryptable<api_models::payment_methods::ExternalVaultTokenData>>,
     pub vault_type: Option<storage_enums::VaultType>,
     pub created_by: Option<CreatedBy>,
     pub last_modified_by: Option<CreatedBy>,
-    #[encrypt(ty = Value)]
-    pub customer_details: Option<Encryptable<customers::CustomerDocumentDetails>>,
 }
 
 impl PaymentMethod {
@@ -288,14 +281,6 @@ impl PaymentMethod {
             .and_then(|record| record.connector_customer_id.clone()))
     }
 
-    #[cfg(feature = "v1")]
-    pub fn get_payment_method_metadata(
-        &self,
-        optional_metadata: Option<pii::SecretSerdeValue>,
-    ) -> Option<pii::SecretSerdeValue> {
-        common_utils::merge_json_values(self.metadata.clone(), optional_metadata)
-    }
-
     #[cfg(feature = "v2")]
     pub fn get_payout_connector_customer_id(
         &self,
@@ -315,95 +300,6 @@ impl PaymentMethod {
         payment_method_subtype: common_enums::PaymentMethodType,
     ) {
         self.payment_method_subtype = Some(payment_method_subtype);
-    }
-}
-
-#[cfg(feature = "v2")]
-#[derive(Clone, Debug)]
-pub struct PaymentMethodUpdate {
-    pub payment_method_data: Option<payment_methods::PaymentMethodUpdateData>,
-    pub connector_token_details: Option<payment_methods::ConnectorTokenDetails>,
-    pub network_transaction_id: Option<Secret<String>>,
-    pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
-    pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
-    pub source_payment_method_data: Option<crate::vault::PaymentMethodVaultingData>,
-}
-
-#[cfg(feature = "v2")]
-impl From<payment_methods::PaymentMethodUpdate> for PaymentMethodUpdate {
-    fn from(value: payment_methods::PaymentMethodUpdate) -> Self {
-        Self {
-            payment_method_data: value.payment_method_data,
-            connector_token_details: value.connector_token_details,
-            network_transaction_id: value.network_transaction_id,
-            acknowledgement_status: value.acknowledgement_status,
-            network_tokenization: None,
-            source_payment_method_data: None,
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
-impl PaymentMethodUpdate {
-    pub fn fetch_card_cvc_update(&self) -> Option<Secret<String>> {
-        match &self.payment_method_data {
-            Some(payment_methods::PaymentMethodUpdateData::Card(card_update)) => {
-                card_update.card_cvc.clone()
-            }
-            _ => None,
-        }
-    }
-
-    pub fn is_payment_method_metadata_update(&self) -> bool {
-        match &self.payment_method_data {
-            Some(payment_methods::PaymentMethodUpdateData::Card(card_update)) => {
-                card_update.card_holder_name.is_some() || card_update.nick_name.is_some()
-            }
-            _ => false,
-        }
-    }
-
-    pub fn is_payment_method_update_required(&self) -> bool {
-        self.is_payment_method_metadata_update()
-            || self.connector_token_details.is_some()
-            || self.network_transaction_id.is_some()
-            || self.acknowledgement_status.is_some()
-    }
-}
-
-#[cfg(feature = "v2")]
-impl
-    From<(
-        &payment_methods::PaymentMethodCreate,
-        crate::vault::PaymentMethodVaultingData,
-    )> for PaymentMethodUpdate
-{
-    fn from(
-        value: (
-            &payment_methods::PaymentMethodCreate,
-            crate::vault::PaymentMethodVaultingData,
-        ),
-    ) -> Self {
-        let (req, source_payment_method_data) = value;
-        let payment_method_data = match &req.payment_method_data {
-            payment_methods::PaymentMethodCreateData::Card(card_data) => Some(
-                payment_methods::PaymentMethodUpdateData::Card(payment_methods::CardDetailUpdate {
-                    card_holder_name: card_data.card_holder_name.clone(),
-                    nick_name: card_data.nick_name.clone(),
-                    card_cvc: card_data.card_cvc.clone(),
-                }),
-            ),
-            payment_methods::PaymentMethodCreateData::ProxyCard(_) => None,
-        };
-
-        Self {
-            payment_method_data,
-            connector_token_details: None,
-            network_transaction_id: None,
-            acknowledgement_status: None,
-            network_tokenization: req.network_tokenization.clone(),
-            source_payment_method_data: Some(source_payment_method_data),
-        }
     }
 }
 
@@ -459,8 +355,6 @@ impl super::behaviour::Conversion for PaymentMethod {
             last_modified_by: self
                 .last_modified_by
                 .map(|last_modified_by| last_modified_by.to_string()),
-            customer_details: self.customer_details.map(|val| val.into()),
-            locker_fingerprint_id: self.locker_fingerprint_id,
         })
     }
 
@@ -478,7 +372,6 @@ impl super::behaviour::Conversion for PaymentMethod {
             payment_method_data,
             payment_method_billing_address,
             network_token_payment_method_data,
-            customer_details,
         ) = async {
             let payment_method_data = item
                 .payment_method_data
@@ -525,26 +418,10 @@ impl super::behaviour::Conversion for PaymentMethod {
                 })
                 .await?;
 
-            let customer_details = item
-                .customer_details
-                .async_lift(|inner| async {
-                    crypto_operation(
-                        state,
-                        type_name!(Self::DstType),
-                        CryptoOperation::DecryptOptional(inner),
-                        key_manager_identifier.clone(),
-                        key.peek(),
-                    )
-                    .await
-                    .and_then(|val| val.try_into_optionaloperation())
-                })
-                .await?;
-
             Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>((
                 payment_method_data,
                 payment_method_billing_address,
                 network_token_payment_method_data,
-                customer_details,
             ))
         }
         .await
@@ -600,8 +477,6 @@ impl super::behaviour::Conversion for PaymentMethod {
             last_modified_by: item
                 .last_modified_by
                 .and_then(|last_modified_by| last_modified_by.parse::<CreatedBy>().ok()),
-            customer_details,
-            locker_fingerprint_id: item.locker_fingerprint_id,
         })
     }
 
@@ -652,8 +527,6 @@ impl super::behaviour::Conversion for PaymentMethod {
             last_modified_by: self
                 .last_modified_by
                 .map(|last_modified_by| last_modified_by.to_string()),
-            customer_details: self.customer_details.map(|val| val.into()),
-            locker_fingerprint_id: self.locker_fingerprint_id,
         })
     }
 }
@@ -665,7 +538,7 @@ impl super::behaviour::Conversion for PaymentMethod {
     type NewDstType = diesel_models::payment_method::PaymentMethodNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(Self::DstType {
-            customer_id: self.customer_id.get_required_value("GlobalCustomerId")?,
+            customer_id: self.customer_id,
             merchant_id: self.merchant_id,
             id: self.id,
             created_at: self.created_at,
@@ -678,7 +551,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             connector_mandate_details: self.connector_mandate_details.map(|cmd| cmd.into()),
             customer_acceptance: self.customer_acceptance,
             status: self.status,
-            network_transaction_id: self.network_transaction_id.map(Secret::new),
+            network_transaction_id: self.network_transaction_id,
             client_secret: self.client_secret,
             payment_method_billing_address: self
                 .payment_method_billing_address
@@ -698,7 +571,6 @@ impl super::behaviour::Conversion for PaymentMethod {
             last_modified_by: self
                 .last_modified_by
                 .map(|last_modified_by| last_modified_by.to_string()),
-            customer_details: self.customer_details.map(|val| val.into()),
         })
     }
 
@@ -725,7 +597,6 @@ impl super::behaviour::Conversion for PaymentMethod {
                         network_token_payment_method_data: storage_model
                             .network_token_payment_method_data,
                         external_vault_token_data: storage_model.external_vault_token_data,
-                        customer_details: storage_model.customer_details,
                     },
                 )),
                 key_manager_identifier,
@@ -768,17 +639,6 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .change_context(common_utils::errors::CryptoError::DecodingFailed)
                 .attach_printable("Error while deserializing Network token Payment Method Data")?;
 
-            let customer_details = data
-                .customer_details
-                .map(|customer_details| {
-                    customer_details.deserialize_inner_value(|value| {
-                        value.parse_value("Payment Method Customer Details")
-                    })
-                })
-                .transpose()
-                .change_context(common_utils::errors::CryptoError::DecodingFailed)
-                .attach_printable("Error while deserializing Payment Method Customer Details")?;
-
             let external_vault_token_data = data
                 .external_vault_token_data
                 .map(|external_vault_token_data| {
@@ -791,7 +651,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .attach_printable("Error while deserializing External Vault Token Data")?;
 
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
-                customer_id: Some(storage_model.customer_id),
+                customer_id: storage_model.customer_id,
                 merchant_id: storage_model.merchant_id,
                 id: storage_model.id,
                 created_at: storage_model.created_at,
@@ -804,9 +664,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 connector_mandate_details: storage_model.connector_mandate_details.map(From::from),
                 customer_acceptance: storage_model.customer_acceptance,
                 status: storage_model.status,
-                network_transaction_id: storage_model
-                    .network_transaction_id
-                    .map(ExposeInterface::expose),
+                network_transaction_id: storage_model.network_transaction_id,
                 client_secret: storage_model.client_secret,
                 payment_method_billing_address,
                 updated_by: storage_model.updated_by,
@@ -825,7 +683,6 @@ impl super::behaviour::Conversion for PaymentMethod {
                 last_modified_by: storage_model
                     .last_modified_by
                     .and_then(|last_modified_by| last_modified_by.parse::<CreatedBy>().ok()),
-                customer_details,
             })
         }
         .await
@@ -836,7 +693,7 @@ impl super::behaviour::Conversion for PaymentMethod {
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         Ok(Self::NewDstType {
-            customer_id: self.customer_id.get_required_value("GlobalCustomerId")?,
+            customer_id: self.customer_id,
             merchant_id: self.merchant_id,
             id: self.id,
             created_at: self.created_at,
@@ -868,7 +725,6 @@ impl super::behaviour::Conversion for PaymentMethod {
             last_modified_by: self
                 .last_modified_by
                 .map(|last_modified_by| last_modified_by.to_string()),
-            customer_details: self.customer_details.map(|val| val.into()),
         })
     }
 }
@@ -877,7 +733,7 @@ impl super::behaviour::Conversion for PaymentMethod {
 #[derive(Clone, Debug, router_derive::ToEncryption)]
 pub struct PaymentMethodSession {
     pub id: id_type::GlobalPaymentMethodSessionId,
-    pub customer_id: Option<id_type::GlobalCustomerId>,
+    pub customer_id: id_type::GlobalCustomerId,
     #[encrypt(ty = Value)]
     pub billing: Option<Encryptable<Address>>,
     pub return_url: Option<common_utils::types::Url>,
@@ -885,12 +741,9 @@ pub struct PaymentMethodSession {
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     pub tokenization_data: Option<pii::SecretSerdeValue>,
     pub expires_at: PrimitiveDateTime,
-    pub associated_payment_methods:
-        Option<Vec<common_types::payment_methods::AssociatedPaymentMethods>>,
+    pub associated_payment_methods: Option<Vec<String>>,
     pub associated_payment: Option<id_type::GlobalPaymentId>,
     pub associated_token_id: Option<id_type::GlobalTokenId>,
-    pub storage_type: common_enums::StorageType,
-    pub keep_alive: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -911,8 +764,6 @@ impl super::behaviour::Conversion for PaymentMethodSession {
             associated_payment: self.associated_payment,
             return_url: self.return_url,
             associated_token_id: self.associated_token_id,
-            storage_type: self.storage_type,
-            keep_alive: self.keep_alive,
         })
     }
 
@@ -967,8 +818,6 @@ impl super::behaviour::Conversion for PaymentMethodSession {
                 associated_payment: storage_model.associated_payment,
                 return_url: storage_model.return_url,
                 associated_token_id: storage_model.associated_token_id,
-                storage_type: storage_model.storage_type,
-                keep_alive: storage_model.keep_alive,
             })
         }
         .await
@@ -990,8 +839,6 @@ impl super::behaviour::Conversion for PaymentMethodSession {
             associated_payment: self.associated_payment,
             return_url: self.return_url,
             associated_token_id: self.associated_token_id,
-            storage_type: self.storage_type,
-            keep_alive: self.keep_alive,
         })
     }
 }
@@ -1022,15 +869,6 @@ pub trait PaymentMethodInterface {
         locker_id: &str,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentMethod, Self::Error>;
-
-    #[cfg(feature = "v1")]
-    async fn find_payment_methods_by_merchant_id_payment_method_ids(
-        &self,
-        key_store: &MerchantKeyStore,
-        merchant_id: &id_type::MerchantId,
-        payment_method_ids: &[String],
-        storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<Vec<PaymentMethod>, Self::Error>;
 
     #[cfg(feature = "v1")]
     async fn find_payment_method_by_customer_id_merchant_id_list(
@@ -1074,18 +912,6 @@ pub trait PaymentMethodInterface {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<PaymentMethod>, Self::Error>;
 
-    #[cfg(feature = "v2")]
-    #[allow(clippy::too_many_arguments)]
-    async fn find_payment_method_by_global_customer_id_merchant_id_statuses(
-        &self,
-        key_store: &MerchantKeyStore,
-        customer_id: &id_type::GlobalCustomerId,
-        merchant_id: &id_type::MerchantId,
-        statuses: Vec<common_enums::PaymentMethodStatus>,
-        limit: Option<i64>,
-        storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<Vec<PaymentMethod>, Self::Error>;
-
     #[cfg(feature = "v1")]
     async fn get_payment_method_count_by_customer_id_merchant_id_status(
         &self,
@@ -1111,7 +937,7 @@ pub trait PaymentMethodInterface {
         &self,
         key_store: &MerchantKeyStore,
         payment_method: PaymentMethod,
-        payment_method_update: StoragePaymentMethodUpdate,
+        payment_method_update: PaymentMethodUpdate,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentMethod, Self::Error>;
 
@@ -1120,9 +946,9 @@ pub trait PaymentMethodInterface {
         &self,
         key_store: &MerchantKeyStore,
         payment_method: PaymentMethod,
-        initiator: Option<&Initiator>,
     ) -> CustomResult<PaymentMethod, Self::Error>;
 
+    #[cfg(feature = "v2")]
     async fn find_payment_method_by_fingerprint_id(
         &self,
         key_store: &MerchantKeyStore,
@@ -1147,8 +973,7 @@ pub enum PaymentMethodsSessionUpdateEnum {
         tokenization_data: Option<pii::SecretSerdeValue>,
     },
     UpdateAssociatedPaymentMethods {
-        associated_payment_methods:
-            Option<Vec<common_types::payment_methods::AssociatedPaymentMethods>>,
+        associated_payment_methods: Option<Vec<String>>,
     },
 }
 
@@ -1196,8 +1021,6 @@ impl PaymentMethodSession {
             associated_payment_methods,
             associated_payment,
             associated_token_id,
-            storage_type,
-            keep_alive,
         } = self;
         Self {
             id,
@@ -1213,8 +1036,6 @@ impl PaymentMethodSession {
                 .or(associated_payment_methods),
             associated_payment,
             associated_token_id,
-            storage_type,
-            keep_alive,
         }
     }
 }
@@ -1225,8 +1046,7 @@ pub struct PaymentMethodsSessionUpdateInternal {
     pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     pub tokenization_data: Option<pii::SecretSerdeValue>,
-    pub associated_payment_methods:
-        Option<Vec<common_types::payment_methods::AssociatedPaymentMethods>>,
+    pub associated_payment_methods: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -1321,7 +1141,6 @@ impl TryFrom<(payment_methods::PaymentMethodRecord, id_type::MerchantId)>
                 }),
                 metadata: None,
                 tax_registration_id: None,
-                document_details: None,
             },
             connector_customer_details,
         })
@@ -1487,54 +1306,6 @@ impl<'a> PaymentMethodBalanceData<'a> {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug)]
-pub struct PaymentMethodResponse {
-    /// Unique identifier for a merchant
-    pub merchant_id: id_type::MerchantId,
-
-    /// The unique identifier of the customer.
-    pub customer_id: Option<id_type::CustomerId>,
-
-    /// The unique identifier of the Payment method
-    pub payment_method_id: String,
-
-    /// The type of payment method use for the payment.
-    pub payment_method: Option<common_enums::PaymentMethod>,
-
-    /// This is a sub-category of payment method.
-    pub payment_method_type: Option<common_enums::PaymentMethodType>,
-
-    /// Card details from card locker
-    pub card: Option<payment_methods::CardDetailFromLocker>,
-
-    /// Indicates whether the payment method supports recurring payments. Optional.
-    pub recurring_enabled: Option<bool>,
-
-    /// Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.
-    pub installment_payment_enabled: Option<bool>,
-
-    /// Type of payment experience enabled with the connector
-    pub payment_experience: Option<Vec<common_enums::PaymentExperience>>,
-
-    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
-    pub metadata: Option<pii::SecretSerdeValue>,
-
-    /// A timestamp (ISO 8601 code) that determines when the payment method was created
-    pub created: Option<PrimitiveDateTime>,
-
-    /// Payment method details from locker
-    #[cfg(feature = "payouts")]
-    pub bank_transfer: Option<api_models::payouts::Bank>,
-
-    pub last_used_at: Option<PrimitiveDateTime>,
-
-    /// For Client based calls
-    pub client_secret: Option<String>,
-
-    pub locker_fingerprint_id: Option<String>,
-}
-
-#[cfg(feature = "v1")]
 #[cfg(test)]
 mod tests {
     use id_type::MerchantConnectorAccountId;
@@ -1582,8 +1353,6 @@ mod tests {
             vault_source_details: Default::default(),
             created_by: None,
             last_modified_by: None,
-            customer_details: None,
-            locker_fingerprint_id: None,
         };
         payment_method.clone()
     }

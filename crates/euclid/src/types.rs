@@ -11,10 +11,7 @@ use crate::{
     frontend::{
         ast,
         dir::{
-            enums::{
-                CustomerDeviceDisplaySize, CustomerDevicePlatform, CustomerDeviceType,
-                TransactionInitiator,
-            },
+            enums::{CustomerDeviceDisplaySize, CustomerDevicePlatform, CustomerDeviceType},
             DirKeyKind, DirValue, EuclidDirFilter,
         },
     },
@@ -85,8 +82,6 @@ pub enum EuclidKey {
     CustomerDeviceDisplaySize,
     #[strum(serialize = "customer_device_platform")]
     CustomerDevicePlatform,
-    #[strum(serialize = "transaction_initiator")]
-    TransactionInitiator,
 }
 
 impl EuclidDirFilter for DummyOutput {
@@ -106,7 +101,6 @@ impl EuclidDirFilter for DummyOutput {
         DirKeyKind::MandateType,
         DirKeyKind::PaymentType,
         DirKeyKind::SetupFutureUsage,
-        DirKeyKind::TransactionInitiator,
     ];
 }
 impl EuclidAnalysable for DummyOutput {
@@ -178,7 +172,6 @@ impl EuclidKey {
             Self::CustomerDeviceType => DataType::EnumVariant,
             Self::CustomerDeviceDisplaySize => DataType::EnumVariant,
             Self::CustomerDevicePlatform => DataType::EnumVariant,
-            Self::TransactionInitiator => DataType::EnumVariant,
         }
     }
 }
@@ -304,7 +297,6 @@ pub enum EuclidValue {
     CustomerDeviceType(CustomerDeviceType),
     CustomerDeviceDisplaySize(CustomerDeviceDisplaySize),
     CustomerDevicePlatform(CustomerDevicePlatform),
-    TransactionInitiator(TransactionInitiator),
 }
 
 impl EuclidValue {
@@ -343,7 +335,6 @@ impl EuclidValue {
             Self::CustomerDeviceType(_) => EuclidKey::CustomerDeviceType,
             Self::CustomerDeviceDisplaySize(_) => EuclidKey::CustomerDeviceDisplaySize,
             Self::CustomerDevicePlatform(_) => EuclidKey::CustomerDevicePlatform,
-            Self::TransactionInitiator(_) => EuclidKey::TransactionInitiator,
         }
     }
 }

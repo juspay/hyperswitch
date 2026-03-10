@@ -204,10 +204,9 @@ pub struct PayoutCreateRequest {
 
 impl PayoutCreateRequest {
     pub fn get_customer_id(&self) -> Option<&id_type::CustomerId> {
-        self.customer_id.as_ref().or(self
-            .customer
+        self.customer_id
             .as_ref()
-            .and_then(|customer| customer.id.as_ref()))
+            .or(self.customer.as_ref().map(|customer| &customer.id))
     }
 }
 
@@ -391,7 +390,6 @@ pub enum Wallet {
 #[serde(rename_all = "snake_case")]
 pub enum BankRedirect {
     Interac(Interac),
-    OpenBankingUk(OpenBankingUk),
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -399,16 +397,6 @@ pub struct Interac {
     /// Customer email linked with interac account
     #[schema(value_type = String, example = "john.doe@example.com")]
     pub email: Email,
-}
-
-#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
-pub struct OpenBankingUk {
-    /// Account holder name
-    #[schema(value_type = String, example = "John Doe")]
-    pub account_holder_name: Secret<String>,
-    /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
-    #[schema(value_type = String, example = "DE89370400440532013000")]
-    pub iban: Secret<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -672,8 +660,8 @@ pub enum PayoutMethodDataResponse {
     Wallet(Box<payout_method_utils::WalletAdditionalData>),
     #[schema(value_type = BankRedirectAdditionalData)]
     BankRedirect(Box<payout_method_utils::BankRedirectAdditionalData>),
-    #[schema(value_type = PassthroughAdditionalData)]
-    Passthrough(Box<payout_method_utils::PassthroughAdditionalData>),
+    #[schema(value_type = PassthroughAddtionalData)]
+    Passthrough(Box<payout_method_utils::PassthroughAddtionalData>),
 }
 
 #[derive(
@@ -1096,18 +1084,11 @@ impl From<BankRedirect> for payout_method_utils::BankRedirectAdditionalData {
                     email: Some(ForeignFrom::foreign_from(email)),
                 }))
             }
-            BankRedirect::OpenBankingUk(OpenBankingUk {
-                account_holder_name,
-                iban,
-            }) => Self::OpenBankingUk(Box::new(payout_method_utils::OpenBankingUkAdditionalData {
-                account_holder_name,
-                iban,
-            })),
         }
     }
 }
 
-impl From<Passthrough> for payout_method_utils::PassthroughAdditionalData {
+impl From<Passthrough> for payout_method_utils::PassthroughAddtionalData {
     fn from(passthrough_data: Passthrough) -> Self {
         Self {
             psp_token: passthrough_data.psp_token.into(),
@@ -1136,61 +1117,4 @@ impl From<payout_method_utils::AdditionalPayoutMethodData> for PayoutMethodDataR
             }
         }
     }
-}
-
-#[derive(Clone, Debug, serde::Serialize)]
-pub struct PayoutsAggregateResponse {
-    /// The list of intent status with their count
-    pub status_with_count: HashMap<common_enums::PayoutStatus, i64>,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-pub struct PayoutsManualUpdateRequest {
-    /// The identifier for the payout
-    #[schema(value_type = String)]
-    pub payout_id: id_type::PayoutId,
-    /// The identifier for the payout attempt
-    pub payout_attempt_id: String,
-    /// Merchant ID
-    #[schema(value_type = String)]
-    pub merchant_id: id_type::MerchantId,
-    /// The status of the payout attempt
-    #[schema(value_type = Option<PayoutStatus>)]
-    pub status: Option<api_enums::PayoutStatus>,
-    /// Error code of the connector
-    pub error_code: Option<String>,
-    /// Error message of the connector
-    pub error_message: Option<String>,
-    /// A unique identifier for a payout provided by the connector
-    pub connector_payout_id: Option<String>,
-}
-
-impl PayoutsManualUpdateRequest {
-    pub fn is_update_parameter_present(&self) -> bool {
-        self.status.is_some()
-            || self.error_code.is_some()
-            || self.error_message.is_some()
-            || self.connector_payout_id.is_some()
-    }
-}
-
-#[derive(Debug, serde::Serialize, Clone, ToSchema)]
-pub struct PayoutsManualUpdateResponse {
-    /// The identifier for the payout
-    #[schema(value_type = String)]
-    pub payout_id: id_type::PayoutId,
-    /// The identifier for the payout attempt
-    pub payout_attempt_id: String,
-    /// Merchant ID
-    #[schema(value_type = String)]
-    pub merchant_id: id_type::MerchantId,
-    /// The status of the payout attempt
-    #[schema(value_type = PayoutStatus)]
-    pub attempt_status: api_enums::PayoutStatus,
-    /// Error code of the connector
-    pub error_code: Option<String>,
-    /// Error message of the connector
-    pub error_message: Option<String>,
-    /// A unique identifier for a payout provided by the connector
-    pub connector_payout_id: Option<String>,
 }

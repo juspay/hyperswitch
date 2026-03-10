@@ -59,7 +59,6 @@ const payment_method_data_3ds = {
     card_holder_name: "Joseph Doe",
     payment_checks: null,
     authentication_data: null,
-    auth_code: null,
   },
   billing: null,
 };
@@ -67,10 +66,10 @@ const payment_method_data_3ds = {
 const payment_method_data_no3ds = {
   card: {
     last4: "1111",
-    card_type: "DEBIT",
+    card_type: "CREDIT",
     card_network: "Visa",
-    card_issuer: "Conotoxia Sp Z Oo",
-    card_issuing_country: "POLAND",
+    card_issuer: "JP Morgan",
+    card_issuing_country: "INDIA",
     card_isin: "411111",
     card_extended_bin: null,
     card_exp_month: "10",
@@ -78,30 +77,12 @@ const payment_method_data_no3ds = {
     card_holder_name: "Joseph Doe",
     payment_checks: null,
     authentication_data: null,
-    auth_code: null,
   },
   billing: null,
 };
 
 export const connectorDetails = {
   card_pm: {
-    PaymentWithBilling: {
-      Request: {
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-        billing: {
-          country: "US",
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-          setup_future_usage: "on_session",
-        },
-      },
-    },
     PaymentIntent: {
       Request: {
         currency: "USD",
@@ -385,8 +366,6 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         payment_type: "setup_mandate",
-        mandate_data: null,
-        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 501,
@@ -434,6 +413,9 @@ export const connectorDetails = {
       },
     },
     MandateSingleUse3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -450,6 +432,9 @@ export const connectorDetails = {
       },
     },
     MandateSingleUse3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -465,7 +450,6 @@ export const connectorDetails = {
         },
       },
     },
-    // this connector supports mandate payment only for threeDS cards
     MandateSingleUseNo3DSAutoCapture: {
       Configs: {
         TRIGGER_SKIP: true,
@@ -481,7 +465,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "succeeded",
         },
       },
     },
@@ -500,7 +484,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "requires_capture",
         },
       },
     },
@@ -519,7 +503,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "succeeded",
         },
       },
     },
@@ -538,11 +522,14 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "requires_capture",
         },
       },
     },
     MandateMultiUse3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -559,6 +546,9 @@ export const connectorDetails = {
       },
     },
     MandateMultiUse3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -590,7 +580,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "succeeded",
         },
       },
     },
@@ -610,11 +600,14 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "succeeded",
         },
       },
     },
     SaveCardUse3DSAutoCaptureOffSession: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_type: "debit",
@@ -646,11 +639,14 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "requires_capture",
         },
       },
     },
     SaveCardConfirmAutoCaptureOffSession: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         setup_future_usage: "off_session",
       },
@@ -663,6 +659,9 @@ export const connectorDetails = {
       },
     },
     SaveCardConfirmManualCaptureOffSession: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         setup_future_usage: "off_session",
       },
@@ -706,11 +705,14 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "requires_capture",
         },
       },
     },
     PaymentMethodIdMandate3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -729,6 +731,9 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandate3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -746,6 +751,9 @@ export const connectorDetails = {
       },
     },
     MITAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {},
       Response: {
         status: 200,
@@ -755,6 +763,9 @@ export const connectorDetails = {
       },
     },
     MITManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {},
       Response: {
         status: 200,
@@ -783,65 +794,6 @@ export const connectorDetails = {
             message: "Setup Mandate flow for Airwallex is not implemented",
             type: "invalid_request",
           },
-        },
-      },
-    },
-    ManualRetryPaymentDisabled: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 400,
-        body: {
-          type: "invalid_request",
-          message:
-            "You cannot confirm this payment because it has status failed, you can enable `manual_retry` in profile to try this payment again",
-          code: "IR_16",
-        },
-      },
-    },
-    ManualRetryPaymentEnabled: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-          payment_method: "card",
-          attempt_count: 2,
-        },
-      },
-    },
-    ManualRetryPaymentCutoffExpired: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 400,
-        body: {
-          type: "invalid_request",
-          message:
-            "You cannot confirm this payment using `manual_retry` because the allowed duration has expired",
-          code: "IR_16",
         },
       },
     },

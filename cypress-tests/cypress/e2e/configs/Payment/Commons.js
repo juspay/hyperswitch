@@ -11,32 +11,6 @@ export const customerAcceptance = {
   },
 };
 
-export const cardCreditEnabled = [
-  {
-    payment_method: "card",
-    payment_method_types: [
-      {
-        payment_method_type: "credit",
-        card_networks: [
-          "Visa",
-          "Mastercard",
-          "AmericanExpress",
-          "Discover",
-          "JCB",
-          "DinersClub",
-          "UnionPay",
-          "RuPay",
-          "Interac",
-        ],
-        minimum_amount: 0,
-        maximum_amount: 68607706,
-        recurring_enabled: false,
-        installment_payment_enabled: true,
-      },
-    ],
-  },
-];
-
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "08",
@@ -222,40 +196,7 @@ export const payment_methods_enabled = [
         installment_payment_enabled: true,
       },
       {
-        payment_method_type: "open_banking_uk",
-        payment_experience: null,
-        card_networks: null,
-        accepted_currencies: null,
-        accepted_countries: null,
-        minimum_amount: 1,
-        maximum_amount: 68607706,
-        recurring_enabled: true,
-        installment_payment_enabled: true,
-      },
-      {
-        payment_method_type: "online_banking_fpx",
-        payment_experience: null,
-        card_networks: null,
-        accepted_currencies: null,
-        accepted_countries: null,
-        minimum_amount: 1,
-        maximum_amount: 68607706,
-        recurring_enabled: true,
-        installment_payment_enabled: true,
-      },
-      {
         payment_method_type: "sofort",
-        payment_experience: null,
-        card_networks: null,
-        accepted_currencies: null,
-        accepted_countries: null,
-        minimum_amount: 1,
-        maximum_amount: 68607706,
-        recurring_enabled: true,
-        installment_payment_enabled: true,
-      },
-      {
-        payment_method_type: "interac",
         payment_experience: null,
         card_networks: null,
         accepted_currencies: null,
@@ -418,62 +359,11 @@ export const payment_methods_enabled = [
         payment_experience: "invoke_sdk_client",
       },
       {
-        payment_method_type: "bluecode",
-        payment_experience: "redirect_to_url",
-        minimum_amount: 1,
-        maximum_amount: 68607706,
-        recurring_enabled: false,
-        installment_payment_enabled: false,
-      },
-      {
         payment_method_type: "skrill",
         payment_experience: "redirect_to_url",
         minimum_amount: 1,
         maximum_amount: 68607706,
         recurring_enabled: false,
-        installment_payment_enabled: false,
-      },
-    ],
-  },
-  {
-    payment_method: "reward",
-    payment_method_types: [
-      {
-        payment_method_type: "evoucher",
-        payment_experience: "redirect_to_url",
-        card_networks: null,
-        accepted_currencies: null,
-        accepted_countries: null,
-        minimum_amount: 0,
-        maximum_amount: 68607706,
-        recurring_enabled: true,
-        installment_payment_enabled: false,
-      },
-      {
-        payment_method_type: "classic",
-        payment_experience: "redirect_to_url",
-        card_networks: null,
-        accepted_currencies: null,
-        accepted_countries: null,
-        minimum_amount: 0,
-        maximum_amount: 68607706,
-        recurring_enabled: true,
-        installment_payment_enabled: false,
-      },
-    ],
-  },
-  {
-    payment_method: "crypto",
-    payment_method_types: [
-      {
-        payment_method_type: "crypto_currency",
-        payment_experience: "redirect_to_url",
-        card_networks: null,
-        accepted_currencies: null,
-        accepted_countries: null,
-        minimum_amount: 0,
-        maximum_amount: 68607706,
-        recurring_enabled: true,
         installment_payment_enabled: false,
       },
     ],
@@ -636,35 +526,6 @@ export const connectorDetails = {
         },
       },
     }),
-    OpenBankingUk: getCustomExchange({
-      Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "open_banking_uk",
-        payment_method_data: {
-          bank_redirect: {
-            open_banking_uk: {
-              issuer: "citi",
-              country: "GB",
-            },
-          },
-        },
-        billing: standardBillingAddress,
-      },
-    }),
-    OnlineBankingFpx: getCustomExchange({
-      Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "online_banking_fpx",
-        payment_method_data: {
-          bank_redirect: {
-            online_banking_fpx: {
-              issuer: "affin_bank",
-            },
-          },
-        },
-        billing: standardBillingAddress,
-      },
-    }),
     Giropay: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
@@ -788,86 +649,6 @@ export const connectorDetails = {
             last_name: "doe",
           },
         },
-      },
-    }),
-    Interac: getCustomExchange({
-      Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "interac",
-        payment_method_data: {
-          bank_redirect: {
-            interac: {
-              bank_name: "ing",
-            },
-          },
-        },
-        billing: {
-          ...standardBillingAddress,
-          address: {
-            ...standardBillingAddress.address,
-            country: "CA",
-          },
-        },
-      },
-    }),
-  },
-  wallet_pm: {
-    PaymentIntent: (paymentMethodType) =>
-      getCustomExchange({
-        Request: {
-          currency: getCurrency(paymentMethodType),
-        },
-        Response: {
-          status: 200,
-          body: {
-            status: "requires_payment_method",
-          },
-        },
-      }),
-    Bluecode: getCustomExchange({
-      Request: {
-        payment_method: "wallet",
-        payment_method_type: "bluecode",
-        payment_method_data: {
-          wallet: {
-            bluecode_redirect: {},
-          },
-        },
-        billing: {
-          ...standardBillingAddress,
-          address: {
-            ...standardBillingAddress.address,
-            country: "AT",
-          },
-        },
-      },
-    }),
-  },
-  real_time_payment_pm: {
-    PaymentIntent: getCustomExchange({
-      Request: {
-        currency: "MYR",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-        billing: standardBillingAddress,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
-    DuitNow: getCustomExchange({
-      Request: {
-        payment_method: "real_time_payment",
-        payment_method_type: "duit_now",
-        payment_method_data: {
-          real_time_payment: {
-            duit_now: {},
-          },
-        },
-        billing: standardBillingAddress,
       },
     }),
   },
@@ -1230,8 +1011,6 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        mandate_data: null,
-        customer_acceptance: customerAcceptance,
       },
     }),
     SaveCardUseNo3DSAutoCapture: getCustomExchange({
@@ -1581,7 +1360,7 @@ export const connectorDetails = {
           card: {
             card_number: "4242424242424242",
             card_exp_month: "01",
-            card_exp_year: "2030",
+            card_exp_year: "2026",
             card_holder_name: "joseph Doe",
             card_cvc: "123",
           },
@@ -1608,7 +1387,7 @@ export const connectorDetails = {
           card: {
             card_number: "4242424242424242",
             card_exp_month: "01",
-            card_exp_year: "2030",
+            card_exp_year: "2026",
             card_holder_name: "joseph Doe",
             card_cvc: "123",
           },
@@ -2020,95 +1799,6 @@ export const connectorDetails = {
             upi_intent: {},
           },
         },
-      },
-    }),
-  },
-  reward_pm: {
-    PaymentIntentUSD: getCustomExchange({
-      Request: {
-        currency: "USD",
-        amount: 6000,
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-        billing: standardBillingAddress,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
-    PaymentIntentEUR: getCustomExchange({
-      Request: {
-        currency: "EUR",
-        amount: 6000,
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-        billing: standardBillingAddress,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
-    Evoucher: getCustomExchange({
-      Request: {
-        payment_method: "reward",
-        payment_method_type: "evoucher",
-        payment_method_data: "reward",
-        billing: standardBillingAddress,
-      },
-    }),
-    Classic: getCustomExchange({
-      Request: {
-        payment_method: "reward",
-        payment_method_type: "classic",
-        payment_method_data: "reward",
-        billing: standardBillingAddress,
-      },
-    }),
-  },
-  crypto_pm: {
-    PaymentIntent: getCustomExchange({
-      Request: {
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
-    CryptoCurrency: getCustomExchange({
-      Request: {
-        payment_method: "crypto",
-        payment_method_type: "crypto_currency",
-        payment_method_data: {
-          crypto: {
-            network: "bitcoin",
-            pay_currency: "BTC",
-          },
-        },
-        billing: standardBillingAddress,
-      },
-    }),
-    CryptoCurrencyManualCapture: getCustomExchange({
-      Request: {
-        payment_method: "crypto",
-        payment_method_type: "crypto_currency",
-        payment_method_data: {
-          crypto: {
-            network: "bitcoin",
-            pay_currency: "BTC",
-          },
-        },
-        billing: standardBillingAddress,
       },
     }),
   },

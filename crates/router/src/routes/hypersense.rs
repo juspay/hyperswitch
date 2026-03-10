@@ -25,10 +25,7 @@ pub async fn get_hypersense_token(state: web::Data<AppState>, req: HttpRequest) 
                 ExternalServiceType::Hypersense,
             )
         },
-        &authentication::DashboardNoPermissionAuth {
-            allow_connected: false,
-            allow_platform: false,
-        },
+        &authentication::DashboardNoPermissionAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await

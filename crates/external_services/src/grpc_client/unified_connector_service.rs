@@ -153,99 +153,6 @@ impl UnifiedConnectorServiceClient {
         }
     }
 
-    /// Performs Payment Method Token Create
-    pub async fn payment_method_token_create(
-        &self,
-        pm_token_create_request: payments_grpc::PaymentServiceCreatePaymentMethodTokenRequest,
-        connector_auth_metadata: ConnectorAuthMetadata,
-        grpc_headers: GrpcHeadersUcs,
-    ) -> UnifiedConnectorServiceResult<
-        tonic::Response<payments_grpc::PaymentServiceCreatePaymentMethodTokenResponse>,
-    > {
-        let mut request = tonic::Request::new(pm_token_create_request);
-
-        let connector_name = connector_auth_metadata.connector_name.clone();
-        let metadata =
-            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
-        *request.metadata_mut() = metadata;
-
-        self.client
-            .clone()
-            .create_payment_method_token(request)
-            .await
-            .change_context(UnifiedConnectorServiceError::PaymentMethodTokenCreateFailure)
-            .inspect_err(|error| {
-                logger::error!(
-                    grpc_error=?error,
-                    method="create_payment_method_token",
-                    connector_name=?connector_name,
-                    "UCS create_payment_method_token gRPC call failed"
-                )
-            })
-    }
-
-    /// Performs SDK Session Token Create
-    pub async fn sdk_session_token(
-        &self,
-        sdk_session_token_request: payments_grpc::PaymentServiceSdkSessionTokenRequest,
-        connector_auth_metadata: ConnectorAuthMetadata,
-        grpc_headers: GrpcHeadersUcs,
-    ) -> UnifiedConnectorServiceResult<
-        tonic::Response<payments_grpc::PaymentServiceSdkSessionTokenResponse>,
-    > {
-        let mut request = tonic::Request::new(sdk_session_token_request);
-
-        let connector_name = connector_auth_metadata.connector_name.clone();
-        let metadata =
-            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
-        *request.metadata_mut() = metadata;
-
-        self.client
-            .clone()
-            .sdk_session_token(request)
-            .await
-            .change_context(UnifiedConnectorServiceError::SdkSessionTokenFailure)
-            .inspect_err(|error| {
-                logger::error!(
-                    grpc_error=?error,
-                    method="sdk_session_token",
-                    connector_name=?connector_name,
-                    "UCS sdk_session_token gRPC call failed"
-                )
-            })
-    }
-
-    /// Performs Incremental Authorization
-    pub async fn incremental_authorization(
-        &self,
-        sdk_session_token_request: payments_grpc::PaymentServiceIncrementalAuthorizationRequest,
-        connector_auth_metadata: ConnectorAuthMetadata,
-        grpc_headers: GrpcHeadersUcs,
-    ) -> UnifiedConnectorServiceResult<
-        tonic::Response<payments_grpc::PaymentServiceIncrementalAuthorizationResponse>,
-    > {
-        let mut request = tonic::Request::new(sdk_session_token_request);
-
-        let connector_name = connector_auth_metadata.connector_name.clone();
-        let metadata =
-            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
-        *request.metadata_mut() = metadata;
-
-        self.client
-            .clone()
-            .incremental_authorization(request)
-            .await
-            .change_context(UnifiedConnectorServiceError::IncrementalAuthorizationFailure)
-            .inspect_err(|error| {
-                logger::error!(
-                    grpc_error=?error,
-                    method="incremental_authorization",
-                    connector_name=?connector_name,
-                    "UCS incremental_authorization gRPC call failed"
-                )
-            })
-    }
-
     /// Performs Payment Granular Authorize
     pub async fn payment_authorize_granular(
         &self,
@@ -302,37 +209,6 @@ impl UnifiedConnectorServiceClient {
                     method="create_connector_customer_granular",
                     connector_name=?connector_name,
                     "UCS create connector customer granular gRPC call failed"
-                )
-            })
-    }
-
-    /// Performs Payment Create Order
-    pub async fn payment_create_order(
-        &self,
-        payment_create_order_request: payments_grpc::PaymentServiceCreateOrderRequest,
-        connector_auth_metadata: ConnectorAuthMetadata,
-        grpc_headers: GrpcHeadersUcs,
-    ) -> UnifiedConnectorServiceResult<
-        tonic::Response<payments_grpc::PaymentServiceCreateOrderResponse>,
-    > {
-        let mut request = tonic::Request::new(payment_create_order_request);
-
-        let connector_name = connector_auth_metadata.connector_name.clone();
-        let metadata =
-            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
-        *request.metadata_mut() = metadata;
-
-        self.client
-            .clone()
-            .create_order(request)
-            .await
-            .change_context(UnifiedConnectorServiceError::PaymentCreateOrderFailure)
-            .inspect_err(|error| {
-                logger::error!(
-                    grpc_error=?error,
-                    method="create_order",
-                    connector_name=?connector_name,
-                    "UCS create_order gRPC call failed"
                 )
             })
     }
@@ -798,18 +674,6 @@ pub fn build_unified_connector_service_grpc_headers(
     meta: ConnectorAuthMetadata,
     grpc_headers: GrpcHeadersUcs,
 ) -> Result<MetadataMap, UnifiedConnectorServiceError> {
-    // Destructure grpc_headers to ensure all fields are handled
-    let GrpcHeadersUcs {
-        tenant_id,
-        request_id,
-        lineage_ids,
-        external_vault_proxy_metadata,
-        merchant_reference_id,
-        resource_id,
-        shadow_mode,
-        config_override,
-    } = grpc_headers;
-
     let mut metadata = MetadataMap::new();
     let parse =
         |key: &str, value: &str| -> Result<MetadataValue<_>, UnifiedConnectorServiceError> {
@@ -862,23 +726,26 @@ pub fn build_unified_connector_service_grpc_headers(
         parse(common_utils_consts::X_MERCHANT_ID, meta.merchant_id.peek())?,
     );
 
-    if let Some(external_vault_proxy_metadata) = external_vault_proxy_metadata {
+    if let Some(external_vault_proxy_metadata) = grpc_headers.external_vault_proxy_metadata {
         metadata.append(
             consts::UCS_HEADER_EXTERNAL_VAULT_METADATA,
             parse("external_vault_metadata", &external_vault_proxy_metadata)?,
         );
     };
 
-    let lineage_ids_str = lineage_ids.get_url_encoded_string().map_err(|err| {
-        logger::error!(?err);
-        UnifiedConnectorServiceError::HeaderInjectionFailed(consts::UCS_LINEAGE_IDS.to_string())
-    })?;
+    let lineage_ids_str = grpc_headers
+        .lineage_ids
+        .get_url_encoded_string()
+        .map_err(|err| {
+            logger::error!(?err);
+            UnifiedConnectorServiceError::HeaderInjectionFailed(consts::UCS_LINEAGE_IDS.to_string())
+        })?;
     metadata.append(
         consts::UCS_LINEAGE_IDS,
         parse(consts::UCS_LINEAGE_IDS, &lineage_ids_str)?,
     );
 
-    if let Some(reference_id) = merchant_reference_id {
+    if let Some(reference_id) = grpc_headers.merchant_reference_id {
         metadata.append(
             consts::UCS_HEADER_REFERENCE_ID,
             parse(
@@ -888,24 +755,14 @@ pub fn build_unified_connector_service_grpc_headers(
         );
     };
 
-    if let Some(resource_id) = resource_id {
-        metadata.append(
-            consts::UCS_HEADER_RESOURCE_ID,
-            parse(
-                consts::UCS_HEADER_RESOURCE_ID,
-                resource_id.get_string_repr(),
-            )?,
-        );
-    };
-
-    if let Some(ref request_id) = request_id {
+    if let Some(ref request_id) = grpc_headers.request_id {
         metadata.append(
             common_utils_consts::X_REQUEST_ID,
             parse(common_utils_consts::X_REQUEST_ID, request_id.as_str())?,
         );
     };
 
-    if let Some(shadow_mode) = shadow_mode {
+    if let Some(shadow_mode) = grpc_headers.shadow_mode {
         metadata.append(
             common_utils_consts::X_UNIFIED_CONNECTOR_SERVICE_MODE,
             parse(
@@ -915,20 +772,14 @@ pub fn build_unified_connector_service_grpc_headers(
         );
     }
 
-    if let Some(config_override) = config_override {
-        metadata.append(
-            common_utils_consts::X_CONFIG_OVERRIDE,
-            parse(common_utils_consts::X_CONFIG_OVERRIDE, &config_override)?,
-        );
-    }
-
-    if let Err(err) = tenant_id
+    if let Err(err) = grpc_headers
+        .tenant_id
         .parse()
         .map(|tenant_id| metadata.append(common_utils_consts::TENANT_HEADER, tenant_id))
     {
         logger::error!(
             header_parse_error=?err,
-            tenant_id=?tenant_id,
+            tenant_id=?grpc_headers.tenant_id,
             "Failed to parse tenant_id header for UCS gRPC request: {}",
             common_utils_consts::TENANT_HEADER
         );

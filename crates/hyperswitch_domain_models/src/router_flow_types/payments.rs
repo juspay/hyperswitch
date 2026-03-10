@@ -91,6 +91,3 @@ pub struct ExternalVaultProxy;
 
 #[derive(Debug, Clone)]
 pub struct GiftCardBalanceCheck;
-
-#[derive(Debug, Clone)]
-pub struct SettlementSplitCreate;

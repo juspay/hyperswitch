@@ -20,9 +20,4 @@ describe("Account Create flow test", () => {
   it("api-key-create-call-test", () => {
     cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
   });
-
-  it("create-shadow-config-if-shadow-mode-enabled", () => {
-    // Shadow and rollout configs are now merged - create unified config with execution_mode: "shadow"
-    cy.createRolloutConfig(globalState);
-  });
 });

@@ -1,14 +1,14 @@
 //! SubscriptionsV2
 use hyperswitch_domain_models::{
     router_data_v2::flow_common_types::{
-        GetSubscriptionEstimateData, GetSubscriptionItemPricesData, GetSubscriptionItemsData,
+        GetSubscriptionEstimateData, GetSubscriptionPlanPricesData, GetSubscriptionPlansData,
         InvoiceRecordBackData, SubscriptionCancelData, SubscriptionCreateData,
         SubscriptionCustomerData, SubscriptionPauseData, SubscriptionResumeData,
     },
     router_flow_types::{
         revenue_recovery::InvoiceRecordBack,
         subscriptions::{
-            GetSubscriptionEstimate, GetSubscriptionItemPrices, GetSubscriptionItems,
+            GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans,
             SubscriptionCancel, SubscriptionCreate, SubscriptionPause, SubscriptionResume,
         },
         CreateConnectorCustomer,
@@ -16,8 +16,8 @@ use hyperswitch_domain_models::{
     router_request_types::{
         revenue_recovery::InvoiceRecordBackRequest,
         subscriptions::{
-            GetSubscriptionEstimateRequest, GetSubscriptionItemPricesRequest,
-            GetSubscriptionItemsRequest, SubscriptionCancelRequest, SubscriptionCreateRequest,
+            GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
+            GetSubscriptionPlansRequest, SubscriptionCancelRequest, SubscriptionCreateRequest,
             SubscriptionPauseRequest, SubscriptionResumeRequest,
         },
         ConnectorCustomerData,
@@ -25,8 +25,8 @@ use hyperswitch_domain_models::{
     router_response_types::{
         revenue_recovery::InvoiceRecordBackResponse,
         subscriptions::{
-            GetSubscriptionEstimateResponse, GetSubscriptionItemPricesResponse,
-            GetSubscriptionItemsResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
+            GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
+            GetSubscriptionPlansResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
             SubscriptionPauseResponse, SubscriptionResumeResponse,
         },
         PaymentsResponseData,
@@ -49,13 +49,13 @@ pub trait SubscriptionsV2:
 {
 }
 
-/// trait GetSubscriptionItems for V2
+/// trait GetSubscriptionPlans for V2
 pub trait GetSubscriptionPlansV2:
     ConnectorIntegrationV2<
-    GetSubscriptionItems,
-    GetSubscriptionItemsData,
-    GetSubscriptionItemsRequest,
-    GetSubscriptionItemsResponse,
+    GetSubscriptionPlans,
+    GetSubscriptionPlansData,
+    GetSubscriptionPlansRequest,
+    GetSubscriptionPlansResponse,
 >
 {
 }
@@ -73,10 +73,10 @@ pub trait SubscriptionRecordBackV2:
 /// trait GetSubscriptionPlanPricesV2 for V2
 pub trait GetSubscriptionPlanPricesV2:
     ConnectorIntegrationV2<
-    GetSubscriptionItemPrices,
-    GetSubscriptionItemPricesData,
-    GetSubscriptionItemPricesRequest,
-    GetSubscriptionItemPricesResponse,
+    GetSubscriptionPlanPrices,
+    GetSubscriptionPlanPricesData,
+    GetSubscriptionPlanPricesRequest,
+    GetSubscriptionPlanPricesResponse,
 >
 {
 }

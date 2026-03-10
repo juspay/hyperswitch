@@ -58,9 +58,7 @@ use hyperswitch_interfaces::{
         PaymentsCompleteAuthorizeType, PaymentsSessionType, PaymentsSyncType, PaymentsVoidType,
         RefundExecuteType, RefundSyncType, Response, TokenizationType,
     },
-    webhooks::{
-        IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails, WebhookContext,
-    },
+    webhooks::{IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails},
 };
 use masking::{ExposeInterface, Mask, PeekInterface, Secret};
 use ring::hmac;
@@ -181,7 +179,6 @@ impl ConnectorCommon for Braintree {
                     reason: Some(response.api_error_response.message),
                     attempt_status: None,
                     connector_transaction_id: None,
-                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -199,7 +196,6 @@ impl ConnectorCommon for Braintree {
                     reason: Some(response.errors),
                     attempt_status: None,
                     connector_transaction_id: None,
-                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -221,11 +217,7 @@ impl ConnectorValidation for Braintree {
         pm_type: Option<enums::PaymentMethodType>,
         pm_data: hyperswitch_domain_models::payment_method_data::PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            PaymentMethodDataType::Card,
-            PaymentMethodDataType::ApplePayThirdPartySdk,
-            PaymentMethodDataType::ApplePay,
-        ]);
+        let mandate_supported_pmd = std::collections::HashSet::from([PaymentMethodDataType::Card]);
         is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
@@ -1094,7 +1086,6 @@ impl IncomingWebhook for Braintree {
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
@@ -1127,7 +1118,6 @@ impl IncomingWebhook for Braintree {
     fn get_dispute_details(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-        _context: Option<&WebhookContext>,
     ) -> CustomResult<DisputePayload, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
@@ -1408,7 +1398,7 @@ static BRAINTREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             enums::PaymentMethod::Wallet,
             enums::PaymentMethodType::ApplePay,
             PaymentMethodDetails {
-                mandates: enums::FeatureStatus::Supported,
+                mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: None,

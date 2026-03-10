@@ -206,7 +206,6 @@ pub struct OrganizationUpdateInternal {
     metadata: Option<pii::SecretSerdeValue>,
     modified_at: time::PrimitiveDateTime,
     platform_merchant_id: Option<id_type::MerchantId>,
-    organization_type: Option<common_enums::OrganizationType>,
 }
 
 #[cfg(feature = "v2")]
@@ -218,7 +217,6 @@ pub struct OrganizationUpdateInternal {
     metadata: Option<pii::SecretSerdeValue>,
     modified_at: time::PrimitiveDateTime,
     platform_merchant_id: Option<id_type::MerchantId>,
-    organization_type: Option<common_enums::OrganizationType>,
 }
 
 pub enum OrganizationUpdate {
@@ -226,10 +224,7 @@ pub enum OrganizationUpdate {
         organization_name: Option<String>,
         organization_details: Option<pii::SecretSerdeValue>,
         metadata: Option<pii::SecretSerdeValue>,
-    },
-    ConvertToPlatform,
-    UpdatePlatformMerchant {
-        platform_merchant_id: id_type::MerchantId,
+        platform_merchant_id: Option<id_type::MerchantId>,
     },
 }
 
@@ -241,34 +236,14 @@ impl From<OrganizationUpdate> for OrganizationUpdateInternal {
                 organization_name,
                 organization_details,
                 metadata,
+                platform_merchant_id,
             } => Self {
                 org_name: organization_name.clone(),
                 organization_name,
                 organization_details,
                 metadata,
                 modified_at: common_utils::date_time::now(),
-                platform_merchant_id: None,
-                organization_type: None,
-            },
-            OrganizationUpdate::ConvertToPlatform => Self {
-                org_name: None,
-                organization_name: None,
-                organization_details: None,
-                metadata: None,
-                modified_at: common_utils::date_time::now(),
-                platform_merchant_id: None,
-                organization_type: Some(common_enums::OrganizationType::Platform),
-            },
-            OrganizationUpdate::UpdatePlatformMerchant {
                 platform_merchant_id,
-            } => Self {
-                org_name: None,
-                organization_name: None,
-                organization_details: None,
-                metadata: None,
-                modified_at: common_utils::date_time::now(),
-                platform_merchant_id: Some(platform_merchant_id),
-                organization_type: None,
             },
         }
     }
@@ -282,31 +257,13 @@ impl From<OrganizationUpdate> for OrganizationUpdateInternal {
                 organization_name,
                 organization_details,
                 metadata,
+                platform_merchant_id,
             } => Self {
                 organization_name,
                 organization_details,
                 metadata,
                 modified_at: common_utils::date_time::now(),
-                platform_merchant_id: None,
-                organization_type: None,
-            },
-            OrganizationUpdate::ConvertToPlatform => Self {
-                organization_name: None,
-                organization_details: None,
-                metadata: None,
-                modified_at: common_utils::date_time::now(),
-                platform_merchant_id: None,
-                organization_type: Some(common_enums::OrganizationType::Platform),
-            },
-            OrganizationUpdate::UpdatePlatformMerchant {
                 platform_merchant_id,
-            } => Self {
-                organization_name: None,
-                organization_details: None,
-                metadata: None,
-                modified_at: common_utils::date_time::now(),
-                platform_merchant_id: Some(platform_merchant_id),
-                organization_type: None,
             },
         }
     }

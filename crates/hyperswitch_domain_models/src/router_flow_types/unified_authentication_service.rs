@@ -9,6 +9,3 @@ pub struct AuthenticationConfirmation;
 
 #[derive(Debug, Clone)]
 pub struct Authenticate;
-
-#[derive(Debug, Clone)]
-pub struct ProcessIncomingWebhook;

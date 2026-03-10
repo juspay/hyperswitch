@@ -1,4 +1,4 @@
-use common_enums::{InvoiceStatus, SubscriptionStatus};
+use common_enums::{connector_enums::InvoiceStatus, SubscriptionStatus};
 use common_types::payments::CustomerAcceptance;
 use common_utils::{
     errors::ValidationError,
@@ -132,18 +132,17 @@ impl SubscriptionResponse {
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
-pub struct GetSubscriptionItemsResponse {
-    pub item_id: String,
+pub struct GetPlansResponse {
+    pub plan_id: String,
     pub name: String,
     pub description: Option<String>,
-    pub price_id: Vec<SubscriptionItemPrices>,
+    pub price_id: Vec<SubscriptionPlanPrices>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
-pub struct SubscriptionItemPrices {
+pub struct SubscriptionPlanPrices {
     pub price_id: String,
-    // This can be plan_id or addon_id
-    pub item_id: Option<String>,
+    pub plan_id: Option<String>,
     pub amount: MinorUnit,
     pub currency: Currency,
     pub interval: PeriodUnit,
@@ -179,27 +178,18 @@ impl ClientSecret {
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, ToSchema)]
-pub struct GetSubscriptionItemsQuery {
+pub struct GetPlansQuery {
     #[schema(value_type = Option<String>)]
     /// This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK
     pub client_secret: Option<ClientSecret>,
     pub limit: Option<u32>,
     pub offset: Option<u32>,
-    pub item_type: SubscriptionItemType,
-}
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-#[serde(rename_all = "lowercase")]
-pub enum SubscriptionItemType {
-    /// This is a subscription plan
-    Plan,
-    /// This is a subscription addon
-    Addon,
 }
 
 impl ApiEventMetric for SubscriptionResponse {}
 impl ApiEventMetric for CreateSubscriptionRequest {}
-impl ApiEventMetric for GetSubscriptionItemsQuery {}
-impl ApiEventMetric for GetSubscriptionItemsResponse {}
+impl ApiEventMetric for GetPlansQuery {}
+impl ApiEventMetric for GetPlansResponse {}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ConfirmSubscriptionPaymentDetails {
@@ -566,17 +556,6 @@ pub struct EstimateSubscriptionQuery {
 }
 
 impl ApiEventMetric for EstimateSubscriptionQuery {}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct ListSubscriptionQuery {
-    /// Number of records to return.
-    pub limit: Option<i64>,
-
-    /// Offset for pagination.
-    pub offset: Option<i64>,
-}
-
-impl ApiEventMetric for ListSubscriptionQuery {}
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct EstimateSubscriptionResponse {

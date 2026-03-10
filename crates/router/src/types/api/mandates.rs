@@ -70,8 +70,7 @@ impl MandateResponseExt for MandateResponse {
                         .as_ref()
                         .unwrap_or(payment_method.get_id()),
                 )
-                .await?
-                .get_card();
+                .await?;
 
                 payment_methods::transformers::get_card_detail(&payment_method, card)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -82,11 +81,10 @@ impl MandateResponseExt for MandateResponse {
                     key_store.clone(),
                     merchant_account.clone(),
                     key_store,
-                    None,
                 );
                 payment_methods::cards::PmCards {
                     state,
-                    provider: platform.get_provider(),
+                    platform: &platform,
                 }
                 .get_card_details_without_locker_fallback(&payment_method)
                 .await?

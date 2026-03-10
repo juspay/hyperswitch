@@ -56,8 +56,6 @@ pub enum EventListConstraintsInternal {
     },
     ObjectIdFilter {
         object_id: String,
-    },
-    EventIdFilter {
         event_id: String,
     },
 }

@@ -26,7 +26,6 @@ use crate::{
         payments::{
             self as payments_core, call_multiple_connectors_service, customers,
             flows::{ConstructFlowSpecificData, Feature},
-            gateway::context as gateway_context,
             helpers, helpers as payment_helpers, operations,
             operations::{BoxedOperation, Operation},
             transformers, OperationSessionGetters, OperationSessionSetters,
@@ -81,7 +80,7 @@ where
             domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
                 helpers::get_merchant_connector_account_v2(
                     state,
-                    platform.get_processor(),
+                    platform.get_processor().get_key_store(),
                     external_vault_source,
                 )
                 .await?,
@@ -90,8 +89,7 @@ where
         let updated_customer = call_create_connector_customer_if_required(
             state,
             customer,
-            platform.get_processor(),
-            platform.get_initiator(),
+            platform,
             &merchant_connector_account,
             payment_data,
         )
@@ -132,8 +130,7 @@ where
 pub async fn call_create_connector_customer_if_required<F, Req, D>(
     state: &SessionState,
     customer: &Option<domain::Customer>,
-    processor: &domain::Processor,
-    initiator: Option<&domain::Initiator>,
+    platform: &domain::Platform,
     merchant_connector_account_type: &domain::MerchantConnectorAccountTypeDetails,
     payment_data: &mut D,
 ) -> RouterResult<Option<storage::CustomerUpdate>>
@@ -152,14 +149,7 @@ where
 {
     let db_merchant_connector_account =
         merchant_connector_account_type.get_inner_db_merchant_connector_account();
-    let profile_id = payment_data.get_payment_intent().profile_id.clone();
-    let default_gateway_context = gateway_context::RouterGatewayContext::direct(
-        processor.clone(),
-        merchant_connector_account_type.clone(),
-        payment_data.get_payment_intent().merchant_id.clone(),
-        profile_id,
-        payment_data.get_creds_identifier().map(|id| id.to_string()),
-    );
+
     match db_merchant_connector_account {
         Some(merchant_connector_account) => {
             let connector_name = merchant_connector_account.get_connector_name_as_string();
@@ -186,7 +176,7 @@ where
                     .construct_router_data(
                         state,
                         connector.connector.id(),
-                        processor,
+                        platform,
                         customer,
                         merchant_connector_account_type,
                         None,
@@ -195,14 +185,13 @@ where
                     .await?;
 
                 let connector_customer_id = router_data
-                    .create_connector_customer(state, &connector, &default_gateway_context)
+                    .create_connector_customer(state, &connector)
                     .await?;
 
                 let customer_update = customers::update_connector_customer_in_customers(
                     merchant_connector_account_type,
                     customer.as_ref(),
                     connector_customer_id.clone(),
-                    initiator,
                 )
                 .await;
 
@@ -232,15 +221,12 @@ pub async fn generate_vault_session_details(
     merchant_connector_account_type: &domain::MerchantConnectorAccountTypeDetails,
     connector_customer_id: Option<String>,
 ) -> RouterResult<Option<api::VaultSessionDetails>> {
-    let connector =
-        api_enums::VaultConnectors::try_from(merchant_connector_account_type.get_connector_name())
-            .map_err(|error| {
-                report!(errors::ApiErrorResponse::InternalServerError).attach_printable(format!(
-                    "Failed to convert connector to vault connector: {}",
-                    error
-                ))
-            })?;
-
+    let connector_name = merchant_connector_account_type
+        .get_connector_name()
+        .map(|name| name.to_string())
+        .ok_or(errors::ApiErrorResponse::InternalServerError)?; // should not panic since we should always have a connector name
+    let connector = api_enums::VaultConnectors::from_str(&connector_name)
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let connector_auth_type: router_types::ConnectorAuthType = merchant_connector_account_type
         .get_connector_account_details()
         .map_err(|err| {
@@ -278,9 +264,7 @@ pub async fn generate_vault_session_details(
                 platform,
                 merchant_connector_account_type,
                 connector_customer_id,
-                merchant_connector_account_type
-                    .get_connector_name()
-                    .to_string(),
+                connector_name,
                 key1,
                 api_secret,
             )
@@ -288,8 +272,8 @@ pub async fn generate_vault_session_details(
         }
         _ => {
             router_env::logger::warn!(
-                "External vault session creation is not supported for connector: {:?}",
-                connector
+                "External vault session creation is not supported for connector: {}",
+                connector_name
             );
             Ok(None)
         }

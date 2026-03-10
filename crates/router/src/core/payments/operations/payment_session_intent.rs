@@ -35,7 +35,6 @@ impl ValidateStatusForOperation for PaymentSessionIntent {
             common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::Processing
-            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::RequiresCapture
@@ -166,8 +165,11 @@ impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsS
         &'b self,
         state: &'b SessionState,
         _req_state: ReqState,
-        processor: &domain::Processor,
         mut payment_data: payments::PaymentIntentData<F>,
+        customer: Option<domain::Customer>,
+        storage_scheme: enums::MerchantStorageScheme,
+        updated_customer: Option<customer::CustomerUpdate>,
+        key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<common_enums::FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(
@@ -177,8 +179,6 @@ impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsS
     where
         F: 'b + Send,
     {
-        let storage_scheme = processor.get_account().storage_scheme;
-        let key_store = processor.get_key_store();
         let prerouting_algorithm = payment_data.payment_intent.prerouting_algorithm.clone();
         payment_data.payment_intent = match prerouting_algorithm {
             Some(prerouting_algorithm) => state
@@ -254,7 +254,8 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::Payment
         _state: &'a SessionState,
         _payment_data: &mut payments::PaymentIntentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
-        _platform: &domain::Platform,
+        _merchant_key_store: &domain::MerchantKeyStore,
+        _customer: &Option<domain::Customer>,
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
     ) -> RouterResult<(
@@ -341,7 +342,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::Payment
                                 .connector
                                 .connector_name
                                 .to_string()
-                                .parse::<euclid::enums::RoutableConnectors>()
+                                .parse::<common_enums::RoutableConnectors>()
                                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
                             merchant_connector_id: choice.connector.merchant_connector_id.clone(),
                         };
@@ -368,7 +369,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::Payment
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
-        _processor: &domain::Processor,
+        _platform: &domain::Platform,
         _payment_data: &mut payments::PaymentIntentData<F>,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)

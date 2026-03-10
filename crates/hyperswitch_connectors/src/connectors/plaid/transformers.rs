@@ -307,7 +307,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, PlaidPaymentsResponse, T, PaymentsRespo
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(item.response.payment_id),
-                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -324,7 +323,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, PlaidPaymentsResponse, T, PaymentsRespo
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.payment_id),
                     incremental_authorization_allowed: None,
-                    authentication_data: None,
                     charges: None,
                 })
             },
@@ -398,7 +396,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, PlaidSyncResponse, T, PaymentsResponseD
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(item.response.payment_id),
-                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -415,7 +412,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, PlaidSyncResponse, T, PaymentsResponseD
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.payment_id),
                     incremental_authorization_allowed: None,
-                    authentication_data: None,
                     charges: None,
                 })
             },

@@ -428,8 +428,6 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         payment_type: "setup_mandate",
-        mandate_data: null,
-        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,

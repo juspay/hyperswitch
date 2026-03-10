@@ -5,7 +5,6 @@ use serde::Deserialize;
 #[serde(default)]
 pub struct SchedulerSettings {
     pub stream: String,
-    pub cug_stream: String,
     pub producer: ProducerSettings,
     pub consumer: ConsumerSettings,
     pub loop_interval: u64,

@@ -480,7 +480,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, AffirmResponseWrapper, T, PaymentsRespo
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
-                        authentication_data: None,
                         charges: None,
                         incremental_authorization_allowed: None,
                     }),
@@ -498,7 +497,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, AffirmResponseWrapper, T, PaymentsRespo
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
-                        authentication_data: None,
                         charges: None,
                         incremental_authorization_allowed: None,
                     }),
@@ -526,7 +524,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, AffirmCompleteAuthorizeResponse, T, Pay
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
-                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -741,7 +738,6 @@ impl TryFrom<PaymentsCaptureResponseRouterData<AffirmCaptureResponse>>
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
-                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -813,7 +809,6 @@ impl TryFrom<PaymentsCancelResponseRouterData<AffirmCancelResponse>> for Payment
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
-                authentication_data: None,
                 charges: None,
             }),
             ..item.data

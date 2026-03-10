@@ -3,7 +3,7 @@
 use hyperswitch_domain_models::{
     router_flow_types::{
         subscriptions::{
-            GetSubscriptionEstimate, GetSubscriptionItemPrices, GetSubscriptionItems,
+            GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans,
             SubscriptionCreate as SubscriptionCreateFlow,
         },
         InvoiceRecordBack,
@@ -11,15 +11,15 @@ use hyperswitch_domain_models::{
     router_request_types::{
         revenue_recovery::InvoiceRecordBackRequest,
         subscriptions::{
-            GetSubscriptionEstimateRequest, GetSubscriptionItemPricesRequest,
-            GetSubscriptionItemsRequest, SubscriptionCreateRequest,
+            GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
+            GetSubscriptionPlansRequest, SubscriptionCreateRequest,
         },
     },
     router_response_types::{
         revenue_recovery::InvoiceRecordBackResponse,
         subscriptions::{
-            GetSubscriptionEstimateResponse, GetSubscriptionItemPricesResponse,
-            GetSubscriptionItemsResponse, SubscriptionCreateResponse,
+            GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
+            GetSubscriptionPlansResponse, SubscriptionCreateResponse,
         },
     },
 };
@@ -28,12 +28,12 @@ use super::{
     payments::ConnectorCustomer as PaymentsConnectorCustomer, ConnectorCommon, ConnectorIntegration,
 };
 
-/// trait GetSubscriptionItems for V1
-pub trait GetSubscriptionItemsFlow:
+/// trait GetSubscriptionPlans for V1
+pub trait GetSubscriptionPlansFlow:
     ConnectorIntegration<
-    GetSubscriptionItems,
-    GetSubscriptionItemsRequest,
-    GetSubscriptionItemsResponse,
+    GetSubscriptionPlans,
+    GetSubscriptionPlansRequest,
+    GetSubscriptionPlansResponse,
 >
 {
 }
@@ -74,12 +74,12 @@ pub trait SubscriptionCancelFlow:
 {
 }
 
-/// trait GetSubscriptionItemPrices for V1
+/// trait GetSubscriptionPlanPrices for V1
 pub trait GetSubscriptionPlanPricesFlow:
     ConnectorIntegration<
-    GetSubscriptionItemPrices,
-    GetSubscriptionItemPricesRequest,
-    GetSubscriptionItemPricesResponse,
+    GetSubscriptionPlanPrices,
+    GetSubscriptionPlanPricesRequest,
+    GetSubscriptionPlanPricesResponse,
 >
 {
 }
@@ -102,7 +102,7 @@ pub trait GetSubscriptionEstimateFlow:
 /// trait Subscriptions
 pub trait Subscriptions:
     ConnectorCommon
-    + GetSubscriptionItemsFlow
+    + GetSubscriptionPlansFlow
     + GetSubscriptionPlanPricesFlow
     + SubscriptionCreate
     + PaymentsConnectorCustomer

@@ -10,7 +10,6 @@ use router_env::{instrument, logger, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
-        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{self, helpers, operations, PaymentData},
     },
@@ -44,7 +43,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        _payment_method_wrapper: Option<operations::PaymentMethodWithRawData>,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsSessionRequest, PaymentData<F>>,
     > {
@@ -53,13 +51,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let db = &*state.store;
-        let processor_merchant_id = platform.get_processor().get_account().get_id();
+        let merchant_id = platform.get_processor().get_account().get_id();
         let storage_scheme = platform.get_processor().get_account().storage_scheme;
 
         let mut payment_intent = db
-            .find_payment_intent_by_payment_id_processor_merchant_id(
+            .find_payment_intent_by_payment_id_merchant_id(
                 &payment_id,
-                processor_merchant_id,
+                merchant_id,
                 platform.get_processor().get_key_store(),
                 storage_scheme,
             )
@@ -77,15 +75,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
             "create a session token for",
         )?;
 
-        helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
+        helpers::authenticate_client_secret(Some(&request.client_secret), &payment_intent)?;
 
         let mut payment_attempt = db
-            .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+            .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 &payment_intent.payment_id,
-                processor_merchant_id,
+                merchant_id,
                 payment_intent.active_attempt.get_id().as_str(),
                 storage_scheme,
-                platform.get_processor().get_key_store(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -101,7 +98,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
             payment_intent.shipping_address_id.clone(),
             platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
-            processor_merchant_id,
+            merchant_id,
             platform.get_processor().get_account().storage_scheme,
         )
         .await?;
@@ -111,7 +108,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
             payment_intent.billing_address_id.clone(),
             platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
-            processor_merchant_id,
+            merchant_id,
             platform.get_processor().get_account().storage_scheme,
         )
         .await?;
@@ -121,7 +118,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
             payment_attempt.payment_method_billing_address_id.clone(),
             platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
-            processor_merchant_id,
+            merchant_id,
             platform.get_processor().get_account().storage_scheme,
         )
         .await?;
@@ -136,7 +133,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
             phone: None,
             phone_country_code: None,
             tax_registration_id: None,
-            document_details: None,
         };
 
         let creds_identifier = request
@@ -149,7 +145,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
             .async_map(|mcd| async {
                 helpers::insert_merchant_connector_creds_to_config(
                     db,
-                    platform.get_processor(),
+                    platform.get_processor().get_account().get_id(),
                     mcd,
                 )
                 .await
@@ -180,6 +176,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
             payment_attempt,
             currency,
             amount,
+            email: None,
             mandate_id: None,
             mandate_connector: None,
             customer_acceptance: None,
@@ -207,6 +204,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
             pm_token: None,
             connector_customer_id: None,
             recurring_mandate_payment_data: None,
+            ephemeral_key: None,
             multiple_capture_data: None,
             redirect_response: None,
             surcharge_details: None,
@@ -250,32 +248,26 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionReque
         &'b self,
         state: &'b SessionState,
         _req_state: ReqState,
-        processor: &domain::Processor,
         mut payment_data: PaymentData<F>,
+        _customer: Option<domain::Customer>,
+        storage_scheme: storage_enums::MerchantStorageScheme,
+        _updated_customer: Option<storage::CustomerUpdate>,
+        key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentSessionOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
     {
-        let storage_scheme = processor.get_account().storage_scheme;
-        let key_store = processor.get_key_store();
-
         let metadata = payment_data.payment_intent.metadata.clone();
-        let feature_metadata = payment_data
-            .payment_intent
-            .feature_metadata
-            .clone()
-            .map(masking::Secret::new);
         payment_data.payment_intent = match metadata {
             Some(metadata) => state
                 .store
                 .update_payment_intent(
                     payment_data.payment_intent,
                     storage::PaymentIntentUpdate::MetadataUpdate {
-                        metadata: Some(metadata),
+                        metadata,
                         updated_by: storage_scheme.to_string(),
-                        feature_metadata,
                     },
                     key_store,
                     storage_scheme,
@@ -296,7 +288,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsSessionRequest, Pay
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsSessionRequest,
-        processor: &'a domain::Processor,
+        platform: &'a domain::Platform,
     ) -> RouterResult<(PaymentSessionOperation<'b, F>, operations::ValidateResult)> {
         //paymentid is already generated and should be sent in the request
         let given_payment_id = request.payment_id.clone();
@@ -304,9 +296,9 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsSessionRequest, Pay
         Ok((
             Box::new(self),
             operations::ValidateResult {
-                merchant_id: processor.get_account().get_id().to_owned(),
+                merchant_id: platform.get_processor().get_account().get_id().to_owned(),
                 payment_id: api::PaymentIdType::PaymentIntentId(given_payment_id),
-                storage_scheme: processor.get_account().storage_scheme,
+                storage_scheme: platform.get_processor().get_account().storage_scheme,
                 requeue: false,
             },
         ))
@@ -327,43 +319,22 @@ where
         state: &SessionState,
         payment_data: &mut PaymentData<F>,
         request: Option<payments::CustomerDetails>,
-        provider: &domain::Provider,
-        initiator: Option<&domain::Initiator>,
-        dimensions: DimensionsWithMerchantIdAndProfileId,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: common_enums::enums::MerchantStorageScheme,
     ) -> errors::CustomResult<
         (PaymentSessionOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,
     > {
-        match provider.get_account().merchant_account_type {
-            common_enums::MerchantAccountType::Standard => {
-                helpers::create_customer_if_not_exist(
-                    state,
-                    Box::new(self),
-                    payment_data,
-                    request,
-                    provider,
-                    initiator,
-                    dimensions,
-                )
-                .await
-            }
-            common_enums::MerchantAccountType::Platform => {
-                let customer = helpers::get_customer_if_exists(
-                    state,
-                    request.as_ref().and_then(|r| r.customer_id.as_ref()),
-                    payment_data.payment_intent.customer_id.as_ref(),
-                    provider,
-                )
-                .await?;
-                Ok((Box::new(self), customer))
-            }
-            common_enums::MerchantAccountType::Connected => {
-                Err(errors::StorageError::ValueNotFound(
-                    "Connected merchant cannot be a provider".to_string(),
-                )
-                .into())
-            }
-        }
+        helpers::create_customer_if_not_exist(
+            state,
+            Box::new(self),
+            payment_data,
+            request,
+            &key_store.merchant_id,
+            key_store,
+            storage_scheme,
+        )
+        .await
     }
 
     #[instrument(skip_all)]
@@ -372,7 +343,8 @@ where
         _state: &'b SessionState,
         _payment_data: &mut PaymentData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
-        _platform: &domain::Platform,
+        _merchant_key_store: &domain::MerchantKeyStore,
+        _customer: &Option<domain::Customer>,
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
     ) -> RouterResult<(
@@ -395,7 +367,7 @@ where
     /// or from separate implementation ( for googlepay - from metadata and applepay - from metadata and call connector)
     async fn get_connector<'a>(
         &'a self,
-        processor: &domain::Processor,
+        platform: &domain::Platform,
         state: &SessionState,
         request: &api::PaymentsSessionRequest,
         payment_intent: &storage::PaymentIntent,
@@ -404,9 +376,9 @@ where
 
         let all_connector_accounts = db
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-                processor.get_account().get_id(),
+                platform.get_processor().get_account().get_id(),
                 false,
-                processor.get_key_store(),
+                platform.get_processor().get_key_store(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -521,7 +493,7 @@ where
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
-        _processor: &domain::Processor,
+        _platform: &domain::Platform,
         _payment_data: &mut PaymentData<F>,
     ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)

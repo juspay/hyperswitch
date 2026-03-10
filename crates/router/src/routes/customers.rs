@@ -22,23 +22,16 @@ pub async fn customers_create(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            create_customer(
-                state,
-                auth.platform.get_provider().clone(),
-                auth.platform.get_initiator().cloned(),
-                req,
-                None,
-            )
+            let platform = auth.into();
+            create_customer(state, platform, req, None)
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                allow_connected_scope_operation: true,
-                allow_platform_self_operation: true,
+                is_connected_allowed: false,
+                is_platform_allowed: false,
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
-                allow_connected: true,
-                allow_platform: true,
             },
             req.headers(),
         ),
@@ -60,23 +53,16 @@ pub async fn customers_create(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            create_customer(
-                state,
-                auth.platform.get_provider().clone(),
-                auth.platform.get_initiator().cloned(),
-                req,
-                None,
-            )
+            let platform = auth.into();
+            create_customer(state, platform, req, None)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: true,
-                allow_platform_self_operation: true,
+                is_connected_allowed: false,
+                is_platform_allowed: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
-                allow_connected: true,
-                allow_platform: true,
             },
             req.headers(),
         ),
@@ -99,14 +85,9 @@ pub async fn customers_retrieve(
     let auth = if auth::is_jwt_auth(req.headers()) {
         Box::new(auth::JWTAuth {
             permission: Permission::MerchantCustomerRead,
-            allow_connected: true,
-            allow_platform: true,
         })
     } else {
-        let api_auth = auth::ApiKeyAuth {
-            allow_connected_scope_operation: true,
-            allow_platform_self_operation: true,
-        };
+        let api_auth = auth::ApiKeyAuth::default();
         match auth::is_ephemeral_auth(req.headers(), api_auth) {
             Ok(auth) => auth,
             Err(err) => return api::log_and_return_error_response(err),
@@ -118,14 +99,9 @@ pub async fn customers_retrieve(
         state,
         &req,
         customer_id,
-        |state, auth, customer_id, _| {
-            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
-            retrieve_customer(
-                state,
-                auth.platform.get_provider().clone(),
-                profile_id,
-                customer_id,
-            )
+        |state, auth: auth::AuthenticationData, customer_id, _| {
+            let platform = auth.clone().into();
+            retrieve_customer(state, platform, auth.profile_id, customer_id)
         },
         &*auth,
         api_locking::LockAction::NotApplicable,
@@ -140,7 +116,7 @@ pub async fn customers_retrieve(
     req: HttpRequest,
     path: web::Path<id_type::GlobalCustomerId>,
 ) -> HttpResponse {
-    use crate::services::authentication::sdk_or_api_or_client_auth;
+    use crate::services::authentication::api_or_client_auth;
 
     let flow = Flow::CustomersRetrieve;
 
@@ -149,23 +125,15 @@ pub async fn customers_retrieve(
     let v2_client_auth = auth::V2ClientAuth(
         common_utils::types::authentication::ResourceId::Customer(id.clone()),
     );
-    let sdk_auth = auth::SdkAuthorizationAuth {
-        allow_connected_scope_operation: true,
-        allow_platform_self_operation: true,
-        resource_id: common_utils::types::authentication::ResourceId::Customer(id.clone()),
-    };
     let auth = if auth::is_jwt_auth(req.headers()) {
         &auth::JWTAuth {
             permission: Permission::MerchantCustomerRead,
-            allow_connected: true,
-            allow_platform: true,
         }
     } else {
-        sdk_or_api_or_client_auth(
-            &sdk_auth,
+        api_or_client_auth(
             &auth::V2ApiKeyAuth {
-                allow_connected_scope_operation: true,
-                allow_platform_self_operation: true,
+                is_connected_allowed: false,
+                is_platform_allowed: false,
             },
             &v2_client_auth,
             req.headers(),
@@ -178,7 +146,8 @@ pub async fn customers_retrieve(
         &req,
         id,
         |state, auth: auth::AuthenticationData, id, _| {
-            retrieve_customer(state, auth.platform.get_provider().clone(), id)
+            let platform = auth.into();
+            retrieve_customer(state, platform, id)
         },
         auth,
         api_locking::LockAction::NotApplicable,
@@ -201,17 +170,21 @@ pub async fn customers_list(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, request, _| {
-            list_customers(state, auth.platform.get_provider().clone(), None, request)
+            list_customers(
+                state,
+                auth.merchant_account.get_id().to_owned(),
+                None,
+                auth.key_store,
+                request,
+            )
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                allow_connected_scope_operation: true,
-                allow_platform_self_operation: true,
+                is_connected_allowed: false,
+                is_platform_allowed: false,
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
-                allow_connected: true,
-                allow_platform: true,
             },
             req.headers(),
         ),
@@ -235,17 +208,21 @@ pub async fn customers_list(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, request, _| {
-            list_customers(state, auth.platform.get_provider().clone(), None, request)
+            list_customers(
+                state,
+                auth.merchant_account.get_id().to_owned(),
+                None,
+                auth.key_store,
+                request,
+            )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: true,
-                allow_platform_self_operation: true,
+                is_connected_allowed: false,
+                is_platform_allowed: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
-                allow_connected: true,
-                allow_platform: true,
             },
             req.headers(),
         ),
@@ -270,17 +247,20 @@ pub async fn customers_list_with_count(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, request, _| {
-            list_customers_with_count(state, auth.platform.get_provider().clone(), request)
+            list_customers_with_count(
+                state,
+                auth.merchant_account.get_id().to_owned(),
+                auth.key_store,
+                request,
+            )
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                allow_connected_scope_operation: true,
-                allow_platform_self_operation: true,
+                is_connected_allowed: false,
+                is_platform_allowed: false,
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
-                allow_connected: true,
-                allow_platform: true,
             },
             req.headers(),
         ),
@@ -304,17 +284,20 @@ pub async fn customers_list_with_count(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, request, _| {
-            list_customers_with_count(state, auth.platform.get_provider().clone(), request)
+            list_customers_with_count(
+                state,
+                auth.merchant_account.get_id().to_owned(),
+                auth.key_store,
+                request,
+            )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: true,
-                allow_platform_self_operation: true,
+                is_connected_allowed: false,
+                is_platform_allowed: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
-                allow_connected: true,
-                allow_platform: true,
             },
             req.headers(),
         ),
@@ -345,22 +328,16 @@ pub async fn customers_update(
         &req,
         request_internal,
         |state, auth: auth::AuthenticationData, request_internal, _| {
-            update_customer(
-                state,
-                auth.platform.get_provider().clone(),
-                auth.platform.get_initiator().cloned(),
-                request_internal,
-            )
+            let platform = auth.into();
+            update_customer(state, platform, request_internal)
         },
         auth::auth_type(
             &auth::ApiKeyAuth {
-                allow_connected_scope_operation: true,
-                allow_platform_self_operation: true,
+                is_connected_allowed: false,
+                is_platform_allowed: false,
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
-                allow_connected: true,
-                allow_platform: true,
             },
             req.headers(),
         ),
@@ -388,22 +365,16 @@ pub async fn customers_update(
         &req,
         request_internal,
         |state, auth: auth::AuthenticationData, request_internal, _| {
-            update_customer(
-                state,
-                auth.platform.get_provider().clone(),
-                auth.platform.get_initiator().cloned(),
-                request_internal,
-            )
+            let platform = auth.into();
+            update_customer(state, platform, request_internal)
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                allow_connected_scope_operation: true,
-                allow_platform_self_operation: true,
+                is_connected_allowed: false,
+                is_platform_allowed: false,
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
-                allow_connected: true,
-                allow_platform: true,
             },
             req.headers(),
         ),
@@ -428,17 +399,16 @@ pub async fn customers_delete(
         &req,
         id,
         |state, auth: auth::AuthenticationData, id, _| {
-            delete_customer(state, auth.platform, id, auth.profile)
+            let platform = auth.into();
+            delete_customer(state, platform, id)
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
-                allow_connected_scope_operation: true,
-                allow_platform_self_operation: true,
+                is_connected_allowed: false,
+                is_platform_allowed: false,
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
-                allow_connected: true,
-                allow_platform: true,
             },
             req.headers(),
         ),
@@ -463,22 +433,16 @@ pub async fn customers_delete(
         &req,
         customer_id,
         |state, auth: auth::AuthenticationData, customer_id, _| {
-            delete_customer(
-                state,
-                auth.platform.get_provider().clone(),
-                auth.platform.get_initiator().cloned(),
-                customer_id,
-            )
+            let platform = auth.into();
+            delete_customer(state, platform, customer_id)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: true,
-                allow_platform_self_operation: true,
+                is_connected_allowed: false,
+                is_platform_allowed: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerWrite,
-                allow_connected: true,
-                allow_platform: true,
             },
             req.headers(),
         ),
@@ -503,17 +467,16 @@ pub async fn get_customer_mandates(
         &req,
         customer_id,
         |state, auth: auth::AuthenticationData, customer_id, _| {
-            crate::core::mandate::get_customer_mandates(state, auth.platform, customer_id)
+            let platform = auth.into();
+            crate::core::mandate::get_customer_mandates(state, platform, customer_id)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
-                allow_platform_self_operation: false,
+                is_connected_allowed: false,
+                is_platform_allowed: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantMandateRead,
-                allow_connected: false,
-                allow_platform: false,
             },
             req.headers(),
         ),

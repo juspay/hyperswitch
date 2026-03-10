@@ -21,7 +21,7 @@ use super::{
 };
 use crate::{
     core::payment_methods::{
-        cards::{add_card_to_vault, PmCards},
+        cards::{add_card_to_hs_locker, PmCards},
         transformers as pm_transformers,
     },
     errors::{self, RouterResult},
@@ -131,11 +131,6 @@ impl<'a> NetworkTokenizationBuilder<'a, CardRequestValidated> {
                 .as_ref()
                 .map_or(card_req.card_issuing_country.clone(), |card_info| {
                     card_info.card_issuing_country.clone()
-                }),
-            card_issuing_country_code: optional_card_info
-                .as_ref()
-                .map_or(card_req.card_issuing_country_code.clone(), |card_info| {
-                    card_info.country_code.clone()
                 }),
             co_badged_card_data: None,
         };
@@ -252,7 +247,6 @@ impl<'a> NetworkTokenizationBuilder<'a, CardTokenStored> {
         let card_detail_from_locker = self.card.as_ref().map(|card| api::CardDetailFromLocker {
             scheme: None,
             issuer_country: card.card_issuing_country.clone(),
-            issuer_country_code: card.card_issuing_country_code.clone(),
             last4_digits: Some(card.card_number.clone().get_last4()),
             card_number: None,
             expiry_month: Some(card.card_exp_month.clone().clone()),
@@ -357,7 +351,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             // If found, send back CustomerDetails from DB
             |optional_customer| {
                 Ok(optional_customer.map(|customer| api::CustomerDetails {
-                    id: Some(customer.customer_id.clone()),
+                    id: customer.customer_id.clone(),
                     name: customer.name.clone().map(|name| name.into_inner()),
                     email: customer.email.clone().map(Email::from),
                     phone: customer.phone.clone().map(|phone| phone.into_inner()),
@@ -366,16 +360,12 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
                         .tax_registration_id
                         .clone()
                         .map(|tax_registration_id| tax_registration_id.into_inner()),
-                    document_details: None,
                 }))
             },
         )
     }
 
-    pub async fn create_customer(
-        &self,
-        initiator: Option<&domain::Initiator>,
-    ) -> RouterResult<api::CustomerDetails> {
+    pub async fn create_customer(&self) -> RouterResult<api::CustomerDetails> {
         let db = &*self.state.store;
         let customer_id = self
             .customer
@@ -439,9 +429,9 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             updated_by: None,
             version: common_types::consts::API_VERSION,
             tax_registration_id: encryptable_customer.tax_registration_id,
-            document_details: None,
-            created_by: initiator.and_then(|initiator| initiator.to_created_by()),
-            last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
+            // TODO: Populate created_by from authentication context once it is integrated in auth data
+            created_by: None,
+            last_modified_by: None, // Same as created_by on creation
         };
 
         db.insert_customer(
@@ -461,13 +451,12 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
         })?;
 
         Ok(api::CustomerDetails {
-            id: Some(new_customer_id),
+            id: new_customer_id,
             name: self.customer.name.clone(),
             email: self.customer.email.clone(),
             phone: self.customer.phone.clone(),
             phone_country_code: self.customer.phone_country_code.clone(),
             tax_registration_id: self.customer.tax_registration_id.clone(),
-            document_details: self.customer.document_details.clone(),
         })
     }
 
@@ -519,10 +508,15 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
                 ttl: self.state.conf.locker.ttl_for_storage_in_secs,
             });
 
-        let stored_resp = add_card_to_vault(self.state, &locker_req, customer_id)
-            .await
-            .inspect_err(|err| logger::info!("Error adding card in locker: {:?}", err))
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let stored_resp = add_card_to_hs_locker(
+            self.state,
+            &locker_req,
+            customer_id,
+            api_enums::LockerChoice::HyperswitchCardVault,
+        )
+        .await
+        .inspect_err(|err| logger::info!("Error adding card in locker: {:?}", err))
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         Ok(stored_resp)
     }
@@ -560,7 +554,6 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
                 card_holder_name: card_details.card_holder_name.clone(),
                 nick_name: card_details.nick_name.clone(),
                 card_issuing_country: card_details.card_issuing_country.clone(),
-                card_issuing_country_code: card_details.card_issuing_country_code.clone(),
                 card_network: card_details.card_network.clone(),
                 card_issuer: card_details.card_issuer.clone(),
                 card_type: card_details.card_type.clone(),
@@ -580,16 +573,14 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             connector_mandate_details: None,
             network_transaction_id: None,
         };
-        let platform = domain::Platform::new(
-            self.merchant_account.clone(),
-            self.key_store.clone(),
-            self.merchant_account.clone(),
-            self.key_store.clone(),
-            None,
-        );
         PmCards {
             state: self.state,
-            provider: platform.get_provider(),
+            platform: &domain::Platform::new(
+                self.merchant_account.clone(),
+                self.key_store.clone(),
+                self.merchant_account.clone(),
+                self.key_store.clone(),
+            ),
         }
         .create_payment_method(
             &payment_method_create,
@@ -609,9 +600,6 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             Some(stored_locker_resp.store_token_resp.card_reference.clone()),
             Some(enc_token_data),
             Default::default(), // this method is used only for card bulk tokenization, and currently external vault is not supported for this hence passing Default i.e. InternalVault
-            None,
-            None,
-            platform.get_initiator(),
         )
         .await
     }

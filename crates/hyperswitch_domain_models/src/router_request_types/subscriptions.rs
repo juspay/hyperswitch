@@ -24,39 +24,29 @@ pub enum SubscriptionAutoCollection {
     Off,
 }
 #[derive(Debug, Clone)]
-pub struct GetSubscriptionItemsRequest {
+pub struct GetSubscriptionPlansRequest {
     pub limit: Option<u32>,
     pub offset: Option<u32>,
-    pub item_type: subscription::SubscriptionItemType,
 }
 
-impl GetSubscriptionItemsRequest {
-    pub fn new(
-        limit: Option<u32>,
-        offset: Option<u32>,
-        item_type: subscription::SubscriptionItemType,
-    ) -> Self {
-        Self {
-            limit,
-            offset,
-            item_type,
-        }
+impl GetSubscriptionPlansRequest {
+    pub fn new(limit: Option<u32>, offset: Option<u32>) -> Self {
+        Self { limit, offset }
     }
 }
 
-impl Default for GetSubscriptionItemsRequest {
+impl Default for GetSubscriptionPlansRequest {
     fn default() -> Self {
         Self {
             limit: Some(10),
             offset: Some(0),
-            item_type: subscription::SubscriptionItemType::Plan,
         }
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct GetSubscriptionItemPricesRequest {
-    pub item_price_id: String,
+pub struct GetSubscriptionPlanPricesRequest {
+    pub plan_price_id: String,
 }
 
 #[derive(Debug, Clone)]

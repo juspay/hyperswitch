@@ -258,7 +258,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayuPaymentsResponse, T, PaymentsRespon
                     .ext_order_id
                     .or(Some(item.response.order_id)),
                 incremental_authorization_allowed: None,
-                authentication_data: None,
                 charges: None,
             }),
             amount_captured: None,
@@ -306,7 +305,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayuPaymentsCaptureResponse, T, Payment
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
-                authentication_data: None,
                 charges: None,
             }),
             amount_captured: None,
@@ -385,7 +383,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayuPaymentsCancelResponse, T, Payments
                     .ext_order_id
                     .or(Some(item.response.order_id)),
                 incremental_authorization_allowed: None,
-                authentication_data: None,
                 charges: None,
             }),
             amount_captured: None,
@@ -515,7 +512,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayuPaymentsSyncResponse, T, PaymentsRe
                     .clone()
                     .or(Some(order.order_id.clone())),
                 incremental_authorization_allowed: None,
-                authentication_data: None,
                 charges: None,
             }),
             amount_captured: Some(

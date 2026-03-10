@@ -48,7 +48,7 @@ use hyperswitch_interfaces::{
     errors::ConnectorError,
     events::connector_api_logs::ConnectorEvent,
     types::Response,
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
 use masking::{ExposeInterface, Mask as _, Maskable};
 use transformers as threedsecureio;
@@ -155,7 +155,6 @@ impl ConnectorCommon for Threedsecureio {
                     reason: response.error_description,
                     attempt_status: None,
                     connector_transaction_id: None,
-                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -208,7 +207,6 @@ impl IncomingWebhook for Threedsecureio {
     fn get_webhook_event_type(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
         Err(report!(ConnectorError::WebhooksNotImplemented))
     }

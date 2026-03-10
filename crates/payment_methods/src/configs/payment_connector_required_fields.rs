@@ -180,8 +180,6 @@ enum RequiredField {
     MifinityLanguagePreference(Vec<&'static str>),
     CryptoNetwork,
     CyptoPayCurrency(Vec<&'static str>),
-    PixDocumentType(Vec<&'static str>),
-    PixDocumentNumber,
     BoletoSocialSecurityNumber,
     UpiCollectVpaId,
     AchBankDebitAccountNumber,
@@ -195,6 +193,8 @@ enum RequiredField {
     BecsBankDebitBsbNumber,
     BecsBankDebitSortCode,
     PixKey,
+    PixCnpj,
+    PixCpf,
     PixSourceBankAccountId,
     GiftCardNumber,
     GiftCardCvc,
@@ -685,26 +685,6 @@ impl RequiredField {
                     value: None,
                 },
             ),
-            Self::PixDocumentNumber => (
-                "customer.document_details.document_number".to_string(),
-                RequiredFieldInfo {
-                    required_field: "customer.document_details.document_number".to_string(),
-                    display_name: "document_number".to_string(),
-                    field_type: FieldType::UserSocialSecurityNumber,
-                    value: None,
-                },
-            ),
-            Self::PixDocumentType(document_type) => (
-                "customer.document_details.document_type".to_string(),
-                RequiredFieldInfo {
-                    required_field: "customer.document_details.document_type".to_string(),
-                    display_name: "document_type".to_string(),
-                    field_type: FieldType::UserDocumentType {
-                        options: document_type.iter().map(|d| d.to_string()).collect(),
-                    },
-                    value: None,
-                },
-            ),
             Self::UpiCollectVpaId => (
                 "payment_method_data.upi.upi_collect.vpa_id".to_string(),
                 RequiredFieldInfo {
@@ -827,6 +807,24 @@ impl RequiredField {
                     value: None,
                 },
             ),
+            Self::PixCnpj => (
+                "payment_method_data.bank_transfer.pix.cnpj".to_string(),
+                RequiredFieldInfo {
+                    required_field: "payment_method_data.bank_transfer.pix.cnpj".to_string(),
+                    display_name: "cnpj".to_string(),
+                    field_type: FieldType::UserCnpj,
+                    value: None,
+                },
+            ),
+            Self::PixCpf => (
+                "payment_method_data.bank_transfer.pix.cpf".to_string(),
+                RequiredFieldInfo {
+                    required_field: "payment_method_data.bank_transfer.pix.cpf".to_string(),
+                    display_name: "cpf".to_string(),
+                    field_type: FieldType::UserCpf,
+                    value: None,
+                },
+            ),
             Self::PixSourceBankAccountId => (
                 "payment_method_data.bank_transfer.pix.source_bank_account_id".to_string(),
                 RequiredFieldInfo {
@@ -842,7 +840,7 @@ impl RequiredField {
                 RequiredFieldInfo {
                     required_field: "payment_method_data.gift_card.givex.number".to_string(),
                     display_name: "gift_card_number".to_string(),
-                    field_type: FieldType::UserGiftCardNumber,
+                    field_type: FieldType::UserCardNumber,
                     value: None,
                 },
             ),
@@ -851,7 +849,7 @@ impl RequiredField {
                 RequiredFieldInfo {
                     required_field: "payment_method_data.gift_card.givex.cvc".to_string(),
                     display_name: "gift_card_cvc".to_string(),
-                    field_type: FieldType::UserGiftCardPin,
+                    field_type: FieldType::UserCardCvc,
                     value: None,
                 },
             ),
@@ -1257,10 +1255,6 @@ impl RequiredFields {
                 ])),
             ),
             (
-                enums::PaymentMethod::RealTimePayment,
-                PaymentMethodType(get_real_time_payment_required_fields()),
-            ),
-            (
                 enums::PaymentMethod::MobilePayment,
                 PaymentMethodType(HashMap::from([(
                     enums::PaymentMethodType::DirectCarrierBilling,
@@ -1417,7 +1411,6 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
             Connector::Elavon,
             fields(vec![], [card_basic(), billing_email()].concat(), vec![]),
         ),
-        (Connector::Finix, fields(vec![], vec![], card_basic())),
         (Connector::Fiserv, fields(vec![], card_basic(), vec![])),
         (
             Connector::Fiuu,
@@ -1582,10 +1575,11 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
                     email(),
                     card_with_name(),
                     vec![
+                        RequiredField::BillingAddressLine1,
+                        RequiredField::BillingAddressCity,
                         RequiredField::BillingAddressZip,
-                        RequiredField::BillingEmail,
-                        RequiredField::BillingUserFirstName,
-                        RequiredField::BillingUserLastName,
+                        RequiredField::BillingAddressState,
+                        RequiredField::BillingAddressCountries(vec!["ALL"]),
                     ],
                 ]
                 .concat(),
@@ -1607,7 +1601,6 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
         ),
         (Connector::Rapyd, fields(vec![], card_with_name(), vec![])),
         (Connector::Redsys, fields(vec![], card_basic(), vec![])),
-        (Connector::Revolv3, fields(vec![], vec![], card_with_name())),
         (Connector::Shift4, fields(vec![], card_basic(), vec![])),
         (Connector::Silverflow, fields(vec![], vec![], card_basic())),
         (Connector::Square, fields(vec![], vec![], card_basic())),
@@ -1682,10 +1675,6 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
             ),
         ),
         (
-            Connector::Worldpayxml,
-            fields(vec![], card_with_name(), vec![]),
-        ),
-        (
             Connector::Worldpayvantiv,
             fields(vec![], card_basic(), vec![]),
         ),
@@ -1738,13 +1727,6 @@ fn get_bank_redirect_required_fields(
                     fields(vec![], vec![RequiredField::OpenBankingUkIssuer], vec![]),
                 ),
             ]),
-        ),
-        (
-            enums::PaymentMethodType::OpenBanking,
-            connectors(vec![(
-                Connector::Volt,
-                fields(vec![], billing_name(), vec![]),
-            )]),
         ),
         (
             enums::PaymentMethodType::Trustly,
@@ -2369,14 +2351,8 @@ fn get_bank_redirect_required_fields(
                         vec![],
                         vec![
                             RequiredField::BillingEmail,
-                            RequiredField::BillingFirstName(
-                                "billing_first_name",
-                                FieldType::UserBillingName,
-                            ),
-                            RequiredField::BillingLastName(
-                                "billing_last_name",
-                                FieldType::UserBillingName,
-                            ),
+                            RequiredField::BillingUserFirstName,
+                            RequiredField::BillingUserLastName,
                             RequiredField::BillingPhone,
                             RequiredField::BillingPhoneCountryCode,
                         ],
@@ -2389,14 +2365,8 @@ fn get_bank_redirect_required_fields(
                         vec![],
                         vec![
                             RequiredField::BillingEmail,
-                            RequiredField::BillingFirstName(
-                                "billing_first_name",
-                                FieldType::UserBillingName,
-                            ),
-                            RequiredField::BillingLastName(
-                                "billing_last_name",
-                                FieldType::UserBillingName,
-                            ),
+                            RequiredField::BillingUserFirstName,
+                            RequiredField::BillingUserLastName,
                         ],
                         vec![],
                     ),
@@ -2921,7 +2891,6 @@ fn get_pay_later_required_fields() -> HashMap<enums::PaymentMethodType, Connecto
                     Connector::Stripe,
                     fields(
                         vec![],
-                        vec![],
                         vec![
                             RequiredField::BillingEmail,
                             RequiredField::BillingFirstName(
@@ -2947,6 +2916,7 @@ fn get_pay_later_required_fields() -> HashMap<enums::PaymentMethodType, Connecto
                             RequiredField::ShippingAddressCountries(vec!["ALL"]),
                             RequiredField::ShippingAddressLine1,
                         ],
+                        vec![],
                     ),
                 ),
                 (
@@ -3062,25 +3032,6 @@ fn get_pay_later_required_fields() -> HashMap<enums::PaymentMethodType, Connecto
                         .to_tuple()]),
                         common: HashMap::new(),
                     },
-                ),
-                (
-                    Connector::Mollie,
-                    fields(
-                        vec![],
-                        vec![
-                            RequiredField::BillingAddressCountries(vec![
-                                "DE", "AT", "NL", "BE", "FR", "UK", "IT", "ES", "PT", "SE", "DK",
-                                "FI", "NO", "CH", "IR", "CZ", "PL", "GR", "SK",
-                            ]),
-                            RequiredField::BillingEmail,
-                            RequiredField::BillingAddressLine1,
-                            RequiredField::BillingAddressZip,
-                            RequiredField::BillingAddressCity,
-                            RequiredField::BillingUserFirstName,
-                            RequiredField::BillingUserLastName,
-                        ],
-                        vec![],
-                    ),
                 ),
             ]),
         ),
@@ -3253,25 +3204,6 @@ fn get_voucher_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorF
                         common: HashMap::new(),
                     },
                 ),
-                (
-                    Connector::Santander,
-                    RequiredFieldFinal {
-                        mandate: HashMap::new(),
-                        non_mandate: HashMap::from([
-                            RequiredField::PixDocumentType(vec!["cpf", "cnpj"]).to_tuple(),
-                            RequiredField::PixDocumentNumber.to_tuple(),
-                            RequiredField::BillingUserFirstName.to_tuple(),
-                            RequiredField::BillingUserLastName.to_tuple(),
-                            RequiredField::BillingAddressCity.to_tuple(),
-                            RequiredField::BillingAddressState.to_tuple(),
-                            RequiredField::BillingAddressZip.to_tuple(),
-                            RequiredField::BillingAddressCountries(vec!["BR"]).to_tuple(),
-                            RequiredField::BillingAddressLine1.to_tuple(),
-                            RequiredField::BillingAddressLine2.to_tuple(),
-                        ]),
-                        common: HashMap::new(),
-                    },
-                ),
                 (Connector::Zen, fields(vec![], vec![], vec![])),
             ]),
         ),
@@ -3362,24 +3294,6 @@ fn get_bank_debit_required_fields() -> HashMap<enums::PaymentMethodType, Connect
                             .to_tuple(),
                             RequiredField::AchBankDebitAccountNumber.to_tuple(),
                             RequiredField::AchBankDebitRoutingNumber.to_tuple(),
-                        ]),
-                    },
-                ),
-                (
-                    Connector::Payload,
-                    RequiredFieldFinal {
-                        mandate: HashMap::new(),
-                        non_mandate: HashMap::new(),
-                        common: HashMap::from([
-                            RequiredField::BillingAddressZip.to_tuple(),
-                            RequiredField::AchBankDebitAccountNumber.to_tuple(),
-                            RequiredField::AchBankDebitRoutingNumber.to_tuple(),
-                            RequiredField::AchBankDebitBankAccountHolderName.to_tuple(),
-                            RequiredField::AchBankDebitBankType(vec![
-                                enums::BankType::Checking,
-                                enums::BankType::Savings,
-                            ])
-                            .to_tuple(),
                         ]),
                     },
                 ),
@@ -3529,7 +3443,6 @@ fn get_bank_debit_required_fields() -> HashMap<enums::PaymentMethodType, Connect
                             )
                             .to_tuple(),
                             RequiredField::SepaBankDebitIban.to_tuple(),
-                            RequiredField::BillingEmail.to_tuple(),
                         ]),
                     },
                 ),
@@ -3681,8 +3594,8 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
                         non_mandate: HashMap::new(),
                         common: HashMap::from([
                             RequiredField::PixKey.to_tuple(),
-                            RequiredField::PixDocumentType(vec!["CPF", "CNPJ"]).to_tuple(),
-                            RequiredField::PixDocumentNumber.to_tuple(),
+                            RequiredField::PixCnpj.to_tuple(),
+                            RequiredField::PixCpf.to_tuple(),
                             RequiredField::BillingUserFirstName.to_tuple(),
                             RequiredField::BillingUserLastName.to_tuple(),
                         ]),
@@ -3695,16 +3608,8 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
                         mandate: HashMap::new(),
                         non_mandate: HashMap::new(),
                         common: HashMap::from([
-                            RequiredField::PixDocumentType(vec!["cpf", "cnpj"]).to_tuple(),
-                            RequiredField::PixDocumentNumber.to_tuple(),
                             RequiredField::BillingUserFirstName.to_tuple(),
                             RequiredField::BillingUserLastName.to_tuple(),
-                            RequiredField::BillingAddressCity.to_tuple(),
-                            RequiredField::BillingAddressState.to_tuple(),
-                            RequiredField::BillingAddressZip.to_tuple(),
-                            RequiredField::BillingAddressCountries(vec!["BR"]).to_tuple(),
-                            RequiredField::BillingAddressLine1.to_tuple(),
-                            RequiredField::BillingAddressLine2.to_tuple(),
                         ]),
                     },
                 ),
@@ -3738,8 +3643,7 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
                             RequiredField::BillingAddressCountries(vec!["BR"]).to_tuple(),
                             RequiredField::BillingUserFirstName.to_tuple(),
                             RequiredField::BillingUserLastName.to_tuple(),
-                            RequiredField::PixDocumentType(vec!["CPF", "CNPJ"]).to_tuple(),
-                            RequiredField::PixDocumentNumber.to_tuple(),
+                            RequiredField::PixCpf.to_tuple(),
                         ]),
                     },
                 ),
@@ -3919,21 +3823,6 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
             )]),
         ),
     ])
-}
-
-#[cfg(feature = "v1")]
-fn get_real_time_payment_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFields> {
-    HashMap::from([(
-        enums::PaymentMethodType::Qris,
-        connectors(vec![(
-            Connector::Xendit,
-            RequiredFieldFinal {
-                mandate: HashMap::new(),
-                non_mandate: HashMap::new(),
-                common: HashMap::new(),
-            },
-        )]),
-    )])
 }
 
 #[test]

@@ -10,7 +10,10 @@ pub use hyperswitch_domain_models::{
     router_request_types::authentication::MessageCategory,
 };
 
-use crate::{connector, core::errors, services::connector_integration_interface::ConnectorEnum};
+use crate::{
+    connector, core::errors, services::connector_integration_interface::ConnectorEnum,
+    types::storage,
+};
 
 #[derive(Clone, serde::Deserialize, Debug, serde::Serialize)]
 pub struct AcquirerDetails {
@@ -29,17 +32,12 @@ pub struct AuthenticationResponse {
     pub acs_trans_id: Option<String>,
     pub three_dsserver_trans_id: Option<String>,
     pub acs_signed_content: Option<String>,
-    pub error_message: Option<String>,
 }
 
-impl TryFrom<hyperswitch_domain_models::authentication::Authentication> for AuthenticationResponse {
+impl TryFrom<storage::Authentication> for AuthenticationResponse {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
-    fn try_from(
-        authentication: hyperswitch_domain_models::authentication::Authentication,
-    ) -> Result<Self, Self::Error> {
-        let trans_status = authentication
-            .trans_status
-            .unwrap_or(common_enums::TransactionStatus::Failure);
+    fn try_from(authentication: storage::Authentication) -> Result<Self, Self::Error> {
+        let trans_status = authentication.trans_status.ok_or(errors::ApiErrorResponse::InternalServerError).attach_printable("trans_status must be populated in authentication table authentication call is successful")?;
         let acs_url = authentication
             .acs_url
             .map(|url| url::Url::from_str(&url))
@@ -55,7 +53,6 @@ impl TryFrom<hyperswitch_domain_models::authentication::Authentication> for Auth
             three_dsserver_trans_id: authentication.threeds_server_transaction_id,
             acs_signed_content: authentication.acs_signed_content,
             challenge_request_key: authentication.challenge_request_key,
-            error_message: authentication.error_message,
         })
     }
 }

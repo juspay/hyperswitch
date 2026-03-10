@@ -133,7 +133,6 @@ mod test {
             metadata: None,
             payment: inputs::PaymentInput {
                 amount: MinorUnit::new(32),
-                transaction_initiator: None,
                 card_bin: None,
                 extended_card_bin: None,
                 currency: enums::Currency::USD,
@@ -177,7 +176,6 @@ mod test {
         let inp = inputs::BackendInput {
             metadata: None,
             payment: inputs::PaymentInput {
-                transaction_initiator: None,
                 amount: MinorUnit::new(32),
                 currency: enums::Currency::USD,
                 card_bin: Some("123456".to_string()),
@@ -223,7 +221,6 @@ mod test {
         let inp = inputs::BackendInput {
             metadata: None,
             payment: inputs::PaymentInput {
-                transaction_initiator: None,
                 amount: MinorUnit::new(32),
                 currency: enums::Currency::USD,
                 card_bin: Some("123456".to_string()),
@@ -269,7 +266,6 @@ mod test {
         let inp = inputs::BackendInput {
             metadata: None,
             payment: inputs::PaymentInput {
-                transaction_initiator: None,
                 amount: MinorUnit::new(32),
                 currency: enums::Currency::USD,
                 card_bin: Some("123456".to_string()),
@@ -315,7 +311,6 @@ mod test {
         let inp = inputs::BackendInput {
             metadata: None,
             payment: inputs::PaymentInput {
-                transaction_initiator: None,
                 amount: MinorUnit::new(32),
                 currency: enums::Currency::USD,
                 card_bin: Some("123456".to_string()),
@@ -361,7 +356,6 @@ mod test {
         let inp = inputs::BackendInput {
             metadata: None,
             payment: inputs::PaymentInput {
-                transaction_initiator: None,
                 amount: MinorUnit::new(32),
                 currency: enums::Currency::USD,
                 card_bin: Some("123456".to_string()),
@@ -407,7 +401,6 @@ mod test {
         let inp = inputs::BackendInput {
             metadata: None,
             payment: inputs::PaymentInput {
-                transaction_initiator: None,
                 amount: MinorUnit::new(32),
                 currency: enums::Currency::USD,
                 card_bin: None,
@@ -453,7 +446,6 @@ mod test {
         let inp = inputs::BackendInput {
             metadata: None,
             payment: inputs::PaymentInput {
-                transaction_initiator: None,
                 amount: MinorUnit::new(32),
                 currency: enums::Currency::USD,
                 card_bin: None,
@@ -500,7 +492,6 @@ mod test {
             metadata: None,
             payment: inputs::PaymentInput {
                 amount: MinorUnit::new(32),
-                transaction_initiator: None,
                 currency: enums::Currency::USD,
                 card_bin: None,
                 extended_card_bin: None,
@@ -548,7 +539,6 @@ mod test {
             metadata: Some(meta_map),
             payment: inputs::PaymentInput {
                 amount: MinorUnit::new(32),
-                transaction_initiator: None,
                 card_bin: None,
                 extended_card_bin: None,
                 currency: enums::Currency::USD,
@@ -594,7 +584,6 @@ mod test {
             metadata: None,
             payment: inputs::PaymentInput {
                 amount: MinorUnit::new(150),
-                transaction_initiator: None,
                 card_bin: None,
                 extended_card_bin: None,
                 currency: enums::Currency::USD,
@@ -649,7 +638,6 @@ mod test {
             metadata: None,
             payment: inputs::PaymentInput {
                 amount: MinorUnit::new(120),
-                transaction_initiator: None,
                 card_bin: None,
                 extended_card_bin: None,
                 currency: enums::Currency::USD,

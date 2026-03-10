@@ -21,7 +21,6 @@ impl ConnectorApiIntegrationPayload {
         let mut card_redirect_details: Vec<Provider> = Vec::new();
         let mut open_banking_details: Vec<Provider> = Vec::new();
         let mut mobile_payment_details: Vec<Provider> = Vec::new();
-        let mut network_token_details: Vec<Provider> = Vec::new();
 
         if let Some(payment_methods_enabled) = response.payment_methods_enabled.clone() {
             for methods in payment_methods_enabled {
@@ -235,18 +234,6 @@ impl ConnectorApiIntegrationPayload {
                             }
                         }
                     }
-                    api_models::enums::PaymentMethod::NetworkToken => {
-                        if let Some(payment_method_types) = methods.payment_method_types {
-                            network_token_details.extend(payment_method_types.into_iter().map(
-                                |method_type| Provider {
-                                    payment_method_type: method_type.payment_method_type,
-                                    accepted_currencies: method_type.accepted_currencies.clone(),
-                                    accepted_countries: method_type.accepted_countries.clone(),
-                                    payment_experience: None,
-                                },
-                            ));
-                        }
-                    }
                 }
             }
         }
@@ -351,12 +338,6 @@ impl ConnectorApiIntegrationPayload {
             provider: None,
             card_provider: Some(credit_details),
         };
-        let network_token_details = DashboardPaymentMethodPayload {
-            payment_method: api_models::enums::PaymentMethod::NetworkToken,
-            payment_method_type: api_models::enums::PaymentMethodType::NetworkToken.to_string(),
-            provider: Some(network_token_details),
-            card_provider: None,
-        };
 
         DashboardRequestPayload {
             connector: response.connector_name,
@@ -376,7 +357,6 @@ impl ConnectorApiIntegrationPayload {
                 debit_details,
                 credit_details,
                 gift_card,
-                network_token_details,
             ]),
             metadata: response.metadata,
         }

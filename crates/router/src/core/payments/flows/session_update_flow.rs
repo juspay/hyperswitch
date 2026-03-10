@@ -24,7 +24,8 @@ impl
         &self,
         state: &SessionState,
         connector_id: &str,
-        processor: &domain::Processor,
+        platform: &domain::Platform,
+        customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _merchant_recipient_data: Option<types::MerchantRecipientData>,
         _header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
@@ -39,7 +40,8 @@ impl
                 state,
                 self.clone(),
                 connector_id,
-                processor,
+                platform,
+                customer,
                 merchant_connector_account,
             ),
         )
@@ -51,7 +53,7 @@ impl
         &self,
         state: &SessionState,
         connector_id: &str,
-        processor: &domain::Processor,
+        platform: &domain::Platform,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         _merchant_recipient_data: Option<types::MerchantRecipientData>,
@@ -103,16 +105,14 @@ impl Feature<api::SdkSessionUpdate, types::SdkPaymentsSessionUpdateData>
         &self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        _processor: &domain::Processor,
+        _platform: &domain::Platform,
         creds_identifier: Option<&str>,
-        gateway_context: &payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(
             state,
             connector,
             self,
             creds_identifier,
-            gateway_context,
         ))
         .await
     }

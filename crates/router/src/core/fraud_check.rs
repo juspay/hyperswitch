@@ -54,6 +54,7 @@ pub async fn call_frm_service<D: Clone, F, Req, OperationData>(
     payment_data: &OperationData,
     frm_data: &mut FrmData,
     platform: &domain::Platform,
+    customer: &Option<domain::Customer>,
 ) -> RouterResult<oss_types::RouterData<F, Req, frm_types::FraudCheckResponseData>>
 where
     F: Send + Clone,
@@ -77,6 +78,7 @@ pub async fn call_frm_service<D: Clone, F, Req, OperationData>(
     payment_data: &OperationData,
     frm_data: &mut FrmData,
     platform: &domain::Platform,
+    customer: &Option<domain::Customer>,
 ) -> RouterResult<oss_types::RouterData<F, Req, frm_types::FraudCheckResponseData>>
 where
     F: Send + Clone,
@@ -92,7 +94,7 @@ where
 {
     let merchant_connector_account = payments::construct_profile_id_and_get_mca(
         state,
-        platform.get_processor(),
+        platform,
         payment_data,
         &frm_data.connector_details.connector_name,
         None,
@@ -109,7 +111,8 @@ where
         .construct_router_data(
             state,
             &frm_data.connector_details.connector_name,
-            platform.get_processor(),
+            platform,
+            customer,
             &merchant_connector_account,
             None,
             None,
@@ -389,6 +392,7 @@ pub async fn make_frm_data_and_fraud_check_operation<F, D>(
     frm_routing_algorithm: FrmRoutingAlgorithm,
     profile_id: common_utils::id_type::ProfileId,
     frm_configs: FrmConfigsObject,
+    _customer: &Option<domain::Customer>,
 ) -> RouterResult<FrmInfo<F, D>>
 where
     F: Send + Clone,
@@ -411,6 +415,7 @@ pub async fn make_frm_data_and_fraud_check_operation<F, D>(
     frm_routing_algorithm: FrmRoutingAlgorithm,
     profile_id: common_utils::id_type::ProfileId,
     frm_configs: FrmConfigsObject,
+    _customer: &Option<domain::Customer>,
 ) -> RouterResult<FrmInfo<F, D>>
 where
     F: Send + Clone,
@@ -492,6 +497,7 @@ pub async fn pre_payment_frm_core<F, Req, D>(
     payment_data: &mut D,
     frm_info: &mut FrmInfo<F, D>,
     frm_configs: FrmConfigsObject,
+    customer: &Option<domain::Customer>,
     should_continue_transaction: &mut bool,
     should_continue_capture: &mut bool,
     operation: &BoxedOperation<'_, F, Req, D>,
@@ -515,19 +521,16 @@ where
 
                 let frm_router_data = fraud_check_operation
                     .to_domain()?
-                    .pre_payment_frm(state, payment_data, frm_data, platform)
+                    .pre_payment_frm(state, payment_data, frm_data, platform, customer)
                     .await?;
-                let _router_data_result = call_frm_service::<F, frm_api::Transaction, _, D>(
+                let _router_data = call_frm_service::<F, frm_api::Transaction, _, D>(
                     state,
                     payment_data,
                     frm_data,
                     platform,
+                    customer,
                 )
-                .await;
-                // Log warning if transaction flow failed (but don't propagate error)
-                if let Err(e) = _router_data_result {
-                    logger::info!("FRM transaction flow failed : {:?}", e);
-                }
+                .await?;
                 let frm_data_updated = fraud_check_operation
                     .to_update_tracker()?
                     .update_tracker(
@@ -578,6 +581,7 @@ pub async fn post_payment_frm_core<F, D>(
     payment_data: &mut D,
     frm_info: &mut FrmInfo<F, D>,
     frm_configs: FrmConfigsObject,
+    customer: &Option<domain::Customer>,
     should_continue_capture: &mut bool,
 ) -> RouterResult<Option<FrmData>>
 where
@@ -595,7 +599,14 @@ where
         if payment_data.get_payment_attempt().status == AttemptStatus::Authorized {
             let frm_router_data_opt = fraud_check_operation
                 .to_domain()?
-                .post_payment_frm(state, req_state.clone(), payment_data, frm_data, platform)
+                .post_payment_frm(
+                    state,
+                    req_state.clone(),
+                    payment_data,
+                    frm_data,
+                    platform,
+                    customer,
+                )
                 .await?;
             if let Some(frm_router_data) = frm_router_data_opt {
                 let mut frm_data = fraud_check_operation
@@ -627,6 +638,7 @@ where
                         frm_configs,
                         &mut frm_suggestion,
                         payment_data,
+                        customer,
                         should_continue_capture,
                     )
                     .await?;
@@ -659,6 +671,7 @@ pub async fn call_frm_before_connector_call<F, Req, D>(
     payment_data: &mut D,
     state: &SessionState,
     frm_info: &mut Option<FrmInfo<F, D>>,
+    customer: &Option<domain::Customer>,
     should_continue_transaction: &mut bool,
     should_continue_capture: &mut bool,
 ) -> RouterResult<Option<FrmConfigsObject>>
@@ -684,6 +697,7 @@ where
                 frm_routing_algorithm_val,
                 profile_id,
                 frm_configs.clone(),
+                customer,
             ))
             .await?;
 
@@ -694,6 +708,7 @@ where
                     payment_data,
                     &mut updated_frm_info,
                     frm_configs,
+                    customer,
                     should_continue_transaction,
                     should_continue_capture,
                     operation,
@@ -761,7 +776,7 @@ pub async fn frm_fulfillment_core(
 ) -> RouterResponse<frm_types::FraudCheckResponseData> {
     let db = &*state.clone().store;
     let payment_intent = db
-        .find_payment_intent_by_payment_id_processor_merchant_id(
+        .find_payment_intent_by_payment_id_merchant_id(
             &req.payment_id.clone(),
             platform.get_processor().get_account().get_id(),
             platform.get_processor().get_key_store(),
@@ -822,11 +837,10 @@ pub async fn make_fulfillment_api_call(
     req: frm_core_types::FrmFulfillmentRequest,
 ) -> RouterResponse<frm_types::FraudCheckResponseData> {
     let payment_attempt = db
-        .find_payment_attempt_by_attempt_id_processor_merchant_id(
+        .find_payment_attempt_by_attempt_id_merchant_id(
             &payment_intent.active_attempt.get_id(),
             platform.get_processor().get_account().get_id(),
             platform.get_processor().get_account().storage_scheme,
-            platform.get_processor().get_key_store(),
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -840,7 +854,7 @@ pub async fn make_fulfillment_api_call(
         &state,
         &payment_intent,
         &payment_attempt,
-        platform.get_processor(),
+        &platform,
         fraud_check.frm_name.clone(),
         req,
     )

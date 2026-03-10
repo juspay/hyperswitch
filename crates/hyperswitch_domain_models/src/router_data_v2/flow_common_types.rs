@@ -1,4 +1,3 @@
-use common_enums;
 use common_utils::{pii, types::MinorUnit};
 
 use crate::{
@@ -165,12 +164,12 @@ pub struct SubscriptionCreateData {
 }
 
 #[derive(Debug, Clone)]
-pub struct GetSubscriptionItemsData {
+pub struct GetSubscriptionPlansData {
     pub connector_meta_data: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone)]
-pub struct GetSubscriptionItemPricesData {
+pub struct GetSubscriptionPlanPricesData {
     pub connector_meta_data: Option<pii::SecretSerdeValue>,
 }
 
@@ -219,7 +218,6 @@ pub struct ExternalVaultProxyFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub connector_customer: Option<String>,
-    pub connector: common_enums::connector_enums::Connector,
     pub payment_id: String,
     pub attempt_id: String,
     pub status: common_enums::AttemptStatus,
@@ -255,6 +253,3 @@ pub struct ExternalVaultProxyFlowData {
     pub connector_response: Option<ConnectorResponseData>,
     pub payment_method_status: Option<common_enums::PaymentMethodStatus>,
 }
-
-#[derive(Debug, Clone)]
-pub struct ConnectorWebhookConfigurationFlowData {}

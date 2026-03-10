@@ -5,9 +5,8 @@
 //! connector integration or Unified Connector Service (UCS).
 
 use common_enums::{ExecutionMode, ExecutionPath, GatewaySystem};
-use common_utils::id_type;
 use external_services::grpc_client::LineageIds;
-use hyperswitch_domain_models::{business_profile, payments::HeaderPayload, platform::Processor};
+use hyperswitch_domain_models::{payments::HeaderPayload, platform::Platform};
 use hyperswitch_interfaces::api::gateway::GatewayContext;
 
 use crate::core::payments::helpers;
@@ -19,8 +18,8 @@ use crate::core::payments::helpers;
 #[derive(Clone, Debug)]
 pub struct RouterGatewayContext {
     pub creds_identifier: Option<String>,
-    /// Processor context for payment execution
-    pub processor: Processor,
+    /// Merchant context (merchant_id, profile_id, etc.)
+    pub platform: Platform,
 
     /// Header payload (x-reference-id, etc.)
     pub header_payload: HeaderPayload,
@@ -45,53 +44,25 @@ pub struct RouterGatewayContext {
 }
 
 impl RouterGatewayContext {
+    /// Create a new router gateway context
     pub fn new(
-        processor: Processor,
+        platform: Platform,
         header_payload: HeaderPayload,
-        business_profile: &business_profile::Profile,
+        lineage_ids: LineageIds,
         #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
         #[cfg(feature = "v2")]
         merchant_connector_account: hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails,
+        execution_mode: ExecutionMode,
         execution_path: ExecutionPath,
         creds_identifier: Option<String>,
     ) -> Self {
-        let lineage_ids = LineageIds::new(
-            business_profile.merchant_id.clone(),
-            business_profile.get_id().clone(),
-        );
-        let execution_mode = match execution_path {
-            ExecutionPath::UnifiedConnectorService => ExecutionMode::Primary,
-            ExecutionPath::ShadowUnifiedConnectorService => ExecutionMode::Shadow,
-            // ExecutionMode is irrelevant for Direct path in this context
-            ExecutionPath::Direct => ExecutionMode::NotApplicable,
-        };
         Self {
-            processor,
+            platform,
             header_payload,
             lineage_ids,
             merchant_connector_account,
             execution_mode,
             execution_path,
-            creds_identifier,
-        }
-    }
-    pub fn direct(
-        processor: Processor,
-        #[cfg(feature = "v1")] merchant_connector_account: helpers::MerchantConnectorAccountType,
-        #[cfg(feature = "v2")]
-        merchant_connector_account: hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails,
-        merchant_id: id_type::MerchantId,
-        profile_id: id_type::ProfileId,
-        creds_identifier: Option<String>,
-    ) -> Self {
-        let lineage_ids = LineageIds::new(merchant_id, profile_id);
-        Self {
-            processor,
-            header_payload: HeaderPayload::default(),
-            lineage_ids,
-            merchant_connector_account,
-            execution_mode: ExecutionMode::NotApplicable,
-            execution_path: ExecutionPath::Direct,
             creds_identifier,
         }
     }

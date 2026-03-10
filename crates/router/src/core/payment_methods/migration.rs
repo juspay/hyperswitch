@@ -5,7 +5,7 @@ use csv::Reader;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     api::ApplicationResponse, errors::api_error_response as errors,
-    payment_methods::StoragePaymentMethodUpdate as PaymentMethodUpdate, platform,
+    payment_methods::PaymentMethodUpdate, platform,
 };
 use masking::{ExposeInterface, PeekInterface};
 use payment_methods::core::migration::MerchantConnectorValidator;
@@ -69,9 +69,9 @@ pub async fn update_payment_method_record(
 
     let payment_method = db
         .find_payment_method(
-            platform.get_provider().get_key_store(),
+            platform.get_processor().get_key_store(),
             &payment_method_id,
-            platform.get_provider().get_account().storage_scheme,
+            platform.get_processor().get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
@@ -102,7 +102,7 @@ pub async fn update_payment_method_record(
                         Some(
                             create_encrypted_data(
                                 &key_manager_state,
-                                platform.get_provider().get_key_store(),
+                                platform.get_processor().get_key_store(),
                                 pm_api::PaymentMethodsData::Card(card_data),
                             )
                             .await
@@ -252,10 +252,7 @@ pub async fn update_payment_method_record(
                 network_transaction_id,
                 status,
                 payment_method_data: updated_payment_method_data.clone(),
-                last_modified_by: platform
-                    .get_initiator()
-                    .and_then(|initiator| initiator.to_created_by())
-                    .map(|last_modified_by| last_modified_by.to_string()),
+                last_modified_by: None,
             }
         }
         // Case: Only connector_customer_id provided
@@ -341,29 +338,20 @@ pub async fn update_payment_method_record(
                 network_transaction_id,
                 status,
                 payment_method_data: updated_payment_method_data.clone(),
-                last_modified_by: platform
-                    .get_initiator()
-                    .and_then(|initiator| initiator.to_created_by())
-                    .map(|last_modified_by| last_modified_by.to_string()),
+                last_modified_by: None,
             }
         }
         _ => {
             if updated_payment_method_data.is_some() {
                 PaymentMethodUpdate::PaymentMethodDataUpdate {
                     payment_method_data: updated_payment_method_data,
-                    last_modified_by: platform
-                        .get_initiator()
-                        .and_then(|initiator| initiator.to_created_by())
-                        .map(|last_modified_by| last_modified_by.to_string()),
+                    last_modified_by: None,
                 }
             } else {
                 PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
                     network_transaction_id,
                     status,
-                    last_modified_by: platform
-                        .get_initiator()
-                        .and_then(|initiator| initiator.to_created_by())
-                        .map(|last_modified_by| last_modified_by.to_string()),
+                    last_modified_by: None,
                 }
             }
         }
@@ -371,10 +359,10 @@ pub async fn update_payment_method_record(
 
     let response = db
         .update_payment_method(
-            platform.get_provider().get_key_store(),
+            platform.get_processor().get_key_store(),
             payment_method,
             pm_update,
-            platform.get_provider().get_account().storage_scheme,
+            platform.get_processor().get_account().storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)

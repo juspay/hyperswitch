@@ -77,15 +77,15 @@ pub async fn form_payment_link_data(
 pub async fn form_payment_link_data(
     state: &SessionState,
     platform: domain::Platform,
-    processor_merchant_id: common_utils::id_type::MerchantId,
+    merchant_id: common_utils::id_type::MerchantId,
     payment_id: common_utils::id_type::PaymentId,
 ) -> RouterResult<(PaymentLink, PaymentLinkData, PaymentLinkConfig)> {
     let db = &*state.store;
 
     let payment_intent = db
-        .find_payment_intent_by_payment_id_processor_merchant_id(
+        .find_payment_intent_by_payment_id_merchant_id(
             &payment_id,
-            &processor_merchant_id,
+            &merchant_id,
             platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
         )
@@ -130,7 +130,6 @@ pub async fn form_payment_link_data(
                 branding_visibility: None,
                 payment_button_text: None,
                 custom_message_for_card_terms: None,
-                custom_message_for_payment_method_types: None,
                 payment_button_colour: None,
                 skip_status_screen: None,
                 background_colour: None,
@@ -211,12 +210,11 @@ pub async fn form_payment_link_data(
 
     let attempt_id = payment_intent.active_attempt.get_id().clone();
     let payment_attempt = db
-        .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+        .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
             &payment_intent.payment_id,
-            &processor_merchant_id,
+            &merchant_id,
             &attempt_id.clone(),
             platform.get_processor().get_account().storage_scheme,
-            platform.get_processor().get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -245,12 +243,11 @@ pub async fn form_payment_link_data(
 
         let attempt_id = payment_intent.active_attempt.get_id().clone();
         let payment_attempt = db
-            .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+            .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 &payment_intent.payment_id,
-                &processor_merchant_id,
+                &merchant_id,
                 &attempt_id.clone(),
                 platform.get_processor().get_account().storage_scheme,
-                platform.get_processor().get_key_store(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -311,9 +308,6 @@ pub async fn form_payment_link_data(
         branding_visibility: payment_link_config.branding_visibility,
         payment_button_text: payment_link_config.payment_button_text.clone(),
         custom_message_for_card_terms: payment_link_config.custom_message_for_card_terms.clone(),
-        custom_message_for_payment_method_types: payment_link_config
-            .custom_message_for_payment_method_types
-            .clone(),
         payment_button_colour: payment_link_config.payment_button_colour.clone(),
         skip_status_screen: payment_link_config.skip_status_screen,
         background_colour: payment_link_config.background_colour.clone(),
@@ -378,8 +372,6 @@ pub async fn initiate_secure_payment_link_flow(
                 payment_link_details: *link_details.to_owned(),
                 payment_button_text: payment_link_config.payment_button_text,
                 custom_message_for_card_terms: payment_link_config.custom_message_for_card_terms,
-                custom_message_for_payment_method_types: payment_link_config
-                    .custom_message_for_payment_method_types,
                 payment_button_colour: payment_link_config.payment_button_colour,
                 skip_status_screen: payment_link_config.skip_status_screen,
                 background_colour: payment_link_config.background_colour,
@@ -616,16 +608,10 @@ pub fn extract_payment_link_config(
 pub fn get_payment_link_config_based_on_priority(
     payment_create_link_config: Option<api_models::payments::PaymentCreatePaymentLinkConfig>,
     business_link_config: Option<diesel_models::business_profile::BusinessPaymentLinkConfig>,
-    processor: &domain::Processor,
+    merchant_name: String,
     default_domain_name: String,
     payment_link_config_id: Option<String>,
 ) -> Result<(PaymentLinkConfig, String), error_stack::Report<errors::ApiErrorResponse>> {
-    let merchant_name = processor
-        .get_account()
-        .merchant_name
-        .clone()
-        .map(|name| name.into_inner().peek().to_owned())
-        .unwrap_or_default();
     let (domain_name, business_theme_configs, allowed_domains, branding_visibility) =
         if let Some(business_config) = business_link_config {
             (
@@ -687,7 +673,6 @@ pub fn get_payment_link_config_based_on_priority(
         background_image,
         payment_button_text,
         custom_message_for_card_terms,
-        custom_message_for_payment_method_types,
         payment_button_colour,
         skip_status_screen,
         background_colour,
@@ -707,7 +692,6 @@ pub fn get_payment_link_config_based_on_priority(
             .foreign_into()),
         (payment_button_text),
         (custom_message_for_card_terms),
-        (custom_message_for_payment_method_types),
         (payment_button_colour),
         (skip_status_screen),
         (background_colour),
@@ -741,7 +725,6 @@ pub fn get_payment_link_config_based_on_priority(
             background_image,
             payment_button_text,
             custom_message_for_card_terms,
-            custom_message_for_payment_method_types,
             payment_button_colour,
             background_colour,
             payment_button_text_colour,
@@ -792,15 +775,15 @@ pub async fn get_payment_link_status(
 pub async fn get_payment_link_status(
     state: SessionState,
     platform: domain::Platform,
-    processor_merchant_id: common_utils::id_type::MerchantId,
+    merchant_id: common_utils::id_type::MerchantId,
     payment_id: common_utils::id_type::PaymentId,
 ) -> RouterResponse<services::PaymentLinkFormData> {
     let db = &*state.store;
 
     let payment_intent = db
-        .find_payment_intent_by_payment_id_processor_merchant_id(
+        .find_payment_intent_by_payment_id_merchant_id(
             &payment_id,
-            &processor_merchant_id,
+            &merchant_id,
             platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
         )
@@ -809,12 +792,11 @@ pub async fn get_payment_link_status(
 
     let attempt_id = payment_intent.active_attempt.get_id().clone();
     let payment_attempt = db
-        .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+        .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
             &payment_intent.payment_id,
-            &processor_merchant_id,
+            &merchant_id,
             &attempt_id.clone(),
             platform.get_processor().get_account().storage_scheme,
-            platform.get_processor().get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -856,7 +838,6 @@ pub async fn get_payment_link_status(
             branding_visibility: None,
             payment_button_text: None,
             custom_message_for_card_terms: None,
-            custom_message_for_payment_method_types: None,
             payment_button_colour: None,
             skip_status_screen: None,
             background_colour: None,

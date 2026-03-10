@@ -425,7 +425,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthipayPaymentsResponse, T, PaymentsRe
                     gateway_resp.transaction_processing_details.order_id.clone(),
                 ),
                 incremental_authorization_allowed: None,
-                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -612,7 +611,6 @@ impl From<&AuthipayErrorResponse> for ErrorResponse {
             reason: None,
             attempt_status: None,
             connector_transaction_id: None,
-            connector_response_reference_id: None,
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,

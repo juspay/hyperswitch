@@ -46,7 +46,7 @@ use hyperswitch_interfaces::{
     errors::ConnectorError,
     events::connector_api_logs::ConnectorEvent,
     types::Response,
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
 #[cfg(feature = "payouts")]
 use masking::PeekInterface;
@@ -146,7 +146,6 @@ impl ConnectorCommon for Wise {
                         reason: None,
                         attempt_status: None,
                         connector_transaction_id: None,
-                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
@@ -160,7 +159,6 @@ impl ConnectorCommon for Wise {
                         reason: None,
                         attempt_status: None,
                         connector_transaction_id: None,
-                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
@@ -175,7 +173,6 @@ impl ConnectorCommon for Wise {
                 reason: None,
                 attempt_status: None,
                 connector_transaction_id: None,
-                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -330,7 +327,6 @@ impl ConnectorIntegration<PoCancel, PayoutsData, PayoutsResponseData> for Wise {
             reason: None,
             attempt_status: None,
             connector_transaction_id: None,
-            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -844,7 +840,6 @@ impl IncomingWebhook for Wise {
         &self,
         #[cfg(feature = "payouts")] request: &IncomingWebhookRequestDetails<'_>,
         #[cfg(not(feature = "payouts"))] _request: &IncomingWebhookRequestDetails<'_>,
-        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
         #[cfg(feature = "payouts")]
         {

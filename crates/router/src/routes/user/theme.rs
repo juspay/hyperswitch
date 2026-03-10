@@ -156,8 +156,6 @@ pub async fn create_user_theme(
         },
         &auth::JWTAuth {
             permission: Permission::OrganizationThemeWrite,
-            allow_connected: true,
-            allow_platform: true,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -181,8 +179,6 @@ pub async fn get_user_theme_using_theme_id(
         },
         &auth::JWTAuth {
             permission: Permission::OrganizationThemeRead,
-            allow_connected: true,
-            allow_platform: true,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -209,8 +205,6 @@ pub async fn update_user_theme(
         },
         &auth::JWTAuth {
             permission: Permission::OrganizationThemeWrite,
-            allow_connected: true,
-            allow_platform: true,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -235,8 +229,6 @@ pub async fn delete_user_theme(
         },
         &auth::JWTAuth {
             permission: Permission::OrganizationThemeWrite,
-            allow_connected: true,
-            allow_platform: true,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -266,8 +258,6 @@ pub async fn upload_file_to_user_theme_storage(
         },
         &auth::JWTAuth {
             permission: Permission::OrganizationThemeWrite,
-            allow_connected: true,
-            allow_platform: true,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -292,8 +282,6 @@ pub async fn list_all_themes_in_lineage(
         },
         &auth::JWTAuth {
             permission: Permission::OrganizationThemeRead,
-            allow_connected: true,
-            allow_platform: true,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -318,29 +306,7 @@ pub async fn get_user_theme_using_lineage(
         },
         &auth::JWTAuth {
             permission: Permission::OrganizationThemeRead,
-            allow_connected: true,
-            allow_platform: true,
         },
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-pub async fn get_theme_version(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    path: web::Path<String>,
-) -> HttpResponse {
-    let flow = Flow::GetUserThemeConfigVersion;
-    let theme_id = path.into_inner();
-
-    Box::pin(api::server_wrap(
-        flow,
-        state,
-        &req,
-        theme_id,
-        |state, (), theme_id, _| theme_core::get_user_theme_config_version(state, theme_id),
-        &auth::NoAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await

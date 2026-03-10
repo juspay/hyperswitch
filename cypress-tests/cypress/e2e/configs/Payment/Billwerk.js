@@ -51,7 +51,6 @@ const payment_method_data_no3ds = {
     card_holder_name: "joseph Doe",
     payment_checks: null,
     authentication_data: null,
-    auth_code: null,
   },
   billing: null,
 };
@@ -770,8 +769,6 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         billing: billingAddress,
-        mandate_data: null,
-        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,

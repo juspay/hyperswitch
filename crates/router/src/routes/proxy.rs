@@ -22,11 +22,12 @@ pub async fn proxy(
         &req,
         payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            proxy::proxy_core(state, auth.platform, req)
+            let platform = auth.into();
+            proxy::proxy_core(state, platform, req)
         },
         &auth::V2ApiKeyAuth {
-            allow_connected_scope_operation: false,
-            allow_platform_self_operation: false,
+            is_connected_allowed: false,
+            is_platform_allowed: false,
         },
         api_locking::LockAction::NotApplicable,
     ))

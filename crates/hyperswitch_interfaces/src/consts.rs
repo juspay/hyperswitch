@@ -6,6 +6,9 @@ pub const NO_ERROR_MESSAGE: &str = "No error message";
 /// No error code string const
 pub const NO_ERROR_CODE: &str = "No error code";
 
+/// No error reason string const
+pub const NO_ERROR_REASON: &str = "No error reason";
+
 /// Accepted format for request
 pub const ACCEPT_HEADER: &str = "text/html,application/json";
 
@@ -38,12 +41,3 @@ pub const X_FLOW_NAME: &str = "x-flow";
 
 /// Header name for request ID
 pub const X_REQUEST_ID: &str = "x-request-id";
-
-/// Default webhook setup capabilities for connectors
-pub static DEFAULT_WEBHOOK_SETUP_CAPABILITIES:
-    common_types::connector_webhook_configuration::WebhookSetupCapabilities =
-    common_types::connector_webhook_configuration::WebhookSetupCapabilities {
-        is_webhook_auto_configuration_supported: false,
-        requires_webhook_secret: None,
-        config_type: None,
-    };

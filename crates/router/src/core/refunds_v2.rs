@@ -20,7 +20,7 @@ use crate::{
     consts,
     core::{
         errors::{self, ConnectorErrorExt, StorageErrorExt},
-        payments::{self, access_token, gateway::context as gateway_context, helpers},
+        payments::{self, access_token, helpers},
         utils::{self as core_utils, refunds_validator},
     },
     db, logger,
@@ -163,21 +163,12 @@ pub async fn trigger_refund_to_gateway(
         &merchant_connector_account,
     )
     .await?;
-    let profile_id = payment_intent.profile_id.clone();
-    let default_gateway_context = gateway_context::RouterGatewayContext::direct(
-        platform.get_processor().clone(),
-        merchant_connector_account,
-        payment_intent.merchant_id.clone(),
-        profile_id,
-        None,
-    );
 
     let add_access_token_result = Box::pin(access_token::add_access_token(
         state,
         &connector,
         &router_data,
         None,
-        &default_gateway_context,
     ))
     .await?;
 
@@ -285,21 +276,11 @@ pub async fn internal_trigger_refund_to_gateway(
     )
     .await?;
 
-    let profile_id = payment_intent.profile_id.clone();
-    let default_gateway_context = gateway_context::RouterGatewayContext::direct(
-        platform.get_processor().clone(),
-        merchant_connector_account,
-        payment_intent.merchant_id.clone(),
-        profile_id,
-        None,
-    );
-
     let add_access_token_result = Box::pin(access_token::add_access_token(
         state,
         &connector,
         &router_data,
         None,
-        &default_gateway_context,
     ))
     .await?;
 
@@ -454,29 +435,22 @@ async fn get_unified_error_and_message(
 ) -> (String, String) {
     let option_gsm = helpers::get_gsm_record(
         state,
-        connector.connector_name.to_string(),
-        consts::REFUND_FLOW_STR,
-        consts::DEFAULT_SUBFLOW_STR,
         Some(err.code.clone()),
         Some(err.message.clone()),
-        err.network_decline_code.clone(),
-        None, // card_network not available in refund context
+        connector.connector_name.to_string(),
+        consts::REFUND_FLOW_STR.to_string(),
     )
     .await;
-
     // Note: Some connectors do not have a separate list of refund errors
     // In such cases, the error codes and messages are stored under "Authorize" flow in GSM table
     // So we will have to fetch the GSM using Authorize flow in case GSM is not found using "refund_flow"
     let option_gsm = if option_gsm.is_none() {
         helpers::get_gsm_record(
             state,
-            connector.connector_name.to_string(),
-            consts::PAYMENT_FLOW_STR,
-            consts::AUTHORIZE_FLOW_STR,
             Some(err.code.clone()),
             Some(err.message.clone()),
-            err.network_decline_code.clone(),
-            None, // card_network not available in refund context
+            connector.connector_name.to_string(),
+            consts::AUTHORIZE_FLOW_STR.to_string(),
         )
         .await
     } else {
@@ -576,18 +550,6 @@ impl ForeignFrom<(&errors::ConnectorError, enums::MerchantStorageScheme)>
                         errors::ConnectorError::NotImplemented(message.to_owned()).to_string(),
                     ),
                     refund_error_code: Some("NOT_IMPLEMENTED".to_string()),
-                    updated_by: storage_scheme.to_string(),
-                    connector_refund_id: None,
-                    processor_refund_data: None,
-                    unified_code: None,
-                    unified_message: None,
-                })
-            }
-            errors::ConnectorError::FlowNotSupported { flow, connector } => {
-                Some(diesel_refund::RefundUpdate::ErrorUpdate {
-                    refund_status: Some(enums::RefundStatus::Failure),
-                    refund_error_message: Some(format!("{flow} is not supported by {connector}")),
-                    refund_error_code: Some("NOT_SUPPORTED".to_string()),
                     updated_by: storage_scheme.to_string(),
                     connector_refund_id: None,
                     processor_refund_data: None,
@@ -862,21 +824,12 @@ pub async fn sync_refund_with_gateway(
         &merchant_connector_account,
     )
     .await?;
-    let profile_id = payment_intent.profile_id.clone();
-    let default_gateway_context = gateway_context::RouterGatewayContext::direct(
-        platform.get_processor().clone(),
-        merchant_connector_account,
-        payment_intent.merchant_id.clone(),
-        profile_id,
-        None,
-    );
 
     let add_access_token_result = Box::pin(access_token::add_access_token(
         state,
         &connector,
         &router_data,
         None,
-        &default_gateway_context,
     ))
     .await?;
 
@@ -958,21 +911,12 @@ pub async fn internal_sync_refund_with_gateway(
         &merchant_connector_account,
     )
     .await?;
-    let profile_id = payment_intent.profile_id.clone();
-    let default_gateway_context = gateway_context::RouterGatewayContext::direct(
-        platform.get_processor().clone(),
-        merchant_connector_account,
-        payment_intent.merchant_id.clone(),
-        profile_id,
-        None,
-    );
 
     let add_access_token_result = Box::pin(access_token::add_access_token(
         state,
         &connector,
         &router_data,
         None,
-        &default_gateway_context,
     ))
     .await?;
 
@@ -1379,7 +1323,7 @@ pub async fn schedule_refund_execution(
                     // Execute the refund task based on refund_type
                     match refund_type {
                         api_models::refunds::RefundType::Scheduled => {
-                            add_refund_execute_task(db, &refund, runner, state.conf.application_source)
+                            add_refund_execute_task(db, &refund, runner)
                                 .await
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
                                 .attach_printable_lazy(|| format!("Failed while pushing refund execute task to scheduler, refund_id: {}", refund.id.get_string_repr()))?;
@@ -1424,7 +1368,7 @@ pub async fn schedule_refund_execution(
 
                             match update_refund {
                                 Ok((updated_refund_data, raw_connector_response)) => {
-                                    add_refund_sync_task(db, &updated_refund_data, runner, state.conf.application_source)
+                                    add_refund_sync_task(db, &updated_refund_data, runner)
                                         .await
                                         .change_context(errors::ApiErrorResponse::InternalServerError)
                                         .attach_printable_lazy(|| format!(
@@ -1443,7 +1387,7 @@ pub async fn schedule_refund_execution(
                     //[#300]: return refund status response
                     match refund_type {
                         api_models::refunds::RefundType::Scheduled => {
-                            add_refund_sync_task(db, &refund, runner, state.conf.application_source)
+                            add_refund_sync_task(db, &refund, runner)
                                 .await
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
                                 .attach_printable_lazy(|| format!("Failed while pushing refund sync task in scheduler: refund_id: {}", refund.id.get_string_repr()))?;
@@ -1482,7 +1426,6 @@ pub async fn add_refund_execute_task(
     db: &dyn db::StorageInterface,
     refund: &diesel_refund::Refund,
     runner: storage::ProcessTrackerRunner,
-    application_source: common_enums::ApplicationSource,
 ) -> errors::RouterResult<storage::ProcessTracker> {
     let task = "EXECUTE_REFUND";
     let process_tracker_id = format!("{runner}_{task}_{}", refund.id.get_string_repr());
@@ -1498,7 +1441,6 @@ pub async fn add_refund_execute_task(
         None,
         schedule_time,
         common_types::consts::API_VERSION,
-        application_source,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct refund execute process tracker task")?;
@@ -1521,7 +1463,6 @@ pub async fn add_refund_sync_task(
     db: &dyn db::StorageInterface,
     refund: &diesel_refund::Refund,
     runner: storage::ProcessTrackerRunner,
-    application_source: common_enums::ApplicationSource,
 ) -> errors::RouterResult<storage::ProcessTracker> {
     let task = "SYNC_REFUND";
     let process_tracker_id = format!("{runner}_{task}_{}", refund.id.get_string_repr());
@@ -1537,7 +1478,6 @@ pub async fn add_refund_sync_task(
         None,
         schedule_time,
         common_types::consts::API_VERSION,
-        application_source,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct refund sync process tracker task")?;

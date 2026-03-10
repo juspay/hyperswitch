@@ -20,12 +20,6 @@ pub struct GetThemeResponse {
     pub theme_data: ThemeData,
 }
 
-#[derive(Debug, Serialize)]
-pub struct ThemeVersionResponse {
-    pub theme_id: String,
-    pub theme_config_version: String,
-}
-
 #[derive(Debug, MultipartForm)]
 pub struct UploadFileAssetData {
     pub asset_name: Text<String>,

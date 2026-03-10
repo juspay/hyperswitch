@@ -314,7 +314,6 @@ impl ConnectorCommon for Amazonpay {
             message: response.message.clone(),
             attempt_status: None,
             connector_transaction_id: None,
-            connector_response_reference_id: None,
             reason: None,
             network_advice_code: None,
             network_decline_code: None,
@@ -732,7 +731,6 @@ impl webhooks::IncomingWebhook for Amazonpay {
     fn get_webhook_event_type(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
@@ -769,7 +767,7 @@ static AMAZONPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Amazon Pay",
     description: "Amazon Pay is an Alternative Payment Method (APM) connector that allows merchants to accept payments using customers' stored Amazon account details, providing a seamless checkout experience.",
     connector_type: enums::HyperswitchConnectorCategory::AlternativePaymentMethod,
-    integration_status: enums::ConnectorIntegrationStatus::Beta,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
 static AMAZONPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

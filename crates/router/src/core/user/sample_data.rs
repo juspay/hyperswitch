@@ -57,7 +57,6 @@ pub async fn generate_sample_data_for_user(
             (pi, pa, rf, dp)
         },
     );
-    let key_manager_state = &(&state).into();
 
     state
         .store
@@ -66,11 +65,7 @@ pub async fn generate_sample_data_for_user(
         .switch()?;
     state
         .store
-        .insert_payment_attempts_batch_for_sample_data(
-            payment_attempts,
-            key_manager_state,
-            &key_store,
-        )
+        .insert_payment_attempts_batch_for_sample_data(payment_attempts)
         .await
         .switch()?;
     state
@@ -113,7 +108,7 @@ pub async fn delete_sample_data_for_user(
         .switch()?;
     state
         .store
-        .delete_payment_attempts_for_sample_data(&merchant_id_del, key_manager_state, &key_store)
+        .delete_payment_attempts_for_sample_data(&merchant_id_del)
         .await
         .switch()?;
     state

@@ -138,7 +138,6 @@ impl ConnectorCommon for Stax {
             ),
             attempt_status: None,
             connector_transaction_id: None,
-            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -898,7 +897,6 @@ impl webhooks::IncomingWebhook for Stax {
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
-        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         let details: stax::StaxWebhookBody = request
             .body

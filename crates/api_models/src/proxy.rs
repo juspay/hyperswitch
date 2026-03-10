@@ -52,7 +52,6 @@ pub struct ProxyRequest {
 pub enum TokenType {
     TokenizationId,
     PaymentMethodId,
-    VolatilePaymentMethodId,
 }
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]

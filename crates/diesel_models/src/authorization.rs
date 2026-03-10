@@ -23,7 +23,6 @@ pub struct Authorization {
     pub error_message: Option<String>,
     pub connector_authorization_id: Option<String>,
     pub previously_authorized_amount: MinorUnit,
-    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize)]
@@ -38,7 +37,6 @@ pub struct AuthorizationNew {
     pub error_message: Option<String>,
     pub connector_authorization_id: Option<String>,
     pub previously_authorized_amount: MinorUnit,
-    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

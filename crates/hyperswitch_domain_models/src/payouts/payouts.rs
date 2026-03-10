@@ -89,14 +89,6 @@ pub trait PayoutsInterface {
         _merchant_id: &id_type::MerchantId,
         _constraints: &PayoutFetchConstraints,
     ) -> error_stack::Result<Vec<id_type::PayoutId>, Self::Error>;
-
-    #[cfg(feature = "olap")]
-    async fn get_payout_intent_status_with_count(
-        &self,
-        merchant_id: &id_type::MerchantId,
-        profile_id_list: Option<Vec<id_type::ProfileId>>,
-        constraints: &common_utils::types::TimeRange,
-    ) -> error_stack::Result<Vec<(common_enums::PayoutStatus, i64)>, Self::Error>;
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -188,9 +180,6 @@ pub enum PayoutsUpdate {
     StatusUpdate {
         status: storage_enums::PayoutStatus,
     },
-    ManualUpdate {
-        status: Option<storage_enums::PayoutStatus>,
-    },
 }
 
 #[derive(Clone, Debug, Default)]
@@ -265,10 +254,6 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
             },
             PayoutsUpdate::StatusUpdate { status } => Self {
                 status: Some(status),
-                ..Default::default()
-            },
-            PayoutsUpdate::ManualUpdate { status } => Self {
-                status,
                 ..Default::default()
             },
         }

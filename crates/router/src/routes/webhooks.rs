@@ -27,12 +27,13 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
         &req,
         (),
         |state, auth, _, req_state| {
+            let platform = auth.into();
             webhooks::incoming_webhooks_wrapper::<W>(
                 &flow,
                 state.to_owned(),
                 req_state,
                 &req,
-                auth.platform,
+                platform,
                 &connector_id_or_name,
                 body.clone(),
                 false,
@@ -65,12 +66,13 @@ pub async fn receive_incoming_relay_webhook<W: types::OutgoingWebhookType>(
         &req,
         (),
         |state, auth, _, req_state| {
+            let platform = auth.into();
             webhooks::incoming_webhooks_wrapper::<W>(
                 &flow,
                 state.to_owned(),
                 req_state,
                 &req,
-                auth.platform,
+                platform,
                 connector_id.get_string_repr(),
                 body.clone(),
                 is_relay_webhook,
@@ -104,12 +106,13 @@ pub async fn receive_incoming_relay_webhook<W: types::OutgoingWebhookType>(
         &req,
         (),
         |state, auth, _, req_state| {
+            let platform = auth.clone().into();
             webhooks::incoming_webhooks_wrapper::<W>(
                 &flow,
                 state.to_owned(),
                 req_state,
                 &req,
-                auth.platform,
+                platform,
                 auth.profile,
                 &connector_id,
                 body.clone(),
@@ -146,12 +149,13 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
         &req,
         (),
         |state, auth, _, req_state| {
+            let platform = auth.clone().into();
             webhooks::incoming_webhooks_wrapper::<W>(
                 &flow,
                 state.to_owned(),
                 req_state,
                 &req,
-                auth.platform,
+                platform,
                 auth.profile,
                 &connector_id,
                 body.clone(),

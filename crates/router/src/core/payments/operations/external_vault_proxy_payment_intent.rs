@@ -59,7 +59,6 @@ impl ValidateStatusForOperation for ExternalVaultProxyPaymentIntent {
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
             | common_enums::IntentStatus::CancelledPostCapture
             | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
-            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
             | common_enums::IntentStatus::Expired => {
                 Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                     current_flow: format!("{self:?}"),
@@ -234,8 +233,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ExternalVaultP
                     cell_id,
                     storage_scheme,
                     request,
-                    encrypted_data,
-                    platform.get_initiator(),
+                    encrypted_data
                 )
                 .await?;
                 db.insert_payment_attempt(
@@ -338,7 +336,8 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
         _state: &'a SessionState,
         _payment_data: &mut PaymentConfirmData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
-        _platform: &domain::Platform,
+        _key_store: &domain::MerchantKeyStore,
+        _customer: &Option<domain::Customer>,
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
     ) -> RouterResult<(
@@ -375,16 +374,13 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
 
                 let req = api::PaymentMethodCreate {
                     payment_method_type: payment_data.payment_attempt.payment_method_type,
-                    payment_method_subtype: Some(
-                        payment_data.payment_attempt.payment_method_subtype,
-                    ),
+                    payment_method_subtype: payment_data.payment_attempt.payment_method_subtype,
                     metadata: None,
-                    customer_id: Some(customer_id),
+                    customer_id,
                     payment_method_data,
                     billing,
                     psp_tokenization: None,
                     network_tokenization: None,
-                    storage_type: common_enums::StorageType::Persistent, //this field is currently not being used in storing payment methods via external vault
                 };
 
                 let (_pm_response, payment_method) = Box::pin(payment_methods::create_payment_method_core(
@@ -436,7 +432,6 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
                 platform.get_processor().get_account().storage_scheme,
                 common_enums::PaymentMethodStatus::Active,
                 payment_method.get_id(),
-                platform.get_initiator(),
             )
             .await
             .map_err(|err| router_env::logger::error!(err=?err));
@@ -448,7 +443,7 @@ impl<F: Clone + Send + Sync> Domain<F, ExternalVaultProxyPaymentsRequest, Paymen
         &'a self,
         _state: &SessionState,
         payment_data: &mut PaymentConfirmData<F>,
-        _processor: &domain::Processor,
+        _platform: &domain::Platform,
         _business_profile: &domain::Profile,
         connector_data: &api::ConnectorData,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -482,8 +477,11 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ExternalVaultProxy
         &'b self,
         state: &'b SessionState,
         _req_state: ReqState,
-        processor: &domain::Processor,
         mut payment_data: PaymentConfirmData<F>,
+        _customer: Option<domain::Customer>,
+        storage_scheme: storage_enums::MerchantStorageScheme,
+        _updated_customer: Option<storage::CustomerUpdate>,
+        key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<api_models::enums::FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(BoxedConfirmOperation<'b, F>, PaymentConfirmData<F>)>
@@ -491,8 +489,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ExternalVaultProxy
         F: 'b + Send,
     {
         let db = &*state.store;
-        let storage_scheme = processor.get_account().storage_scheme;
-        let key_store = processor.get_key_store();
 
         let intent_status = common_enums::IntentStatus::Processing;
         let attempt_status = common_enums::AttemptStatus::Pending;
@@ -585,10 +581,10 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
     async fn update_tracker<'b>(
         &'b self,
         state: &'b SessionState,
-        processor: &domain::Processor,
-        _initiator: Option<&domain::Initiator>,
         mut payment_data: PaymentConfirmData<F>,
         response: types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentConfirmData<F>>
     where
         F: 'b + Send + Sync,
@@ -605,17 +601,17 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
 
         let response_router_data = response;
 
-        let payment_intent_update = response_router_data
-            .get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
-        let payment_attempt_update = response_router_data
-            .get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
+        let payment_intent_update =
+            response_router_data.get_payment_intent_update(&payment_data, storage_scheme);
+        let payment_attempt_update =
+            response_router_data.get_payment_attempt_update(&payment_data, storage_scheme);
 
         let updated_payment_intent = db
             .update_payment_intent(
                 payment_data.payment_intent,
                 payment_intent_update,
-                processor.get_key_store(),
-                processor.get_account().storage_scheme,
+                key_store,
+                storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -623,10 +619,10 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
 
         let updated_payment_attempt = db
             .update_payment_attempt(
-                processor.get_key_store(),
+                key_store,
                 payment_data.payment_attempt,
                 payment_attempt_update,
-                processor.get_account().storage_scheme,
+                storage_scheme,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

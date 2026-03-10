@@ -85,7 +85,6 @@ const payment_method_data = {
     card_holder_name: "Test User",
     payment_checks: null,
     authentication_data: null,
-    auth_code: null,
   },
   billing: null,
 };
@@ -104,7 +103,6 @@ const payment_method_data_failed = {
     card_holder_name: "Test User",
     payment_checks: null,
     authentication_data: null,
-    auth_code: null,
   },
   billing: null,
 };
@@ -568,8 +566,6 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        mandate_data: null,
-        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,

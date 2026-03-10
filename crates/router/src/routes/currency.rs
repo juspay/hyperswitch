@@ -18,13 +18,10 @@ pub async fn retrieve_forex(state: web::Data<AppState>, req: HttpRequest) -> Htt
         |state, _auth: auth::AuthenticationData, _, _| currency::retrieve_forex(state),
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
-                allow_platform_self_operation: false,
+                is_connected_allowed: false,
+                is_platform_allowed: false,
             }),
-            &auth::DashboardNoPermissionAuth {
-                allow_connected: false,
-                allow_platform: false,
-            },
+            &auth::DashboardNoPermissionAuth,
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -57,13 +54,10 @@ pub async fn convert_forex(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
-                allow_platform_self_operation: false,
+                is_connected_allowed: false,
+                is_platform_allowed: false,
             }),
-            &auth::DashboardNoPermissionAuth {
-                allow_connected: false,
-                allow_platform: false,
-            },
+            &auth::DashboardNoPermissionAuth,
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,

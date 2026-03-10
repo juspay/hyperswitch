@@ -3,6 +3,7 @@ use std::str::FromStr;
 use api_models::payments;
 use common_types::payments as common_payments_types;
 use common_utils::{
+    crypto::Encryptable,
     date_time,
     ext_traits::StringExt,
     id_type,
@@ -133,7 +134,6 @@ impl From<StripeCard> for payments::Card {
             card_network: None,
             bank_code: None,
             card_issuing_country: None,
-            card_issuing_country_code: None,
             card_type: None,
             nick_name: None,
         }
@@ -152,7 +152,6 @@ impl From<StripeUpi> for payments::UpiData {
     fn from(upi_data: StripeUpi) -> Self {
         Self::UpiCollect(payments::UpiCollectData {
             vpa_id: Some(upi_data.vpa_id),
-            upi_source: None,
         })
     }
 }
@@ -425,8 +424,7 @@ impl From<api_enums::IntentStatus> for StripePaymentStatus {
                 Self::Succeeded
             }
             api_enums::IntentStatus::Failed | api_enums::IntentStatus::Expired => Self::Canceled,
-            api_enums::IntentStatus::Processing
-            | api_enums::IntentStatus::PartiallyCapturedAndProcessing => Self::Processing,
+            api_enums::IntentStatus::Processing => Self::Processing,
             api_enums::IntentStatus::RequiresCustomerAction
             | api_enums::IntentStatus::RequiresMerchantAction
             | api_enums::IntentStatus::Conflicted => Self::RequiresAction,
@@ -552,9 +550,9 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
             payment_token: resp.payment_token,
             shipping: resp.shipping,
             billing: resp.billing,
-            email: resp.email,
-            name: resp.name,
-            phone: resp.phone,
+            email: resp.email.map(|inner| inner.into()),
+            name: resp.name.map(Encryptable::into_inner),
+            phone: resp.phone.map(Encryptable::into_inner),
             authentication_type: resp.authentication_type,
             statement_descriptor_name: resp.statement_descriptor_name,
             statement_descriptor_suffix: resp.statement_descriptor_suffix,
@@ -853,10 +851,7 @@ pub enum StripeNextAction {
     InvokeHiddenIframe {
         iframe_data: payments::IframeData,
     },
-    InvokeUpiIntentSdk {
-        sdk_uri: url::Url,
-    },
-    InvokeUpiQrFlow {
+    SdkUpiIntentInformation {
         sdk_uri: url::Url,
     },
 }
@@ -897,7 +892,6 @@ pub(crate) fn into_stripe_next_action(
             qr_code_url,
             border_color,
             display_text,
-            raw_qr_data: _,
         } => StripeNextAction::QrCodeInformation {
             image_data_url,
             display_to_timestamp,
@@ -937,13 +931,8 @@ pub(crate) fn into_stripe_next_action(
         payments::NextActionData::InvokeHiddenIframe { iframe_data } => {
             StripeNextAction::InvokeHiddenIframe { iframe_data }
         }
-        payments::NextActionData::InvokeUpiIntentSdk { sdk_uri, .. } => {
-            StripeNextAction::InvokeUpiIntentSdk { sdk_uri }
-        }
-        payments::NextActionData::InvokeUpiQrFlow { qr_code_url, .. } => {
-            StripeNextAction::InvokeUpiQrFlow {
-                sdk_uri: qr_code_url,
-            }
+        payments::NextActionData::SdkUpiIntentInformation { sdk_uri } => {
+            StripeNextAction::SdkUpiIntentInformation { sdk_uri }
         }
     })
 }
@@ -960,10 +949,7 @@ fn get_pmd_based_on_payment_method_type(
 ) -> Option<payments::PaymentMethodData> {
     match payment_method_type {
         Some(api_enums::PaymentMethodType::UpiIntent) => Some(payments::PaymentMethodData::Upi(
-            payments::UpiData::UpiIntent(payments::UpiIntentData {
-                upi_source: None,
-                app_name: None,
-            }),
+            payments::UpiData::UpiIntent(payments::UpiIntentData {}),
         )),
         Some(api_enums::PaymentMethodType::Fps) => {
             Some(payments::PaymentMethodData::RealTimePayment(Box::new(

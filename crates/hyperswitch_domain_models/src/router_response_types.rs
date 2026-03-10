@@ -1,6 +1,5 @@
 pub mod disputes;
 pub mod fraud_check;
-pub mod merchant_connector_webhook_management;
 pub mod revenue_recovery;
 pub mod subscriptions;
 use std::collections::HashMap;
@@ -16,7 +15,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     errors::api_error_response::ApiErrorResponse,
-    router_request_types::{authentication::AuthNFlowType, ResponseId, UcsAuthenticationData},
+    router_request_types::{authentication::AuthNFlowType, ResponseId},
     vault::PaymentMethodVaultingData,
 };
 
@@ -64,13 +63,7 @@ pub enum PaymentsResponseData {
         network_txn_id: Option<String>,
         connector_response_reference_id: Option<String>,
         incremental_authorization_allowed: Option<bool>,
-        authentication_data: Option<Box<UcsAuthenticationData>>,
         charges: Option<common_types::payments::ConnectorChargeResponseData>,
-    },
-    PostCaptureVoidResponse {
-        post_capture_void_status: common_enums::PostCaptureVoidStatus,
-        connector_reference_id: Option<String>,
-        description: Option<String>,
     },
     MultipleCaptureResponse {
         // pending_capture_id_list: Vec<String>,
@@ -118,7 +111,6 @@ pub enum PaymentsResponseData {
     },
     PaymentsCreateOrderResponse {
         order_id: String,
-        session_token: Option<api_models::payments::SessionToken>,
     },
 }
 
@@ -222,7 +214,6 @@ impl PaymentsResponseData {
                     network_txn_id: auth_network_txn_id,
                     connector_response_reference_id: auth_connector_response_reference_id,
                     incremental_authorization_allowed: auth_incremental_auth_allowed,
-                    authentication_data: auth_authentication_data,
                     charges: auth_charges,
                 },
                 Self::TransactionResponse {
@@ -233,7 +224,6 @@ impl PaymentsResponseData {
                     network_txn_id: capture_network_txn_id,
                     connector_response_reference_id: capture_connector_response_reference_id,
                     incremental_authorization_allowed: capture_incremental_auth_allowed,
-                    authentication_data: capture_authentication_data,
                     charges: capture_charges,
                 },
             ) => Ok(Self::TransactionResponse {
@@ -259,9 +249,6 @@ impl PaymentsResponseData {
                     .or(auth_connector_response_reference_id.clone()),
                 incremental_authorization_allowed: (*capture_incremental_auth_allowed)
                     .or(*auth_incremental_auth_allowed),
-                authentication_data: capture_authentication_data
-                    .clone()
-                    .or(auth_authentication_data.clone()),
                 charges: auth_charges.clone().or(capture_charges.clone()),
             }),
             _ => Err(ApiErrorResponse::NotSupported {
@@ -312,15 +299,6 @@ impl PaymentsResponseData {
 pub enum PreprocessingResponseId {
     PreProcessingId(String),
     ConnectorTransactionId(String),
-}
-
-impl PreprocessingResponseId {
-    pub fn get_string_repr(&self) -> &String {
-        match self {
-            Self::PreProcessingId(value) => value,
-            Self::ConnectorTransactionId(value) => value,
-        }
-    }
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, serde::Deserialize)]
@@ -380,9 +358,6 @@ pub enum RedirectForm {
         method: Method,
         form_fields: HashMap<String, String>,
         collection_id: Option<String>,
-    },
-    WorldpayxmlRedirectForm {
-        jwt: String,
     },
 }
 
@@ -499,7 +474,6 @@ impl From<RedirectForm> for diesel_models::payment_attempt::RedirectForm {
                 form_fields,
                 collection_id,
             },
-            RedirectForm::WorldpayxmlRedirectForm { jwt } => Self::WorldpayxmlRedirectForm { jwt },
         }
     }
 }
@@ -600,9 +574,6 @@ impl From<diesel_models::payment_attempt::RedirectForm> for RedirectForm {
                 form_fields,
                 collection_id,
             },
-            diesel_models::payment_attempt::RedirectForm::WorldpayxmlRedirectForm { jwt } => {
-                Self::WorldpayxmlRedirectForm { jwt }
-            }
         }
     }
 }
@@ -664,7 +635,6 @@ pub enum AuthenticationResponseData {
         message_version: common_utils::types::SemanticVersion,
         connector_metadata: Option<serde_json::Value>,
         directory_server_id: Option<String>,
-        scheme_id: Option<String>,
     },
     AuthNResponse {
         authn_flow_type: AuthNFlowType,
@@ -725,12 +695,6 @@ pub trait SupportedPaymentMethodsExt {
         payment_method_type: common_enums::PaymentMethodType,
         payment_method_details: PaymentMethodDetails,
     );
-
-    fn is_refund_supported(
-        &self,
-        payment_method: &common_enums::PaymentMethod,
-        payment_method_type: &common_enums::PaymentMethodType,
-    ) -> bool;
 }
 
 impl SupportedPaymentMethodsExt for SupportedPaymentMethods {
@@ -748,23 +712,6 @@ impl SupportedPaymentMethodsExt for SupportedPaymentMethods {
 
             self.insert(payment_method, payment_method_type_metadata);
         }
-    }
-
-    fn is_refund_supported(
-        &self,
-        payment_method: &common_enums::PaymentMethod,
-        payment_method_type: &common_enums::PaymentMethodType,
-    ) -> bool {
-        self.get(payment_method)
-            .and_then(|pm_types| pm_types.get(payment_method_type))
-            .map(|details| details.supports_refund())
-            .unwrap_or(true)
-    }
-}
-
-impl PaymentMethodDetails {
-    fn supports_refund(&self) -> bool {
-        self.refunds.is_supported()
     }
 }
 
@@ -795,15 +742,15 @@ pub enum VaultIdType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MultiVaultIdType {
     Card {
-        tokenized_card_number: Option<masking::Secret<String>>,
-        tokenized_card_expiry_year: Option<masking::Secret<String>>,
-        tokenized_card_expiry_month: Option<masking::Secret<String>>,
+        tokenized_card_number: masking::Secret<String>,
+        tokenized_card_expiry_year: masking::Secret<String>,
+        tokenized_card_expiry_month: masking::Secret<String>,
         tokenized_card_cvc: Option<masking::Secret<String>>,
     },
     NetworkToken {
-        tokenized_network_token: Option<masking::Secret<String>>,
-        tokenized_network_token_exp_year: Option<masking::Secret<String>>,
-        tokenized_network_token_exp_month: Option<masking::Secret<String>>,
+        tokenized_network_token: masking::Secret<String>,
+        tokenized_network_token_exp_year: masking::Secret<String>,
+        tokenized_network_token_exp_month: masking::Secret<String>,
         tokenized_cryptogram: Option<masking::Secret<String>>,
     },
 }
@@ -834,7 +781,7 @@ impl VaultIdType {
                     tokenized_card_expiry_month,
                     tokenized_card_cvc,
                 } => Ok(
-                    api_models::authentication::AuthenticationVaultTokenData::CardData {
+                    api_models::authentication::AuthenticationVaultTokenData::CardToken {
                         tokenized_card_number,
                         tokenized_card_expiry_month,
                         tokenized_card_expiry_year,
@@ -847,8 +794,8 @@ impl VaultIdType {
                     tokenized_network_token_exp_year,
                     tokenized_cryptogram,
                 } => Ok(
-                    api_models::authentication::AuthenticationVaultTokenData::NetworkTokenData {
-                        tokenized_network_token,
+                    api_models::authentication::AuthenticationVaultTokenData::NetworkToken {
+                        tokenized_payment_token: tokenized_network_token,
                         tokenized_expiry_month: tokenized_network_token_exp_month,
                         tokenized_expiry_year: tokenized_network_token_exp_year,
                         tokenized_cryptogram,

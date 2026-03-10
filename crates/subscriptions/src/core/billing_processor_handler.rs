@@ -7,7 +7,7 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     errors::api_error_response as errors,
     router_data_v2::flow_common_types::{
-        GetSubscriptionEstimateData, GetSubscriptionItemPricesData, GetSubscriptionItemsData,
+        GetSubscriptionEstimateData, GetSubscriptionPlanPricesData, GetSubscriptionPlansData,
         InvoiceRecordBackData, SubscriptionCancelData, SubscriptionCreateData,
         SubscriptionCustomerData, SubscriptionPauseData, SubscriptionResumeData,
     },
@@ -119,7 +119,6 @@ impl BillingHandler {
             description: None,
             phone: None,
             name: None,
-            metadata: None,
             preprocessing_id: None,
             split_payments: None,
             setup_future_usage: None,
@@ -129,7 +128,6 @@ impl BillingHandler {
                 .as_ref()
                 .and_then(|add| add.address.clone())
                 .and_then(|addr| addr.into()),
-            currency: None,
         };
         let router_data = self.build_router_data(
             state,
@@ -291,20 +289,19 @@ impl BillingHandler {
         self.handle_connector_response(response)
     }
 
-    pub async fn get_subscription_items(
+    pub async fn get_subscription_plans(
         &self,
         state: &SessionState,
         limit: Option<u32>,
         offset: Option<u32>,
-        item_type: subscription_types::SubscriptionItemType,
-    ) -> SubscriptionResult<subscription_response_types::GetSubscriptionItemsResponse> {
-        let get_items_request =
-            subscription_request_types::GetSubscriptionItemsRequest::new(limit, offset, item_type);
+    ) -> SubscriptionResult<subscription_response_types::GetSubscriptionPlansResponse> {
+        let get_plans_request =
+            subscription_request_types::GetSubscriptionPlansRequest::new(limit, offset);
 
         let router_data = self.build_router_data(
             state,
-            get_items_request,
-            GetSubscriptionItemsData {
+            get_plans_request,
+            GetSubscriptionPlansData {
                 connector_meta_data: self.connector_metadata.clone(),
             },
         )?;
@@ -315,25 +312,25 @@ impl BillingHandler {
             .call_connector(
                 state,
                 router_data,
-                "get subscription items",
+                "get subscription plans",
                 connector_integration,
             )
             .await?;
         self.handle_connector_response(response)
     }
 
-    pub async fn get_subscription_item_prices(
+    pub async fn get_subscription_plan_prices(
         &self,
         state: &SessionState,
-        item_price_id: String,
-    ) -> SubscriptionResult<subscription_response_types::GetSubscriptionItemPricesResponse> {
-        let get_item_prices_request =
-            subscription_request_types::GetSubscriptionItemPricesRequest { item_price_id };
+        plan_price_id: String,
+    ) -> SubscriptionResult<subscription_response_types::GetSubscriptionPlanPricesResponse> {
+        let get_plan_prices_request =
+            subscription_request_types::GetSubscriptionPlanPricesRequest { plan_price_id };
 
         let router_data = self.build_router_data(
             state,
-            get_item_prices_request,
-            GetSubscriptionItemPricesData {
+            get_plan_prices_request,
+            GetSubscriptionPlanPricesData {
                 connector_meta_data: self.connector_metadata.clone(),
             },
         )?;
@@ -344,7 +341,7 @@ impl BillingHandler {
             .call_connector(
                 state,
                 router_data,
-                "get subscription item prices",
+                "get subscription plan prices",
                 connector_integration,
             )
             .await?;

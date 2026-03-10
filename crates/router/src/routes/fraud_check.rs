@@ -20,11 +20,12 @@ pub async fn frm_fulfillment(
         &req,
         json_payload.into_inner(),
         |state, auth: services::authentication::AuthenticationData, req, _| {
-            frm_core::frm_fulfillment_core(state, auth.platform, req)
+            let platform = auth.into();
+            frm_core::frm_fulfillment_core(state, platform, req)
         },
         &services::authentication::ApiKeyAuth {
-            allow_connected_scope_operation: false,
-            allow_platform_self_operation: false,
+            is_connected_allowed: false,
+            is_platform_allowed: false,
         },
         api_locking::LockAction::NotApplicable,
     ))

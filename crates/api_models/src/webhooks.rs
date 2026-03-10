@@ -177,7 +177,7 @@ pub enum WebhookResponseTracker {
     #[cfg(feature = "v2")]
     Refund {
         payment_id: common_utils::id_type::GlobalPaymentId,
-        refund_id: common_utils::id_type::GlobalRefundId,
+        refund_id: String,
         status: common_enums::RefundStatus,
     },
     #[cfg(feature = "v1")]
@@ -223,14 +223,6 @@ impl WebhookResponseTracker {
     }
 
     #[cfg(feature = "v1")]
-    pub fn get_refund_id(&self) -> Option<String> {
-        match self {
-            Self::Refund { refund_id, .. } => Some(refund_id.to_owned()),
-            _ => None,
-        }
-    }
-
-    #[cfg(feature = "v1")]
     pub fn get_payment_method_id(&self) -> Option<String> {
         match self {
             Self::PaymentMethod {
@@ -257,14 +249,6 @@ impl WebhookResponseTracker {
             #[cfg(feature = "payouts")]
             Self::Payout { .. } => None,
             Self::Relay { .. } => None,
-        }
-    }
-
-    #[cfg(feature = "v2")]
-    pub fn get_refund_id(&self) -> Option<common_utils::id_type::GlobalRefundId> {
-        match self {
-            Self::Refund { refund_id, .. } => Some(refund_id.to_owned()),
-            _ => None,
         }
     }
 }

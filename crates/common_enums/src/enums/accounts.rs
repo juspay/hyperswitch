@@ -92,12 +92,3 @@ pub enum MerchantAccountRequestType {
     Standard,
     Connected,
 }
-
-impl From<MerchantAccountRequestType> for MerchantAccountType {
-    fn from(value: MerchantAccountRequestType) -> Self {
-        match value {
-            MerchantAccountRequestType::Standard => Self::Standard,
-            MerchantAccountRequestType::Connected => Self::Connected,
-        }
-    }
-}

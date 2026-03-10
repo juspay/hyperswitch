@@ -170,7 +170,6 @@ impl ConnectorCommon for Dlocal {
             reason: Some(response.message),
             attempt_status: None,
             connector_transaction_id: None,
-            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -701,7 +700,6 @@ impl webhooks::IncomingWebhook for Dlocal {
     fn get_webhook_event_type(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         Ok(IncomingWebhookEvent::EventNotSupported)
     }
@@ -720,10 +718,6 @@ lazy_static! {
             enums::CaptureMethod::Automatic,
             enums::CaptureMethod::Manual,
             enums::CaptureMethod::SequentialAutomatic,
-        ];
-
-        let supported_capture_methods2 = vec![
-            enums::CaptureMethod::Automatic,
         ];
 
         let supported_card_network = vec![
@@ -775,17 +769,6 @@ lazy_static! {
                         }
                     }),
                 ),
-            },
-        );
-
-        dlocal_supported_payment_methods.add(
-            enums::PaymentMethod::Voucher,
-            enums::PaymentMethodType::Oxxo,
-            PaymentMethodDetails {
-                mandates: common_enums::FeatureStatus::NotSupported,
-                refunds: common_enums::FeatureStatus::Supported,
-                supported_capture_methods: supported_capture_methods2.clone(),
-                specific_features: None,
             },
         );
 

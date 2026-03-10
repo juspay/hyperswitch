@@ -11,9 +11,6 @@ impl Default for super::settings::Server {
             host: "localhost".into(),
             request_body_limit: 16 * 1024, // POST request body is limited to 16KiB
             shutdown_timeout: 30,
-            keep_alive: 5,
-            client_request_timeout: 5000,
-            client_disconnect_timeout: 1000,
             #[cfg(feature = "tls")]
             tls: None,
         }
@@ -54,7 +51,9 @@ impl Default for super::settings::Locker {
     fn default() -> Self {
         Self {
             host: "localhost".into(),
+            host_rs: "localhost".into(),
             mock_locker: true,
+            basilisk_host: "localhost".into(),
             locker_signing_key_id: "1".into(),
             //true or false
             locker_enabled: true,

@@ -139,10 +139,7 @@ pub async fn consumer_operations<T: SchedulerSessionState + 'static>(
     settings: &SchedulerSettings,
     workflow_selector: impl workflows::ProcessTrackerWorkflows<T> + 'static + Copy + std::fmt::Debug,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
-    let stream_name = match state.get_application_source() {
-        enums::ApplicationSource::Main => settings.stream.clone(),
-        enums::ApplicationSource::Cug => settings.cug_stream.clone(),
-    };
+    let stream_name = settings.stream.clone();
     let group_name = settings.consumer.consumer_group.clone();
     let consumer_name = format!("consumer_{}", Uuid::new_v4());
 
@@ -230,7 +227,7 @@ pub async fn fetch_consumer_tasks(
 // Accept flow_options if required
 #[instrument(skip(state), fields(workflow_id))]
 pub async fn start_workflow<T>(
-    mut state: T,
+    state: T,
     process: storage::ProcessTracker,
     _pickup_time: PrimitiveDateTime,
     workflow_selector: impl workflows::ProcessTrackerWorkflows<T> + 'static + std::fmt::Debug,
@@ -238,25 +235,10 @@ pub async fn start_workflow<T>(
 where
     T: SchedulerSessionState,
 {
-    let workflow_id = Uuid::now_v7();
-    tracing::Span::current().record("workflow_id", workflow_id.to_string());
+    tracing::Span::current().record("workflow_id", Uuid::new_v4().to_string());
     logger::info!(pt.name=?process.name, pt.id=%process.id);
-
-    // Generate a unique request_id for this workflow execution if not already present
-    if state.get_request_id().is_none() {
-        match router_env::RequestId::try_from(workflow_id.to_string()) {
-            Ok(req_id) => {
-                logger::info!(workflow_request_id = %req_id, process_tracker_id = %process.id, "Generated request ID for workflow execution");
-                state.add_request_id(req_id);
-            }
-            Err(err) => {
-                logger::error!(error = %err, workflow_id = %workflow_id, "Failed to generate RequestId from workflow_id");
-            }
-        }
-    }
-
     let res = workflow_selector
-        .trigger_workflow(&state, process.clone())
+        .trigger_workflow(&state.clone(), process.clone())
         .await
         .inspect_err(|error| {
             logger::error!(?error, "Failed to trigger workflow");

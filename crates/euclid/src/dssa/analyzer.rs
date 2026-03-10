@@ -246,9 +246,11 @@ mod tests {
     use hyperswitch_constraint_graph as cgraph;
 
     use super::*;
-    #[allow(unused_imports)] // Required by the `knowledge!` macro expansion
-    use crate::dssa::graph::euclid_graph_prelude;
-    use crate::{dirval, dssa::graph, types::DummyOutput};
+    use crate::{
+        dirval,
+        dssa::graph::{self, euclid_graph_prelude},
+        types::DummyOutput,
+    };
 
     #[test]
     fn test_conflicting_assertion_detection() {

@@ -205,12 +205,6 @@ mod id_type {
                     &self.0 .0 .0
                 }
             }
-
-            impl $crate::id_type::TargetingKey for $type {
-                fn targeting_key_value(&self) -> &str {
-                    self.get_string_repr()
-                }
-            }
         };
     }
 
@@ -735,6 +729,8 @@ macro_rules! impl_enum_str {
 #[cfg(test)]
 mod tests {
     use serde_json::{json, Value as JsonValue};
+
+    use crate::impl_enum_str;
 
     impl_enum_str!(
         tag_delimiter = ":",

@@ -19,7 +19,7 @@ use crate::email::{EmailClient, EmailError, EmailResult, EmailSettings, Intermed
 /// Client for AWS SES operation
 #[derive(Debug, Clone)]
 pub struct AwsSes {
-    sender: pii::Email,
+    sender: String,
     ses_config: SESConfig,
     settings: EmailSettings,
 }
@@ -222,7 +222,7 @@ impl EmailClient for AwsSes {
 
         email_client
             .send_email()
-            .from_email_address(self.sender.peek())
+            .from_email_address(self.sender.to_owned())
             .destination(
                 Destination::builder()
                     .to_addresses(recipient.peek())

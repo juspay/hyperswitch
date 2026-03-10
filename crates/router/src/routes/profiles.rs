@@ -20,18 +20,6 @@ pub async fn profile_create(
     let payload = json_payload.into_inner();
     let merchant_id = path.into_inner();
     if let Err(api_error) = payload
-        .payment_link_config
-        .as_ref()
-        .map(|config| {
-            config
-                .validate()
-                .map_err(|err| errors::ApiErrorResponse::InvalidRequestData { message: err })
-        })
-        .transpose()
-    {
-        return api::log_and_return_error_response(api_error.into());
-    }
-    if let Err(api_error) = payload
         .webhook_details
         .as_ref()
         .map(|details| {
@@ -50,15 +38,14 @@ pub async fn profile_create(
         &req,
         payload,
         |state, auth_data, req, _| {
-            create_profile(state, req, auth_data.platform.get_processor().clone())
+            let platform = auth_data.into();
+            create_profile(state, req, platform)
         },
         auth::auth_type(
             &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: permissions::Permission::MerchantAccountWrite,
-                allow_connected: true,
-                allow_platform: false,
             },
             req.headers(),
         ),
@@ -106,16 +93,13 @@ pub async fn profile_create(
                 key_store.clone(),
                 merchant_account,
                 key_store,
-                None,
             );
-            create_profile(state, req, platform.get_processor().clone())
+            create_profile(state, req, platform)
         },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: permissions::Permission::MerchantAccountWrite,
-                allow_connected: true,
-                allow_platform: false,
             },
             req.headers(),
         ),
@@ -146,22 +130,15 @@ pub async fn profile_retrieve(
             retrieve_profile(
                 state,
                 profile_id,
-                auth_data
-                    .platform
-                    .get_processor()
-                    .get_account()
-                    .get_id()
-                    .clone(),
-                auth_data.platform.get_processor().get_key_store().clone(),
+                auth_data.merchant_account.get_id().clone(),
+                auth_data.key_store,
             )
         },
         auth::auth_type(
             &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
-            &auth::JWTAndEmbeddedAuth {
-                merchant_id_from_route: Some(merchant_id.clone()),
-                permission: Some(permissions::Permission::ProfileAccountRead),
-                allow_connected: true,
-                allow_platform: true,
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id: merchant_id.clone(),
+                required_permission: permissions::Permission::ProfileAccountRead,
             },
             req.headers(),
         ),
@@ -203,8 +180,6 @@ pub async fn profile_retrieve(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: permissions::Permission::MerchantAccountRead,
-                allow_connected: true,
-                allow_platform: true,
             },
             req.headers(),
         ),
@@ -228,19 +203,6 @@ pub async fn profile_update(
     let (merchant_id, profile_id) = path.into_inner();
     let payload = json_payload.into_inner();
     if let Err(api_error) = payload
-        .payment_link_config
-        .as_ref()
-        .map(|config| {
-            config
-                .validate()
-                .map_err(|err| errors::ApiErrorResponse::InvalidRequestData { message: err })
-        })
-        .transpose()
-    {
-        return api::log_and_return_error_response(api_error.into());
-    }
-
-    if let Err(api_error) = payload
         .webhook_details
         .as_ref()
         .map(|details| {
@@ -262,13 +224,8 @@ pub async fn profile_update(
             update_profile(
                 state,
                 &profile_id,
-                auth_data
-                    .platform
-                    .get_processor()
-                    .get_account()
-                    .get_id()
-                    .clone(),
-                auth_data.platform.get_processor().get_key_store().clone(),
+                auth_data.merchant_account.get_id().clone(),
+                auth_data.key_store,
                 req,
             )
         },
@@ -278,8 +235,6 @@ pub async fn profile_update(
                 merchant_id: merchant_id.clone(),
                 profile_id: profile_id.clone(),
                 required_permission: permissions::Permission::ProfileAccountWrite,
-                allow_connected: true,
-                allow_platform: false,
             },
             req.headers(),
         ),
@@ -336,8 +291,6 @@ pub async fn profile_update(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: permissions::Permission::MerchantAccountWrite,
-                allow_connected: true,
-                allow_platform: false,
             },
             req.headers(),
         ),
@@ -385,20 +338,12 @@ pub async fn profiles_list(
         state,
         &req,
         merchant_id.clone(),
-        |state, auth, _, _| {
-            list_profile(
-                state,
-                auth.platform.get_processor().get_account().get_id().clone(),
-                None,
-            )
-        },
+        |state, auth, _, _| list_profile(state, auth.merchant_account.get_id().clone(), None),
         auth::auth_type(
             &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: permissions::Permission::MerchantAccountRead,
-                allow_connected: true,
-                allow_platform: false,
             },
             req.headers(),
         ),
@@ -430,8 +375,6 @@ pub async fn profiles_list(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: permissions::Permission::MerchantAccountRead,
-                allow_connected: true,
-                allow_platform: false,
             },
             req.headers(),
         ),
@@ -458,8 +401,8 @@ pub async fn profiles_list_at_profile_level(
         |state, auth, _, _| {
             list_profile(
                 state,
-                auth.platform.get_processor().get_account().get_id().clone(),
-                auth.profile.map(|profile| vec![profile.get_id().clone()]),
+                auth.merchant_account.get_id().clone(),
+                auth.profile_id.map(|profile_id| vec![profile_id]),
             )
         },
         auth::auth_type(
@@ -467,8 +410,6 @@ pub async fn profiles_list_at_profile_level(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: permissions::Permission::ProfileAccountRead,
-                allow_connected: true,
-                allow_platform: false,
             },
             req.headers(),
         ),
@@ -500,13 +441,11 @@ pub async fn toggle_connector_agnostic_mit(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
-                allow_platform_self_operation: false,
+                is_connected_allowed: false,
+                is_platform_allowed: false,
             }),
             &auth::JWTAuth {
                 permission: permissions::Permission::MerchantRoutingWrite,
-                allow_connected: true,
-                allow_platform: false,
             },
             req.headers(),
         ),
@@ -558,8 +497,8 @@ pub async fn payment_connector_list_profile(
         |state, auth, _, _| {
             list_payment_connectors(
                 state,
-                auth.platform.get_processor().clone(),
-                auth.profile.map(|profile| vec![profile.get_id().clone()]),
+                auth.merchant_account.get_id().clone(),
+                auth.profile_id.map(|profile_id| vec![profile_id]),
             )
         },
         auth::auth_type(
@@ -567,8 +506,6 @@ pub async fn payment_connector_list_profile(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: permissions::Permission::ProfileConnectorRead,
-                allow_connected: true,
-                allow_platform: false,
             },
             req.headers(),
         ),

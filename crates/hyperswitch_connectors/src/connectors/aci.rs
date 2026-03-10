@@ -46,7 +46,7 @@ use hyperswitch_interfaces::{
         PaymentsAuthorizeType, PaymentsCaptureType, PaymentsSyncType, PaymentsVoidType,
         RefundExecuteType, Response,
     },
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
 use masking::{Mask, PeekInterface};
 use ring::aead::{self, UnboundKey};
@@ -129,7 +129,6 @@ impl ConnectorCommon for Aci {
             }),
             attempt_status: None,
             connector_transaction_id: None,
-            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -933,7 +932,6 @@ impl IncomingWebhook for Aci {
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         let aci_notification: aci::AciWebhookNotification =
             serde_json::from_slice(request.body)
@@ -1173,7 +1171,7 @@ static ACI_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     description:
         "ACI Payments delivers secure, real-time electronic payment solutions for businesses, banks, and governments, enabling seamless transactions across channels.",
     connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
-    integration_status: enums::ConnectorIntegrationStatus::Sandbox,
+    integration_status: enums::ConnectorIntegrationStatus::Beta,
 };
 
 static ACI_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

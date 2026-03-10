@@ -5,8 +5,8 @@ pub use api_models::payouts::{
     PayoutEnabledPaymentMethodsInfo, PayoutLinkResponse, PayoutListConstraints,
     PayoutListFilterConstraints, PayoutListFilters, PayoutListFiltersV2, PayoutListResponse,
     PayoutMethodData, PayoutMethodDataResponse, PayoutRequest, PayoutRetrieveBody,
-    PayoutRetrieveRequest, PayoutsManualUpdateRequest, PixBankTransfer,
-    RequiredFieldsOverrideRequest, SepaBankTransfer, Wallet as WalletPayout,
+    PayoutRetrieveRequest, PixBankTransfer, RequiredFieldsOverrideRequest, SepaBankTransfer,
+    Wallet as WalletPayout,
 };
 pub use hyperswitch_domain_models::router_flow_types::payouts::{
     PoCancel, PoCreate, PoEligibility, PoFulfill, PoQuote, PoRecipient, PoRecipientAccount, PoSync,

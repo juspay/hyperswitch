@@ -14,15 +14,13 @@ use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
-        unified_authentication_service::PreAuthenticate, AccessTokenAuth, Authorize, Capture,
-        CompleteAuthorize, Execute, PSync, PaymentMethodToken, PreProcessing, RSync, Session,
-        SetupMandate, Void,
+        AccessTokenAuth, Authorize, Capture, CompleteAuthorize, Execute, PSync, PaymentMethodToken,
+        PreProcessing, RSync, Session, SetupMandate, Void,
     },
     router_request_types::{
         AccessTokenRequestData, CompleteAuthorizeData, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
-        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsSessionData,
-        PaymentsSyncData, RefundsData, SetupMandateRequestData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData,
+        PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
@@ -30,9 +28,8 @@ use hyperswitch_domain_models::{
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsCompleteAuthorizeRouterData, PaymentsPreAuthenticateRouterData,
-        PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefundsRouterData,
-        SetupMandateRouterData,
+        PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData,
+        PaymentsSyncRouterData, RefundsRouterData, SetupMandateRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -45,10 +42,10 @@ use hyperswitch_interfaces::{
     events::connector_api_logs::ConnectorEvent,
     types::{
         PaymentsAuthorizeType, PaymentsCaptureType, PaymentsCompleteAuthorizeType,
-        PaymentsPreAuthenticateType, PaymentsPreProcessingType, PaymentsSyncType, PaymentsVoidType,
-        RefundExecuteType, RefundSyncType, Response, SetupMandateType,
+        PaymentsPreProcessingType, PaymentsSyncType, PaymentsVoidType, RefundExecuteType,
+        RefundSyncType, Response, SetupMandateType,
     },
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
 use masking::Maskable;
 use regex::Regex;
@@ -56,10 +53,7 @@ use transformers as nmi;
 
 use crate::{
     types::ResponseRouterData,
-    utils::{
-        self, convert_amount, get_header_key_value, PaymentsAuthorizeRequestData,
-        PaymentsSetupMandateRequestData,
-    },
+    utils::{self, convert_amount, get_header_key_value},
 };
 
 #[derive(Clone)]
@@ -87,7 +81,6 @@ impl api::Refund for Nmi {}
 impl api::RefundExecute for Nmi {}
 impl api::RefundSync for Nmi {}
 impl api::PaymentToken for Nmi {}
-impl api::PaymentsPreAuthenticate for Nmi {}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Nmi
 where
@@ -138,7 +131,6 @@ impl ConnectorCommon for Nmi {
             code: response.response_code,
             attempt_status: None,
             connector_transaction_id: Some(response.transactionid),
-            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -167,90 +159,8 @@ impl ConnectorValidation for Nmi {
         let mandate_supported_pmd = std::collections::HashSet::from([
             utils::PaymentMethodDataType::Card,
             utils::PaymentMethodDataType::ApplePay,
-            utils::PaymentMethodDataType::GooglePay,
         ]);
         utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
-
-impl ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, PaymentsResponseData>
-    for Nmi
-{
-    fn get_headers(
-        &self,
-        req: &PaymentsPreAuthenticateRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &PaymentsPreAuthenticateRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<String, ConnectorError> {
-        Ok(format!("{}api/transact.php", self.base_url(connectors)))
-    }
-
-    fn get_request_body(
-        &self,
-        req: &PaymentsPreAuthenticateRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, ConnectorError> {
-        let connector_req = nmi::NmiVaultRequest::try_from(req)?;
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
-    }
-
-    fn build_request(
-        &self,
-        req: &PaymentsPreAuthenticateRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, ConnectorError> {
-        let req = Some(
-            RequestBuilder::new()
-                .method(Method::Post)
-                .attach_default_headers()
-                .headers(PaymentsPreAuthenticateType::get_headers(
-                    self, req, connectors,
-                )?)
-                .url(&PaymentsPreAuthenticateType::get_url(
-                    self, req, connectors,
-                )?)
-                .set_body(PaymentsPreAuthenticateType::get_request_body(
-                    self, req, connectors,
-                )?)
-                .build(),
-        );
-        Ok(req)
-    }
-
-    fn handle_response(
-        &self,
-        data: &PaymentsPreAuthenticateRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<PaymentsPreAuthenticateRouterData, ConnectorError> {
-        let response: nmi::NmiVaultResponse = serde_urlencoded::from_bytes(&res.response)
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, ConnectorError> {
-        self.build_error_response(res, event_builder)
     }
 }
 
@@ -285,13 +195,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         req: &SetupMandateRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, ConnectorError> {
-        let amount = convert_amount(
-            self.amount_converter,
-            req.request.minor_amount,
-            req.request.currency,
-        )?;
-        let connector_router_data = nmi::NmiRouterData::from((amount, req));
-        let connector_req = nmi::NmiValidateRequest::try_from(&connector_router_data)?;
+        let connector_req = nmi::NmiValidateRequest::try_from(req)?;
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
@@ -1026,7 +930,6 @@ impl IncomingWebhook for Nmi {
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
         let event_type_body: nmi::NmiWebhookEventBody = request
             .body
@@ -1164,7 +1067,7 @@ static NMI_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLo
         enums::PaymentMethod::Wallet,
         enums::PaymentMethodType::GooglePay,
         PaymentMethodDetails {
-            mandates: enums::FeatureStatus::Supported,
+            mandates: enums::FeatureStatus::NotSupported,
             refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods.clone(),
             specific_features: None,
@@ -1196,19 +1099,6 @@ static NMI_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
     [enums::EventClass::Payments, enums::EventClass::Refunds];
 
 impl ConnectorSpecifications for Nmi {
-    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
-        match current_flow {
-            api::CurrentFlowInfo::Authorize {
-                auth_type,
-                request_data,
-            } => auth_type.is_three_ds() && request_data.is_card(),
-            api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
-            api::CurrentFlowInfo::SetupMandate {
-                auth_type,
-                request_data,
-            } => auth_type.is_three_ds() && request_data.is_card(),
-        }
-    }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&NMI_CONNECTOR_INFO)
     }

@@ -192,8 +192,8 @@ export const connectorDetails = {
           status: "failed",
           error_code: "2",
           error_message: "Refused",
-          unified_code: "UE_3000",
-          unified_message: "Technical issue with PSP",
+          unified_code: "UE_9000",
+          unified_message: "Something went wrong",
         },
       },
     },
@@ -500,8 +500,6 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        mandate_data: null,
-        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -684,65 +682,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
-        },
-      },
-    },
-    ManualRetryPaymentDisabled: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 400,
-        body: {
-          type: "invalid_request",
-          message:
-            "You cannot confirm this payment because it has status failed, you can enable `manual_retry` in profile to try this payment again",
-          code: "IR_16",
-        },
-      },
-    },
-    ManualRetryPaymentEnabled: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-          payment_method: "card",
-          attempt_count: 2,
-        },
-      },
-    },
-    ManualRetryPaymentCutoffExpired: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 400,
-        body: {
-          type: "invalid_request",
-          message:
-            "You cannot confirm this payment using `manual_retry` because the allowed duration has expired",
-          code: "IR_16",
         },
       },
     },

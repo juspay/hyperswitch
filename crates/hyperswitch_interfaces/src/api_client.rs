@@ -188,7 +188,6 @@ where
                     reason: None,
                     attempt_status: None,
                     connector_transaction_id: None,
-                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -296,7 +295,6 @@ where
                         external_latency,
                         req.refund_id.clone(),
                         req.dispute_id.clone(),
-                        req.payout_id.clone(),
                         status_code,
                     );
 
@@ -425,7 +423,6 @@ where
                                     status_code: 504,
                                     attempt_status: None,
                                     connector_transaction_id: None,
-                                    connector_response_reference_id: None,
                                     network_advice_code: None,
                                     network_decline_code: None,
                                     network_error_message: None,

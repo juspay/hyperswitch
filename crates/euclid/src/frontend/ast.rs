@@ -2,14 +2,12 @@ pub mod lowering;
 #[cfg(feature = "ast_parser")]
 pub mod parser;
 
+use common_enums::RoutableConnectors;
 use common_utils::types::MinorUnit;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::{
-    enums::RoutableConnectors,
-    types::{DataType, Metadata},
-};
+use crate::types::{DataType, Metadata};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct ConnectorChoice {
@@ -120,7 +118,7 @@ pub type IfCondition = Vec<Comparison>;
 pub struct IfStatement {
     #[schema(value_type=Vec<Comparison>)]
     pub condition: IfCondition,
-    pub nested: Option<Vec<Self>>,
+    pub nested: Option<Vec<IfStatement>>,
 }
 
 /// Represents a rule

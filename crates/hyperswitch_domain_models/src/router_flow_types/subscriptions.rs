@@ -8,10 +8,10 @@ pub struct SubscriptionResume;
 #[derive(Debug, Clone)]
 pub struct SubscriptionCancel;
 #[derive(Debug, Clone)]
-pub struct GetSubscriptionItems;
+pub struct GetSubscriptionPlans;
 
 #[derive(Debug, Clone)]
-pub struct GetSubscriptionItemPrices;
+pub struct GetSubscriptionPlanPrices;
 
 #[derive(Debug, Clone)]
 pub struct GetSubscriptionEstimate;

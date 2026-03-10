@@ -225,7 +225,7 @@ pub enum Updateable {
     PaymentIntentUpdate(Box<PaymentIntentUpdateMems>),
     PaymentAttemptUpdate(Box<PaymentAttemptUpdateMems>),
     RefundUpdate(Box<RefundUpdateMems>),
-    CustomerUpdate(Box<CustomerUpdateMems>),
+    CustomerUpdate(CustomerUpdateMems),
     AddressUpdate(Box<AddressUpdateMems>),
     PayoutsUpdate(PayoutsUpdateMems),
     PayoutAttemptUpdate(PayoutAttemptUpdateMems),

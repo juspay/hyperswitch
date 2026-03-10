@@ -22,11 +22,12 @@ pub async fn execute_decision_rule(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            three_ds_decision_rule_core::execute_three_ds_decision_rule(state, auth.platform, req)
+            let platform = auth.into();
+            three_ds_decision_rule_core::execute_three_ds_decision_rule(state, platform, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            allow_connected_scope_operation: false,
-            allow_platform_self_operation: false,
+            is_connected_allowed: false,
+            is_platform_allowed: false,
         }),
         api_locking::LockAction::NotApplicable,
     ))

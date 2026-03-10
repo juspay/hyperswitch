@@ -1,4 +1,8 @@
-import { customerAcceptance } from "./Commons";
+import {
+  customerAcceptance,
+  singleUseMandateData,
+  multiUseMandateData,
+} from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
@@ -11,8 +15,7 @@ const successfulNo3DSCardDetails = {
 
 const successful3DSTestCardDetails = {
   ...successfulNo3DSCardDetails,
-  card_number: "4000000000001091",
-  card_holder_name: "AUTHORIZED",
+  card_number: "4242424242424242",
 };
 
 export const connectorDetails = {
@@ -77,7 +80,7 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
     }),
-    "3DSAutoCapture": {
+    "3DSAutoCapture": getCustomExchange({
       Request: {
         payment_method: "card",
         amount: 6000,
@@ -88,13 +91,7 @@ export const connectorDetails = {
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
+    }),
     No3DSManualCapture: {
       Request: {
         description: "Test description",
@@ -250,8 +247,6 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        mandate_data: null,
-        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 501,
@@ -358,6 +353,22 @@ export const connectorDetails = {
         },
       },
     },
+    MandateMultiUseNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: multiUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
     Refund: {
       Request: {
         amount: 6000,
@@ -387,6 +398,60 @@ export const connectorDetails = {
               "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
             code: "IR_14",
           },
+        },
+      },
+    },
+    MandateSingleUseNo3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    MandateSingleUseNo3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    MandateMultiUseNo3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: multiUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
         },
       },
     },
@@ -463,42 +528,24 @@ export const connectorDetails = {
         },
       },
     },
-    MITAutoCapture: getCustomExchange({
+    SaveCardUseNo3DSAutoCaptureOffSession: {
       Configs: {
         TRIGGER_SKIP: true,
       },
-      Request: {},
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "processing",
         },
-      },
-    }),
-    Response: {
-      status: 200,
-      body: {
-        status: "processing",
-      },
-    },
-  },
-  SaveCardUseNo3DSAutoCaptureOffSession: {
-    Configs: {
-      TRIGGER_SKIP: true,
-    },
-    Request: {
-      payment_method: "card",
-      payment_method_type: "debit",
-      payment_method_data: {
-        card: successfulNo3DSCardDetails,
-      },
-      setup_future_usage: "off_session",
-      customer_acceptance: customerAcceptance,
-    },
-    Response: {
-      status: 200,
-      body: {
-        status: "processing",
       },
     },
   },

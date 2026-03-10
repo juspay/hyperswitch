@@ -2,16 +2,13 @@ use std::fmt::Debug;
 
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
-use hyperswitch_interfaces::{
-    api::{gateway, ConnectorSpecifications},
-    consts as interfaces_consts,
-};
+use hyperswitch_interfaces::api::{ConnectorAccessTokenSuffix, ConnectorSpecifications};
 
 use crate::{
     consts,
     core::{
         errors::{self, RouterResult},
-        payments::{self, gateway::context as gateway_context},
+        payments,
     },
     routes::{metrics, SessionState},
     services::{self, logger},
@@ -123,7 +120,6 @@ pub async fn add_access_token<
     connector: &api_types::ConnectorData,
     router_data: &types::RouterData<F, Req, Res>,
     creds_identifier: Option<&str>,
-    gateway_context: &gateway_context::RouterGatewayContext,
 ) -> RouterResult<types::AddAccessTokenResult> {
     if connector
         .connector_name
@@ -153,8 +149,6 @@ pub async fn add_access_token<
                 "Failed to get access token key for connector: {:?}",
                 connector.connector_name
             ))?;
-
-        router_env::logger::debug!("Fetching access token from Redis using key: {key}");
 
         let old_access_token = store
             .get_access_token(key.clone())
@@ -216,47 +210,45 @@ pub async fn add_access_token<
                     refresh_token_request_data,
                     refresh_token_response_data,
                 );
-                refresh_connector_auth(
-                    state,
-                    connector,
-                    &refresh_token_router_data,
-                    gateway_context,
-                )
-                .await?
-                .async_map(|access_token| async move {
-                    let store = &*state.store;
+                refresh_connector_auth(state, connector, &refresh_token_router_data)
+                    .await?
+                    .async_map(|access_token| async move {
+                        let store = &*state.store;
 
-                    // The expiry should be adjusted for network delays from the connector
-                    // The access token might not have been expired when request is sent
-                    // But once it reaches the connector, it might expire because of the network delay
-                    // Subtract few seconds from the expiry in order to account for these network delays
-                    // This will reduce the expiry time by `REDUCE_ACCESS_TOKEN_EXPIRY_TIME` seconds
-                    let modified_access_token_with_expiry = types::AccessToken {
-                        expires: access_token
-                            .expires
-                            .saturating_sub(consts::REDUCE_ACCESS_TOKEN_EXPIRY_TIME.into()),
-                        ..access_token
-                    };
+                        // The expiry should be adjusted for network delays from the connector
+                        // The access token might not have been expired when request is sent
+                        // But once it reaches the connector, it might expire because of the network delay
+                        // Subtract few seconds from the expiry in order to account for these network delays
+                        // This will reduce the expiry time by `REDUCE_ACCESS_TOKEN_EXPIRY_TIME` seconds
+                        let modified_access_token_with_expiry = types::AccessToken {
+                            expires: access_token
+                                .expires
+                                .saturating_sub(consts::REDUCE_ACCESS_TOKEN_EXPIRY_TIME.into()),
+                            ..access_token
+                        };
 
-                    logger::debug!(
-                        access_token_expiry_after_modification =
-                            modified_access_token_with_expiry.expires
-                    );
+                        logger::debug!(
+                            access_token_expiry_after_modification =
+                                modified_access_token_with_expiry.expires
+                        );
 
-                    if let Err(access_token_set_error) = store
-                        .set_access_token(key.clone(), modified_access_token_with_expiry.clone())
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("DB error when setting the access token")
-                    {
-                        // If we are not able to set the access token in redis, the error should just be logged and proceed with the payment
-                        // Payments should not fail, once the access token is successfully created
-                        // The next request will create new access token, if required
-                        logger::error!(access_token_set_error=?access_token_set_error);
-                    }
-                    Some(modified_access_token_with_expiry)
-                })
-                .await
+                        if let Err(access_token_set_error) = store
+                            .set_access_token(
+                                key.clone(),
+                                modified_access_token_with_expiry.clone(),
+                            )
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("DB error when setting the access token")
+                        {
+                            // If we are not able to set the access token in redis, the error should just be logged and proceed with the payment
+                            // Payments should not fail, once the access token is successfully created
+                            // The next request will create new access token, if required
+                            logger::error!(access_token_set_error=?access_token_set_error);
+                        }
+                        Some(modified_access_token_with_expiry)
+                    })
+                    .await
             }
         };
 
@@ -280,7 +272,6 @@ pub async fn refresh_connector_auth(
         types::AccessTokenRequestData,
         types::AccessToken,
     >,
-    gateway_context: &gateway_context::RouterGatewayContext,
 ) -> RouterResult<Result<types::AccessToken, types::ErrorResponse>> {
     let connector_integration: services::BoxedAccessTokenConnectorIntegrationInterface<
         api_types::AccessTokenAuth,
@@ -288,14 +279,13 @@ pub async fn refresh_connector_auth(
         types::AccessToken,
     > = connector.connector.get_connector_integration();
 
-    let access_token_router_data_result = gateway::execute_payment_gateway(
+    let access_token_router_data_result = services::execute_connector_processing_step(
         state,
         connector_integration,
         router_data,
         payments::CallConnectorAction::Trigger,
         None,
         None,
-        gateway_context.clone(),
     )
     .await;
 
@@ -307,13 +297,12 @@ pub async fn refresh_connector_auth(
             // further payment flow will not be continued
             if connector_error.current_context().is_connector_timeout() {
                 let error_response = types::ErrorResponse {
-                    code: interfaces_consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),
-                    message: interfaces_consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string(),
-                    reason: Some(interfaces_consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string()),
+                    code: consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),
+                    message: consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string(),
+                    reason: Some(consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string()),
                     status_code: 504,
                     attempt_status: None,
                     connector_transaction_id: None,
-                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -400,13 +389,12 @@ pub async fn execute_authentication_token<
             // Handle timeout errors
             if connector_error.current_context().is_connector_timeout() {
                 let error_response = types::ErrorResponse {
-                    code: interfaces_consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),
-                    message: interfaces_consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string(),
-                    reason: Some(interfaces_consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string()),
+                    code: consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),
+                    message: consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string(),
+                    reason: Some(consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string()),
                     status_code: 504,
                     attempt_status: None,
                     connector_transaction_id: None,
-                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,

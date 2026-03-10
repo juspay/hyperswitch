@@ -116,9 +116,8 @@ impl<'a> SubscriptionHandler<'a> {
             Some(customer_response) => {
                 match customer::update_connector_customer_in_customers(
                     merchant_connector_id.get_string_repr(),
-                    customer.connector_customer.as_ref(),
+                    Some(customer),
                     Some(customer_response.connector_customer_id),
-                    platform.get_initiator(),
                 )
                 .await
                 {
@@ -261,29 +260,6 @@ impl<'a> SubscriptionHandler<'a> {
             merchant_account: self.platform.get_processor().get_account().clone(),
         })
     }
-
-    pub async fn list_subscriptions_by_profile_id(
-        &self,
-        profile_id: &common_utils::id_type::ProfileId,
-        limit: Option<i64>,
-        offset: Option<i64>,
-    ) -> errors::SubscriptionResult<Vec<Subscription>> {
-        let subscriptions = self
-            .state
-            .store
-            .list_by_merchant_id_profile_id(
-                self.platform.get_processor().get_key_store(),
-                self.platform.get_processor().get_account().get_id(),
-                profile_id,
-                limit,
-                offset,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("subscriptions: unable to fetch subscriptions from database")?;
-
-        Ok(subscriptions)
-    }
 }
 pub struct SubscriptionWithHandler<'a> {
     pub handler: &'a SubscriptionHandler<'a>,
@@ -314,21 +290,21 @@ impl SubscriptionWithHandler<'_> {
     }
 
     pub fn to_subscription_response(
-        subscription: &Subscription,
+        &self,
         payment: Option<subscription_types::PaymentResponseData>,
         invoice: Option<&hyperswitch_domain_models::invoice::Invoice>,
     ) -> errors::SubscriptionResult<SubscriptionResponse> {
         Ok(SubscriptionResponse::new(
-            subscription.id.clone(),
-            subscription.merchant_reference_id.clone(),
-            common_enums::SubscriptionStatus::from_str(&subscription.status)
+            self.subscription.id.clone(),
+            self.subscription.merchant_reference_id.clone(),
+            common_enums::SubscriptionStatus::from_str(&self.subscription.status)
                 .unwrap_or(common_enums::SubscriptionStatus::Created),
-            subscription.plan_id.clone(),
-            subscription.item_price_id.clone(),
-            subscription.profile_id.to_owned(),
-            subscription.merchant_id.to_owned(),
-            subscription.client_secret.clone().map(Secret::new),
-            subscription.customer_id.clone(),
+            self.subscription.plan_id.clone(),
+            self.subscription.item_price_id.clone(),
+            self.subscription.profile_id.to_owned(),
+            self.subscription.merchant_id.to_owned(),
+            self.subscription.client_secret.clone().map(Secret::new),
+            self.subscription.customer_id.clone(),
             payment,
             invoice
                 .map(

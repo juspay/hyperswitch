@@ -30,9 +30,6 @@ pub enum QueryType {
         payment_id: common_utils::id_type::PaymentId,
         dispute_id: String,
     },
-    Payout {
-        payout_id: common_utils::id_type::PayoutId,
-    },
 }
 
 #[derive(

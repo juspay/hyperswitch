@@ -48,11 +48,12 @@ use hyperswitch_interfaces::{
         ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
+    consts::NO_ERROR_CODE,
     disputes::DisputePayload,
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, ConnectorCustomerType, CreateOrderType, Response},
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
 use masking::{Mask, PeekInterface};
 use router_env::logger;
@@ -135,38 +136,44 @@ impl ConnectorCommon for Airwallex {
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         logger::debug!(payu_error_response=?res);
+        let (cow, _, _) = encoding_rs::ISO_8859_10.decode(&res.response);
+        let response = cow.as_ref().to_string();
+        if connector_utils::is_html_response(&response) {
+            event_builder.map(|i| i.set_response_body(&response));
+            router_env::logger::info!(connector_response=?response);
+            Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: NO_ERROR_CODE.to_owned(),
+                message: response.clone(),
+                reason: Some(response),
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            let response: airwallex::AirwallexErrorResponse = res
+                .response
+                .parse_struct("Airwallex ErrorResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let status_code = res.status_code;
-        let response: Result<airwallex::AirwallexErrorResponse, _> =
-            res.response.parse_struct("Airwallex ErrorResponse");
+            event_builder.map(|i| i.set_error_response_body(&response));
+            router_env::logger::info!(connector_response=?response);
 
-        match response {
-            Ok(response) => {
-                event_builder.map(|i| i.set_error_response_body(&response));
-                router_env::logger::info!(connector_response=?response);
-                let network_error_message = response
-                    .provider_original_response_code
-                    .clone()
-                    .and_then(airwallex::map_error_code_to_message);
-                Ok(ErrorResponse {
-                    status_code,
-                    code: response.code,
-                    message: response.message,
-                    reason: response.source,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                    connector_response_reference_id: None,
-                    network_advice_code: None,
-                    network_decline_code: response.provider_original_response_code.clone(),
-                    network_error_message,
-                    connector_metadata: None,
-                })
-            }
-            Err(error_msg) => {
-                event_builder.map(|event| event.set_error(serde_json::json!({"error": res.response.escape_ascii().to_string(), "status_code": status_code})));
-                router_env::logger::error!(deserialization_error =? error_msg);
-                connector_utils::handle_json_response_deserialization_failure(res, "tesouro")
-            }
+            Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: response.code,
+                message: response.message,
+                reason: response.source,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
         }
     }
 }
@@ -1167,7 +1174,6 @@ impl IncomingWebhook for Airwallex {
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         let details: airwallex::AirwallexWebhookData = request
             .body
@@ -1191,7 +1197,6 @@ impl IncomingWebhook for Airwallex {
     fn get_dispute_details(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-        _context: Option<&WebhookContext>,
     ) -> CustomResult<DisputePayload, errors::ConnectorError> {
         let details: airwallex::AirwallexWebhookData = request
             .body
