@@ -2117,7 +2117,6 @@ impl
 
 impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, PaymentsResponseData>>
     for payments_grpc::MerchantAuthenticationServiceCreateSdkSessionTokenRequest
-    for payments_grpc::MerchantAuthenticationServiceCreateSdkSessionTokenRequest
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
@@ -2134,7 +2133,6 @@ impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, Paym
             .map(|country| country.into());
 
         Ok(Self {
-            merchant_sdk_session_id: Some(Identifier {
             merchant_sdk_session_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     router_data.connector_request_reference_id.clone(),
@@ -4191,7 +4189,9 @@ impl transformers::ForeignTryFrom<payments_grpc::AuthenticationData>
     }
 }
 
-impl transformers::ForeignTryFrom<payments_grpc::TransactionStatus> for common_enums::TransactionStatus {
+impl transformers::ForeignTryFrom<payments_grpc::TransactionStatus>
+    for common_enums::TransactionStatus
+{
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
     fn foreign_try_from(value: payments_grpc::TransactionStatus) -> Result<Self, Self::Error> {
         match value {
@@ -4207,7 +4207,9 @@ impl transformers::ForeignTryFrom<payments_grpc::TransactionStatus> for common_e
                 Ok(Self::ChallengeRequiredDecoupledAuthentication)
             }
             payments_grpc::TransactionStatus::InformationOnly => Ok(Self::InformationOnly),
-            payments_grpc::TransactionStatus::Unspecified => Err(UnifiedConnectorServiceError::ResponseDeserializationFailed.into()),
+            payments_grpc::TransactionStatus::Unspecified => {
+                Err(UnifiedConnectorServiceError::ResponseDeserializationFailed.into())
+            }
         }
     }
 }

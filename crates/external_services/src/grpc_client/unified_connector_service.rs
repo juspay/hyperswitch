@@ -146,24 +146,91 @@ impl UnifiedConnectorServiceClient {
 
                 let refund_client_result = timeout(
                     Duration::from_secs(unified_connector_service_client_config.connection_timeout),
-                    RefundServiceClient::connect(uri),
+                    RefundServiceClient::connect(uri.clone()),
                 )
                 .await;
 
-                match (payment_client_result, refund_client_result) {
-                    (Ok(Ok(client)), Ok(Ok(refund_client))) => {
+                let event_client_result = timeout(
+                    Duration::from_secs(unified_connector_service_client_config.connection_timeout),
+                    EventServiceClient::connect(uri.clone()),
+                )
+                .await;
+
+                let recurring_payment_client_result = timeout(
+                    Duration::from_secs(unified_connector_service_client_config.connection_timeout),
+                    RecurringPaymentServiceClient::connect(uri.clone()),
+                )
+                .await;
+
+                let dispute_client_result = timeout(
+                    Duration::from_secs(unified_connector_service_client_config.connection_timeout),
+                    DisputeServiceClient::connect(uri.clone()),
+                )
+                .await;
+
+                let payment_method_client_result = timeout(
+                    Duration::from_secs(unified_connector_service_client_config.connection_timeout),
+                    PaymentMethodServiceClient::connect(uri.clone()),
+                )
+                .await;
+
+                let customer_client_result = timeout(
+                    Duration::from_secs(unified_connector_service_client_config.connection_timeout),
+                    CustomerServiceClient::connect(uri.clone()),
+                )
+                .await;
+
+                let merchant_authentication_client_result = timeout(
+                    Duration::from_secs(unified_connector_service_client_config.connection_timeout),
+                    MerchantAuthenticationServiceClient::connect(uri.clone()),
+                )
+                .await;
+
+                let payment_method_authentication_client_result = timeout(
+                    Duration::from_secs(unified_connector_service_client_config.connection_timeout),
+                    PaymentMethodAuthenticationServiceClient::connect(uri),
+                )
+                .await;
+
+                match (
+                    payment_client_result,
+                    refund_client_result,
+                    event_client_result,
+                    recurring_payment_client_result,
+                    dispute_client_result,
+                    payment_method_client_result,
+                    customer_client_result,
+                    merchant_authentication_client_result,
+                    payment_method_authentication_client_result,
+                ) {
+                    (
+                        Ok(Ok(payment_client)),
+                        Ok(Ok(refund_client)),
+                        Ok(Ok(event_client)),
+                        Ok(Ok(recurring_payment_client)),
+                        Ok(Ok(dispute_client)),
+                        Ok(Ok(payment_method_client)),
+                        Ok(Ok(customer_client)),
+                        Ok(Ok(merchant_authentication_client)),
+                        Ok(Ok(payment_method_authentication_client)),
+                    ) => {
                         logger::info!("Successfully connected to Unified Connector Service");
                         Some(Self {
-                            client,
+                            payment_client,
                             refund_client,
+                            event_client,
+                            recurring_payment_client,
+                            dispute_client,
+                            payment_method_client,
+                            customer_client,
+                            merchant_authentication_client,
+                            payment_method_authentication_client,
                         })
                     }
-                    (Ok(Err(err)), _) | (_, Ok(Err(err))) => {
-                        logger::error!(error = ?err, "Failed to connect to Unified Connector Service");
-                        None
-                    }
-                    (Err(err), _) | (_, Err(err)) => {
-                        logger::error!(error = ?err, "Connection to Unified Connector Service timed out");
+                    _ => {
+                        logger::error!(
+                            "Failed to connect to one or more Unified Connector Service clients"
+                        );
                         None
                     }
                 }
@@ -552,8 +619,9 @@ impl UnifiedConnectorServiceClient {
         payment_register_request: payments_grpc::PaymentServiceSetupRecurringRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
-    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::PaymentServiceSetupRecurringResponse>>
-    {
+    ) -> UnifiedConnectorServiceResult<
+        tonic::Response<payments_grpc::PaymentServiceSetupRecurringResponse>,
+    > {
         let mut request = tonic::Request::new(payment_register_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
