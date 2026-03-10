@@ -9960,6 +9960,7 @@ where
         mandate_type,
         business_profile.is_connector_agnostic_mit_enabled,
         business_profile.is_network_tokenization_enabled,
+        dimensions,
     )
     .await
 }
@@ -9974,6 +9975,7 @@ pub async fn plan_payment_execution_after_routing<F: Clone, D>(
     mandate_type: Option<api::MandateTransactionType>,
     is_connector_agnostic_mit_enabled: Option<bool>,
     is_network_tokenization_enabled: bool,
+    dimensions: &dimension_state::DimensionsWithMerchantIdAndProfileId,
 ) -> RouterResult<ConnectorCallType>
 where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -10096,7 +10098,8 @@ where
             }
         }
         _ => {
-            helpers::override_setup_future_usage_to_on_session(&*state.store, payment_data).await?;
+            helpers::override_setup_future_usage_to_on_session(&state, dimensions, payment_data)
+                .await?;
 
             let first_choice = connectors
                 .first()

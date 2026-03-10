@@ -370,6 +370,12 @@ pub mod superposition {
     pub const ENABLE_EXTENDED_CARD_BIN: &str = "enable_extended_card_bin";
     /// Authentication service merchant eligibility configuration key
     pub const AUTHENTICATION_SERVICE_ELIGIBLE: &str = "authentication_service_eligible";
+    /// Skip saving wallet at connector for a given merchant and payment method type
+    pub const SKIP_SAVING_WALLET_AT_CONNECTOR_MERCHANT: &str =
+        "skip_saving_wallet_at_connector_merchant";
+    /// Allow payment update via client auth for a given merchant
+    pub const PAYMENT_UPDATE_ENABLED_FOR_CLIENT_AUTH: &str =
+        "payment_update_enabled_for_client_auth";
 }
 
 #[cfg(test)]

@@ -3,7 +3,8 @@ use external_services::superposition;
 use super::{
     dimension_state::{
         DimensionsWithMerchantId, DimensionsWithMerchantIdAndProfileId,
-        DimensionsWithMerchantIdAndProfileIdAndConnector, DimensionsWithOrgIdAndMerchantId,
+        DimensionsWithMerchantIdAndProfileIdAndConnector,
+        DimensionsWithMerchantIdAndProfileIdAndPaymentMethodType, DimensionsWithOrgIdAndMerchantId,
     },
     fetch_db_config_for_dimensions, DatabaseBackedConfig,
 };
@@ -289,5 +290,41 @@ impl DatabaseBackedConfig for AuthenticationServiceEligible {
 
     fn db_key(_dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
         None
+    }
+}
+
+config! {
+    superposition_key = SKIP_SAVING_WALLET_AT_CONNECTOR_MERCHANT,
+    output = bool,
+    default = false,
+    requires = DimensionsWithMerchantIdAndProfileIdAndPaymentMethodType,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for SkipSavingWalletAtConnectorMerchant {
+    const KEY: &'static str = "skip_saving_wallet_at_connector_merchant";
+
+    fn db_key(_dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+        None
+    }
+}
+
+config! {
+    superposition_key = PAYMENT_UPDATE_ENABLED_FOR_CLIENT_AUTH,
+    output = bool,
+    default = false,
+    requires = DimensionsWithMerchantId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for PaymentUpdateEnabledForClientAuth {
+    const KEY: &'static str = "payment_update_enabled_for_client_auth";
+
+    fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+        let merchant_id = dimensions
+            .get_merchant_id()
+            .map(|id| id.get_string_repr())
+            .unwrap_or_default();
+        Some(format!("{}_{}", Self::KEY, merchant_id))
     }
 }
