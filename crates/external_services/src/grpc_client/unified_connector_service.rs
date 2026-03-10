@@ -654,8 +654,9 @@ impl UnifiedConnectorServiceClient {
         payment_register_request: payments_grpc::PaymentServiceSetupRecurringRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
-    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::PaymentServiceSetupRecurringResponse>>
-    {
+    ) -> UnifiedConnectorServiceResult<
+        tonic::Response<payments_grpc::PaymentServiceSetupRecurringResponse>,
+    > {
         let mut request = tonic::Request::new(payment_register_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
