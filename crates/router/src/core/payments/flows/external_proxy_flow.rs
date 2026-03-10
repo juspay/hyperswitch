@@ -312,8 +312,10 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
 
             let create_order_resp = match resp.response {
                 Ok(res) => {
-                    if let types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id } =
-                        res
+                    if let types::PaymentsResponseData::PaymentsCreateOrderResponse {
+                        order_id,
+                        ..
+                    } = res
                     {
                         Ok(order_id)
                     } else {

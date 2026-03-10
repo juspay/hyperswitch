@@ -804,10 +804,9 @@ pub async fn fetch_disputes_from_connector(
     req: FetchDisputesRequestData,
 ) -> RouterResponse<FetchDisputesResponse> {
     let db = &*state.store;
-    let merchant_id = platform.get_processor().get_account().get_id();
     let merchant_connector_account = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            merchant_id,
+            platform.get_processor().get_account().get_id(),
             &merchant_connector_id,
             platform.get_processor().get_key_store(),
         )
@@ -859,7 +858,7 @@ pub async fn fetch_disputes_from_connector(
         let payment_attempt = webhooks::incoming::get_payment_attempt_from_object_reference_id(
             &state,
             dispute.object_reference_id.clone(),
-            &platform,
+            platform.get_processor(),
         )
         .await;
 
@@ -867,7 +866,7 @@ pub async fn fetch_disputes_from_connector(
             let schedule_time = process_dispute::get_sync_process_schedule_time(
                 &*state.store,
                 &connector_name,
-                merchant_id,
+                platform.get_processor().get_account().get_id(),
                 0,
             )
             .await
@@ -878,7 +877,7 @@ pub async fn fetch_disputes_from_connector(
                 db,
                 &connector_name,
                 dispute,
-                merchant_id.clone(),
+                platform.get_processor().get_account().get_id().clone(),
                 schedule_time,
                 state.conf.application_source,
             )

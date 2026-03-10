@@ -1506,7 +1506,7 @@ pub async fn construct_dispute_sync_router_data<'a>(
 #[cfg(feature = "v2")]
 pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
     state: &SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     payment_data: &mut PaymentData<F>,
     merchant_connector_account: &MerchantConnectorAccount,
 ) -> RouterResult<types::PaymentsTaxCalculationRouterData> {
@@ -1516,7 +1516,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
 #[cfg(feature = "v1")]
 pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
     state: &SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     payment_data: &mut PaymentData<F>,
     merchant_connector_account: &MerchantConnectorAccount,
 ) -> RouterResult<types::PaymentsTaxCalculationRouterData> {
@@ -1564,7 +1564,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
 
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: platform.get_processor().get_account().get_id().to_owned(),
+        merchant_id: processor.get_account().get_id().to_owned(),
         customer_id: None,
         connector_customer: None,
         connector: merchant_connector_account.connector_name.clone(),
@@ -1599,7 +1599,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
         response: Err(ErrorResponse::default()),
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
-            platform.get_processor(),
+            processor,
             payment_intent,
             payment_attempt,
             &merchant_connector_account.connector_name,

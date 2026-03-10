@@ -592,6 +592,7 @@ pub trait ConnectorActions: Connector {
             Ok(types::PaymentsResponseData::PostProcessingResponse { .. }) => None,
             Ok(types::PaymentsResponseData::PaymentResourceUpdateResponse { .. }) => None,
             Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { .. }) => None,
+            Ok(types::PaymentsResponseData::PostCaptureVoidResponse { .. }) => None,
             Err(_) => None,
         }
     }
@@ -1023,6 +1024,7 @@ impl Default for PaymentAuthorizeType {
             partner_merchant_identifier_details: None,
             rrn: None,
             feature_metadata: None,
+            installment_details: None,
         };
         Self(data)
     }
@@ -1185,6 +1187,7 @@ pub fn get_connector_transaction_id(
         Ok(types::PaymentsResponseData::PostProcessingResponse { .. }) => None,
         Ok(types::PaymentsResponseData::PaymentResourceUpdateResponse { .. }) => None,
         Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { .. }) => None,
+        Ok(types::PaymentsResponseData::PostCaptureVoidResponse { .. }) => None,
         Err(_) => None,
     }
 }
