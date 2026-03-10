@@ -209,11 +209,11 @@ impl UnifiedConnectorServiceClient {
     /// Performs SDK Session Token Create
     pub async fn sdk_session_token(
         &self,
-        sdk_session_token_request: payments_grpc::PaymentServiceSdkSessionTokenRequest,
+        sdk_session_token_request: payments_grpc::MerchantAuthenticationServiceCreateSdkSessionTokenRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
     ) -> UnifiedConnectorServiceResult<
-        tonic::Response<payments_grpc::PaymentServiceSdkSessionTokenResponse>,
+        tonic::Response<payments_grpc::MerchantAuthenticationServiceCreateSdkSessionTokenResponse>,
     > {
         let mut request = tonic::Request::new(sdk_session_token_request);
 
@@ -222,9 +222,9 @@ impl UnifiedConnectorServiceClient {
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
         *request.metadata_mut() = metadata;
 
-        self.client
+        self.merchant_authentication_client
             .clone()
-            .sdk_session_token(request)
+            .create_sdk_session_token(request)
             .await
             .change_context(UnifiedConnectorServiceError::SdkSessionTokenFailure)
             .inspect_err(|error| {
@@ -425,11 +425,11 @@ impl UnifiedConnectorServiceClient {
     /// Performs Payment Session token create
     pub async fn payment_session_token_create(
         &self,
-        payment_create_session_token_request: payments_grpc::PaymentServiceCreateSessionTokenRequest,
+        payment_create_session_token_request: payments_grpc::MerchantAuthenticationServiceCreateSessionTokenRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
     ) -> UnifiedConnectorServiceResult<
-        tonic::Response<payments_grpc::PaymentServiceCreateSessionTokenResponse>,
+        tonic::Response<payments_grpc::MerchantAuthenticationServiceCreateSessionTokenResponse>,
     > {
         let mut request = tonic::Request::new(payment_create_session_token_request);
 
@@ -438,7 +438,7 @@ impl UnifiedConnectorServiceClient {
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
         *request.metadata_mut() = metadata;
 
-        self.client
+        self.merchant_authentication_client
             .clone()
             .create_session_token(request)
             .await

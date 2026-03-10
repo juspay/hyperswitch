@@ -828,7 +828,7 @@ impl
             router_request_types::AuthorizeSessionTokenData,
             PaymentsResponseData,
         >,
-    > for payments_grpc::PaymentServiceCreateSessionTokenRequest
+    > for payments_grpc::MerchantAuthenticationServiceCreateSessionTokenRequest
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
     fn foreign_try_from(
@@ -840,34 +840,20 @@ impl
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
-        let merchant_account_metadata = router_data
-            .connector_meta_data
-            .as_ref()
-            .map(serde_json::to_string)
-            .transpose()
-            .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
-            .map(|s| s.into());
-
         Ok(Self {
-            request_ref_id: Some(Identifier {
+            merchant_session_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     router_data.connector_request_reference_id.clone(),
                 )),
             }),
-            amount: router_data
-                .request
-                .amount
-                .ok_or(report!(UnifiedConnectorServiceError::RequestEncodingFailed))?,
-            currency: currency.into(),
-            minor_amount: router_data
-                .request
-                .amount
-                .ok_or(report!(UnifiedConnectorServiceError::RequestEncodingFailed))?,
+            amount: Some(payments_grpc::Money {
+                minor_amount: router_data.request.amount.get_amount_as_i64(),
+                currency: currency.into(),
+            }),
             metadata: None,
             state: None,
             browser_info: None,
-            connector_metadata: None,
-            merchant_account_metadata,
+            connector_feature_data: None,
             test_mode: router_data.test_mode,
         })
     }
@@ -2130,7 +2116,7 @@ impl
 }
 
 impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, PaymentsResponseData>>
-    for payments_grpc::PaymentServiceSdkSessionTokenRequest
+    for payments_grpc::MerchantAuthenticationServiceCreateSdkSessionTokenRequest
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
@@ -2146,33 +2132,35 @@ impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, Paym
             .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
             .map(|country| country.into());
 
-        let merchant_account_metadata = serde_json::to_string(&router_data.connector_meta_data)
-            .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?;
-
         Ok(Self {
-            request_ref_id: Some(Identifier {
+            merchant_sdk_session_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     router_data.connector_request_reference_id.clone(),
                 )),
             }),
-            amount: router_data.request.amount,
-            currency: currency.into(),
-            minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
-            email: router_data
-                .request
-                .email
-                .clone()
-                .map(|e| e.expose().expose().into()),
-            merchant_account_metadata: Some(merchant_account_metadata.into()),
+            amount: Some(payments_grpc::Money {
+                minor_amount: router_data.request.amount.get_amount_as_i64(),
+                currency: currency.into(),
+            }),
             order_tax_amount: router_data
                 .request
                 .order_tax_amount
                 .map(|order_tax_amount| order_tax_amount.get_amount_as_i64()),
-            customer_name: router_data
-                .request
-                .customer_name
-                .clone()
-                .map(|customer_name| customer_name.expose().into()),
+            customer: Some(payments_grpc::Customer {
+                name: router_data
+                    .request
+                    .customer_name
+                    .clone()
+                    .map(|customer_name| customer_name.peek().to_owned()),
+                email: router_data
+                    .request
+                    .email
+                    .clone()
+                    .map(|e| e.expose().expose().into()),
+                id: None,
+                connector_customer_id: router_data.connector_customer.clone(),
+                phone_number: None,
+            }),
             shipping_cost: router_data
                 .request
                 .shipping_cost
@@ -2184,7 +2172,7 @@ impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, Paym
                 .transpose()?
                 .map(|payment_method_type| payment_method_type.into()),
             metadata: None,
-            connector_metadata: None,
+            connector_feature_data: None,
         })
     }
 }
@@ -4606,13 +4594,15 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceIncrementalAuthor
     }
 }
 
-impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceSdkSessionTokenResponse>
-    for Result<PaymentsResponseData, ErrorResponse>
+impl
+    transformers::ForeignTryFrom<
+        payments_grpc::MerchantAuthenticationServiceCreateSdkSessionTokenResponse,
+    > for Result<PaymentsResponseData, ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        response: payments_grpc::PaymentServiceSdkSessionTokenResponse,
+        response: payments_grpc::MerchantAuthenticationServiceCreateSdkSessionTokenResponse,
     ) -> Result<Self, Self::Error> {
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
@@ -5396,13 +5386,15 @@ impl transformers::ForeignTryFrom<&common_enums::PaymentChannel> for payments_gr
     }
 }
 
-impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateSessionTokenResponse>
-    for Result<PaymentsResponseData, ErrorResponse>
+impl
+    transformers::ForeignTryFrom<
+        payments_grpc::MerchantAuthenticationServiceCreateSessionTokenResponse,
+    > for Result<PaymentsResponseData, ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        response: payments_grpc::PaymentServiceCreateSessionTokenResponse,
+        response: payments_grpc::MerchantAuthenticationServiceCreateSessionTokenResponse,
     ) -> Result<Self, Self::Error> {
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
