@@ -237,7 +237,7 @@ where
 /// Used when Config Output is serde_json::Value but caller wants a specific type.
 pub async fn fetch_db_config_object<C, T>(
     storage: &dyn db::StorageInterface,
-    superposition_client: Option<&superposition::SuperpositionClient>,
+    superposition_client: &superposition::SuperpositionClient,
     db_key: Option<&str>,
     context: Option<ConfigContext>,
     targeting_key: Option<&C::TargetingKey>,
@@ -274,7 +274,7 @@ where
 /// Fetch dimension-aware object-type config with JSON deserialization.
 pub async fn fetch_db_config_for_objects<C, T>(
     storage: &dyn db::StorageInterface,
-    superposition_client: Option<&superposition::SuperpositionClient>,
+    superposition_client: &superposition::SuperpositionClient,
     dimensions: &impl dimension_state::DimensionsBase,
     targeting_key: Option<&C::TargetingKey>,
 ) -> T
