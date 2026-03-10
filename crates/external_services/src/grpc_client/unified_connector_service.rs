@@ -271,7 +271,7 @@ impl UnifiedConnectorServiceClient {
     /// Performs Payment Granular Authorize
     pub async fn payment_authorize_granular(
         &self,
-        payment_authorize_only_request: payments_grpc::PaymentServiceAuthorizeOnlyRequest,
+        payment_authorize_only_request: payments_grpc::PaymentServiceAuthorizeRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
     ) -> UnifiedConnectorServiceResult<tonic::Response<PaymentServiceAuthorizeResponse>> {
@@ -284,13 +284,13 @@ impl UnifiedConnectorServiceClient {
 
         self.client
             .clone()
-            .authorize_only(request)
+            .authorize(request)
             .await
             .change_context(UnifiedConnectorServiceError::PaymentAuthorizeGranularFailure)
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
-                    method="authorize_only",
+                    method="authorize",
                     connector_name=?connector_name,
                     "UCS authorize_only gRPC call failed"
                 )

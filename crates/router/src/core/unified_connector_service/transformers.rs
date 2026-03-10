@@ -14,6 +14,7 @@ use common_utils::{
     ext_traits::Encode,
     types::{self, AmountConvertor, MinorUnit, StringMajorUnitForConnector},
 };
+use diesel::expression::is_aggregate::No;
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceError;
@@ -187,7 +188,7 @@ impl
     transformers::ForeignTryFrom<(
         &RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
         common_enums::CallConnectorAction,
-    )> for payments_grpc::PaymentServiceAuthorizeOnlyRequest
+    )> for payments_grpc::PaymentServiceAuthorizeRequest
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
@@ -229,13 +230,6 @@ impl
             .clone()
             .map(payments_grpc::AuthenticationData::foreign_try_from)
             .transpose()?;
-        let merchant_account_metadata = router_data
-            .connector_meta_data
-            .as_ref()
-            .map(serde_json::to_string)
-            .transpose()
-            .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
-            .map(|s| s.into());
         let metadata = router_data
             .request
             .metadata
@@ -263,9 +257,10 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
-            connector_order_reference_id: router_data.request.order_id.clone(),
-            amount: router_data.request.amount,
-            currency: currency.into(),
+            amount: Some(payments_grpc::Money {
+                minor_amount: router_data.request.amount.get_amount_as_i64(),
+                currency: currency.into(),
+            }),
             payment_method: Some(payment_method),
             return_url: router_data.request.router_return_url.clone(),
             address: Some(address),
@@ -274,24 +269,31 @@ impl
             request_incremental_authorization: Some(
                 router_data.request.request_incremental_authorization,
             ),
-            minor_amount: router_data.request.amount,
-            email: router_data
-                .request
-                .email
-                .clone()
-                .map(|e| e.expose().expose().into()),
+            customer: Some(payments_grpc::Customer {
+                name: router_data
+                    .request
+                    .customer_name
+                    .clone()
+                    .map(|customer_name| customer_name.peek().to_owned()),
+                email: router_data
+                    .request
+                    .email
+                    .clone()
+                    .map(|e| e.expose().expose().into()),
+                id: router_data
+                    .request
+                    .customer_id
+                    .as_ref()
+                    .map(|id| id.get_string_repr().to_string()),
+                connector_customer_id: router_data.connector_customer.clone(),
+                phone_number: None,
+            }),
             browser_info,
-
             session_token: router_data.session_token.clone(),
             order_tax_amount: router_data
                 .request
                 .order_tax_amount
                 .map(|order_tax_amount| order_tax_amount.get_amount_as_i64()),
-            customer_name: router_data
-                .request
-                .customer_name
-                .clone()
-                .map(|customer_name| customer_name.peek().to_owned()),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: router_data.request.webhook_url.clone(),
             complete_authorize_url: router_data.request.complete_authorize_url.clone(),
@@ -305,31 +307,18 @@ impl
                 .request
                 .request_extended_authorization
                 .map(|request_extended_authorization| request_extended_authorization.is_true()),
-            merchant_order_reference_id: router_data.request.merchant_order_reference_id.clone(),
+            merchant_order_id: router_data.request.merchant_order_reference_id.clone(),
             shipping_cost: router_data
                 .request
                 .shipping_cost
                 .map(|shipping_cost| shipping_cost.get_amount_as_i64()),
-            request_ref_id: Some(Identifier {
+            merchant_transaction_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     router_data.connector_request_reference_id.clone(),
                 )),
             }),
-            customer_id: router_data
-                .request
-                .guest_customer
-                .as_ref()
-                .map(|guest| guest.customer_id.clone())
-                .or_else(|| {
-                    router_data
-                        .request
-                        .customer_id
-                        .as_ref()
-                        .map(|id| id.get_string_repr().to_string())
-                }),
             metadata,
             test_mode: router_data.test_mode,
-            connector_customer_id: router_data.connector_customer.clone(),
             state,
             payment_method_token: router_data
                 .payment_method_token
@@ -338,7 +327,6 @@ impl
                 .map(|payment_method_token| {
                     unified_connector_service_masking::Secret::new(payment_method_token.expose())
                 }),
-            merchant_account_metadata,
             description: router_data.description.clone(),
             setup_mandate_details: router_data
                 .request
@@ -373,7 +361,7 @@ impl
                 .map(payments_grpc::PaymentChannel::foreign_try_from)
                 .transpose()?
                 .map(|payment_channel| payment_channel.into()),
-            connector_metadata: None,
+            connector_feature_data: None,
             locale: router_data.request.locale.clone(),
             continue_redirection_url: router_data.request.complete_authorize_url.clone(),
             redirection_response: None,
@@ -395,7 +383,7 @@ impl
             PaymentsResponseData,
         >,
         common_enums::CallConnectorAction,
-    )> for payments_grpc::PaymentServiceAuthorizeOnlyRequest
+    )> for payments_grpc::PaymentServiceAuthorizeRequest
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
@@ -502,9 +490,10 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
-            connector_order_reference_id: None,
-            amount: router_data.request.amount,
-            currency: currency.into(),
+            amount: Some(payments_grpc::Money {
+                minor_amount: router_data.request.amount.get_amount_as_i64(),
+                currency: currency.into(),
+            }),
             payment_method,
             return_url: router_data.request.router_return_url.clone(),
             address: Some(address),
@@ -513,16 +502,20 @@ impl
             request_incremental_authorization: Some(
                 router_data.request.request_incremental_authorization,
             ),
-            minor_amount: router_data.request.amount,
-            email: router_data
-                .request
-                .email
-                .clone()
-                .map(|e| e.expose().expose().into()),
+            customer: Some(payments_grpc::Customer {
+                name: None,
+                email: router_data
+                    .request
+                    .email
+                    .clone()
+                    .map(|e| e.expose().expose().into()),
+                id: None,
+                connector_customer_id: router_data.connector_customer.clone(),
+                phone_number: None,
+            }),
             browser_info,
             session_token: router_data.session_token.clone(),
             order_tax_amount: None,
-            customer_name: None,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: None,
             complete_authorize_url: router_data.request.complete_authorize_url.clone(),
@@ -533,17 +526,15 @@ impl
             payment_experience: None,
             authentication_data,
             request_extended_authorization: None,
-            merchant_order_reference_id: None,
+            merchant_order_id: None,
             shipping_cost: None,
-            request_ref_id: Some(Identifier {
+            merchant_transaction_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     router_data.connector_request_reference_id.clone(),
                 )),
             }),
-            customer_id: None,
             metadata,
             test_mode: router_data.test_mode,
-            connector_customer_id: router_data.connector_customer.clone(),
             state,
             payment_method_token: router_data
                 .payment_method_token
@@ -552,7 +543,6 @@ impl
                 .map(|payment_method_token| {
                     unified_connector_service_masking::Secret::new(payment_method_token.expose())
                 }),
-            merchant_account_metadata,
             description: router_data.description.clone(),
             setup_mandate_details: router_data
                 .request
@@ -563,7 +553,7 @@ impl
             statement_descriptor_name: None,
             statement_descriptor_suffix: None,
             order_details: vec![],
-            connector_metadata: None,
+            connector_feature_data: None,
             enable_partial_authorization: None,
             payment_channel: None,
             billing_descriptor: None,
@@ -1306,8 +1296,10 @@ impl
             .transpose()?;
 
         Ok(Self {
-            amount: router_data.request.amount,
-            currency: currency.into(),
+            amount: Some(payments_grpc::Money {
+                minor_amount: router_data.request.amount.get_amount_as_i64(),
+                currency: currency.into(),
+            }),
             billing_descriptor: None,
             payment_method,
             return_url: router_data.request.complete_authorize_url.clone(),
@@ -1315,17 +1307,21 @@ impl
             auth_type: auth_type.into(),
             enrolled_for_3ds: Some(false),
             request_incremental_authorization: Some(false),
-            minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
-            email: router_data
-                .request
-                .email
-                .clone()
-                .map(|e| e.expose().expose().into()),
+            customer: Some(payments_grpc::Customer {
+                name: None,
+                email: router_data
+                    .request
+                    .email
+                    .clone()
+                    .map(|e| e.expose().expose().into()),
+                id: None,
+                connector_customer_id: router_data.connector_customer.clone(),
+                phone_number: None,
+            }),
             browser_info,
             locale: None,
             session_token: None,
             order_tax_amount: None,
-            customer_name: None,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: None, // CompleteAuthorize doesn't have webhook_url
             complete_authorize_url: router_data.request.complete_authorize_url.clone(),
@@ -1348,16 +1344,13 @@ impl
             request_extended_authorization: None,
             merchant_order_id: router_data.request.merchant_order_reference_id.clone(),
             shipping_cost: None,
-            request_ref_id: Some(Identifier {
+            merchant_transaction_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     router_data.connector_request_reference_id.clone(),
                 )),
             }),
-            customer_id: None,
             metadata,
             test_mode: router_data.test_mode,
-            connector_customer_id: router_data.connector_customer.clone(),
-            merchant_account_metadata,
             state: None,
             description: None,
             setup_mandate_details: None,
@@ -1365,7 +1358,6 @@ impl
             statement_descriptor_suffix: None,
             order_details: vec![],
             connector_feature_data: None,
-            connector_order_reference_id: Some(router_data.connector_request_reference_id.clone()),
             enable_partial_authorization: None,
             payment_channel: None,
             tokenization_strategy: router_data
@@ -1373,6 +1365,10 @@ impl
                 .tokenization
                 .map(payments_grpc::Tokenization::foreign_from)
                 .map(Into::into),
+            threeds_completion_indicator: None,
+            redirection_response: None,
+            continue_redirection_url: None,
+            payment_method_token: None,
         })
     }
 }
@@ -1453,8 +1449,10 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
-            amount: router_data.request.amount,
-            currency: currency.into(),
+            amount: Some(payments_grpc::Money {
+                minor_amount: router_data.request.amount.get_amount_as_i64(),
+                currency: currency.into(),
+            }),
             payment_method: Some(payment_method),
             return_url: router_data.request.router_return_url.clone(),
             address: Some(address),
@@ -1463,23 +1461,42 @@ impl
             request_incremental_authorization: Some(
                 router_data.request.request_incremental_authorization,
             ),
-            minor_amount: router_data.request.amount,
-            email: router_data
-                .request
-                .email
-                .clone()
-                .map(|e| e.expose().expose().into()),
+            customer: Some(payments_grpc::Customer {
+                name: None,
+                email: router_data
+                    .request
+                    .email
+                    .clone()
+                    .map(|e| e.expose().expose().into()),
+                id: None,
+                connector_customer_id: router_data.connector_customer.clone(),
+                phone_number: None,
+            }),
             browser_info,
             session_token: None,
             order_tax_amount: router_data
                 .request
                 .order_tax_amount
                 .map(|order_tax_amount| order_tax_amount.get_amount_as_i64()),
-            customer_name: router_data
-                .request
-                .customer_name
-                .clone()
-                .map(|customer_name| customer_name.peek().to_owned()),
+            customer: Some(payments_grpc::Customer {
+                name: router_data
+                    .request
+                    .customer_name
+                    .clone()
+                    .map(|customer_name| customer_name.peek().to_owned()),
+                email: router_data
+                    .request
+                    .email
+                    .clone()
+                    .map(|e| e.expose().expose().into()),
+                id: router_data
+                    .request
+                    .customer_id
+                    .as_ref()
+                    .map(|id| id.get_string_repr().to_string()),
+                connector_customer_id: router_data.connector_customer.clone(),
+                phone_number: None,
+            }),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: router_data.request.webhook_url.clone(),
             complete_authorize_url: router_data.request.complete_authorize_url.clone(),
@@ -1493,33 +1510,19 @@ impl
                 .request
                 .request_extended_authorization
                 .map(|request_extended_authorization| request_extended_authorization.is_true()),
-            merchant_order_reference_id: router_data.request.merchant_order_reference_id.clone(),
+            merchant_order_id: router_data.request.merchant_order_reference_id.clone(),
             shipping_cost: router_data
                 .request
                 .shipping_cost
                 .map(|shipping_cost| shipping_cost.get_amount_as_i64()),
-            request_ref_id: Some(Identifier {
+            merchant_transaction_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     router_data.connector_request_reference_id.clone(),
                 )),
             }),
-            customer_id: router_data
-                .request
-                .guest_customer
-                .as_ref()
-                .map(|guest| guest.customer_id.clone())
-                .or_else(|| {
-                    router_data
-                        .request
-                        .customer_id
-                        .as_ref()
-                        .map(|id| id.get_string_repr().to_string())
-                }),
             metadata,
             test_mode: router_data.test_mode,
-            connector_customer_id: router_data.connector_customer.clone(),
             state,
-            merchant_account_metadata,
             description: router_data.description.clone(),
             setup_mandate_details: router_data
                 .request
@@ -1538,8 +1541,7 @@ impl
                 .as_ref()
                 .and_then(|descriptor| descriptor.statement_descriptor_suffix.clone()),
             order_details: vec![],
-            connector_metadata: None,
-            connector_order_reference_id: router_data.request.order_id.clone(),
+            connector_feature_data: None,
             enable_partial_authorization: router_data
                 .request
                 .enable_partial_authorization
@@ -1562,6 +1564,10 @@ impl
                 .tokenization
                 .map(payments_grpc::Tokenization::foreign_from)
                 .map(Into::into),
+            threeds_completion_indicator: None,
+            redirection_response: None,
+            continue_redirection_url: None,
+            payment_method_token: None,
         })
     }
 }
@@ -1627,8 +1633,10 @@ impl
             .transpose()?;
 
         Ok(Self {
-            amount: router_data.request.amount,
-            currency: currency.into(),
+            amount: Some(payments_grpc::Money {
+                minor_amount: router_data.request.amount.get_amount_as_i64(),
+                currency: currency.into(),
+            }),
             billing_descriptor: None,
             payment_method,
             return_url: router_data.request.router_return_url.clone(),
@@ -1638,12 +1646,25 @@ impl
             request_incremental_authorization: Some(
                 router_data.request.request_incremental_authorization,
             ),
-            minor_amount: router_data.request.amount,
-            email: router_data
-                .request
-                .email
-                .clone()
-                .map(|e| e.expose().expose().into()),
+            customer: Some(payments_grpc::Customer {
+                name: router_data
+                    .request
+                    .customer_name
+                    .clone()
+                    .map(|customer_name| customer_name.peek().to_owned()),
+                email: router_data
+                    .request
+                    .email
+                    .clone()
+                    .map(|e| e.expose().expose().into()),
+                id: router_data
+                    .request
+                    .customer_id
+                    .as_ref()
+                    .map(|id| id.get_string_repr().to_string()),
+                connector_customer_id: router_data.connector_customer.clone(),
+                phone_number: None,
+            }),
             browser_info,
             locale: None,
             session_token: None,
@@ -1651,11 +1672,6 @@ impl
                 .request
                 .order_tax_amount
                 .map(|order_tax_amount| order_tax_amount.get_amount_as_i64()),
-            customer_name: router_data
-                .request
-                .customer_name
-                .clone()
-                .map(|customer_name| customer_name.peek().to_owned()),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: router_data.request.webhook_url.clone(),
             complete_authorize_url: router_data.request.complete_authorize_url.clone(),
@@ -1669,7 +1685,7 @@ impl
                 .request
                 .request_extended_authorization
                 .map(|request_extended_authorization| request_extended_authorization.is_true()),
-            merchant_order_reference_id: router_data
+            merchant_order_id: router_data
                 .request
                 .merchant_order_reference_id
                 .as_ref()
@@ -1680,16 +1696,11 @@ impl
                 .request
                 .shipping_cost
                 .map(|shipping_cost| shipping_cost.get_amount_as_i64()),
-            request_ref_id: Some(Identifier {
+            merchant_transaction_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     router_data.connector_request_reference_id.clone(),
                 )),
             }),
-            customer_id: router_data
-                .request
-                .customer_id
-                .as_ref()
-                .map(|id| id.get_string_repr().to_string()),
             metadata: router_data
                 .request
                 .metadata
@@ -1698,15 +1709,7 @@ impl
                 .transpose()
                 .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
                 .map(|s| s.into()),
-            merchant_account_metadata: router_data
-                .connector_meta_data
-                .as_ref()
-                .map(serde_json::to_string)
-                .transpose()
-                .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
-                .map(|s| s.into()),
             test_mode: router_data.test_mode,
-            connector_customer_id: router_data.connector_customer.clone(),
             state: None,
             description: router_data.description.clone(),
             setup_mandate_details: router_data
@@ -1718,11 +1721,14 @@ impl
             statement_descriptor_name: router_data.request.statement_descriptor.clone(),
             statement_descriptor_suffix: router_data.request.statement_descriptor_suffix.clone(),
             order_details: vec![],
-            connector_metadata: None,
-            connector_order_reference_id: router_data.request.order_id.clone(),
+            connector_feature_data: None,
             enable_partial_authorization: None,
             payment_channel: None,
             tokenization_strategy: None,
+            threeds_completion_indicator: None,
+            redirection_response: None,
+            continue_redirection_url: None,
+            payment_method_token: None,
         })
     }
 }
