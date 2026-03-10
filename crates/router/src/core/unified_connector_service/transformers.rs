@@ -648,7 +648,7 @@ impl
             PaymentsResponseData,
         >,
         common_enums::CallConnectorAction,
-    )> for payments_grpc::PaymentServiceCreateConnectorCustomerRequest
+    )> for payments_grpc::CustomerServiceCreateRequest
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
@@ -662,22 +662,14 @@ impl
             common_enums::CallConnectorAction,
         ),
     ) -> Result<Self, Self::Error> {
-        let request_ref_id = router_data.connector_request_reference_id.clone();
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
-        let merchant_account_metadata = router_data
-            .connector_meta_data
-            .as_ref()
-            .map(serde_json::to_string)
-            .transpose()
-            .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
-            .map(|s| s.into());
-
         Ok(Self {
-            request_ref_id: Some(Identifier {
-                id_type: Some(payments_grpc::identifier::IdType::Id(request_ref_id)),
+            merchant_customer_id: Some(Identifier {
+                id_type: router_data.customer_id.map(|id| {
+                    payments_grpc::identifier::IdType::Id(id.get_string_repr().to_string())
+                }),
             }),
-            merchant_account_metadata,
             customer_name: router_data
                 .request
                 .name
@@ -688,10 +680,6 @@ impl
                 .email
                 .clone()
                 .map(|e| e.expose().expose().into()),
-            customer_id: router_data
-                .customer_id
-                .clone()
-                .map(|id| id.get_string_repr().to_string()),
             phone_number: router_data
                 .request
                 .phone
@@ -699,7 +687,7 @@ impl
                 .map(|phone| phone.peek().to_string()),
             address: Some(address),
             metadata: None,
-            connector_metadata: None,
+            connector_feature_data: None,
             test_mode: router_data.test_mode,
         })
     }
@@ -2930,13 +2918,15 @@ impl
     }
 }
 
-impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateAccessTokenResponse>
-    for Result<AccessToken, ErrorResponse>
+impl
+    transformers::ForeignTryFrom<
+        payments_grpc::MerchantAuthenticationServiceCreateAccessTokenResponse,
+    > for Result<AccessToken, ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        response: payments_grpc::PaymentServiceCreateAccessTokenResponse,
+        response: payments_grpc::MerchantAuthenticationServiceCreateAccessTokenResponse,
     ) -> Result<Self, Self::Error> {
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
@@ -4427,19 +4417,13 @@ impl ForeignFrom<common_enums::PaymentMethodType> for payments_grpc::PaymentMeth
     }
 }
 
-impl
-    transformers::ForeignTryFrom<(
-        payments_grpc::PaymentServiceCreateOrderResponse,
-        AttemptStatus,
-    )> for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+impl transformers::ForeignTryFrom<(payments_grpc::CustomerServiceCreateResponse, AttemptStatus)>
+    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        (response, prev_status): (
-            payments_grpc::PaymentServiceCreateOrderResponse,
-            AttemptStatus,
-        ),
+        (response, prev_status): (payments_grpc::CustomerServiceCreateResponse, AttemptStatus),
     ) -> Result<Self, Self::Error> {
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
@@ -5998,7 +5982,7 @@ impl
             AccessToken,
         >,
         common_enums::CallConnectorAction,
-    )> for payments_grpc::PaymentServiceCreateAccessTokenRequest
+    )> for payments_grpc::MerchantAuthenticationServiceCreateAccessTokenRequest
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
@@ -6014,23 +5998,14 @@ impl
     ) -> Result<Self, Self::Error> {
         let request_ref_id = router_data.connector_request_reference_id.clone();
 
-        let merchant_account_metadata = router_data
-            .connector_meta_data
-            .as_ref()
-            .map(serde_json::to_string)
-            .transpose()
-            .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
-            .map(|s| s.into());
-
         Ok(Self {
-            request_ref_id: Some(Identifier {
+            merchant_access_token_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(request_ref_id)),
             }),
-            merchant_account_metadata,
             // depricated field we have to remove this/ Default to unspecified connector
             connector: 0_i32,
             metadata: None,
-            connector_metadata: None,
+            connector_feature_data: None,
             test_mode: router_data.test_mode,
         })
     }

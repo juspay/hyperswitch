@@ -300,12 +300,11 @@ impl UnifiedConnectorServiceClient {
     /// Performs Create Connector Customer Granular
     pub async fn create_connector_customer(
         &self,
-        create_customer_request: payments_grpc::PaymentServiceCreateConnectorCustomerRequest,
+        create_customer_request: payments_grpc::CustomerServiceCreateRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
-    ) -> UnifiedConnectorServiceResult<
-        tonic::Response<payments_grpc::PaymentServiceCreateConnectorCustomerResponse>,
-    > {
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::CustomerServiceCreateResponse>>
+    {
         let mut request = tonic::Request::new(create_customer_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
@@ -313,9 +312,9 @@ impl UnifiedConnectorServiceClient {
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
         *request.metadata_mut() = metadata;
 
-        self.client
+        self.customer_client
             .clone()
-            .create_connector_customer(request)
+            .create(request)
             .await
             .change_context(UnifiedConnectorServiceError::PaymentConnectorCustomerCreateFailure)
             .inspect_err(|error| {
@@ -787,11 +786,11 @@ impl UnifiedConnectorServiceClient {
     /// Performs Create Access Token Granular
     pub async fn create_access_token(
         &self,
-        create_access_token_request: payments_grpc::PaymentServiceCreateAccessTokenRequest,
+        create_access_token_request: payments_grpc::MerchantAuthenticationServiceCreateAccessTokenRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
     ) -> UnifiedConnectorServiceResult<
-        tonic::Response<payments_grpc::PaymentServiceCreateAccessTokenResponse>,
+        tonic::Response<payments_grpc::MerchantAuthenticationServiceCreateAccessTokenResponse>,
     > {
         let mut request = tonic::Request::new(create_access_token_request);
         let connector_name = connector_auth_metadata.connector_name.clone();
@@ -799,7 +798,7 @@ impl UnifiedConnectorServiceClient {
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
         *request.metadata_mut() = metadata;
 
-        self.client
+        self.merchant_authentication_client
             .clone()
             .create_access_token(request)
             .await
