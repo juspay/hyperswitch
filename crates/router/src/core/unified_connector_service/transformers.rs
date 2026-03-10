@@ -1189,30 +1189,24 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             .as_ref()
             .map(ConnectorState::foreign_from);
 
-        let merchant_account_metadata = router_data
-            .connector_meta_data
-            .as_ref()
-            .map(serde_json::to_string)
-            .transpose()
-            .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
-            .map(|s| s.into());
-
         Ok(Self {
-            transaction_id: Some(Identifier {
+            connector_transaction_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     connector_transaction_id,
                 )),
             }),
-            request_ref_id: Some(Identifier {
+            merchant_capture_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     router_data.connector_request_reference_id.clone(),
                 )),
             }),
-            amount_to_capture: router_data
-                .request
-                .minor_amount_to_capture
-                .get_amount_as_i64(),
-            currency: currency.into(),
+            amount_to_capture: Some(payments_grpc::Money {
+                minor_amount: router_data
+                    .request
+                    .minor_amount_to_capture
+                    .get_amount_as_i64(),
+                currency: currency.into(),
+            }),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             metadata: router_data
                 .request
@@ -1230,7 +1224,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                 },
             ),
             state,
-            connector_metadata: router_data
+            connector_feature_data: router_data
                 .request
                 .connector_meta
                 .as_ref()
@@ -1238,9 +1232,8 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                 .transpose()
                 .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
                 .map(|s| s.into()),
-            merchant_account_metadata,
             test_mode: router_data.test_mode,
-            merchant_order_reference_id: router_data.request.merchant_order_reference_id.clone(),
+            merchant_order_id: router_data.request.merchant_order_reference_id.clone(),
         })
     }
 }
@@ -5799,21 +5792,13 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
             .as_ref()
             .map(ConnectorState::foreign_from);
 
-        let merchant_account_metadata = router_data
-            .connector_meta_data
-            .as_ref()
-            .map(serde_json::to_string)
-            .transpose()
-            .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
-            .map(|s| s.into());
-
         Ok(Self {
-            request_ref_id: Some(Identifier {
+            merchant_void_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     router_data.connector_request_reference_id.clone(),
                 )),
             }),
-            transaction_id: if router_data.request.connector_transaction_id.is_empty() {
+            connector_transaction_id: if router_data.request.connector_transaction_id.is_empty() {
                 None
             } else {
                 Some(Identifier {
@@ -5825,8 +5810,10 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
             cancellation_reason: router_data.request.cancellation_reason.clone(),
             all_keys_required: None,
             browser_info,
-            amount: router_data.request.amount,
-            currency: currency.map(|c| c.into()),
+            amount: Some(payments_grpc::Money {
+                minor_amount: router_data.request.amount.get_amount_as_i64(),
+                currency: currency.into(),
+            }),
             metadata: router_data
                 .request
                 .metadata
@@ -5836,7 +5823,7 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
                 .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
                 .map(|s| s.into()),
             state,
-            connector_metadata: router_data
+            connector_feature_data: router_data
                 .request
                 .connector_meta
                 .as_ref()
@@ -5844,9 +5831,8 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
                 .transpose()
                 .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
                 .map(|s| s.into()),
-            merchant_account_metadata,
             test_mode: router_data.test_mode,
-            merchant_order_reference_id: router_data.request.merchant_order_reference_id.clone(),
+            merchant_order_id: router_data.request.merchant_order_reference_id.clone(),
         })
     }
 }
