@@ -2776,7 +2776,7 @@ impl
 
 impl
     transformers::ForeignTryFrom<(
-        payments_grpc::PaymentServiceRepeatEverythingResponse,
+        payments_grpc::RecurringPaymentServiceChargeResponse,
         AttemptStatus,
     )> for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
@@ -2784,7 +2784,7 @@ impl
 
     fn foreign_try_from(
         (response, prev_status): (
-            payments_grpc::PaymentServiceRepeatEverythingResponse,
+            payments_grpc::RecurringPaymentServiceChargeResponse,
             AttemptStatus,
         ),
     ) -> Result<Self, Self::Error> {
@@ -5549,7 +5549,7 @@ pub fn transform_ucs_webhook_response(
 
     let webhook_transformation_status = if matches!(
         response.transformation_status(),
-        payments_grpc::WebhookTransformationStatus::Incomplete
+        payments_grpc::WebhookEventStatus::Incomplete
     ) {
         WebhookTransformationStatus::Incomplete
     } else {
@@ -5559,8 +5559,8 @@ pub fn transform_ucs_webhook_response(
     Ok(WebhookTransformData {
         event_type,
         source_verified: response.source_verified,
-        webhook_content: response.content,
-        response_ref_id: response.response_ref_id.and_then(|identifier| {
+        webhook_content: response.event_response,
+        response_ref_id: response.merchant_event_id.and_then(|identifier| {
             identifier.id_type.and_then(|id_type| match id_type {
                 payments_grpc::identifier::IdType::Id(id) => Some(id),
                 payments_grpc::identifier::IdType::EncodedData(encoded_data) => Some(encoded_data),

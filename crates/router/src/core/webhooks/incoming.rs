@@ -787,10 +787,10 @@ async fn process_non_ucs_webhook<'a>(
 
 /// Extract resource object from UCS WebhookResponseContent
 fn get_ucs_webhook_resource_object(
-    webhook_response_content: &payments_grpc::WebhookResponseContent,
+    webhook_response_content: &payments_grpc::EventResponse,
 ) -> errors::RouterResult<Box<dyn masking::ErasedMaskSerialize>> {
     let resource_object = match &webhook_response_content.content {
-        Some(payments_grpc::webhook_response_content::Content::IncompleteTransformation(
+        Some(payments_grpc::EventResponse::Content::IncompleteTransformation(
             incomplete_transformation_response,
         )) => {
             // Deserialize resource object
