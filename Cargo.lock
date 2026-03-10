@@ -2202,7 +2202,7 @@ dependencies = [
 [[package]]
 name = "config_patch_derive"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=95144b0829b8b3d8c4b0914921b43540abb6ac50#95144b0829b8b3d8c4b0914921b43540abb6ac50"
+source = "git+https://github.com/juspay/connector-service?branch=bump-serde#312c4880d3d4d00849e9f6db9b69dc440d5efaef"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3916,14 +3916,14 @@ dependencies = [
 [[package]]
 name = "grpc-api-types"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=95144b0829b8b3d8c4b0914921b43540abb6ac50#95144b0829b8b3d8c4b0914921b43540abb6ac50"
+source = "git+https://github.com/juspay/connector-service?branch=bump-serde#312c4880d3d4d00849e9f6db9b69dc440d5efaef"
 dependencies = [
  "axum 0.8.4",
  "error-stack 0.5.0",
  "g2h",
  "heck 0.5.0",
  "http 1.3.1",
- "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2025.11.24.0)",
+ "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?branch=bump-serde)",
  "prost",
  "prost-build",
  "prost-types",
@@ -4539,7 +4539,7 @@ dependencies = [
  "http 0.2.12",
  "hyperswitch_domain_models",
  "masking 0.1.0",
- "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2025.11.24.0)",
+ "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?branch=bump-serde)",
  "mime",
  "reqwest 0.11.27",
  "router_env",
@@ -5361,7 +5361,7 @@ dependencies = [
 [[package]]
 name = "masking"
 version = "0.1.0"
-source = "git+https://github.com/juspay/hyperswitch?tag=2025.11.24.0#19723f8c9c6c89057624061fef429f6f574dd358"
+source = "git+https://github.com/juspay/hyperswitch?branch=bump-serde#7ced8021890dc8497b5d2b7451e602da6f870b68"
 dependencies = [
  "bytes 1.10.1",
  "diesel",
@@ -7576,7 +7576,7 @@ dependencies = [
  "jsonwebtoken",
  "kgraph_utils",
  "masking 0.1.0",
- "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2025.11.24.0)",
+ "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?branch=bump-serde)",
  "maud",
  "mimalloc",
  "mime",
@@ -7714,7 +7714,7 @@ dependencies = [
 [[package]]
 name = "rust-grpc-client"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=95144b0829b8b3d8c4b0914921b43540abb6ac50#95144b0829b8b3d8c4b0914921b43540abb6ac50"
+source = "git+https://github.com/juspay/connector-service?branch=bump-serde#312c4880d3d4d00849e9f6db9b69dc440d5efaef"
 dependencies = [
  "grpc-api-types",
 ]
@@ -10532,11 +10532,11 @@ checksum = "ed646292ffc8188ef8ea4d1e0e0150fb15a5c2e12ad9b8fc191ae7a8a7f3c4b9"
 [[package]]
 name = "ucs_cards"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=95144b0829b8b3d8c4b0914921b43540abb6ac50#95144b0829b8b3d8c4b0914921b43540abb6ac50"
+source = "git+https://github.com/juspay/connector-service?branch=bump-serde#312c4880d3d4d00849e9f6db9b69dc440d5efaef"
 dependencies = [
  "bytes 1.10.1",
  "error-stack 0.4.1",
- "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2025.11.24.0)",
+ "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?branch=bump-serde)",
  "prost",
  "regex",
  "serde",
@@ -10548,7 +10548,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_enums"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=95144b0829b8b3d8c4b0914921b43540abb6ac50#95144b0829b8b3d8c4b0914921b43540abb6ac50"
+source = "git+https://github.com/juspay/connector-service?branch=bump-serde#312c4880d3d4d00849e9f6db9b69dc440d5efaef"
 dependencies = [
  "serde",
  "strum 0.26.3",
@@ -10559,7 +10559,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_utils"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=95144b0829b8b3d8c4b0914921b43540abb6ac50#95144b0829b8b3d8c4b0914921b43540abb6ac50"
+source = "git+https://github.com/juspay/connector-service?branch=bump-serde#312c4880d3d4d00849e9f6db9b69dc440d5efaef"
 dependencies = [
  "anyhow",
  "base64 0.21.7",
@@ -10570,7 +10570,7 @@ dependencies = [
  "error-stack 0.4.1",
  "hex",
  "http 1.3.1",
- "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2025.11.24.0)",
+ "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?branch=bump-serde)",
  "md5",
  "nanoid",
  "once_cell",
