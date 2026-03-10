@@ -753,9 +753,11 @@ pub async fn call_unified_connector_service_post_authenticate(
         .attach_printable("Failed to fetch Unified Connector Service client")?;
 
     let payment_post_authenticate_request =
-        payments_grpc::PaymentMethodAuthenticationServicePostAuthenticateRequest::foreign_try_from(router_data)
-            .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
-            .attach_printable("Failed to construct Payment Authorize Request")?;
+        payments_grpc::PaymentMethodAuthenticationServicePostAuthenticateRequest::foreign_try_from(
+            router_data,
+        )
+        .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
+        .attach_printable("Failed to construct Payment Authorize Request")?;
 
     let connector_auth_metadata = ucs_core::build_unified_connector_service_auth_metadata(
         merchant_connector_account,

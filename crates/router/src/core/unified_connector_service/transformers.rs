@@ -2686,13 +2686,19 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateConnectorCu
     }
 }
 
-impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceSetupRecurringResponse, AttemptStatus)>
-    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+impl
+    transformers::ForeignTryFrom<(
+        payments_grpc::PaymentServiceSetupRecurringResponse,
+        AttemptStatus,
+    )> for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        (response, prev_status): (payments_grpc::PaymentServiceSetupRecurringResponse, AttemptStatus),
+        (response, prev_status): (
+            payments_grpc::PaymentServiceSetupRecurringResponse,
+            AttemptStatus,
+        ),
     ) -> Result<Self, Self::Error> {
         let connector_response_reference_id =
             response.response_ref_id.as_ref().and_then(|identifier| {
@@ -2737,21 +2743,34 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceSetupRecurringRe
 
             Err(ErrorResponse {
                 code: error_info.connector_details.and_then(|cd| cd.code).ok_or(
-                    error_stack::Report::new(UnifiedConnectorServiceError::ResponseDeserializationFailed)
-                        .attach_printable("Missing error code in UCS response ErrorInfo"),
+                    error_stack::Report::new(
+                        UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                    )
+                    .attach_printable("Missing error code in UCS response ErrorInfo"),
                 )?,
-                message: error_info.connector_details.and_then(|cd| cd.message).ok_or(
-                    error_stack::Report::new(UnifiedConnectorServiceError::ResponseDeserializationFailed)
+                message: error_info
+                    .connector_details
+                    .and_then(|cd| cd.message)
+                    .ok_or(
+                        error_stack::Report::new(
+                            UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                        )
                         .attach_printable("Missing error message in UCS response ErrorInfo"),
-                )?,
+                    )?,
                 reason: error_info.connector_details.and_then(|cd| cd.reason),
                 status_code,
                 attempt_status,
                 connector_transaction_id: resource_id.get_optional_response_id(),
                 connector_response_reference_id,
-                network_decline_code: error_info.issuer_details.and_then(|id| id.network_details.and_then(|nd| nd.decline_code)),
-                network_advice_code: error_info.issuer_details.and_then(|id| id.network_details.and_then(|nd| nd.advice_code)),
-                network_error_message: error_info.issuer_details.and_then(|id| id.network_details.and_then(|nd| nd.error_message)),
+                network_decline_code: error_info
+                    .issuer_details
+                    .and_then(|id| id.network_details.and_then(|nd| nd.decline_code)),
+                network_advice_code: error_info
+                    .issuer_details
+                    .and_then(|id| id.network_details.and_then(|nd| nd.advice_code)),
+                network_error_message: error_info
+                    .issuer_details
+                    .and_then(|id| id.network_details.and_then(|nd| nd.error_message)),
                 connector_metadata: None,
             })
         } else {
@@ -4582,8 +4601,12 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceIncrementalAuthor
             Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
                 status: AuthorizationStatus::foreign_from(response.status()),
                 connector_authorization_id: response.connector_authorization_id,
-                error_code: response.error.and_then(|error_info| error_info.connector_details.and_then(|cd| cd.code)),
-                error_message: response.error.and_then(|error_info| error_info.connector_details.and_then(|cd| cd.message)),
+                error_code: response
+                    .error
+                    .and_then(|error_info| error_info.connector_details.and_then(|cd| cd.code)),
+                error_message: response
+                    .error
+                    .and_then(|error_info| error_info.connector_details.and_then(|cd| cd.message)),
             })
         };
 

@@ -12,9 +12,15 @@ use tonic::{
     transport::Uri,
 };
 use unified_connector_service_client::payments::{
-    self as payments_grpc, payment_service_client::PaymentServiceClient,
-    refund_service_client::RefundServiceClient, PaymentServiceAuthorizeResponse,
-    PaymentServiceRefundRequest, PaymentServiceTransformRequest, PaymentServiceTransformResponse,
+    self as payments_grpc, customer_service_client::CustomerServiceClient,
+    dispute_service_client::DisputeServiceClient, event_service_client::EventServiceClient,
+    merchant_authentication_service_client::MerchantAuthenticationServiceClient,
+    payment_method_authentication_service_client::PaymentMethodAuthenticationServiceClient,
+    payment_method_service_client::PaymentMethodServiceClient,
+    payment_service_client::PaymentServiceClient,
+    recurring_payment_service_client::RecurringPaymentServiceClient,
+    refund_service_client::RefundServiceClient, EventServiceHandleRequest,
+    EventServiceHandleResponse, PaymentServiceAuthorizeResponse, PaymentServiceRefundRequest,
     RefundResponse, RefundServiceGetRequest,
 };
 
@@ -33,6 +39,22 @@ pub struct UnifiedConnectorServiceClient {
     pub client: PaymentServiceClient<tonic::transport::Channel>,
     /// The Refund Service Client
     pub refund_client: RefundServiceClient<tonic::transport::Channel>,
+    /// The Event Service Client
+    pub event_client: EventServiceClient<tonic::transport::Channel>,
+    /// The Recurring Payment Service Client
+    pub recurring_payment_client: RecurringPaymentServiceClient<tonic::transport::Channel>,
+    /// The Dispute Service Client
+    pub dispute_client: DisputeServiceClient<tonic::transport::Channel>,
+    /// The Payment Method Service Client
+    pub payment_method_client: PaymentMethodServiceClient<tonic::transport::Channel>,
+    /// The Customer Service Client
+    pub customer_client: CustomerServiceClient<tonic::transport::Channel>,
+    /// The Merchant Authentication Service Client
+    pub merchant_authentication_client:
+        MerchantAuthenticationServiceClient<tonic::transport::Channel>,
+    /// The Payment Method Authentication Service Client
+    pub payment_method_authentication_client:
+        PaymentMethodAuthenticationServiceClient<tonic::transport::Channel>,
 }
 
 /// Contains the Unified Connector Service Client config
@@ -156,11 +178,11 @@ impl UnifiedConnectorServiceClient {
     /// Performs Payment Method Token Create
     pub async fn payment_method_token_create(
         &self,
-        pm_token_create_request: payments_grpc::PaymentServiceCreatePaymentMethodTokenRequest,
+        pm_token_create_request: payments_grpc::PaymentMethodServiceTokenizeRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
     ) -> UnifiedConnectorServiceResult<
-        tonic::Response<payments_grpc::PaymentServiceCreatePaymentMethodTokenResponse>,
+        tonic::Response<payments_grpc::PaymentMethodServiceTokenizeResponse>,
     > {
         let mut request = tonic::Request::new(pm_token_create_request);
 
@@ -678,10 +700,10 @@ impl UnifiedConnectorServiceClient {
     /// Transforms incoming webhook through UCS
     pub async fn transform_incoming_webhook(
         &self,
-        webhook_transform_request: PaymentServiceTransformRequest,
+        webhook_transform_request: EventServiceHandleRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
-    ) -> UnifiedConnectorServiceResult<tonic::Response<PaymentServiceTransformResponse>> {
+    ) -> UnifiedConnectorServiceResult<tonic::Response<EventServiceHandleResponse>> {
         let mut request = tonic::Request::new(webhook_transform_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
