@@ -1985,7 +1985,7 @@ export const connectorDetails = {
         `,
       },
     }),
-    PaymentIntentWithInstallments: {
+    PaymentIntentWithInstallments: getCustomExchange({
       Request: {
         currency: "BRL",
         installment_options: [
@@ -2007,8 +2007,8 @@ export const connectorDetails = {
           status: "requires_payment_method",
         },
       },
-    },
-    CardInstallmentConfirm: {
+    }),
+    CardInstallmentConfirm: getCustomExchange({
       Request: {
         payment_method: "card",
         payment_method_type: "credit",
@@ -2029,8 +2029,8 @@ export const connectorDetails = {
           status: "succeeded",
         },
       },
-    },
-    PaymentIntentWithInstallmentsAndConfirmTrue: {
+    }),
+    PaymentIntentWithInstallmentsAndConfirmTrue: getCustomExchange({
       Request: {
         currency: "BRL",
         confirm: true,
@@ -2058,7 +2058,7 @@ export const connectorDetails = {
           },
         },
       },
-    },
+    }),
   },
   upi_pm: {
     PaymentIntent: getCustomExchange({
