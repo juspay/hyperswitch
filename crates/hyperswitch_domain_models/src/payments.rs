@@ -38,9 +38,16 @@ pub mod payment_intent;
 #[cfg(feature = "v2")]
 pub mod split_payments;
 
+#[cfg(feature = "v1")]
+use api_models::{
+    payment_methods::{PaymentMethodListInstallmentOption, PaymentMethodListIntentData},
+    payments::Address,
+};
 use common_enums as storage_enums;
 #[cfg(feature = "v2")]
 use diesel_models::types::{FeatureMetadata, OrderDetailsWithAmount};
+#[cfg(feature = "v1")]
+use error_stack::ResultExt;
 use masking::ExposeInterface;
 
 use self::{payment_attempt::PaymentAttempt, payment_intent::CustomerData};
@@ -52,7 +59,7 @@ use crate::{
     ApiModelToDieselModelConvertor,
 };
 #[cfg(feature = "v1")]
-use crate::{payment_method_data, RemoteStorageObject};
+use crate::{errors, ext_traits::OptionExt, payment_method_data, RemoteStorageObject};
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToEncryption)]
@@ -344,7 +351,7 @@ impl PaymentIntent {
     #[cfg(feature = "v1")]
     pub fn prevent_refund_after_post_capture_void(
         &self,
-    ) -> CustomResult<(), crate::errors::api_error_response::ApiErrorResponse> {
+    ) -> CustomResult<(), errors::api_error_response::ApiErrorResponse> {
         if self
             .state_metadata
             .as_ref()
@@ -352,7 +359,7 @@ impl PaymentIntent {
             .unwrap_or(false)
         {
             Err(error_stack::report!(
-                crate::errors::api_error_response::ApiErrorResponse::PreconditionFailed {
+                errors::api_error_response::ApiErrorResponse::PreconditionFailed {
                     message:
                         "Refund void cannot be performed after a post-capture void has been issued"
                             .into()
@@ -435,6 +442,74 @@ impl PaymentIntent {
                 )
             })
             .transpose()
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn into_payment_method_list_intent_data(
+        self,
+        net_amount: MinorUnit,
+    ) -> CustomResult<PaymentMethodListIntentData, errors::api_error_response::ApiErrorResponse>
+    {
+        let billing: Option<Address> = self
+            .billing_details
+            .map(|b| b.deserialize_inner_value(|value| value.parse_value("Address")))
+            .transpose()
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse billing address")?
+            .map(|enc| enc.into_inner());
+
+        let shipping: Option<Address> = self
+            .shipping_details
+            .map(|s| s.deserialize_inner_value(|value| value.parse_value("Address")))
+            .transpose()
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse shipping address")?
+            .map(|enc| enc.into_inner());
+
+        let installment_options = self
+            .installment_options
+            .map(|opts| {
+                let currency = self.currency.get_required_value("currency")?;
+                opts.into_iter()
+                    .map(|opt| {
+                        PaymentMethodListInstallmentOption::from_installment_option(
+                            opt.clone(),
+                            self.amount,
+                            net_amount,
+                            currency,
+                        )
+                        .change_context(
+                            errors::api_error_response::ApiErrorResponse::InternalServerError,
+                        )
+                        .attach_printable_lazy(|| {
+                            format!("Failed to transform installment option: {:?}", opt)
+                        })
+                    })
+                    .collect::<CustomResult<Vec<_>, _>>()
+            })
+            .transpose()?;
+
+        Ok(PaymentMethodListIntentData {
+            payment_id: self.payment_id,
+            status: self.status,
+            amount: self.amount,
+            currency: self.currency,
+            client_secret: self.client_secret.map(|s| s.into()),
+            description: self.description,
+            customer_id: self.customer_id,
+            return_url: self.return_url,
+            setup_future_usage: self.setup_future_usage,
+            billing,
+            shipping,
+            metadata: self.metadata.map(Secret::new),
+            order_details: self.order_details,
+            created: Some(self.created_at),
+            expires_on: self.session_expiry,
+            profile_id: self.profile_id,
+            merchant_order_reference_id: self.merchant_order_reference_id,
+            attempt_count: self.attempt_count,
+            installment_options,
+        })
     }
 }
 
