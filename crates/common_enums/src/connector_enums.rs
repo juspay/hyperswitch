@@ -102,6 +102,7 @@ pub enum Connector {
     Dlocal,
     Dwolla,
     Ebanx,
+    Envoy,
     Elavon,
     Facilitapay,
     Finix,
@@ -207,6 +208,7 @@ impl Connector {
         matches!(
             (self, payout_method),
             (Self::Paypal, Some(PayoutType::Wallet))
+                | (Self::Envoy, _)
                 | (_, Some(PayoutType::Card))
                 | (Self::Adyenplatform, _)
                 | (Self::Nomupay, _)
@@ -318,7 +320,8 @@ impl Connector {
             | Self::Deutschebank
             | Self::Digitalvirgo
             | Self::Dlocal
-            | Self::Dwolla
+            | Self::Dwolla 
+            | Self::Envoy
             | Self::Ebanx
             | Self::Elavon
             | Self::Facilitapay
