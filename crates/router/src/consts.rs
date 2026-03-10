@@ -378,6 +378,8 @@ pub mod superposition {
         "payment_update_enabled_for_client_auth";
     /// GSM payout call configuration key (scoped by merchant, profile, and payout retry type)
     pub const GSM_PAYOUT_CALL: &str = "gsm_payout_call";
+    /// Pre-routing disabled configuration key (scoped by merchant, profile, payment method, and payment method type)
+    pub const PRE_ROUTING_DISABLED: &str = "pre_routing_disabled";
 }
 
 #[cfg(test)]

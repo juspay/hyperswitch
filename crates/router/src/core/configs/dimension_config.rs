@@ -4,6 +4,7 @@ use super::{
     dimension_state::{
         DimensionsWithMerchantId, DimensionsWithMerchantIdAndProfileId,
         DimensionsWithMerchantIdAndProfileIdAndConnector,
+        DimensionsWithMerchantIdAndProfileIdAndPaymentMethodAndPaymentMethodType,
         DimensionsWithMerchantIdAndProfileIdAndPaymentMethodType,
         DimensionsWithMerchantIdAndProfileIdAndPayoutRetryType, DimensionsWithOrgIdAndMerchantId,
     },
@@ -181,7 +182,7 @@ config! {
     superposition_key = SHOULD_PERFORM_ELIGIBILITY,
     output = bool,
     default = false,
-    requires = DimensionsWithMerchantId,
+    requires = DimensionsWithMerchantIdAndProfileId,
     targeting_key = id_type::CustomerId
 }
 
@@ -340,6 +341,22 @@ config! {
 
 impl DatabaseBackedConfig for GsmPayoutCall {
     const KEY: &'static str = "gsm_payout_call";
+
+    fn db_key(_dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+        None
+    }
+}
+
+config! {
+    superposition_key = PRE_ROUTING_DISABLED,
+    output = bool,
+    default = false,
+    requires = DimensionsWithMerchantIdAndProfileIdAndPaymentMethodAndPaymentMethodType,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for PreRoutingDisabled {
+    const KEY: &'static str = "pre_routing_disabled";
 
     fn db_key(_dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
         None

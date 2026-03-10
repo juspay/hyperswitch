@@ -816,24 +816,6 @@ fn compile_accepted_currency_for_mca(
     ))
 }
 
-pub async fn get_merchant_config_for_eligibility_check(
-    db: &dyn StorageInterface,
-    merchant_id: &common_utils::id_type::MerchantId,
-) -> bool {
-    let config = db
-        .find_config_by_key_unwrap_or(
-            &merchant_id.get_should_perform_eligibility_check_key(),
-            Some("false".to_string()),
-        )
-        .await;
-    match config {
-        Ok(conf) => conf.config == "true",
-        Err(error) => {
-            logger::error!(?error);
-            false
-        }
-    }
-}
 
 pub async fn get_organization_eligibility_config_for_pm_modular_service(
     db: &dyn StorageInterface,
@@ -856,7 +838,7 @@ pub async fn get_organization_eligibility_config_for_pm_modular_service(
 
 pub async fn get_sdk_next_action_for_payment_method_list(
     state: &SessionState,
-    dimensions: &dimension_state::DimensionsWithMerchantId,
+    dimensions: &dimension_state::DimensionsWithMerchantIdAndProfileId,
     customer_id: Option<&common_utils::id_type::CustomerId>,
 ) -> api_models::payments::SdkNextAction {
     let should_perform_eligibility_check = dimensions

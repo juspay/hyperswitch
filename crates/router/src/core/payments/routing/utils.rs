@@ -37,7 +37,7 @@ use serde::{Deserialize, Serialize};
 
 use super::RoutingResult;
 use crate::{
-    core::errors,
+    core::{errors, configs::dimension_state},
     db::domain,
     routes::{app::SessionStateInfo, SessionState},
     services::{self, logger},
@@ -2236,38 +2236,7 @@ pub struct MerchantPreRoutingConfig {
     pub skip_rules: Vec<PreRoutingSkipRule>,
 }
 
-/// Loads the merchant's pre-routing skip configuration and converts it into:
-///     HashMap<PaymentMethod, HashSet<PaymentMethodType>>
-///
-/// Example output:
-///     {
-///         bank_redirect: { interac, ach, blik },
-///         bank_debit: { sepa_debit }
-///     }
-pub async fn load_skip_pre_routing_config(
-    state: &SessionState,
-    pre_routing_disabled_pm_pmt_key: String,
-) -> HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>> {
-    let merchant_cfg = state
-        .store
-        .find_config_by_key_from_db(&pre_routing_disabled_pm_pmt_key)
-        .await
-        .ok()
-        .and_then(|cfg| serde_json::from_str::<MerchantPreRoutingConfig>(&cfg.config).ok())
-        .unwrap_or_default();
 
-    let mut skip_map: HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>> =
-        HashMap::new();
-
-    for rule in merchant_cfg.skip_rules.iter() {
-        skip_map
-            .entry(rule.payment_method)
-            .or_default()
-            .extend(rule.payment_method_types.iter().copied());
-    }
-
-    skip_map
-}
 
 /// Returns `true` if pre-routing should be skipped for
 /// the given (payment_method, payment_method_type) pair.
@@ -2282,17 +2251,28 @@ pub fn should_skip_prerouting(
         .unwrap_or(false)
 }
 
-pub fn perform_pre_routing(
+pub async fn perform_pre_routing(
+    state: &SessionState,
     allowed_pm_for_pre_routing: &LazyLock<HashSet<enums::PaymentMethod>>,
     allowed_pmt_for_pre_routing: &LazyLock<HashSet<enums::PaymentMethodType>>,
     payment_method: &enums::PaymentMethod,
     payment_method_type: &enums::PaymentMethodType,
-    skip_map: &HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
+    dimensions: &dimension_state::DimensionsWithMerchantIdAndProfileId,
+    customer_id: Option<&id_type::CustomerId>,
 ) -> bool {
-    let should_skip_prerouting =
-        should_skip_prerouting(skip_map, payment_method, payment_method_type);
+    let dimensions = dimensions
+        .with_payment_method(payment_method.clone())
+        .with_payment_method_type(payment_method_type.clone());
 
-    let pm_allowed = allowed_pm_for_pre_routing.contains(payment_method);
-    let pmt_allowed = allowed_pmt_for_pre_routing.contains(payment_method_type);
-    (pm_allowed || pmt_allowed) && !should_skip_prerouting
+    let should_skip = dimensions
+        .get_pre_routing_disabled(
+            state.store.as_ref(),
+            state.superposition_service.as_deref(),
+            customer_id,
+        )
+        .await;
+
+    let pm_allowed = allowed_pm_for_pre_routing.contains(&payment_method);
+    let pmt_allowed = allowed_pmt_for_pre_routing.contains(&payment_method_type);
+    (pm_allowed || pmt_allowed) && !should_skip
 }
