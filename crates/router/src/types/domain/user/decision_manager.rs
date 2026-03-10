@@ -132,7 +132,7 @@ impl JWTFlow {
         // Fetch lineage context from DB
         let lineage_context_from_db = state
             .global_store
-            .find_user_by_id(user_id)
+            .find_active_user_by_user_id(user_id)
             .await
             .inspect_err(|e| {
                 logger::error!(

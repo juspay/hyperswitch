@@ -33,7 +33,18 @@ describe("Card - ThreeDS payment flow test", () => {
           "automatic",
           globalState
         );
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "three_ds",
+          "automatic",
+          globalState
+        );
 
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
         if (!utils.should_continue_further(data)) {
           shouldContinue = false;
         }

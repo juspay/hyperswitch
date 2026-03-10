@@ -159,6 +159,7 @@ thunes.base_url = "https://api.limonetikqualif.com/"
 tokenex.base_url = "https://test-api.tokenex.com"
 tokenio.base_url = "https://api.sandbox.token.io"
 truelayer.base_url = "https://api.truelayer-sandbox.com"
+truelayer.secondary_base_url = "https://auth.truelayer-sandbox.com"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 trustpayments.base_url = "https://webservices.securetrading.net/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
@@ -285,6 +286,10 @@ bank_redirect.eps.connector_list="globalpay,nexinets,aci,multisafepay"
 [mandates.update_mandate_supported]
 card.credit = { connector_list = "cybersource" }            # Update Mandate supported payment method type and connector for card
 card.debit = { connector_list = "cybersource" }             # Update Mandate supported payment method type and connector for card
+
+[installments.supported_payment_methods]
+card.credit = "adyen"
+card.debit = "adyen"
 
 [network_transaction_id_supported_connectors]
 connector_list = "adyen,archipel,checkout,cybersource,novalnet,nuvei,stripe,worldpay,worldpayvantiv"
@@ -695,6 +700,12 @@ upi_intent = { country = "IN", currency = "INR" }
 credit = { currency = "INR,USD,GBP,EUR" }
 debit = { currency = "INR,USD,GBP,EUR" }
 
+[pm_filters.truelayer]
+open_banking_uk = { currency = "GBP,EUR" }
+
+[payout_method_filters.truelayer]
+open_banking_uk = { currency = "GBP,EUR,PLN" }
+
 [pm_filters.redsys]
 credit = { currency = "AUD,BGN,CAD,CHF,COP,CZK,DKK,EUR,GBP,HRK,HUF,ILS,INR,JPY,MYR,NOK,NZD,PEN,PLN,RUB,SAR,SEK,SGD,THB,USD,ZAR", country="ES" }
 debit = { currency = "AUD,BGN,CAD,CHF,COP,CZK,DKK,EUR,GBP,HRK,HUF,ILS,INR,JPY,MYR,NOK,NZD,PEN,PLN,RUB,SAR,SEK,SGD,THB,USD,ZAR", country="ES" }
@@ -959,7 +970,7 @@ redis_lock_expiry_seconds = 180
 enabled = "true"
 
 [webhook_source_verification_call]
-connectors_with_webhook_source_verification_call = "paypal"        # List of connectors which has additional source verification api-call
+connectors_with_webhook_source_verification_call = "paypal, truelayer"        # List of connectors which has additional source verification api-call
 
 [unmasked_headers]
 keys = "accept-language,user-agent,x-profile-id"
@@ -974,7 +985,7 @@ connector_list = "tokenio"
 card_networks = "Visa, AmericanExpress, Mastercard"
 
 [network_tokenization_supported_connectors]
-connector_list = "adyen,cybersource,peachpayments"
+connector_list = "adyen,cybersource,peachpayments,trustpay"
 
 [platform]
 enabled = true
@@ -996,7 +1007,7 @@ connector_list = "juspaythreedsserver, ctp_mastercard, ctp_visa"
 connector_list = "worldpayvantiv"
 
 [grpc_client.unified_connector_service]
-ucs_only_connectors = "paytm, phonepe, hyperpg, revolv3"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "paytm, phonepe, hyperpg, revolv3, truelayer"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode"    # Comma-separated list of connectors to disable UCS PSync call
 
 # Merchant Advice Code Configuration

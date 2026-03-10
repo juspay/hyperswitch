@@ -33,7 +33,18 @@ describe("Card - NoThreeDS payment flow test", () => {
           "automatic",
           globalState
         );
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
 
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
         if (!utils.should_continue_further(data)) {
           shouldContinue = false;
         }
@@ -105,7 +116,18 @@ describe("Card - NoThreeDS payment flow test", () => {
           "automatic",
           globalState
         );
+        cy.createConfirmPaymentTest(
+          fixtures.createConfirmPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
 
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
         if (!utils.should_continue_further(data)) {
           shouldContinue = false;
         }
@@ -148,7 +170,18 @@ describe("Card - NoThreeDS payment flow test", () => {
           "automatic",
           globalState
         );
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
 
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
         if (!utils.should_continue_further(data)) {
           shouldContinue = false;
         }
