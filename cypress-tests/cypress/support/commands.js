@@ -5313,7 +5313,7 @@ Cypress.Commands.add("stepTest", (stepName, errorStack, fn) => {
         errorStack.push({ step: stepName, error: err });
         // Screenshot at the point of failure before continuing to next step
         const screenshotName = `[FAIL] ${stepName}`.replace(/[^a-zA-Z0-9\-_ ]/g, "");
-        cy.screenshot(screenshotName, { overwrite: true });
+        cy.screenshot(screenshotName);
         // No re-throw — queue keeps running
       }
     };
