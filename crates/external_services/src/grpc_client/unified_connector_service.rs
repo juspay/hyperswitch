@@ -12,7 +12,16 @@ use tonic::{
     transport::Uri,
 };
 use unified_connector_service_client::payments::{
-    self as payments_grpc, EventServiceHandleRequest, EventServiceHandleResponse, PaymentServiceAuthorizeResponse, PaymentServiceRefundRequest, RefundResponse, RefundServiceGetRequest, customer_service_client::CustomerServiceClient, dispute_service_client::DisputeServiceClient, event_service_client::EventServiceClient, merchant_authentication_service_client::MerchantAuthenticationServiceClient, payment_method_authentication_service_client::PaymentMethodAuthenticationServiceClient, payment_method_service_client::PaymentMethodServiceClient, payment_service_client::PaymentServiceClient, recurring_payment_service_client::RecurringPaymentServiceClient, refund_service_client::RefundServiceClient
+    self as payments_grpc, customer_service_client::CustomerServiceClient,
+    dispute_service_client::DisputeServiceClient, event_service_client::EventServiceClient,
+    merchant_authentication_service_client::MerchantAuthenticationServiceClient,
+    payment_method_authentication_service_client::PaymentMethodAuthenticationServiceClient,
+    payment_method_service_client::PaymentMethodServiceClient,
+    payment_service_client::PaymentServiceClient,
+    recurring_payment_service_client::RecurringPaymentServiceClient,
+    refund_service_client::RefundServiceClient, EventServiceHandleRequest,
+    EventServiceHandleResponse, PaymentServiceAuthorizeResponse, PaymentServiceRefundRequest,
+    RefundResponse, RefundServiceGetRequest,
 };
 
 use crate::{
@@ -256,7 +265,7 @@ impl UnifiedConnectorServiceClient {
                 .ok()?;
 
                 logger::info!("Successfully connected to Unified Connector Service");
-                
+
                 Some(Self {
                     payment_client,
                     refund_client,
@@ -268,7 +277,6 @@ impl UnifiedConnectorServiceClient {
                     merchant_authentication_client,
                     payment_method_authentication_client,
                 })
-
             }
             None => {
                 router_env::logger::error!(?config.unified_connector_service, "Unified Connector Service config is missing");

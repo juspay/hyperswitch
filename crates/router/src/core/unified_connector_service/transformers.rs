@@ -14,7 +14,6 @@ use common_utils::{
     ext_traits::Encode,
     types::{self, AmountConvertor, MinorUnit, StringMajorUnitForConnector},
 };
-use diesel::expression::is_aggregate::No;
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceError;
@@ -170,10 +169,13 @@ impl
 
         Ok(Self {
             merchant_payment_method_id: Some(connector_ref_id),
-            amount: router_data.request.amount.map(|amount| payments_grpc::Money {
-                minor_amount: amount,
-                currency: currency.into(),
-            }),
+            amount: router_data
+                .request
+                .amount
+                .map(|amount| payments_grpc::Money {
+                    minor_amount: amount,
+                    currency: currency.into(),
+                }),
             payment_method: Some(payment_method),
             address: Some(address),
             metadata: None,
@@ -268,7 +270,7 @@ impl
 
         Ok(Self {
             amount: Some(payments_grpc::Money {
-                minor_amount: router_data.request.amount.get_amount_as_i64(),
+                minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
                 currency: currency.into(),
             }),
             payment_method: Some(payment_method),
@@ -501,7 +503,7 @@ impl
 
         Ok(Self {
             amount: Some(payments_grpc::Money {
-                minor_amount: router_data.request.amount.get_amount_as_i64(),
+                minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
                 currency: currency.into(),
             }),
             payment_method,
@@ -623,7 +625,7 @@ impl
                 )),
             }),
             amount: Some(payments_grpc::Money {
-                minor_amount: router_data.request.amount.get_amount_as_i64(),
+                minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
                 currency: currency.into(),
             }),
             metadata: None,
@@ -840,6 +842,12 @@ impl
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
+        let amount = router_data.request.amount.ok_or(report!(
+            UnifiedConnectorServiceError::MissingRequiredField {
+                field_name: "amount"
+            }
+        ))?;
+
         Ok(Self {
             merchant_session_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
@@ -847,7 +855,7 @@ impl
                 )),
             }),
             amount: Some(payments_grpc::Money {
-                minor_amount: router_data.request.amount.get_amount_as_i64(),
+                minor_amount: amount,
                 currency: currency.into(),
             }),
             metadata: None,
@@ -1298,7 +1306,7 @@ impl
 
         Ok(Self {
             amount: Some(payments_grpc::Money {
-                minor_amount: router_data.request.amount.get_amount_as_i64(),
+                minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
                 currency: currency.into(),
             }),
             billing_descriptor: None,
@@ -4395,13 +4403,19 @@ impl ForeignFrom<common_enums::PaymentMethodType> for payments_grpc::PaymentMeth
     }
 }
 
-impl transformers::ForeignTryFrom<(payments_grpc::MerchantAuthenticationServiceCreateSessionTokenRequest, AttemptStatus)>
-    for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
+impl
+    transformers::ForeignTryFrom<(
+        payments_grpc::MerchantAuthenticationServiceCreateSessionTokenRequest,
+        AttemptStatus,
+    )> for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        (response, prev_status): (payments_grpc::MerchantAuthenticationServiceCreateSessionTokenRequest, AttemptStatus),
+        (response, prev_status): (
+            payments_grpc::MerchantAuthenticationServiceCreateSessionTokenRequest,
+            AttemptStatus,
+        ),
     ) -> Result<Self, Self::Error> {
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
@@ -4528,47 +4542,64 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceIncrementalAuthor
 
         let response = if let Some(error_info) = response.error.as_ref() {
             Err(ErrorResponse {
-                code: error_info.connector_details.and_then(|cd| cd.code).ok_or(
-                    error_stack::Report::new(
-                        UnifiedConnectorServiceError::ResponseDeserializationFailed,
-                    )
-                    .attach_printable("Missing error code in UCS response ErrorInfo"),
-                )?,
+                code: error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.code.clone())
+                    .ok_or(
+                        error_stack::Report::new(
+                            UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                        )
+                        .attach_printable("Missing error code in UCS response ErrorInfo"),
+                    )?,
                 message: error_info
                     .connector_details
-                    .and_then(|cd| cd.message)
+                    .as_ref()
+                    .and_then(|cd| cd.message.clone())
                     .ok_or(
                         error_stack::Report::new(
                             UnifiedConnectorServiceError::ResponseDeserializationFailed,
                         )
                         .attach_printable("Missing error message in UCS response ErrorInfo"),
                     )?,
-                reason: error_info.connector_details.and_then(|cd| cd.reason),
+                reason: error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.reason.clone()),
                 status_code,
                 attempt_status: None,
                 connector_transaction_id: response.connector_authorization_id.clone(),
                 connector_response_reference_id: None,
-                network_decline_code: error_info
-                    .issuer_details
-                    .and_then(|id| id.network_details.and_then(|nd| nd.decline_code)),
-                network_advice_code: error_info
-                    .issuer_details
-                    .and_then(|id| id.network_details.and_then(|nd| nd.advice_code)),
-                network_error_message: error_info
-                    .issuer_details
-                    .and_then(|id| id.network_details.and_then(|nd| nd.error_message)),
+                network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
+                    id.network_details
+                        .as_ref()
+                        .and_then(|nd| nd.decline_code.clone())
+                }),
+                network_advice_code: error_info.issuer_details.as_ref().and_then(|id| {
+                    id.network_details
+                        .as_ref()
+                        .and_then(|nd| nd.advice_code.clone())
+                }),
+                network_error_message: error_info.issuer_details.as_ref().and_then(|id| {
+                    id.network_details
+                        .as_ref()
+                        .and_then(|nd| nd.error_message.clone())
+                }),
                 connector_metadata: None,
             })
         } else {
             Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
                 status: AuthorizationStatus::foreign_from(response.status()),
                 connector_authorization_id: response.connector_authorization_id,
-                error_code: response
-                    .error
-                    .and_then(|error_info| error_info.connector_details.and_then(|cd| cd.code)),
-                error_message: response
-                    .error
-                    .and_then(|error_info| error_info.connector_details.and_then(|cd| cd.message)),
+                error_code: response.error.as_ref().and_then(|error_info| {
+                    error_info.connector_details.and_then(|cd| cd.code.clone())
+                }),
+                error_message: response.error.as_ref().and_then(|error_info| {
+                    error_info
+                        .connector_details
+                        .as_ref()
+                        .and_then(|cd| cd.message.clone())
+                }),
             })
         };
 
@@ -4588,18 +4619,40 @@ impl
     ) -> Result<Self, Self::Error> {
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
-        let response = if response.error_code.is_some() {
+        let response = if let Some(error_info) = response.error.as_ref() {
             Err(ErrorResponse {
-                code: response.error_code().to_owned(),
-                message: response.error_message().to_owned(),
-                reason: response.error_reason,
+                code: error_info.connector_details.and_then(|cd| cd.code).ok_or(
+                    error_stack::Report::new(
+                        UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                    )
+                    .attach_printable("Missing error code in UCS response ErrorInfo"),
+                )?,
+                message: error_info
+                    .connector_details
+                    .and_then(|cd| cd.message)
+                    .ok_or(
+                        error_stack::Report::new(
+                            UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                        )
+                        .attach_printable("Missing error message in UCS response ErrorInfo"),
+                    )?,
+                reason: error_info.connector_details.and_then(|cd| cd.reason),
                 status_code,
                 attempt_status: None,
                 connector_transaction_id: None,
                 connector_response_reference_id: None,
-                network_decline_code: None,
-                network_advice_code: None,
-                network_error_message: None,
+                network_decline_code: error_info
+                    .issuer_details
+                    .as_ref()
+                    .and_then(|id| id.network_details.as_ref().and_then(|nd| nd.decline_code)),
+                network_advice_code: error_info
+                    .issuer_details
+                    .as_ref()
+                    .and_then(|id| id.network_details.as_ref().and_then(|nd| nd.advice_code)),
+                network_error_message: error_info
+                    .issuer_details
+                    .as_ref()
+                    .and_then(|id| id.network_details.as_ref().and_then(|nd| nd.error_message)),
                 connector_metadata: None,
             })
         } else {
@@ -4624,8 +4677,9 @@ impl transformers::ForeignTryFrom<payments_grpc::SdkNextAction> for SdkNextActio
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
     fn foreign_try_from(value: payments_grpc::SdkNextAction) -> Result<Self, Self::Error> {
         let next_action = match value {
-            payments_grpc::SdkNextAction::Confirm
-            | payments_grpc::SdkNextAction::NextActionUnspecified => NextActionCall::Confirm,
+            payments_grpc::SdkNextAction::Confirm | payments_grpc::SdkNextAction::Unspecified => {
+                NextActionCall::Confirm
+            }
             payments_grpc::SdkNextAction::PostSessionTokens => NextActionCall::PostSessionTokens,
         };
 
@@ -5728,21 +5782,34 @@ impl transformers::ForeignTryFrom<payments_grpc::RefundResponse>
         let response = if let Some(error_info) = response.error.as_ref() {
             Err(ErrorResponse {
                 code: error_info.connector_details.and_then(|cd| cd.code).ok_or(
-                    error_stack::Report::new(UnifiedConnectorServiceError::ResponseDeserializationFailed)
-                        .attach_printable("Missing error code in UCS response ErrorInfo"),
+                    error_stack::Report::new(
+                        UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                    )
+                    .attach_printable("Missing error code in UCS response ErrorInfo"),
                 )?,
-                message: error_info.connector_details.and_then(|cd| cd.message).ok_or(
-                    error_stack::Report::new(UnifiedConnectorServiceError::ResponseDeserializationFailed)
+                message: error_info
+                    .connector_details
+                    .and_then(|cd| cd.message)
+                    .ok_or(
+                        error_stack::Report::new(
+                            UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                        )
                         .attach_printable("Missing error message in UCS response ErrorInfo"),
-                )?,
+                    )?,
                 reason: error_info.connector_details.and_then(|cd| cd.reason),
                 status_code,
                 attempt_status: None,
                 connector_transaction_id: None,
                 connector_response_reference_id,
-                network_decline_code: error_info.issuer_details.and_then(|id| id.network_details.and_then(|nd| nd.decline_code)),
-                network_advice_code: error_info.issuer_details.and_then(|id| id.network_details.and_then(|nd| nd.advice_code)),
-                network_error_message: error_info.issuer_details.and_then(|id| id.network_details.and_then(|nd| nd.error_message)),
+                network_decline_code: error_info
+                    .issuer_details
+                    .and_then(|id| id.network_details.and_then(|nd| nd.decline_code)),
+                network_advice_code: error_info
+                    .issuer_details
+                    .and_then(|id| id.network_details.and_then(|nd| nd.advice_code)),
+                network_error_message: error_info
+                    .issuer_details
+                    .and_then(|id| id.network_details.and_then(|nd| nd.error_message)),
                 connector_metadata: None,
             })
         } else {
