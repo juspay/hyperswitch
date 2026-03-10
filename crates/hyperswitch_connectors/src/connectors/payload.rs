@@ -252,11 +252,8 @@ impl ConnectorCommon for Payload {
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error_type,
-            message: response.error_description,
-            reason: response
-                .details
-                .as_ref()
-                .map(|details_value| details_value.to_string()),
+            message: response.error_description.clone(),
+            reason: Some(response.error_description),
             attempt_status: None,
             connector_transaction_id: None,
             connector_response_reference_id: None,
