@@ -1,5 +1,5 @@
 use api_models::payouts::{self, PayoutMethodData, SepaBankTransfer};
-use common_enums::{enums, CountryAlpha2};
+use common_enums::{enums, CountryAlpha2, Currency};
 use common_utils::{
     ext_traits::OptionExt,
     id_type::PayoutId,
@@ -30,7 +30,6 @@ use crate::{
     utils::RouterData as _,
 };
 
-//TODO: Fill the struct with respective fields
 pub struct EnvoyRouterData<T> {
     pub amount: FloatMajorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
@@ -287,10 +286,10 @@ pub struct PaymentInstructionV3 {
 #[serde(rename_all = "camelCase")]
 pub struct PaymentDetails {
     pub country_code: CountryAlpha2,
-    pub source_currency: String,
+    pub source_currency: Currency,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_amount: Option<FloatMajorUnit>,
-    pub target_currency: String,
+    pub target_currency: Currency,
     pub target_amount: FloatMajorUnit,
     pub source_or_target: SourceOrTarget,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -338,7 +337,6 @@ pub struct TemplateRow {
     pub value: Option<Secret<String>>,
 }
 
-/// Comprehensive list of fields available in Payment Template
 /// Ref: https://docs.worldpay.com/apis/pushtoaccountglobal/reference/paymenttemplatefields
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum BankField {
@@ -354,7 +352,7 @@ pub enum BankField {
     BranchCode,
     #[serde(rename = "BankName")]
     BankName,
-    // Customer fields
+    // Customer fields mandatory
     // String up to 50 characters Mandatory
     #[serde(rename = "CustomerName")]
     CustomerName,
@@ -438,9 +436,9 @@ impl<F> TryFrom<&EnvoyRouterData<&PayoutsRouterData<F>>> for PayToBankAccountV3 
                 instructions: vec![PaymentInstructionV3 {
                     payment_details: PaymentDetails {
                         country_code,
-                        source_currency: payout_data.source_currency.to_string(),
+                        source_currency: payout_data.source_currency,
                         source_amount: None,
-                        target_currency: payout_data.destination_currency.to_string(),
+                        target_currency: payout_data.destination_currency,
                         target_amount: item.amount.to_owned(),
                         source_or_target: SourceOrTarget::Target,
                         merchant_reference: None,
