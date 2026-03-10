@@ -1470,17 +1470,6 @@ impl
             request_incremental_authorization: Some(
                 router_data.request.request_incremental_authorization,
             ),
-            customer: Some(payments_grpc::Customer {
-                name: None,
-                email: router_data
-                    .request
-                    .email
-                    .clone()
-                    .map(|e| e.expose().expose().into()),
-                id: None,
-                connector_customer_id: router_data.connector_customer.clone(),
-                phone_number: None,
-            }),
             browser_info,
             session_token: None,
             order_tax_amount: router_data
@@ -5450,22 +5439,49 @@ impl
 
         let response = if let Some(error_info) = response.error.as_ref() {
             Err(ErrorResponse {
-                code: error_info.connector_details.as_ref().and_then(|cd| cd.code.clone()).ok_or(
-                    error_stack::Report::new(UnifiedConnectorServiceError::ResponseDeserializationFailed)
+                code: error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.code.clone())
+                    .ok_or(
+                        error_stack::Report::new(
+                            UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                        )
                         .attach_printable("Missing error code in UCS response ErrorInfo"),
-                )?,
-                message: error_info.connector_details.as_ref().and_then(|cd| cd.message.clone()).ok_or(
-                    error_stack::Report::new(UnifiedConnectorServiceError::ResponseDeserializationFailed)
+                    )?,
+                message: error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.message.clone())
+                    .ok_or(
+                        error_stack::Report::new(
+                            UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                        )
                         .attach_printable("Missing error message in UCS response ErrorInfo"),
-                )?,
-                reason: error_info.connector_details.as_ref().and_then(|cd| cd.reason.clone()),
+                    )?,
+                reason: error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.reason.clone()),
                 status_code,
                 attempt_status: None,
                 connector_transaction_id: None,
                 connector_response_reference_id: None,
-                network_decline_code: error_info.issuer_details.as_ref().and_then(|id| id.network_details.as_ref().and_then(|nd| nd.decline_code.clone())),
-                network_advice_code: error_info.issuer_details.as_ref().and_then(|id| id.network_details.as_ref().and_then(|nd| nd.advice_code.clone())),
-                network_error_message: error_info.issuer_details.as_ref().and_then(|id| id.network_details.as_ref().and_then(|nd| nd.error_message.clone())),
+                network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
+                    id.network_details
+                        .as_ref()
+                        .and_then(|nd| nd.decline_code.clone())
+                }),
+                network_advice_code: error_info.issuer_details.as_ref().and_then(|id| {
+                    id.network_details
+                        .as_ref()
+                        .and_then(|nd| nd.advice_code.clone())
+                }),
+                network_error_message: error_info.issuer_details.as_ref().and_then(|id| {
+                    id.network_details
+                        .as_ref()
+                        .and_then(|nd| nd.error_message.clone())
+                }),
                 connector_metadata: None,
             })
         } else {
@@ -5854,11 +5870,9 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
             .map(payments_grpc::BrowserInformation::foreign_try_from)
             .transpose()?;
 
-        let currency = router_data
-            .request
-            .currency
-            .map(payments_grpc::Currency::foreign_try_from)
-            .transpose()?;
+        let currency = payments_grpc::Currency::foreign_try_from(
+            router_data.request.currency.unwrap_or_default(),
+        )?;
         let state = router_data
             .access_token
             .as_ref()
@@ -5883,7 +5897,7 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
             all_keys_required: None,
             browser_info,
             amount: Some(payments_grpc::Money {
-                minor_amount: router_data.request.amount.get_amount_as_i64(),
+                minor_amount: router_data.request.amount.unwrap_or_default(),
                 currency: currency.into(),
             }),
             metadata: router_data
@@ -5933,21 +5947,24 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceVoidResponse, At
         (response, prev_status): (payments_grpc::PaymentServiceVoidResponse, AttemptStatus),
     ) -> Result<Self, Self::Error> {
         let connector_response_reference_id =
-            response.response_ref_id.as_ref().and_then(|identifier| {
-                identifier
-                    .id_type
-                    .clone()
-                    .and_then(|id_type| match id_type {
-                        payments_grpc::identifier::IdType::Id(id) => Some(id),
-                        payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
-                            Some(encoded_data)
-                        }
-                        payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
-                    })
-            });
+            response
+                .merchant_transaction_id
+                .as_ref()
+                .and_then(|identifier| {
+                    identifier
+                        .id_type
+                        .clone()
+                        .and_then(|id_type| match id_type {
+                            payments_grpc::identifier::IdType::Id(id) => Some(id),
+                            payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
+                                Some(encoded_data)
+                            }
+                            payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
+                        })
+                });
 
         let resource_id: router_request_types::ResponseId = match response
-            .transaction_id
+            .connector_transaction_id
             .as_ref()
             .and_then(|id| id.id_type.clone())
         {
@@ -5965,13 +5982,13 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceVoidResponse, At
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
         // Extract connector_metadata from response if present
-        let connector_metadata = response.connector_metadata.clone().and_then(|secret| {
+        let connector_metadata = response.connector_feature_data.clone().and_then(|secret| {
             let connector_metadata = secret.expose();
             serde_json::from_str(&connector_metadata)
                 .map_err(|e| {
                     tracing::warn!(
                         serialization_error=?e,
-                        metadata=?response.connector_metadata,
+                        metadata=?response.connector_feature_data,
                         "Failed to serialize connector_metadata from UCS void response"
                     );
                     e
