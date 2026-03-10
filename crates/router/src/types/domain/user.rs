@@ -861,11 +861,15 @@ impl NewUser {
                         password::generate_password_hash(user_password.get_secret())
                     })
                     .transpose()?;
+                let last_password_modified_at = hashed_password
+                    .as_ref()
+                    .map(|_| common_utils::date_time::now());
                 db.reactivate_user_by_user_id(
                     user_from_db.get_user_id(),
                     storage_user::ReactivateUserUpdate {
                         new_name: Some(self.get_name().expose()),
                         new_password: hashed_password,
+                        last_password_modified_at,
                     },
                 )
                 .await
@@ -1210,6 +1214,9 @@ impl UserFromStorage {
     }
 
     pub fn is_password_rotate_required(&self, state: &SessionState) -> UserResult<bool> {
+        if self.0.password.is_none() {
+            return Ok(true);
+        }
         let last_password_modified_at =
             if let Some(last_password_modified_at) = self.0.last_password_modified_at {
                 last_password_modified_at.date()

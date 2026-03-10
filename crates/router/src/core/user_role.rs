@@ -704,6 +704,9 @@ pub async fn delete_user_role(
             .attach_printable("User is not associated with the merchant");
     };
 
+    #[cfg(not(feature = "email"))]
+    let _ = deleted_user_role_info;
+
     #[cfg(feature = "email")]
     let is_email_sent = utils::user_role::send_role_deletion_email_using_db(
         &state,
