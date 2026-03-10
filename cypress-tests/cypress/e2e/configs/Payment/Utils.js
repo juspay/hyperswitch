@@ -446,6 +446,7 @@ export const CONNECTOR_LISTS = {
     OVERCAPTURE: ["adyen"],
     MANUAL_RETRY: [
       "cybersource",
+      "checkout",
       "stripe",
       "adyen",
       "airwallex",
@@ -456,10 +457,14 @@ export const CONNECTOR_LISTS = {
       "fiuu",
       "globalpay",
       "nexinets",
+      "nuvei",
+      "paypal",
       "powertranz",
       "shift4",
+      "trustpay",
       "worldpay",
       "worldpayvantiv",
+      "worldpayxml",
     ],
     PAYMENTS_WEBHOOK: ["noon", "stripe", "authorizedotnet"],
     // Add more inclusion lists

@@ -46,6 +46,9 @@ pub fn default_payouts_list_limit() -> u32 {
 /// surcharge percentage maximum precision length
 pub const SURCHARGE_PERCENTAGE_PRECISION_LENGTH: u8 = 2;
 
+/// installment interest rate maximum precision length
+pub const INSTALLMENT_INTEREST_RATE_PRECISION_LENGTH: u8 = 2;
+
 /// Header Key for application overhead of a request
 pub const X_HS_LATENCY: &str = "x-hs-latency";
 
@@ -226,9 +229,3 @@ pub const DEFAULT_LIST_LIMIT: i64 = 100;
 
 /// Default offset for list operations (can be used across different entities)
 pub const DEFAULT_LIST_OFFSET: i64 = 0;
-
-/// Length of CPF document number, used in Brazil commonly
-pub const CPF_LENGTH: usize = 11;
-
-/// Length of CNPJ document number, used in Brazil commonly
-pub const CNPJ_LENGTH: usize = 14;
