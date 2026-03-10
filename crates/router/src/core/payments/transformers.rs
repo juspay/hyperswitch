@@ -3299,12 +3299,6 @@ where
         _is_latency_header_enabled: Option<bool>,
         _platform: &domain::Platform,
     ) -> RouterResponse<Self> {
-        let feature_metadata = payment_data
-            .get_payment_intent()
-            .get_optional_feature_metadata()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse feature metadata")?;
-
         Ok(services::ApplicationResponse::JsonWithHeaders((
             Self {
                 payment_id: payment_data.get_payment_intent().payment_id.clone(),
@@ -3313,8 +3307,8 @@ where
                     .metadata
                     .clone()
                     .map(Secret::new),
-                feature_metadata,
-                status: payment_data.get_payment_intent().status,
+                feature_metadata: None,
+                status: None,
             },
             vec![],
         )))
@@ -5696,11 +5690,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdateMe
             api::GetToken::Connector,
             payment_data.payment_attempt.merchant_connector_id.clone(),
         )?;
-        let feature_metadata = payment_data
-            .get_payment_intent()
-            .get_optional_feature_metadata()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse feature metadata")?;
 
         Ok(Self {
             metadata: payment_data.payment_intent.metadata.map(Secret::new),
@@ -5708,10 +5697,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsUpdateMe
                 .connector
                 .connector_transaction_id(&payment_data.payment_attempt)?
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
-            payment_method_type: payment_data.payment_attempt.payment_method_type,
-            connector_meta: payment_data.payment_attempt.connector_metadata.clone(),
-            payment_method_data: None,
-            feature_metadata,
         })
     }
 }

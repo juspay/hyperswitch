@@ -538,7 +538,6 @@ pub enum PaymentIntentUpdate {
     MetadataUpdate {
         metadata: Option<serde_json::Value>,
         updated_by: String,
-        feature_metadata: Option<masking::Secret<serde_json::Value>>,
     },
     Update(Box<PaymentIntentUpdateFields>),
     StateMetadataUpdate {
@@ -1056,7 +1055,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
             PaymentIntentUpdate::MetadataUpdate {
                 metadata,
                 updated_by,
-                feature_metadata,
             } => Self {
                 metadata,
                 modified_at: common_utils::date_time::now(),
@@ -1100,7 +1098,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 extended_return_url: None,
                 payment_channel: None,
-                feature_metadata,
+                feature_metadata: None,
                 tax_status: None,
                 discount_amount: None,
                 order_date: None,
