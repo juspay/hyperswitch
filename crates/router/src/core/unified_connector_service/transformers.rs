@@ -2117,6 +2117,7 @@ impl
 
 impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, PaymentsResponseData>>
     for payments_grpc::MerchantAuthenticationServiceCreateSdkSessionTokenRequest
+    for payments_grpc::MerchantAuthenticationServiceCreateSdkSessionTokenRequest
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
@@ -2134,6 +2135,7 @@ impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, Paym
 
         Ok(Self {
             merchant_sdk_session_id: Some(Identifier {
+            merchant_sdk_session_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     router_data.connector_request_reference_id.clone(),
                 )),
@@ -2142,10 +2144,6 @@ impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, Paym
                 minor_amount: router_data.request.amount.get_amount_as_i64(),
                 currency: currency.into(),
             }),
-            order_tax_amount: router_data
-                .request
-                .order_tax_amount
-                .map(|order_tax_amount| order_tax_amount.get_amount_as_i64()),
             customer: Some(payments_grpc::Customer {
                 name: router_data
                     .request
@@ -2157,10 +2155,17 @@ impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, Paym
                     .email
                     .clone()
                     .map(|e| e.expose().expose().into()),
-                id: None,
+                id: router_data
+                    .customer_id
+                    .as_ref()
+                    .map(|id| id.get_string_repr().to_string()),
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
             }),
+            order_tax_amount: router_data
+                .request
+                .order_tax_amount
+                .map(|order_tax_amount| order_tax_amount.get_amount_as_i64()),
             shipping_cost: router_data
                 .request
                 .shipping_cost
@@ -4147,7 +4152,7 @@ impl transformers::ForeignTryFrom<payments_grpc::AuthenticationData>
             ds_transaction_id,
             trans_status,
             acs_transaction_id,
-            transaction_id,
+            connector_transaction_id,
             ucaf_collection_indicator,
             exemption_indicator: _,
             network_params: _,
@@ -4180,27 +4185,29 @@ impl transformers::ForeignTryFrom<payments_grpc::AuthenticationData>
                 .transpose()?,
             ds_trans_id: ds_transaction_id,
             acs_trans_id: acs_transaction_id,
-            transaction_id,
+            transaction_id: connector_transaction_id,
             ucaf_collection_indicator,
         })
     }
 }
 
-impl ForeignFrom<payments_grpc::TransactionStatus> for common_enums::TransactionStatus {
-    fn foreign_from(value: payments_grpc::TransactionStatus) -> Self {
+impl transformers::ForeignTryFrom<payments_grpc::TransactionStatus> for common_enums::TransactionStatus {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(value: payments_grpc::TransactionStatus) -> Result<Self, Self::Error> {
         match value {
-            payments_grpc::TransactionStatus::Success => Self::Success,
-            payments_grpc::TransactionStatus::Failure => Self::Failure,
+            payments_grpc::TransactionStatus::Success => Ok(Self::Success),
+            payments_grpc::TransactionStatus::Failure => Ok(Self::Failure),
             payments_grpc::TransactionStatus::VerificationNotPerformed => {
-                Self::VerificationNotPerformed
+                Ok(Self::VerificationNotPerformed)
             }
-            payments_grpc::TransactionStatus::NotVerified => Self::NotVerified,
-            payments_grpc::TransactionStatus::Rejected => Self::Rejected,
-            payments_grpc::TransactionStatus::ChallengeRequired => Self::ChallengeRequired,
+            payments_grpc::TransactionStatus::NotVerified => Ok(Self::NotVerified),
+            payments_grpc::TransactionStatus::Rejected => Ok(Self::Rejected),
+            payments_grpc::TransactionStatus::ChallengeRequired => Ok(Self::ChallengeRequired),
             payments_grpc::TransactionStatus::ChallengeRequiredDecoupledAuthentication => {
-                Self::ChallengeRequiredDecoupledAuthentication
+                Ok(Self::ChallengeRequiredDecoupledAuthentication)
             }
-            payments_grpc::TransactionStatus::InformationOnly => Self::InformationOnly,
+            payments_grpc::TransactionStatus::InformationOnly => Ok(Self::InformationOnly),
+            payments_grpc::TransactionStatus::Unspecified => Err(UnifiedConnectorServiceError::ResponseDeserializationFailed.into()),
         }
     }
 }
