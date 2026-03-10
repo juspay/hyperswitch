@@ -76,7 +76,7 @@ where
             .attach_printable("Failed to fetch Unified Connector Service client")?;
 
         let granular_authorize_request =
-            payments_grpc::PaymentServiceAuthorizeOnlyRequest::foreign_try_from((
+            payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from((
                 router_data,
                 call_connector_action,
             ))
@@ -117,7 +117,7 @@ where
             header_payload,
             unified_connector_service_execution_mode,
             |mut router_data, granular_authorize_request, grpc_headers| async move {
-                let response = Box::pin(client.payment_authorize_granular(
+                let response = Box::pin(client.payment_authorize(
                     granular_authorize_request,
                     connector_auth_metadata,
                     grpc_headers,

@@ -121,7 +121,7 @@ where
             );
 
             let payment_repeat_request =
-                payments_grpc::PaymentServiceRepeatEverythingRequest::foreign_try_from(router_data)
+                payments_grpc::RecurringPaymentServiceChargeRequest::foreign_try_from(router_data)
                     .change_context(ConnectorError::RequestEncodingFailed)
                     .attach_printable("Failed to construct Payment Repeat Request")?;
 
@@ -191,7 +191,7 @@ where
         } else {
             logger::debug!("Granular Gateway: Regular authorize flow");
             let granular_authorize_request =
-                payments_grpc::PaymentServiceAuthorizeOnlyRequest::foreign_try_from((
+                payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from((
                     router_data,
                     call_connector_action,
                 ))
@@ -205,7 +205,7 @@ where
                 grpc_headers,
                 unified_connector_service_execution_mode,
                 |mut router_data, granular_authorize_request, grpc_headers| async move {
-                    let response = Box::pin(client.payment_authorize_granular(
+                    let response = Box::pin(client.payment_authorize(
                         granular_authorize_request,
                         connector_auth_metadata,
                         grpc_headers,

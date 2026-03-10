@@ -47,7 +47,8 @@ use router_env::tracing;
 use time::{Duration, OffsetDateTime};
 use unified_connector_service_cards::{CardNumber, NetworkToken};
 use unified_connector_service_client::payments::{
-    self as payments_grpc, session_token, ConnectorState, Identifier,
+    self as payments_grpc, session_token, ConnectorState, EventServiceHandleRequest,
+    EventServiceHandleResponse, Identifier,
 };
 use unified_connector_service_masking::ExposeInterface as UcsMaskingExposeInterface;
 
@@ -2009,27 +2010,22 @@ impl
             .transpose()?;
 
         Ok(Self {
-            request_ref_id: Some(Identifier {
+            merchant_charge_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     router_data.connector_request_reference_id.clone(),
                 )),
             }),
             payment_method,
             mandate_reference_id,
-            amount: router_data.request.amount,
-            currency: currency.into(),
-            minor_amount: router_data.request.amount,
-            merchant_order_reference_id: router_data.request.merchant_order_reference_id.clone(),
+            amount: Some(payments_grpc::Money {
+                minor_amount: router_data.request.amount.get_amount_as_i64(),
+                currency: currency.into(),
+            }),
+            original_payment_authorized_amount: None,
+            merchant_order_id: router_data.request.merchant_order_reference_id.clone(),
             metadata: router_data
                 .request
                 .metadata
-                .as_ref()
-                .map(serde_json::to_string)
-                .transpose()
-                .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
-                .map(|s| s.into()),
-            merchant_account_metadata: router_data
-                .connector_meta_data
                 .as_ref()
                 .map(serde_json::to_string)
                 .transpose()
@@ -2051,7 +2047,6 @@ impl
             connector_customer_id: router_data.connector_customer.clone(),
             address: Some(address),
             off_session: router_data.request.off_session,
-            recurring_mandate_payment_data,
             enable_partial_authorization: router_data
                 .request
                 .enable_partial_authorization
@@ -2071,7 +2066,7 @@ impl
                 .shipping_cost
                 .map(|shipping_cost| shipping_cost.get_amount_as_i64()),
             authentication_data,
-            connector_metadata: None,
+            connector_feature_data: None,
             locale: router_data.request.locale.clone(),
             connector_testing_data: router_data.request.connector_testing_data.as_ref().map(
                 |data| unified_connector_service_masking::Secret::new(data.peek().to_string()),
@@ -5463,7 +5458,7 @@ impl
 
 /// Transform UCS webhook response into webhook event data
 pub fn transform_ucs_webhook_response(
-    response: PaymentServiceTransformResponse,
+    response: EventServiceHandleResponse,
 ) -> Result<WebhookTransformData, error_stack::Report<errors::ApiErrorResponse>> {
     let event_type =
         api_models::webhooks::IncomingWebhookEvent::from_ucs_event_type(response.event_type);
@@ -5499,7 +5494,7 @@ pub fn build_webhook_transform_request(
     webhook_secrets: Option<payments_grpc::WebhookSecrets>,
     merchant_id: &str,
     connector_id: &str,
-) -> Result<PaymentServiceTransformRequest, error_stack::Report<errors::ApiErrorResponse>> {
+) -> Result<EventServiceHandleRequest, error_stack::Report<errors::ApiErrorResponse>> {
     let request_details_grpc =
         <payments_grpc::RequestDetails as transformers::ForeignTryFrom<_>>::foreign_try_from(
             request_details,
@@ -5507,7 +5502,7 @@ pub fn build_webhook_transform_request(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to transform webhook request details to gRPC format")?;
 
-    Ok(PaymentServiceTransformRequest {
+    Ok(EventServiceHandleRequest {
         request_ref_id: Some(Identifier {
             id_type: Some(payments_grpc::identifier::IdType::Id(format!(
                 "{}_{}_{}",

@@ -1822,7 +1822,7 @@ pub fn handle_unified_connector_service_response_for_payment_authorize(
 }
 
 pub fn handle_unified_connector_service_response_for_create_connector_customer(
-    response: payments_grpc::PaymentServiceCreateConnectorCustomerResponse,
+    response: payments_grpc::CustomerServiceCreateResponse,
 ) -> CustomResult<(Result<PaymentsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>
 {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
@@ -1849,7 +1849,7 @@ pub fn handle_unified_connector_service_response_for_create_order(
 }
 
 pub fn handle_unified_connector_service_response_for_payment_post_authenticate(
-    response: payments_grpc::PaymentServicePostAuthenticateResponse,
+    response: payments_grpc::PaymentMethodAuthenticationServicePostAuthenticateResponse,
     prev_status: AttemptStatus,
 ) -> UnifiedConnectorServiceResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
@@ -1876,7 +1876,7 @@ pub fn handle_unified_connector_service_response_for_payment_method_token_create
 }
 
 pub fn handle_unified_connector_service_response_for_sdk_session_token(
-    response: payments_grpc::PaymentServiceSdkSessionTokenResponse,
+    response: payments_grpc::MerchantAuthenticationServiceCreateSdkSessionTokenResponse,
 ) -> CustomResult<(Result<PaymentsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>
 {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
@@ -1900,7 +1900,7 @@ pub fn handle_unified_connector_service_response_for_incremental_authorization(
 }
 
 pub fn handle_unified_connector_service_response_for_payment_authenticate(
-    response: payments_grpc::PaymentServiceAuthenticateResponse,
+    response: payments_grpc::PaymentMethodAuthenticationServiceAuthenticateResponse,
     prev_status: AttemptStatus,
 ) -> UnifiedConnectorServiceResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
@@ -1915,7 +1915,7 @@ pub fn handle_unified_connector_service_response_for_payment_authenticate(
 }
 
 pub fn handle_unified_connector_service_response_for_payment_pre_authenticate(
-    response: payments_grpc::PaymentServicePreAuthenticateResponse,
+    response: payments_grpc::PaymentMethodAuthenticationServicePreAuthenticateResponse,
     prev_status: AttemptStatus,
 ) -> UnifiedConnectorServiceResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
@@ -1945,7 +1945,7 @@ pub fn handle_unified_connector_service_response_for_payment_capture(
 }
 
 pub fn handle_unified_connector_service_response_for_payment_register(
-    response: payments_grpc::PaymentServiceRegisterResponse,
+    response: payments_grpc::PaymentServiceSetupRecurringResponse,
     prev_status: AttemptStatus,
 ) -> CustomResult<UcsSetupMandateResponseData, UnifiedConnectorServiceError> {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
@@ -1974,7 +1974,7 @@ pub fn handle_unified_connector_service_response_for_payment_register(
 }
 
 pub fn handle_unified_connector_service_response_for_session_token_create(
-    response: payments_grpc::PaymentServiceCreateSessionTokenResponse,
+    response: payments_grpc::MerchantAuthenticationServiceCreateSessionTokenResponse,
 ) -> CustomResult<(Result<PaymentsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>
 {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
@@ -1986,7 +1986,7 @@ pub fn handle_unified_connector_service_response_for_session_token_create(
 }
 
 pub fn handle_unified_connector_service_response_for_payment_repeat(
-    response: payments_grpc::PaymentServiceRepeatEverythingResponse,
+    response: payments_grpc::RecurringPaymentServiceChargeResponse,
     prev_status: AttemptStatus,
 ) -> CustomResult<UcsRepeatPaymentResponseData, UnifiedConnectorServiceError> {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
@@ -2078,7 +2078,7 @@ pub fn handle_unified_connector_service_response_for_payment_cancel(
 
 /// Handles the unified connector service response for create access token
 pub fn handle_unified_connector_service_response_for_create_access_token(
-    response: payments_grpc::PaymentServiceCreateAccessTokenResponse,
+    response: payments_grpc::MerchantAuthenticationServiceCreateAccessTokenResponse,
 ) -> CustomResult<(Result<AccessToken, ErrorResponse>, u16), UnifiedConnectorServiceError> {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
@@ -2251,7 +2251,7 @@ pub async fn call_unified_connector_service_for_webhook(
 /// This provides a helper function to extract specific data from UCS responses
 pub fn extract_webhook_content_from_ucs_response(
     transform_data: &WebhookTransformData,
-) -> Option<&unified_connector_service_client::payments::WebhookResponseContent> {
+) -> Option<&unified_connector_service_client::payments::EventResponse> {
     transform_data.webhook_content.as_ref()
 }
 
