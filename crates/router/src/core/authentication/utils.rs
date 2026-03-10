@@ -461,6 +461,8 @@ pub async fn create_new_authentication(
         challenge_request_key: None,
         customer_details: None,
         merchant_country_code: None,
+        processor_merchant_id: None,
+        created_by: None,
     };
 
     state
