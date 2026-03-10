@@ -37,7 +37,10 @@ pub async fn send_request(
         consts::METRICS_HOST_TAG_NAME,
         url.host_str().unwrap_or_default().to_owned()
     ));
-    let request = {
+
+    let query_params = request.query_params;
+
+    let request_builder = {
         match request.method {
             Method::Get => client.get(url),
             Method::Post => {
@@ -87,11 +90,17 @@ pub async fn send_request(
             }
             Method::Delete => client.delete(url),
         }
-        .add_headers(headers)
-        .timeout(Duration::from_secs(
-            option_timeout_secs.unwrap_or(consts::REQUEST_TIME_OUT),
-        ))
     };
+
+    let request = if let Some(params) = query_params {
+        request_builder.query(&params)
+    } else {
+        request_builder
+    };
+
+    let request = request.add_headers(headers).timeout(Duration::from_secs(
+        option_timeout_secs.unwrap_or(consts::REQUEST_TIME_OUT),
+    ));
 
     // We cannot clone the request type, because it has Form trait which is not cloneable. So we are cloning the request builder here.
     let cloned_send_request = request.try_clone().map(|cloned_request| async {

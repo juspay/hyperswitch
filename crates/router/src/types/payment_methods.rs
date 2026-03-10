@@ -451,12 +451,28 @@ pub struct PanMetadataUpdateBody {
 }
 
 /// Write mode for vault operations
-#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum WriteMode {
-    #[default]
     Insert,
     Upsert,
+}
+#[derive(Debug, Clone, Serialize)]
+pub struct AddVaultQueryParam {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mode: Option<WriteMode>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub enum VaultQueryParam {
+    Add(AddVaultQueryParam),
+}
+impl VaultQueryParam {
+    pub fn to_query_value(&self) -> Option<serde_json::Value> {
+        match self {
+            VaultQueryParam::Add(params) => serde_json::to_value(params).ok(),
+        }
+    }
 }
 
 #[cfg(feature = "v2")]

@@ -52,7 +52,7 @@ pub async fn create_vault_token_core(
     .attach_printable("Failed to encode Request")?;
 
     // Call the vault service
-    let resp = pm_vault::call_to_vault::<pm_types::AddVault>(&state, payload.clone())
+    let resp = pm_vault::call_to_vault::<pm_types::AddVault>(&state, payload.clone(), None)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Call to vault failed")?;
