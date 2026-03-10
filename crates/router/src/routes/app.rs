@@ -3321,7 +3321,6 @@ impl RecoveryDataBackfill {
     }
 }
 
-#[cfg(feature = "v1")]
 pub struct SdkConfig;
 #[cfg(feature = "v1")]
 impl SdkConfig {
