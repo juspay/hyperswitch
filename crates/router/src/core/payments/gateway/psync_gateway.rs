@@ -9,7 +9,10 @@ use hyperswitch_interfaces::{
     api::gateway as payment_gateway,
     connector_integration_interface::{BoxedConnectorIntegrationInterface, RouterDataConversion},
     errors::ConnectorError,
-    unified_connector_service::{handle_unified_connector_service_response_for_payment_get, get_payments_response_from_ucs_webhook_content},
+    unified_connector_service::{
+        get_payments_response_from_ucs_webhook_content,
+        handle_unified_connector_service_response_for_payment_get,
+    },
 };
 use unified_connector_service_client::payments as payments_grpc;
 use unified_connector_service_masking::ExposeInterface as UcsMaskingExposeInterface;
