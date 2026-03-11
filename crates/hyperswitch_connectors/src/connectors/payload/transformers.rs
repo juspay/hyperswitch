@@ -71,11 +71,13 @@ fn build_payload_payment_request_data(
                 })?
             }
             let card = requests::PayloadCard {
-                number: req_card.clone().card_number,
-                expiry: req_card
-                    .clone()
-                    .get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned())?,
-                cvc: req_card.card_cvc.clone(),
+                card: requests::PayloadCardData {
+                    card_number: req_card.clone().card_number,
+                    expiry: req_card
+                        .clone()
+                        .get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned())?,
+                    card_code: req_card.card_cvc.clone(),
+                },
             };
             Ok(requests::PayloadPaymentMethods::Card(card))
         }
@@ -105,11 +107,13 @@ fn build_payload_payment_request_data(
                 }
             })?;
             let bank = requests::PayloadBank {
-                account_class,
-                account_currency: currency.to_string(),
-                account_number: account_number.clone(),
-                account_type,
-                routing_number: routing_number.clone(),
+                bank_account: requests::PayloadBankAccountInner {
+                    account_class,
+                    account_currency: currency.to_string(),
+                    account_number: account_number.clone(),
+                    account_type,
+                    routing_number: routing_number.clone(),
+                },
                 account_holder,
             };
             Ok(requests::PayloadPaymentMethods::BankAccount(bank))
@@ -132,25 +136,27 @@ fn build_payload_payment_request_data(
         None
     };
 
-    let billing_address = requests::BillingAddress {
+    let billing_address = Some(requests::BillingAddress {
         city,
-        country,
+        country_code: country,
         postal_code,
         state_province,
         street_address,
-    };
+    });
 
     let payload_auth = PayloadAuth::try_from((connector_auth_type, currency))?;
     // Metadata processing_account_id takes precedence over connector auth config
     Ok(requests::PayloadPaymentRequestData {
         amount,
-        payment_method: payment_method?,
+        payment_method: requests::PayloadPaymentMethod {
+            method: payment_method?,
+            billing_address,
+            keep_active: is_mandate,
+        },
         transaction_types: requests::TransactionTypes::Payment,
         status,
-        billing_address,
         processing_id: get_processing_account_id_from_metadata(metadata)
             .or(payload_auth.processing_account_id),
-        keep_active: is_mandate,
         customer_id,
     })
 }
@@ -612,7 +618,9 @@ impl<F> TryFrom<&PayloadRouterData<&RefundsRouterData<F>>> for requests::Payload
         Ok(Self {
             transaction_type: requests::TransactionTypes::Refund,
             amount: item.amount.to_owned(),
-            ledger_assoc_transaction_id: connector_transaction_id,
+            ledger: vec![requests::PayloadRefundLedgerEntry {
+                assoc_transaction_id: connector_transaction_id,
+            }],
         })
     }
 }
