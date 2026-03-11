@@ -5427,6 +5427,7 @@ impl
                     "/Unknown"
                 }).to_string()
             }),
+            url: Some(request_details.url.to_string()),
             body: request_details.body.to_vec(),
             headers: headers_map,
             query_params: Some(request_details.query_params.clone()),

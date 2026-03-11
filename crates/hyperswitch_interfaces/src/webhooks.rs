@@ -16,6 +16,8 @@ pub struct IncomingWebhookRequestDetails<'a> {
     pub method: http::Method,
     /// uri
     pub uri: http::Uri,
+    /// url
+    pub url: String,
     /// headers
     pub headers: &'a actix_web::http::header::HeaderMap,
     /// body
