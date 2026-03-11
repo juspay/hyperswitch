@@ -578,6 +578,8 @@ debit = { country = "AF,AX,AL,DZ,AS,AD,AO,AI,AQ,AG,AR,AM,AW,AU,AT,AZ,BS,BH,BD,BB
 
 [payout_method_filters.envoy]
 sepa = { country = "AD, AT, BE, BG, HR, CY, CZ, DK, EE, FI, FR, DE, GR, HU, IS, IE, IT, LV, LI, LT, LU, MT, MC, NL, NO, PL, PT, RO, SM, SK, SI, ES, SE, CH, GB", currency = "EUR, BGN, CZK, DKK, HUF, ISK, CHF, NOK, PLN, RON, SEK, GBP" }
+ach = { country = "AD, AT, BE, BG, HR, CY, CZ, DK, EE, FI, FR, DE, GR, HU, IS, IE, IT, LV, LI, LT, LU, MT, MC, NL, NO, PL, PT, RO, SM, SK, SI, ES, SE, CH, GB", currency = "EUR, BGN, CZK, DKK, HUF, ISK, CHF, NOK, PLN, RON, SEK, GBP" }
+bacs = { country = "AD, AT, BE, BG, HR, CY, CZ, DK, EE, FI, FR, DE, GR, HU, IS, IE, IT, LV, LI, LT, LU, MT, MC, NL, NO, PL, PT, RO, SM, SK, SI, ES, SE, CH, GB", currency = "EUR, BGN, CZK, DKK, HUF, ISK, CHF, NOK, PLN, RON, SEK, GBP" }
 
 [pm_filters.globepay]
 ali_pay = { country = "GB",currency = "GBP,CNY" }

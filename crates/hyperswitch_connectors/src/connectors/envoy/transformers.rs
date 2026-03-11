@@ -1,4 +1,6 @@
-use api_models::payouts::{self, PayoutMethodData, SepaBankTransfer};
+use api_models::payouts::{
+    self, AchBankTransfer, BacsBankTransfer, PayoutMethodData, SepaBankTransfer,
+};
 use common_enums::{enums, CountryAlpha2, Currency};
 use common_utils::{
     ext_traits::OptionExt,
@@ -346,6 +348,8 @@ pub enum BankField {
     Swift,
     #[serde(rename = "BankAccountNumber")]
     BankAccountNumber,
+    #[serde(rename = "BranchAddress")]
+    BranchAddress,
     #[serde(rename = "BankCode")]
     BankCode,
     #[serde(rename = "BranchCode")]
@@ -358,6 +362,75 @@ pub enum BankField {
     CustomerName,
 }
 
+fn get_template_for_ach(
+    bank: AchBankTransfer,
+    customer_details: Option<&CustomerDetails>,
+) -> Result<Vec<TemplateRow>, error_stack::Report<errors::ConnectorError>> {
+    let customer_name = customer_details
+        .and_then(|c| c.name.clone())
+        .get_required_value("customer_name")
+        .change_context(errors::ConnectorError::MissingRequiredField {
+            field_name: "customer_name",
+        })?;
+
+    Ok(vec![
+        TemplateRow {
+            id: BankField::BranchAddress,
+            value: bank.bank_city.map(Secret::new),
+        },
+        TemplateRow {
+            id: BankField::CustomerName,
+            value: Some(customer_name.clone()),
+        },
+        TemplateRow {
+            id: BankField::BankName,
+            value: bank.bank_name.map(Secret::new),
+        },
+        TemplateRow {
+            id: BankField::BankCode,
+            value: Some(bank.bank_routing_number.clone()),
+        },
+        TemplateRow {
+            id: BankField::BankAccountNumber,
+            value: Some(bank.bank_account_number.clone()),
+        },
+    ])
+}
+
+fn get_template_for_bacs(
+    bank: BacsBankTransfer,
+    customer_details: Option<&CustomerDetails>,
+) -> Result<Vec<TemplateRow>, error_stack::Report<errors::ConnectorError>> {
+    let customer_name = customer_details
+        .and_then(|c| c.name.clone())
+        .get_required_value("customer_name")
+        .change_context(errors::ConnectorError::MissingRequiredField {
+            field_name: "customer_name",
+        })?;
+
+    Ok(vec![
+        TemplateRow {
+            id: BankField::BranchAddress,
+            value: bank.bank_city.map(Secret::new),
+        },
+        TemplateRow {
+            id: BankField::CustomerName,
+            value: Some(customer_name.clone()),
+        },
+        TemplateRow {
+            id: BankField::BankName,
+            value: bank.bank_name.map(Secret::new),
+        },
+        TemplateRow {
+            id: BankField::BankCode,
+            value: Some(bank.bank_sort_code.clone()),
+        },
+        TemplateRow {
+            id: BankField::BankAccountNumber,
+            value: Some(bank.bank_account_number.clone()),
+        },
+    ])
+}
 fn get_template_for_sepa(
     bank: SepaBankTransfer,
     customer_details: Option<&CustomerDetails>,
@@ -371,6 +444,10 @@ fn get_template_for_sepa(
 
     Ok(vec![
         TemplateRow {
+            id: BankField::BranchAddress,
+            value: bank.bank_city.map(Secret::new),
+        },
+        TemplateRow {
             id: BankField::Iban,
             value: Some(bank.iban.clone()),
         },
@@ -381,12 +458,6 @@ fn get_template_for_sepa(
         TemplateRow {
             id: BankField::BankName,
             value: bank.bank_name.map(Secret::new),
-        },
-        TemplateRow {
-            id: BankField::BankCode,
-            value: bank
-                .bank_country_code
-                .map(|code| Secret::new(code.to_string())),
         },
         TemplateRow {
             id: BankField::Swift,
@@ -414,19 +485,24 @@ impl<F> TryFrom<&EnvoyRouterData<&PayoutsRouterData<F>>> for PayToBankAccountV3 
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &EnvoyRouterData<&PayoutsRouterData<F>>) -> Result<Self, Self::Error> {
         let payout_data = &item.router_data.request;
-        let bank_details = match item.router_data.get_payout_method_data()? {
-            PayoutMethodData::Bank(payouts::Bank::Sepa(bank)) => bank,
+        let customer_details = item.router_data.request.customer_details.to_owned();
+        let payment_template = match item.router_data.get_payout_method_data()? {
+            PayoutMethodData::Bank(payouts::Bank::Ach(bank)) => PaymentTemplate {
+                rows: get_template_for_ach(bank, customer_details.as_ref())?,
+            },
+            PayoutMethodData::Bank(payouts::Bank::Sepa(bank)) => PaymentTemplate {
+                rows: get_template_for_sepa(bank, customer_details.as_ref())?,
+            },
+            PayoutMethodData::Bank(payouts::Bank::Bacs(bank)) => PaymentTemplate {
+                rows: get_template_for_bacs(bank, customer_details.as_ref())?,
+            },
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "payout creation is not supported".to_string(),
                 connector: "Envoy",
             })?,
         };
-        let customer_details = item.router_data.request.customer_details.to_owned();
 
         // Create payment template with bank fields
-        let payment_template = PaymentTemplate {
-            rows: get_template_for_sepa(bank_details, customer_details.as_ref())?,
-        };
         let country_code = item.router_data.get_billing_country()?;
 
         Ok(Self {
