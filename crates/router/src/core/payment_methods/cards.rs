@@ -3896,15 +3896,12 @@ pub async fn list_payment_methods(
 
     let intent_data = payment_intent
         .clone()
-        .map(|mut pi| {
-            if !connector_supports_installments {
-                pi.installment_options = None;
-            }
+        .map(|pi| {
             let net_amount = payment_attempt
                 .as_ref()
                 .map(|pa| pa.net_amount.get_total_amount())
                 .unwrap_or(pi.amount);
-            pi.into_payment_method_list_intent_data(net_amount)
+            pi.into_payment_method_list_intent_data(net_amount, connector_supports_installments)
         })
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
