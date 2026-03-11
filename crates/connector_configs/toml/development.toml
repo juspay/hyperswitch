@@ -8123,7 +8123,6 @@ options=["Connector"]
 [[payjustnowinstore.pay_later]]
   payment_method_type = "payjustnow"
 
-[truelayer]
-[truelayer.connector_auth.BodyKey]
-  api_key = "Client ID"
-  key1 = "Client Secret"
+[trustly]
+[trustly.connector_auth.HeaderKey]
+api_key = "API Key"

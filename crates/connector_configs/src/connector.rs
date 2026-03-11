@@ -364,6 +364,7 @@ pub struct ConnectorConfig {
     pub tokenex: Option<ConnectorTomlConfig>,
     pub tokenio: Option<ConnectorTomlConfig>,
     pub truelayer: Option<ConnectorTomlConfig>,
+    pub trustly: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub truelayer_payout: Option<ConnectorTomlConfig>,
     pub trustpay: Option<ConnectorTomlConfig>,
