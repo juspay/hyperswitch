@@ -2,6 +2,7 @@ pub mod transformers;
 use std::sync::LazyLock;
 
 use base64::Engine;
+use subtle::ConstantTimeEq;
 use common_enums::enums::{self, PaymentMethodType};
 use common_utils::{
     consts,
@@ -2057,7 +2058,7 @@ impl IncomingWebhook for Adyen {
         let signing_key = hmac::Key::new(hmac::HMAC_SHA256, &raw_key);
         let signed_messaged = hmac::sign(&signing_key, &message);
         let payload_sign = consts::BASE64_ENGINE.encode(signed_messaged.as_ref());
-        Ok(payload_sign.as_bytes().eq(&signature))
+        Ok(bool::from(payload_sign.as_bytes().ct_eq(&signature)))
     }
 
     fn get_webhook_object_reference_id(

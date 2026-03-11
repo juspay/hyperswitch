@@ -69,6 +69,8 @@ use masking::{PeekInterface, Secret};
 #[cfg(feature = "frm")]
 use ring::hmac;
 #[cfg(feature = "frm")]
+use subtle::ConstantTimeEq;
+#[cfg(feature = "frm")]
 use transformers as signifyd;
 
 use crate::constants::headers;
@@ -686,7 +688,7 @@ impl IncomingWebhook for Signifyd {
         let signing_key = hmac::Key::new(hmac::HMAC_SHA256, &connector_webhook_secrets.secret);
         let signed_message = hmac::sign(&signing_key, &message);
         let payload_sign = consts::BASE64_ENGINE.encode(signed_message.as_ref());
-        Ok(payload_sign.as_bytes().eq(&signature))
+        Ok(bool::from(payload_sign.as_bytes().ct_eq(&signature)))
     }
 
     fn get_webhook_object_reference_id(
