@@ -2175,7 +2175,7 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let connector_response_reference_id =
-            response.response_ref_id.as_ref().and_then(|identifier| {
+            response.merchant_order_id.as_ref().and_then(|identifier| {
                 identifier
                     .id_type
                     .clone()
@@ -2189,7 +2189,7 @@ impl
             });
 
         let resource_id: router_request_types::ResponseId = match response
-            .transaction_id
+            .connector_transaction_id
             .as_ref()
             .and_then(|id| id.id_type.clone())
         {
@@ -2441,17 +2441,9 @@ impl
                 PaymentsResponseData::TransactionResponse {
                     resource_id,
                     redirection_data: Box::new(redirection_data),
-                    mandate_reference: Box::new(response.mandate_reference.map(|grpc_mandate| {
-                        hyperswitch_domain_models::router_response_types::MandateReference {
-                            connector_mandate_id: grpc_mandate.mandate_id,
-                            payment_method_id: grpc_mandate.payment_method_id,
-                            mandate_metadata: None,
-                            connector_mandate_request_reference_id: grpc_mandate
-                                .connector_mandate_request_reference_id,
-                        }
-                    })),
+                    mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata,
-                    network_txn_id: response.network_txn_id.clone(),
+                    network_txn_id: response.network_transaction_id.clone(),
                     connector_response_reference_id,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
@@ -2554,15 +2546,7 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceCaptureResponse,
                 PaymentsResponseData::TransactionResponse {
                     resource_id,
                     redirection_data: Box::new(None),
-                    mandate_reference: Box::new(response.mandate_reference.map(|grpc_mandate| {
-                        hyperswitch_domain_models::router_response_types::MandateReference {
-                            connector_mandate_id: grpc_mandate.mandate_id,
-                            payment_method_id: grpc_mandate.payment_method_id,
-                            mandate_metadata: None,
-                            connector_mandate_request_reference_id: grpc_mandate
-                                .connector_mandate_request_reference_id,
-                        }
-                    })),
+                    mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata,
                     network_txn_id: None,
                     connector_response_reference_id,
@@ -2577,7 +2561,6 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceCaptureResponse,
     }
 }
 
-impl transformers::ForeignTryFrom<payments_grpc::CustomerServiceCreateResponse>
 impl transformers::ForeignTryFrom<payments_grpc::CustomerServiceCreateResponse>
     for Result<PaymentsResponseData, ErrorResponse>
 {
@@ -2602,9 +2585,9 @@ impl transformers::ForeignTryFrom<payments_grpc::CustomerServiceCreateResponse>
                 )?,
                 reason: error_info.connector_details.as_ref().and_then(|cd| cd.reason.clone()),
                 status_code,
-                attempt_status,
-                connector_transaction_id: resource_id.get_optional_response_id(),
-                connector_response_reference_id,
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| id.network_details.as_ref().and_then(|nd| nd.decline_code.clone())),
                 network_advice_code: error_info.issuer_details.as_ref().and_then(|id| id.network_details.as_ref().and_then(|nd| nd.advice_code.clone())),
                 network_error_message: error_info.issuer_details.as_ref().and_then(|id| id.network_details.as_ref().and_then(|nd| nd.error_message.clone())),
@@ -2848,17 +2831,9 @@ impl
                 PaymentsResponseData::TransactionResponse {
                     resource_id,
                     redirection_data: Box::new(None),
-                    mandate_reference: Box::new(response.mandate_reference.map(|grpc_mandate| {
-                        hyperswitch_domain_models::router_response_types::MandateReference {
-                            connector_mandate_id: grpc_mandate.mandate_id,
-                            payment_method_id: grpc_mandate.payment_method_id,
-                            mandate_metadata: None,
-                            connector_mandate_request_reference_id: grpc_mandate
-                                .connector_mandate_request_reference_id,
-                        }
-                    })),
+                    mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata,
-                    network_txn_id: response.network_txn_id.clone(),
+                    network_txn_id: response.network_transaction_id.clone(),
                     connector_response_reference_id,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
@@ -4386,7 +4361,6 @@ impl ForeignFrom<common_enums::PaymentMethodType> for payments_grpc::PaymentMeth
 
 impl
     transformers::ForeignTryFrom<(
-        payments_grpc::MerchantAuthenticationServiceCreateSessionTokenResponse,
         payments_grpc::PaymentServiceCreateOrderResponse,
         AttemptStatus,
     )> for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
@@ -4423,7 +4397,7 @@ impl
                 status_code,
                 attempt_status,
                 connector_transaction_id: resource_id.get_optional_response_id(),
-                connector_response_reference_id,
+                connector_response_reference_id: None,
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| id.network_details.as_ref().and_then(|nd| nd.decline_code.clone())),
                 network_advice_code: error_info.issuer_details.as_ref().and_then(|id| id.network_details.as_ref().and_then(|nd| nd.advice_code.clone())),
                 network_error_message: error_info.issuer_details.as_ref().and_then(|id| id.network_details.as_ref().and_then(|nd| nd.error_message.clone())),
@@ -4623,38 +4597,22 @@ impl
 
         let response = if let Some(error_info) = response.error.as_ref() {
             Err(ErrorResponse {
-                code: error_info.connector_details.and_then(|cd| cd.code).ok_or(
-                    error_stack::Report::new(
-                        UnifiedConnectorServiceError::ResponseDeserializationFailed,
-                    )
-                    .attach_printable("Missing error code in UCS response ErrorInfo"),
+                code: error_info.connector_details.as_ref().and_then(|cd| cd.code.clone()).ok_or(
+                    error_stack::Report::new(UnifiedConnectorServiceError::ResponseDeserializationFailed)
+                        .attach_printable("Missing error code in UCS response ErrorInfo"),
                 )?,
-                message: error_info
-                    .connector_details
-                    .and_then(|cd| cd.message)
-                    .ok_or(
-                        error_stack::Report::new(
-                            UnifiedConnectorServiceError::ResponseDeserializationFailed,
-                        )
+                message: error_info.connector_details.as_ref().and_then(|cd| cd.message.clone()).ok_or(
+                    error_stack::Report::new(UnifiedConnectorServiceError::ResponseDeserializationFailed)
                         .attach_printable("Missing error message in UCS response ErrorInfo"),
-                    )?,
-                reason: error_info.connector_details.and_then(|cd| cd.reason),
+                )?,
+                reason: error_info.connector_details.as_ref().and_then(|cd| cd.reason.clone()),
                 status_code,
                 attempt_status: None,
                 connector_transaction_id: None,
                 connector_response_reference_id: None,
-                network_decline_code: error_info
-                    .issuer_details
-                    .as_ref()
-                    .and_then(|id| id.network_details.as_ref().and_then(|nd| nd.decline_code)),
-                network_advice_code: error_info
-                    .issuer_details
-                    .as_ref()
-                    .and_then(|id| id.network_details.as_ref().and_then(|nd| nd.advice_code)),
-                network_error_message: error_info
-                    .issuer_details
-                    .as_ref()
-                    .and_then(|id| id.network_details.as_ref().and_then(|nd| nd.error_message)),
+                network_decline_code: error_info.issuer_details.as_ref().and_then(|id| id.network_details.as_ref().and_then(|nd| nd.decline_code.clone())),
+                network_advice_code: error_info.issuer_details.as_ref().and_then(|id| id.network_details.as_ref().and_then(|nd| nd.advice_code.clone())),
+                network_error_message: error_info.issuer_details.as_ref().and_then(|id| id.network_details.as_ref().and_then(|nd| nd.error_message.clone())),
                 connector_metadata: None,
             })
         } else {
@@ -5200,7 +5158,7 @@ impl
 
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
-        let response = if response.error_code.is_some() {
+        let response = if let Some(error_info) = response.error.as_ref() {
             let attempt_status = match response.status() {
                 payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
                 _ => Some(AttemptStatus::foreign_try_from((
@@ -5210,16 +5168,22 @@ impl
             };
 
             Err(ErrorResponse {
-                code: response.error_code().to_owned(),
-                message: response.error_message().to_owned(),
-                reason: Some(response.error_reason().to_owned()),
+                code: error_info.connector_details.as_ref().and_then(|cd| cd.code.clone()).ok_or(
+                    error_stack::Report::new(UnifiedConnectorServiceError::ResponseDeserializationFailed)
+                        .attach_printable("Missing error code in UCS response ErrorInfo"),
+                )?,
+                message: error_info.connector_details.as_ref().and_then(|cd| cd.message.clone()).ok_or(
+                    error_stack::Report::new(UnifiedConnectorServiceError::ResponseDeserializationFailed)
+                        .attach_printable("Missing error message in UCS response ErrorInfo"),
+                )?,
+                reason: error_info.connector_details.as_ref().and_then(|cd| cd.reason.clone()),
                 status_code,
                 attempt_status,
                 connector_transaction_id: resource_id.get_optional_response_id(),
                 connector_response_reference_id,
-                network_decline_code: response.network_decline_code.clone(),
-                network_advice_code: response.network_advice_code.clone(),
-                network_error_message: response.network_error_message.clone(),
+                network_decline_code: error_info.issuer_details.as_ref().and_then(|id| id.network_details.as_ref().and_then(|nd| nd.decline_code.clone())),
+                network_advice_code: error_info.issuer_details.as_ref().and_then(|id| id.network_details.as_ref().and_then(|nd| nd.advice_code.clone())),
+                network_error_message: error_info.issuer_details.as_ref().and_then(|id| id.network_details.as_ref().and_then(|nd| nd.error_message.clone())),
                 connector_metadata: None,
             })
         } else {
@@ -6022,15 +5986,7 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceVoidResponse, At
                 PaymentsResponseData::TransactionResponse {
                     resource_id,
                     redirection_data: Box::new(None),
-                    mandate_reference: Box::new(response.mandate_reference.map(|grpc_mandate| {
-                        hyperswitch_domain_models::router_response_types::MandateReference {
-                            connector_mandate_id: grpc_mandate.mandate_id,
-                            payment_method_id: grpc_mandate.payment_method_id,
-                            mandate_metadata: None,
-                            connector_mandate_request_reference_id: grpc_mandate
-                                .connector_mandate_request_reference_id,
-                        }
-                    })),
+                    mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata,
                     network_txn_id: None,
                     connector_response_reference_id,
