@@ -115,18 +115,17 @@ pub struct SupportedConnectorsForInstallments(
 pub struct InstallmentConfig(pub HashMap<enums::Connector, Vec<common_enums::enums::Currency>>);
 
 impl InstallmentConfig {
-    pub fn is_connector_configured(&self, connector_str: &str) -> bool {
+    pub fn is_connector_currency_supported(
+        &self,
+        connector_str: &str,
+        currency: common_enums::enums::Currency,
+    ) -> bool {
         connector_str
             .parse::<enums::Connector>()
             .ok()
-            .map(|c| self.0.contains_key(&c))
+            .and_then(|c| self.0.get(&c))
+            .map(|currencies| currencies.contains(&currency))
             .unwrap_or(false)
-    }
-
-    pub fn is_currency_supported(&self, currency: common_enums::enums::Currency) -> bool {
-        self.0
-            .values()
-            .any(|currencies| currencies.contains(&currency))
     }
 }
 
