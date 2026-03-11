@@ -320,7 +320,7 @@ impl Connector {
             | Self::Deutschebank
             | Self::Digitalvirgo
             | Self::Dlocal
-            | Self::Dwolla 
+            | Self::Dwolla
             | Self::Envoy
             | Self::Ebanx
             | Self::Elavon
