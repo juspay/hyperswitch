@@ -25,9 +25,9 @@ use payment_methods::client::{
     retrieve::{RetrievePaymentMethodResponse, RetrievePaymentMethodV1Request},
     UpdatePaymentMethod, UpdatePaymentMethodV1Payload, UpdatePaymentMethodV1Request,
 };
-use router_env::RequestId;
 #[cfg(feature = "v1")]
-use router_env::{logger, RequestIdentifier};
+use router_env::logger;
+use router_env::RequestId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -553,12 +553,12 @@ pub fn mk_add_card_response_hs(
 pub fn generate_pm_vaulting_req_from_update_request(
     pm_create: domain::PaymentMethodVaultingData,
     pm_update: api::PaymentMethodUpdateData,
-) -> domain::PaymentMethodVaultingData {
+) -> CustomResult<domain::PaymentMethodVaultingData, errors::VaultError> {
     match (pm_create, pm_update) {
         (
             domain::PaymentMethodVaultingData::Card(card_create),
             api::PaymentMethodUpdateData::Card(update_card),
-        ) => domain::PaymentMethodVaultingData::Card(api::CardDetail {
+        ) => Ok(domain::PaymentMethodVaultingData::Card(api::CardDetail {
             card_number: card_create.card_number,
             card_exp_month: card_create.card_exp_month,
             card_exp_year: card_create.card_exp_year,
@@ -571,8 +571,9 @@ pub fn generate_pm_vaulting_req_from_update_request(
                 .or(card_create.card_holder_name),
             nick_name: update_card.nick_name.or(card_create.nick_name),
             card_cvc: None,
-        }),
-        _ => todo!(), //todo! - since support for network tokenization is not added PaymentMethodUpdateData. should be handled later.
+        })),
+        _ => Err(errors::VaultError::PaymentMethodNotSupported)
+            .attach_printable("Payment method type not supported for update"),
     }
 }
 
@@ -877,6 +878,7 @@ impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)>
                     api_models::payment_methods::PaymentMethodListData::Card(card_details)
                 }
                 api_models::payment_methods::PaymentMethodsData::BankDetails(..) => todo!(),
+                api_models::payment_methods::PaymentMethodsData::BankDebit(..) => todo!(),
                 api_models::payment_methods::PaymentMethodsData::WalletDetails(..) => {
                     todo!()
                 }
@@ -943,6 +945,7 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for PaymentMethodRespon
                     api_models::payment_methods::PaymentMethodListData::Card(card_details)
                 }
                 api_models::payment_methods::PaymentMethodsData::BankDetails(..) => todo!(),
+                api_models::payment_methods::PaymentMethodsData::BankDebit(..) => todo!(),
                 api_models::payment_methods::PaymentMethodsData::WalletDetails(..) => {
                     todo!()
                 }
@@ -1013,9 +1016,10 @@ pub fn generate_payment_method_session_response(
     sdk_authorization: Option<hyperswitch_domain_models::sdk_auth::SdkAuthorization>,
     associated_payment: Option<api_models::payments::PaymentsResponse>,
     tokenization_service_response: Option<api_models::tokenization::GenericTokenizationResponse>,
-    storage_type: Option<common_enums::StorageType>,
+    storage_type: common_enums::StorageType,
     card_cvc_token_storage: Option<api_models::payment_methods::CardCVCTokenStorageDetails>,
     payment_method_data: Option<api_models::payment_methods::PaymentMethodResponseData>,
+    network_tokenization_response: Option<api_models::payment_methods::NetworkTokenResponse>,
 ) -> api_models::payment_methods::PaymentMethodSessionResponse {
     let next_action = associated_payment
         .as_ref()
@@ -1057,6 +1061,7 @@ pub fn generate_payment_method_session_response(
         payment_method_data,
         sdk_authorization,
         keep_alive: payment_method_session.keep_alive,
+        network_tokenization_data: network_tokenization_response,
     }
 }
 
@@ -1171,12 +1176,10 @@ pub async fn call_modular_payment_method_update(
             .to_string()
             .into_masked(),
     ));
-    let trace = RequestIdentifier::new(&state.conf.trace_header.header_name)
-        .use_incoming_id(state.conf.trace_header.id_reuse_strategy);
     let client = pm_client::PaymentMethodClient::new(
         &state.conf.micro_services.payment_methods_base_url,
         &parent_headers,
-        &trace,
+        &state.conf.trace_header.header_name,
     );
 
     UpdatePaymentMethod::call(
@@ -1333,8 +1336,12 @@ impl DomainPaymentMethodWrapper {
             network_token_locker_id: None,
             network_token_payment_method_data: None,
             vault_source_details: domain::PaymentMethodVaultSourceDetails::InternalVault,
-            created_by: None,
-            last_modified_by: None,
+            created_by: platform
+                .get_initiator()
+                .and_then(|initiator| initiator.to_created_by()),
+            last_modified_by: platform
+                .get_initiator()
+                .and_then(|initiator| initiator.to_created_by()),
             customer_details: None,
             locker_fingerprint_id: None,
         }))
@@ -1461,8 +1468,12 @@ impl DomainPaymentMethodWrapper {
             network_token_locker_id: None,
             network_token_payment_method_data: None,
             vault_source_details: domain::PaymentMethodVaultSourceDetails::InternalVault,
-            created_by: None,
-            last_modified_by: None,
+            created_by: platform
+                .get_initiator()
+                .and_then(|initiator| initiator.to_created_by()),
+            last_modified_by: platform
+                .get_initiator()
+                .and_then(|initiator| initiator.to_created_by()),
             customer_details: None,
             locker_fingerprint_id: None,
         }))
@@ -1659,14 +1670,11 @@ pub async fn retrieve_pm_modular_service_call(
             .into_masked(),
     ));
 
-    let trace = RequestIdentifier::new(&state.conf.trace_header.header_name)
-        .use_incoming_id(state.conf.trace_header.id_reuse_strategy);
-
     //pm client construction
     let client = pm_client::PaymentMethodClient::new(
         &state.conf.micro_services.payment_methods_base_url,
         &parent_headers,
-        &trace,
+        &state.conf.trace_header.header_name,
     );
 
     //Modular service call
@@ -1695,6 +1703,7 @@ pub async fn create_payment_method_in_modular_service(
     payment_method_data: domain::PaymentMethodData,
     billing_address: Option<hyperswitch_domain_models::address::Address>,
     customer_id: id_type::CustomerId,
+    is_network_tokenization_enabled: bool,
 ) -> CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
     let payment_method_request = CreatePaymentMethodV1Request {
         merchant_id: provider_merchant_id.clone(),
@@ -1704,7 +1713,11 @@ pub async fn create_payment_method_in_modular_service(
         customer_id,
         payment_method_data,
         billing: billing_address,
-        network_tokenization: None,
+        network_tokenization: is_network_tokenization_enabled.then_some(
+            common_types::payment_methods::NetworkTokenization {
+                enable: common_enums::NetworkTokenizationToggle::Enable,
+            },
+        ),
         storage_type: Some(common_enums::StorageType::Persistent),
         modular_service_prefix: state.conf.micro_services.payment_methods_prefix.0.clone(),
     };
@@ -1749,14 +1762,11 @@ pub async fn create_pm_modular_service_call(
         merchant_id.get_string_repr().to_string().into_masked(),
     ));
 
-    let trace = RequestIdentifier::new(&state.conf.trace_header.header_name)
-        .use_incoming_id(state.conf.trace_header.id_reuse_strategy);
-
     //pm client construction
     let client = pm_client::PaymentMethodClient::new(
         &state.conf.micro_services.payment_methods_base_url,
         &parent_headers,
-        &trace,
+        &state.conf.trace_header.header_name,
     );
 
     //Modular service call

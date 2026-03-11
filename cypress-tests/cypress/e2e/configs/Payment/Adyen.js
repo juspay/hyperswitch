@@ -687,6 +687,137 @@ export const connectorDetails = {
         },
       },
     },
+    ManualRetryPaymentDisabled: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 400,
+        body: {
+          type: "invalid_request",
+          message:
+            "You cannot confirm this payment because it has status failed, you can enable `manual_retry` in profile to try this payment again",
+          code: "IR_16",
+        },
+      },
+    },
+    ManualRetryPaymentEnabled: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method: "card",
+          attempt_count: 2,
+        },
+      },
+    },
+    ManualRetryPaymentCutoffExpired: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 400,
+        body: {
+          type: "invalid_request",
+          message:
+            "You cannot confirm this payment using `manual_retry` because the allowed duration has expired",
+          code: "IR_16",
+        },
+      },
+    },
+    PaymentIntentWithInstallments: {
+      Request: {
+        currency: "BRL",
+        installment_options: [
+          {
+            payment_method: "card",
+            installments: [
+              {
+                number_of_installments: [3, 6, 12],
+                billing_frequency: "month",
+                interest_rate: 5.0,
+              },
+            ],
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    CardInstallmentConfirm: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        installment_data: {
+          number_of_installments: 3,
+          billing_frequency: "month",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          net_amount: 6300,
+        },
+      },
+    },
+    PaymentIntentWithInstallmentsAndConfirmTrue: {
+      Request: {
+        currency: "BRL",
+        confirm: true,
+        installment_options: [
+          {
+            payment_method: "card",
+            installments: [
+              {
+                number_of_installments: [3, 6, 12],
+                billing_frequency: "month",
+                interest_rate: 5.0,
+              },
+            ],
+          },
+        ],
+      },
+      Response: {
+        status: 422,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "installment_options and installment_data are not supported when confirm is true.",
+            code: "IR_06",
+          },
+        },
+      },
+    },
   },
   bank_transfer_pm: {
     Pix: {

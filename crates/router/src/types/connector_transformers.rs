@@ -134,6 +134,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Razorpay => Self::Razorpay,
             api_enums::Connector::Recurly => Self::Recurly,
             api_enums::Connector::Redsys => Self::Redsys,
+            api_enums::Connector::Revolv3 => Self::Revolv3,
             api_enums::Connector::Santander => Self::Santander,
             api_enums::Connector::Shift4 => Self::Shift4,
             api_enums::Connector::Zift => Self::Zift,
@@ -165,6 +166,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
                 })?
             }
             api_enums::Connector::Tokenio => Self::Tokenio,
+            api_enums::Connector::Truelayer => Self::Truelayer,
             api_enums::Connector::Trustpay => Self::Trustpay,
             api_enums::Connector::Trustpayments => Self::Trustpayments,
             api_enums::Connector::Tsys => Self::Tsys,

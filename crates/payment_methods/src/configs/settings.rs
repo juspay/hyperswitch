@@ -94,6 +94,21 @@ pub struct SupportedConnectorsForMandate {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub connector_list: HashSet<enums::Connector>,
 }
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct SupportedPaymentMethodsForInstallments(
+    pub HashMap<enums::PaymentMethod, SupportedPaymentMethodTypesForInstallments>,
+);
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct SupportedPaymentMethodTypesForInstallments(
+    pub HashMap<enums::PaymentMethodType, SupportedConnectorsForInstallments>,
+);
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct SupportedConnectorsForInstallments(
+    #[serde(deserialize_with = "deserialize_hashset")] pub HashSet<enums::Connector>,
+);
 #[derive(Debug, Deserialize, Clone)]
 pub struct Mandates {
     pub supported_payment_methods: SupportedPaymentMethodsForMandate,
@@ -103,6 +118,12 @@ pub struct Mandates {
 #[derive(Debug, Deserialize, Clone)]
 pub struct ZeroMandates {
     pub supported_payment_methods: SupportedPaymentMethodsForMandate,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct Installments {
+    pub supported_payment_methods: SupportedPaymentMethodsForInstallments,
 }
 
 fn deserialize_hashset_inner<T>(value: impl AsRef<str>) -> Result<HashSet<T>, String>

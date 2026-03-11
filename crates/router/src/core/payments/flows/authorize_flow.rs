@@ -937,10 +937,19 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             let order_create_response = order_create_response_router_data.response.clone();
 
             let create_order_resp = match &order_create_response {
-                Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id }) => {
+                Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse {
+                    order_id,
+                    session_token,
+                }) => {
+                    let should_continue_further = if session_token.is_some() {
+                        // if SDK session token is returned in order create response, do not continue and return control to SDK
+                        false
+                    } else {
+                        should_continue_payment
+                    };
                     types::CreateOrderResult {
                         create_order_result: Ok(order_id.clone()),
-                        should_continue_further: should_continue_payment,
+                        should_continue_further,
                     }
                 }
                 // Some connector return PreProcessingResponse and TransactionResponse response type

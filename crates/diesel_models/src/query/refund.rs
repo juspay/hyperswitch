@@ -130,6 +130,15 @@ impl Refund {
         )
         .await
     }
+
+    pub fn is_refund_applied(&self) -> bool {
+        matches!(
+            self.refund_status,
+            common_enums::RefundStatus::ManualReview
+                | common_enums::RefundStatus::Pending
+                | common_enums::RefundStatus::Success
+        )
+    }
 }
 
 #[cfg(feature = "v2")]
