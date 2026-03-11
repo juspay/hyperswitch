@@ -195,19 +195,19 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
     fn foreign_try_from(
         (response, prev_status): (payments_grpc::PaymentServiceGetResponse, AttemptStatus),
     ) -> Result<Self, Self::Error> {
-        // let connector_response_reference_id =
-        //     response.response_ref_id.as_ref().and_then(|identifier| {
-        //         identifier
-        //             .id_type
-        //             .clone()
-        //             .and_then(|id_type| match id_type {
-        //                 payments_grpc::identifier::IdType::Id(id) => Some(id),
-        //                 payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
-        //                     Some(encoded_data)
-        //                 }
-        //                 payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
-        //             })
-        //     });
+        let connector_response_reference_id =
+            response.response_ref_id.as_ref().and_then(|identifier| {
+                identifier
+                    .id_type
+                    .clone()
+                    .and_then(|id_type| match id_type {
+                        payments_grpc::identifier::IdType::Id(id) => Some(id),
+                        payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
+                            Some(encoded_data)
+                        }
+                        payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
+                    })
+            });
 
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
@@ -254,7 +254,7 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
                 status_code,
                 attempt_status,
                 connector_transaction_id: resource_id.get_optional_response_id(),
-                connector_response_reference_id: None,
+                connector_response_reference_id,
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
@@ -288,7 +288,7 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
                     mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata: None,
                     network_txn_id: response.network_transaction_id.clone(),
-                    connector_response_reference_id: None,
+                    connector_response_reference_id,
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,

@@ -892,10 +892,13 @@ impl
                     router_data.connector_request_reference_id.clone(),
                 )),
             }),
-            amount: router_data.request.minor_amount.map(|minor_amount| payments_grpc::Money {
-                minor_amount: minor_amount.get_amount_as_i64(),
-                currency: currency.into(),
-            }),
+            amount: router_data
+                .request
+                .minor_amount
+                .map(|minor_amount| payments_grpc::Money {
+                    minor_amount: minor_amount.get_amount_as_i64(),
+                    currency: currency.into(),
+                }),
             payment_method,
             customer: Some(payments_grpc::Customer {
                 name: None,
@@ -976,10 +979,13 @@ impl
                     router_data.connector_request_reference_id.clone(),
                 )),
             }),
-            amount: router_data.request.minor_amount.map(|minor_amount| payments_grpc::Money {
-                minor_amount: minor_amount.get_amount_as_i64(),
-                currency: currency.into(),
-            }),
+            amount: router_data
+                .request
+                .minor_amount
+                .map(|minor_amount| payments_grpc::Money {
+                    minor_amount: minor_amount.get_amount_as_i64(),
+                    currency: currency.into(),
+                }),
             payment_method,
             customer: Some(payments_grpc::Customer {
                 name: None,
@@ -2710,8 +2716,10 @@ impl
             AttemptStatus,
         ),
     ) -> Result<Self, Self::Error> {
-        let connector_response_reference_id =
-            response.merchant_recurring_payment_id.as_ref().and_then(|identifier| {
+        let connector_response_reference_id = response
+            .merchant_recurring_payment_id
+            .as_ref()
+            .and_then(|identifier| {
                 identifier
                     .id_type
                     .clone()
@@ -2752,22 +2760,49 @@ impl
             };
 
             Err(ErrorResponse {
-                code: error_info.connector_details.as_ref().and_then(|cd| cd.code.clone()).ok_or(
-                    error_stack::Report::new(UnifiedConnectorServiceError::ResponseDeserializationFailed)
+                code: error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.code.clone())
+                    .ok_or(
+                        error_stack::Report::new(
+                            UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                        )
                         .attach_printable("Missing error code in UCS response ErrorInfo"),
-                )?,
-                message: error_info.connector_details.as_ref().and_then(|cd| cd.message.clone()).ok_or(
-                    error_stack::Report::new(UnifiedConnectorServiceError::ResponseDeserializationFailed)
+                    )?,
+                message: error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.message.clone())
+                    .ok_or(
+                        error_stack::Report::new(
+                            UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                        )
                         .attach_printable("Missing error message in UCS response ErrorInfo"),
-                )?,
-                reason: error_info.connector_details.as_ref().and_then(|cd| cd.reason.clone()),
+                    )?,
+                reason: error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.reason.clone()),
                 status_code,
                 attempt_status,
                 connector_transaction_id: resource_id.get_optional_response_id(),
                 connector_response_reference_id,
-                network_decline_code: error_info.issuer_details.as_ref().and_then(|id| id.network_details.as_ref().and_then(|nd| nd.decline_code.clone())),
-                network_advice_code: error_info.issuer_details.as_ref().and_then(|id| id.network_details.as_ref().and_then(|nd| nd.advice_code.clone())),
-                network_error_message: error_info.issuer_details.as_ref().and_then(|id| id.network_details.as_ref().and_then(|nd| nd.error_message.clone())),
+                network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
+                    id.network_details
+                        .as_ref()
+                        .and_then(|nd| nd.decline_code.clone())
+                }),
+                network_advice_code: error_info.issuer_details.as_ref().and_then(|id| {
+                    id.network_details
+                        .as_ref()
+                        .and_then(|nd| nd.advice_code.clone())
+                }),
+                network_error_message: error_info.issuer_details.as_ref().and_then(|id| {
+                    id.network_details
+                        .as_ref()
+                        .and_then(|nd| nd.error_message.clone())
+                }),
                 connector_metadata: None,
             })
         } else {
@@ -4257,7 +4292,8 @@ impl transformers::ForeignTryFrom<payments_grpc::AuthenticationData>
             .transpose()
             .change_context(UnifiedConnectorServiceError::ResponseDeserializationFailed)
             .attach_printable("Failed to convert TransactionStatus from grpc to domain")?
-            .map(common_enums::TransactionStatus::foreign_try_from).transpose()?;
+            .map(common_enums::TransactionStatus::foreign_try_from)
+            .transpose()?;
         Ok(Self {
             trans_status,
             eci,
@@ -6010,22 +6046,49 @@ impl transformers::ForeignTryFrom<payments_grpc::RefundResponse>
 
         let response = if let Some(error_info) = response.error.as_ref() {
             Err(ErrorResponse {
-                code: error_info.connector_details.as_ref().and_then(|cd| cd.code.clone()).ok_or(
-                    error_stack::Report::new(UnifiedConnectorServiceError::ResponseDeserializationFailed)
+                code: error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.code.clone())
+                    .ok_or(
+                        error_stack::Report::new(
+                            UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                        )
                         .attach_printable("Missing error code in UCS response ErrorInfo"),
-                )?,
-                message: error_info.connector_details.as_ref().and_then(|cd| cd.message.clone()).ok_or(
-                    error_stack::Report::new(UnifiedConnectorServiceError::ResponseDeserializationFailed)
+                    )?,
+                message: error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.message.clone())
+                    .ok_or(
+                        error_stack::Report::new(
+                            UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                        )
                         .attach_printable("Missing error message in UCS response ErrorInfo"),
-                )?,
-                reason: error_info.connector_details.as_ref().and_then(|cd| cd.reason.clone()),
+                    )?,
+                reason: error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.reason.clone()),
                 status_code,
                 attempt_status: None,
                 connector_transaction_id: None,
                 connector_response_reference_id,
-                network_decline_code: error_info.issuer_details.as_ref().and_then(|id| id.network_details.as_ref().and_then(|nd| nd.decline_code.clone())),
-                network_advice_code: error_info.issuer_details.as_ref().and_then(|id| id.network_details.as_ref().and_then(|nd| nd.advice_code.clone())),
-                network_error_message: error_info.issuer_details.as_ref().and_then(|id| id.network_details.as_ref().and_then(|nd| nd.error_message.clone())),
+                network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
+                    id.network_details
+                        .as_ref()
+                        .and_then(|nd| nd.decline_code.clone())
+                }),
+                network_advice_code: error_info.issuer_details.as_ref().and_then(|id| {
+                    id.network_details
+                        .as_ref()
+                        .and_then(|nd| nd.advice_code.clone())
+                }),
+                network_error_message: error_info.issuer_details.as_ref().and_then(|id| {
+                    id.network_details
+                        .as_ref()
+                        .and_then(|nd| nd.error_message.clone())
+                }),
                 connector_metadata: None,
             })
         } else {
