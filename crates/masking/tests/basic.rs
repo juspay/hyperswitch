@@ -63,6 +63,50 @@ fn basic() {
     // end
 }
 
+#[allow(clippy::indexing_slicing)]
+#[cfg(feature = "serde")]
+#[test]
+fn test_flatten_with_secret() {
+    use masking::Secret;
+    use serde::Serialize;
+
+    #[derive(Serialize)]
+    pub struct Inner {
+        secret: Secret<String>,
+        inner_field: String,
+    }
+
+    #[derive(Serialize)]
+    pub struct Outer {
+        #[serde(flatten)]
+        inner: Inner,
+        outer_field: String,
+    }
+
+    let inner = Inner {
+        secret: Secret::new("secret_value".to_string()),
+        inner_field: "inner".to_string(),
+    };
+    let outer = Outer {
+        inner,
+        outer_field: "outer".to_string(),
+    };
+
+    // Regular serialization should work (exposes the secret)
+    let json = serde_json::to_string(&outer).unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(parsed["inner_field"], "inner");
+    assert_eq!(parsed["outer_field"], "outer");
+    assert_eq!(parsed["secret"], "secret_value");
+
+    // Masked serialization should also work
+    let masked = masking::masked_serialize(&outer).unwrap();
+    assert_eq!(masked["inner_field"], "inner");
+    assert_eq!(masked["outer_field"], "outer");
+    // The secret should be masked in the masked serialization
+    assert!(masked["secret"].as_str().unwrap().contains("***"));
+}
+
 #[test]
 fn without_serialize() {
     #[cfg_attr(feature = "serde", derive(Serialize))]
