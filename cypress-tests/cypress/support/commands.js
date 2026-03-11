@@ -5311,13 +5311,17 @@ Cypress.Commands.add("stepTest", (stepName, errorStack, fn) => {
           throw err; // re-throw for retryable commands
         }
         errorStack.push({ step: stepName, error: err });
-        // cy.now() runs the command immediately without queuing it,
-        // capturing the page state at the exact instant of assertion failure.
+        // Log immediately at the instant of failure via task (safe from sync context)
+        let logMsg = `${ANSI_RED}[SOFT ASSERT FAIL]${ANSI_RESET} ${stepName}: ${err.message}`;
+        if (err.actual !== undefined && err.expected !== undefined) {
+          logMsg += `\n${buildDiff(String(err.actual), String(err.expected))}`;
+        }
         const screenshotName = `[FAIL] ${stepName}`.replace(
           /[^a-zA-Z0-9\-_ ]/g,
           ""
         );
-        cy.now("screenshot", screenshotName, { capture: "fullPage" });
+        cy.screenshot(screenshotName, { capture: "runner" });
+        cy.task("cli_log", logMsg);
         // No re-throw — queue keeps running
       }
     };

@@ -4,6 +4,7 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 import reportErrors from "../../../utils/reportErrors";
 
 let globalState;
+let errorStack;
 
 describe("Card - ThreeDS payment flow test", () => {
   before("seed global state", () => {
@@ -18,7 +19,7 @@ describe("Card - ThreeDS payment flow test", () => {
 
   context("Card-ThreeDS payment flow test Create and Confirm", () => {
     it("create payment intent -> payment methods call -> confirm payment intent -> handle redirection", () => {
-      const errorStack = [];
+      errorStack = [];
       let shouldContinue = true;
 
       cy.stepTest("create payment intent", errorStack, () => {
@@ -33,18 +34,7 @@ describe("Card - ThreeDS payment flow test", () => {
           "automatic",
           globalState
         );
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "three_ds",
-          "automatic",
-          globalState
-        );
 
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
-        }
-      });
         if (!utils.should_continue_further(data)) {
           shouldContinue = false;
         }
