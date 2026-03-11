@@ -280,6 +280,10 @@ bank_redirect.eps.connector_list="globalpay,nexinets,aci,multisafepay"
 card.credit = { connector_list = "cybersource" }            # Update Mandate supported payment method type and connector for card
 card.debit = { connector_list = "cybersource" }             # Update Mandate supported payment method type and connector for card
 
+[installments.supported_payment_methods]
+card.credit = "adyen"
+card.debit = "adyen"
+
 [network_transaction_id_supported_connectors]
 connector_list = "adyen,archipel,checkout,cybersource,novalnet,nuvei,stripe,worldpay,worldpayvantiv"
 
@@ -988,7 +992,7 @@ connector_list = "juspaythreedsserver, ctp_mastercard, ctp_visa"
 connector_list = "worldpayvantiv"
 
 [grpc_client.unified_connector_service]
-ucs_only_connectors = "paytm, phonepe, hyperpg, revolv3"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "paytm, phonepe, hyperpg, revolv3, truelayer"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode"    # Comma-separated list of connectors to disable UCS PSync call
 
 # Merchant Advice Code Configuration
