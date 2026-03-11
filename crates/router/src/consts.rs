@@ -26,8 +26,6 @@ pub(crate) const ALPHABETS: [char; 62] = [
 ];
 /// API client request timeout (in seconds)
 pub const REQUEST_TIME_OUT: u64 = 30;
-pub const REQUEST_TIMEOUT_ERROR_CODE: &str = "TIMEOUT";
-pub const REQUEST_TIMEOUT_ERROR_MESSAGE: &str = "Connector did not respond in specified time";
 pub const REQUEST_TIMEOUT_PAYMENT_NOT_FOUND: &str = "Timed out ,payment not found";
 pub const REQUEST_TIMEOUT_ERROR_MESSAGE_FROM_PSYNC: &str =
     "This Payment has been moved to failed as there is no response from the connector";
@@ -183,40 +181,31 @@ pub const DEFAULT_PRODUCT_IMG: &str =
 pub const DEFAULT_SDK_LAYOUT: &str = "tabs";
 
 /// Vault Add request url
-#[cfg(feature = "v2")]
-pub const ADD_VAULT_REQUEST_URL: &str = "/api/v2/vault/add";
+pub const V2_ADD_VAULT_REQUEST_URL: &str = "/api/v2/vault/add";
 
 /// Vault Get Fingerprint request url
-#[cfg(feature = "v2")]
-pub const VAULT_FINGERPRINT_REQUEST_URL: &str = "/api/v2/vault/fingerprint";
+pub const V2_VAULT_FINGERPRINT_REQUEST_URL: &str = "/api/v2/vault/fingerprint";
 
 /// Vault Retrieve request url
-#[cfg(feature = "v2")]
-pub const VAULT_RETRIEVE_REQUEST_URL: &str = "/api/v2/vault/retrieve";
+pub const V2_VAULT_RETRIEVE_REQUEST_URL: &str = "/api/v2/vault/retrieve";
 
 /// Vault Delete request url
-#[cfg(feature = "v2")]
-pub const VAULT_DELETE_REQUEST_URL: &str = "/api/v2/vault/delete";
+pub const V2_VAULT_DELETE_REQUEST_URL: &str = "/api/v2/vault/delete";
 
 /// Vault Header content type
-#[cfg(feature = "v2")]
-pub const VAULT_HEADER_CONTENT_TYPE: &str = "application/json";
+pub const V2_VAULT_HEADER_CONTENT_TYPE: &str = "application/json";
 
 /// Vault Add flow type
-#[cfg(feature = "v2")]
-pub const VAULT_ADD_FLOW_TYPE: &str = "add_to_vault";
+pub const V2_VAULT_ADD_FLOW_TYPE: &str = "add_to_vault";
 
 /// Vault Retrieve flow type
-#[cfg(feature = "v2")]
-pub const VAULT_RETRIEVE_FLOW_TYPE: &str = "retrieve_from_vault";
+pub const V2_VAULT_RETRIEVE_FLOW_TYPE: &str = "retrieve_from_vault";
 
 /// Vault Delete flow type
-#[cfg(feature = "v2")]
-pub const VAULT_DELETE_FLOW_TYPE: &str = "delete_from_vault";
+pub const V2_VAULT_DELETE_FLOW_TYPE: &str = "delete_from_vault";
 
 /// Vault Fingerprint fetch flow type
-#[cfg(feature = "v2")]
-pub const VAULT_GET_FINGERPRINT_FLOW_TYPE: &str = "get_fingerprint_vault";
+pub const V2_VAULT_GET_FINGERPRINT_FLOW_TYPE: &str = "get_fingerprint_vault";
 
 /// Max volume split for Dynamic routing
 pub const DYNAMIC_ROUTING_MAX_VOLUME: u8 = 100;
@@ -363,6 +352,8 @@ pub const CREQ_CHALLENGE_REQUEST_KEY: &str = "creq";
 pub mod superposition {
     /// CVV requirement configuration key
     pub const REQUIRES_CVV: &str = "requires_cvv";
+    /// implicit customer update configuration key
+    pub const IMPLICIT_CUSTOMER_UPDATE: &str = "implicit_customer_update";
 }
 
 #[cfg(test)]

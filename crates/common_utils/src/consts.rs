@@ -46,6 +46,9 @@ pub fn default_payouts_list_limit() -> u32 {
 /// surcharge percentage maximum precision length
 pub const SURCHARGE_PERCENTAGE_PRECISION_LENGTH: u8 = 2;
 
+/// installment interest rate maximum precision length
+pub const INSTALLMENT_INTEREST_RATE_PRECISION_LENGTH: u8 = 2;
+
 /// Header Key for application overhead of a request
 pub const X_HS_LATENCY: &str = "x-hs-latency";
 
@@ -171,6 +174,9 @@ pub const X_SUB_FLOW_NAME: &str = "x-sub-flow";
 
 /// Unified Connector Service Mode
 pub const X_UNIFIED_CONNECTOR_SERVICE_MODE: &str = "x-shadow-mode";
+
+/// Config Override Header for UCS
+pub const X_CONFIG_OVERRIDE: &str = "x-config-override";
 
 /// Chat Session ID
 pub const X_CHAT_SESSION_ID: &str = "x-chat-session-id";

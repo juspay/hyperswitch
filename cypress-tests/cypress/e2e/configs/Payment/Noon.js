@@ -56,6 +56,7 @@ const payment_method_data_3ds = {
     card_holder_name: "joseph Doe",
     payment_checks: null,
     authentication_data: null,
+    auth_code: null,
   },
   billing: null,
 };

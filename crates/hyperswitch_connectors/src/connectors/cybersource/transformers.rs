@@ -36,7 +36,7 @@ use hyperswitch_domain_models::{
     router_request_types::{
         authentication::MessageExtensionAttribute, CompleteAuthorizeData, PaymentsAuthenticateData,
         PaymentsAuthorizeData, PaymentsPostAuthenticateData, PaymentsPreAuthenticateData,
-        ResponseId, SetupMandateRequestData,
+        ResponseId, SetupMandateRequestData, UcsAuthenticationData,
     },
     router_response_types::{
         MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
@@ -132,6 +132,8 @@ pub struct CybersourceZeroMandateRequest {
     payment_information: PaymentInformation,
     order_information: OrderInformationWithBill,
     client_reference_information: ClientReferenceInformation,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    consumer_authentication_information: Option<CybersourceConsumerAuthInformation>,
 }
 
 impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
@@ -191,7 +193,11 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
             code: Some(item.connector_request_reference_id.clone()),
         };
 
-        let (payment_information, solution) = match item.request.payment_method_data.clone() {
+        let (payment_information, solution, consumer_authentication_information) = match item
+            .request
+            .payment_method_data
+            .clone()
+        {
             PaymentMethodData::Card(ccard) => {
                 let card_type = match ccard
                     .card_network
@@ -201,6 +207,70 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                     Some(card_network) => Some(card_network.to_string()),
                     None => ccard.get_card_issuer().ok().map(String::from),
                 };
+
+                // For all card payments, we are explicitly setting `pares_status` to `AuthenticationSuccessful`
+                // to indicate that the Payer Authentication was successful, regardless of actual ACS response.
+                // This is a default behavior and may be adjusted based on future integration requirements.
+                let pares_status = Some(CybersourceParesStatus::AuthenticationSuccessful);
+
+                let consumer_authentication_information =
+                    item.request.authentication_data.as_ref().map(|authn_data| {
+                        let effective_authentication_type =
+                            authn_data.authentication_type.map(Into::into);
+                        let (ucaf_authentication_data, cavv, ucaf_collection_indicator) =
+                            if ccard.card_network == Some(common_enums::CardNetwork::Mastercard) {
+                                (Some(authn_data.cavv.clone()), None, Some("2".to_string()))
+                            } else {
+                                (None, Some(authn_data.cavv.clone()), None)
+                            };
+                        let authentication_date = date_time::format_date(
+                            authn_data.created_at,
+                            date_time::DateFormat::YYYYMMDDHHmmss,
+                        )
+                        .ok();
+                        let network_score = (ccard.card_network
+                            == Some(common_enums::CardNetwork::CartesBancaires))
+                        .then_some(authn_data.message_extension.as_ref())
+                        .flatten()
+                        .map(|secret| secret.clone().expose())
+                        .and_then(|exposed| {
+                            serde_json::from_value::<Vec<MessageExtensionAttribute>>(exposed)
+                                .map_err(|err| {
+                                    router_env::logger::error!(
+                                        "Failed to deserialize message_extension: {:?}",
+                                        err
+                                    );
+                                })
+                                .ok()
+                                .and_then(|exts| extract_score_id(&exts))
+                        });
+
+                        let cavv_algorithm = Some("2".to_string());
+
+                        CybersourceConsumerAuthInformation {
+                            pares_status,
+                            ucaf_collection_indicator,
+                            cavv,
+                            ucaf_authentication_data,
+                            xid: None,
+                            directory_server_transaction_id: authn_data
+                                .ds_trans_id
+                                .clone()
+                                .map(Secret::new),
+                            specification_version: authn_data.message_version.clone(),
+                            pa_specification_version: authn_data.message_version.clone(),
+                            veres_enrolled: Some("Y".to_string()),
+                            eci_raw: authn_data.eci.clone(),
+                            authentication_date,
+                            effective_authentication_type,
+                            challenge_code: authn_data.challenge_code.clone(),
+                            signed_pares_status_reason: authn_data.challenge_code_reason.clone(),
+                            challenge_cancel_code: authn_data.challenge_cancel.clone(),
+                            network_score,
+                            acs_transaction_id: authn_data.acs_trans_id.clone(),
+                            cavv_algorithm,
+                        }
+                    });
 
                 (
                     PaymentInformation::Cards(Box::new(CardPaymentInformation {
@@ -214,6 +284,7 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                         },
                     })),
                     None,
+                    consumer_authentication_information,
                 )
             }
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
@@ -241,6 +312,7 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                                     },
                                 )),
                                 Some(PaymentSolution::ApplePay),
+                                None,
                             )
                         }
                         PaymentMethodToken::Token(_) => Err(unimplemented_payment_method!(
@@ -275,6 +347,7 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                                 },
                             )),
                             Some(PaymentSolution::ApplePay),
+                            None,
                         )
                     }
                 },
@@ -302,11 +375,13 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                         },
                     )),
                     Some(PaymentSolution::GooglePay),
+                    None,
                 ),
                 WalletData::SamsungPay(samsung_pay_data) => (
                     (get_samsung_pay_payment_information(&samsung_pay_data)
                         .attach_printable("Failed to get samsung pay payment information")?),
                     Some(PaymentSolution::SamsungPay),
+                    None,
                 ),
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayRedirect(_)
@@ -360,6 +435,7 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
@@ -381,6 +457,7 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
             payment_information,
             order_information,
             client_reference_information,
+            consumer_authentication_information,
         })
     }
 }
@@ -2628,6 +2705,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::CardWithLimitedDetails(_)
+                    | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                     | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("Cybersource"),
@@ -2759,6 +2837,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
@@ -2825,6 +2904,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPreAuthenticateRouterData>>
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
@@ -3206,8 +3286,14 @@ pub struct ClientRiskInformationRules {
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceTokenInformation {
     payment_instrument: Option<CybersoucrePaymentInstrument>,
+    customer: Option<CybersourceCustomerResponse>,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CybersourceCustomerResponse {
+    id: Option<String>,
+}
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CybersourceErrorInformation {
     reason: Option<String>,
@@ -3506,6 +3592,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPreProcessingRouterData>>
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
@@ -3649,6 +3736,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthenticateRouterData>>
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
@@ -3772,6 +3860,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPostAuthenticateRouterData>>
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
@@ -3849,6 +3938,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsCompleteAuthorizeRouterData>>
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
@@ -3881,6 +3971,29 @@ pub struct CybersourceConsumerAuthValidateResponse {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct CybersourceThreeDSMetadata {
     three_ds_data: CybersourceConsumerAuthValidateResponse,
+}
+
+impl ForeignTryFrom<&CybersourceConsumerAuthValidateResponse> for UcsAuthenticationData {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn foreign_try_from(
+        value: &CybersourceConsumerAuthValidateResponse,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            eci: value.indicator.clone(),
+            cavv: value.cavv.clone(),
+            threeds_server_transaction_id: None,
+            message_version: value.specification_version.clone(),
+            ds_trans_id: value
+                .directory_server_transaction_id
+                .as_ref()
+                .map(|id| id.clone().expose()),
+            acs_trans_id: None,
+            trans_status: None,
+            transaction_id: value.xid.clone(),
+            ucaf_collection_indicator: value.ucaf_collection_indicator.clone(),
+        })
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -3979,12 +4092,15 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<CybersourcePreProcessingRes
                         }
                         _ => None,
                     };
-                    let three_ds_data = serde_json::to_value(
-                        info_response
-                            .consumer_authentication_information
-                            .validate_response,
-                    )
-                    .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                    let validate_response = &info_response
+                        .consumer_authentication_information
+                        .validate_response;
+                    let three_ds_data = serde_json::to_value(validate_response)
+                        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                    let authentication_data =
+                        UcsAuthenticationData::foreign_try_from(validate_response)
+                            .ok()
+                            .map(Box::new);
                     Ok(Self {
                         status,
                         response: Ok(PaymentsResponseData::TransactionResponse {
@@ -3997,7 +4113,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<CybersourcePreProcessingRes
                             network_txn_id: None,
                             connector_response_reference_id,
                             incremental_authorization_allowed: None,
-                            authentication_data: None,
+                            authentication_data,
                             charges: None,
                         }),
                         ..item.data
@@ -4105,6 +4221,7 @@ impl From<&ClientProcessorInformation> for AdditionalPaymentMethodConnectorRespo
             payment_checks,
             card_network: None,
             domestic_network: None,
+            auth_code: None,
         }
     }
 }
@@ -4458,12 +4575,15 @@ impl<F>
                         }
                         _ => None,
                     };
-                    let three_ds_data = serde_json::to_value(
-                        info_response
-                            .consumer_authentication_information
-                            .validate_response,
-                    )
-                    .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                    let validate_response = &info_response
+                        .consumer_authentication_information
+                        .validate_response;
+                    let three_ds_data = serde_json::to_value(validate_response)
+                        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                    let authentication_data =
+                        UcsAuthenticationData::foreign_try_from(validate_response)
+                            .ok()
+                            .map(Box::new);
                     Ok(Self {
                         status,
                         response: Ok(PaymentsResponseData::TransactionResponse {
@@ -4476,7 +4596,7 @@ impl<F>
                             network_txn_id: None,
                             connector_response_reference_id,
                             incremental_authorization_allowed: None,
-                            authentication_data: None,
+                            authentication_data,
                             charges: None,
                         }),
                         ..item.data
@@ -4591,12 +4711,15 @@ impl<F>
                         }
                         _ => None,
                     };
-                    let three_ds_data = serde_json::to_value(
-                        info_response
-                            .consumer_authentication_information
-                            .validate_response,
-                    )
-                    .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                    let validate_response = &info_response
+                        .consumer_authentication_information
+                        .validate_response;
+                    let three_ds_data = serde_json::to_value(validate_response)
+                        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                    let authentication_data =
+                        UcsAuthenticationData::foreign_try_from(validate_response)
+                            .ok()
+                            .map(Box::new);
                     Ok(Self {
                         status,
                         response: Ok(PaymentsResponseData::TransactionResponse {
@@ -4609,7 +4732,7 @@ impl<F>
                             network_txn_id: None,
                             connector_response_reference_id,
                             incremental_authorization_allowed: None,
-                            authentication_data: None,
+                            authentication_data,
                             charges: None,
                         }),
                         ..item.data

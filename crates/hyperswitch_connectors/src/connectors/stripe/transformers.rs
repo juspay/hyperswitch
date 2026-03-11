@@ -1104,6 +1104,7 @@ fn validate_and_get_setup_future_usage(
 ) -> Result<Option<common_enums::FutureUsage>, error_stack::Report<ConnectorError>> {
     match payment_method_type {
         Some(common_enums::PaymentMethodType::Affirm)
+        | Some(common_enums::PaymentMethodType::AfterpayClearpay)
         | Some(common_enums::PaymentMethodType::Klarna) => Ok(None),
         Some(_) | None => Ok(setup_future_usage),
     }
@@ -1532,6 +1533,7 @@ fn create_stripe_payment_method(
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
         | PaymentMethodData::CardWithLimitedDetails(_)
+        | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => Err(
             ConnectorError::NotImplemented(get_unimplemented_payment_method_error_message(
                 "stripe",
@@ -2003,6 +2005,9 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                         | PaymentMethodData::NetworkToken(_)
                         | PaymentMethodData::Card(_)
                         | PaymentMethodData::CardWithLimitedDetails(_)
+                        | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(
+                            _,
+                        )
                         | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                             Err(ConnectorError::NotSupported {
                                 message: "Network tokenization for payment method".to_string(),
@@ -2866,6 +2871,7 @@ impl From<&AdditionalPaymentMethodDetails> for AdditionalPaymentMethodConnectorR
             payment_checks: item.payment_checks.clone(),
             card_network: None,
             domestic_network: None,
+            auth_code: None,
         }
     }
 }
@@ -4063,14 +4069,19 @@ impl TryFrom<&PaymentsCancelRouterData> for CancelRequest {
 #[derive(Debug, Serialize)]
 pub struct UpdateMetadataRequest {
     #[serde(flatten)]
-    pub metadata: HashMap<String, String>,
+    pub metadata: Option<HashMap<String, String>>,
 }
 
 impl TryFrom<&PaymentsUpdateMetadataRouterData> for UpdateMetadataRequest {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: &PaymentsUpdateMetadataRouterData) -> Result<Self, Self::Error> {
-        let metadata = format_metadata_for_request(item.request.metadata.clone());
-        Ok(Self { metadata })
+        Ok(Self {
+            metadata: item
+                .request
+                .metadata
+                .as_ref()
+                .map(|data| format_metadata_for_request(data.clone())),
+        })
     }
 }
 
@@ -4632,6 +4643,7 @@ impl
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(ConnectorError::NotImplemented(
                     get_unimplemented_payment_method_error_message("stripe"),

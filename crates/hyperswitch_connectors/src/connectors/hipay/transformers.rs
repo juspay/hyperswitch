@@ -282,6 +282,7 @@ impl From<&HipayTokenResponse> for AdditionalPaymentMethodConnectorResponse {
             payment_checks: None,
             card_network: Some(hipay_token_response.brand.clone()),
             domestic_network: hipay_token_response.domestic_network.clone(),
+            auth_code: None,
         }
     }
 }

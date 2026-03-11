@@ -80,10 +80,13 @@ impl UserFromToken {
         Ok(merchant_account)
     }
 
-    pub async fn get_user_from_db(&self, state: &SessionState) -> UserResult<UserFromStorage> {
+    pub async fn get_active_user_from_db(
+        &self,
+        state: &SessionState,
+    ) -> UserResult<UserFromStorage> {
         let user = state
             .global_store
-            .find_user_by_id(&self.user_id)
+            .find_active_user_by_user_id(&self.user_id)
             .await
             .change_context(UserErrors::InternalServerError)?;
         Ok(user.into())
@@ -134,13 +137,13 @@ pub fn get_verification_days_left(
     return Ok(None);
 }
 
-pub async fn get_user_from_db_by_email(
+pub async fn get_active_user_from_db_by_email(
     state: &SessionState,
     email: domain::UserEmail,
 ) -> CustomResult<UserFromStorage, StorageError> {
     state
         .global_store
-        .find_user_by_email(&email)
+        .find_active_user_by_user_email(&email)
         .await
         .map(UserFromStorage::from)
 }
@@ -363,7 +366,7 @@ pub fn spawn_async_lineage_context_update_to_db(
     tokio::spawn(async move {
         match state
             .global_store
-            .update_user_by_user_id(
+            .update_active_user_by_user_id(
                 &user_id,
                 diesel_models::user::UserUpdate::LineageContextUpdate { lineage_context },
             )

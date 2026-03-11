@@ -190,6 +190,7 @@ impl TryFrom<&PaymentMethodData> for CeleroPaymentMethod {
                 Ok(Self::Card(card))
             }
             PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::CardRedirect(_)
@@ -1036,6 +1037,7 @@ fn convert_to_additional_payment_method_connector_response(
                 payment_checks: Some(payment_checks),
                 card_network: None,
                 domestic_network: None,
+                auth_code: None,
             })
         }
     }

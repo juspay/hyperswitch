@@ -102,6 +102,7 @@ pub struct EcommerceCardPaymentOnlyTransactionData {
     pub routing_reference: RoutingReference,
     pub card: CardDetails,
     pub amount: AmountDetails,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub rrn: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pre_auth_inc_ext_capture_flow: Option<PreAuthIncExtCaptureFlow>,
@@ -139,6 +140,7 @@ pub struct EcommerceNetworkTokenPaymentOnlyTransactionData {
     pub network_token_data: NetworkTokenDetails,
     pub amount: AmountDetails,
     pub cof_data: CardOnFileData,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub rrn: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pre_auth_inc_ext_capture_flow: Option<PreAuthIncExtCaptureFlow>,
@@ -210,6 +212,7 @@ pub struct NetworkTokenDetails {
     pub expiry_year: Secret<String>,
     pub expiry_month: Secret<String>,
     pub cryptogram: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub eci: Option<String>,
     pub scheme: Option<CardNetworkLowercase>,
 }
@@ -653,12 +656,6 @@ impl
             None
         };
 
-        let cof_data = Some(CardOnFileData {
-            _type: CofType::Adhoc,
-            source: CofSource::Mit,
-            mode: CofMode::Subsequent,
-        });
-
         let ecommerce_data =
             EcommercePaymentOnlyTransactionData::Card(EcommerceCardPaymentOnlyTransactionData {
                 merchant_information,
@@ -667,7 +664,7 @@ impl
                 amount,
                 rrn: item.router_data.request.merchant_order_reference_id.clone(),
                 pre_auth_inc_ext_capture_flow,
-                cof_data,
+                cof_data: None,
             });
 
         // Generate current timestamp for sendDateTime (ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ)
@@ -761,6 +758,7 @@ impl From<PeachpaymentsRefundStatus> for common_enums::RefundStatus {
 #[serde(rename_all = "camelCase")]
 pub struct PeachpaymentsPaymentsData {
     pub transaction_id: String,
+    pub reference_id: String,
     pub response_code: Option<ResponseCode>,
     pub transaction_result: PeachpaymentsPaymentStatus,
     pub ecommerce_card_payment_only_transaction_data: Option<EcommerceCardPaymentOnlyResponseData>,
@@ -770,6 +768,7 @@ pub struct PeachpaymentsPaymentsData {
 #[serde(rename_all = "camelCase")]
 pub struct PeachpaymentsRsyncResponse {
     pub transaction_id: String,
+    pub reference_id: String,
     pub transaction_result: PeachpaymentsRefundStatus,
     pub response_code: Option<ResponseCode>,
 }
@@ -793,7 +792,7 @@ pub enum PeachpaymentsRefundStatus {
     Failed,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct RefundBalanceData {
     pub amount: AmountDetails,
@@ -801,7 +800,7 @@ pub struct RefundBalanceData {
     pub refund_history: Vec<RefundHistory>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct RefundHistory {
     pub transaction_id: String,
@@ -826,7 +825,7 @@ impl<F>
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.transaction_id),
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.reference_id),
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -866,8 +865,8 @@ impl
                 reason: None,
                 status_code: item.http_code,
                 attempt_status: None,
-                connector_transaction_id: Some(item.response.transaction_id),
-                connector_response_reference_id: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: Some(item.response.reference_id),
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -892,6 +891,7 @@ impl
 #[serde(rename_all = "camelCase")]
 pub struct PeachpaymentsCaptureResponse {
     pub transaction_id: String,
+    pub reference_id: String,
     pub response_code: Option<ResponseCode>,
     pub transaction_result: PeachpaymentsPaymentStatus,
     pub authorization_code: Option<String>,
@@ -938,7 +938,7 @@ impl ResponseCode {
 pub struct EcommerceCardPaymentOnlyResponseData {
     pub amount: Option<AmountDetails>,
     pub stan: Option<Secret<String>>,
-    pub rrn: Option<Secret<String>>,
+    pub rrn: Option<String>,
     pub approval_code: Option<String>,
     pub merchant_advice_code: Option<String>,
     pub description: Option<String>,
@@ -989,8 +989,8 @@ pub fn get_peachpayments_response(
                 .and_then(|data| data.description),
             status_code,
             attempt_status: Some(status),
-            connector_transaction_id: Some(response.transaction_id.clone()),
-            connector_response_reference_id: None,
+            connector_transaction_id: Some(response.transaction_id),
+            connector_response_reference_id: Some(response.reference_id),
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -1003,7 +1003,7 @@ pub fn get_peachpayments_response(
             mandate_reference: Box::new(None),
             connector_metadata: None,
             network_txn_id: None,
-            connector_response_reference_id: Some(response.transaction_id),
+            connector_response_reference_id: Some(response.reference_id),
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
@@ -1036,7 +1036,7 @@ pub fn get_webhook_response(
             status_code,
             attempt_status: Some(status),
             connector_transaction_id: Some(transaction.transaction_id.clone()),
-            connector_response_reference_id: None,
+            connector_response_reference_id: Some(transaction.reference_id),
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -1044,16 +1044,12 @@ pub fn get_webhook_response(
         })
     } else {
         Ok(PaymentsResponseData::TransactionResponse {
-            resource_id: ResponseId::ConnectorTransactionId(
-                transaction
-                    .original_transaction_id
-                    .unwrap_or(transaction.transaction_id.clone()),
-            ),
+            resource_id: ResponseId::ConnectorTransactionId(transaction.transaction_id),
             redirection_data: Box::new(None),
             mandate_reference: Box::new(None),
             connector_metadata: None,
             network_txn_id: None,
-            connector_response_reference_id: Some(transaction.transaction_id.clone()),
+            connector_response_reference_id: Some(transaction.reference_id.clone()),
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
@@ -1105,7 +1101,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PeachpaymentsCaptureResponse, T, Paymen
                 status_code: item.http_code,
                 attempt_status: Some(status),
                 connector_transaction_id: Some(item.response.transaction_id.clone()),
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.reference_id),
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -1124,7 +1120,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PeachpaymentsCaptureResponse, T, Paymen
                     })
                 }),
                 network_txn_id: None,
-                connector_response_reference_id: Some(item.response.transaction_id),
+                connector_response_reference_id: Some(item.response.reference_id),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
@@ -1156,9 +1152,17 @@ pub struct WebhookTransaction {
     pub reference_id: String,
     pub transaction_result: PeachpaymentsPaymentStatus,
     pub error_message: Option<String>,
+    pub transaction_type: TransactionType,
     pub response_code: Option<ResponseCode>,
     pub ecommerce_card_payment_only_transaction_data: Option<EcommerceCardPaymentOnlyResponseData>,
+    pub refund_balance_data: Option<RefundBalanceData>,
     pub payment_method: Secret<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TransactionType {
+    pub value: i32,
+    pub description: String,
 }
 
 // Error Response

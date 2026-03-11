@@ -188,10 +188,23 @@ impl SessionState {
             ExecutionMode::Shadow => Some(true),
             ExecutionMode::NotApplicable => None,
         };
+        // For shadow mode, disable event publishing in UCS
+        let config_override = match unified_connector_service_execution_mode {
+            ExecutionMode::Shadow => Some(
+                serde_json::json!({
+                    "events": {
+                        "enabled": false
+                    }
+                })
+                .to_string(),
+            ),
+            _ => None,
+        };
         GrpcHeadersUcs::builder()
             .tenant_id(tenant_id)
             .request_id(request_id)
             .shadow_mode(shadow_mode)
+            .config_override(config_override)
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     pub fn get_recovery_grpc_headers(&self) -> GrpcRecoveryHeaders {
@@ -450,16 +463,17 @@ impl AppState {
             let cache_store = get_cache_store(&conf.clone(), shut_down_signal, testable)
                 .await
                 .expect("Failed to create store");
-            let global_store: Box<dyn GlobalStorageInterface> = Box::pin(Self::get_store_interface(
-                &storage_impl,
-                &event_handler,
-                &conf,
-                &conf.multitenancy.global_tenant,
-                Arc::clone(&cache_store),
-                testable,
-            ))
-            .await
-            .get_global_storage_interface();
+            let global_store: Box<dyn GlobalStorageInterface> =
+                Box::pin(Self::get_store_interface(
+                    &storage_impl,
+                    &event_handler,
+                    &conf,
+                    &conf.multitenancy.global_tenant,
+                    Arc::clone(&cache_store),
+                    testable,
+                ))
+                .await
+                .get_global_storage_interface();
             #[cfg(feature = "olap")]
             let pools = conf
                 .multitenancy
@@ -890,7 +904,11 @@ pub struct Proxy;
 #[cfg(all(feature = "oltp", feature = "v2"))]
 impl Proxy {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/v2/proxy")
+        let base_path = format!(
+            "/{}/proxy",
+            state.conf.micro_services.payment_methods_prefix.0
+        );
+        web::scope(&base_path)
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(proxy::proxy)))
     }
@@ -1358,7 +1376,11 @@ pub struct Customers;
 #[cfg(all(feature = "v2", any(feature = "olap", feature = "oltp")))]
 impl Customers {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/v2/customers").app_data(web::Data::new(state));
+        let base_path = format!(
+            "/{}/customers",
+            state.conf.micro_services.payment_methods_prefix.0
+        );
+        let mut route = web::scope(&base_path).app_data(web::Data::new(state));
         #[cfg(all(feature = "olap", feature = "v2"))]
         {
             route = route
@@ -1567,7 +1589,11 @@ impl Payouts {
 #[cfg(all(feature = "v2", any(feature = "olap", feature = "oltp")))]
 impl PaymentMethods {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/v2/payment-methods").app_data(web::Data::new(state));
+        let base_path = format!(
+            "/{}/payment-methods",
+            state.conf.micro_services.payment_methods_prefix.0
+        );
+        let mut route = web::scope(&base_path).app_data(web::Data::new(state));
 
         #[cfg(feature = "olap")]
         {
@@ -1716,7 +1742,11 @@ pub struct PaymentMethodSession;
 #[cfg(all(feature = "v2", feature = "oltp"))]
 impl PaymentMethodSession {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/v2/payment-method-sessions").app_data(web::Data::new(state));
+        let base_path = format!(
+            "/{}/payment-method-sessions",
+            state.conf.micro_services.payment_methods_prefix.0
+        );
+        let mut route = web::scope(&base_path).app_data(web::Data::new(state));
         route = route.service(
             web::resource("")
                 .route(web::post().to(payment_methods::payment_methods_session_create)),
@@ -1998,6 +2028,10 @@ impl MerchantConnectorAccount {
                         .route(web::get().to(connector_retrieve))
                         .route(web::post().to(connector_update))
                         .route(web::delete().to(connector_delete)),
+                )
+                .service(
+                    web::resource("/{merchant_id}/connectors/webhooks/{merchant_connector_id}")
+                        .route(web::post().to(connector_webhook_register)),
                 );
         }
         #[cfg(feature = "oltp")]
@@ -2741,7 +2775,7 @@ impl User {
         let mut route = web::scope("/user").app_data(web::Data::new(state.clone()));
 
         route = route
-            .service(web::resource("").route(web::get().to(user::get_user_details)))
+            .service(web::resource("").route(web::get().to(user::get_active_user_details)))
             .service(web::resource("/signin").route(web::post().to(user::user_signin)))
             .service(web::resource("/v2/signin").route(web::post().to(user::user_signin)))
             // signin/signup with sso using openidconnect

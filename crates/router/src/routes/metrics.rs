@@ -20,6 +20,8 @@ counter_metric!(SUCCESSFUL_PAYMENT, GLOBAL_METER);
 //TODO: This can be removed, added for payment list debugging
 histogram_metric_f64!(PAYMENT_LIST_LATENCY, GLOBAL_METER);
 
+histogram_metric_f64!(PAYMENT_LIST_OPENSEARCH_LATENCY, GLOBAL_METER);
+
 counter_metric!(REFUND_COUNT, GLOBAL_METER);
 counter_metric!(SUCCESSFUL_REFUND, GLOBAL_METER);
 
@@ -135,6 +137,9 @@ counter_metric!(ACCESS_TOKEN_CACHE_MISS, GLOBAL_METER);
 // A counter to indicate the integrity check failures
 counter_metric!(INTEGRITY_CHECK_FAILED, GLOBAL_METER);
 
+// FRM (Fraud Risk Management) metrics
+counter_metric!(FRM_FAILURE, GLOBAL_METER);
+
 // Network Tokenization metrics
 histogram_metric_f64!(GENERATE_NETWORK_TOKEN_TIME, GLOBAL_METER);
 histogram_metric_f64!(FETCH_NETWORK_TOKEN_TIME, GLOBAL_METER);
@@ -146,3 +151,10 @@ counter_metric!(PAYMENT_METHOD_TYPES_MISCONFIGURATION_METRIC, GLOBAL_METER);
 
 // AI chat metric to track number of chat request
 counter_metric!(CHAT_REQUEST_COUNT, GLOBAL_METER);
+
+// Merchant advice code config lookup metrics
+counter_metric!(MERCHANT_ADVICE_CODE_CONFIG_MISS, GLOBAL_METER);
+
+// Config Fetch Metrics
+counter_metric!(CONFIG_DATABASE_FETCH, GLOBAL_METER); // When fetched from database
+counter_metric!(CONFIG_DEFAULT_FALLBACK, GLOBAL_METER); // When defaulted to application default

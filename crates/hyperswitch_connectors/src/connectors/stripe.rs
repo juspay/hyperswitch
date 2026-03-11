@@ -74,7 +74,7 @@ use hyperswitch_interfaces::{
         RefundExecuteType, RefundSyncType, Response, RetrieveFileType, SubmitEvidenceType,
         TokenizationType, UploadFileType,
     },
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 use masking::{Mask as _, Maskable, PeekInterface};
 use router_env::{instrument, tracing};
@@ -2409,6 +2409,7 @@ impl IncomingWebhook for Stripe {
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
         let details: stripe::WebhookEventTypeBody = request
             .body
@@ -2500,6 +2501,7 @@ impl IncomingWebhook for Stripe {
     fn get_dispute_details(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<DisputePayload, ConnectorError> {
         let details: stripe::WebhookEvent = request
             .body

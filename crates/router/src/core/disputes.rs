@@ -70,7 +70,7 @@ pub async fn retrieve_dispute(
     let db = &state.store;
     #[cfg(feature = "v1")]
     let payment_intent = db
-        .find_payment_intent_by_payment_id_merchant_id(
+        .find_payment_intent_by_payment_id_processor_merchant_id(
             &dispute.payment_id,
             platform.get_processor().get_account().get_id(),
             platform.get_processor().get_key_store(),
@@ -85,7 +85,7 @@ pub async fn retrieve_dispute(
             core_utils::validate_profile_id_from_auth_layer(profile_id.clone(), &dispute)?;
 
             let payment_attempt = db
-                .find_payment_attempt_by_attempt_id_merchant_id(
+                .find_payment_attempt_by_attempt_id_processor_merchant_id(
                     &dispute.attempt_id,
                     platform.get_processor().get_account().get_id(),
                     platform.get_processor().get_account().storage_scheme,
@@ -204,7 +204,7 @@ pub async fn retrieve_disputes_list(
     for dispute_response in &mut disputes_list {
         let payment_intent = state
             .store
-            .find_payment_intent_by_payment_id_merchant_id(
+            .find_payment_intent_by_payment_id_processor_merchant_id(
                 &dispute_response.payment_id,
                 platform.get_processor().get_account().get_id(),
                 platform.get_processor().get_key_store(),
@@ -328,7 +328,7 @@ pub async fn accept_dispute(
     )?;
 
     let payment_intent = db
-        .find_payment_intent_by_payment_id_merchant_id(
+        .find_payment_intent_by_payment_id_processor_merchant_id(
             &dispute.payment_id,
             platform.get_processor().get_account().get_id(),
             platform.get_processor().get_key_store(),
@@ -338,7 +338,7 @@ pub async fn accept_dispute(
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
     let payment_attempt = db
-        .find_payment_attempt_by_attempt_id_merchant_id(
+        .find_payment_attempt_by_attempt_id_processor_merchant_id(
             &dispute.attempt_id,
             platform.get_processor().get_account().get_id(),
             platform.get_processor().get_account().storage_scheme,
@@ -452,7 +452,7 @@ pub async fn submit_evidence(
         transformers::get_evidence_request_data(&state, &platform, req, &dispute).await?;
 
     let payment_intent = db
-        .find_payment_intent_by_payment_id_merchant_id(
+        .find_payment_intent_by_payment_id_processor_merchant_id(
             &dispute.payment_id,
             platform.get_processor().get_account().get_id(),
             platform.get_processor().get_key_store(),
@@ -462,7 +462,7 @@ pub async fn submit_evidence(
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
     let payment_attempt = db
-        .find_payment_attempt_by_attempt_id_merchant_id(
+        .find_payment_attempt_by_attempt_id_processor_merchant_id(
             &dispute.attempt_id,
             platform.get_processor().get_account().get_id(),
             platform.get_processor().get_account().storage_scheme,
@@ -804,10 +804,9 @@ pub async fn fetch_disputes_from_connector(
     req: FetchDisputesRequestData,
 ) -> RouterResponse<FetchDisputesResponse> {
     let db = &*state.store;
-    let merchant_id = platform.get_processor().get_account().get_id();
     let merchant_connector_account = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            merchant_id,
+            platform.get_processor().get_account().get_id(),
             &merchant_connector_id,
             platform.get_processor().get_key_store(),
         )
@@ -859,7 +858,7 @@ pub async fn fetch_disputes_from_connector(
         let payment_attempt = webhooks::incoming::get_payment_attempt_from_object_reference_id(
             &state,
             dispute.object_reference_id.clone(),
-            &platform,
+            platform.get_processor(),
         )
         .await;
 
@@ -867,7 +866,7 @@ pub async fn fetch_disputes_from_connector(
             let schedule_time = process_dispute::get_sync_process_schedule_time(
                 &*state.store,
                 &connector_name,
-                merchant_id,
+                platform.get_processor().get_account().get_id(),
                 0,
             )
             .await
@@ -878,7 +877,7 @@ pub async fn fetch_disputes_from_connector(
                 db,
                 &connector_name,
                 dispute,
-                merchant_id.clone(),
+                platform.get_processor().get_account().get_id().clone(),
                 schedule_time,
                 state.conf.application_source,
             )

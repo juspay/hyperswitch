@@ -48,7 +48,7 @@ use hyperswitch_interfaces::{
         PaymentsPreAuthenticateType, PaymentsPreProcessingType, PaymentsSyncType, PaymentsVoidType,
         RefundExecuteType, RefundSyncType, Response, SetupMandateType,
     },
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 use masking::Maskable;
 use regex::Regex;
@@ -56,7 +56,10 @@ use transformers as nmi;
 
 use crate::{
     types::ResponseRouterData,
-    utils::{self, convert_amount, get_header_key_value},
+    utils::{
+        self, convert_amount, get_header_key_value, PaymentsAuthorizeRequestData,
+        PaymentsSetupMandateRequestData,
+    },
 };
 
 #[derive(Clone)]
@@ -164,6 +167,7 @@ impl ConnectorValidation for Nmi {
         let mandate_supported_pmd = std::collections::HashSet::from([
             utils::PaymentMethodDataType::Card,
             utils::PaymentMethodDataType::ApplePay,
+            utils::PaymentMethodDataType::GooglePay,
         ]);
         utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
@@ -281,7 +285,13 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         req: &SetupMandateRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, ConnectorError> {
-        let connector_req = nmi::NmiValidateRequest::try_from(req)?;
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
+        let connector_router_data = nmi::NmiRouterData::from((amount, req));
+        let connector_req = nmi::NmiValidateRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
@@ -1016,6 +1026,7 @@ impl IncomingWebhook for Nmi {
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
         let event_type_body: nmi::NmiWebhookEventBody = request
             .body
@@ -1153,7 +1164,7 @@ static NMI_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLo
         enums::PaymentMethod::Wallet,
         enums::PaymentMethodType::GooglePay,
         PaymentMethodDetails {
-            mandates: enums::FeatureStatus::NotSupported,
+            mandates: enums::FeatureStatus::Supported,
             refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods.clone(),
             specific_features: None,
@@ -1188,13 +1199,14 @@ impl ConnectorSpecifications for Nmi {
     fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize {
-                request_data: _,
                 auth_type,
-            } => *auth_type == enums::AuthenticationType::ThreeDs,
+                request_data,
+            } => auth_type.is_three_ds() && request_data.is_card(),
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
-            api::CurrentFlowInfo::SetupMandate { auth_type, .. } => {
-                *auth_type == enums::AuthenticationType::ThreeDs
-            }
+            api::CurrentFlowInfo::SetupMandate {
+                auth_type,
+                request_data,
+            } => auth_type.is_three_ds() && request_data.is_card(),
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
