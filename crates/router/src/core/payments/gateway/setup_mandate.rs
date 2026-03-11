@@ -125,11 +125,12 @@ where
 
                 let setup_recurring_response = response.into_inner();
 
-                let ucs_data = handle_unified_connector_service_response_for_payment_setup_recurring(
-                    setup_recurring_response.clone(),
-                    router_data.status,
-                )
-                .attach_printable("Failed to deserialize UCS response")?;
+                let ucs_data =
+                    handle_unified_connector_service_response_for_payment_setup_recurring(
+                        setup_recurring_response.clone(),
+                        router_data.status,
+                    )
+                    .attach_printable("Failed to deserialize UCS response")?;
 
                 let router_data_response = match ucs_data.router_data_response {
                     Ok((response, status)) => {

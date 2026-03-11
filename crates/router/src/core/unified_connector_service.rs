@@ -66,7 +66,8 @@ use crate::{
     routes::SessionState,
     types::{
         transformers::{ForeignFrom, ForeignTryFrom},
-        UcsPaymentAuthorizeResponseData, UcsPaymentSetupRecurringResponseData, UcsRecurringPaymentChargeResponseData,
+        UcsPaymentAuthorizeResponseData, UcsPaymentSetupRecurringResponseData,
+        UcsRecurringPaymentChargeResponseData,
     },
 };
 

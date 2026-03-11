@@ -142,11 +142,12 @@ where
 
                     let recurring_payment_charge_response = response.into_inner();
 
-                    let ucs_data = handle_unified_connector_service_response_for_recurring_payment_charge(
-                        recurring_payment_charge_response.clone(),
-                        router_data.status,
-                    )
-                    .attach_printable("Failed to deserialize UCS response")?;
+                    let ucs_data =
+                        handle_unified_connector_service_response_for_recurring_payment_charge(
+                            recurring_payment_charge_response.clone(),
+                            router_data.status,
+                        )
+                        .attach_printable("Failed to deserialize UCS response")?;
 
                     let router_data_response = match ucs_data.router_data_response {
                         Ok((response, status)) => {
@@ -164,8 +165,9 @@ where
                     router_data.response = router_data_response;
 
                     router_data.amount_captured = recurring_payment_charge_response.captured_amount;
-                    router_data.minor_amount_captured =
-                        recurring_payment_charge_response.captured_amount.map(MinorUnit::new);
+                    router_data.minor_amount_captured = recurring_payment_charge_response
+                        .captured_amount
+                        .map(MinorUnit::new);
                     router_data.raw_connector_response = recurring_payment_charge_response
                         .raw_connector_response
                         .clone()
