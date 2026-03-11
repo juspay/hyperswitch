@@ -66,7 +66,7 @@ use crate::{
     routes::SessionState,
     types::{
         transformers::{ForeignFrom, ForeignTryFrom},
-        UcsAuthorizeResponseData, UcsRepeatPaymentResponseData, UcsSetupMandateResponseData,
+        UcsPaymentAuthorizeResponseData, UcsPaymentSetupRecurringResponseData, UcsRecurringPaymentChargeResponseData,
     },
 };
 
@@ -1799,7 +1799,7 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
 pub fn handle_unified_connector_service_response_for_payment_authorize(
     response: PaymentServiceAuthorizeResponse,
     prev_status: AttemptStatus,
-) -> CustomResult<UcsAuthorizeResponseData, UnifiedConnectorServiceError> {
+) -> CustomResult<UcsPaymentAuthorizeResponseData, UnifiedConnectorServiceError> {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
@@ -1813,7 +1813,7 @@ pub fn handle_unified_connector_service_response_for_payment_authorize(
     let connector_response =
         extract_connector_response_from_ucs(response.connector_response.as_ref());
 
-    Ok(UcsAuthorizeResponseData {
+    Ok(UcsPaymentAuthorizeResponseData {
         router_data_response,
         status_code,
         connector_customer_id,
@@ -1833,7 +1833,7 @@ pub fn handle_unified_connector_service_response_for_create_connector_customer(
     Ok((connector_customer_result, status_code))
 }
 
-pub fn handle_unified_connector_service_response_for_create_order(
+pub fn handle_unified_connector_service_response_for_payment_create_order(
     response: payments_grpc::PaymentServiceCreateOrderResponse,
     prev_status: AttemptStatus,
 ) -> UnifiedConnectorServiceCreateOrderResult {
@@ -1863,7 +1863,7 @@ pub fn handle_unified_connector_service_response_for_payment_post_authenticate(
     Ok((router_data_response, status_code))
 }
 
-pub fn handle_unified_connector_service_response_for_payment_method_token_create(
+pub fn handle_unified_connector_service_response_for_payment_method_tokenize(
     response: payments_grpc::PaymentMethodServiceTokenizeResponse,
 ) -> CustomResult<(Result<PaymentsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>
 {
@@ -1875,7 +1875,7 @@ pub fn handle_unified_connector_service_response_for_payment_method_token_create
     Ok((router_data_response, status_code))
 }
 
-pub fn handle_unified_connector_service_response_for_sdk_session_token(
+pub fn handle_unified_connector_service_response_for_create_sdk_session_token(
     response: payments_grpc::MerchantAuthenticationServiceCreateSdkSessionTokenResponse,
 ) -> CustomResult<(Result<PaymentsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>
 {
@@ -1887,7 +1887,7 @@ pub fn handle_unified_connector_service_response_for_sdk_session_token(
     Ok((router_data_response, status_code))
 }
 
-pub fn handle_unified_connector_service_response_for_incremental_authorization(
+pub fn handle_unified_connector_service_response_for_payment_incremental_authorization(
     response: payments_grpc::PaymentServiceIncrementalAuthorizationResponse,
 ) -> CustomResult<(Result<PaymentsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>
 {
@@ -1944,10 +1944,10 @@ pub fn handle_unified_connector_service_response_for_payment_capture(
     Ok((router_data_response, status_code))
 }
 
-pub fn handle_unified_connector_service_response_for_payment_register(
+pub fn handle_unified_connector_service_response_for_payment_setup_recurring(
     response: payments_grpc::PaymentServiceSetupRecurringResponse,
     prev_status: AttemptStatus,
-) -> CustomResult<UcsSetupMandateResponseData, UnifiedConnectorServiceError> {
+) -> CustomResult<UcsPaymentSetupRecurringResponseData, UnifiedConnectorServiceError> {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
@@ -1961,7 +1961,7 @@ pub fn handle_unified_connector_service_response_for_payment_register(
     let connector_response =
         extract_connector_response_from_ucs(response.connector_response.as_ref());
 
-    Ok(UcsSetupMandateResponseData {
+    Ok(UcsPaymentSetupRecurringResponseData {
         router_data_response,
         status_code,
         connector_customer_id,
@@ -1973,7 +1973,7 @@ pub fn handle_unified_connector_service_response_for_payment_register(
     })
 }
 
-pub fn handle_unified_connector_service_response_for_session_token_create(
+pub fn handle_unified_connector_service_response_for_create_session_token(
     response: payments_grpc::MerchantAuthenticationServiceCreateSessionTokenResponse,
 ) -> CustomResult<(Result<PaymentsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>
 {
@@ -1985,10 +1985,10 @@ pub fn handle_unified_connector_service_response_for_session_token_create(
     Ok((router_data_response, status_code))
 }
 
-pub fn handle_unified_connector_service_response_for_payment_repeat(
+pub fn handle_unified_connector_service_response_for_recurring_payment_charge(
     response: payments_grpc::RecurringPaymentServiceChargeResponse,
     prev_status: AttemptStatus,
-) -> CustomResult<UcsRepeatPaymentResponseData, UnifiedConnectorServiceError> {
+) -> CustomResult<UcsRecurringPaymentChargeResponseData, UnifiedConnectorServiceError> {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
@@ -2002,7 +2002,7 @@ pub fn handle_unified_connector_service_response_for_payment_repeat(
     let connector_response =
         extract_connector_response_from_ucs(response.connector_response.as_ref());
 
-    Ok(UcsRepeatPaymentResponseData {
+    Ok(UcsRecurringPaymentChargeResponseData {
         router_data_response,
         status_code,
         connector_customer_id,
@@ -2039,7 +2039,7 @@ pub fn extract_connector_response_from_ucs(
     })
 }
 
-pub fn handle_unified_connector_service_response_for_refund_execute(
+pub fn handle_unified_connector_service_response_for_payment_refund(
     response: payments_grpc::RefundResponse,
 ) -> UnifiedConnectorServiceRefundResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
@@ -2050,7 +2050,7 @@ pub fn handle_unified_connector_service_response_for_refund_execute(
     Ok((router_data_response, status_code))
 }
 
-pub fn handle_unified_connector_service_response_for_refund_sync(
+pub fn handle_unified_connector_service_response_for_refund_get(
     response: payments_grpc::RefundResponse,
 ) -> UnifiedConnectorServiceRefundResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
@@ -2225,7 +2225,7 @@ pub async fn call_unified_connector_service_for_webhook(
 
     // Make UCS call - client availability already verified
     match ucs_client
-        .transform_incoming_webhook(transform_request, connector_auth_metadata, grpc_headers)
+        .incoming_webhook_handle_event(transform_request, connector_auth_metadata, grpc_headers)
         .await
     {
         Ok(response) => {
@@ -2714,7 +2714,7 @@ pub async fn call_unified_connector_service_for_refund_execute(
 
             // Transform UCS response back to RouterData
             let (refund_response_data, status_code) =
-                handle_unified_connector_service_response_for_refund_execute(grpc_response.clone())
+                handle_unified_connector_service_response_for_payment_refund(grpc_response.clone())
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to transform UCS refund response")?;
 
@@ -2798,7 +2798,7 @@ pub async fn call_unified_connector_service_for_refund_sync(
         |router_data, grpc_request, grpc_headers| async move {
             // Call UCS refund_sync method
             let response = ucs_client
-                .refund_sync(grpc_request, connector_auth_metadata, grpc_headers)
+                .refund_get(grpc_request, connector_auth_metadata, grpc_headers)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("UCS refund sync execution failed")?;
@@ -2807,9 +2807,9 @@ pub async fn call_unified_connector_service_for_refund_sync(
 
             // Transform UCS response back to RouterData
             let (refund_response_data, status_code) =
-                handle_unified_connector_service_response_for_refund_sync(grpc_response.clone())
+                handle_unified_connector_service_response_for_refund_get(grpc_response.clone())
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to transform UCS refund sync response")?;
+                    .attach_printable("Failed to transform UCS refund get response")?;
 
             let mut updated_router_data = router_data;
             updated_router_data.response = refund_response_data;

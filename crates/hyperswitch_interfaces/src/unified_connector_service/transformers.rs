@@ -86,29 +86,29 @@ pub enum UnifiedConnectorServiceError {
     #[error("Failed to inject metadata into request headers: {0}")]
     HeaderInjectionFailed(String),
 
-    /// Failed to perform Create Order from gRPC Server
-    #[error("Failed to perform Create Order from gRPC Server")]
+    /// Failed to perform Payment Create Order from gRPC Server
+    #[error("Failed to perform Payment Create Order from gRPC Server")]
     PaymentCreateOrderFailure,
 
     /// Failed to perform Payment Authorize from gRPC Server
     #[error("Failed to perform. Granular Payment Authorize from gRPC Server")]
     PaymentAuthorizeGranularFailure,
 
-    /// Failed to perform Payment Authorize from gRPC Server
-    #[error("Failed to perform Payment Session Token Create from gRPC Server")]
-    PaymentCreateSessionTokenFailure,
+    /// Failed to perform Create Session Token from gRPC Server
+    #[error("Failed to perform Create Session Token from gRPC Server")]
+    CreateSessionTokenFailure,
 
-    /// Failed to perform Payment Authorize from gRPC Server
-    #[error("Failed to perform Payment Access Token Create from gRPC Server")]
-    PaymentCreateAccessTokenFailure,
+    /// Failed to perform Create Access Token from gRPC Server
+    #[error("Failed to perform Create Access Token from gRPC Server")]
+    CreateAccessTokenFailure,
 
-    /// Failed to perform Payment Authorize from gRPC Server
-    #[error("Failed to perform Payment Method Token Create from gRPC Server")]
-    PaymentMethodTokenCreateFailure,
+    /// Failed to perform Payment Method Tokenize from gRPC Server
+    #[error("Failed to perform Payment Method Tokenize from gRPC Server")]
+    PaymentMethodTokenizeFailure,
 
-    /// Failed to perform Payment Authorize from gRPC Server
-    #[error("Failed to perform Connector Customer Create from gRPC Server")]
-    PaymentConnectorCustomerCreateFailure,
+    /// Failed to perform Create Connector Customer from gRPC Server
+    #[error("Failed to perform Create Connector Customer from gRPC Server")]
+    CreateConnectorCustomerFailure,
 
     /// Failed to perform Payment Authorize from gRPC Server
     #[error("Failed to perform Payment Authorize from gRPC Server")]
@@ -134,13 +134,13 @@ pub enum UnifiedConnectorServiceError {
     #[error("Failed to perform Payment Capture from gRPC Server")]
     PaymentCaptureFailure,
 
-    /// Failed to perform Payment Setup Mandate from gRPC Server
-    #[error("Failed to perform Setup Mandate from gRPC Server")]
-    PaymentRegisterFailure,
+    /// Failed to perform Payment Setup Recurring from gRPC Server
+    #[error("Failed to perform Setup Recurring from gRPC Server")]
+    PaymentSetupRecurringFailure,
 
-    /// Failed to perform Payment Repeat Payment from gRPC Server
-    #[error("Failed to perform Repeat Payment from gRPC Server")]
-    PaymentRepeatEverythingFailure,
+    /// Failed to perform Recurring Payment Charge from gRPC Server
+    #[error("Failed to perform Recurring Payment Charge from gRPC Server")]
+    RecurringPaymentChargeFailure,
 
     /// Failed to perform Payment Refund from gRPC Server
     #[error("Failed to perform Payment Refund from gRPC Server")]
@@ -150,21 +150,21 @@ pub enum UnifiedConnectorServiceError {
     #[error("Failed to perform Refund Sync from gRPC Server")]
     RefundSyncFailure,
 
-    /// Failed to transform incoming webhook from gRPC Server
-    #[error("Failed to transform incoming webhook from gRPC Server")]
-    WebhookTransformFailure,
+    /// Failed to handle incoming webhook event from gRPC Server
+    #[error("Failed to handle incoming webhook event from gRPC Server")]
+    IncomingWebhookHandleEventFailure,
 
-    /// Failed to perform Payment Cancel from gRPC Server
-    #[error("Failed to perform Cancel from gRPC Server")]
-    PaymentCancelFailure,
+    /// Failed to perform Payment Void from gRPC Server
+    #[error("Failed to perform Void from gRPC Server")]
+    PaymentVoidFailure,
 
-    /// Failed to perform Sdk Session Token from gRPC Server
-    #[error("Failed to perform Sdk Session Token from gRPC Server")]
-    SdkSessionTokenFailure,
+    /// Failed to perform Create Sdk Session Token from gRPC Server
+    #[error("Failed to perform Create Sdk Session Token from gRPC Server")]
+    CreateSdkSessionTokenFailure,
 
-    /// Failed to perform Incremental Authorization from gRPC Server
-    #[error("Failed to perform Incremental Authorization from gRPC Server")]
-    IncrementalAuthorizationFailure,
+    /// Failed to perform Payment Incremental Authorization from gRPC Server
+    #[error("Failed to perform Payment Incremental Authorization from gRPC Server")]
+    PaymentIncrementalAuthorizationFailure,
 }
 
 /// UCS Webhook transformation status

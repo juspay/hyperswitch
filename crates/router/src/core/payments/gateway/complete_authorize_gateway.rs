@@ -81,7 +81,7 @@ where
                 call_connector_action,
             ))
             .change_context(ConnectorError::RequestEncodingFailed)
-            .attach_printable("Failed to construct Payment Get Request")?;
+            .attach_printable("Failed to construct Payment Authorize Request")?;
 
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(

@@ -18,7 +18,7 @@ use crate::{
         payments::gateway::context::RouterGatewayContext,
         unified_connector_service::{
             self, handle_unified_connector_service_response_for_payment_authorize,
-            handle_unified_connector_service_response_for_payment_repeat,
+            handle_unified_connector_service_response_for_recurring_payment_charge,
         },
     },
     routes::SessionState,
@@ -78,8 +78,8 @@ where
             .ok_or(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to fetch Unified Connector Service client")?;
 
-        // Check if this is a repeat payment (MIT with mandate_id or MandatePayment)
-        let is_repeat_payment = router_data.request.mandate_id.is_some()
+        // Check if this is a MIT payment (MIT with mandate_id or MandatePayment)
+        let is_mit_payment = router_data.request.mandate_id.is_some()
             || matches!(
                 router_data.request.payment_method_data,
                 hyperswitch_domain_models::payment_method_data::PaymentMethodData::MandatePayment
@@ -115,36 +115,35 @@ where
             .resource_id(resource_id)
             .lineage_ids(lineage_ids);
 
-        let updated_router_data = if is_repeat_payment {
+        let updated_router_data = if is_mit_payment {
             logger::info!(
-                "Granular Gateway: Detected repeat payment, calling UCS RepeatPayment endpoint"
+                "Granular Gateway: Detected MIT payment, calling UCS recurring_payment_charge endpoint"
             );
 
-            let payment_repeat_request =
+            let recurring_payment_charge_request =
                 payments_grpc::RecurringPaymentServiceChargeRequest::foreign_try_from(router_data)
                     .change_context(ConnectorError::RequestEncodingFailed)
-                    .attach_printable("Failed to construct Payment Repeat Request")?;
+                    .attach_printable("Failed to construct Recurring Payment Charge Request")?;
 
             Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
                 router_data.clone(),
                 state,
-                payment_repeat_request,
+                recurring_payment_charge_request,
                 grpc_headers,
                 unified_connector_service_execution_mode,
-                |mut router_data, payment_repeat_request, grpc_headers| async move {
-                    logger::debug!("Calling UCS payment_repeat gRPC method");
-                    let response = Box::pin(client.payment_repeat(
-                        payment_repeat_request,
+                |mut router_data, recurring_payment_charge_request, grpc_headers| async move {
+                    let response = Box::pin(client.recurring_payment_charge(
+                        recurring_payment_charge_request,
                         connector_auth_metadata,
                         grpc_headers,
                     ))
                     .await
-                    .attach_printable("Failed to repeat payment")?;
+                    .attach_printable("Failed to charge recurring payment")?;
 
-                    let payment_repeat_response = response.into_inner();
+                    let recurring_payment_charge_response = response.into_inner();
 
-                    let ucs_data = handle_unified_connector_service_response_for_payment_repeat(
-                        payment_repeat_response.clone(),
+                    let ucs_data = handle_unified_connector_service_response_for_recurring_payment_charge(
+                        recurring_payment_charge_response.clone(),
                         router_data.status,
                     )
                     .attach_printable("Failed to deserialize UCS response")?;
@@ -164,10 +163,10 @@ where
                     };
                     router_data.response = router_data_response;
 
-                    router_data.amount_captured = payment_repeat_response.captured_amount;
+                    router_data.amount_captured = recurring_payment_charge_response.captured_amount;
                     router_data.minor_amount_captured =
-                        payment_repeat_response.captured_amount.map(MinorUnit::new);
-                    router_data.raw_connector_response = payment_repeat_response
+                        recurring_payment_charge_response.captured_amount.map(MinorUnit::new);
+                    router_data.raw_connector_response = recurring_payment_charge_response
                         .raw_connector_response
                         .clone()
                         .map(|raw_connector_response| raw_connector_response.expose().into());
@@ -181,7 +180,7 @@ where
                         router_data.connector_response = Some(connector_response);
                     });
 
-                    Ok((router_data, (), payment_repeat_response))
+                    Ok((router_data, (), recurring_payment_charge_response))
                 },
             ))
             .await
@@ -195,7 +194,7 @@ where
                     call_connector_action,
                 ))
                 .change_context(ConnectorError::RequestEncodingFailed)
-                .attach_printable("Failed to construct Payment Get Request")?;
+                .attach_printable("Failed to construct Payment Authorize Request")?;
 
             Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
                 router_data.clone(),
@@ -210,7 +209,7 @@ where
                         grpc_headers,
                     ))
                     .await
-                    .attach_printable("Failed to get payment")?;
+                    .attach_printable("Failed to authorize payment")?;
 
                     let payment_authorize_response = response.into_inner();
 

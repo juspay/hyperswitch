@@ -1450,7 +1450,7 @@ pub async fn call_unified_connector_service_pre_authenticate(
             router_data,
         )
         .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
-        .attach_printable("Failed to construct Payment Authorize Request")?;
+        .attach_printable("Failed to construct Payment Pre Authenticate Request")?;
 
     let connector_auth_metadata =
         unified_connector_service::build_unified_connector_service_auth_metadata(
@@ -1493,7 +1493,7 @@ pub async fn call_unified_connector_service_pre_authenticate(
                     grpc_headers,
                 )
                 .await
-                .attach_printable("Failed to authorize payment")?;
+                .attach_printable("Failed to pre authenticate payment")?;
 
             let payment_pre_authenticate_response = response.into_inner();
 

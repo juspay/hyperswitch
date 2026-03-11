@@ -177,7 +177,6 @@ impl
                     .map(|id| id.get_string_repr().to_string()),
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
-                phone_country_code: None,
             }),
         })
     }
@@ -286,7 +285,6 @@ impl
                     .map(|id| id.get_string_repr().to_string()),
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
-                phone_country_code: None,
             }),
             browser_info,
             session_token: router_data.session_token.clone(),
@@ -371,7 +369,6 @@ impl
                 .tokenization
                 .map(payments_grpc::Tokenization::foreign_from)
                 .map(Into::into),
-            l2_l3_data: None,
         })
     }
 }
@@ -506,7 +503,6 @@ impl
                 id: None,
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
-                phone_country_code: None,
             }),
             browser_info,
             session_token: router_data.session_token.clone(),
@@ -572,7 +568,6 @@ impl
                 .tokenization
                 .map(payments_grpc::Tokenization::foreign_from)
                 .map(Into::into),
-            l2_l3_data: None,
         })
     }
 }
@@ -915,7 +910,6 @@ impl
                 id: None,
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
-                phone_country_code: None,
             }),
             address: Some(address),
             authentication_data,
@@ -1003,7 +997,6 @@ impl
                 id: None,
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
-                phone_country_code: None,
             }),
             address: Some(address),
             authentication_data: None,
@@ -1100,7 +1093,6 @@ impl
                 id: None,
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
-                phone_country_code: None,
             }),
             address: Some(address),
             enrolled_for_3ds: router_data.request.enrolled_for_3ds,
@@ -1288,7 +1280,6 @@ impl
                 id: None,
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
-                phone_country_code: None,
             }),
             browser_info,
             locale: None,
@@ -1341,7 +1332,6 @@ impl
             redirection_response: None,
             continue_redirection_url: None,
             payment_method_token: None,
-            l2_l3_data: None,
         })
     }
 }
@@ -1451,7 +1441,6 @@ impl
                     .map(|id| id.get_string_repr().to_string()),
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
-                phone_country_code: None,
             }),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: router_data.request.webhook_url.clone(),
@@ -1524,7 +1513,6 @@ impl
             redirection_response: None,
             continue_redirection_url: None,
             payment_method_token: None,
-            l2_l3_data: None,
         })
     }
 }
@@ -1621,7 +1609,6 @@ impl
                     .map(|id| id.get_string_repr().to_string()),
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
-                phone_country_code: None,
             }),
             browser_info,
             locale: None,
@@ -1687,7 +1674,6 @@ impl
             redirection_response: None,
             continue_redirection_url: None,
             payment_method_token: None,
-            l2_l3_data: None,
         })
     }
 }
@@ -1780,7 +1766,6 @@ impl
                     .map(|id| id.get_string_repr().to_string()),
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
-                phone_country_code: None,
             }),
             address: Some(address),
             auth_type: auth_type.into(),
@@ -1837,7 +1822,6 @@ impl
             connector_testing_data: router_data.request.connector_testing_data.as_ref().map(
                 |data| unified_connector_service_masking::Secret::new(data.peek().to_string()),
             ),
-            l2_l3_data: None,
         })
     }
 }
@@ -2038,26 +2022,6 @@ impl
                 .map(payments_grpc::Currency::foreign_try_from)
                 .transpose()?
                 .map(|currency| currency.into()),
-            l2_l3_data: None,
-            customer: Some(payments_grpc::Customer {
-                name: router_data
-                    .request
-                    .customer_name
-                    .clone()
-                    .map(|customer_name| customer_name.peek().to_owned()),
-                email: router_data
-                    .request
-                    .email
-                    .clone()
-                    .map(|e| e.expose().expose().into()),
-                id: router_data
-                    .customer_id
-                    .as_ref()
-                    .map(|id| id.get_string_repr().to_string()),
-                connector_customer_id: router_data.connector_customer.clone(),
-                phone_number: None,
-                phone_country_code: None,
-            }),
         })
     }
 }
@@ -2106,7 +2070,6 @@ impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, Paym
                     .map(|id| id.get_string_repr().to_string()),
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
-                phone_country_code: None,
             }),
             order_tax_amount: router_data
                 .request
@@ -4951,7 +4914,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaypalTransactionInfo> for Payp
 
         let total_price = required_amount_type
             .convert(minor_total_price, currency_code)
-            .change_context(UnifiedConnectorServiceError::SdkSessionTokenFailure)?;
+            .change_context(UnifiedConnectorServiceError::CreateSdkSessionTokenFailure)?;
 
         Ok(Self {
             total_price,
@@ -4969,7 +4932,7 @@ impl transformers::ForeignTryFrom<payments_grpc::SessionToken> for SessionToken 
             Some(session_token::WalletName::GooglePay(gpay_session_token_response)) => {
                 let gpay_session = gpay_session_token_response
                     .google_pay_session
-                    .ok_or(UnifiedConnectorServiceError::SdkSessionTokenFailure)
+                    .ok_or(UnifiedConnectorServiceError::CreateSdkSessionTokenFailure)
                     .attach_printable(
                         "Missing Google Pay Session Token Response in UCS SdkSessionToken Response",
                     )?;
@@ -5020,7 +4983,7 @@ impl transformers::ForeignTryFrom<payments_grpc::SessionToken> for SessionToken 
 
                 Ok(Self::Paypal(Box::new(paypal_session_token_response)))
             }
-            _ => Err(UnifiedConnectorServiceError::SdkSessionTokenFailure)
+            _ => Err(UnifiedConnectorServiceError::CreateSdkSessionTokenFailure)
                 .attach_printable("Missing session_token in UCS Sdk Session Token Response")?,
         }
     }
@@ -5038,7 +5001,7 @@ impl transformers::ForeignTryFrom<payments_grpc::ApplePayAddressParameters>
             payments_grpc::ApplePayAddressParameters::Phone => Ok(Self::Phone),
             payments_grpc::ApplePayAddressParameters::Email => Ok(Self::Email),
             payments_grpc::ApplePayAddressParameters::Unspecified => {
-                Err(UnifiedConnectorServiceError::SdkSessionTokenFailure)
+                Err(UnifiedConnectorServiceError::CreateSdkSessionTokenFailure)
                     .attach_printable("Unspecified ApplePayAddressParameters")?
             }
         }
@@ -5057,7 +5020,7 @@ impl transformers::ForeignTryFrom<(&payments_grpc::AmountInfo, common_enums::Cur
 
         let amount = required_amount_type
             .convert(minor_amount, currency_code)
-            .change_context(UnifiedConnectorServiceError::SdkSessionTokenFailure)
+            .change_context(UnifiedConnectorServiceError::CreateSdkSessionTokenFailure)
             .attach_printable("Response amount conversion failed")?;
 
         Ok(Self {
@@ -5156,7 +5119,7 @@ impl transformers::ForeignTryFrom<payments_grpc::GooglePaySessionResponse>
                 .clone()
                 .map(GpayMerchantInfo::foreign_try_from)
                 .transpose()?
-                .ok_or(UnifiedConnectorServiceError::SdkSessionTokenFailure)
+                .ok_or(UnifiedConnectorServiceError::CreateSdkSessionTokenFailure)
                 .attach_printable("Missing merchant_info in GooglePaySessionResponse")?,
             shipping_address_required: value.shipping_address_required,
             email_required: value.email_required,
@@ -5164,7 +5127,7 @@ impl transformers::ForeignTryFrom<payments_grpc::GooglePaySessionResponse>
                 .shipping_address_parameters
                 .map(GpayShippingAddressParameters::foreign_try_from)
                 .transpose()?
-                .ok_or(UnifiedConnectorServiceError::SdkSessionTokenFailure)
+                .ok_or(UnifiedConnectorServiceError::CreateSdkSessionTokenFailure)
                 .attach_printable(
                     "Missing shipping_address_parameters in GooglePaySessionResponse",
                 )?,
@@ -5179,7 +5142,7 @@ impl transformers::ForeignTryFrom<payments_grpc::GooglePaySessionResponse>
                 .clone()
                 .map(GpayTransactionInfo::foreign_try_from)
                 .transpose()?
-                .ok_or(UnifiedConnectorServiceError::SdkSessionTokenFailure)
+                .ok_or(UnifiedConnectorServiceError::CreateSdkSessionTokenFailure)
                 .attach_printable("Missing transaction_info in GooglePaySessionResponse")?,
             delayed_session_token: value.delayed_session_token,
             connector: value.connector.clone(),
@@ -5204,7 +5167,7 @@ impl transformers::ForeignTryFrom<&payments_grpc::SecretInfoToInitiateSdk>
             .display
             .clone()
             .map(|display| display.expose().into())
-            .ok_or(UnifiedConnectorServiceError::SdkSessionTokenFailure)
+            .ok_or(UnifiedConnectorServiceError::CreateSdkSessionTokenFailure)
             .attach_printable("Missing display in SecretInfoToInitiateSdk")?;
         let payment = value.payment.clone().map(|payment| payment.expose().into());
 
@@ -5223,7 +5186,7 @@ impl transformers::ForeignTryFrom<payments_grpc::GpayBillingAddressFormat>
             payments_grpc::GpayBillingAddressFormat::BillingAddressFormatMin => Ok(Self::MIN),
             payments_grpc::GpayBillingAddressFormat::BillingAddressFormatFull => Ok(Self::FULL),
             payments_grpc::GpayBillingAddressFormat::BillingAddressFormatUnspecified => {
-                Err(UnifiedConnectorServiceError::SdkSessionTokenFailure)
+                Err(UnifiedConnectorServiceError::CreateSdkSessionTokenFailure)
                     .attach_printable("Unspecified GpayBillingAddressFormat")?
             }
         }
@@ -5266,13 +5229,13 @@ impl transformers::ForeignTryFrom<payments_grpc::GpayAllowedPaymentMethods>
                 .parameters
                 .map(GpayAllowedMethodsParameters::foreign_try_from)
                 .transpose()?
-                .ok_or(UnifiedConnectorServiceError::SdkSessionTokenFailure)
+                .ok_or(UnifiedConnectorServiceError::CreateSdkSessionTokenFailure)
                 .attach_printable("Missing GpayAllowedPaymentMethods parameters")?,
             tokenization_specification: value
                 .tokenization_specification
                 .map(GpayTokenizationSpecification::foreign_try_from)
                 .transpose()?
-                .ok_or(UnifiedConnectorServiceError::SdkSessionTokenFailure)
+                .ok_or(UnifiedConnectorServiceError::CreateSdkSessionTokenFailure)
                 .attach_printable("Missing GpayAllowedPaymentMethods tokenization_specification")?,
         })
     }
@@ -5326,7 +5289,7 @@ impl transformers::ForeignTryFrom<payments_grpc::GpayTokenizationSpecification>
                 .parameters
                 .map(GpayTokenParameters::foreign_try_from)
                 .transpose()?
-                .ok_or(UnifiedConnectorServiceError::SdkSessionTokenFailure)
+                .ok_or(UnifiedConnectorServiceError::CreateSdkSessionTokenFailure)
                 .attach_printable("Missing GpayTokenizationSpecification parameters")?,
         })
     }
@@ -5356,7 +5319,7 @@ impl transformers::ForeignTryFrom<payments_grpc::GpayTransactionInfo> for GpayTr
 
         let total_price = required_amount_type
             .convert(minor_total_price, currency_code)
-            .change_context(UnifiedConnectorServiceError::SdkSessionTokenFailure)
+            .change_context(UnifiedConnectorServiceError::CreateSdkSessionTokenFailure)
             .attach_printable("Response amount conversion failed")?;
 
         Ok(Self {

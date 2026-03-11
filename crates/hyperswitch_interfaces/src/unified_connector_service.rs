@@ -42,9 +42,9 @@ pub fn handle_unified_connector_service_response_for_payment_get(
 
 /// Extracts the payments response from UCS webhook content
 pub fn get_payments_response_from_ucs_webhook_content(
-    webhook_content: payments_grpc::EventResponse,
+    event_response: payments_grpc::EventResponse,
 ) -> CustomResult<payments_grpc::PaymentServiceGetResponse, UnifiedConnectorServiceError> {
-    match webhook_content.content {
+    match event_response.content {
         Some(unified_connector_service_client::payments::event_response::Content::PaymentsResponse(payments_response)) => {
             Ok(payments_response)
         },
