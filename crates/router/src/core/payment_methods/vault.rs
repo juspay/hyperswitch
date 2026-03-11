@@ -1,4 +1,3 @@
-use crate::core::payment_methods::access_token;
 use common_enums::PaymentMethodType;
 #[cfg(feature = "v2")]
 use common_utils::encryption::Encryption;
@@ -27,7 +26,7 @@ use crate::{
     consts,
     core::{
         errors::{self, ConnectorErrorExt, CustomResult, RouterResult},
-        payment_methods::transformers as pm_transforms,
+        payment_methods::{access_token, transformers as pm_transforms},
         payments, utils as core_utils,
     },
     db, headers, logger,
@@ -2310,7 +2309,8 @@ pub async fn delete_payment_method_data_from_vault(
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
-pub async fn retrieve_payment_method_from_vault_external_v1( //
+pub async fn retrieve_payment_method_from_vault_external_v1(
+    //
     state: &routes::SessionState,
     merchant_id: &id_type::MerchantId,
     pm: &domain::PaymentMethod,
@@ -2346,13 +2346,8 @@ pub async fn retrieve_payment_method_from_vault_external_v1( //
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to get the connector data")?;
 
-    access_token::create_access_token(
-        state,
-        &connector_data,
-        merchant_id,
-        &mut old_router_data,
-    )
-    .await?;
+    access_token::create_access_token(state, &connector_data, merchant_id, &mut old_router_data)
+        .await?;
 
     if old_router_data.response.is_ok() {
         let connector_integration: services::BoxedVaultConnectorIntegrationInterface<
