@@ -189,7 +189,7 @@ where
                     .resource_id(resource_id)
                     .lineage_ids(lineage_ids);
 
-                return Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
+                Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
                     router_data.clone(),
                     state,
                     payment_get_request,
@@ -246,7 +246,7 @@ where
                 ))
                 .await
                 .map(|(router_data, _)| router_data)
-                .change_context(ConnectorError::ResponseHandlingFailed);
+                .change_context(ConnectorError::ResponseHandlingFailed)
             }
             _ => Err(ConnectorError::ResponseHandlingFailed).attach_printable(
                 "Invalid CallConnectorAction for payment sync via UCS Gateway system",

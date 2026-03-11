@@ -653,6 +653,8 @@ pub fn is_payment_webhook_event(event_type: TruelayerWebhookEventType) -> bool {
             | TruelayerWebhookEventType::PaymentFailed
             | TruelayerWebhookEventType::PaymentCreditable
             | TruelayerWebhookEventType::PaymentSettlementStalled
+            | TruelayerWebhookEventType::PaymentReversed
+            | TruelayerWebhookEventType::PaymentFundsReceived
     )
 }
 
@@ -795,7 +797,7 @@ fn verify_signature(
     // signing_input = base64url(header) + "." + base64url(payload)
     let signing_input = format!("{}.{}", header_b64, URL_SAFE_NO_PAD.encode(&payload));
 
-    // 7. Convert P1363 signature (r || s, 66 bytes each) to DER
+    // Convert P1363 signature (r || s, 66 bytes each) to DER
     let sig_bytes = URL_SAFE_NO_PAD
         .decode(signature_b64)
         .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
@@ -822,7 +824,7 @@ fn verify_signature(
         .to_der()
         .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
-    // 8. SHA-512 digest + ECDSA verify
+    // SHA-512 digest + ECDSA verify
     let digest = hash(MessageDigest::sha512(), signing_input.as_bytes())
         .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
