@@ -4,6 +4,51 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.03.11.0
+
+### Features
+
+- **network_tokenization:** Populate par in payments response for network_token payments ([#11360](https://github.com/juspay/hyperswitch/pull/11360)) ([`b822cab`](https://github.com/juspay/hyperswitch/commit/b822cab401347b4273c21baf9e2e8f7980225a18))
+
+### Bug Fixes
+
+- **payload:** Update request structure and switch to JSON payload format ([#11463](https://github.com/juspay/hyperswitch/pull/11463)) ([`3671bf6`](https://github.com/juspay/hyperswitch/commit/3671bf643b5dbd5daae5fd7f2fc39d175edfdabc))
+
+### Testing
+
+- **cypress:** Add card installment payment flow tests for Adyen ([#11444](https://github.com/juspay/hyperswitch/pull/11444)) ([`37196df`](https://github.com/juspay/hyperswitch/commit/37196df0cfd1107f6d06ff77a0ca5a6359bc9a32))
+
+**Full Changelog:** [`2026.03.10.0...2026.03.11.0`](https://github.com/juspay/hyperswitch/compare/2026.03.10.0...2026.03.11.0)
+
+- - -
+
+## 2026.03.10.0
+
+### Features
+
+- **connector:** Implement UCS based default implementation for Truelayer ([#11308](https://github.com/juspay/hyperswitch/pull/11308)) ([`7215097`](https://github.com/juspay/hyperswitch/commit/7215097fec5051fd991892dbfa85d416302de05e))
+- **platform:** Platform merchant creation in create_merchant_account ([#11383](https://github.com/juspay/hyperswitch/pull/11383)) ([`22bd78d`](https://github.com/juspay/hyperswitch/commit/22bd78db07a5f8473a88309a95cccaa422694fba))
+- **users:** Send email to a user when it's role is deleted. ([#11373](https://github.com/juspay/hyperswitch/pull/11373)) ([`4948dbc`](https://github.com/juspay/hyperswitch/commit/4948dbc8155bfc1801cb7c64ec82bff84749fdac))
+- Implement OpenSearch-powered payment list API ([#11270](https://github.com/juspay/hyperswitch/pull/11270)) ([`2ac9684`](https://github.com/juspay/hyperswitch/commit/2ac9684914f7206f6d1c0421bdd831f319159ed0))
+
+### Bug Fixes
+
+- **connector:** [SANTANDER] Pix and Boleto fixes ([#11388](https://github.com/juspay/hyperswitch/pull/11388)) ([`2f72996`](https://github.com/juspay/hyperswitch/commit/2f72996c8d0277b8fddf13f6261c37a3ca60b3d0))
+- **payments:** Correct installment payment routing check to use selected installment data ([#11441](https://github.com/juspay/hyperswitch/pull/11441)) ([`92f957f`](https://github.com/juspay/hyperswitch/commit/92f957f6ba1a57afe472de09d7336791e1ac90da))
+
+### Refactors
+
+- **cypress:** Refactor auto and manual capture for payments(part1) ([#11297](https://github.com/juspay/hyperswitch/pull/11297)) ([`c436d72`](https://github.com/juspay/hyperswitch/commit/c436d727e77a6d3569dfd1c2f5914ffe063a1001))
+- **platform:** Refactor payment, dispute, and webhook functions to accept Processor instead of Platform ([#11349](https://github.com/juspay/hyperswitch/pull/11349)) ([`7f33f2e`](https://github.com/juspay/hyperswitch/commit/7f33f2e3651253c13cb1f812b48decff76690573))
+
+### Miscellaneous Tasks
+
+- **config:** Add installments supported payment methods config to deployment configs ([#11456](https://github.com/juspay/hyperswitch/pull/11456)) ([`72192cd`](https://github.com/juspay/hyperswitch/commit/72192cdd940ae8dff9fa63bb0d184e5fb753700e))
+
+**Full Changelog:** [`2026.03.09.0...2026.03.10.0`](https://github.com/juspay/hyperswitch/compare/2026.03.09.0...2026.03.10.0)
+
+- - -
+
 ## 2026.03.09.0
 
 ### Features
