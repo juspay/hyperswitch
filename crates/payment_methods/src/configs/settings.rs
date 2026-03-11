@@ -109,6 +109,27 @@ pub struct SupportedPaymentMethodTypesForInstallments(
 pub struct SupportedConnectorsForInstallments(
     #[serde(deserialize_with = "deserialize_hashset")] pub HashSet<enums::Connector>,
 );
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct InstallmentConfig(pub HashMap<enums::Connector, Vec<common_enums::enums::Currency>>);
+
+impl InstallmentConfig {
+    pub fn is_connector_configured(&self, connector_str: &str) -> bool {
+        connector_str
+            .parse::<enums::Connector>()
+            .ok()
+            .map(|c| self.0.contains_key(&c))
+            .unwrap_or(false)
+    }
+
+    pub fn is_currency_supported(&self, currency: common_enums::enums::Currency) -> bool {
+        self.0
+            .values()
+            .any(|currencies| currencies.contains(&currency))
+    }
+}
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct Mandates {
     pub supported_payment_methods: SupportedPaymentMethodsForMandate,

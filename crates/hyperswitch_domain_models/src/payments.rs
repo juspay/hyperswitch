@@ -448,6 +448,7 @@ impl PaymentIntent {
     pub fn into_payment_method_list_intent_data(
         self,
         net_amount: MinorUnit,
+        show_installments: bool,
     ) -> CustomResult<PaymentMethodListIntentData, errors::api_error_response::ApiErrorResponse>
     {
         let billing: Option<Address> = self
@@ -468,6 +469,7 @@ impl PaymentIntent {
 
         let installment_options = self
             .installment_options
+            .filter(|_| show_installments)
             .map(|opts| {
                 let currency = self.currency.get_required_value("currency")?;
                 opts.into_iter()

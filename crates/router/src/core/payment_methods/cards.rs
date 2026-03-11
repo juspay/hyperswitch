@@ -3848,6 +3848,20 @@ pub async fn list_payment_methods(
         .as_ref()
         .map(|payment_intent| payment_intent.customer_id.is_none())
         .unwrap_or(true);
+    let installment_connector_present = filtered_mcas.iter().any(|mca| {
+        state
+            .conf
+            .installment_config
+            .is_connector_configured(&mca.connector_name)
+    });
+
+    let installment_currency_supported = currency
+        .map(|cur| state.conf.installment_config.is_currency_supported(cur))
+        .unwrap_or(false);
+
+    let connector_supports_installments =
+        installment_connector_present && installment_currency_supported;
+
     let merchant_surcharge_configs = if let Some((payment_attempt, payment_intent)) =
         payment_attempt.as_ref().zip(payment_intent.clone())
     {
@@ -3892,7 +3906,7 @@ pub async fn list_payment_methods(
                 .as_ref()
                 .map(|pa| pa.net_amount.get_total_amount())
                 .unwrap_or(pi.amount);
-            pi.into_payment_method_list_intent_data(net_amount)
+            pi.into_payment_method_list_intent_data(net_amount, connector_supports_installments)
         })
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
