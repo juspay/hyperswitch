@@ -487,7 +487,7 @@ pub struct PayToBankAccountV3Result {
     pub status_message: Option<String>,
 
     #[serde(rename = "paymentInstructions")]
-    pub payment_instructions_results: PaymentInstructionsResults,
+    pub payment_instructions_results: Option<PaymentInstructionsResults>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -561,28 +561,55 @@ impl TryFrom<PayoutsResponseRouterData<PoFulfill, EnvoyPayoutSoapResponse>>
         let payment_account_v3_result = &item.response.body.response.result;
         let response = &payment_account_v3_result
             .payment_instructions_results
-            .payment_result;
-        let payout_status_result = ResponseStatus::from(response.payment_status_code);
+            .as_ref();
+        if let Some(instructions_results) = response {
+            let payout_status_result =
+                ResponseStatus::from(instructions_results.payment_result.payment_status_code);
 
-        let (error_code, error_message) = if let ResponseStatus::Failed(_) = payout_status_result {
-            (
-                Some(response.payment_status_code.to_string()),
-                Some(response.payment_status_message.clone()),
-            )
+            let (error_code, error_message) =
+                if let ResponseStatus::Failed(_) = payout_status_result {
+                    (
+                        Some(
+                            instructions_results
+                                .payment_result
+                                .payment_status_code
+                                .to_string(),
+                        ),
+                        Some(
+                            instructions_results
+                                .payment_result
+                                .payment_status_message
+                                .clone(),
+                        ),
+                    )
+                } else {
+                    (None, None)
+                };
+            Ok(Self {
+                response: Ok(PayoutsResponseData {
+                    status: Some(payout_status_result.into()),
+                    connector_payout_id: Some(payment_account_v3_result.request_reference.clone()),
+                    payout_eligible: None,
+                    should_add_next_step_to_process_tracker: false,
+                    error_code,
+                    error_message,
+                    payout_connector_metadata: None,
+                }),
+                ..item.data
+            })
         } else {
-            (None, None)
-        };
-        Ok(Self {
-            response: Ok(PayoutsResponseData {
-                status: Some(payout_status_result.into()),
-                connector_payout_id: Some(payment_account_v3_result.request_reference.clone()),
-                payout_eligible: None,
-                should_add_next_step_to_process_tracker: false,
-                error_code,
-                error_message,
-                payout_connector_metadata: None,
-            }),
-            ..item.data
-        })
+            Ok(Self {
+                response: Ok(PayoutsResponseData {
+                    status: Some(enums::PayoutStatus::Failed),
+                    connector_payout_id: Some(payment_account_v3_result.request_reference.clone()),
+                    payout_eligible: None,
+                    should_add_next_step_to_process_tracker: false,
+                    error_code: Some(payment_account_v3_result.status_code.clone().to_string()),
+                    error_message: payment_account_v3_result.status_message.clone(),
+                    payout_connector_metadata: None,
+                }),
+                ..item.data
+            })
+        }
     }
 }
