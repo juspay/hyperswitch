@@ -164,4 +164,38 @@ impl Default for Dimensions<NoMerchantId, NoOrgId, NoProfileId> {
     }
 }
 
+/// Base trait for all Dimensions types - enables polymorphic access to dimension methods
+pub trait DimensionsBase {
+    /// Converts dimension state to Superposition config context
+    fn to_superposition_context(&self) -> Option<superposition::ConfigContext>;
+
+    /// Get merchant_id (if available)
+    fn get_merchant_id(&self) -> Option<&id_type::MerchantId>;
+
+    /// Get organization_id (if available)
+    fn get_organization_id(&self) -> Option<&id_type::OrganizationId>;
+
+    /// Get profile_id (if available)
+    fn get_profile_id(&self) -> Option<&id_type::ProfileId>;
+}
+
+impl<M, O, P> DimensionsBase for Dimensions<M, O, P> {
+    fn to_superposition_context(&self) -> Option<superposition::ConfigContext> {
+        self.to_superposition_context()
+    }
+
+    fn get_merchant_id(&self) -> Option<&id_type::MerchantId> {
+        self.get_merchant_id()
+    }
+
+    fn get_organization_id(&self) -> Option<&id_type::OrganizationId> {
+        self.get_organization_id()
+    }
+
+    fn get_profile_id(&self) -> Option<&id_type::ProfileId> {
+        self.get_profile_id()
+    }
+}
+
 pub type DimensionsWithMerchantId = Dimensions<HasMerchantId, NoOrgId, NoProfileId>;
+pub type DimensionsWithMerchantIdAndProfileId = Dimensions<HasMerchantId, NoOrgId, HasProfileId>;

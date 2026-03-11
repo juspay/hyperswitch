@@ -1,6 +1,5 @@
 pub mod dimension_config;
 pub mod dimension_state;
-
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 use external_services::superposition::{self, ConfigContext};
@@ -123,21 +122,17 @@ impl ConfigType for serde_json::Value {
 }
 
 /// Fetch configuration value from Superposition with database fallback using dimension-aware key.
-/// This function is specifically for DatabaseBackedConfig types and enforces
-/// that database fallback is used when superposition fails. It uses the config's
-/// `db_key` method to construct the database key from dimensions.
-pub async fn fetch_db_with_dimensions<C, M, O, P>(
+/// This function accepts any type that implements DimensionsBase (including type aliases).
+/// This allows configs to be used with pre-defined dimension type aliases like DimensionsWithMerchantId or DimensionsWithMerchantIdAndProfileId.
+pub async fn fetch_db_config_for_dimensions<C>(
     storage: &dyn db::StorageInterface,
     superposition_client: Option<&superposition::SuperpositionClient>,
-    dimensions: &dimension_state::Dimensions<M, O, P>,
+    dimensions: &impl dimension_state::DimensionsBase,
     targeting_key: Option<&C::TargetingKey>,
 ) -> C::Output
 where
     C: DatabaseBackedConfig,
     C::Output: ConfigType,
-    M: Send + Sync,
-    O: Send + Sync,
-    P: Send + Sync,
     open_feature::Client: superposition::GetValue<C::Output>,
 {
     let db_key = <C as DatabaseBackedConfig>::db_key(dimensions);
@@ -146,7 +141,7 @@ where
     fetch_db_config::<C>(
         storage,
         superposition_client,
-        &db_key,
+        db_key.as_deref(),
         context,
         targeting_key,
     )
@@ -156,11 +151,11 @@ where
 /// This trait extends external_services::superposition::Config with database-specific metadata
 /// and enforces that implementations must provide db_key construction.
 pub trait DatabaseBackedConfig: superposition::Config {
-    /// The database key suffix for this config
+    /// The database key prefix/suffix for this config
     const KEY: &'static str;
 
     /// Generate the database key for this config based on dimensions
-    fn db_key<M, O, P>(dimensions: &dimension_state::Dimensions<M, O, P>) -> String;
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String>;
 }
 
 /// Fetch configuration value from Superposition with database fallback.
@@ -169,7 +164,7 @@ pub trait DatabaseBackedConfig: superposition::Config {
 pub async fn fetch_db_config<C>(
     storage: &dyn db::StorageInterface,
     superposition_client: Option<&superposition::SuperpositionClient>,
-    db_key: &str,
+    db_key: Option<&str>,
     context: Option<ConfigContext>,
     targeting_key: Option<&C::TargetingKey>,
 ) -> C::Output
@@ -178,8 +173,8 @@ where
     C::Output: ConfigType,
     open_feature::Client: superposition::GetValue<C::Output>,
 {
-    let default_value = C::DEFAULT_VALUE;
     let config_type = C::KEY;
+    let default_value = C::default_value();
 
     let superposition_result = match superposition_client {
         Some(client) => C::fetch(client, context, targeting_key).await,
@@ -192,36 +187,118 @@ where
 
     match superposition_result {
         Ok(value) => value,
-        Err(_) => {
-            router_env::logger::info!("Retrieving config from database for key '{}'", db_key);
+        Err(_) => match db_key {
+            Some(db_key) => {
+                router_env::logger::info!(
+                    "Retrieving config from database for key '{}'",
+                    config_type
+                );
 
-            let config_result = storage
-                .find_config_by_key_unwrap_or(
-                    db_key,
-                    Some(default_value.to_config_string().unwrap_or_default()),
-                )
-                .await;
+                let config_result = storage
+                    .find_config_by_key_unwrap_or(
+                        db_key,
+                        Some(default_value.to_config_string().unwrap_or_default()),
+                    )
+                    .await;
 
-            match config_result
-                .ok()
-                .and_then(|config| C::Output::from_config_str(&config.config).ok())
-            {
-                Some(value) => {
-                    metrics::CONFIG_DATABASE_FETCH.add(
-                        1,
-                        router_env::metric_attributes!(("config_type", config_type)),
-                    );
-                    value
-                }
-                None => {
-                    router_env::logger::info!("Using default config value for key '{}'", db_key);
-                    metrics::CONFIG_DEFAULT_FALLBACK.add(
-                        1,
-                        router_env::metric_attributes!(("config_type", config_type)),
-                    );
-                    default_value
+                match config_result
+                    .ok()
+                    .and_then(|config| C::Output::from_config_str(&config.config).ok())
+                {
+                    Some(value) => {
+                        metrics::CONFIG_DATABASE_FETCH.add(
+                            1,
+                            router_env::metric_attributes!(("config_type", config_type)),
+                        );
+                        value
+                    }
+                    None => {
+                        router_env::logger::info!(
+                            "Using default config value for key '{}'",
+                            config_type
+                        );
+                        metrics::CONFIG_DEFAULT_FALLBACK.add(
+                            1,
+                            router_env::metric_attributes!(("config_type", config_type)),
+                        );
+                        default_value
+                    }
                 }
             }
-        }
+            None => {
+                router_env::logger::info!(
+                    "No database key provided for config '{}', using default value",
+                    config_type
+                );
+                metrics::CONFIG_DEFAULT_FALLBACK.add(
+                    1,
+                    router_env::metric_attributes!(("config_type", config_type)),
+                );
+                default_value
+            }
+        },
     }
+}
+
+/// Fetch object-type config with JSON-to-Type conversion.
+/// Used when Config Output is serde_json::Value but caller wants a specific type.
+pub async fn fetch_db_config_object<C, T>(
+    storage: &dyn db::StorageInterface,
+    superposition_client: Option<&superposition::SuperpositionClient>,
+    db_key: Option<&str>,
+    context: Option<ConfigContext>,
+    targeting_key: Option<&C::TargetingKey>,
+) -> T
+where
+    C: DatabaseBackedConfig<Output = serde_json::Value>,
+    T: for<'de> serde::Deserialize<'de> + Default,
+    open_feature::Client: superposition::GetValue<serde_json::Value>,
+{
+    let json_value = fetch_db_config::<C>(
+        storage,
+        superposition_client,
+        db_key,
+        context,
+        targeting_key,
+    )
+    .await;
+    let config_type = C::KEY;
+
+    serde_json::from_value(json_value).unwrap_or_else(|e| {
+        router_env::logger::error!(
+            "Failed to deserialize {}: {:?}, using default",
+            stringify!(T),
+            e
+        );
+        metrics::CONFIG_DEFAULT_FALLBACK.add(
+            1,
+            router_env::metric_attributes!(("config_type", config_type)),
+        );
+        T::default()
+    })
+}
+
+/// Fetch dimension-aware object-type config with JSON deserialization.
+pub async fn fetch_db_config_for_objects<C, T>(
+    storage: &dyn db::StorageInterface,
+    superposition_client: Option<&superposition::SuperpositionClient>,
+    dimensions: &impl dimension_state::DimensionsBase,
+    targeting_key: Option<&C::TargetingKey>,
+) -> T
+where
+    C: DatabaseBackedConfig<Output = serde_json::Value>,
+    T: for<'de> serde::Deserialize<'de> + Default,
+    open_feature::Client: superposition::GetValue<serde_json::Value>,
+{
+    let db_key = <C as DatabaseBackedConfig>::db_key(dimensions);
+    let context = dimensions.to_superposition_context();
+
+    fetch_db_config_object::<C, T>(
+        storage,
+        superposition_client,
+        db_key.as_deref(),
+        context,
+        targeting_key,
+    )
+    .await
 }

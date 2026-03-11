@@ -236,6 +236,7 @@ pub fn mk_app(
                 .service(routes::Gsm::server(state.clone()))
                 .service(routes::RecoveryDataBackfill::server(state.clone()))
                 .service(routes::RecoveryReports::server(state.clone()));
+               .service(routes::Analytics::server(state.clone()));
         }
     }
 
