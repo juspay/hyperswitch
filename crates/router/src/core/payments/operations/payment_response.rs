@@ -184,7 +184,7 @@ where
                     });
                 let acknowledgement_status = should_update
                     .then_some(common_enums::AcknowledgementStatus::Authenticated)
-                    .or_else(|| Some(common_enums::AcknowledgementStatus::Failed));
+                    .or(Some(common_enums::AcknowledgementStatus::Failed));
 
                 let payload = UpdatePaymentMethodV1Payload {
                     payment_method_data,
