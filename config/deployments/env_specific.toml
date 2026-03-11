@@ -286,6 +286,8 @@ url = "http://localhost:5000" # URL of the encryption service
 # Set to false for new deployments to use newer / correct decryption behavior.
 use_legacy_key_store_decryption = false
 
+# WARNING: These are development defaults. MUST be changed for production.
+# Generate secure values with: openssl rand -hex 32
 # This section provides some secret values.
 [secrets]
 master_enc_key = "sample_key"            # Master Encryption key used to encrypt merchant wise encryption key. Should be 32-byte long.
