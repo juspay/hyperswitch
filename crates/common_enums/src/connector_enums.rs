@@ -418,12 +418,12 @@ impl Connector {
             | Self::Noon
             | Self::Tokenex
             | Self::Tokenio
-            | Self::Stripe
             | Self::Datatrans
             | Self::Paytm
             | Self::Payjustnow
             | Self::Payjustnowinstore
             | Self::Phonepe => false,
+                   Self::Stripe |
             Self::Checkout |Self::Zift| Self::Nmi |Self::Braintree|
             Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen => true,
         }

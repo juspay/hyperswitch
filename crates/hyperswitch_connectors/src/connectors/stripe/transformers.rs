@@ -226,6 +226,8 @@ pub struct PaymentIntentRequest {
     pub charges: Option<IntentCharges>,
     #[serde(rename = "payment_method_options[card][moto]")]
     pub moto: Option<bool>,
+    #[serde(flatten)]
+    pub external_three_ds_data: Option<StripeExternalThreeDsData>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
@@ -320,6 +322,55 @@ pub enum StripeRequestOvercaptureBool {
     IfAvailable,
 }
 
+/// Data structure for Stripe external 3DS authentication payload.
+/// Used when 3DS authentication is performed externally (outside of Stripe)
+/// and the results need to be passed to Stripe.
+/// Reference: https://docs.stripe.com/payments/3d-secure/authentication-flow#external-three-ds
+#[derive(Debug, Default, Eq, PartialEq, Serialize)]
+pub struct StripeExternalThreeDsData {
+    /// The 3DS version used for authentication (e.g., "1.0.2", "2.1.0", "2.2.0")
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        rename = "payment_method_options[card][three_d_secure][version]"
+    )]
+    pub three_ds_version: Option<String>,
+    /// The Electronic Commerce Indicator value (e.g., "01", "02", "05", "06", "07")
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        rename = "payment_method_options[card][three_d_secure][electronic_commerce_indicator]"
+    )]
+    pub electronic_commerce_indicator: Option<String>,
+    /// The cryptogram (CAVV/AAV) from the 3DS authentication
+    #[serde(rename = "payment_method_options[card][three_d_secure][cryptogram]")]
+    pub cryptogram: Secret<String>,
+    /// The transaction ID (XID for 3DS1 or dsTransID for 3DS2)
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        rename = "payment_method_options[card][three_d_secure][transaction_id]"
+    )]
+    pub transaction_id: Option<String>,
+    /// The transStatus returned from the card Issuer’s ACS in the ARes.
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        rename = "payment_method_options[card][three_d_secure][ares_trans_status]"
+    )]
+    pub ares_trans_status: Option<common_enums::TransactionStatus>,
+
+    /// The exemption requested via 3DS and accepted by the issuer at authentication time.
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        rename = "payment_method_options[card][three_d_secure][exemption_indicator]"
+    )]
+    pub exemption_indicator: Option<StripeThreeDsExemptionIndicator>,
+    /// Set error_on_requires_action to true when you confirm the PaymentIntent to prevent Stripe from performing a 3DS request during a soft decline.
+    pub error_on_requires_action: bool,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StripeThreeDsExemptionIndicator {
+    LowRisk,
+}
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripePayLaterData {
     #[serde(rename = "payment_method_data[type]")]
@@ -2240,6 +2291,24 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
         } else {
             None
         };
+        let external_three_ds_data =
+            item.request
+                .authentication_data
+                .clone()
+                .map(|data| StripeExternalThreeDsData {
+                    three_ds_version: data.message_version.map(|version| version.to_string()),
+                    electronic_commerce_indicator: data.eci,
+                    cryptogram: data.cavv,
+                    transaction_id: data.ds_trans_id,
+                    ares_trans_status: data.transaction_status,
+                    exemption_indicator: data.exemption_indicator.and_then(|risk| match risk {
+                        common_enums::ExemptionIndicator::LowRiskProgram => {
+                            Some(StripeThreeDsExemptionIndicator::LowRisk)
+                        }
+                        _ => None,
+                    }),
+                    error_on_requires_action: true,
+                });
 
         Ok(Self {
             amount,                                      //hopefully we don't loose some cents here
@@ -2287,6 +2356,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             browser_info,
             charges,
             moto: is_moto,
+            external_three_ds_data,
         })
     }
 }
