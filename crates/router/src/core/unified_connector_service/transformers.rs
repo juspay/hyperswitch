@@ -5189,7 +5189,7 @@ impl transformers::ForeignTryFrom<payments_grpc::GpayAllowedMethodsParameters>
         Ok(Self {
             allowed_auth_methods: value.allowed_auth_methods,
             allowed_card_networks: value.allowed_card_networks,
-            billing_address_required: value.billing_address_required,
+            billing_address_required: value.billing_address,
             billing_address_parameters: value
                 .billing_address_parameters
                 .map(GpayBillingAddressParameters::foreign_try_from)
