@@ -3848,7 +3848,7 @@ pub async fn list_payment_methods(
         .as_ref()
         .map(|payment_intent| payment_intent.customer_id.is_none())
         .unwrap_or(true);
-    let connector_supports_installments = currency.map_or(false, |cur| {
+    let connector_supports_installments = currency.is_some_and(|cur| {
         filtered_mcas.iter().any(|mca| {
             state
                 .conf
