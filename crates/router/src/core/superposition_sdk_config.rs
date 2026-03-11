@@ -3,6 +3,7 @@ use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 
 use crate::{
+    consts::superposition::DYNAMIC_FIELDS,
     core::errors::{self, RouterResponse},
     types::domain,
     SessionState,
@@ -26,7 +27,7 @@ pub async fn get_superposition_sdk_config(
         .as_ref()
         .async_map(|sp| async move {
             sp.as_ref()
-                .get_cached_config(Some(vec!["dynamic_fields".to_string()]), None)
+                .get_cached_config(Some(vec![DYNAMIC_FIELDS.to_string()]), None)
                 .await
         })
         .await

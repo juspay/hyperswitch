@@ -8,7 +8,7 @@ use crate::{
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::GetSuperpositionSdkConfig))]
-pub async fn create_sdk_config(
+pub async fn get_sdk_config(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<(common_utils::id_type::ProfileId, String)>,
