@@ -17,6 +17,7 @@ env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
   PAYMENTS_CONNECTORS: "stripe cybersource"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "cryptopay finix nexixpay"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "adyen checkout zift"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3: "airwallex finix noon"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_4: "nmi fiuu gigadat"
