@@ -2183,7 +2183,6 @@ impl
 
         let resource_id: router_request_types::ResponseId = match response
             .connector_transaction_id
-            .connector_transaction_id
             .as_ref()
             .and_then(|id| id.id_type.clone())
         {
@@ -2305,7 +2304,7 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let connector_response_reference_id =
-            response.response_ref_id.as_ref().and_then(|identifier| {
+            response.merchant_transaction_id.as_ref().and_then(|identifier| {
                 identifier
                     .id_type
                     .clone()
@@ -2319,7 +2318,7 @@ impl
             });
 
         let resource_id: router_request_types::ResponseId = match response
-            .transaction_id
+            .connector_transaction_id
             .as_ref()
             .and_then(|id| id.id_type.clone())
         {
@@ -2843,7 +2842,7 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let connector_response_reference_id =
-            response.response_ref_id.as_ref().and_then(|identifier| {
+            response.merchant_charge_id.as_ref().and_then(|identifier| {
                 identifier
                     .id_type
                     .clone()
@@ -2857,7 +2856,7 @@ impl
             });
 
         let resource_id: router_request_types::ResponseId = match response
-            .transaction_id
+            .connector_transaction_id
             .as_ref()
             .and_then(|id| id.id_type.clone())
         {
@@ -3008,9 +3007,9 @@ impl
                     .as_ref()
                     .and_then(|cd| cd.reason.clone()),
                 status_code,
-                attempt_status,
-                connector_transaction_id: resource_id.get_optional_response_id(),
-                connector_response_reference_id,
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
@@ -4585,7 +4584,7 @@ impl
                     .and_then(|cd| cd.reason.clone()),
                 status_code,
                 attempt_status,
-                connector_transaction_id: resource_id.get_optional_response_id(),
+                connector_transaction_id: response.connector_order_id.get_optional_response_id(),
                 connector_response_reference_id: None,
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| id.network_details.as_ref().and_then(|nd| nd.decline_code.clone())),
                 network_advice_code: error_info.issuer_details.as_ref().and_then(|id| id.network_details.as_ref().and_then(|nd| nd.advice_code.clone())),
@@ -4594,7 +4593,7 @@ impl
             })
         } else {
             let order_id = response
-                .order_id
+                .connector_order_id
                 .clone()
                 .and_then(|id| id.id_type)
                 .and_then(|id_type| match id_type {
@@ -5195,7 +5194,7 @@ impl transformers::ForeignTryFrom<payments_grpc::GpayAllowedMethodsParameters>
                 .billing_address_parameters
                 .map(GpayBillingAddressParameters::foreign_try_from)
                 .transpose()?,
-            assurance_details_required: value.assurance_details_required,
+            assurance_details_required: value.assurance_details,
         })
     }
 }
@@ -5209,7 +5208,7 @@ impl transformers::ForeignTryFrom<payments_grpc::GpayBillingAddressParameters>
     ) -> Result<Self, Self::Error> {
         let format = GpayBillingAddressFormat::foreign_try_from(value.format())?;
         Ok(Self {
-            phone_number_required: value.phone_number_required,
+            phone_number_required: value.phone_number,
             format,
         })
     }
@@ -5703,7 +5702,7 @@ pub fn transform_ucs_webhook_response(
         api_models::webhooks::IncomingWebhookEvent::from_ucs_event_type(response.event_type);
 
     let webhook_transformation_status = if matches!(
-        response.transformation_status(),
+        response.event_status(),
         payments_grpc::WebhookEventStatus::Incomplete
     ) {
         WebhookTransformationStatus::Incomplete
@@ -5742,7 +5741,7 @@ pub fn build_webhook_transform_request(
         .attach_printable("Failed to transform webhook request details to gRPC format")?;
 
     Ok(EventServiceHandleRequest {
-        request_ref_id: Some(Identifier {
+        merchant_event_id: Some(Identifier {
             id_type: Some(payments_grpc::identifier::IdType::Id(format!(
                 "{}_{}_{}",
                 merchant_id,
@@ -5941,7 +5940,7 @@ impl transformers::ForeignTryFrom<payments_grpc::RefundResponse>
 
     fn foreign_try_from(response: payments_grpc::RefundResponse) -> Result<Self, Self::Error> {
         let connector_response_reference_id =
-            response.response_ref_id.as_ref().and_then(|identifier| {
+            response.merchant_order_id.as_ref().and_then(|identifier| {
                 identifier
                     .id_type
                     .clone()
