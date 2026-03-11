@@ -150,7 +150,7 @@ where
 
                 router_data.amount_captured = payment_authorize_response.captured_amount;
                 router_data.minor_amount_captured = payment_authorize_response
-                    .minor_captured_amount
+                    .captured_amount
                     .map(MinorUnit::new);
                 router_data.raw_connector_response = payment_authorize_response
                     .raw_connector_response

@@ -1968,7 +1968,7 @@ pub fn handle_unified_connector_service_response_for_payment_register(
         connector_response,
         amount_captured: response.captured_amount,
         minor_amount_captured: response
-            .minor_captured_amount
+            .captured_amount
             .map(common_utils::types::MinorUnit::new),
     })
 }
