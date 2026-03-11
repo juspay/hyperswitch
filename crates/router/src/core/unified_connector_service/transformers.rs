@@ -981,13 +981,6 @@ impl
                 )
             })
             .transpose()?;
-        let merchant_account_metadata = router_data
-            .connector_meta_data
-            .as_ref()
-            .map(serde_json::to_string)
-            .transpose()
-            .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
-            .map(|s| s.into());
         Ok(Self {
             merchant_order_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
@@ -2731,8 +2724,10 @@ impl
             AttemptStatus,
         ),
     ) -> Result<Self, Self::Error> {
-        let connector_response_reference_id =
-            response.response_ref_id.as_ref().and_then(|identifier| {
+        let connector_response_reference_id = response
+            .merchant_recurring_payment_id
+            .as_ref()
+            .and_then(|identifier| {
                 identifier
                     .id_type
                     .clone()
@@ -2773,35 +2768,49 @@ impl
             };
 
             Err(ErrorResponse {
-                code: error_info.connector_details.and_then(|cd| cd.code).ok_or(
-                    error_stack::Report::new(
-                        UnifiedConnectorServiceError::ResponseDeserializationFailed,
-                    )
-                    .attach_printable("Missing error code in UCS response ErrorInfo"),
-                )?,
+                code: error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.code.clone())
+                    .ok_or(
+                        error_stack::Report::new(
+                            UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                        )
+                        .attach_printable("Missing error code in UCS response ErrorInfo"),
+                    )?,
                 message: error_info
                     .connector_details
-                    .and_then(|cd| cd.message)
+                    .as_ref()
+                    .and_then(|cd| cd.message.clone())
                     .ok_or(
                         error_stack::Report::new(
                             UnifiedConnectorServiceError::ResponseDeserializationFailed,
                         )
                         .attach_printable("Missing error message in UCS response ErrorInfo"),
                     )?,
-                reason: error_info.connector_details.and_then(|cd| cd.reason),
+                reason: error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.reason.clone()),
                 status_code,
                 attempt_status,
                 connector_transaction_id: resource_id.get_optional_response_id(),
                 connector_response_reference_id,
-                network_decline_code: error_info
-                    .issuer_details
-                    .and_then(|id| id.network_details.and_then(|nd| nd.decline_code)),
-                network_advice_code: error_info
-                    .issuer_details
-                    .and_then(|id| id.network_details.and_then(|nd| nd.advice_code)),
-                network_error_message: error_info
-                    .issuer_details
-                    .and_then(|id| id.network_details.and_then(|nd| nd.error_message)),
+                network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
+                    id.network_details
+                        .as_ref()
+                        .and_then(|nd| nd.decline_code.clone())
+                }),
+                network_advice_code: error_info.issuer_details.as_ref().and_then(|id| {
+                    id.network_details
+                        .as_ref()
+                        .and_then(|nd| nd.advice_code.clone())
+                }),
+                network_error_message: error_info.issuer_details.as_ref().and_then(|id| {
+                    id.network_details
+                        .as_ref()
+                        .and_then(|nd| nd.error_message.clone())
+                }),
                 connector_metadata: None,
             })
         } else {
@@ -4123,7 +4132,7 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let connector_response_reference_id =
-            response.response_ref_id.as_ref().and_then(|identifier| {
+            response.merchant_order_id.as_ref().and_then(|identifier| {
                 identifier
                     .id_type
                     .clone()
@@ -4137,7 +4146,7 @@ impl
             });
 
         let resource_id: router_request_types::ResponseId = match response
-            .transaction_id
+            .connector_transaction_id
             .as_ref()
             .and_then(|id| id.id_type.clone())
         {
@@ -4254,7 +4263,7 @@ impl
                     redirection_data: Box::new(redirection_data),
                     mandate_reference: Box::new(None),
                     connector_metadata,
-                    network_txn_id: response.network_txn_id.clone(),
+                    network_txn_id: response.network_transaction_id.clone(),
                     connector_response_reference_id,
                     incremental_authorization_allowed: None,
                     authentication_data,
@@ -5181,8 +5190,8 @@ impl transformers::ForeignTryFrom<payments_grpc::GpayBillingAddressFormat>
         value: payments_grpc::GpayBillingAddressFormat,
     ) -> Result<Self, Self::Error> {
         match value {
-            payments_grpc::GpayBillingAddressFormat::Min => Ok(Self::MIN),
-            payments_grpc::GpayBillingAddressFormat::Full => Ok(Self::FULL),
+            payments_grpc::GpayBillingAddressFormat::BillingAddressFormatMin => Ok(Self::MIN),
+            payments_grpc::GpayBillingAddressFormat::BillingAddressFormatFull => Ok(Self::FULL),
             payments_grpc::GpayBillingAddressFormat::BillingAddressFormatUnspecified => {
                 Err(UnifiedConnectorServiceError::SdkSessionTokenFailure)
                     .attach_printable("Unspecified GpayBillingAddressFormat")?
