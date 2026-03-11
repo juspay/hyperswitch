@@ -177,6 +177,7 @@ impl
                     .map(|id| id.get_string_repr().to_string()),
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
+                phone_country_code: None,
             }),
         })
     }
@@ -285,6 +286,7 @@ impl
                     .map(|id| id.get_string_repr().to_string()),
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
+                phone_country_code: None,
             }),
             browser_info,
             session_token: router_data.session_token.clone(),
@@ -369,6 +371,7 @@ impl
                 .tokenization
                 .map(payments_grpc::Tokenization::foreign_from)
                 .map(Into::into),
+            l2_l3_data: None,
         })
     }
 }
@@ -503,6 +506,7 @@ impl
                 id: None,
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
+                phone_country_code: None,
             }),
             browser_info,
             session_token: router_data.session_token.clone(),
@@ -568,6 +572,7 @@ impl
                 .tokenization
                 .map(payments_grpc::Tokenization::foreign_from)
                 .map(Into::into),
+            l2_l3_data: None,
         })
     }
 }
@@ -910,6 +915,7 @@ impl
                 id: None,
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
+                phone_country_code: None,
             }),
             address: Some(address),
             authentication_data,
@@ -997,6 +1003,7 @@ impl
                 id: None,
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
+                phone_country_code: None,
             }),
             address: Some(address),
             authentication_data: None,
@@ -1093,6 +1100,7 @@ impl
                 id: None,
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
+                phone_country_code: None,
             }),
             address: Some(address),
             enrolled_for_3ds: router_data.request.enrolled_for_3ds,
@@ -1280,6 +1288,7 @@ impl
                 id: None,
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
+                phone_country_code: None,
             }),
             browser_info,
             locale: None,
@@ -1332,6 +1341,7 @@ impl
             redirection_response: None,
             continue_redirection_url: None,
             payment_method_token: None,
+            l2_l3_data: None,
         })
     }
 }
@@ -1441,6 +1451,7 @@ impl
                     .map(|id| id.get_string_repr().to_string()),
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
+                phone_country_code: None,
             }),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: router_data.request.webhook_url.clone(),
@@ -1513,6 +1524,7 @@ impl
             redirection_response: None,
             continue_redirection_url: None,
             payment_method_token: None,
+            l2_l3_data: None,
         })
     }
 }
@@ -1609,6 +1621,7 @@ impl
                     .map(|id| id.get_string_repr().to_string()),
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
+                phone_country_code: None,
             }),
             browser_info,
             locale: None,
@@ -1674,6 +1687,7 @@ impl
             redirection_response: None,
             continue_redirection_url: None,
             payment_method_token: None,
+            l2_l3_data: None,
         })
     }
 }
@@ -1766,6 +1780,7 @@ impl
                     .map(|id| id.get_string_repr().to_string()),
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
+                phone_country_code: None,
             }),
             address: Some(address),
             auth_type: auth_type.into(),
@@ -1822,6 +1837,7 @@ impl
             connector_testing_data: router_data.request.connector_testing_data.as_ref().map(
                 |data| unified_connector_service_masking::Secret::new(data.peek().to_string()),
             ),
+            l2_l3_data: None,
         })
     }
 }
@@ -2022,6 +2038,26 @@ impl
                 .map(payments_grpc::Currency::foreign_try_from)
                 .transpose()?
                 .map(|currency| currency.into()),
+            l2_l3_data: None,
+            customer: Some(payments_grpc::Customer {
+                name: router_data
+                    .request
+                    .customer_name
+                    .clone()
+                    .map(|customer_name| customer_name.peek().to_owned()),
+                email: router_data
+                    .request
+                    .email
+                    .clone()
+                    .map(|e| e.expose().expose().into()),
+                id: router_data
+                    .customer_id
+                    .as_ref()
+                    .map(|id| id.get_string_repr().to_string()),
+                connector_customer_id: router_data.connector_customer.clone(),
+                phone_number: None,
+                phone_country_code: None,
+            }),
         })
     }
 }
@@ -2070,6 +2106,7 @@ impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, Paym
                     .map(|id| id.get_string_repr().to_string()),
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
+                phone_country_code: None,
             }),
             order_tax_amount: router_data
                 .request
