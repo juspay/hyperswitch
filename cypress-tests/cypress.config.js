@@ -1,7 +1,10 @@
 import { defineConfig } from "cypress";
 import mochawesome from "cypress-mochawesome-reporter/plugin.js";
 import fs from "fs";
-import { getTimeoutMultiplier, isCI } from "./cypress/utils/RequestBodyUtils.js";
+import {
+  getTimeoutMultiplier,
+  isCI,
+} from "./cypress/utils/RequestBodyUtils.js";
 
 let globalState;
 
@@ -12,7 +15,7 @@ const reportName = process.env.REPORT_NAME || `${connectorId}_report`;
 
 // Get timeout multiplier from shared utility
 const timeoutMultiplier = getTimeoutMultiplier();
-const retries =  isCI() ? 2 : 0; // Set retries to 2 for CI, 0 for local
+const retries = isCI() ? 2 : 0; // Set retries to 2 for CI, 0 for local
 
 export default defineConfig({
   e2e: {

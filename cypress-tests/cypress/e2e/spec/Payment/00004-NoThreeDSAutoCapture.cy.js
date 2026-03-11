@@ -136,23 +136,27 @@ describe("Card - NoThreeDS payment flow test", () => {
       const errorStack = [];
       let shouldContinue = true;
 
-      cy.stepTest("Create Payment Intent with shipping cost", errorStack, () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentIntentWithShippingCost"];
+      cy.stepTest(
+        "Create Payment Intent with shipping cost",
+        errorStack,
+        () => {
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PaymentIntentWithShippingCost"];
 
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "no_three_ds",
-          "automatic",
-          globalState
-        );
-        
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
+          cy.createPaymentIntentTest(
+            fixtures.createPaymentBody,
+            data,
+            "no_three_ds",
+            "automatic",
+            globalState
+          );
+
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
         }
-      });
+      );
 
       cy.stepTest("Payment Methods Call", errorStack, () => {
         if (!shouldContinue) {

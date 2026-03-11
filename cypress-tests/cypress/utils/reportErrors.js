@@ -21,11 +21,9 @@ function buildDiff(actual, expected) {
     }
   }
 
-  return [
-    `      ${GREEN}+ expected${RESET} - actual`,
-    "",
-    ...diffLines,
-  ].join("\n");
+  return [`      ${GREEN}+ expected${RESET} - actual`, "", ...diffLines].join(
+    "\n"
+  );
 }
 
 export default function reportErrors(errors) {
