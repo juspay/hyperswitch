@@ -699,18 +699,17 @@ pub async fn delete_user_role(
             .attach_printable("Error while deleting user role")?;
     }
 
-    let Some(_deleted_user_role_info) = deleted_user_role_info else {
-        return Err(report!(UserErrors::InvalidDeleteOperation))
-            .attach_printable("User is not associated with the merchant");
-    };
-
     let is_email_sent = {
         #[cfg(feature = "email")]
         {
+            let Some(deleted_user_role_info) = deleted_user_role_info else {
+                return Err(report!(UserErrors::InvalidDeleteOperation))
+                    .attach_printable("User is not associated with the merchant");
+            };
             utils::user_role::send_role_deletion_email_using_db(
                 &state,
                 &user_from_db,
-                &_deleted_user_role_info,
+                &deleted_user_role_info,
                 &user_from_token,
             )
             .await
@@ -722,6 +721,10 @@ pub async fn delete_user_role(
         }
         #[cfg(not(feature = "email"))]
         {
+            if deleted_user_role_info.is_none() {
+                return Err(report!(UserErrors::InvalidDeleteOperation))
+                    .attach_printable("User is not associated with the merchant");
+            };
             false
         }
     };
