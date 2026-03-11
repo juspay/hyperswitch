@@ -655,13 +655,17 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             &token,
             &request.ctp_service_details,
         )?;
+        let pm_modular_dimensions = crate::core::configs::dimension_state::Dimensions::new()
+                .with_organization_id(platform.get_processor().get_account().organization_id.clone())
+                .with_merchant_id(platform.get_processor().get_account().get_id().clone());
 
         //fetch for repeat cit using payment token
 
         let (token_data, payment_method_info) =
+            
             if pm_utils::get_organization_eligibility_config_for_pm_modular_service(
-                &*state.store,
-                &platform.get_processor().get_account().organization_id,
+                state,
+                &pm_modular_dimensions,
             )
             .await
             {

@@ -380,6 +380,13 @@ pub mod superposition {
     pub const GSM_PAYOUT_CALL: &str = "gsm_payout_call";
     /// Pre-routing disabled configuration key (scoped by merchant, profile, payment method, and payment method type)
     pub const PRE_ROUTING_DISABLED: &str = "pre_routing_disabled";
+    /// Disable auth tokenization configuration key
+    pub const SHOULD_DISABLE_AUTH_TOKENIZATION: &str = "should_disable_auth_tokenization";
+    /// Return raw payment method details configuration key
+    pub const SHOULD_RETURN_RAW_PAYMENT_METHOD_DETAILS: &str =
+        "should_return_raw_payment_method_details";
+    /// Call PM modular service configuration key
+    pub const SHOULD_CALL_PM_MODULAR_SERVICE: &str = "should_call_pm_modular_service";
 }
 
 #[cfg(test)]

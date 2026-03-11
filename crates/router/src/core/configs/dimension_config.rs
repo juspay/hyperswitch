@@ -362,3 +362,63 @@ impl DatabaseBackedConfig for PreRoutingDisabled {
         None
     }
 }
+
+config! {
+    superposition_key = SHOULD_DISABLE_AUTH_TOKENIZATION,
+    output = bool,
+    default = false,
+    requires = DimensionsWithMerchantIdAndProfileId,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for ShouldDisableAuthTokenization {
+    const KEY: &'static str = "should_disable_auth_tokenization";
+
+    fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+        let merchant_id = dimensions
+            .get_merchant_id()
+            .map(|id| id.get_string_repr())
+            .unwrap_or_default();
+        Some(format!("{}_{}", Self::KEY, merchant_id))
+    }
+}
+
+config! {
+    superposition_key = SHOULD_RETURN_RAW_PAYMENT_METHOD_DETAILS,
+    output = bool,
+    default = false,
+    requires = DimensionsWithMerchantIdAndProfileId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for ShouldReturnRawPaymentMethodDetails {
+    const KEY: &'static str = "should_return_raw_payment_method_details";
+
+    fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+        let merchant_id = dimensions
+            .get_merchant_id()
+            .map(|id| id.get_string_repr())
+            .unwrap_or_default();
+        Some(format!("{}_{}", Self::KEY, merchant_id))
+    }
+}
+
+config! {
+    superposition_key = SHOULD_CALL_PM_MODULAR_SERVICE,
+    output = bool,
+    default = false,
+    requires = DimensionsWithOrgIdAndMerchantId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for ShouldCallPmModularService {
+    const KEY: &'static str = "should_call_pm_modular_service";
+
+    fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+        let organization_id = dimensions
+            .get_organization_id()
+            .map(|id| id.get_string_repr())
+            .unwrap_or_default();
+        Some(format!("{}_{}", Self::KEY, organization_id))
+    }
+}

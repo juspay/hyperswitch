@@ -53,7 +53,7 @@ use crate::{
     consts,
     core::{
         authentication::utils as auth_utils,
-        configs::{self as configs, dimension_state::DimensionsWithMerchantId},
+        configs::{self as configs, dimension_state},
         errors::utils::StorageErrorExt,
         metrics, payment_methods,
         payments::{helpers, validate_customer_details_for_click_to_pay},
@@ -1424,7 +1424,7 @@ trait EligibilityCheck {
         &self,
         state: &SessionState,
         platform: &domain::Platform,
-        dimensions: &DimensionsWithMerchantId,
+        dimensions: &dimension_state::DimensionsWithMerchantId,
         authentication_id: &common_utils::id_type::AuthenticationId,
     ) -> CustomResult<bool, ApiErrorResponse>;
 
@@ -1472,7 +1472,7 @@ impl EligibilityCheck for StoreEligibilityCheckData {
         &self,
         state: &SessionState,
         _platform: &domain::Platform,
-        dimensions: &DimensionsWithMerchantId,
+        dimensions: &dimension_state::DimensionsWithMerchantId,
         authentication_id: &common_utils::id_type::AuthenticationId,
     ) -> CustomResult<bool, ApiErrorResponse> {
         Ok(dimensions
@@ -1530,7 +1530,7 @@ pub struct EligibilityHandler {
     state: SessionState,
     platform: domain::Platform,
     authentication_eligibility_check_request: AuthenticationEligibilityCheckRequest,
-    dimensions: DimensionsWithMerchantId,
+    dimensions: dimension_state::DimensionsWithMerchantId,
 }
 
 #[cfg(feature = "v1")]
@@ -1539,7 +1539,7 @@ impl EligibilityHandler {
         state: SessionState,
         platform: domain::Platform,
         authentication_eligibility_check_request: AuthenticationEligibilityCheckRequest,
-        dimensions: DimensionsWithMerchantId,
+        dimensions: dimension_state::DimensionsWithMerchantId,
     ) -> Self {
         Self {
             state,
@@ -1784,6 +1784,10 @@ pub async fn authentication_sync_core(
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
+    let dimensions = dimension_state::Dimensions::new()
+        .with_merchant_id(merchant_id.clone())
+        .with_profile_id(profile_id.clone());
+
     let (authentication_connector, three_ds_connector_account) =
         auth_utils::get_authentication_connector_data(
             &state,
@@ -1918,19 +1922,13 @@ pub async fn authentication_sync_core(
                 .await?
             };
 
-            let config = db
-                .find_config_by_key_unwrap_or(
-                    &merchant_id.get_should_disable_auth_tokenization(),
-                    Some("false".to_string()),
+            let should_disable_auth_tokenization = dimensions
+                .get_should_disable_auth_tokenization(
+                    state.store.as_ref(),
+                    state.superposition_service.as_deref(),
+                    authentication.payment_id.as_ref(),
                 )
                 .await;
-            let should_disable_auth_tokenization = match config {
-                Ok(conf) => conf.config == "true",
-                Err(error) => {
-                    router_env::logger::error!(?error);
-                    false
-                }
-            };
 
             let vault_token_data = if should_disable_auth_tokenization {
                 // Do not tokenize if the disable flag is present in the config

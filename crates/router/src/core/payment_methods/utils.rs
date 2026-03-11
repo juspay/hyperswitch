@@ -818,22 +818,16 @@ fn compile_accepted_currency_for_mca(
 
 
 pub async fn get_organization_eligibility_config_for_pm_modular_service(
-    db: &dyn StorageInterface,
-    organization_id: &common_utils::id_type::OrganizationId,
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithOrgIdAndMerchantId,
 ) -> bool {
-    let config = db
-        .find_config_by_key_unwrap_or(
-            &organization_id.get_should_call_pm_modular_service_key(),
-            Some("false".to_string()),
+    dimensions
+        .get_should_call_pm_modular_service(
+            state.store.as_ref(),
+            state.superposition_service.as_deref(),
+            None,
         )
-        .await;
-    match config {
-        Ok(conf) => conf.config == "true",
-        Err(error) => {
-            logger::error!(?error);
-            false
-        }
-    }
+        .await
 }
 
 pub async fn get_sdk_next_action_for_payment_method_list(
