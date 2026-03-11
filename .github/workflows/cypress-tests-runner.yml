@@ -17,7 +17,7 @@ env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
   PAYMENTS_CONNECTORS: "stripe cybersource"
-  PARALLEL_PAYMENTS_CONNECTORS : "braintree peachpayments"
+  PARALLEL_PAYMENTS_CONNECTORS : "braintree nuvei"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "cryptopay finix nexixpay"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "adyen checkout zift"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3: "airwallex finix noon"
