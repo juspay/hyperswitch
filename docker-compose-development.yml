@@ -72,8 +72,6 @@ services:
       - router_net
     environment:
       - API_HOSTNAME=http://localhost:8081
-    profiles:
-      - superposition
 
   ### Application services
   hyperswitch-server:
