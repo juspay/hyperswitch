@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.02.0-hotfix7
+
+### Bug Fixes
+
+- **connector:** [ADYEN] Pass through split refund data when payment charges are unavailable ([#11478](https://github.com/juspay/hyperswitch/pull/11478)) ([`39fde2d`](https://github.com/juspay/hyperswitch/commit/39fde2da84810945bfb244d35151929ce61a9c02))
+
+**Full Changelog:** [`2026.02.02.0-hotfix6...2026.02.02.0-hotfix7`](https://github.com/juspay/hyperswitch/compare/2026.02.02.0-hotfix6...2026.02.02.0-hotfix7)
+
+- - -
+
 ## 2026.02.02.0-hotfix6
 
 ### Features
