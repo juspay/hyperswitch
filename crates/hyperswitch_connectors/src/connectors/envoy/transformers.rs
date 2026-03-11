@@ -362,12 +362,13 @@ fn get_template_for_sepa(
     bank: SepaBankTransfer,
     customer_details: Option<&CustomerDetails>,
 ) -> Result<Vec<TemplateRow>, error_stack::Report<errors::ConnectorError>> {
-    let owner_name = customer_details.map_or(None, |c| c.name.clone());
-    let customer_name = owner_name
+    let customer_name = customer_details
+        .and_then(|c| c.name.clone())
         .get_required_value("customer_name")
         .change_context(errors::ConnectorError::MissingRequiredField {
             field_name: "customer_name",
         })?;
+
     Ok(vec![
         TemplateRow {
             id: BankField::Iban,
@@ -530,10 +531,10 @@ pub enum ResponseStatus {
 impl From<i32> for ResponseStatus {
     fn from(value: i32) -> Self {
         match value {
-            0 => ResponseStatus::Success,
-            1 => ResponseStatus::SuccessNoResults,
-            2 => ResponseStatus::Processing,
-            other => ResponseStatus::Failed(other),
+            0 => Self::Success,
+            1 => Self::SuccessNoResults,
+            2 => Self::Processing,
+            other => Self::Failed(other),
         }
     }
 }
