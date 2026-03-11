@@ -16,8 +16,9 @@ use crate::user::{
     CreateInternalUserRequest, CreateTenantUserRequest, CreateUserAuthenticationMethodRequest,
     CreateUserAuthenticationMethodResponse, EmbeddedTokenInfoResponse, ForgotPasswordRequest,
     GetSsoAuthUrlRequest, GetUserAuthenticationMethodsRequest, GetUserDetailsResponse,
-    GetUserRoleDetailsRequest, GetUserRoleDetailsResponseV2, InviteUserRequest,
-    IssueEmbeddedTokenResponse, PlatformAccountCreateRequest, PlatformAccountCreateResponse,
+    GetUserInternalDetailsResponse, GetUserRoleDetailsRequest, GetUserRoleDetailsResponseV2,
+    InviteUserRequest, IssueEmbeddedTokenResponse, ListUsersInternalRequest,
+    ListUsersInternalResponse, PlatformAccountCreateRequest, PlatformAccountCreateResponse,
     ReInviteUserRequest, RecoveryCodes, ResetPasswordRequest, RotatePasswordRequest,
     SendVerifyEmailRequest, SignUpRequest, SignUpWithMerchantIdRequest, SsoSignInRequest,
     SwitchMerchantRequest, SwitchOrganizationRequest, SwitchProfileRequest, TokenResponse,
@@ -79,7 +80,10 @@ common_utils::impl_api_event_type!(
         AuthSelectRequest,
         CloneConnectorRequest,
         IssueEmbeddedTokenResponse,
-        EmbeddedTokenInfoResponse
+        EmbeddedTokenInfoResponse,
+        GetUserInternalDetailsResponse,
+        ListUsersInternalRequest,
+        ListUsersInternalResponse
     )
 );
 
