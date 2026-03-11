@@ -4,6 +4,24 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.03.11.0
+
+### Features
+
+- **network_tokenization:** Populate par in payments response for network_token payments ([#11360](https://github.com/juspay/hyperswitch/pull/11360)) ([`b822cab`](https://github.com/juspay/hyperswitch/commit/b822cab401347b4273c21baf9e2e8f7980225a18))
+
+### Bug Fixes
+
+- **payload:** Update request structure and switch to JSON payload format ([#11463](https://github.com/juspay/hyperswitch/pull/11463)) ([`3671bf6`](https://github.com/juspay/hyperswitch/commit/3671bf643b5dbd5daae5fd7f2fc39d175edfdabc))
+
+### Testing
+
+- **cypress:** Add card installment payment flow tests for Adyen ([#11444](https://github.com/juspay/hyperswitch/pull/11444)) ([`37196df`](https://github.com/juspay/hyperswitch/commit/37196df0cfd1107f6d06ff77a0ca5a6359bc9a32))
+
+**Full Changelog:** [`2026.03.10.0...2026.03.11.0`](https://github.com/juspay/hyperswitch/compare/2026.03.10.0...2026.03.11.0)
+
+- - -
+
 ## 2026.03.10.0
 
 ### Features
