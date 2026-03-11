@@ -570,6 +570,7 @@ pub(crate) async fn fetch_raw_secrets(
         oidc,
         mandates: conf.mandates,
         zero_mandates: conf.zero_mandates,
+        installments: conf.installments,
         network_transaction_id_supported_connectors: conf
             .network_transaction_id_supported_connectors,
         card_only_mit_supported_connectors: conf.card_only_mit_supported_connectors,

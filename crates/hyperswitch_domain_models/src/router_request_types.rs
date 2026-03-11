@@ -104,6 +104,7 @@ pub struct PaymentsAuthorizeData {
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
     pub rrn: Option<String>,
     pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
+    pub installment_details: Option<common_types::payments::InstallmentData>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1704,6 +1705,7 @@ pub struct SetupMandateRequestData {
     pub tokenization: Option<common_enums::Tokenization>,
     pub partner_merchant_identifier_details:
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
+    pub authentication_data: Option<AuthenticationData>,
 }
 
 #[derive(Debug, Clone)]

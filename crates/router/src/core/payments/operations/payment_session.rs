@@ -10,7 +10,7 @@ use router_env::{instrument, logger, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
-        configs::dimension_state::DimensionsWithMerchantId,
+        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{self, helpers, operations, PaymentData},
     },
@@ -329,7 +329,7 @@ where
         request: Option<payments::CustomerDetails>,
         provider: &domain::Provider,
         initiator: Option<&domain::Initiator>,
-        dimensions: DimensionsWithMerchantId,
+        dimensions: DimensionsWithMerchantIdAndProfileId,
     ) -> errors::CustomResult<
         (PaymentSessionOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,
@@ -395,7 +395,7 @@ where
     /// or from separate implementation ( for googlepay - from metadata and applepay - from metadata and call connector)
     async fn get_connector<'a>(
         &'a self,
-        platform: &domain::Platform,
+        processor: &domain::Processor,
         state: &SessionState,
         request: &api::PaymentsSessionRequest,
         payment_intent: &storage::PaymentIntent,
@@ -404,9 +404,9 @@ where
 
         let all_connector_accounts = db
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-                platform.get_processor().get_account().get_id(),
+                processor.get_account().get_id(),
                 false,
-                platform.get_processor().get_key_store(),
+                processor.get_key_store(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
