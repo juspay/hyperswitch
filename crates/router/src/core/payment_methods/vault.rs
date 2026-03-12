@@ -25,6 +25,7 @@ use crate::{
     consts,
     core::{
         errors::{self, ConnectorErrorExt, CustomResult, RouterResult},
+        payment_methods::access_token,
         payments, utils as core_utils,
     },
     db, logger,
@@ -2207,7 +2208,7 @@ pub async fn retrieve_payment_method_from_vault_external_v1(
     )
     .await?;
 
-    let old_router_data = VaultConnectorFlowData::to_old_router_data(router_data)
+    let mut old_router_data = VaultConnectorFlowData::to_old_router_data(router_data)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable(
             "Cannot construct router data for making the external vault retrieve api call",
@@ -2224,24 +2225,35 @@ pub async fn retrieve_payment_method_from_vault_external_v1(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to get the connector data")?;
 
-    let connector_integration: services::BoxedVaultConnectorIntegrationInterface<
-        hyperswitch_domain_models::router_flow_types::ExternalVaultRetrieveFlow,
-        types::VaultRequestData,
-        types::VaultResponseData,
-    > = connector_data.connector.get_connector_integration();
+    access_token::create_access_token(state, &connector_data, merchant_id, &mut old_router_data)
+        .await?;
 
-    let router_data_resp = services::execute_connector_processing_step(
-        state,
-        connector_integration,
-        &old_router_data,
-        payments::CallConnectorAction::Trigger,
-        None,
-        None,
-    )
-    .await
-    .to_vault_failed_response()?;
+    if old_router_data.response.is_ok() {
+        let connector_integration: services::BoxedVaultConnectorIntegrationInterface<
+            hyperswitch_domain_models::router_flow_types::ExternalVaultRetrieveFlow,
+            types::VaultRequestData,
+            types::VaultResponseData,
+        > = connector_data.connector.get_connector_integration();
 
-    get_vault_response_for_retrieve_payment_method_data_v1(router_data_resp)
+        let router_data_resp = services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            &old_router_data,
+            payments::CallConnectorAction::Trigger,
+            None,
+            None,
+        )
+        .await
+        .to_vault_failed_response()?;
+        get_vault_response_for_retrieve_payment_method_data_v1(router_data_resp)
+    } else {
+        logger::error!(
+            "Error vaulting payment method: {:?}",
+            old_router_data.response
+        );
+        Err(report!(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to create access token for external vault"))
+    }
 }
 
 pub fn get_vault_response_for_retrieve_payment_method_data_v1<F>(

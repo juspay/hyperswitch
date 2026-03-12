@@ -1,4 +1,4 @@
-use common_utils::ext_traits::AsyncExt;
+use common_utils::{ext_traits::AsyncExt, id_type};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::types::VaultRouterData;
 
@@ -13,18 +13,17 @@ use crate::{
     types::{
         self,
         api::{self as api_types, ConnectorCommon},
-        domain,
     },
 };
 
 pub async fn create_access_token<F: Clone + 'static>(
     state: &SessionState,
     connector_data: &api_types::ConnectorData,
-    merchant_account: &domain::MerchantAccount,
+    merchant_id: &id_type::MerchantId,
     router_data: &mut VaultRouterData<F>,
 ) -> RouterResult<()> {
     let connector_access_token =
-        add_access_token_for_external_vault(state, connector_data, merchant_account, router_data)
+        add_access_token_for_external_vault(state, connector_data, merchant_id, router_data)
             .await?;
 
     if connector_access_token.connector_supports_access_token {
@@ -44,14 +43,13 @@ pub async fn create_access_token<F: Clone + 'static>(
 pub async fn add_access_token_for_external_vault<F: Clone + 'static>(
     state: &SessionState,
     connector: &api_types::ConnectorData,
-    merchant_account: &domain::MerchantAccount,
+    merchant_id: &id_type::MerchantId,
     router_data: &VaultRouterData<F>,
 ) -> RouterResult<types::AddAccessTokenResult> {
     if connector
         .connector_name
         .supports_access_token_for_external_vault()
     {
-        let merchant_id = merchant_account.get_id();
         let store = &*state.store;
         let key = common_utils::access_token::get_default_access_token_key(
             merchant_id,
