@@ -19,7 +19,7 @@ env:
   MANDATORY_PAYMENTS_CONNECTORS_BATCH_1: "cybersource stripe gigadat"
   MANDATORY_PAYMENTS_CONNECTORS_BATCH_2: "cryptopay finix nexixpay"
   MANDATORY_PAYMENTS_CONNECTORS_BATCH_3: "adyen checkout zift"
-  MANDATORY_PAYMENTS_CONNECTORS_BATCH_4: "paypal novalnet fiuu"
+  MANDATORY_PAYMENTS_CONNECTORS_BATCH_4: "paypal noon fiuu"
   MANDATORY_PAYMENTS_CONNECTORS_BATCH_5: "authorizedotnet cashtocode loonio"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "worldpayxml worldpay volt"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "airwallex nmi redsys"

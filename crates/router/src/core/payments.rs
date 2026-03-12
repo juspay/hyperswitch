@@ -2509,6 +2509,7 @@ where
     });
     let dimensions = configs::dimension_state::Dimensions::new()
         .with_merchant_id(platform.get_processor().get_account().get_id().clone());
+    
     let (payment_data, _req, connector_http_status_code, external_latency) =
         payments_operation_core::<_, _, _, _, _>(
             &state,
