@@ -172,7 +172,11 @@ impl PayoutSyncWorkFlow {
             Ok(value) => value,
             Err(error) => {
                 router_env::logger::info!(?error, "Redis Mapping Error");
-                process_data::RetryMapping::default()
+                // default retry config for payout
+                process_data::RetryMapping {
+                    start_after: 12 * 3600,           // 12 hours
+                    frequencies: vec![(2 * 3600, 6)], // 6 retries with interval of 2 hour
+                }
             }
         };
 

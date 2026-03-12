@@ -9,15 +9,6 @@ pub struct RetryMapping {
     pub frequencies: Vec<(i32, i32)>, // (frequency, count)
 }
 
-impl Default for RetryMapping {
-    fn default() -> Self {
-        Self {
-            start_after: 60,
-            frequencies: vec![(300, 5)],
-        }
-    }
-}
-
 #[derive(Serialize, Deserialize)]
 pub struct ConnectorPTMapping {
     pub default_mapping: RetryMapping,
@@ -29,7 +20,10 @@ impl Default for ConnectorPTMapping {
     fn default() -> Self {
         Self {
             custom_merchant_mapping: HashMap::new(),
-            default_mapping: RetryMapping::default(),
+            default_mapping: RetryMapping {
+                start_after: 60,
+                frequencies: vec![(300, 5)],
+            },
             max_retries_count: 5,
         }
     }
