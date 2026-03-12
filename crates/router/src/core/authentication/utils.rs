@@ -373,7 +373,6 @@ pub async fn create_new_authentication(
     organization_id: common_utils::id_type::OrganizationId,
     force_3ds_challenge: Option<bool>,
     psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
-    merchant_key_store: &domain::MerchantKeyStore,
     processor: &domain::Processor,
     initiator: Option<&domain::Initiator>,
 ) -> RouterResult<authentication::Authentication> {
@@ -469,7 +468,7 @@ pub async fn create_new_authentication(
 
     state
         .store
-        .insert_authentication(&key_manager_state, merchant_key_store, new_authentication)
+        .insert_authentication(&key_manager_state, processor.get_key_store(), new_authentication)
         .await
         .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
             message: format!(

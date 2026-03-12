@@ -246,7 +246,6 @@ pub async fn perform_pre_authentication(
         organization_id,
         force_3ds_challenge,
         psd2_sca_exemption_type,
-        processor.get_key_store(),
         processor,
         initiator,
     )

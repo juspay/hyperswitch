@@ -588,7 +588,6 @@ pub async fn create_new_authentication(
     return_url: Option<String>,
     profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
     customer_details: Option<common_utils::encryption::Encryption>,
-    merchant_key_store: &domain::MerchantKeyStore,
     processor: &domain::Processor,
     initiator: Option<&domain::Initiator>,
 ) -> RouterResult<hyperswitch_domain_models::authentication::Authentication> {
@@ -688,7 +687,7 @@ pub async fn create_new_authentication(
 
     state
         .store
-        .insert_authentication(&key_manager_state, merchant_key_store, new_authentication)
+        .insert_authentication(&key_manager_state, processor.get_key_store(), new_authentication)
         .await
         .to_duplicate_response(ApiErrorResponse::GenericDuplicateError {
             message: format!(
@@ -824,7 +823,6 @@ pub async fn authentication_create_core(
         customer_details
             .clone()
             .map(common_utils::encryption::Encryption::from),
-        platform.get_processor().get_key_store(),
         platform.get_processor(),
         platform.get_initiator(),
     )

@@ -1799,7 +1799,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             None,
                             None,
                             None,
-                            platform.get_processor().get_key_store(),
                             platform.get_processor(),
                             platform.get_initiator(),
                         )
@@ -1853,7 +1852,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     None,
                     None,
                     None,
-                    platform.get_processor().get_key_store(),
                     platform.get_processor(),
                     platform.get_initiator(),
                 )
