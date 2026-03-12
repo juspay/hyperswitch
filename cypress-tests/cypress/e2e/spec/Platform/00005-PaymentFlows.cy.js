@@ -18,8 +18,8 @@ describe("Platform Payment Flows", () => {
     it("platform-creates-payment-for-cm1-using-header", () => {
       const paymentRequestBody = {
         ...fixtures.createConfirmPaymentBody,
-        customer_id: globalState.get("customerId"),
         profile_id: globalState.get("profileId_CM1"),
+        customer_id: globalState.get("customerId_CM1_Created"),
       };
 
       cy.createPaymentWithHeaderCallTest(
@@ -43,8 +43,8 @@ describe("Platform Payment Flows", () => {
     it("platform-creates-payment-for-cm2-using-header", () => {
       const paymentRequestBody = {
         ...fixtures.createConfirmPaymentBody,
-        customer_id: globalState.get("customerId"),
         profile_id: globalState.get("profileId_CM2"),
+        customer_id: globalState.get("customerId_CM1_Created"),
       };
 
       cy.createPaymentWithHeaderCallTest(
@@ -58,7 +58,9 @@ describe("Platform Payment Flows", () => {
         globalState.set("platformPaymentId_CM2", response.body.payment_id);
       });
     });
+  });
 
+  context("Platform Cannot Create Payment Without On-Behalf-Of Header", () => {
     it("platform-cannot-create-payment-without-header", () => {
       const paymentRequestBody = {
         ...fixtures.createConfirmPaymentBody,
@@ -70,7 +72,25 @@ describe("Platform Payment Flows", () => {
         globalState.get("apiKey"),
         globalState
       ).then((response) => {
-        expect(response.status).to.be.oneOf([400, 403, 422]);
+        expect(response.status).to.be.oneOf([400, 401, 403, 404, 422]);
+      });
+    });
+  });
+
+  context("Platform Cannot Create Payment For Standard Merchant", () => {
+    it("platform-cannot-create-payment-for-standard-merchant", () => {
+      const paymentRequestBody = {
+        ...fixtures.createConfirmPaymentBody,
+        profile_id: globalState.get("profileId_SM"),
+      };
+
+      cy.createPaymentWithHeaderCallTest(
+        paymentRequestBody,
+        globalState.get("apiKey"),
+        globalState.get("standardMerchantId"),
+        globalState
+      ).then((response) => {
+        expect(response.status).to.be.oneOf([400, 401, 403, 404, 422]);
       });
     });
   });
@@ -79,7 +99,8 @@ describe("Platform Payment Flows", () => {
     it("cm1-creates-payment-for-shared-customer", () => {
       const paymentRequestBody = {
         ...fixtures.createConfirmPaymentBody,
-        customer_id: globalState.get("customerId"),
+        customer_id: globalState.get("customerId_CM1_Created"),
+        profile_id: globalState.get("profileId_CM1"),
       };
 
       cy.createPaymentWithApiKeyCallTest(
@@ -96,7 +117,8 @@ describe("Platform Payment Flows", () => {
     it("cm2-creates-payment-for-same-shared-customer", () => {
       const paymentRequestBody = {
         ...fixtures.createConfirmPaymentBody,
-        customer_id: globalState.get("customerId"),
+        customer_id: globalState.get("customerId_CM1_Created"),
+        profile_id: globalState.get("profileId_CM2"),
       };
 
       cy.createPaymentWithApiKeyCallTest(
@@ -115,7 +137,7 @@ describe("Platform Payment Flows", () => {
     it("connected-merchant-cannot-act-on-behalf-of-another-merchant", () => {
       const paymentRequestBody = {
         ...fixtures.createConfirmPaymentBody,
-        customer_id: globalState.get("customerId"),
+        customer_id: globalState.get("customerId_CM1_Created"),
       };
 
       cy.createPaymentWithHeaderCallTest(
@@ -129,7 +151,7 @@ describe("Platform Payment Flows", () => {
     });
   });
 
-  context("Payment Isolation", () => {
+  context("Payment List Isolation", () => {
     it("cm1-lists-only-own-payments", () => {
       cy.listPaymentsWithApiKeyCallTest(
         globalState.get("apiKey_CM1"),

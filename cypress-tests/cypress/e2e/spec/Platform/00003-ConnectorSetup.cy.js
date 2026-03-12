@@ -127,12 +127,107 @@ describe("Connector Setup for Connected Merchants", () => {
     });
   });
 
+  context("Create Connector for Standard Merchant", () => {
+    it("create-connector-for-standard-merchant", () => {
+      const savedMerchantId = globalState.get("merchantId");
+      const savedApiKey = globalState.get("apiKey");
+      const savedProfileId = globalState.get("profileId");
+      const savedConnectorId = globalState.get("connectorId");
+
+      globalState.set("merchantId", globalState.get("standardMerchantId"));
+      globalState.set("apiKey", globalState.get("apiKey_SM"));
+      globalState.set("profileId", globalState.get("profileId_SM"));
+      globalState.set("connectorId", "stripe");
+
+      cy.createConnectorCallTest(
+        "payment_processor",
+        fixtures.createConnectorBody,
+        payment_methods_enabled,
+        globalState
+      );
+
+      cy.then(() => {
+        globalState.set(
+          "connectorId_SM",
+          globalState.get("merchantConnectorId")
+        );
+        globalState.set("merchantId", savedMerchantId);
+        globalState.set("apiKey", savedApiKey);
+        globalState.set("profileId", savedProfileId);
+        globalState.set("connectorId", savedConnectorId);
+      });
+    });
+
+    it("retrieve-connector-for-standard-merchant", () => {
+      const savedMerchantId = globalState.get("merchantId");
+      const savedApiKey = globalState.get("apiKey");
+      const savedMerchantConnectorId = globalState.get("merchantConnectorId");
+      const savedConnectorId = globalState.get("connectorId");
+
+      globalState.set("merchantId", globalState.get("standardMerchantId"));
+      globalState.set("apiKey", globalState.get("apiKey_SM"));
+      globalState.set(
+        "merchantConnectorId",
+        globalState.get("connectorId_SM")
+      );
+      globalState.set("connectorId", "stripe");
+
+      cy.connectorRetrieveCall(globalState);
+
+      cy.then(() => {
+        globalState.set("merchantId", savedMerchantId);
+        globalState.set("apiKey", savedApiKey);
+        globalState.set("merchantConnectorId", savedMerchantConnectorId);
+        globalState.set("connectorId", savedConnectorId);
+      });
+    });
+  });
+
   context("Verify Connectors Are Separate", () => {
     it("verify-cm1-and-cm2-have-different-connectors", () => {
       const connectorIdCM1 = globalState.get("connectorId_CM1");
       const connectorIdCM2 = globalState.get("connectorId_CM2");
 
       expect(connectorIdCM1).to.not.equal(connectorIdCM2);
+    });
+
+  });
+
+  context("Platform Merchant Cannot Create Connector", () => {
+    it("platform-merchant-cannot-create-connector", () => {
+      const savedMerchantId = globalState.get("merchantId");
+      const savedProfileId = globalState.get("profileId");
+
+      globalState.set("merchantId", globalState.get("platformMerchantId"));
+      globalState.set("profileId", globalState.get("profileId"));
+
+      const baseUrl = globalState.get("baseUrl");
+      const merchantId = globalState.get("merchantId");
+      const profileId = globalState.get("profileId");
+
+      cy.request({
+        method: "POST",
+        url: `${baseUrl}/account/${merchantId}/profiles/${profileId}/connectors`,
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": globalState.get("apiKey"),
+        },
+        body: {
+          connector_type: "payment_processor",
+          connector_name: "stripe",
+          connector_label: "stripe_platform_test",
+          ...fixtures.createConnectorBody,
+          payment_methods_enabled,
+        },
+        failOnStatusCode: false,
+      }).then((response) => {
+        expect(response.status).to.be.oneOf([400, 403, 404, 422]);
+      });
+
+      cy.then(() => {
+        globalState.set("merchantId", savedMerchantId);
+        globalState.set("profileId", savedProfileId);
+      });
     });
   });
 });
