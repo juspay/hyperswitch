@@ -15,8 +15,7 @@ describe("Core flows", () => {
     after("flush global state", () => {
       cy.task("setGlobalState", globalState.data);
     });
- 
-    
+
     it("merchant create call", () => {
       cy.merchantCreateCallTest(fixtures.merchantCreateBody, globalState);
     });
