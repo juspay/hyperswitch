@@ -32,6 +32,10 @@ pub async fn do_gsm_multiple_connector_actions(
 ) -> RouterResult<()> {
     let mut retries = None;
 
+    let merchant_id = platform.get_processor().get_account().get_id().clone();
+    let dimensions: dimension_state::DimensionsWithMerchantId =
+        dimension_state::Dimensions::new().with_merchant_id(merchant_id.clone());
+
     metrics::AUTO_PAYOUT_RETRY_ELIGIBLE_REQUEST_COUNT.add(1, &[]);
 
     let mut connector = original_connector_data;
@@ -44,7 +48,8 @@ pub async fn do_gsm_multiple_connector_actions(
                 retries = get_retries(
                     state,
                     retries,
-                    platform.get_processor().get_account().get_id(),
+                    &dimensions,
+                    &merchant_id,
                     PayoutRetryType::MultiConnector,
                 )
                 .await;
@@ -89,6 +94,10 @@ pub async fn do_gsm_single_connector_actions(
 ) -> RouterResult<()> {
     let mut retries = None;
 
+    let merchant_id = platform.get_processor().get_account().get_id().clone();
+    let dimensions: dimension_state::DimensionsWithMerchantId =
+        dimension_state::Dimensions::new().with_merchant_id(merchant_id.clone());
+
     metrics::AUTO_PAYOUT_RETRY_ELIGIBLE_REQUEST_COUNT.add(1, &[]);
 
     let mut previous_gsm = None; // to compare previous status
@@ -107,7 +116,8 @@ pub async fn do_gsm_single_connector_actions(
                 retries = get_retries(
                     state,
                     retries,
-                    platform.get_processor().get_account().get_id(),
+                    &dimensions,
+                    &merchant_id,
                     PayoutRetryType::SingleConnector,
                 )
                 .await;
@@ -138,14 +148,13 @@ pub async fn do_gsm_single_connector_actions(
 pub async fn get_retries(
     state: &app::SessionState,
     retries: Option<i32>,
+    dimensions: &dimension_state::DimensionsWithMerchantId,
     merchant_id: &common_utils::id_type::MerchantId,
     retry_type: PayoutRetryType,
 ) -> Option<i32> {
     match retries {
         Some(retries) => Some(retries),
         None => {
-            let dimensions: dimension_state::DimensionsWithMerchantId =
-                dimension_state::Dimensions::new().with_merchant_id(merchant_id.clone());
             let storage = state.store.as_ref();
             let superposition_client = state.superposition_service.as_deref();
             let targeting_key = Some(merchant_id);
