@@ -50,7 +50,7 @@ pub struct HasConnector;
 /// * `M` - Merchant ID type: `HasMerchantId` (present) or `NoMerchantId` (absent)
 /// * `O` - Organization ID type: `HasOrgId` (present) or `NoOrgId` (absent)
 /// * `P` - Profile ID type: `HasProfileId` (present) or `NoProfileId` (absent)
-/// * `Cn` - Connector type: `HasConnector` (present) or `NoConnector` (absent). Defaults to `NoConnector`.
+/// * `Cn` - Connector type: `HasConnector` (present) or `NoConnector` (absent)
 pub struct Dimensions<M, O, P, Cn> {
     merchant_id: Option<id_type::MerchantId>,
     organization_id: Option<id_type::OrganizationId>,
