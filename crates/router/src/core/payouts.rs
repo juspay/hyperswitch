@@ -98,7 +98,7 @@ pub fn get_next_connector(
 #[cfg(all(feature = "payouts", feature = "v1"))]
 pub async fn get_connector_choice(
     state: &SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     connector: Option<String>,
     routing_algorithm: Option<serde_json::Value>,
     payout_data: &mut PayoutData,
@@ -135,7 +135,7 @@ pub async fn get_connector_choice(
             };
             helpers::decide_payout_connector(
                 state,
-                platform,
+                processor,
                 Some(request_straight_through),
                 &mut routing_data,
                 payout_data,
@@ -156,7 +156,7 @@ pub async fn get_connector_choice(
             };
             helpers::decide_payout_connector(
                 state,
-                platform,
+                processor,
                 None,
                 &mut routing_data,
                 payout_data,
@@ -279,7 +279,7 @@ pub async fn payouts_core(
     // Form connector data
     let connector_call_type = get_connector_choice(
         state,
-        platform,
+        platform.get_processor(),
         payout_attempt.connector.clone(),
         routing_algorithm,
         payout_data,
@@ -525,7 +525,7 @@ pub async fn payouts_retrieve_core(
         // Form connector data
         let connector_call_type = get_connector_choice(
             &state,
-            &platform,
+            platform.get_processor(),
             payout_attempt.connector.clone(),
             None,
             &mut payout_data,
@@ -641,9 +641,7 @@ pub async fn payouts_cancel_core(
         .attach_printable("Payout cancellation failed for given Payout request")?;
     }
 
-    Ok(services::ApplicationResponse::Json(
-        response_handler(&state, &platform, &payout_data).await?,
-    ))
+    trigger_webhook_and_handle_response(&state, &platform, &payout_data).await
 }
 
 #[instrument(skip_all)]
@@ -1241,6 +1239,7 @@ pub async fn create_recipient(
                             &connector_label,
                             customer.connector_customer.as_ref(),
                             recipient_create_data.connector_payout_id.clone(),
+                            platform.get_initiator(),
                         )
                         .await
                     {
@@ -2215,7 +2214,10 @@ pub async fn create_recipient_disburse_account(
 
                             #[cfg(feature = "v2")]
                             connector_mandate_details: Some(common_connector_mandate),
-                            last_modified_by: None,
+                            last_modified_by: platform
+                                .get_initiator()
+                                .and_then(|initiator| initiator.to_created_by())
+                                .map(|last_modified_by| last_modified_by.to_string()),
                         };
 
                     payout_data.payment_method = Some(

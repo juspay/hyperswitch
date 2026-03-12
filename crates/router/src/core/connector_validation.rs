@@ -235,6 +235,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 elavon::transformers::ElavonAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Envoy => {
+                envoy::transformers::EnvoyAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Facilitapay => {
                 facilitapay::transformers::FacilitapayAuthType::try_from(self.auth_type)?;
                 facilitapay::transformers::FacilitapayConnectorMetadataObject::try_from(
@@ -522,10 +526,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 tesouro::transformers::TesouroAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            // api_enums::Connector::Truelayer => {
-            //     truelayer::transformers::TruelayerAuthType::try_from(self.auth_type)?;
-            //     Ok(())
-            // }
+            api_enums::Connector::Truelayer => {
+                truelayer::transformers::TruelayerAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Trustpay => {
                 trustpay::transformers::TrustpayAuthType::try_from(self.auth_type)?;
                 Ok(())

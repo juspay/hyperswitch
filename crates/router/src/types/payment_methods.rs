@@ -331,6 +331,11 @@ pub struct TokenDetails {
     pub exp_year: Secret<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TokenCardDetails {
+    pub par: Secret<String>,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct TokenResponse {
     pub authentication_details: AuthenticationDetails,
@@ -340,6 +345,7 @@ pub struct TokenResponse {
     pub card_type: Option<String>,
     pub issuer: Option<String>,
     pub nickname: Option<Secret<String>>,
+    pub card_details: Option<TokenCardDetails>,
 }
 
 #[cfg(feature = "v1")]
