@@ -686,7 +686,7 @@ impl
                 e
             })
             .unwrap_or_default();
-        
+
         let connector_order_reference_id = router_data.request.connector_reference_id.clone();
 
         let request_ref_id = Some(Identifier {
