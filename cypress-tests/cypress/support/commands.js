@@ -5311,16 +5311,10 @@ Cypress.Commands.add("stepTest", (stepName, errorStack, fn) => {
           throw err; // re-throw for retryable commands
         }
         errorStack.push({ step: stepName, error: err });
-        // Log immediately at the instant of failure via task (safe from sync context)
         let logMsg = `${ANSI_RED}[SOFT ASSERT FAIL]${ANSI_RESET} ${stepName}: ${err.message}`;
         if (err.actual !== undefined && err.expected !== undefined) {
           logMsg += `\n${buildDiff(String(err.actual), String(err.expected))}`;
         }
-        const screenshotName = `[FAIL] ${stepName}`.replace(
-          /[^a-zA-Z0-9\-_ ]/g,
-          ""
-        );
-        cy.screenshot(screenshotName, { capture: "runner" });
         cy.task("cli_log", logMsg);
         // No re-throw — queue keeps running
       }
@@ -5332,15 +5326,12 @@ Cypress.Commands.add("stepTest", (stepName, errorStack, fn) => {
       cy.off("fail", restoreOnCommandFail);
       chai.Assertion.prototype.assert = originalAssert;
       const stepFailures = errorStack.filter((e) => e.step === stepName);
-      stepFailures.forEach((failure) => {
-        const { error } = failure;
-        let logMsg = `${ANSI_RED}[SOFT ASSERT FAIL]${ANSI_RESET} ${stepName}: ${error.message}`;
-        if (error.actual !== undefined && error.expected !== undefined) {
-          logMsg += `\n${buildDiff(String(error.actual), String(error.expected))}`;
-        }
-        cy.task("cli_log", logMsg);
-      });
       if (stepFailures.length > 0) {
+        const screenshotName = `[FAIL] ${stepName}`.replace(
+          /[^a-zA-Z0-9\-_ ]/g,
+          ""
+        );
+        cy.screenshot(screenshotName, { capture: "fullPage" });
         log.set({ displayName: "✗ STEP", message: stepName });
       } else {
         log.set({ displayName: "✓ STEP", message: stepName, collapsed: true });
