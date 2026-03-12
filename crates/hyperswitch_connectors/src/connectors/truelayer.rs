@@ -991,7 +991,7 @@ impl webhooks::IncomingWebhook for Truelayer {
             .parse_struct("TruelayerWebhookBody")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        if truelayer::is_payment_webhook_event(details._type.clone()) {
+        if details._type.clone().is_payment_webhook_event() {
             return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                 api_models::payments::PaymentIdType::ConnectorTransactionId(
                     details
@@ -1001,7 +1001,7 @@ impl webhooks::IncomingWebhook for Truelayer {
                 ),
             ));
         }
-        if truelayer::is_refund_webhook_event(details._type.clone()) {
+        if details._type.clone().is_refund_webhook_event() {
             return Ok(api_models::webhooks::ObjectReferenceId::RefundId(
                 api_models::webhooks::RefundIdType::ConnectorRefundId(
                     details
@@ -1012,7 +1012,7 @@ impl webhooks::IncomingWebhook for Truelayer {
             ));
         }
         #[cfg(feature = "payouts")]
-        if truelayer::is_payout_webhook_event(details._type.clone()) {
+        if details._type.clone().is_payout_webhook_event() {
             return Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
                 api_models::webhooks::PayoutIdType::ConnectorPayoutId(
                     details

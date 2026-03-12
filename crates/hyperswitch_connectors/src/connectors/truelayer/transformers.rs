@@ -637,34 +637,6 @@ pub fn normalize_payment_id(payment_id: &str) -> String {
         .collect()
 }
 
-pub fn is_payout_webhook_event(event_type: TruelayerWebhookEventType) -> bool {
-    matches!(
-        event_type,
-        TruelayerWebhookEventType::PayoutExecuted | TruelayerWebhookEventType::PayoutFailed
-    )
-}
-
-pub fn is_payment_webhook_event(event_type: TruelayerWebhookEventType) -> bool {
-    matches!(
-        event_type,
-        TruelayerWebhookEventType::PaymentAuthorized
-            | TruelayerWebhookEventType::PaymentExecuted
-            | TruelayerWebhookEventType::PaymentSettled
-            | TruelayerWebhookEventType::PaymentFailed
-            | TruelayerWebhookEventType::PaymentCreditable
-            | TruelayerWebhookEventType::PaymentSettlementStalled
-            | TruelayerWebhookEventType::PaymentReversed
-            | TruelayerWebhookEventType::PaymentFundsReceived
-    )
-}
-
-pub fn is_refund_webhook_event(event_type: TruelayerWebhookEventType) -> bool {
-    matches!(
-        event_type,
-        TruelayerWebhookEventType::RefundExecuted | TruelayerWebhookEventType::RefundFailed
-    )
-}
-
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum TruelayerPayoutsWebhookEvent {
@@ -688,6 +660,36 @@ pub enum TruelayerWebhookEventType {
     RefundFailed,
     PayoutExecuted,
     PayoutFailed,
+}
+
+impl TruelayerWebhookEventType{
+    pub fn is_payout_webhook_event(self) -> bool {
+        matches!(
+            self,
+            Self::PayoutExecuted | Self::PayoutFailed
+        )
+    }
+
+    pub fn is_payment_webhook_event(self) -> bool {
+        matches!(
+            self,
+            Self::PaymentAuthorized
+                | Self::PaymentExecuted
+                | Self::PaymentSettled
+                | Self::PaymentFailed
+                | Self::PaymentCreditable
+                | Self::PaymentSettlementStalled
+                | Self::PaymentReversed
+                | Self::PaymentFundsReceived
+        )
+    }
+
+    pub fn is_refund_webhook_event(self) -> bool {
+        matches!(
+            self,
+            Self::RefundExecuted | Self::RefundFailed
+        )
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
