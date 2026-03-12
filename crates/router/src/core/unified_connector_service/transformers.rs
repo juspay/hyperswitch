@@ -133,12 +133,6 @@ impl
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let connector_ref_id = Identifier {
-            id_type: Some(payments_grpc::identifier::IdType::Id(
-                router_data.connector_request_reference_id.clone(),
-            )),
-        };
-
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
         // Always build payment_method using payment_method_data (which is non-optional).
@@ -154,7 +148,7 @@ impl
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
         Ok(Self {
-            merchant_payment_method_id: Some(connector_ref_id),
+            merchant_payment_method_id: Some(router_data.connector_request_reference_id.clone()),
             amount: router_data
                 .request
                 .amount
@@ -177,6 +171,7 @@ impl
                     .map(|id| id.get_string_repr().to_string()),
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
+                phone_country_code: None,
             }),
         })
     }
@@ -285,6 +280,7 @@ impl
                     .map(|id| id.get_string_repr().to_string()),
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
+                phone_country_code: None,
             }),
             browser_info,
             session_token: router_data.session_token.clone(),
@@ -310,11 +306,7 @@ impl
                 .request
                 .shipping_cost
                 .map(|shipping_cost| shipping_cost.get_amount_as_i64()),
-            merchant_transaction_id: Some(Identifier {
-                id_type: Some(payments_grpc::identifier::IdType::Id(
-                    router_data.connector_request_reference_id.clone(),
-                )),
-            }),
+            merchant_transaction_id: Some(router_data.connector_request_reference_id.clone()),
             metadata,
             test_mode: router_data.test_mode,
             state,
@@ -369,6 +361,7 @@ impl
                 .tokenization
                 .map(payments_grpc::Tokenization::foreign_from)
                 .map(Into::into),
+            l2_l3_data: None,
         })
     }
 }
@@ -503,6 +496,7 @@ impl
                 id: None,
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
+                phone_country_code: None,
             }),
             browser_info,
             session_token: router_data.session_token.clone(),
@@ -519,11 +513,7 @@ impl
             request_extended_authorization: None,
             merchant_order_id: None,
             shipping_cost: None,
-            merchant_transaction_id: Some(Identifier {
-                id_type: Some(payments_grpc::identifier::IdType::Id(
-                    router_data.connector_request_reference_id.clone(),
-                )),
-            }),
+            merchant_transaction_id: Some(router_data.connector_request_reference_id.clone()),
             metadata,
             test_mode: router_data.test_mode,
             state,
@@ -568,6 +558,7 @@ impl
                 .tokenization
                 .map(payments_grpc::Tokenization::foreign_from)
                 .map(Into::into),
+            l2_l3_data: None,
         })
     }
 }
@@ -598,11 +589,7 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
-            merchant_order_id: Some(Identifier {
-                id_type: Some(payments_grpc::identifier::IdType::Id(
-                    router_data.connector_request_reference_id.clone(),
-                )),
-            }),
+            merchant_order_id: Some(router_data.connector_request_reference_id.clone()),
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
                 currency: currency.into(),
@@ -887,11 +874,7 @@ impl
             .transpose()?;
 
         Ok(Self {
-            merchant_order_id: Some(Identifier {
-                id_type: Some(payments_grpc::identifier::IdType::Id(
-                    router_data.connector_request_reference_id.clone(),
-                )),
-            }),
+            merchant_order_id: Some(router_data.connector_request_reference_id.clone()),
             amount: router_data
                 .request
                 .minor_amount
@@ -910,6 +893,7 @@ impl
                 id: None,
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
+                phone_country_code: None,
             }),
             address: Some(address),
             authentication_data,
@@ -997,6 +981,7 @@ impl
                 id: None,
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
+                phone_country_code: None,
             }),
             address: Some(address),
             authentication_data: None,
@@ -1069,11 +1054,7 @@ impl
             .map(|s| s.into());
 
         Ok(Self {
-            merchant_order_id: Some(Identifier {
-                id_type: Some(payments_grpc::identifier::IdType::Id(
-                    router_data.connector_request_reference_id.clone(),
-                )),
-            }),
+            merchant_order_id: Some(router_data.connector_request_reference_id.clone()),
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
                 currency: currency.into(),
@@ -1093,6 +1074,7 @@ impl
                 id: None,
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
+                phone_country_code: None,
             }),
             address: Some(address),
             enrolled_for_3ds: router_data.request.enrolled_for_3ds,
@@ -1280,6 +1262,7 @@ impl
                 id: None,
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
+                phone_country_code: None,
             }),
             browser_info,
             locale: None,
@@ -1307,11 +1290,7 @@ impl
             request_extended_authorization: None,
             merchant_order_id: router_data.request.merchant_order_reference_id.clone(),
             shipping_cost: None,
-            merchant_transaction_id: Some(Identifier {
-                id_type: Some(payments_grpc::identifier::IdType::Id(
-                    router_data.connector_request_reference_id.clone(),
-                )),
-            }),
+            merchant_transaction_id: Some(router_data.connector_request_reference_id.clone()),
             metadata,
             test_mode: router_data.test_mode,
             state: None,
@@ -1332,6 +1311,7 @@ impl
             redirection_response: None,
             continue_redirection_url: None,
             payment_method_token: None,
+            l2_l3_data: None,
         })
     }
 }
@@ -1441,6 +1421,7 @@ impl
                     .map(|id| id.get_string_repr().to_string()),
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
+                phone_country_code: None,
             }),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: router_data.request.webhook_url.clone(),
@@ -1513,6 +1494,7 @@ impl
             redirection_response: None,
             continue_redirection_url: None,
             payment_method_token: None,
+            l2_l3_data: None,
         })
     }
 }
@@ -1609,6 +1591,7 @@ impl
                     .map(|id| id.get_string_repr().to_string()),
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
+                phone_country_code: None,
             }),
             browser_info,
             locale: None,
@@ -1641,11 +1624,7 @@ impl
                 .request
                 .shipping_cost
                 .map(|shipping_cost| shipping_cost.get_amount_as_i64()),
-            merchant_transaction_id: Some(Identifier {
-                id_type: Some(payments_grpc::identifier::IdType::Id(
-                    router_data.connector_request_reference_id.clone(),
-                )),
-            }),
+            merchant_transaction_id: Some(router_data.connector_request_reference_id.clone()),
             metadata: router_data
                 .request
                 .metadata
@@ -1674,6 +1653,7 @@ impl
             redirection_response: None,
             continue_redirection_url: None,
             payment_method_token: None,
+            l2_l3_data: None,
         })
     }
 }
@@ -1738,11 +1718,7 @@ impl
                 .map(|payment_method_token| {
                     unified_connector_service_masking::Secret::new(payment_method_token.expose())
                 }),
-            merchant_recurring_payment_id: Some(Identifier {
-                id_type: Some(payments_grpc::identifier::IdType::Id(
-                    router_data.connector_request_reference_id.clone(),
-                )),
-            }),
+            merchant_recurring_payment_id: router_data.connector_request_reference_id.clone(),
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
                 currency: currency.into(),
@@ -1766,6 +1742,7 @@ impl
                     .map(|id| id.get_string_repr().to_string()),
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
+                phone_country_code: None,
             }),
             address: Some(address),
             auth_type: auth_type.into(),
@@ -1822,6 +1799,7 @@ impl
             connector_testing_data: router_data.request.connector_testing_data.as_ref().map(
                 |data| unified_connector_service_masking::Secret::new(data.peek().to_string()),
             ),
+            l2_l3_data: None,
         })
     }
 }
@@ -1948,11 +1926,7 @@ impl
             .transpose()?;
 
         Ok(Self {
-            merchant_charge_id: Some(Identifier {
-                id_type: Some(payments_grpc::identifier::IdType::Id(
-                    router_data.connector_request_reference_id.clone(),
-                )),
-            }),
+            merchant_charge_id: Some(router_data.connector_request_reference_id.clone()),
             payment_method,
             mandate_reference_id,
             amount: Some(payments_grpc::Money {
@@ -2022,6 +1996,7 @@ impl
                 .map(payments_grpc::Currency::foreign_try_from)
                 .transpose()?
                 .map(|currency| currency.into()),
+            l2_l3_data: None,
         })
     }
 }
@@ -2044,11 +2019,7 @@ impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, Paym
             .map(|country| country.into());
 
         Ok(Self {
-            merchant_sdk_session_id: Some(Identifier {
-                id_type: Some(payments_grpc::identifier::IdType::Id(
-                    router_data.connector_request_reference_id.clone(),
-                )),
-            }),
+            merchant_sdk_session_id: router_data.connector_request_reference_id.clone(),
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
                 currency: currency.into(),
@@ -2070,6 +2041,7 @@ impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, Paym
                     .map(|id| id.get_string_repr().to_string()),
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
+                phone_country_code: None,
             }),
             order_tax_amount: router_data
                 .request
@@ -5859,18 +5831,6 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
-        let transaction_id = Identifier {
-            id_type: Some(payments_grpc::identifier::IdType::Id(
-                router_data.request.connector_transaction_id.clone(),
-            )),
-        };
-
-        let merchant_refund_id = Some(Identifier {
-            id_type: Some(payments_grpc::identifier::IdType::Id(
-                router_data.request.refund_id.clone(),
-            )),
-        });
-
         // Convert connector_metadata to gRPC format
         let connector_metadata = router_data
             .request
@@ -5903,8 +5863,8 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
             .map(|payment_method_type| payment_method_type.into());
 
         Ok(Self {
-            merchant_refund_id,
-            connector_transaction_id: Some(transaction_id),
+            merchant_refund_id: Some(router_data.request.refund_id.clone()),
+            connector_transaction_id: router_data.request.connector_transaction_id.clone(),
             payment_amount: router_data.request.payment_amount,
             refund_amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_refund_amount.get_amount_as_i64(),
@@ -6128,20 +6088,8 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
-            merchant_void_id: Some(Identifier {
-                id_type: Some(payments_grpc::identifier::IdType::Id(
-                    router_data.connector_request_reference_id.clone(),
-                )),
-            }),
-            connector_transaction_id: if router_data.request.connector_transaction_id.is_empty() {
-                None
-            } else {
-                Some(Identifier {
-                    id_type: Some(payments_grpc::identifier::IdType::Id(
-                        router_data.request.connector_transaction_id.clone(),
-                    )),
-                })
-            },
+            merchant_void_id: Some(router_data.connector_request_reference_id.clone()),
+            connector_transaction_id: router_data.request.connector_transaction_id.clone(),
             cancellation_reason: router_data.request.cancellation_reason.clone(),
             all_keys_required: None,
             browser_info,
@@ -6345,12 +6293,8 @@ impl
             common_enums::CallConnectorAction,
         ),
     ) -> Result<Self, Self::Error> {
-        let request_ref_id = router_data.connector_request_reference_id.clone();
-
         Ok(Self {
-            merchant_access_token_id: Some(Identifier {
-                id_type: Some(payments_grpc::identifier::IdType::Id(request_ref_id)),
-            }),
+            merchant_access_token_id: Some(router_data.connector_request_reference_id.clone()),
             // depricated field we have to remove this/ Default to unspecified connector
             connector: 0_i32,
             metadata: None,
