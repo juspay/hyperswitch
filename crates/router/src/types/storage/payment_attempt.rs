@@ -242,7 +242,6 @@ mod tests {
             connector_transaction_id: Default::default(),
             encrypted_payment_method_data: Default::default(),
             error_details: Default::default(),
-            retry_type: Default::default(),
         };
 
         let store = state
@@ -361,7 +360,6 @@ mod tests {
             connector_transaction_id: Default::default(),
             encrypted_payment_method_data: Default::default(),
             error_details: Default::default(),
-            retry_type: Default::default(),
         };
         let store = state
             .stores
@@ -494,7 +492,6 @@ mod tests {
             connector_transaction_id: Default::default(),
             encrypted_payment_method_data: Default::default(),
             error_details: Default::default(),
-            retry_type: Default::default(),
         };
         let store = state
             .stores

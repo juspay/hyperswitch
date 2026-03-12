@@ -162,7 +162,6 @@ pub struct PaymentAttempt {
     pub tokenization: Option<common_enums::Tokenization>,
     pub encrypted_payment_method_data: Option<common_utils::encryption::Encryption>,
     pub error_details: Option<ErrorDetails>,
-    pub retry_type: Option<storage_enums::RetryType>,
     #[diesel(deserialize_as = RequiredFromNullable<storage_enums::PaymentMethod>)]
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub connector_payment_id: Option<ConnectorTransactionId>,
@@ -292,8 +291,6 @@ pub struct PaymentAttempt {
     pub tokenization: Option<common_enums::Tokenization>,
     pub encrypted_payment_method_data: Option<common_utils::encryption::Encryption>,
     pub error_details: Option<ErrorDetails>,
-    /// Indicates the type of retry for this payment attempt (None for initial attempt)
-    pub retry_type: Option<storage_enums::RetryType>,
 }
 
 #[cfg(feature = "v1")]
@@ -445,7 +442,6 @@ pub struct PaymentAttemptNew {
     pub amount_captured: Option<MinorUnit>,
     pub encrypted_payment_method_data: Option<common_utils::encryption::Encryption>,
     pub error_details: Option<ErrorDetails>,
-    pub retry_type: Option<storage_enums::RetryType>,
 }
 
 #[cfg(feature = "v1")]
@@ -537,8 +533,6 @@ pub struct PaymentAttemptNew {
     pub tokenization: Option<common_enums::Tokenization>,
     pub encrypted_payment_method_data: Option<common_utils::encryption::Encryption>,
     pub error_details: Option<ErrorDetails>,
-    /// Indicates the type of retry for this payment attempt (None for initial attempt)
-    pub retry_type: Option<storage_enums::RetryType>,
 }
 
 #[cfg(feature = "v1")]
@@ -1134,7 +1128,6 @@ impl PaymentAttemptUpdateInternal {
             amount_captured: amount_captured.or(source.amount_captured),
             encrypted_payment_method_data: source.encrypted_payment_method_data,
             error_details: source.error_details,
-            retry_type: source.retry_type,
         }
     }
 }

@@ -320,7 +320,6 @@ impl PaymentAttemptBatchNew {
             authorized_amount: self.authorized_amount,
             tokenization: self.tokenization,
             error_details: None,
-            retry_type: None,
         }
     }
 }
