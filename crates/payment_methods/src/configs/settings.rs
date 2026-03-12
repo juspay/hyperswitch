@@ -126,30 +126,6 @@ pub struct Installments {
     pub supported_payment_methods: SupportedPaymentMethodsForInstallments,
 }
 
-#[derive(Debug, Deserialize, Clone)]
-pub struct PayoutSyncProcessTracker {
-    pub supported_payout_methods: SupportedPaymentMethodsForPayout,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct SupportedPaymentMethodsForPayout(
-    pub HashMap<enums::PayoutType, SupportedConnectorsForPayout>,
-);
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct SupportedConnectorsForPayout {
-    #[serde(deserialize_with = "deserialize_hashset")]
-    pub connector_list: HashSet<enums::Connector>,
-}
-
-impl Default for PayoutSyncProcessTracker {
-    fn default() -> Self {
-        Self {
-            supported_payout_methods: SupportedPaymentMethodsForPayout(HashMap::new()),
-        }
-    }
-}
-
 fn deserialize_hashset_inner<T>(value: impl AsRef<str>) -> Result<HashSet<T>, String>
 where
     T: Eq + std::str::FromStr + std::hash::Hash,

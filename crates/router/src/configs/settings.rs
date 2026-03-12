@@ -36,9 +36,9 @@ pub use hyperswitch_interfaces::{
 use masking::{Maskable, Secret};
 pub use payment_methods::configs::settings::{
     BankRedirectConfig, BanksVector, ConnectorBankNames, ConnectorFields, EligiblePaymentMethods,
-    Installments, Mandates, PaymentMethodAuth, PaymentMethodType, PayoutSyncProcessTracker,
-    RequiredFieldFinal, RequiredFields, SupportedConnectorsForMandate,
-    SupportedPaymentMethodTypesForMandate, SupportedPaymentMethodsForMandate, ZeroMandates,
+    Installments, Mandates, PaymentMethodAuth, PaymentMethodType, RequiredFieldFinal,
+    RequiredFields, SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
+    SupportedPaymentMethodsForMandate, ZeroMandates,
 };
 use payment_methods::configs::MicroServicesConfig;
 use rand::seq::IteratorRandom;
@@ -190,7 +190,6 @@ pub struct Settings<S: SecretState> {
     pub comparison_service: Option<ComparisonServiceConfig>,
     pub authentication_service_enabled_connectors: AuthenticationServiceEnabledConnectors,
     pub save_payment_method_on_session: OnSessionConfig,
-    pub payout_sync_process_tracker: PayoutSyncProcessTracker,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
