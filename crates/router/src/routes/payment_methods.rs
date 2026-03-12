@@ -56,6 +56,7 @@ pub async fn create_payment_method_api(
                 &state,
                 req,
                 auth.platform.get_provider(),
+                auth.platform.get_initiator(),
             ))
             .await
         },
@@ -81,19 +82,14 @@ pub async fn create_payment_method_api(
         allow_connected_scope_operation: true,
         allow_platform_self_operation: true,
     };
-    let jwt_auth = auth::JWTAuth {
-        permission: Permission::MerchantCustomerRead,
+    let (auth_type, _api_key_type) = match auth::check_internal_api_key_auth_no_client_secret(
+        req.headers(),
+        api_auth,
+        state.conf.internal_merchant_id_profile_id_auth.clone(),
+    ) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(error_stack::report!(err)),
     };
-    let (auth_type, _api_key_type) =
-        match auth::check_internal_api_key_or_dashboard_auth_no_client_secret(
-            req.headers(),
-            api_auth,
-            jwt_auth,
-            state.conf.internal_merchant_id_profile_id_auth.clone(),
-        ) {
-            Ok(auth) => auth,
-            Err(err) => return api::log_and_return_error_response(error_stack::report!(err)),
-        };
 
     Box::pin(api::server_wrap(
         flow,
@@ -167,6 +163,7 @@ pub async fn create_payment_method_intent_api(
                 &state,
                 req,
                 auth.platform.get_provider().clone(),
+                auth.platform.get_initiator(),
             ))
             .await
         },
@@ -642,6 +639,7 @@ pub async fn save_payment_method_api(
                 state,
                 req,
                 auth.platform.get_provider().clone(),
+                auth.platform.get_initiator().cloned(),
                 pm_id.clone(),
             ))
         },
@@ -851,15 +849,21 @@ pub async fn list_customer_payment_method_api(
         allow_connected_scope_operation: true,
         allow_platform_self_operation: true,
     };
-
-    let (auth_type, api_key_type) = match auth::check_internal_api_key_auth_no_client_secret(
-        req.headers(),
-        api_auth,
-        state.conf.internal_merchant_id_profile_id_auth.clone(),
-    ) {
-        Ok(auth) => auth,
-        Err(err) => return api::log_and_return_error_response(error_stack::report!(err)),
+    let jwt_auth = auth::JWTAuth {
+        permission: Permission::MerchantCustomerRead,
+        allow_connected: true,
+        allow_platform: true,
     };
+    let (auth_type, api_key_type) =
+        match auth::check_internal_api_key_or_dashboard_auth_no_client_secret(
+            req.headers(),
+            api_auth,
+            jwt_auth,
+            state.conf.internal_merchant_id_profile_id_auth.clone(),
+        ) {
+            Ok(auth) => auth,
+            Err(err) => return api::log_and_return_error_response(error_stack::report!(err)),
+        };
 
     Box::pin(api::server_wrap(
         flow,
@@ -913,6 +917,8 @@ pub async fn get_payment_method_token_data(
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -947,6 +953,8 @@ pub async fn get_total_payment_method_count(
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantCustomerRead,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -1056,6 +1064,7 @@ pub async fn payment_method_update_api(
             cards::update_customer_payment_method(
                 state,
                 auth.platform.get_provider().clone(),
+                auth.platform.get_initiator().cloned(),
                 req,
                 &payment_method_id,
                 None,
@@ -1098,7 +1107,7 @@ pub async fn payment_method_delete_api(
                 state: &state,
                 provider: auth.platform.get_provider(),
             }
-            .delete_payment_method(req)
+            .delete_payment_method(req, auth.platform.get_initiator())
             .await
         },
         &*ephemeral_auth,
@@ -1136,12 +1145,16 @@ pub async fn list_countries_currencies_for_connector_payment_method(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileConnectorWrite,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::ProfileConnectorWrite,
+            allow_connected: true,
+            allow_platform: true,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -1177,12 +1190,16 @@ pub async fn list_countries_currencies_for_connector_payment_method(
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileConnectorRead,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::ProfileConnectorRead,
+            allow_connected: true,
+            allow_platform: true,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -1230,6 +1247,7 @@ pub async fn default_payment_method_set_api(
                 auth.platform.get_provider().get_account().get_id(),
                 customer_id,
                 default_payment_method.payment_method_id,
+                auth.platform.get_initiator(),
             )
             .await
         },
@@ -1402,6 +1420,7 @@ pub async fn tokenize_card_api(
                 &state,
                 CardNetworkTokenizeRequest::foreign_from(req),
                 platform.get_provider(),
+                platform.get_initiator(),
             ))
             .await?;
             Ok(services::ApplicationResponse::Json(res))
@@ -1452,6 +1471,7 @@ pub async fn tokenize_card_using_pm_api(
                 &state,
                 CardNetworkTokenizeRequest::foreign_from(req),
                 platform.get_provider(),
+                platform.get_initiator(),
             ))
             .await?;
             Ok(services::ApplicationResponse::Json(res))
@@ -1496,6 +1516,7 @@ pub async fn tokenize_card_batch_api(
                     &state,
                     req,
                     platform.get_provider(),
+                    platform.get_initiator(),
                 ))
                 .await
             }

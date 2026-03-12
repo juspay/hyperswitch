@@ -234,6 +234,7 @@ where
 async fn update_pm_connector_mandate_details<F, Req>(
     state: &SessionState,
     provider: &domain::Provider,
+    initiator: Option<&domain::Initiator>,
     payment_data: &PaymentData<F>,
     router_data: &types::RouterData<F, Req, types::PaymentsResponseData>,
 ) -> RouterResult<()>
@@ -321,6 +322,7 @@ where
                 payment_method,
                 connector_mandate_details,
                 provider.get_account().storage_scheme,
+                initiator,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -698,6 +700,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         &self,
         state: &SessionState,
         provider: &domain::Provider,
+        initiator: Option<&domain::Initiator>,
         payment_data: &PaymentData<F>,
         router_data: &types::RouterData<
             F,
@@ -710,7 +713,14 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         F: 'b + Clone + Send + Sync,
     {
         if !feature_set.is_payment_method_modular_allowed {
-            update_pm_connector_mandate_details(state, provider, payment_data, router_data).await
+            update_pm_connector_mandate_details(
+                state,
+                provider,
+                initiator,
+                payment_data,
+                router_data,
+            )
+            .await
         } else {
             Ok(())
         }
@@ -784,6 +794,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
                                 net_amount: hyperswitch_domain_models::payments::payment_attempt::NetAmount::new(
                                     // Internally, `NetAmount` is computed as (order_amount + additional_amount), so we subtract here to avoid double-counting.
                                     incremental_authorization_details.total_amount - payment_data.payment_attempt.net_amount.get_additional_amount(),
+                                    None,
                                     None,
                                     None,
                                     None,
@@ -983,6 +994,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
             resp.status,
             resp.response.clone(),
             platform.get_provider().get_account().storage_scheme,
+            platform.get_initiator(),
         )
         .await?;
         Ok(())
@@ -993,6 +1005,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         &self,
         state: &SessionState,
         provider: &domain::Provider,
+        initiator: Option<&domain::Initiator>,
         payment_data: &PaymentData<F>,
         router_data: &types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
         feature_set: &core_utils::FeatureConfig,
@@ -1001,7 +1014,14 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         F: 'b + Clone + Send + Sync,
     {
         if !feature_set.is_payment_method_modular_allowed {
-            update_pm_connector_mandate_details(state, provider, payment_data, router_data).await
+            update_pm_connector_mandate_details(
+                state,
+                provider,
+                initiator,
+                payment_data,
+                router_data,
+            )
+            .await
         } else {
             Ok(())
         }
@@ -1727,6 +1747,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         &self,
         state: &SessionState,
         provider: &domain::Provider,
+        initiator: Option<&domain::Initiator>,
         payment_data: &PaymentData<F>,
         router_data: &types::RouterData<
             F,
@@ -1738,7 +1759,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
     where
         F: 'b + Clone + Send + Sync,
     {
-        update_pm_connector_mandate_details(state, provider, payment_data, router_data).await
+        update_pm_connector_mandate_details(state, provider, initiator, payment_data, router_data)
+            .await
     }
     #[cfg(feature = "v1")]
     async fn update_modular_pm_and_mandate<'b>(
@@ -1840,6 +1862,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             resp.status,
             resp.response.clone(),
             platform.get_provider().get_account().storage_scheme,
+            platform.get_initiator(),
         )
         .await?;
         Ok(())
@@ -1850,6 +1873,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
         &self,
         state: &SessionState,
         provider: &domain::Provider,
+        initiator: Option<&domain::Initiator>,
         payment_data: &PaymentData<F>,
         router_data: &types::RouterData<
             F,
@@ -1862,7 +1886,14 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
         F: 'b + Clone + Send + Sync,
     {
         if !feature_set.is_payment_method_modular_allowed {
-            update_pm_connector_mandate_details(state, provider, payment_data, router_data).await
+            update_pm_connector_mandate_details(
+                state,
+                provider,
+                initiator,
+                payment_data,
+                router_data,
+            )
+            .await
         } else {
             Ok(())
         }
@@ -2072,6 +2103,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         429 => router_data.status,
                                         _ => enums::AttemptStatus::Failure,
                                     }
+                                } else if sub_flow == "CancelPostCapture" {
+                                    router_data.status
                                 } else {
                                     match err.status_code {
                                         500..=511 => enums::AttemptStatus::Pending,
@@ -2526,7 +2559,15 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             }
                             None => (None, None, None),
                         },
-                        types::PaymentsResponseData::PaymentsCreateOrderResponse { .. } => {
+                        types::PaymentsResponseData::PaymentsCreateOrderResponse { .. } => (
+                            None,
+                            Some(storage::PaymentAttemptUpdate::StatusUpdate {
+                                status: updated_attempt_status,
+                                updated_by: processor.get_account().storage_scheme.to_string(),
+                            }),
+                            None,
+                        ),
+                        types::PaymentsResponseData::PostCaptureVoidResponse { .. } => {
                             (None, None, None)
                         }
                     }
@@ -2656,37 +2697,12 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         &payment_data,
     );
 
-    let payment_intent_update = match &router_data.response {
-        Err(_) => storage::PaymentIntentUpdate::PGStatusUpdate {
-            status: api_models::enums::IntentStatus::foreign_from(
-                payment_data.payment_attempt.status,
-            ),
-            updated_by: processor.get_account().storage_scheme.to_string(),
-            // make this false only if initial payment fails, if incremental authorization call fails don't make it false
-            incremental_authorization_allowed: Some(false),
-            feature_metadata: payment_data
-                .payment_intent
-                .feature_metadata
-                .clone()
-                .map(masking::Secret::new),
-        },
-        Ok(_) => storage::PaymentIntentUpdate::ResponseUpdate {
-            status: api_models::enums::IntentStatus::foreign_from(
-                payment_data.payment_attempt.status,
-            ),
-            amount_captured,
-            updated_by: processor.get_account().storage_scheme.to_string(),
-            fingerprint_id: payment_data.payment_attempt.fingerprint_id.clone(),
-            incremental_authorization_allowed: payment_data
-                .payment_intent
-                .incremental_authorization_allowed,
-            feature_metadata: payment_data
-                .payment_intent
-                .feature_metadata
-                .clone()
-                .map(masking::Secret::new),
-        },
-    };
+    let payment_intent_update = get_payment_intent_update_data::<_, _>(
+        payment_data.clone(),
+        &router_data,
+        processor,
+        amount_captured,
+    );
 
     let m_db = state.clone().store;
     let m_key_store = processor.get_key_store().clone();
@@ -2844,6 +2860,68 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     }
 }
 
+#[cfg(feature = "v1")]
+fn get_payment_intent_update_data<F: Clone, T: types::Capturable>(
+    payment_data: PaymentData<F>,
+    router_data: &types::RouterData<F, T, types::PaymentsResponseData>,
+    processor: &domain::Processor,
+    amount_captured: Option<MinorUnit>,
+) -> storage::PaymentIntentUpdate {
+    match &router_data.response {
+        Err(_) => storage::PaymentIntentUpdate::PGStatusUpdate {
+            status: api_models::enums::IntentStatus::foreign_from(
+                payment_data.payment_attempt.status,
+            ),
+            updated_by: processor.get_account().storage_scheme.to_string(),
+            incremental_authorization_allowed: Some(false),
+            feature_metadata: payment_data
+                .payment_intent
+                .feature_metadata
+                .clone()
+                .map(masking::Secret::new),
+        },
+        Ok(types::PaymentsResponseData::PostCaptureVoidResponse {
+            post_capture_void_status,
+            connector_reference_id,
+            description,
+        }) => {
+            let post_capture_void_response = common_types::domain::PostCaptureVoidData {
+                status: *post_capture_void_status,
+                connector_reference_id: connector_reference_id.clone(),
+                description: description.clone(),
+            };
+
+            let current_state = payment_data
+                .payment_intent
+                .state_metadata
+                .clone()
+                .unwrap_or_default()
+                .set_post_capture_void_data(post_capture_void_response);
+
+            storage::PaymentIntentUpdate::StateMetadataUpdate {
+                state_metadata: current_state.clone(),
+                updated_by: processor.get_account().storage_scheme.to_string(),
+            }
+        }
+        Ok(_) => storage::PaymentIntentUpdate::ResponseUpdate {
+            status: api_models::enums::IntentStatus::foreign_from(
+                payment_data.payment_attempt.status,
+            ),
+            amount_captured,
+            updated_by: processor.get_account().storage_scheme.to_string(),
+            fingerprint_id: payment_data.payment_attempt.fingerprint_id.clone(),
+            incremental_authorization_allowed: payment_data
+                .payment_intent
+                .incremental_authorization_allowed,
+            feature_metadata: payment_data
+                .payment_intent
+                .feature_metadata
+                .clone()
+                .map(masking::Secret::new),
+        },
+    }
+}
+
 #[cfg(feature = "v2")]
 async fn update_payment_method_status_and_ntid<F: Clone>(
     state: &SessionState,
@@ -2852,6 +2930,7 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
     attempt_status: common_enums::AttemptStatus,
     payment_response: Result<types::PaymentsResponseData, ErrorResponse>,
     storage_scheme: enums::MerchantStorageScheme,
+    _initiator: Option<&domain::Initiator>,
 ) -> RouterResult<()> {
     todo!()
 }
@@ -2864,6 +2943,7 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
     attempt_status: common_enums::AttemptStatus,
     payment_response: Result<types::PaymentsResponseData, ErrorResponse>,
     storage_scheme: enums::MerchantStorageScheme,
+    initiator: Option<&domain::Initiator>,
 ) -> RouterResult<()> {
     // If the payment_method is deleted then ignore the error related to retrieving payment method
     // This should be handled when the payment method is soft deleted
@@ -2922,13 +3002,17 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
             storage::PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
                 network_transaction_id,
                 status: Some(updated_pm_status),
-                last_modified_by: None,
+                last_modified_by: initiator
+                    .and_then(|initiator| initiator.to_created_by())
+                    .map(|last_modified_by| last_modified_by.to_string()),
             }
         } else {
             storage::PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
                 network_transaction_id,
                 status: None,
-                last_modified_by: None,
+                last_modified_by: initiator
+                    .and_then(|initiator| initiator.to_created_by())
+                    .map(|last_modified_by| last_modified_by.to_string()),
             }
         };
 
@@ -2991,6 +3075,7 @@ impl<F: Clone>
         &'b self,
         state: &'b SessionState,
         processor: &domain::Processor,
+        _initiator: Option<&domain::Initiator>,
         mut payment_data: hyperswitch_domain_models::payments::PaymentCaptureData<F>,
         response: types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>,
     ) -> RouterResult<hyperswitch_domain_models::payments::PaymentCaptureData<F>>
@@ -3053,6 +3138,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
         &'b self,
         state: &'b SessionState,
         processor: &domain::Processor,
+        initiator: Option<&domain::Initiator>,
         mut payment_data: PaymentConfirmData<F>,
         response: types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     ) -> RouterResult<PaymentConfirmData<F>>
@@ -3191,6 +3277,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                         processor.get_account().storage_scheme,
                         pm_update_status,
                         payment_method.get_id(),
+                        initiator,
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3223,6 +3310,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentStatusData<F>, types::PaymentsSyncDat
         &'b self,
         state: &'b SessionState,
         processor: &domain::Processor,
+        _initiator: Option<&domain::Initiator>,
         mut payment_data: PaymentStatusData<F>,
         response: types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
     ) -> RouterResult<PaymentStatusData<F>>
@@ -3381,6 +3469,7 @@ impl
         &'b self,
         state: &'b SessionState,
         processor: &domain::Processor,
+        _initiator: Option<&domain::Initiator>,
         mut payment_data: PaymentConfirmData<
             hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
         >,
@@ -3453,6 +3542,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
         &'b self,
         state: &'b SessionState,
         processor: &domain::Processor,
+        _initiator: Option<&domain::Initiator>,
         mut payment_data: PaymentConfirmData<F>,
         response: types::RouterData<F, types::SetupMandateRequestData, types::PaymentsResponseData>,
     ) -> RouterResult<PaymentConfirmData<F>>
@@ -3775,6 +3865,7 @@ impl<F: Clone + Send + Sync>
         &'b self,
         state: &'b SessionState,
         processor: &domain::Processor,
+        _initiator: Option<&domain::Initiator>,
         mut payment_data: hyperswitch_domain_models::payments::PaymentCancelData<F>,
         router_data: types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>,
     ) -> RouterResult<hyperswitch_domain_models::payments::PaymentCancelData<F>>

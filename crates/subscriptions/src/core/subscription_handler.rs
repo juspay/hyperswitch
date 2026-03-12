@@ -118,6 +118,7 @@ impl<'a> SubscriptionHandler<'a> {
                     merchant_connector_id.get_string_repr(),
                     customer.connector_customer.as_ref(),
                     Some(customer_response.connector_customer_id),
+                    platform.get_initiator(),
                 )
                 .await
                 {

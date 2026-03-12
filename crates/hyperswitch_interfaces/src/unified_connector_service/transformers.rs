@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use common_enums::AttemptStatus;
 use common_types::primitive_wrappers::{ExtendedAuthorizationAppliedBool, OvercaptureEnabledBool};
 use common_utils::request::Method;
@@ -9,6 +11,7 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{PaymentsResponseData, RedirectForm},
 };
+use unified_connector_service_masking::ExposeInterface;
 
 use crate::{
     helpers::{ForeignFrom, ForeignTryFrom},
@@ -430,6 +433,34 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
             ) => Ok(Self::ApplePay {
                 auth_code: apple_pay_data.auth_code,
             }),
+            Some(payments_grpc::additional_payment_method_connector_response::PaymentMethodData::BankRedirect(bank_redirect_data)) => {
+                let interac = bank_redirect_data.interac.map(|proto_interac| {
+                    hyperswitch_domain_models::router_data::InteracCustomerInfo {
+                        customer_info: proto_interac.customer_info.map(|info| {
+                            common_types::payments::InteracCustomerInfoDetails {
+                                customer_name: info.customer_name.map(|secret| masking::Secret::new(secret.expose())),
+                                customer_email: info.customer_email
+                                    .and_then(|secret| {
+                                        common_utils::pii::Email::from_str(&secret.expose())
+                                            .map_err(|e| {
+                                                router_env::logger::warn!(
+                                                    email_parse_error=?e,
+                                                    "Failed to parse customer_email from UCS InteracCustomerInfo"
+                                                );
+                                                e
+                                            })
+                                            .ok()
+                                    }),
+                                customer_phone_number: info.customer_phone_number.map(|secret| masking::Secret::new(secret.expose())),
+                                customer_bank_id: info.customer_bank_id.map(|secret| masking::Secret::new(secret.expose())),
+                                customer_bank_name: info.customer_bank_name.map(|secret| masking::Secret::new(secret.expose())),
+                            }
+                        }),
+                    }
+                });
+                Ok(Self::BankRedirect { interac })
+
+            }
             None => Err(error_stack::Report::new(
                 UnifiedConnectorServiceError::ResponseDeserializationFailed,
             )
@@ -458,8 +489,6 @@ impl ForeignTryFrom<payments_grpc::Ach>
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(ach: payments_grpc::Ach) -> Result<Self, Self::Error> {
-        use unified_connector_service_masking::ExposeInterface;
-
         let bank_name = payments_grpc::BankNames::try_from(ach.bank_name)
             .ok()
             .and_then(|bn| common_enums::BankNames::foreign_try_from(bn).ok());
@@ -506,8 +535,6 @@ impl ForeignTryFrom<payments_grpc::Sepa>
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(sepa: payments_grpc::Sepa) -> Result<Self, Self::Error> {
-        use unified_connector_service_masking::ExposeInterface;
-
         Ok(Self::SepaBankDebit {
             iban: masking::Secret::new(
                 sepa.iban
@@ -529,8 +556,6 @@ impl ForeignTryFrom<payments_grpc::Bacs>
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(bacs: payments_grpc::Bacs) -> Result<Self, Self::Error> {
-        use unified_connector_service_masking::ExposeInterface;
-
         Ok(Self::BacsBankDebit {
             account_number: masking::Secret::new(
                 bacs.account_number
@@ -559,8 +584,6 @@ impl ForeignTryFrom<payments_grpc::Becs>
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(becs: payments_grpc::Becs) -> Result<Self, Self::Error> {
-        use unified_connector_service_masking::ExposeInterface;
-
         Ok(Self::BecsBankDebit {
             account_number: masking::Secret::new(
                 becs.account_number
