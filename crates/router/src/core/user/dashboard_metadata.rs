@@ -1,5 +1,4 @@
 use api_models::user::dashboard_metadata::{self as api, GetMultipleMetaDataPayload};
-// #[cfg(feature = "email")]
 use common_enums::EntityType;
 use diesel_models::{
     enums::DashboardMetadata as DBEnum,
@@ -237,11 +236,11 @@ fn into_response(
             Ok(api::GetMetaDataResponse::ReconStatus(resp))
         }
         // Saved view variants use separate CRUD flow, not the generic GET metadata API
-        DBEnum::Payments
-        | DBEnum::Refunds
-        | DBEnum::Customers
-        | DBEnum::Disputes
-        | DBEnum::Payouts => Err(report!(UserErrors::InvalidMetadataRequest))
+        DBEnum::PaymentViews
+        | DBEnum::RefundViews
+        | DBEnum::CustomerViews
+        | DBEnum::DisputeViews
+        | DBEnum::PayoutViews => Err(report!(UserErrors::InvalidMetadataRequest))
             .attach_printable("Saved view keys should use /views endpoints"),
     }
 }
@@ -849,11 +848,11 @@ const MAX_SAVED_VIEWS: usize = 5;
 
 fn entity_to_data_key(entity: &api::SavedViewEntity) -> DBEnum {
     match entity {
-        api::SavedViewEntity::Payments => DBEnum::Payments,
-        api::SavedViewEntity::Refunds => DBEnum::Refunds,
-        api::SavedViewEntity::Customers => DBEnum::Customers,
-        api::SavedViewEntity::Disputes => DBEnum::Disputes,
-        api::SavedViewEntity::Payouts => DBEnum::Payouts,
+        api::SavedViewEntity::PaymentViews => DBEnum::PaymentViews,
+        api::SavedViewEntity::RefundViews => DBEnum::RefundViews,
+        api::SavedViewEntity::CustomerViews => DBEnum::CustomerViews,
+        api::SavedViewEntity::DisputeViews => DBEnum::DisputeViews,
+        api::SavedViewEntity::PayoutViews => DBEnum::PayoutViews,
     }
 }
 
@@ -897,8 +896,16 @@ pub async fn create_saved_view(
 
     let data_key = entity_to_data_key(&request.data.get_entity());
     let profile_id = get_profile_id_from_role(&state, &user).await?;
+    let now = common_utils::date_time::now();
 
-    // Fetch existing row (if any)
+    let new_view = api::SavedView {
+        version: api::SavedViewVersion::V1,
+        view_name: request.view_name.clone(),
+        data: request.data,
+        created_at: now.to_string(),
+        updated_at: now.to_string(),
+    };
+
     let existing = state
         .store
         .find_saved_view_metadata(
@@ -912,45 +919,32 @@ pub async fn create_saved_view(
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Error fetching saved view metadata")?;
 
-    let now = common_utils::date_time::now().to_string();
-
-    let new_view = api::SavedView {
-        view_name: request.view_name.clone(),
-        data: request.data,
-        created_at: now.clone(),
-        updated_at: now,
-    };
-
     let updated_views = if let Some(row) = existing {
-        // Deserialize existing filters
         let mut views_data: api::SavedViewsData =
             serde_json::from_value(row.data_value.peek().clone())
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("Error deserializing saved views")?;
 
-        // Check max limit
         if views_data.views.len() >= MAX_SAVED_VIEWS {
             return Err(report!(UserErrors::MaxSavedViewsReached))
                 .attach_printable("Maximum of 5 saved views reached");
         }
 
-        // Check duplicate name (case-insensitive)
         let name_lower = request.view_name.to_lowercase();
         if views_data
             .views
             .iter()
-            .any(|v| v.view_name.to_lowercase() == name_lower)
+            .any(|v| v.get_view_name().map(|n| n.to_lowercase()) == Some(name_lower.clone()))
         {
             return Err(report!(UserErrors::SavedViewNameAlreadyExists))
                 .attach_printable("A saved view with this name already exists");
         }
 
-        views_data.views.push(new_view);
+        views_data.views.push(api::ResilientSavedView::Parsed(new_view.clone()));
 
         let filters_json =
             serde_json::to_value(&views_data).change_context(UserErrors::InternalServerError)?;
 
-        // Update the existing row
         state
             .store
             .update_metadata(
@@ -970,13 +964,11 @@ pub async fn create_saved_view(
 
         views_data.views
     } else {
-        // Insert new row
         let views_data = api::SavedViewsData {
-            views: vec![new_view],
+            views: vec![api::ResilientSavedView::Parsed(new_view.clone())],
         };
         let filters_json =
             serde_json::to_value(&views_data).change_context(UserErrors::InternalServerError)?;
-        let now_ts = common_utils::date_time::now();
 
         state
             .store
@@ -987,9 +979,9 @@ pub async fn create_saved_view(
                 data_key,
                 data_value: Secret::from(filters_json),
                 created_by: user.user_id.clone(),
-                created_at: now_ts,
+                created_at: now,
                 last_modified_by: user.user_id,
-                last_modified_at: now_ts,
+                last_modified_at: now,
                 profile_id,
             })
             .await
@@ -998,9 +990,15 @@ pub async fn create_saved_view(
         views_data.views
     };
 
+
+    let final_views: Vec<api::SavedView> = updated_views.into_iter().filter_map(|v| match v {
+        api::ResilientSavedView::Parsed(parsed) => Some(parsed),
+        api::ResilientSavedView::Raw(_) => None,
+    }).collect();
+
     Ok(ApplicationResponse::Json(api::SavedViewResponse {
-        count: updated_views.len(),
-        views: updated_views,
+        count: final_views.len(),
+        views: final_views,
     }))
 }
 
@@ -1031,7 +1029,14 @@ pub async fn list_saved_views(
                 serde_json::from_value(row.data_value.peek().clone())
                     .change_context(UserErrors::InternalServerError)
                     .attach_printable("Error deserializing saved views")?;
-            views_data.views
+            
+            views_data.views.into_iter().filter_map(|v| match v {
+                api::ResilientSavedView::Parsed(parsed) => Some(parsed),
+                api::ResilientSavedView::Raw(raw) => {
+                    logger::warn!("Preserving schema-corrupted view from UI response for user {}: {:?}", user.user_id, raw);
+                    None
+                },
+            }).collect()
         }
         None => vec![],
     };
@@ -1074,12 +1079,18 @@ pub async fn update_saved_view(
     let view = views_data
         .views
         .iter_mut()
-        .find(|v| v.view_name.to_lowercase() == name_lower)
+        .find(|v| v.get_view_name().map(|n| n.to_lowercase()) == Some(name_lower.clone()))
         .ok_or(report!(UserErrors::SavedViewNotFound))
         .attach_printable("Saved view with this name not found")?;
 
-    view.data = request.data;
-    view.updated_at = common_utils::date_time::now().to_string();
+
+    *view = api::ResilientSavedView::Parsed(api::SavedView {
+        version: api::SavedViewVersion::V1,
+        view_name: request.view_name.clone(),
+        data: request.data,
+        created_at: common_utils::date_time::now().to_string(), 
+        updated_at: common_utils::date_time::now().to_string(),
+    });
 
     let filters_json =
         serde_json::to_value(&views_data).change_context(UserErrors::InternalServerError)?;
@@ -1101,9 +1112,14 @@ pub async fn update_saved_view(
         .await
         .change_context(UserErrors::InternalServerError)?;
 
+    let final_views: Vec<api::SavedView> = views_data.views.into_iter().filter_map(|v| match v {
+        api::ResilientSavedView::Parsed(parsed) => Some(parsed),
+        api::ResilientSavedView::Raw(_) => None,
+    }).collect();
+
     Ok(ApplicationResponse::Json(api::SavedViewResponse {
-        count: views_data.views.len(),
-        views: views_data.views,
+        count: final_views.len(),
+        views: final_views,
     }))
 }
 
@@ -1139,7 +1155,7 @@ pub async fn delete_saved_view(
     let initial_len = views_data.views.len();
     views_data
         .views
-        .retain(|v| v.view_name.to_lowercase() != name_lower);
+        .retain(|v| v.get_view_name().map(|n| n.to_lowercase()) != Some(name_lower.clone()));
 
     if views_data.views.len() == initial_len {
         return Err(report!(UserErrors::SavedViewNotFound))
@@ -1166,8 +1182,13 @@ pub async fn delete_saved_view(
         .await
         .change_context(UserErrors::InternalServerError)?;
 
+    let final_views: Vec<api::SavedView> = views_data.views.into_iter().filter_map(|v| match v {
+        api::ResilientSavedView::Parsed(parsed) => Some(parsed),
+        api::ResilientSavedView::Raw(_) => None,
+    }).collect();
+
     Ok(ApplicationResponse::Json(api::SavedViewResponse {
-        count: views_data.views.len(),
-        views: views_data.views,
+        count: final_views.len(),
+        views: final_views,
     }))
 }

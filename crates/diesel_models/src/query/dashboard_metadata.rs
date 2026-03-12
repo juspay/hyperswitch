@@ -2,7 +2,7 @@ use common_utils::id_type;
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 
 use crate::{
-    enums,
+    enums, errors,
     query::generics,
     schema::dashboard_metadata::dsl,
     user::dashboard_metadata::{
@@ -11,6 +11,50 @@ use crate::{
     },
     PgPooledConn, StorageResult,
 };
+use error_stack::{report, ResultExt};
+
+macro_rules! dashboard_metadata_filter {
+    ($user_id:expr, $profile_id:expr, $merchant_id:expr, $org_id:expr, $data_key:expr, $predicate:ident, $action:block) => {
+        match ($user_id, $profile_id) {
+            (Some(uid), Some(pid)) => {
+                let $predicate = dsl::user_id
+                    .eq(uid.to_owned())
+                    .and(dsl::profile_id.eq(pid.to_owned()))
+                    .and(dsl::merchant_id.eq($merchant_id.to_owned()))
+                    .and(dsl::org_id.eq($org_id.to_owned()))
+                    .and(dsl::data_key.eq($data_key));
+                $action
+            }
+            (Some(uid), None) => {
+                let $predicate = dsl::user_id
+                    .eq(uid.to_owned())
+                    .and(dsl::profile_id.is_null())
+                    .and(dsl::merchant_id.eq($merchant_id.to_owned()))
+                    .and(dsl::org_id.eq($org_id.to_owned()))
+                    .and(dsl::data_key.eq($data_key));
+                $action
+            }
+            (None, Some(pid)) => {
+                let $predicate = dsl::user_id
+                    .is_null()
+                    .and(dsl::profile_id.eq(pid.to_owned()))
+                    .and(dsl::merchant_id.eq($merchant_id.to_owned()))
+                    .and(dsl::org_id.eq($org_id.to_owned()))
+                    .and(dsl::data_key.eq($data_key));
+                $action
+            }
+            (None, None) => {
+                let $predicate = dsl::user_id
+                    .is_null()
+                    .and(dsl::profile_id.is_null())
+                    .and(dsl::merchant_id.eq($merchant_id.to_owned()))
+                    .and(dsl::org_id.eq($org_id.to_owned()))
+                    .and(dsl::data_key.eq($data_key));
+                $action
+            }
+        }
+    };
+}
 
 impl DashboardMetadataNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<DashboardMetadata> {
@@ -30,14 +74,14 @@ impl DashboardMetadata {
     ) -> StorageResult<Self> {
         let changeset = DashboardMetadataUpdateInternal::from(dashboard_metadata_update);
 
-        match (user_id, profile_id) {
-            (Some(uid), Some(pid)) => {
-                let predicate = dsl::merchant_id
-                    .eq(merchant_id)
-                    .and(dsl::org_id.eq(org_id))
-                    .and(dsl::data_key.eq(data_key))
-                    .and(dsl::user_id.eq(uid))
-                    .and(dsl::profile_id.eq(pid));
+        dashboard_metadata_filter!(
+            user_id.as_ref(),
+            profile_id.as_ref(),
+            merchant_id,
+            org_id,
+            data_key,
+            predicate,
+            {
                 generics::generic_update_with_unique_predicate_get_result::<
                     <Self as HasTable>::Table,
                     _,
@@ -45,53 +89,13 @@ impl DashboardMetadata {
                     _,
                 >(conn, predicate, changeset)
                 .await
+                .map_err(|e| match e.current_context() {
+                    errors::DatabaseError::NotFound => report!(errors::DatabaseError::NotFound),
+                    _ => e,
+                })
+                .attach_printable("Error while updating dashboard metadata")
             }
-            (Some(uid), None) => {
-                let predicate = dsl::merchant_id
-                    .eq(merchant_id)
-                    .and(dsl::org_id.eq(org_id))
-                    .and(dsl::data_key.eq(data_key))
-                    .and(dsl::user_id.eq(uid))
-                    .and(dsl::profile_id.is_null());
-                generics::generic_update_with_unique_predicate_get_result::<
-                    <Self as HasTable>::Table,
-                    _,
-                    _,
-                    _,
-                >(conn, predicate, changeset)
-                .await
-            }
-            (None, Some(pid)) => {
-                let predicate = dsl::merchant_id
-                    .eq(merchant_id)
-                    .and(dsl::org_id.eq(org_id))
-                    .and(dsl::data_key.eq(data_key))
-                    .and(dsl::user_id.is_null())
-                    .and(dsl::profile_id.eq(pid));
-                generics::generic_update_with_unique_predicate_get_result::<
-                    <Self as HasTable>::Table,
-                    _,
-                    _,
-                    _,
-                >(conn, predicate, changeset)
-                .await
-            }
-            (None, None) => {
-                let predicate = dsl::merchant_id
-                    .eq(merchant_id)
-                    .and(dsl::org_id.eq(org_id))
-                    .and(dsl::data_key.eq(data_key))
-                    .and(dsl::user_id.is_null())
-                    .and(dsl::profile_id.is_null());
-                generics::generic_update_with_unique_predicate_get_result::<
-                    <Self as HasTable>::Table,
-                    _,
-                    _,
-                    _,
-                >(conn, predicate, changeset)
-                .await
-            }
-        }
+        )
     }
 
     pub async fn find_user_scoped_dashboard_metadata(
@@ -146,45 +150,25 @@ impl DashboardMetadata {
         profile_id: Option<String>,
         data_key: enums::DashboardMetadata,
     ) -> StorageResult<Option<Self>> {
-        // Use conditional predicate for profile_id to avoid is_not_distinct_from
-        match profile_id {
-            Some(pid) => {
-                let predicate = dsl::user_id
-                    .eq(user_id)
-                    .and(dsl::merchant_id.eq(merchant_id))
-                    .and(dsl::org_id.eq(org_id))
-                    .and(dsl::profile_id.eq(pid))
-                    .and(dsl::data_key.eq(data_key));
-
-                generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
-                    conn,
-                    predicate,
-                    None,
-                    None,
-                    Some(dsl::last_modified_at.asc()),
+        println!("\n\n\n\nuser_id: {:?}", user_id);
+        println!("merchant_id: {:?}", merchant_id);
+        println!("org_id: {:?}", org_id);
+        println!("profile_id: {:?}", profile_id);
+        println!("data_key: {:?}\n\n\n\n", data_key);
+        dashboard_metadata_filter!(
+            Some(&user_id),
+            profile_id.as_ref(),
+            merchant_id,
+            org_id,
+            data_key,
+            predicate,
+            {
+                generics::generic_find_one_optional::<<Self as HasTable>::Table, _, _>(
+                    conn, predicate,
                 )
                 .await
-                .map(|mut results| results.pop())
             }
-            None => {
-                let predicate = dsl::user_id
-                    .eq(user_id)
-                    .and(dsl::merchant_id.eq(merchant_id))
-                    .and(dsl::org_id.eq(org_id))
-                    .and(dsl::profile_id.is_null())
-                    .and(dsl::data_key.eq(data_key));
-
-                generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
-                    conn,
-                    predicate,
-                    None,
-                    None,
-                    Some(dsl::last_modified_at.asc()),
-                )
-                .await
-                .map(|mut results| results.pop())
-            }
-        }
+        )
     }
 
     pub async fn delete_all_user_scoped_dashboard_metadata_by_merchant_id(

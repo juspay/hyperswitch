@@ -224,11 +224,11 @@ pub fn separate_metadata_type_based_on_scope(
             | DBEnum::IsMultipleConfiguration
             | DBEnum::ReconStatus
             | DBEnum::ProdIntent
-            | DBEnum::Payments
-            | DBEnum::Refunds
-            | DBEnum::Customers
-            | DBEnum::Disputes
-            | DBEnum::Payouts => merchant_scoped.push(key),
+            | DBEnum::PaymentViews
+            | DBEnum::RefundViews
+            | DBEnum::CustomerViews
+            | DBEnum::DisputeViews
+            | DBEnum::PayoutViews => merchant_scoped.push(key),
             DBEnum::Feedback | DBEnum::IsChangePasswordRequired => user_scoped.push(key),
         }
     }

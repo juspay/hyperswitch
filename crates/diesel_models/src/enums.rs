@@ -237,11 +237,11 @@ pub enum DashboardMetadata {
     IsChangePasswordRequired,
     OnboardingSurvey,
     ReconStatus,
-    Payments,
-    Refunds,
-    Customers,
-    Disputes,
-    Payouts,
+    PaymentViews,
+    RefundViews,
+    CustomerViews,
+    DisputeViews,
+    PayoutViews,
 }
 
 #[derive(
