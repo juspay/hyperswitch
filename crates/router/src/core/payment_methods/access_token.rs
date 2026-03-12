@@ -12,7 +12,7 @@ use crate::{
     services,
     types::{
         self,
-        api::{self as api_types, ConnectorCommon}
+        api::{self as api_types, ConnectorCommon},
     },
 };
 
