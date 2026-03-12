@@ -1533,7 +1533,7 @@ fn create_stripe_payment_method(
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
         | PaymentMethodData::CardWithOptionalCVC(_)
-            | PaymentMethodData::CardWithLimitedDetails(_)
+        | PaymentMethodData::CardWithLimitedDetails(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => Err(
             ConnectorError::NotImplemented(get_unimplemented_payment_method_error_message(
@@ -2006,7 +2006,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                         | PaymentMethodData::NetworkToken(_)
                         | PaymentMethodData::Card(_)
                         | PaymentMethodData::CardWithOptionalCVC(_)
-            | PaymentMethodData::CardWithLimitedDetails(_)
+                        | PaymentMethodData::CardWithLimitedDetails(_)
                         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(
                             _,
                         )

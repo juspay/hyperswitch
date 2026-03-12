@@ -10012,8 +10012,7 @@ where
             None,
             None,
             Some(api::MandateTransactionType::RecurringMandateTransaction),
-        ) if token_data.is_some() || is_payment_method_modular_allowed =>
-        {
+        ) if token_data.is_some() || is_payment_method_modular_allowed => {
             if token_data.is_none() {
                 logger::debug!("euclid_routing: modular fallback token-MIT path selected");
             }
