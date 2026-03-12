@@ -687,7 +687,11 @@ pub async fn create_new_authentication(
 
     state
         .store
-        .insert_authentication(&key_manager_state, processor.get_key_store(), new_authentication)
+        .insert_authentication(
+            &key_manager_state,
+            processor.get_key_store(),
+            new_authentication,
+        )
         .await
         .to_duplicate_response(ApiErrorResponse::GenericDuplicateError {
             message: format!(
