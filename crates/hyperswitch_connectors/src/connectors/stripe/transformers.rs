@@ -2321,24 +2321,6 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
         } else {
             None
         };
-        let external_three_ds_data =
-            item.request
-                .authentication_data
-                .clone()
-                .map(|data| StripeExternalThreeDsData {
-                    three_ds_version: data.message_version.map(|version| version.to_string()),
-                    electronic_commerce_indicator: data.eci,
-                    cryptogram: data.cavv,
-                    transaction_id: data.ds_trans_id,
-                    ares_trans_status: data.transaction_status,
-                    exemption_indicator: data.exemption_indicator.and_then(|risk| match risk {
-                        common_enums::ExemptionIndicator::LowRiskProgram => {
-                            Some(StripeThreeDsExemptionIndicator::LowRisk)
-                        }
-                        _ => None,
-                    }),
-                    error_on_requires_action: true,
-                });
 
         Ok(Self {
             amount,                                      //hopefully we don't loose some cents here
