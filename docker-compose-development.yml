@@ -73,6 +73,24 @@ services:
     environment:
       - API_HOSTNAME=http://localhost:8081
 
+  superposition-init:
+    image: alpine:latest
+    depends_on:
+      superposition:
+        condition: service_started
+    networks:
+      - router_net
+    volumes:
+      - ./config/superposition_seed.json:/seed.json:ro
+      - ./scripts/seed_superposition.sh:/seed_superposition.sh:ro
+    environment:
+      - SUPERPOSITION_URL=http://superposition:8080
+      - SEED_FILE=/seed.json
+      - WORKSPACE_ID=dev
+      - ORG_ID=localorg
+    command: sh -c "apk add --no-cache curl jq && sh /seed_superposition.sh"
+    restart: "no"
+
   ### Application services
   hyperswitch-server:
     build:
@@ -99,6 +117,8 @@ services:
         condition: service_healthy
       redis-standalone:
         condition: service_healthy
+      superposition-init:
+        condition: service_completed_successfully
     labels:
       logs: "promtail"
     healthcheck:
