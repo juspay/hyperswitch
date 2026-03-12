@@ -2145,7 +2145,7 @@ pub async fn perform_cgraph_filtering(
 
 #[cfg(feature = "v1")]
 fn is_installment_payment(payment_data: &routing::PaymentsDslInput<'_>) -> bool {
-    payment_data.payment_intent.installment_options.is_some()
+    payment_data.payment_attempt.installment_data.is_some()
 }
 
 #[cfg(feature = "v1")]
