@@ -842,7 +842,7 @@ impl RequiredField {
                 RequiredFieldInfo {
                     required_field: "payment_method_data.gift_card.givex.number".to_string(),
                     display_name: "gift_card_number".to_string(),
-                    field_type: FieldType::UserGiftCardNumber,
+                    field_type: FieldType::UserCardNumber,
                     value: None,
                 },
             ),
@@ -851,7 +851,7 @@ impl RequiredField {
                 RequiredFieldInfo {
                     required_field: "payment_method_data.gift_card.givex.cvc".to_string(),
                     display_name: "gift_card_cvc".to_string(),
-                    field_type: FieldType::UserGiftCardPin,
+                    field_type: FieldType::UserCardCvc,
                     value: None,
                 },
             ),
