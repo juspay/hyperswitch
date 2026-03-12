@@ -423,8 +423,7 @@ impl Connector {
             | Self::Payjustnow
             | Self::Payjustnowinstore
             | Self::Phonepe => false,
-                   Self::Stripe |
-            Self::Checkout |Self::Zift| Self::Nmi |Self::Braintree|
+            Self::Stripe | Self::Checkout | Self::Zift | Self::Nmi | Self::Braintree|
             Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen => true,
         }
     }
