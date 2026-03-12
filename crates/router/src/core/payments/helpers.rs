@@ -88,7 +88,7 @@ use crate::{
     consts::{self, BASE64_ENGINE},
     core::{
         authentication,
-        configs::dimension_state::DimensionsWithMerchantId,
+        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers::MandateGenericData,
         payment_methods::{
@@ -1903,7 +1903,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     _payment_data: &mut PaymentData<F>,
     _req: Option<CustomerDetails>,
     _provider: &domain::Provider,
-    _dimensions: DimensionsWithMerchantId,
+    _dimensions: DimensionsWithMerchantIdAndProfileId,
 ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
     todo!()
 }
@@ -1918,7 +1918,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     req: Option<CustomerDetails>,
     provider: &domain::Provider,
     initiator: Option<&domain::Initiator>,
-    dimensions: DimensionsWithMerchantId,
+    dimensions: DimensionsWithMerchantIdAndProfileId,
 ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
     let merchant_id = provider.get_account().get_id();
     let storage_scheme = provider.get_account().storage_scheme;
@@ -3031,6 +3031,7 @@ pub async fn fetch_network_token_details_from_locker(
         card_issuing_country: None,
         bank_code: None,
         eci: None,
+        par: None,
     };
     Ok(network_token_data)
 }
@@ -6311,7 +6312,7 @@ pub fn get_debit_routing_savings_amount(
 #[cfg(all(feature = "retry", feature = "v1"))]
 pub async fn get_apple_pay_retryable_connectors(
     state: &SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     creds_identifier: Option<&str>,
     pre_routing_connector_data_list: &[api::ConnectorRoutingData],
     merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
@@ -6325,7 +6326,7 @@ pub async fn get_apple_pay_retryable_connectors(
 
     let merchant_connector_account_type = get_merchant_connector_account(
         state,
-        platform.get_processor(),
+        processor,
         creds_identifier,
         profile_id,
         &pre_decided_connector_data_first
@@ -6345,9 +6346,9 @@ pub async fn get_apple_pay_retryable_connectors(
         let merchant_connector_account_list = state
             .store
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-                platform.get_processor().get_account().get_id(),
+                processor.get_account().get_id(),
                 false,
-                platform.get_processor().get_key_store(),
+                processor.get_key_store(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
@@ -8526,12 +8527,14 @@ pub fn validate_platform_request_for_marketplace(
 ///
 /// This ensures parent (org) rules take precedence over child (merchant) configurations
 pub async fn is_merchant_eligible_authentication_service(
-    merchant_id: &id_type::MerchantId,
-    org_id: &id_type::OrganizationId,
+    processor: &domain::Processor,
     state: &SessionState,
 ) -> RouterResult<bool> {
     let db = &*state.store;
-    let org_key = org_id.get_authentication_service_eligible_key();
+    let org_key = processor
+        .get_account()
+        .get_org_id()
+        .get_authentication_service_eligible_key();
     let org_eligible = db
         .find_config_by_key(&org_key)
         .await
@@ -8543,7 +8546,10 @@ pub async fn is_merchant_eligible_authentication_service(
 
     Ok(org_eligible
         .async_unwrap_or_else(|| async {
-            let merchant_key = merchant_id.get_authentication_service_eligible_key();
+            let merchant_key = processor
+                .get_account()
+                .get_id()
+                .get_authentication_service_eligible_key();
             db.find_config_by_key(&merchant_key)
                 .await
                 .inspect_err(|error| {

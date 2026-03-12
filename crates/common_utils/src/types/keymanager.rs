@@ -89,6 +89,10 @@ impl KeyManagerState {
             infra_values
         })
     }
+
+    pub fn is_encryption_service_enabled(&self) -> bool {
+        cfg!(feature = "encryption_service") && self.enabled
+    }
 }
 
 pub trait GetKeymanagerTenant {

@@ -15000,6 +15000,7 @@
           "dlocal",
           "dwolla",
           "ebanx",
+          "envoy",
           "elavon",
           "facilitapay",
           "finix",
@@ -20982,7 +20983,7 @@
           "interest_rate": {
             "type": "number",
             "format": "double",
-            "description": "Interest rate per installment as a percentage max 2 decimal places\n"
+            "description": "Interest rate per installment as a percentage max 2 decimal places"
           }
         }
       },
@@ -23511,6 +23512,11 @@
             "type": "string",
             "description": "The ECI(Electronic Commerce Indicator) value for this authentication.",
             "nullable": true
+          },
+          "par": {
+            "type": "string",
+            "description": "The Payment Account Reference (PAR) for this card.",
+            "nullable": true
           }
         }
       },
@@ -23563,6 +23569,11 @@
           "card_holder_name": {
             "type": "string",
             "description": "The card holder's name",
+            "nullable": true
+          },
+          "par": {
+            "type": "string",
+            "description": "The Payment Account Reference (PAR) for this card",
             "nullable": true
           }
         }
@@ -23975,6 +23986,11 @@
               },
               "border_color": {
                 "type": "string",
+                "nullable": true
+              },
+              "raw_qr_data": {
+                "type": "string",
+                "description": "The raw QR code data (EMV copy and paste) used for Brazilian payment methods like Pix",
                 "nullable": true
               },
               "type": {
@@ -27152,6 +27168,197 @@
           "jp_bacs"
         ]
       },
+      "PaymentMethodListInstallmentAmountDetails": {
+        "type": "object",
+        "description": "Amount breakdown for a single installment plan",
+        "required": [
+          "amount_per_installment",
+          "total_amount"
+        ],
+        "properties": {
+          "amount_per_installment": {
+            "type": "number",
+            "format": "double",
+            "description": "Amount charged per installment in major units"
+          },
+          "total_amount": {
+            "type": "number",
+            "format": "double",
+            "description": "Total amount across all installments in major units (may differ slightly from order amount due to ceiling)"
+          }
+        }
+      },
+      "PaymentMethodListInstallmentOption": {
+        "type": "object",
+        "description": "Installment options for a payment method, as returned in the payment method list response",
+        "required": [
+          "payment_method",
+          "available_plans"
+        ],
+        "properties": {
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "available_plans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentMethodListInstallmentPlan"
+            },
+            "description": "Individual installment plans with computed amounts"
+          }
+        }
+      },
+      "PaymentMethodListInstallmentPlan": {
+        "type": "object",
+        "description": "A single installment plan with pre-computed amount breakdown",
+        "required": [
+          "number_of_installments",
+          "billing_frequency",
+          "interest_rate",
+          "amount_details"
+        ],
+        "properties": {
+          "number_of_installments": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of installments for this plan",
+            "minimum": 0
+          },
+          "billing_frequency": {
+            "$ref": "#/components/schemas/BillingFrequency"
+          },
+          "interest_rate": {
+            "type": "number",
+            "format": "double",
+            "description": "Interest rate as a percentage"
+          },
+          "amount_details": {
+            "$ref": "#/components/schemas/PaymentMethodListInstallmentAmountDetails"
+          }
+        }
+      },
+      "PaymentMethodListIntentData": {
+        "type": "object",
+        "description": "Intent-only payment details returned as part of the Payment Method List response",
+        "required": [
+          "payment_id",
+          "status",
+          "amount",
+          "attempt_count"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "Unique identifier for the payment"
+          },
+          "status": {
+            "$ref": "#/components/schemas/IntentStatus"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "currency": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
+            "nullable": true
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "Client secret for client-side payment confirmation",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "A description for the payment",
+            "nullable": true
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "The customer identifier",
+            "nullable": true
+          },
+          "return_url": {
+            "type": "string",
+            "description": "The URL to redirect to after payment completion",
+            "nullable": true
+          },
+          "setup_future_usage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FutureUsage"
+              }
+            ],
+            "nullable": true
+          },
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "shipping": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Additional metadata",
+            "nullable": true
+          },
+          "order_details": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            },
+            "description": "Order details for the payment",
+            "nullable": true
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the payment was created",
+            "nullable": true
+          },
+          "expires_on": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the client secret expires",
+            "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The profile identifier",
+            "nullable": true
+          },
+          "merchant_order_reference_id": {
+            "type": "string",
+            "description": "Merchant-provided reference identifier",
+            "nullable": true
+          },
+          "attempt_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of payment attempts made"
+          },
+          "installment_options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentMethodListInstallmentOption"
+            },
+            "description": "Installment options available for this payment",
+            "nullable": true
+          }
+        }
+      },
       "PaymentMethodListResponse": {
         "type": "object",
         "required": [
@@ -27225,6 +27432,14 @@
           "is_guest_customer": {
             "type": "boolean",
             "description": "indicates whether this is a guest customer flow"
+          },
+          "intent_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodListIntentData"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -32439,7 +32654,8 @@
           "truelayer",
           "wise",
           "worldpay",
-          "worldpayxml"
+          "worldpayxml",
+          "envoy"
         ]
       },
       "PayoutCreatePayoutLinkConfig": {
@@ -36770,6 +36986,7 @@
           "dwolla",
           "ebanx",
           "elavon",
+          "envoy",
           "facilitapay",
           "finix",
           "fiserv",
