@@ -67,22 +67,25 @@ impl TryFrom<&FiservcommercehubRouterData<&PaymentsAuthorizeRouterData>>
 // Auth Struct
 pub struct FiservcommercehubAuthType {
     pub api_key: Secret<String>,
-    pub client_request_id: Secret<String>,
-    pub authorization: Secret<String>,
+    pub merchant_id: Secret<String>,
+    pub secret: Secret<String>,
+    pub terminal_id: Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for FiservcommercehubAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::SignatureKey {
+            ConnectorAuthType::MultiAuthKey {
                 api_key,
                 key1,
                 api_secret,
+                key2,
             } => Ok(Self {
                 api_key: api_key.to_owned(),
-                client_request_id: key1.to_owned(),
-                authorization: api_secret.to_owned(),
+                merchant_id: key1.to_owned(),
+                secret: api_secret.to_owned(),
+                terminal_id: key2.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
