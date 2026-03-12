@@ -4,7 +4,11 @@ use super::{
     dimension_state::{DimensionsWithMerchantId, DimensionsWithMerchantIdAndProfileId},
     fetch_db_config_for_dimensions, DatabaseBackedConfig,
 };
-use crate::{consts::superposition as superposition_consts, db::StorageInterface, utils::id_type};
+use crate::{
+    consts::superposition as superposition_consts,
+    core::configs::dimension_state::DimensionsWithMerchantIdAndConnector, db::StorageInterface,
+    utils::id_type,
+};
 
 /// Macro to generate config struct and superposition::Config trait implementation.
 /// Note: Manually implement `DatabaseBackedConfig` for the config struct:
@@ -149,5 +153,28 @@ impl DatabaseBackedConfig for ImplicitCustomerUpdate {
             .map(|id| id.get_string_repr())
             .unwrap_or_default();
         Some(format!("{}_{}", merchant_id, Self::KEY))
+    }
+}
+
+config! {
+    superposition_key = PAYOUT_TRACKER_MAPPING,
+    output = serde_json::Value,
+    default = serde_json::Value::default(),
+    requires = DimensionsWithMerchantIdAndConnector,
+    targeting_key = id_type::PayoutId
+}
+
+impl DatabaseBackedConfig for PayoutTrackerMapping {
+    const KEY: &'static str = "payout_tracker_mapping";
+    fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+        let merchant_id = dimensions
+            .get_merchant_id()
+            .map(|id| id.get_string_repr())
+            .unwrap_or_default();
+        let connector = dimensions
+            .get_connector()
+            .map(|connector| connector.to_string())
+            .unwrap_or_default();
+        Some(format!("{}_{}_{}", merchant_id, connector, Self::KEY))
     }
 }

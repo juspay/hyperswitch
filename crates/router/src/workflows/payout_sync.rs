@@ -1,7 +1,7 @@
 use common_enums::enums;
 use common_utils::{
     consts::DEFAULT_LOCALE,
-    ext_traits::{OptionExt, StringExt, ValueExt},
+    ext_traits::{OptionExt, ValueExt},
 };
 use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;
@@ -12,11 +12,10 @@ use scheduler::{
 };
 
 use crate::{
-    core::{payouts, webhooks},
-    db::StorageInterface,
+    core::{configs, payouts, webhooks},
     errors as core_errors,
     routes::SessionState,
-    types::{api, domain, storage},
+    types::{self, api, domain, storage},
 };
 
 pub struct PayoutSyncWorkFlow;
@@ -107,7 +106,14 @@ impl ProcessTrackerWorkflow<SessionState> for PayoutSyncWorkFlow {
             )
             .await?;
         } else {
-            Self::retry_payout_sync_task(db, connector_name, merchant_id.clone(), process).await?;
+            Self::retry_payout_sync_task(
+                state,
+                connector_data.connector_name,
+                payout_data.payouts.payout_id,
+                merchant_id.clone(),
+                process,
+            )
+            .await?;
         }
 
         Ok(())
@@ -144,34 +150,46 @@ impl PayoutSyncWorkFlow {
     /// `frequencies`: Do 5 retries with an interval of 300 seconds between them.
     ///     After than do 2 retries with an interval of 1800 seconds.
     pub async fn get_payout_sync_process_schedule_time(
-        db: &dyn StorageInterface,
-        connector: &str,
-        merchant_id: &common_utils::id_type::MerchantId,
+        state: &SessionState,
+        connector: types::Connector,
+        payout_id: common_utils::id_type::PayoutId,
+        merchant_id: common_utils::id_type::MerchantId,
         retry_count: i32,
     ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
-        let mapping: common_utils::errors::CustomResult<
-            process_data::ConnectorPTMapping,
-            core_errors::StorageError,
-        > = db
-            .find_config_by_key(&format!("payout_tracker_mapping_{connector}"))
-            .await
-            .map(|value| value.config)
-            .and_then(|config| {
-                config
-                    .parse_struct("ConnectorPTMapping")
-                    .change_context(core_errors::StorageError::DeserializationFailed)
-            });
-        let mapping = match mapping {
-            Ok(x) => x,
+        let dimensions = configs::dimension_state::Dimensions::new()
+            .with_merchant_id(merchant_id)
+            .with_connector(connector);
+
+        let value = dimensions
+            .get_payout_tracker_mapping(
+                state.store.as_ref(),
+                state.superposition_service.as_deref(),
+                Some(&payout_id),
+            )
+            .await;
+
+        let mapping = match value.parse_value("RetryMapping") {
+            Ok(value) => value,
             Err(error) => {
                 router_env::logger::info!(?error, "Redis Mapping Error");
-                process_data::ConnectorPTMapping::default()
+                process_data::RetryMapping::default()
             }
         };
 
-        let time_delta = scheduler_utils::get_schedule_time(mapping, merchant_id, retry_count);
+        let time_delta = Self::get_schedule_time(mapping, retry_count);
 
         Ok(scheduler_utils::get_time_from_delta(time_delta))
+    }
+
+    /// get the schedule time for next process
+    #[cfg(feature = "v1")]
+    pub fn get_schedule_time(mapping: process_data::RetryMapping, retry_count: i32) -> Option<i32> {
+        // For first try, get the `start_after` time
+        if retry_count == 0 {
+            Some(mapping.start_after)
+        } else {
+            scheduler_utils::get_delay(retry_count, &mapping.frequencies)
+        }
     }
 
     /// process the task if the status is terminal
@@ -221,18 +239,22 @@ impl PayoutSyncWorkFlow {
 
     /// Schedule the task for retry
     pub async fn retry_payout_sync_task(
-        db: &dyn StorageInterface,
-        connector: String,
+        state: &SessionState,
+        connector: types::Connector,
+        payout_id: common_utils::id_type::PayoutId,
         merchant_id: common_utils::id_type::MerchantId,
         pt: storage::ProcessTracker,
     ) -> Result<(), errors::ProcessTrackerError> {
-        let schedule_time = Self::get_payout_sync_process_schedule_time(
-            db,
-            &connector,
-            &merchant_id,
-            pt.retry_count + 1,
-        )
-        .await?;
+        let db = &*state.store;
+        let schedule_time: Option<time::PrimitiveDateTime> =
+            Self::get_payout_sync_process_schedule_time(
+                state,
+                connector,
+                payout_id,
+                merchant_id,
+                pt.retry_count + 1,
+            )
+            .await?;
 
         match schedule_time {
             Some(s_time) => {

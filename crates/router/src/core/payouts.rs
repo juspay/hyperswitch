@@ -86,33 +86,6 @@ pub struct PayoutData {
     pub browser_info: Option<domain_models::router_request_types::BrowserInformation>,
 }
 
-impl PayoutData {
-    pub fn should_add_task_to_process_tracker(
-        &self,
-        state: &SessionState,
-        connector_name: common_enums::connector_enums::Connector,
-    ) -> bool {
-        match self.payouts.payout_type {
-            Some(payout_type) => {
-                self.payout_attempt.status.is_non_terminal_status()
-                    && state
-                        .conf
-                        .payout_sync_process_tracker
-                        .supported_payout_methods
-                        .0
-                        .get(&payout_type)
-                        .map(|supported_connectors_for_payouts| {
-                            supported_connectors_for_payouts
-                                .connector_list
-                                .contains(&connector_name)
-                        })
-                        .unwrap_or(false)
-            }
-            None => false,
-        }
-    }
-}
-
 // ********************************************** CORE FLOWS **********************************************
 pub fn get_next_connector(
     connectors: &mut IntoIter<api::ConnectorRoutingData>,
@@ -2498,8 +2471,33 @@ pub async fn fulfill_payout(
     .await?;
 
     // 3. Call connector service
+    let db = &*state.store;
     let router_data_resp = match helpers::should_continue_payout(&router_data) {
         true => {
+            let scheduled_time =
+                payout_sync::PayoutSyncWorkFlow::get_payout_sync_process_schedule_time(
+                    state,
+                    connector_data.connector_name,
+                    payout_data.payouts.payout_id.clone(),
+                    payout_data.payouts.merchant_id.clone(),
+                    0,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while getting process schedule time")?;
+
+            // add payout sync task to process tracker
+
+            add_payout_sync_task_to_process_tracker(
+                db,
+                payout_data,
+                scheduled_time,
+                state.conf.application_source,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to add payout sync task to process tracker")?;
+
             let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
                 api::PoFulfill,
                 types::PayoutsData,
@@ -2521,7 +2519,6 @@ pub async fn fulfill_payout(
     };
 
     // 4. Process data returned by the connector
-    let db = &*state.store;
     match router_data_resp.response {
         Ok(payout_response_data) => {
             let status = payout_response_data
@@ -2644,30 +2641,6 @@ pub async fn fulfill_payout(
                 .attach_printable("Error updating payouts in db")?;
         }
     };
-
-    // add payout sync task to process tracker
-    if payout_data.should_add_task_to_process_tracker(state, connector_data.connector_name) {
-        let scheduled_time =
-            payout_sync::PayoutSyncWorkFlow::get_payout_sync_process_schedule_time(
-                db,
-                &connector_data.connector_name.to_string(),
-                &payout_data.payouts.merchant_id,
-                0,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed while getting process schedule time")?;
-
-        add_payout_sync_task_to_process_tracker(
-            db,
-            payout_data,
-            scheduled_time,
-            state.conf.application_source,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to add payout sync task to process tracker")?;
-    }
 
     Ok(())
 }
