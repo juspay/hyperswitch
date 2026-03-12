@@ -633,11 +633,10 @@ impl
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 
         Ok(Self {
-            merchant_customer_id: Some(Identifier {
-                id_type: router_data.customer_id.as_ref().map(|id| {
-                    payments_grpc::identifier::IdType::Id(id.get_string_repr().to_string())
-                }),
-            }),
+            merchant_customer_id: router_data
+                .customer_id
+                .as_ref()
+                .map(|id| id.get_string_repr().to_string()),
             customer_name: router_data
                 .request
                 .name
@@ -679,17 +678,13 @@ impl
             .request
             .connector_transaction_id
             .get_connector_transaction_id()
-            .map(|id| Identifier {
-                id_type: Some(payments_grpc::identifier::IdType::Id(id)),
-            })
             .map_err(|e| {
                 tracing::debug!(
                     transaction_id_error=?e,
                     "Failed to extract connector transaction ID for UCS payment sync request"
                 );
                 e
-            })
-            .ok();
+            })?;
         let connector_order_reference_id = router_data.request.connector_reference_id.clone();
 
         let request_ref_id = Some(Identifier {
@@ -806,11 +801,7 @@ impl
         ))?;
 
         Ok(Self {
-            merchant_session_id: Some(Identifier {
-                id_type: Some(payments_grpc::identifier::IdType::Id(
-                    router_data.connector_request_reference_id.clone(),
-                )),
-            }),
+            merchant_session_id: Some(router_data.connector_request_reference_id.clone()),
             amount: Some(payments_grpc::Money {
                 minor_amount: amount,
                 currency: currency.into(),
@@ -958,11 +949,7 @@ impl
             .transpose()?;
 
         Ok(Self {
-            merchant_order_id: Some(Identifier {
-                id_type: Some(payments_grpc::identifier::IdType::Id(
-                    router_data.connector_request_reference_id.clone(),
-                )),
-            }),
+            merchant_order_id: Some(router_data.connector_request_reference_id.clone()),
             amount: router_data
                 .request
                 .minor_amount
@@ -1126,16 +1113,8 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
-            connector_transaction_id: Some(Identifier {
-                id_type: Some(payments_grpc::identifier::IdType::Id(
-                    connector_transaction_id,
-                )),
-            }),
-            merchant_capture_id: Some(Identifier {
-                id_type: Some(payments_grpc::identifier::IdType::Id(
-                    router_data.connector_request_reference_id.clone(),
-                )),
-            }),
+            connector_transaction_id,
+            merchant_capture_id: Some(router_data.connector_request_reference_id.clone()),
             amount_to_capture: Some(payments_grpc::Money {
                 minor_amount: router_data
                     .request
@@ -1441,11 +1420,7 @@ impl
                 .request
                 .shipping_cost
                 .map(|shipping_cost| shipping_cost.get_amount_as_i64()),
-            merchant_transaction_id: Some(Identifier {
-                id_type: Some(payments_grpc::identifier::IdType::Id(
-                    router_data.connector_request_reference_id.clone(),
-                )),
-            }),
+            merchant_transaction_id: Some(router_data.connector_request_reference_id.clone()),
             metadata,
             test_mode: router_data.test_mode,
             state,
@@ -1835,7 +1810,7 @@ impl
             .map(|pm_type| pm_type.into());
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
-        let mandate_reference_id = match &router_data.request.mandate_id {
+        let connector_recurring_payment_id = match &router_data.request.mandate_id {
             Some(mandate) => match &mandate.mandate_reference_id {
                 Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
                     connector_mandate_id,
@@ -1928,7 +1903,7 @@ impl
         Ok(Self {
             merchant_charge_id: Some(router_data.connector_request_reference_id.clone()),
             payment_method,
-            mandate_reference_id,
+            connector_recurring_payment_id,
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
                 currency: currency.into(),
@@ -1997,6 +1972,25 @@ impl
                 .transpose()?
                 .map(|currency| currency.into()),
             l2_l3_data: None,
+            customer: Some(payments_grpc::Customer {
+                name: router_data
+                    .request
+                    .customer_name
+                    .clone()
+                    .map(|customer_name| customer_name.peek().to_owned()),
+                email: router_data
+                    .request
+                    .email
+                    .clone()
+                    .map(|e| e.expose().expose().into()),
+                id: router_data
+                    .customer_id
+                    .as_ref()
+                    .map(|id| id.get_string_repr().to_string()),
+                connector_customer_id: router_data.connector_customer.clone(),
+                phone_number: None,
+                phone_country_code: None,
+            }),
         })
     }
 }
@@ -2093,16 +2087,8 @@ impl
                 minor_amount: router_data.request.total_amount,
                 currency: currency.into(),
             }),
-            connector_transaction_id: Some(Identifier {
-                id_type: Some(payments_grpc::identifier::IdType::Id(
-                    router_data.request.connector_transaction_id.clone(),
-                )),
-            }),
-            merchant_authorization_id: Some(Identifier {
-                id_type: Some(payments_grpc::identifier::IdType::Id(
-                    router_data.connector_request_reference_id.clone(),
-                )),
-            }),
+            connector_transaction_id: router_data.request.connector_transaction_id.clone(),
+            merchant_authorization_id: Some(router_data.connector_request_reference_id.clone()),
             reason: router_data.request.reason.clone(),
             connector_feature_data: router_data
                 .request
@@ -4013,11 +3999,7 @@ impl transformers::ForeignTryFrom<AuthenticationData> for payments_grpc::Authent
         Ok(Self {
             eci: authentication_data.eci,
             cavv: Some(authentication_data.cavv.expose()),
-            threeds_server_transaction_id: authentication_data.threeds_server_transaction_id.map(
-                |id| Identifier {
-                    id_type: Some(payments_grpc::identifier::IdType::Id(id)),
-                },
-            ),
+            threeds_server_transaction_id: authentication_data.threeds_server_transaction_id,
             message_version: authentication_data
                 .message_version
                 .map(|message_version| message_version.to_string()),
@@ -4049,11 +4031,7 @@ impl transformers::ForeignTryFrom<router_request_types::UcsAuthenticationData>
         Ok(Self {
             eci: authentication_data.eci,
             cavv: authentication_data.cavv.map(ExposeInterface::expose),
-            threeds_server_transaction_id: authentication_data.threeds_server_transaction_id.map(
-                |id| Identifier {
-                    id_type: Some(payments_grpc::identifier::IdType::Id(id)),
-                },
-            ),
+            threeds_server_transaction_id: authentication_data.threeds_server_transaction_id,
             message_version: authentication_data
                 .message_version
                 .map(|message_version| message_version.to_string()),
@@ -5802,14 +5780,12 @@ pub fn build_webhook_transform_request(
         .attach_printable("Failed to transform webhook request details to gRPC format")?;
 
     Ok(EventServiceHandleRequest {
-        merchant_event_id: Some(Identifier {
-            id_type: Some(payments_grpc::identifier::IdType::Id(format!(
-                "{}_{}_{}",
-                merchant_id,
-                connector_id,
-                OffsetDateTime::now_utc().unix_timestamp()
-            ))),
-        }),
+        merchant_event_id: Some(format!(
+            "{}_{}_{}",
+            merchant_id,
+            connector_id,
+            OffsetDateTime::now_utc().unix_timestamp()
+        )),
         request_details: Some(request_details_grpc),
         webhook_secrets,
         state: None,
@@ -5922,18 +5898,6 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
     fn foreign_try_from(
         router_data: &RouterData<RSync, RefundsData, RefundsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let connector_transaction_id = Some(Identifier {
-            id_type: Some(payments_grpc::identifier::IdType::Id(
-                router_data.request.connector_transaction_id.clone(),
-            )),
-        });
-
-        let merchant_refund_id = Some(Identifier {
-            id_type: Some(payments_grpc::identifier::IdType::Id(
-                router_data.connector_request_reference_id.clone(),
-            )),
-        });
-
         let state = router_data
             .access_token
             .as_ref()
@@ -5946,8 +5910,8 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
             .map(|payment_method_type| payment_method_type.into());
 
         Ok(Self {
-            merchant_refund_id,
-            connector_transaction_id,
+            merchant_refund_id: Some(router_data.connector_request_reference_id.clone()),
+            connector_transaction_id: router_data.request.connector_transaction_id.clone(),
             refund_id: router_data.request.connector_refund_id.clone().ok_or(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "Missing connector_refund_id for refund sync operation".to_string(),
