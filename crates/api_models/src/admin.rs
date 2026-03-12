@@ -117,6 +117,10 @@ pub struct MerchantAccountCreate {
     /// Merchant Account Type of this merchant account
     #[schema(value_type = Option<MerchantAccountType>, example = "standard")]
     pub merchant_account_type: Option<api_enums::MerchantAccountType>,
+
+    /// Network tokenization credentials for this merchant account
+    #[schema(value_type = Option<NetworkTokeizationProviderCredentials>)]
+    pub network_tokenization_credentials: Option<NetworkTokeizationProviderCredentials>,
 }
 
 #[cfg(feature = "v1")]
@@ -393,6 +397,10 @@ pub struct MerchantAccountUpdate {
     /// Default payment method collect link config
     #[schema(value_type = Option<BusinessCollectLinkConfig>)]
     pub pm_collect_link_config: Option<BusinessCollectLinkConfig>,
+
+    /// Network tokenization credentials for this merchant account
+    #[schema(value_type = Option<NetworkTokeizationProviderCredentials>)]
+    pub network_tokenization_credentials: Option<NetworkTokeizationProviderCredentials>,
 }
 
 #[cfg(feature = "v1")]
@@ -595,6 +603,10 @@ pub struct MerchantAccountResponse {
     /// Merchant Account Type of this merchant account
     #[schema(value_type = MerchantAccountType, example = "standard")]
     pub merchant_account_type: api_enums::MerchantAccountType,
+
+    /// Network tokenization credentials for this merchant account
+    #[schema(value_type = Option<NetworkTokeizationProviderCredentials>)]
+    pub network_tokenization_credentials: Option<NetworkTokeizationProviderCredentials>,
 }
 
 #[cfg(feature = "v2")]
@@ -676,6 +688,34 @@ pub struct MerchantDetails {
 
     #[schema(value_type = Option<String>, example = "123456789")]
     pub merchant_tax_registration_id: Option<Secret<String>>,
+}
+
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+pub enum NetworkTokeizationProviderCredentials {
+    JuspayTokenService(JuspayNetworkTokenizationCredentials),
+}
+
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+pub struct JuspayNetworkTokenizationCredentials {
+    /// The API key to contact the network tokenization provider
+    #[schema(value_type = String, max_length = 255, example = "AH3423bkjbkjdsfbkj")]
+    pub token_service_api_key: Secret<String>,
+
+    /// The public key to encrypt the card details before sending to the network tokenization provider
+    #[schema(value_type = String, max_length = 255, example = "AH3423bkjbkjdsfbkj")]
+    pub public_key: Secret<String>,
+
+    /// The private key to decrypt the tokenized card details received from the network tokenization provider
+    #[schema(value_type = String, max_length = 255, example = "AH3423bkjbkjdsfbkj")]
+    pub private_key: Secret<String>,
+
+    /// The key_id used in encryption
+    #[schema(value_type = String, max_length = 255, example = "AH3423bkjbkjdsfbkj")]
+    pub key_id: Secret<String>,
 }
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -2276,6 +2316,10 @@ pub struct ProfileCreate {
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
     pub is_l2_l3_enabled: Option<bool>,
+
+    /// Network tokenization credentials for this merchant account
+    #[schema(value_type = Option<NetworkTokeizationProviderCredentials>)]
+    pub network_tokenization_credentials: Option<NetworkTokeizationProviderCredentials>,
 }
 
 #[nutype::nutype(
@@ -2649,6 +2693,10 @@ pub struct ProfileResponse {
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
     pub is_l2_l3_enabled: Option<bool>,
+
+    /// Network tokenization credentials for this merchant account
+    #[schema(value_type = Option<NetworkTokeizationProviderCredentials>)]
+    pub network_tokenization_credentials: Option<NetworkTokeizationProviderCredentials>,
 }
 
 #[cfg(feature = "v2")]
@@ -3025,6 +3073,10 @@ pub struct ProfileUpdate {
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
     pub is_l2_l3_enabled: Option<bool>,
+
+    /// Network tokenization credentials for this merchant account
+    #[schema(value_type = Option<NetworkTokeizationProviderCredentials>)]
+    pub network_tokenization_credentials: Option<NetworkTokeizationProviderCredentials>,
 }
 
 #[cfg(feature = "v2")]
