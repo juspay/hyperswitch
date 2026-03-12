@@ -25,9 +25,9 @@ pub struct UpdatePaymentMethod;
 pub struct UpdatePaymentMethodV1Request {
     /// Identifier for the payment method to update.
     pub payment_method_id: String,
-    /// Typed update payload derived from aggregated data.
-    pub payload: UpdatePaymentMethodV1Payload,
-    pub modular_service_prefix: String,
+    pub payment_method_data: Option<PaymentMethodUpdateData>,
+    pub connector_token_details: Option<ConnectorTokenDetails>,
+    pub network_transaction_id: Option<Secret<String>>,
 }
 
 /// V1-facing update payload.
@@ -158,10 +158,7 @@ impl UpdatePaymentMethod {
         &self,
         request: &UpdatePaymentMethodV1Request,
     ) -> Vec<(&'static str, String)> {
-        vec![
-            ("prefix", request.modular_service_prefix.clone()),
-            ("id", request.payment_method_id.clone()),
-        ]
+        vec![("id", request.payment_method_id.clone())]
     }
 
     fn build_body(&self, request: ModularPMUpdateRequest) -> Option<RequestContent> {
@@ -172,7 +169,7 @@ impl UpdatePaymentMethod {
 hyperswitch_interfaces::impl_microservice_flow!(
     UpdatePaymentMethod,
     method = Method::Put,
-    path = "/{prefix}/payment-methods/{id}/update-saved-payment-method",
+    path = "/v2/payment-methods/{id}/update-saved-payment-method",
     v1_request = UpdatePaymentMethodV1Request,
     v2_request = ModularPMUpdateRequest,
     v2_response = ModularPMRetrieveResponse,

@@ -27,7 +27,6 @@ pub struct CreatePaymentMethodV1Request {
     pub billing: Option<hyperswitch_domain_models::address::Address>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     pub storage_type: Option<common_enums::StorageType>,
-    pub modular_service_prefix: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -198,24 +197,16 @@ impl CreatePaymentMethod {
     fn build_body(&self, request: ModularPMCreateRequest) -> Option<RequestContent> {
         Some(RequestContent::Json(Box::new(request)))
     }
-
-    fn build_path_params(
-        &self,
-        request: &CreatePaymentMethodV1Request,
-    ) -> Vec<(&'static str, String)> {
-        vec![("prefix", request.modular_service_prefix.clone())]
-    }
 }
 
 hyperswitch_interfaces::impl_microservice_flow!(
     CreatePaymentMethod,
     method = Method::Post,
-    path = "/{prefix}/payment-methods",
+    path = "/v2/payment-methods",
     v1_request = CreatePaymentMethodV1Request,
     v2_request = ModularPMCreateRequest,
     v2_response = ModularPaymentMethodResponse,
     v1_response = CreatePaymentMethodResponse,
     client = crate::client::PaymentMethodClient<'_>,
-    body = CreatePaymentMethod::build_body,
-    path_params = CreatePaymentMethod::build_path_params
+    body = CreatePaymentMethod::build_body
 );
