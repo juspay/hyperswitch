@@ -2310,7 +2310,6 @@ pub async fn delete_payment_method_data_from_vault(
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method_from_vault_external_v1(
-    //
     state: &routes::SessionState,
     merchant_id: &id_type::MerchantId,
     pm: &domain::PaymentMethod,
