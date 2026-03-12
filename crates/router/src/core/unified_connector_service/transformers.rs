@@ -2599,7 +2599,7 @@ impl
         let connector_transaction_id = response
             .connector_recurring_payment_id
             .as_ref()
-            .map(|id| router_request_types::ResponseId::ConnectorTransactionId(id))
+            .map(|id| router_request_types::ResponseId::ConnectorTransactionId(id.clone()))
             .unwrap_or(router_request_types::ResponseId::NoResponseId);
 
         let status_code = convert_connector_service_status_code(response.status_code)?;
@@ -2641,7 +2641,7 @@ impl
                 status_code,
                 attempt_status,
                 connector_transaction_id: connector_transaction_id.get_optional_response_id(),
-                connector_response_reference_id: response.merchant_recurring_payment_id.clone(),
+                connector_response_reference_id: None,
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
@@ -5578,13 +5578,7 @@ pub fn transform_ucs_webhook_response(
         event_type,
         source_verified: response.source_verified,
         webhook_content: response.event_response,
-        response_ref_id: response.merchant_event_id.and_then(|identifier| {
-            identifier.id_type.and_then(|id_type| match id_type {
-                payments_grpc::identifier::IdType::Id(id) => Some(id),
-                payments_grpc::identifier::IdType::EncodedData(encoded_data) => Some(encoded_data),
-                payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
-            })
-        }),
+        response_ref_id: response.merchant_event_id,
         webhook_transformation_status,
     })
 }
