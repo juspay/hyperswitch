@@ -1655,7 +1655,8 @@ impl
                     transaction_id: data.ds_trans_id,
                     ares_trans_status: data.transaction_status,
                     exemption_indicator: data.exemption_indicator.and_then(|risk| match risk {
-                        common_enums::ExemptionIndicator::LowRiskProgram => {
+                        common_enums::ExemptionIndicator::LowRiskProgram
+                        | common_enums::ExemptionIndicator::LowRisk => {
                             Some(StripeThreeDsExemptionIndicator::LowRisk)
                         }
                         _ => None,
