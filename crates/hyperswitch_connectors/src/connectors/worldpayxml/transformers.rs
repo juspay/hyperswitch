@@ -35,7 +35,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{consts, errors};
 use josekit;
-use masking::{ExposeInterface, Secret, WithType};
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -931,43 +931,17 @@ fn get_shopper_details(
             time_zone: browser_info.time_zone,
         });
 
-    let authenticated_shopper_i_d =
-        if item.request.payment_method_data == PaymentMethodData::MandatePayment {
-            let mandate_data = item.request.get_connector_mandate_data().ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "mandate_data",
-                },
-            )?;
-
-            let metadata = mandate_data.get_mandate_metadata().ok_or_else(|| {
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "mandate_metadata",
-                }
-            })?;
-
-            let customer_id = metadata
-                .expose()
-                .get("customer_id")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                    field_name: "customer_id in metadata",
-                })?
-                .to_owned();
-
-            Some(Secret::new(customer_id))
-        } else {
-            item.request
-                .is_cit_mandate_payment()
-                .then(|| {
-                    item.get_customer_id()
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "customer_id for authenticatedShopperID",
-                        })
-                        .map(|cid| cid.get_string_repr().to_owned())
-                        .map(Secret::new)
-                })
-                .transpose()?
-        };
+    let authenticated_shopper_i_d = match item.get_connector_customer_id().ok() {
+        Some(id) => Some(Secret::new(id)),
+        None if item.request.payment_method_data == PaymentMethodData::MandatePayment
+            || item.request.is_cit_mandate_payment() =>
+        {
+            Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "connector_customer_id",
+            })?
+        }
+        None => None,
+    };
 
     if shopper_email.is_some() || browser_info.is_some() || authenticated_shopper_i_d.is_some() {
         Ok(Some(WorldpayxmlShopper {
@@ -2832,15 +2806,10 @@ fn process_payment_response(
             connector_metadata: None,
         }))
     } else {
-        let mandate_metadata: Option<Secret<Value, WithType>> = token
-            .as_ref()
-            .map(|token| &token.authenticated_shopper_i_d)
-            .map(|customer_id| Secret::new(json!({ "customer_id": customer_id })));
-
         let mandate_reference = token.map(|token| MandateReference {
             connector_mandate_id: Some(token.token_details.payment_token_i_d.expose()),
             payment_method_id: None,
-            mandate_metadata,
+            mandate_metadata: None,
             connector_mandate_request_reference_id: payment_data
                 .scheme_response
                 .as_ref()
