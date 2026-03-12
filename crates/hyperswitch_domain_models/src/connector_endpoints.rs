@@ -44,7 +44,6 @@ pub struct Connectors {
     pub ctp_visa: NoParams,
     pub custombilling: NoParams,
     pub cybersource: ConnectorParams,
-    pub cybersourcedecisionmanager: ConnectorParams,
     pub datatrans: ConnectorParamsWithSecondaryBaseUrl,
     pub deutschebank: ConnectorParams,
     pub digitalvirgo: ConnectorParams,
