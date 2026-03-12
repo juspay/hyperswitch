@@ -4418,11 +4418,11 @@ impl
                 connector_metadata: None,
             })
         } else {
-            let order_id = response
-            .connector_order_id
-            .as_ref()
-            .map(|id| router_request_types::ResponseId::ConnectorTransactionId(id.clone()))
-            .unwrap_or(router_request_types::ResponseId::NoResponseId);
+            let order_id = response.connector_order_id.clone()
+                .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
+                    field_name: "connector_order_id",
+                })
+                .attach_printable("Missing connector_order_id in PaymentServiceCreateOrderResponse response")?;
 
             let status = AttemptStatus::foreign_try_from((response.status(), prev_status))?;
 
