@@ -276,7 +276,8 @@ fn get_payment_method_data(
         | PaymentMethodData::CardToken(_)
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-        | PaymentMethodData::CardWithLimitedDetails(_)
+        | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
             Err(ConnectorError::NotImplemented(

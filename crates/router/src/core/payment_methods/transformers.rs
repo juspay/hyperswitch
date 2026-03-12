@@ -1487,18 +1487,16 @@ impl
     ) -> Result<Self, Self::Error> {
         match raw_data {
             payment_methods::types::RawPaymentMethodData::Card(card_detail) => {
-                // Use card_cvc from card_token if available, otherwise fall back to card_details.card_cvc
                 let card_cvc = card_token
                     .as_ref()
                     .and_then(|token| token.card_cvc.clone())
-                    .or(card_detail.card_cvc.clone())
-                    .get_required_value("card_cvc")?;
+                    .or(card_detail.card_cvc.clone());
                 let card_holder_name = card_token
                     .and_then(|token| token.card_holder_name.clone())
                     .or(card_detail.card_holder_name.clone());
 
-                Ok(Self(domain::PaymentMethodData::Card(
-                    hyperswitch_domain_models::payment_method_data::Card {
+                Ok(Self(domain::PaymentMethodData::CardWithOptionalCVC(
+                    hyperswitch_domain_models::payment_method_data::CardWithOptionalCVC {
                         card_number: card_detail.card_number,
                         card_exp_month: card_detail.card_exp_month,
                         card_exp_year: card_detail.card_exp_year,
@@ -1582,7 +1580,7 @@ pub async fn fetch_payment_method_from_modular_service(
     profile_id: &id_type::ProfileId,
     payment_method_id: &str, //Currently PM id is string in v1
     pmd_card_token: Option<domain::CardToken>,
-    is_off_session_payment: bool,
+    _is_off_session_payment: bool,
 ) -> CustomResult<PaymentMethodWithRawData, errors::ApiErrorResponse> {
     let payment_method_fetch_req = RetrievePaymentMethodV1Request {
         payment_method_id: api_models::payment_methods::PaymentMethodId {
@@ -1610,19 +1608,11 @@ pub async fn fetch_payment_method_from_modular_service(
     .await
     .attach_printable("Failed to transform payment method retrieve response")?;
 
-    let raw_payment_method_data = if is_off_session_payment {
-        Some(DomainPaymentMethodDataWrapper(
-            domain::PaymentMethodData::MandatePayment,
-        ))
-    } else {
-        pm_response
-            .raw_payment_method_data
-            .map(|raw_data| {
-                DomainPaymentMethodDataWrapper::try_from((raw_data, pmd_card_token.clone()))
-            })
-            .transpose()
-            .attach_printable("Failed to convert raw payment method data")?
-    };
+    let raw_payment_method_data = pm_response
+        .raw_payment_method_data
+        .map(|raw_data| DomainPaymentMethodDataWrapper::try_from((raw_data, pmd_card_token)))
+        .transpose()
+        .attach_printable("Failed to convert raw payment method data")?;
 
     let pm_wrapper = PaymentMethodWithRawData {
         payment_method,

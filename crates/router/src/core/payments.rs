@@ -8050,8 +8050,11 @@ where
                         payment_data.set_payment_method_data(payment_method_data);
                         payment_data.set_payment_method_id_in_attempt(pm_id);
                     } else {
-                        //Merchant enabled for PM Modular service
-                        logger::debug!("Organization is eligible for PM Modular service, skipping make_pm_data call since raw payment method data fetch is done");
+                        let (payment_method_data, pm_id) =
+                            helpers::make_modular_pm_data(payment_data)?;
+                        payment_data.set_payment_method_data(payment_method_data);
+                        payment_data.set_payment_method_id_in_attempt(pm_id);
+
                         let payment_token = payment_data
                             .get_payment_method_data()
                             .async_map(|payment_method_data| async {
@@ -8073,11 +8076,6 @@ where
                             .transpose()?
                             .flatten();
                         payment_token.map(|data| payment_data.set_token(data));
-                        let pm_id = payment_data
-                            .get_payment_method_info()
-                            .map(|pm| pm.payment_method_id.clone());
-                        //Payment method data is already set in get trackers flow if modular pm service is enabled
-                        payment_data.set_payment_method_id_in_attempt(pm_id);
                     }
 
                     TokenizationAction::SkipConnectorTokenization
@@ -8100,8 +8098,11 @@ where
                         payment_data.set_payment_method_data(payment_method_data);
                         payment_data.set_payment_method_id_in_attempt(pm_id);
                     } else {
-                        //Merchant enabled for PM Modular service
-                        logger::debug!("Organization is eligible for PM Modular service, skipping make_pm_data call since raw payment method data fetch is done");
+                        let (payment_method_data, pm_id) =
+                            helpers::make_modular_pm_data(payment_data)?;
+                        payment_data.set_payment_method_data(payment_method_data);
+                        payment_data.set_payment_method_id_in_attempt(pm_id);
+
                         let payment_token = payment_data
                             .get_payment_method_data()
                             .async_map(|payment_method_data| async {
@@ -8123,11 +8124,6 @@ where
                             .transpose()?
                             .flatten();
                         payment_token.map(|data| payment_data.set_token(data));
-                        let pm_id = payment_data
-                            .get_payment_method_info()
-                            .map(|pm| pm.payment_method_id.clone());
-                        //Payment method data is already set in get trackers flow if modular pm service is enabled
-                        payment_data.set_payment_method_id_in_attempt(pm_id);
                     }
                     TokenizationAction::TokenizeInConnector
                 }
@@ -10016,14 +10012,7 @@ where
             None,
             None,
             Some(api::MandateTransactionType::RecurringMandateTransaction),
-        ) if token_data.is_some()
-            || (is_payment_method_modular_allowed
-                && payment_data.get_payment_attempt().payment_token.is_some()
-                && matches!(
-                    payment_data.get_payment_method_data(),
-                    Some(domain::PaymentMethodData::MandatePayment)
-                )
-                && payment_data.get_payment_method_info().is_some()) =>
+        ) if token_data.is_some() || is_payment_method_modular_allowed =>
         {
             if token_data.is_none() {
                 logger::debug!("euclid_routing: modular fallback token-MIT path selected");
