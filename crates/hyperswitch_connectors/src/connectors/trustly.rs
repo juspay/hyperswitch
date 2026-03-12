@@ -7,7 +7,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
+    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -31,11 +31,6 @@ use hyperswitch_domain_models::{
         RefundSyncRouterData, RefundsRouterData,
     },
 };
-#[cfg(feature = "payouts")]
-use hyperswitch_domain_models::{
-    router_flow_types::{PoCreate, PoFulfill},
-    types::{PayoutsData, PayoutsResponseData, PayoutsRouterData},
-};
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
@@ -47,151 +42,44 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use transformers as envoy;
+use masking::{ExposeInterface, Mask};
+use transformers as trustly;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
-pub struct Envoy {
-    amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
+pub struct Trustly {
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
-impl Envoy {
+impl Trustly {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &FloatMajorUnitForConnector,
+            amount_converter: &StringMinorUnitForConnector,
         }
     }
 }
 
-impl api::Payment for Envoy {}
-impl api::PaymentSession for Envoy {}
-impl api::ConnectorAccessToken for Envoy {}
-impl api::MandateSetup for Envoy {}
-impl api::PaymentAuthorize for Envoy {}
-impl api::PaymentSync for Envoy {}
-impl api::PaymentCapture for Envoy {}
-impl api::PaymentVoid for Envoy {}
-impl api::Refund for Envoy {}
-impl api::RefundExecute for Envoy {}
-impl api::RefundSync for Envoy {}
-
-#[cfg(feature = "payouts")]
-impl api::Payouts for Envoy {}
-#[cfg(feature = "payouts")]
-impl api::PayoutFulfill for Envoy {}
-#[cfg(feature = "payouts")]
-impl api::PayoutCreate for Envoy {}
-#[async_trait::async_trait]
-#[cfg(feature = "payouts")]
-impl ConnectorIntegration<PoCreate, PayoutsData, PayoutsResponseData> for Envoy {
-    fn build_request(
-        &self,
-        _req: &PayoutsRouterData<PoCreate>,
-        _connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        // Eligibility check for wallet is not implemented
-        Err(
-            errors::ConnectorError::NotImplemented("Payout Eligibility for Envoy".to_string())
-                .into(),
-        )
-    }
-}
-#[cfg(feature = "payouts")]
-impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Envoy {
-    fn get_headers(
-        &self,
-        _req: &PayoutsRouterData<PoFulfill>,
-        _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            self.common_get_content_type().to_string().into(),
-        )];
-        Ok(header)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &PayoutsRouterData<PoFulfill>,
-        connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(self.base_url(connectors).to_string())
-    }
-
-    fn get_request_body(
-        &self,
-        req: &PayoutsRouterData<PoFulfill>,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = utils::convert_amount(
-            self.amount_converter,
-            req.request.minor_amount,
-            req.request.destination_currency,
-        )?;
-        let connector_router_data = envoy::EnvoyRouterData::from((amount, req));
-        let payout_request = envoy::PayToBankAccountV3::try_from(&connector_router_data)?;
-        let soap_envelope = envoy::SoapEnvelope::new(payout_request);
-        Ok(RequestContent::Xml(Box::new(soap_envelope)))
-    }
-
-    fn build_request(
-        &self,
-        req: &PayoutsRouterData<PoFulfill>,
-        connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        use hyperswitch_interfaces::types::PayoutFulfillType;
-
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Post)
-                .url(&PayoutFulfillType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(PayoutFulfillType::get_headers(self, req, connectors)?)
-                .set_body(PayoutFulfillType::get_request_body(self, req, connectors)?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &PayoutsRouterData<PoFulfill>,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<PayoutsRouterData<PoFulfill>, errors::ConnectorError> {
-        let response: envoy::EnvoyPayoutSoapResponse =
-            utils::deserialize_xml_to_struct(&res.response)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
-}
-impl api::PaymentToken for Envoy {}
+impl api::Payment for Trustly {}
+impl api::PaymentSession for Trustly {}
+impl api::ConnectorAccessToken for Trustly {}
+impl api::MandateSetup for Trustly {}
+impl api::PaymentAuthorize for Trustly {}
+impl api::PaymentSync for Trustly {}
+impl api::PaymentCapture for Trustly {}
+impl api::PaymentVoid for Trustly {}
+impl api::Refund for Trustly {}
+impl api::RefundExecute for Trustly {}
+impl api::RefundSync for Trustly {}
+impl api::PaymentToken for Trustly {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
-    for Envoy
+    for Trustly
 {
     // Not Implemented (R)
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Envoy
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Trustly
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
@@ -210,28 +98,36 @@ where
     }
 }
 
-impl ConnectorCommon for Envoy {
+impl ConnectorCommon for Trustly {
     fn id(&self) -> &'static str {
-        "envoy"
+        "trustly"
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
         api::CurrencyUnit::Base
+        //    TODO! Check connector documentation, on which unit they are processing the currency.
+        //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
+        //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        "text/xml; charset=utf-8"
+        "application/json"
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
-        connectors.envoy.base_url.as_ref()
+        connectors.trustly.base_url.as_ref()
     }
 
     fn get_auth_header(
         &self,
-        _auth_type: &ConnectorAuthType,
+        auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        Ok(vec![])
+        let auth = trustly::TrustlyAuthType::try_from(auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        Ok(vec![(
+            headers::AUTHORIZATION.to_string(),
+            auth.api_key.expose().into_masked(),
+        )])
     }
 
     fn build_error_response(
@@ -239,10 +135,10 @@ impl ConnectorCommon for Envoy {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: envoy::EnvoyErrorResponse =
-            res.response
-                .parse_struct("EnvoyErrorResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: trustly::TrustlyErrorResponse = res
+            .response
+            .parse_struct("TrustlyErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -263,7 +159,7 @@ impl ConnectorCommon for Envoy {
     }
 }
 
-impl ConnectorValidation for Envoy {
+impl ConnectorValidation for Trustly {
     fn validate_mandate_payment(
         &self,
         _pm_type: Option<enums::PaymentMethodType>,
@@ -289,15 +185,15 @@ impl ConnectorValidation for Envoy {
     }
 }
 
-impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Envoy {
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Trustly {
     //TODO: implement sessions flow
 }
 
-impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Envoy {}
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Trustly {}
 
-impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Envoy {}
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Trustly {}
 
-impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Envoy {
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Trustly {
     fn get_headers(
         &self,
         req: &PaymentsAuthorizeRouterData,
@@ -329,8 +225,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             req.request.currency,
         )?;
 
-        let connector_router_data = envoy::EnvoyRouterData::from((amount, req));
-        let connector_req = envoy::EnvoyPaymentsRequest::try_from(&connector_router_data)?;
+        let connector_router_data = trustly::TrustlyRouterData::from((amount, req));
+        let connector_req = trustly::TrustlyPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -362,9 +258,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: envoy::EnvoyPaymentsResponse = res
+        let response: trustly::TrustlyPaymentsResponse = res
             .response
-            .parse_struct("Envoy PaymentsAuthorizeResponse")
+            .parse_struct("Trustly PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -384,7 +280,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     }
 }
 
-impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Envoy {
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Trustly {
     fn get_headers(
         &self,
         req: &PaymentsSyncRouterData,
@@ -426,9 +322,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Env
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: envoy::EnvoyPaymentsResponse = res
+        let response: trustly::TrustlyPaymentsResponse = res
             .response
-            .parse_struct("envoy PaymentsSyncResponse")
+            .parse_struct("trustly PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -448,7 +344,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Env
     }
 }
 
-impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Envoy {
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Trustly {
     fn get_headers(
         &self,
         req: &PaymentsCaptureRouterData,
@@ -503,9 +399,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: envoy::EnvoyPaymentsResponse = res
+        let response: trustly::TrustlyPaymentsResponse = res
             .response
-            .parse_struct("Envoy PaymentsCaptureResponse")
+            .parse_struct("Trustly PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -525,9 +421,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Envoy {}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Trustly {}
 
-impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Envoy {
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Trustly {
     fn get_headers(
         &self,
         req: &RefundsRouterData<Execute>,
@@ -559,8 +455,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Envoy {
             req.request.currency,
         )?;
 
-        let connector_router_data = envoy::EnvoyRouterData::from((refund_amount, req));
-        let connector_req = envoy::EnvoyRefundRequest::try_from(&connector_router_data)?;
+        let connector_router_data = trustly::TrustlyRouterData::from((refund_amount, req));
+        let connector_req = trustly::TrustlyRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -589,9 +485,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Envoy {
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: envoy::RefundResponse = res
+        let response: trustly::RefundResponse = res
             .response
-            .parse_struct("envoy RefundResponse")
+            .parse_struct("trustly RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -611,7 +507,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Envoy {
     }
 }
 
-impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Envoy {
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Trustly {
     fn get_headers(
         &self,
         req: &RefundSyncRouterData,
@@ -656,9 +552,9 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Envoy {
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: envoy::RefundResponse = res
+        let response: trustly::RefundResponse = res
             .response
-            .parse_struct("envoy RefundSyncResponse")
+            .parse_struct("trustly RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -679,7 +575,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Envoy {
 }
 
 #[async_trait::async_trait]
-impl webhooks::IncomingWebhook for Envoy {
+impl webhooks::IncomingWebhook for Trustly {
     fn get_webhook_object_reference_id(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -703,28 +599,28 @@ impl webhooks::IncomingWebhook for Envoy {
     }
 }
 
-static ENVOY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+static TRUSTLY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
     LazyLock::new(SupportedPaymentMethods::new);
 
-static ENVOY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-    display_name: "Envoy",
-    description: "Envoy connector",
+static TRUSTLY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Trustly",
+    description: "Trustly connector",
     connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
     integration_status: enums::ConnectorIntegrationStatus::Live,
 };
 
-static ENVOY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+static TRUSTLY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
-impl ConnectorSpecifications for Envoy {
+impl ConnectorSpecifications for Trustly {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&ENVOY_CONNECTOR_INFO)
+        Some(&TRUSTLY_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
-        Some(&*ENVOY_SUPPORTED_PAYMENT_METHODS)
+        Some(&*TRUSTLY_SUPPORTED_PAYMENT_METHODS)
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&ENVOY_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&TRUSTLY_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
