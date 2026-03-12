@@ -689,6 +689,7 @@ impl
 
         let connector_order_reference_id = router_data.request.connector_reference_id.clone();
 
+        // Todo fix request reference id in UCS
         let request_ref_id = Some(Identifier {
             id_type: Some(payments_grpc::identifier::IdType::Id(
                 router_data.connector_request_reference_id.clone(),
@@ -2690,7 +2691,7 @@ impl
                     mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata,
                     network_txn_id: response.network_transaction_id,
-                    connector_response_reference_id: response.merchant_recurring_payment_id.clone(),
+                    connector_response_reference_id: None,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
                     charges: None,
@@ -4096,15 +4097,7 @@ impl transformers::ForeignTryFrom<payments_grpc::AuthenticationData>
             trans_status,
             eci,
             cavv: cavv.map(Secret::new),
-            threeds_server_transaction_id: threeds_server_transaction_id
-                .and_then(|id| id.id_type)
-                .and_then(|id_type| match id_type {
-                    payments_grpc::identifier::IdType::Id(id) => Some(id),
-                    payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
-                        Some(encoded_data)
-                    }
-                    payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
-                }),
+            threeds_server_transaction_id: threeds_server_transaction_id.clone(),
             message_version: message_version
                 .map(|message_version_str| {
                     types::SemanticVersion::from_str(message_version_str.as_ref())
@@ -4426,17 +4419,10 @@ impl
             })
         } else {
             let order_id = response
-                .connector_order_id
-                .clone()
-                .and_then(|id| id.id_type)
-                .and_then(|id_type| match id_type {
-                    payments_grpc::identifier::IdType::Id(id) => Some(id),
-                    payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
-                        Some(encoded_data)
-                    }
-                    payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
-                })
-                .ok_or(UnifiedConnectorServiceError::ResponseDeserializationFailed)?;
+            .connector_order_id
+            .as_ref()
+            .map(|id| router_request_types::ResponseId::ConnectorTransactionId(id.clone()))
+            .unwrap_or(router_request_types::ResponseId::NoResponseId);
 
             let status = AttemptStatus::foreign_try_from((response.status(), prev_status))?;
 
