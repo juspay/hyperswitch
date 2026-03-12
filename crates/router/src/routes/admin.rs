@@ -1200,9 +1200,11 @@ pub async fn retrieve_connector_webhook(
         },
         auth::auth_type(
             &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
-            &auth::JWTAuthMerchantFromRoute {
-                merchant_id: merchant_id.clone(),
-                required_permission: Permission::ProfileConnectorWrite,
+           &auth::JWTAuthMerchantFromRoute {
+                merchant_id,
+                required_permission: Permission::ProfileAccountRead,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
