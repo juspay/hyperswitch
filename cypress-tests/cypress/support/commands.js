@@ -5331,7 +5331,7 @@ Cypress.Commands.add("stepTest", (stepName, errorStack, fn) => {
           /[^a-zA-Z0-9\-_ ]/g,
           ""
         );
-        cy.screenshot(screenshotName, { capture: "fullPage" });
+        cy.screenshot(screenshotName, { capture: "runner" });
         log.set({ displayName: "✗ STEP", message: stepName });
       } else {
         log.set({ displayName: "✓ STEP", message: stepName, collapsed: true });
