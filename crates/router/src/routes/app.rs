@@ -463,16 +463,17 @@ impl AppState {
             let cache_store = get_cache_store(&conf.clone(), shut_down_signal, testable)
                 .await
                 .expect("Failed to create store");
-            let global_store: Box<dyn GlobalStorageInterface> = Box::pin(Self::get_store_interface(
-                &storage_impl,
-                &event_handler,
-                &conf,
-                &conf.multitenancy.global_tenant,
-                Arc::clone(&cache_store),
-                testable,
-            ))
-            .await
-            .get_global_storage_interface();
+            let global_store: Box<dyn GlobalStorageInterface> =
+                Box::pin(Self::get_store_interface(
+                    &storage_impl,
+                    &event_handler,
+                    &conf,
+                    &conf.multitenancy.global_tenant,
+                    Arc::clone(&cache_store),
+                    testable,
+                ))
+                .await
+                .get_global_storage_interface();
             #[cfg(feature = "olap")]
             let pools = conf
                 .multitenancy
@@ -903,7 +904,11 @@ pub struct Proxy;
 #[cfg(all(feature = "oltp", feature = "v2"))]
 impl Proxy {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/v2/proxy")
+        let base_path = format!(
+            "/{}/proxy",
+            state.conf.micro_services.payment_methods_prefix.0
+        );
+        web::scope(&base_path)
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(proxy::proxy)))
     }
@@ -2023,6 +2028,10 @@ impl MerchantConnectorAccount {
                         .route(web::get().to(connector_retrieve))
                         .route(web::post().to(connector_update))
                         .route(web::delete().to(connector_delete)),
+                )
+                .service(
+                    web::resource("/{merchant_id}/connectors/webhooks/{merchant_connector_id}")
+                        .route(web::post().to(connector_webhook_register)),
                 );
         }
         #[cfg(feature = "oltp")]
@@ -2766,7 +2775,7 @@ impl User {
         let mut route = web::scope("/user").app_data(web::Data::new(state.clone()));
 
         route = route
-            .service(web::resource("").route(web::get().to(user::get_user_details)))
+            .service(web::resource("").route(web::get().to(user::get_active_user_details)))
             .service(web::resource("/signin").route(web::post().to(user::user_signin)))
             .service(web::resource("/v2/signin").route(web::post().to(user::user_signin)))
             // signin/signup with sso using openidconnect
@@ -3104,6 +3113,19 @@ impl User {
                         ),
                 ),
         );
+
+        // Internal API endpoints (authenticated via X-Internal-API-Key header)
+        route = route.service(
+            web::scope("/internal")
+                .service(
+                    web::resource("/user/list").route(web::post().to(user::list_users_internal)),
+                )
+                .service(
+                    web::resource("/user/{user_id}")
+                        .route(web::get().to(user::get_user_details_internal)),
+                ),
+        );
+
         route
     }
 }

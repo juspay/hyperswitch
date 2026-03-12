@@ -900,6 +900,7 @@ pub(crate) fn into_stripe_next_action(
             qr_code_url,
             border_color,
             display_text,
+            raw_qr_data: _,
         } => StripeNextAction::QrCodeInformation {
             image_data_url,
             display_to_timestamp,
@@ -965,7 +966,10 @@ fn get_pmd_based_on_payment_method_type(
 ) -> Option<payments::PaymentMethodData> {
     match payment_method_type {
         Some(api_enums::PaymentMethodType::UpiIntent) => Some(payments::PaymentMethodData::Upi(
-            payments::UpiData::UpiIntent(payments::UpiIntentData { upi_source: None }),
+            payments::UpiData::UpiIntent(payments::UpiIntentData {
+                upi_source: None,
+                app_name: None,
+            }),
         )),
         Some(api_enums::PaymentMethodType::Fps) => {
             Some(payments::PaymentMethodData::RealTimePayment(Box::new(

@@ -202,12 +202,29 @@ impl ConnectorValidation for Novalnet {
 impl ConnectorRedirectResponse for Novalnet {
     fn get_flow_type(
         &self,
-        _query_params: &str,
+        query_params: &str,
         _json_payload: Option<serde_json::Value>,
         action: enums::PaymentAction,
     ) -> CustomResult<enums::CallConnectorAction, errors::ConnectorError> {
         match action {
-            enums::PaymentAction::PSync => Ok(enums::CallConnectorAction::Trigger),
+            enums::PaymentAction::PSync => {
+                let novalnet_redirection_response = serde_urlencoded::from_str::<
+                    transformers::NovolnetRedirectionResponse,
+                >(query_params)
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                match novalnet_redirection_response.status {
+                    transformers::NovalnetTransactionStatus::Error => {
+                        Ok(enums::CallConnectorAction::StatusUpdate {
+                            status: enums::AttemptStatus::Failure,
+                            error_code: novalnet_redirection_response
+                                .status_code
+                                .map(|code| code.to_string()),
+                            error_message: novalnet_redirection_response.status_text,
+                        })
+                    }
+                    _ => Ok(enums::CallConnectorAction::Trigger),
+                }
+            }
             _ => Ok(enums::CallConnectorAction::Avoid),
         }
     }
@@ -910,6 +927,7 @@ impl webhooks::IncomingWebhook for Novalnet {
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)?;
 
@@ -962,6 +980,7 @@ impl webhooks::IncomingWebhook for Novalnet {
     fn get_dispute_details(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<disputes::DisputePayload, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)?;
 

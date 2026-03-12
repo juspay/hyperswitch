@@ -56,6 +56,21 @@ impl Customer {
         generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, id.to_owned()).await
     }
 
+    #[cfg(feature = "v2")]
+    pub async fn find_by_global_id_merchant_id(
+        conn: &PgPooledConn,
+        id: &id_type::GlobalCustomerId,
+        merchant_id: &id_type::MerchantId,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::id
+                .eq(id.to_owned())
+                .and(dsl::merchant_id.eq(merchant_id.to_owned())),
+        )
+        .await
+    }
+
     #[cfg(feature = "v1")]
     pub async fn get_customer_count_by_merchant_id_and_constraints(
         conn: &PgPooledConn,

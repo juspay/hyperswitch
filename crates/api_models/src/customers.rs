@@ -500,7 +500,9 @@ pub struct CustomerDocumentDetails {
 }
 
 impl CustomerDocumentDetails {
-    pub fn from(value: &Option<pii::SecretSerdeValue>) -> Result<Option<Self>, ParsingError> {
+    pub fn from(
+        value: &Option<pii::SecretSerdeValue>,
+    ) -> common_utils::errors::CustomResult<Option<Self>, ParsingError> {
         value
             .as_ref()
             .map(|pii_value| {
@@ -508,17 +510,9 @@ impl CustomerDocumentDetails {
                     .peek()
                     .clone()
                     .parse_value::<Self>("CustomerDocumentDetails")
-                    .map_err(|err| {
-                        router_env::logger::error!(
-                            parsing_error = ?err,
-                            "Failed to parse CustomerDocumentDetails"
-                        );
-                        ParsingError::StructParseFailure("CustomerDocumentDetails")
-                    })
             })
             .transpose()
     }
-
     pub fn to(&self) -> common_utils::errors::CustomResult<pii::SecretSerdeValue, ParsingError> {
         self.encode_to_value().map(Secret::new)
     }

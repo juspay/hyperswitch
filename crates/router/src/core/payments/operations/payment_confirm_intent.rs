@@ -210,7 +210,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
                 cell_id,
                 storage_scheme,
                 request,
-                encrypted_data
+                encrypted_data,
+                platform.get_initiator(),
             )
             .await?;
 
@@ -356,6 +357,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
                 pm_split_amount_data
                     .payment_method_details
                     .payment_method_subtype,
+                platform.get_initiator(),
             )
             .await?;
 
@@ -632,14 +634,16 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
 
                 let req = api::PaymentMethodCreate {
                     payment_method_type: payment_data.payment_attempt.payment_method_type,
-                    payment_method_subtype: payment_data.payment_attempt.payment_method_subtype,
+                    payment_method_subtype: Some(
+                        payment_data.payment_attempt.payment_method_subtype,
+                    ),
                     metadata: None,
                     customer_id: Some(customer_id),
                     payment_method_data: pm_create_data,
                     billing: None,
                     psp_tokenization: None,
                     network_tokenization: None,
-                    storage_type: Some(common_enums::StorageType::Persistent), //since customer acceptance is present, we always store it persistently
+                    storage_type: common_enums::StorageType::Persistent, //since customer acceptance is present, we always store it persistently
                 };
 
                 let (_pm_response, payment_method) =

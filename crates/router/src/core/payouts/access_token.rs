@@ -1,9 +1,6 @@
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
-use hyperswitch_interfaces::{
-    api::{ConnectorAccessTokenSuffix, ConnectorCommon},
-    consts,
-};
+use hyperswitch_interfaces::{api::ConnectorCommon, consts};
 
 use crate::{
     core::{

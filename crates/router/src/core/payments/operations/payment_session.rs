@@ -10,6 +10,7 @@ use router_env::{instrument, logger, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
+        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{self, helpers, operations, PaymentData},
     },
@@ -76,7 +77,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
             "create a session token for",
         )?;
 
-        helpers::authenticate_client_secret(Some(&request.client_secret), &payment_intent)?;
+        helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
 
         let mut payment_attempt = db
             .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
@@ -179,7 +180,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
             payment_attempt,
             currency,
             amount,
-            email: None,
             mandate_id: None,
             mandate_connector: None,
             customer_acceptance: None,
@@ -262,14 +262,20 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionReque
         let key_store = processor.get_key_store();
 
         let metadata = payment_data.payment_intent.metadata.clone();
+        let feature_metadata = payment_data
+            .payment_intent
+            .feature_metadata
+            .clone()
+            .map(masking::Secret::new);
         payment_data.payment_intent = match metadata {
             Some(metadata) => state
                 .store
                 .update_payment_intent(
                     payment_data.payment_intent,
                     storage::PaymentIntentUpdate::MetadataUpdate {
-                        metadata,
+                        metadata: Some(metadata),
                         updated_by: storage_scheme.to_string(),
+                        feature_metadata,
                     },
                     key_store,
                     storage_scheme,
@@ -322,6 +328,8 @@ where
         payment_data: &mut PaymentData<F>,
         request: Option<payments::CustomerDetails>,
         provider: &domain::Provider,
+        initiator: Option<&domain::Initiator>,
+        dimensions: DimensionsWithMerchantIdAndProfileId,
     ) -> errors::CustomResult<
         (PaymentSessionOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,
@@ -334,6 +342,8 @@ where
                     payment_data,
                     request,
                     provider,
+                    initiator,
+                    dimensions,
                 )
                 .await
             }
@@ -344,14 +354,7 @@ where
                     payment_data.payment_intent.customer_id.as_ref(),
                     provider,
                 )
-                .await?
-                .inspect(|cust| {
-                    payment_data.email = payment_data
-                        .email
-                        .clone()
-                        .or_else(|| cust.email.clone().map(Into::into));
-                });
-
+                .await?;
                 Ok((Box::new(self), customer))
             }
             common_enums::MerchantAccountType::Connected => {
@@ -392,7 +395,7 @@ where
     /// or from separate implementation ( for googlepay - from metadata and applepay - from metadata and call connector)
     async fn get_connector<'a>(
         &'a self,
-        platform: &domain::Platform,
+        processor: &domain::Processor,
         state: &SessionState,
         request: &api::PaymentsSessionRequest,
         payment_intent: &storage::PaymentIntent,
@@ -401,9 +404,9 @@ where
 
         let all_connector_accounts = db
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-                platform.get_processor().get_account().get_id(),
+                processor.get_account().get_id(),
                 false,
-                platform.get_processor().get_key_store(),
+                processor.get_key_store(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

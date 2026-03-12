@@ -235,6 +235,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 elavon::transformers::ElavonAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Envoy => {
+                envoy::transformers::EnvoyAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Facilitapay => {
                 facilitapay::transformers::FacilitapayAuthType::try_from(self.auth_type)?;
                 facilitapay::transformers::FacilitapayConnectorMetadataObject::try_from(
@@ -481,11 +485,13 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 redsys::transformers::RedsysAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Revolv3 => {
+                revolv3::transformers::Revolv3AuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Santander => {
-                santander::transformers::SantanderAuthType::try_from(self.auth_type)?;
-                santander::transformers::SantanderMetadataObject::try_from(
-                    self.connector_meta_data,
-                )?;
+                santander::requests::SantanderAuthType::try_from(self.auth_type)?;
+                santander::requests::SantanderMetadataObject::try_from(self.connector_meta_data)?;
                 Ok(())
             }
             api_enums::Connector::Shift4 => {
@@ -518,6 +524,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Tesouro => {
                 tesouro::transformers::TesouroAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Truelayer => {
+                truelayer::transformers::TruelayerAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Trustpay => {

@@ -39,7 +39,7 @@ use hyperswitch_interfaces::{
         PaymentsAuthorizeType, PaymentsCaptureType, PaymentsSyncType, RefundExecuteType,
         RefundSyncType, Response,
     },
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 use masking::{ExposeInterface, Mask as _, Maskable};
 
@@ -564,6 +564,7 @@ impl IncomingWebhook for Wellsfargopayout {
     fn get_webhook_event_type(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
         Err(report!(ConnectorError::WebhooksNotImplemented))
     }

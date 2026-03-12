@@ -227,7 +227,7 @@ pub struct RefundMetadataUpdateRequest {
     pub metadata: Option<pii::SecretSerdeValue>,
 }
 
-#[derive(Default, Debug, ToSchema, Clone, Deserialize, Serialize)]
+#[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct RefundManualUpdateRequest {
     #[serde(skip)]
@@ -238,9 +238,9 @@ pub struct RefundManualUpdateRequest {
     /// The status for refund
     pub status: Option<RefundStatus>,
     /// The code for the error
-    pub error_code: Option<String>,
+    pub error_code: Option<enums::SetOrUnset<String>>,
     /// The error message
-    pub error_message: Option<String>,
+    pub error_message: Option<enums::SetOrUnset<String>>,
 }
 
 #[cfg(feature = "v1")]
@@ -351,6 +351,9 @@ pub struct RefundResponse {
     /// Contains whole connector response
     #[schema(value_type = Option<String>)]
     pub raw_connector_response: Option<masking::Secret<String>>,
+    /// A unique identifier for a payment provided by the connector
+    #[smithy(value_type = "Option<String>")]
+    pub connector_refund_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]

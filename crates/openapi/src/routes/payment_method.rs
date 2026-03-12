@@ -15,7 +15,7 @@
             "card": {
             "card_number": "4242424242424242",
             "card_exp_month": "11",
-            "card_exp_year": "25",
+            "card_exp_year": "30",
             "card_holder_name": "John Doe"
             },
             "customer_id": "{{customer_id}}"
@@ -508,6 +508,31 @@ pub async fn network_token_status_check_api() {}
 )]
 #[cfg(feature = "v2")]
 pub async fn payment_method_get_token_details_api() {}
+
+/// Payment Method - Get Payment Method Token Data
+///
+/// Retrieve the Payment method id associated with a payment method token.
+#[utoipa::path(
+    get,
+    path = "/v1/payment-methods/token/{payment_method_temporary_token}/details",
+    params (
+        ("payment_method_temporary_token" = String, Path, description = "The unique identifier for the Payment Method Token"),
+        (
+            "X-Profile-Id" = String, Header,
+            description = "Profile ID associated to the payment method",
+            example = "pro_abcdefghijklmnop"
+        )
+    ),
+    responses(
+        (status = 200, description = "Payment Method Token Data Retrieved", body = PaymentMethodGetTokenDetailsResponse),
+        (status = 404, description = "Payment Method Not Found | Payment method token either expired or does not exist"),
+    ),
+    tag = "Payment Methods",
+    operation_id = "Get Payment Method Token Data",
+    security(("api_key" = []))
+)]
+#[cfg(feature = "v2")]
+pub async fn payment_method_get_token_details_api_v1() {}
 /// Payment Method - List Customer Saved Payment Methods
 ///
 /// List the payment methods saved for a customer
@@ -938,7 +963,7 @@ pub async fn tokenize_card_using_pm_api() {}
                       "card": {
                         "card_number": "4242424242424242",
                         "card_exp_month": "10",
-                        "card_exp_year": "25",
+                        "card_exp_year": "30",
                         "card_cvc": "123"
                       }
                     },
@@ -983,7 +1008,7 @@ pub fn payment_method_session_confirm() {}
                       "card": {
                         "card_number": "4242424242424242",
                         "card_exp_month": "10",
-                        "card_exp_year": "25",
+                        "card_exp_year": "30",
                         "card_cvc": "123"
                       }
                     },
