@@ -2920,7 +2920,6 @@ fn get_pay_later_required_fields() -> HashMap<enums::PaymentMethodType, Connecto
                     Connector::Stripe,
                     fields(
                         vec![],
-                        vec![],
                         vec![
                             RequiredField::BillingEmail,
                             RequiredField::BillingFirstName(
@@ -2946,6 +2945,7 @@ fn get_pay_later_required_fields() -> HashMap<enums::PaymentMethodType, Connecto
                             RequiredField::ShippingAddressCountries(vec!["ALL"]),
                             RequiredField::ShippingAddressLine1,
                         ],
+                        vec![],
                     ),
                 ),
                 (
@@ -3061,25 +3061,6 @@ fn get_pay_later_required_fields() -> HashMap<enums::PaymentMethodType, Connecto
                         .to_tuple()]),
                         common: HashMap::new(),
                     },
-                ),
-                (
-                    Connector::Mollie,
-                    fields(
-                        vec![],
-                        vec![
-                            RequiredField::BillingAddressCountries(vec![
-                                "DE", "AT", "NL", "BE", "FR", "UK", "IT", "ES", "PT", "SE", "DK",
-                                "FI", "NO", "CH", "IR", "CZ", "PL", "GR", "SK",
-                            ]),
-                            RequiredField::BillingEmail,
-                            RequiredField::BillingAddressLine1,
-                            RequiredField::BillingAddressZip,
-                            RequiredField::BillingAddressCity,
-                            RequiredField::BillingUserFirstName,
-                            RequiredField::BillingUserLastName,
-                        ],
-                        vec![],
-                    ),
                 ),
             ]),
         ),
