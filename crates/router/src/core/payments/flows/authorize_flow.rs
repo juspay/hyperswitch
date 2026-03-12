@@ -32,8 +32,8 @@ use super::{ConstructFlowSpecificData, Feature};
 use crate::core::unified_connector_service::{
     get_access_token_from_ucs_response,
     handle_unified_connector_service_response_for_payment_authorize,
-    handle_unified_connector_service_response_for_payment_repeat, set_access_token_for_ucs,
-    ucs_logging_wrapper,
+    handle_unified_connector_service_response_for_recurring_payment_charge,
+    set_access_token_for_ucs, ucs_logging_wrapper,
 };
 use crate::{
     core::{
