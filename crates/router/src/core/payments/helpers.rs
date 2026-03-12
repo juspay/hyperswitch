@@ -1480,6 +1480,55 @@ pub fn payment_intent_status_fsm(
 }
 
 #[cfg(feature = "v1")]
+pub async fn schedule_pending_to_charged_if_eligible(
+    state: &SessionState,
+    payment_attempt: &PaymentAttempt,
+    requeue: bool,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    // Check eligibility for payment promotion (e.g., Payload ACH)
+    if !requeue {
+        if let Some(schedule_delay) = get_payment_promotion_delay_if_eligible(
+            payment_attempt.connector.as_deref(),
+            payment_attempt.payment_method_type,
+            state,
+        ) {
+            logger::info!("Payment promotion condition met! Scheduling task...");
+            let schedule_time = payment_attempt.created_at.saturating_add(schedule_delay);
+
+            super::add_pending_promotion_task(
+                &*state.store,
+                payment_attempt,
+                schedule_time,
+                state.conf.application_source,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed while adding pending promotion task to process tracker")?;
+        }
+    }
+    Ok(())
+}
+
+fn get_payment_promotion_delay_if_eligible(
+    connector: Option<&str>,
+    payment_method_type: Option<storage_enums::PaymentMethodType>,
+    state: &SessionState,
+) -> Option<time::Duration> {
+    let connector_enum = connector.and_then(|c| api_models::enums::Connector::from_str(c).ok());
+    match (connector_enum, payment_method_type) {
+        (
+            Some(api_models::enums::Connector::Payload),
+            Some(storage_enums::PaymentMethodType::Ach),
+        ) => Some(time::Duration::seconds(
+            state
+                .conf
+                .payment_lifecycle_config
+                .payload_ach_pending_window_seconds,
+        )),
+        _ => None,
+    }
+}
+
 pub async fn add_domain_task_to_pt<Op>(
     operation: &Op,
     state: &SessionState,
@@ -1491,37 +1540,36 @@ where
     Op: std::fmt::Debug,
 {
     if check_if_operation_confirm(operation) {
-        match schedule_time {
-            Some(stime) => {
-                if !requeue {
-                    // Here, increment the count of added tasks every time a payment has been confirmed or PSync has been called
-                    metrics::TASKS_ADDED_COUNT.add(
-                        1,
-                        router_env::metric_attributes!(("flow", format!("{:#?}", operation))),
-                    );
-                    super::add_process_sync_task(
-                        &*state.store,
-                        payment_attempt,
-                        stime,
-                        state.conf.application_source,
-                    )
+        if let Some(stime) = schedule_time {
+            if !requeue {
+                // Here, increment the count of added tasks every time a payment has been confirmed or PSync has been called
+                metrics::TASKS_ADDED_COUNT.add(
+                    1,
+                    router_env::metric_attributes!(("flow", format!("{:#?}", operation))),
+                );
+                super::add_process_sync_task(
+                    &*state.store,
+                    payment_attempt,
+                    stime,
+                    state.conf.application_source,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while adding task to process tracker")?;
+            } else {
+                // When the requeue is true, we reset the tasks count as we reset the task every time it is requeued
+                metrics::TASKS_RESET_COUNT.add(
+                    1,
+                    router_env::metric_attributes!(("flow", format!("{:#?}", operation))),
+                );
+                super::reset_process_sync_task(&*state.store, payment_attempt, stime)
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed while adding task to process tracker")
-                } else {
-                    // When the requeue is true, we reset the tasks count as we reset the task every time it is requeued
-                    metrics::TASKS_RESET_COUNT.add(
-                        1,
-                        router_env::metric_attributes!(("flow", format!("{:#?}", operation))),
-                    );
-                    super::reset_process_sync_task(&*state.store, payment_attempt, stime)
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed while updating task in process tracker")
-                }
+                    .attach_printable("Failed while updating task in process tracker")?;
             }
-            None => Ok(()),
         }
+
+        Ok(())
     } else {
         Ok(())
     }
