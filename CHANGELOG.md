@@ -4,6 +4,56 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.03.12.0
+
+### Features
+
+- **analytics:** Add processor_merchant_id to payment analytics events ([#11378](https://github.com/juspay/hyperswitch/pull/11378)) ([`9508862`](https://github.com/juspay/hyperswitch/commit/9508862ece970d3e847b9d9e78a2d5da9276829c))
+- **connector:**
+  - [envoy] Sepa payouts ([#11475](https://github.com/juspay/hyperswitch/pull/11475)) ([`c764fd3`](https://github.com/juspay/hyperswitch/commit/c764fd38036199a8e64b07542aa01defb3640758))
+  - [Trustly] Template code for connector ([#11472](https://github.com/juspay/hyperswitch/pull/11472)) ([`4470417`](https://github.com/juspay/hyperswitch/commit/44704177b538ad06d70d4b67c807fbe384337ab6))
+- **platform:** Add processor_merchant_id and created_by to refund and dispute ([#11351](https://github.com/juspay/hyperswitch/pull/11351)) ([`8f8847a`](https://github.com/juspay/hyperswitch/commit/8f8847aa0b95a327a8ac9b74d139ee057ebd572c))
+- **user:** Add internal apis to get user details and list users ([#11433](https://github.com/juspay/hyperswitch/pull/11433)) ([`d199722`](https://github.com/juspay/hyperswitch/commit/d1997225804dff23e224680aa32c1011596c58c9))
+
+### Bug Fixes
+
+- **connector:**
+  - [ADYEN] Pass through split refund data when payment charges are unavailable ([#11473](https://github.com/juspay/hyperswitch/pull/11473)) ([`1ac0a80`](https://github.com/juspay/hyperswitch/commit/1ac0a801bb7016ca3ca41e93770649fd0dd33130))
+  - [Novalnet] handle error redirection ([#11380](https://github.com/juspay/hyperswitch/pull/11380)) ([`85e265b`](https://github.com/juspay/hyperswitch/commit/85e265bf0dd042ba2cfef87ce60187cd4421829f))
+- **cypress:** Fix refund tests by add missing cards info ([#11467](https://github.com/juspay/hyperswitch/pull/11467)) ([`788bf9f`](https://github.com/juspay/hyperswitch/commit/788bf9f1ee7cc9b79655dd13316fc8563382b6c8))
+
+### Refactors
+
+- **cypress:**
+  - Add refactoring of refunds and bank redirects tests ([#11312](https://github.com/juspay/hyperswitch/pull/11312)) ([`1b15bb3`](https://github.com/juspay/hyperswitch/commit/1b15bb3150d0c95c5f979b98b6c05b087a3d862f))
+  - Add mandates, payment_methods, rewards, crypto payments tests refactoring ([#11326](https://github.com/juspay/hyperswitch/pull/11326)) ([`8155178`](https://github.com/juspay/hyperswitch/commit/8155178eb8e182d8a962867dedb0050b824e0e68))
+
+### Testing
+
+- **cypress:** Remove duplicate wallet spec 00041 ([#11468](https://github.com/juspay/hyperswitch/pull/11468)) ([`747ed7e`](https://github.com/juspay/hyperswitch/commit/747ed7e459d19fae525b5dc9596fc76b58326ef3))
+
+**Full Changelog:** [`2026.03.11.0...2026.03.12.0`](https://github.com/juspay/hyperswitch/compare/2026.03.11.0...2026.03.12.0)
+
+- - -
+
+## 2026.03.11.0
+
+### Features
+
+- **network_tokenization:** Populate par in payments response for network_token payments ([#11360](https://github.com/juspay/hyperswitch/pull/11360)) ([`b822cab`](https://github.com/juspay/hyperswitch/commit/b822cab401347b4273c21baf9e2e8f7980225a18))
+
+### Bug Fixes
+
+- **payload:** Update request structure and switch to JSON payload format ([#11463](https://github.com/juspay/hyperswitch/pull/11463)) ([`3671bf6`](https://github.com/juspay/hyperswitch/commit/3671bf643b5dbd5daae5fd7f2fc39d175edfdabc))
+
+### Testing
+
+- **cypress:** Add card installment payment flow tests for Adyen ([#11444](https://github.com/juspay/hyperswitch/pull/11444)) ([`37196df`](https://github.com/juspay/hyperswitch/commit/37196df0cfd1107f6d06ff77a0ca5a6359bc9a32))
+
+**Full Changelog:** [`2026.03.10.0...2026.03.11.0`](https://github.com/juspay/hyperswitch/compare/2026.03.10.0...2026.03.11.0)
+
+- - -
+
 ## 2026.03.10.0
 
 ### Features
