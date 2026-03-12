@@ -2269,7 +2269,10 @@ impl
                         })
                 });
 
-        let connector_transaction_id= response.connector_transaction_id.as_ref().map(|id| router_request_types::ResponseId::ConnectorTransactionId(id))
+        let connector_transaction_id = response
+            .connector_transaction_id
+            .as_ref()
+            .map(|id| router_request_types::ResponseId::ConnectorTransactionId(id))
             .unwrap_or(router_request_types::ResponseId::NoResponseId);
 
         let (mut connector_metadata, redirection_data) = match response.redirection_data.clone() {
@@ -2470,7 +2473,9 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceCaptureResponse,
 
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
-        let connector_transaction_id = router_request_types::ResponseId::ConnectorTransactionId(response.connector_transaction_id.clone());
+        let connector_transaction_id = router_request_types::ResponseId::ConnectorTransactionId(
+            response.connector_transaction_id.clone(),
+        );
 
         // Extract connector_metadata from response if present
         let connector_metadata = response.connector_feature_data.clone().and_then(|secret| {
@@ -2663,7 +2668,10 @@ impl
                     })
             });
 
-        let connector_transaction_id= response.connector_recurring_payment_id.as_ref().map(|id| router_request_types::ResponseId::ConnectorTransactionId(id))
+        let connector_transaction_id = response
+            .connector_recurring_payment_id
+            .as_ref()
+            .map(|id| router_request_types::ResponseId::ConnectorTransactionId(id))
             .unwrap_or(router_request_types::ResponseId::NoResponseId);
 
         let status_code = convert_connector_service_status_code(response.status_code)?;
@@ -2795,7 +2803,10 @@ impl
                     })
             });
 
-        let connector_transaction_id= response.connector_transaction_id.as_ref().map(|id| router_request_types::ResponseId::ConnectorTransactionId(id))
+        let connector_transaction_id = response
+            .connector_transaction_id
+            .as_ref()
+            .map(|id| router_request_types::ResponseId::ConnectorTransactionId(id))
             .unwrap_or(router_request_types::ResponseId::NoResponseId);
 
         let status_code = convert_connector_service_status_code(response.status_code)?;
@@ -4034,7 +4045,9 @@ impl
                     })
             });
 
-        let connector_transaction_id = router_request_types::ResponseId::ConnectorTransactionId(response.connector_transaction_id.clone());
+        let connector_transaction_id = router_request_types::ResponseId::ConnectorTransactionId(
+            response.connector_transaction_id.clone(),
+        );
 
         let (connector_metadata, redirection_data) = match response.redirection_data.clone() {
             Some(redirection_data) => match redirection_data.form_type {
@@ -5247,7 +5260,9 @@ impl
             .transpose()?
             .map(Box::new);
 
-        let connector_transaction_id = router_request_types::ResponseId::ConnectorTransactionId(response.connector_transaction_id.clone());
+        let connector_transaction_id = router_request_types::ResponseId::ConnectorTransactionId(
+            response.connector_transaction_id.clone(),
+        );
 
         let (connector_metadata, redirection_data) = match response.redirection_data.clone() {
             Some(redirection_data) => match redirection_data.form_type {
@@ -6043,7 +6058,9 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceVoidResponse, At
                         })
                 });
 
-        let connector_transaction_id = router_request_types::ResponseId::ConnectorTransactionId(response.connector_transaction_id.clone());
+        let connector_transaction_id = router_request_types::ResponseId::ConnectorTransactionId(
+            response.connector_transaction_id.clone(),
+        );
 
         let status_code = convert_connector_service_status_code(response.status_code)?;
 

@@ -197,7 +197,10 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
     ) -> Result<Self, Self::Error> {
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
-        let connector_transaction_id = hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(response.connector_transaction_id.clone());
+        let connector_transaction_id =
+            hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(
+                response.connector_transaction_id.clone(),
+            );
 
         let response = if let Some(error_info) = response.error.as_ref() {
             let attempt_status = match response.status() {
