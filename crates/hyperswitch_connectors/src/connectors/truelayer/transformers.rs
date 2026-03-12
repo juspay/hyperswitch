@@ -662,12 +662,9 @@ pub enum TruelayerWebhookEventType {
     PayoutFailed,
 }
 
-impl TruelayerWebhookEventType{
+impl TruelayerWebhookEventType {
     pub fn is_payout_webhook_event(self) -> bool {
-        matches!(
-            self,
-            Self::PayoutExecuted | Self::PayoutFailed
-        )
+        matches!(self, Self::PayoutExecuted | Self::PayoutFailed)
     }
 
     pub fn is_payment_webhook_event(self) -> bool {
@@ -685,10 +682,7 @@ impl TruelayerWebhookEventType{
     }
 
     pub fn is_refund_webhook_event(self) -> bool {
-        matches!(
-            self,
-            Self::RefundExecuted | Self::RefundFailed
-        )
+        matches!(self, Self::RefundExecuted | Self::RefundFailed)
     }
 }
 
