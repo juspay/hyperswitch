@@ -42,7 +42,10 @@ describe("Profile Setup for Merchants", () => {
       globalState.set("merchantId", globalState.get("connectedMerchantId_1"));
       globalState.set("apiKey", globalState.get("apiKey_CM1"));
 
-      cy.createBusinessProfileTest(fixtures.businessProfile.bpCreate, globalState);
+      cy.createBusinessProfileTest(
+        fixtures.businessProfile.bpCreate,
+        globalState
+      );
 
       cy.then(() => {
         globalState.set("profileId_CM1_New", globalState.get("profileId"));
@@ -102,7 +105,10 @@ describe("Profile Setup for Merchants", () => {
       globalState.set("merchantId", globalState.get("standardMerchantId"));
       globalState.set("apiKey", globalState.get("apiKey_SM"));
 
-      cy.createBusinessProfileTest(fixtures.businessProfile.bpCreate, globalState);
+      cy.createBusinessProfileTest(
+        fixtures.businessProfile.bpCreate,
+        globalState
+      );
 
       cy.then(() => {
         globalState.set("profileId_SM_New", globalState.get("profileId"));

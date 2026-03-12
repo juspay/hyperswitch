@@ -114,108 +114,111 @@ describe("Platform Customer Flows", () => {
     });
   });
 
-  context("Standard Merchant Creates Customer - Only Accessible by Standard", () => {
-    it("standard-merchant-creates-customer", () => {
-      const savedApiKey = globalState.get("apiKey");
-      const savedMerchantId = globalState.get("merchantId");
-      globalState.set("apiKey", globalState.get("apiKey_SM"));
-      globalState.set("merchantId", globalState.get("standardMerchantId"));
+  context(
+    "Standard Merchant Creates Customer - Only Accessible by Standard",
+    () => {
+      it("standard-merchant-creates-customer", () => {
+        const savedApiKey = globalState.get("apiKey");
+        const savedMerchantId = globalState.get("merchantId");
+        globalState.set("apiKey", globalState.get("apiKey_SM"));
+        globalState.set("merchantId", globalState.get("standardMerchantId"));
 
-      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
 
-      cy.then(() => {
-        globalState.set(
-          "customerId_SM_Created",
-          globalState.get("customerId")
-        );
-        globalState.set("apiKey", savedApiKey);
-        globalState.set("merchantId", savedMerchantId);
-      });
-    });
-
-    it("verify-platform-merchant-cannot-access-standard-customer", () => {
-      const savedApiKey = globalState.get("apiKey");
-      const savedCustomerId = globalState.get("customerId");
-      globalState.set("customerId", globalState.get("customerId_SM_Created"));
-
-      cy.request({
-        method: "GET",
-        url: `${globalState.get("baseUrl")}/customers/${globalState.get("customerId")}`,
-        headers: {
-          "Content-Type": "application/json",
-          "api-key": globalState.get("apiKey"),
-        },
-        failOnStatusCode: false,
-      }).then((response) => {
-        expect(response.status).to.equal(404);
+        cy.then(() => {
+          globalState.set(
+            "customerId_SM_Created",
+            globalState.get("customerId")
+          );
+          globalState.set("apiKey", savedApiKey);
+          globalState.set("merchantId", savedMerchantId);
+        });
       });
 
-      cy.then(() => {
-        globalState.set("apiKey", savedApiKey);
-        globalState.set("customerId", savedCustomerId);
-      });
-    });
+      it("verify-platform-merchant-cannot-access-standard-customer", () => {
+        const savedApiKey = globalState.get("apiKey");
+        const savedCustomerId = globalState.get("customerId");
+        globalState.set("customerId", globalState.get("customerId_SM_Created"));
 
-    it("verify-connected-merchant-1-cannot-access-standard-customer", () => {
-      const savedApiKey = globalState.get("apiKey");
-      const savedCustomerId = globalState.get("customerId");
-      globalState.set("apiKey", globalState.get("apiKey_CM1"));
-      globalState.set("customerId", globalState.get("customerId_SM_Created"));
+        cy.request({
+          method: "GET",
+          url: `${globalState.get("baseUrl")}/customers/${globalState.get("customerId")}`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": globalState.get("apiKey"),
+          },
+          failOnStatusCode: false,
+        }).then((response) => {
+          expect(response.status).to.equal(404);
+        });
 
-      cy.request({
-        method: "GET",
-        url: `${globalState.get("baseUrl")}/customers/${globalState.get("customerId")}`,
-        headers: {
-          "Content-Type": "application/json",
-          "api-key": globalState.get("apiKey"),
-        },
-        failOnStatusCode: false,
-      }).then((response) => {
-        expect(response.status).to.equal(404);
-      });
-
-      cy.then(() => {
-        globalState.set("apiKey", savedApiKey);
-        globalState.set("customerId", savedCustomerId);
-      });
-    });
-
-    it("verify-connected-merchant-2-cannot-access-standard-customer", () => {
-      const savedApiKey = globalState.get("apiKey");
-      const savedCustomerId = globalState.get("customerId");
-      globalState.set("apiKey", globalState.get("apiKey_CM2"));
-      globalState.set("customerId", globalState.get("customerId_SM_Created"));
-
-      cy.request({
-        method: "GET",
-        url: `${globalState.get("baseUrl")}/customers/${globalState.get("customerId")}`,
-        headers: {
-          "Content-Type": "application/json",
-          "api-key": globalState.get("apiKey"),
-        },
-        failOnStatusCode: false,
-      }).then((response) => {
-        expect(response.status).to.equal(404);
+        cy.then(() => {
+          globalState.set("apiKey", savedApiKey);
+          globalState.set("customerId", savedCustomerId);
+        });
       });
 
-      cy.then(() => {
-        globalState.set("apiKey", savedApiKey);
-        globalState.set("customerId", savedCustomerId);
+      it("verify-connected-merchant-1-cannot-access-standard-customer", () => {
+        const savedApiKey = globalState.get("apiKey");
+        const savedCustomerId = globalState.get("customerId");
+        globalState.set("apiKey", globalState.get("apiKey_CM1"));
+        globalState.set("customerId", globalState.get("customerId_SM_Created"));
+
+        cy.request({
+          method: "GET",
+          url: `${globalState.get("baseUrl")}/customers/${globalState.get("customerId")}`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": globalState.get("apiKey"),
+          },
+          failOnStatusCode: false,
+        }).then((response) => {
+          expect(response.status).to.equal(404);
+        });
+
+        cy.then(() => {
+          globalState.set("apiKey", savedApiKey);
+          globalState.set("customerId", savedCustomerId);
+        });
       });
-    });
 
-    it("verify-standard-merchant-can-access-its-own-customer", () => {
-      const savedApiKey = globalState.get("apiKey");
-      const savedCustomerId = globalState.get("customerId");
-      globalState.set("apiKey", globalState.get("apiKey_SM"));
-      globalState.set("customerId", globalState.get("customerId_SM_Created"));
+      it("verify-connected-merchant-2-cannot-access-standard-customer", () => {
+        const savedApiKey = globalState.get("apiKey");
+        const savedCustomerId = globalState.get("customerId");
+        globalState.set("apiKey", globalState.get("apiKey_CM2"));
+        globalState.set("customerId", globalState.get("customerId_SM_Created"));
 
-      cy.customerRetrieveCall(globalState);
+        cy.request({
+          method: "GET",
+          url: `${globalState.get("baseUrl")}/customers/${globalState.get("customerId")}`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": globalState.get("apiKey"),
+          },
+          failOnStatusCode: false,
+        }).then((response) => {
+          expect(response.status).to.equal(404);
+        });
 
-      cy.then(() => {
-        globalState.set("apiKey", savedApiKey);
-        globalState.set("customerId", savedCustomerId);
+        cy.then(() => {
+          globalState.set("apiKey", savedApiKey);
+          globalState.set("customerId", savedCustomerId);
+        });
       });
-    });
-  });
+
+      it("verify-standard-merchant-can-access-its-own-customer", () => {
+        const savedApiKey = globalState.get("apiKey");
+        const savedCustomerId = globalState.get("customerId");
+        globalState.set("apiKey", globalState.get("apiKey_SM"));
+        globalState.set("customerId", globalState.get("customerId_SM_Created"));
+
+        cy.customerRetrieveCall(globalState);
+
+        cy.then(() => {
+          globalState.set("apiKey", savedApiKey);
+          globalState.set("customerId", savedCustomerId);
+        });
+      });
+    }
+  );
 });

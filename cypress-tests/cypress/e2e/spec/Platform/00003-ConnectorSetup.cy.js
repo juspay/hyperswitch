@@ -166,10 +166,7 @@ describe("Connector Setup for Connected Merchants", () => {
 
       globalState.set("merchantId", globalState.get("standardMerchantId"));
       globalState.set("apiKey", globalState.get("apiKey_SM"));
-      globalState.set(
-        "merchantConnectorId",
-        globalState.get("connectorId_SM")
-      );
+      globalState.set("merchantConnectorId", globalState.get("connectorId_SM"));
       globalState.set("connectorId", "stripe");
 
       cy.connectorRetrieveCall(globalState);
@@ -190,7 +187,6 @@ describe("Connector Setup for Connected Merchants", () => {
 
       expect(connectorIdCM1).to.not.equal(connectorIdCM2);
     });
-
   });
 
   context("Platform Merchant Cannot Create Connector", () => {
