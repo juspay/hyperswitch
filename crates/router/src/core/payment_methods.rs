@@ -3251,7 +3251,7 @@ pub async fn vault_payment_method_external(
     access_token::create_access_token(
         state,
         &connector_data,
-        merchant_account,
+        merchant_account.get_id(),
         &mut old_router_data,
     )
     .await?;
