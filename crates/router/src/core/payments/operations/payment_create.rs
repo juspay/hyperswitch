@@ -31,7 +31,7 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     consts,
     core::{
-        configs::dimension_state::DimensionsWithMerchantId,
+        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payment_link,
@@ -696,7 +696,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
-        dimensions: DimensionsWithMerchantId,
+        initiator: Option<&domain::Initiator>,
+        dimensions: DimensionsWithMerchantIdAndProfileId,
     ) -> CustomResult<(PaymentCreateOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
     {
         match provider.get_account().merchant_account_type {
@@ -707,6 +708,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     payment_data,
                     request,
                     provider,
+                    initiator,
                     dimensions,
                 )
                 .await
@@ -740,7 +742,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         payment_data: &mut PaymentData<F>,
         _connector_call_type: &ConnectorCallType,
         business_profile: &domain::Profile,
-        platform: &domain::Platform,
+        processor: &domain::Processor,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         let is_tax_connector_enabled = business_profile.get_is_tax_connector_enabled();
         let skip_external_tax_calculation = payment_data
@@ -760,7 +762,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                     &business_profile.merchant_id,
                     merchant_connector_id,
-                    platform.get_processor().get_key_store(),
+                    processor.get_key_store(),
                 )
                 .await
                 .to_not_found_response(
@@ -784,7 +786,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
             let router_data = core_utils::construct_payments_dynamic_tax_calculation_router_data(
                 state,
-                platform,
+                processor,
                 payment_data,
                 &mca,
             )
@@ -879,7 +881,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
                     utils::when(
                         pm_info.payment_method.0.customer_id
-                            != req.customer_id.clone().get_required_value("customer_id")?,
+                            != req
+                                .get_customer_id()
+                                .get_required_value("customer_id")?
+                                .clone(),
                         || {
                             logger::info!("Payment method id does not belong to the customer id provided in the request.");
                             Err(errors::ApiErrorResponse::PaymentMethodNotFound)
@@ -939,7 +944,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
     async fn get_connector<'a>(
         &'a self,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         state: &SessionState,
         request: &api::PaymentsRequest,
         _payment_intent: &storage::PaymentIntent,
@@ -1157,6 +1162,18 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
                         .to_string(),
             },
         )?;
+
+        request.validate_installment_options().map_err(|err| {
+            let message = format!("invalid installment options: {err}");
+            err.change_context(errors::ApiErrorResponse::InvalidRequestData { message })
+        })?;
+
+        if request.confirm.unwrap_or(false) {
+            helpers::validate_installment_data_in_create(
+                &request.installment_options,
+                &request.installment_data,
+            )?;
+        }
 
         if request.confirm.unwrap_or(false) {
             helpers::validate_pm_or_token_given(
@@ -1527,7 +1544,7 @@ impl PaymentCreate {
                 capture_before: None,
                 card_discovery: None,
                 processor_merchant_id: platform.get_processor().get_account().get_id().clone(),
-                created_by: None,
+                created_by: platform.get_initiator().and_then(|initiator| initiator.to_created_by()),
                 setup_future_usage_applied: request.setup_future_usage,
                 routing_approach: Some(common_enums::RoutingApproach::default()),
                 connector_request_reference_id: None,
@@ -1546,6 +1563,7 @@ impl PaymentCreate {
                 encrypted_payment_method_data: None,
                 error_details: None,
                 retry_type: None,
+                installment_data: None,
             },
             additional_pm_data,
 
@@ -1761,7 +1779,9 @@ impl PaymentCreate {
             request_extended_authorization: request.request_extended_authorization,
             psd2_sca_exemption_type: request.psd2_sca_exemption_type,
             processor_merchant_id: platform.get_processor().get_account().get_id().to_owned(),
-            created_by: None,
+            created_by: platform
+                .get_initiator()
+                .and_then(|initiator| initiator.to_created_by()),
             force_3ds_challenge: request.force_3ds_challenge,
             force_3ds_challenge_trigger: Some(force_3ds_challenge_trigger),
             is_iframe_redirection_enabled: request
@@ -1783,6 +1803,7 @@ impl PaymentCreate {
                 .partner_merchant_identifier_details
                 .clone(),
             state_metadata: None,
+            installment_options: request.installment_options.clone(),
         })
     }
 }

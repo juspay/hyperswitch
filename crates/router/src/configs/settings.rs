@@ -36,7 +36,7 @@ pub use hyperswitch_interfaces::{
 use masking::{Maskable, Secret};
 pub use payment_methods::configs::settings::{
     BankRedirectConfig, BanksVector, ConnectorBankNames, ConnectorFields, EligiblePaymentMethods,
-    Mandates, PaymentMethodAuth, PaymentMethodType, PayoutSyncProcessTracker, RequiredFieldFinal,
+    Installments, Mandates, PaymentMethodAuth, PaymentMethodType, PayoutSyncProcessTracker, RequiredFieldFinal,
     RequiredFields, SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
     SupportedPaymentMethodsForMandate, ZeroMandates,
 };
@@ -117,6 +117,7 @@ pub struct Settings<S: SecretState> {
     pub cors: CorsSettings,
     pub mandates: Mandates,
     pub zero_mandates: ZeroMandates,
+    pub installments: Installments,
     pub network_transaction_id_supported_connectors: NetworkTransactionIdSupportedConnectors,
     pub card_only_mit_supported_connectors: CardOnlyMitSupportedConnectors,
     pub list_dispute_supported_connectors: ListDiputeSupportedConnectors,

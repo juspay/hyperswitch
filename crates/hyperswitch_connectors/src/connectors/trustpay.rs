@@ -1306,7 +1306,7 @@ static TRUSTPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                         api_models::feature_matrix::CardSpecificFeatures {
                             three_ds: common_enums::FeatureStatus::NotSupported,
                             no_three_ds: common_enums::FeatureStatus::Supported,
-                            supported_card_networks: supported_card_network,
+                            supported_card_networks: supported_card_network.clone(),
                         }
                     }),
                 ),
@@ -1431,6 +1431,28 @@ static TRUSTPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods,
                 specific_features: None,
+            },
+        );
+
+        trustpay_supported_payment_methods.add(
+            enums::PaymentMethod::NetworkToken,
+            enums::PaymentMethodType::NetworkToken,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: vec![
+                    enums::CaptureMethod::Automatic,
+                    enums::CaptureMethod::SequentialAutomatic,
+                ],
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
             },
         );
 

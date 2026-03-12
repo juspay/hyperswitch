@@ -99,17 +99,6 @@ mod encrypt {
         ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError>;
     }
 
-    fn is_encryption_service_enabled(_state: &KeyManagerState) -> bool {
-        #[cfg(feature = "encryption_service")]
-        {
-            _state.enabled
-        }
-        #[cfg(not(feature = "encryption_service"))]
-        {
-            false
-        }
-    }
-
     #[async_trait]
     impl<
             V: crypto::DecodeMessage + crypto::EncodeMessage + Send + 'static,
@@ -126,7 +115,7 @@ mod encrypt {
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
             // If encryption service is not enabled, fall back to application encryption or else call encryption service
-            if !is_encryption_service_enabled(state) {
+            if !state.is_encryption_service_enabled() {
                 Self::encrypt(masked_data, key, crypt_algo).await
             } else {
                 let result: Result<
@@ -161,7 +150,7 @@ mod encrypt {
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
             // If encryption service is not enabled, fall back to application encryption or else call encryption service
-            if !is_encryption_service_enabled(state) {
+            if !state.is_encryption_service_enabled() {
                 Self::decrypt(encrypted_data, key, crypt_algo).await
             } else {
                 let result: Result<
@@ -235,7 +224,7 @@ mod encrypt {
             crypt_algo: V,
         ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
             // If encryption service is not enabled, fall back to application encryption or else call encryption service
-            if !is_encryption_service_enabled(state) {
+            if !state.is_encryption_service_enabled() {
                 Self::batch_encrypt(masked_data, key, crypt_algo).await
             } else {
                 let result: Result<
@@ -270,7 +259,7 @@ mod encrypt {
             crypt_algo: V,
         ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
             // If encryption service is not enabled, fall back to application encryption or else call encryption service
-            if !is_encryption_service_enabled(state) {
+            if !state.is_encryption_service_enabled() {
                 Self::batch_decrypt(encrypted_data, key, crypt_algo).await
             } else {
                 let result: Result<
@@ -364,7 +353,7 @@ mod encrypt {
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
             // If encryption service is not enabled, fall back to application encryption or else call encryption service
-            if !is_encryption_service_enabled(state) {
+            if !state.is_encryption_service_enabled() {
                 Self::encrypt(masked_data, key, crypt_algo).await
             } else {
                 let result: Result<
@@ -399,7 +388,7 @@ mod encrypt {
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
             // If encryption service is not enabled, fall back to application encryption or else call encryption service
-            if !is_encryption_service_enabled(state) {
+            if !state.is_encryption_service_enabled() {
                 Self::decrypt(encrypted_data, key, crypt_algo).await
             } else {
                 let result: Result<
@@ -472,7 +461,7 @@ mod encrypt {
             crypt_algo: V,
         ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
             // If encryption service is not enabled, fall back to application encryption or else call encryption service
-            if !is_encryption_service_enabled(state) {
+            if !state.is_encryption_service_enabled() {
                 Self::batch_encrypt(masked_data, key, crypt_algo).await
             } else {
                 let result: Result<
@@ -507,7 +496,7 @@ mod encrypt {
             crypt_algo: V,
         ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
             // If encryption service is not enabled, fall back to application encryption or else call encryption service
-            if !is_encryption_service_enabled(state) {
+            if !state.is_encryption_service_enabled() {
                 Self::batch_decrypt(encrypted_data, key, crypt_algo).await
             } else {
                 let result: Result<
@@ -836,7 +825,7 @@ mod encrypt {
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
             // If encryption service is not enabled, fall back to application encryption or else call encryption service
-            if !is_encryption_service_enabled(state) {
+            if !state.is_encryption_service_enabled() {
                 Self::encrypt(masked_data, key, crypt_algo).await
             } else {
                 let result: Result<
@@ -871,7 +860,7 @@ mod encrypt {
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
             // If encryption service is not enabled, fall back to application encryption or else call encryption service
-            if !is_encryption_service_enabled(state) {
+            if !state.is_encryption_service_enabled() {
                 Self::decrypt(encrypted_data, key, crypt_algo).await
             } else {
                 let result: Result<
@@ -939,7 +928,7 @@ mod encrypt {
             crypt_algo: V,
         ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
             // If encryption service is not enabled, fall back to application encryption or else call encryption service
-            if !is_encryption_service_enabled(state) {
+            if !state.is_encryption_service_enabled() {
                 Self::batch_encrypt(masked_data, key, crypt_algo).await
             } else {
                 let result: Result<
@@ -974,7 +963,7 @@ mod encrypt {
             crypt_algo: V,
         ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
             // If encryption service is not enabled, fall back to application encryption or else call encryption service
-            if !is_encryption_service_enabled(state) {
+            if !state.is_encryption_service_enabled() {
                 Self::batch_decrypt(encrypted_data, key, crypt_algo).await
             } else {
                 let result: Result<
