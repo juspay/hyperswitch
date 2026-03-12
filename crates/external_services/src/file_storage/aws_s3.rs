@@ -11,10 +11,10 @@ use aws_sdk_s3::{
 };
 use aws_sdk_sts::config::Region;
 use common_utils::{errors::CustomResult, ext_traits::ConfigExt};
-use error_stack::ResultExt;
+use error_stack::{Report, ResultExt};
 
 use super::InvalidFileStorageConfig;
-use crate::file_storage::{FileStorageError, FileStorageInterface};
+use crate::file_storage::{CompletedPart, FileStorageError, FileStorageInterface};
 
 /// Configuration for AWS S3 file storage.
 #[derive(Debug, serde::Deserialize, Clone, Default)]
@@ -127,6 +127,7 @@ impl AwsFileStorageClient {
         response
             .upload_id()
             .ok_or(AwsS3StorageError::MissingUploadId)
+            .map_err(Report::from)
             .map(|id| id.to_string())
     }
 
@@ -152,6 +153,7 @@ impl AwsFileStorageClient {
         response
             .e_tag()
             .ok_or(AwsS3StorageError::MissingETag)
+            .map_err(Report::from)
             .map(|etag| etag.to_string())
     }
 
@@ -159,7 +161,7 @@ impl AwsFileStorageClient {
         &self,
         file_key: &str,
         upload_id: &str,
-        parts: Vec<api_models::revenue_recovery_reports::CompletedPart>,
+        parts: Vec<CompletedPart>,
     ) -> CustomResult<(), AwsS3StorageError> {
         let completed_parts: Vec<SdkCompletedPart> = parts
             .into_iter()
@@ -245,7 +247,7 @@ impl FileStorageInterface for AwsFileStorageClient {
         &self,
         file_key: &str,
         upload_id: &str,
-        parts: Vec<api_models::revenue_recovery_reports::CompletedPart>,
+        parts: Vec<CompletedPart>,
     ) -> CustomResult<(), FileStorageError> {
         self.complete_multipart_upload(file_key, upload_id, parts)
             .await

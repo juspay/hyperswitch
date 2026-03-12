@@ -1,14 +1,20 @@
+use std::sync::Arc;
+
 use actix_multipart::Multipart;
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::revenue_recovery_reports::{
     RevenueRecoveryReportMetadata, RevenueRecoveryReportUploadResponse, UploadStatus,
     UploadStatusData,
 };
+use common_utils::consts::{DEFAULT_TENANT, TENANT_HEADER};
 use futures::StreamExt;
 use router_env::{instrument, logger, Flow};
 
 use crate::{
+    consts,
     core::revenue_recovery_reports,
+    headers,
+    routes::app::SessionState,
     routes::AppState,
     services::{api, authentication as auth},
     types::storage::revenue_recovery_reports::RevenueRecoveryUploadStatusManager,
@@ -23,9 +29,64 @@ pub async fn upload_revenue_recovery_report_stream_handler(
     mut payload: Multipart,
 ) -> HttpResponse {
     let flow = Flow::RevenueRecoveryReportUpload;
+    let app_state = state.get_ref().clone();
+
+    let tenant_id = if !app_state.conf.multitenancy.enabled {
+        match common_utils::id_type::TenantId::try_from_string(DEFAULT_TENANT.to_owned()) {
+            Ok(id) => id,
+            Err(_) => return api::log_and_return_error_response(
+                crate::core::errors::ApiErrorResponse::InternalServerError.into(),
+            ),
+        }
+    } else {
+        let request_tenant_id = match req
+            .headers()
+            .get(TENANT_HEADER)
+            .and_then(|v| v.to_str().ok())
+            .ok_or(crate::core::errors::ApiErrorResponse::MissingTenantId)
+        {
+            Ok(h) => h,
+            Err(e) => return api::log_and_return_error_response(e.into()),
+        };
+        let request_tenant_id = match common_utils::id_type::TenantId::try_from_string(
+            request_tenant_id.to_string(),
+        ) {
+            Ok(id) => id,
+            Err(_) => {
+                return api::log_and_return_error_response(
+                    crate::core::errors::ApiErrorResponse::InvalidRequestData {
+                        message: format!("`{}` header is invalid", headers::X_TENANT_ID),
+                    }
+                    .into(),
+                )
+            }
+        };
+        match app_state.conf.multitenancy.get_tenant(&request_tenant_id) {
+            Some(tenant) => tenant.tenant_id.clone(),
+            None => {
+                return api::log_and_return_error_response(
+                    crate::core::errors::ApiErrorResponse::InvalidTenant {
+                        tenant_id: request_tenant_id.get_string_repr().to_string(),
+                    }
+                    .into(),
+                )
+            }
+        }
+    };
+
+    let session_state = match Arc::new(app_state.clone()).get_session_state(
+        &tenant_id,
+        None,
+        || crate::core::errors::ApiErrorResponse::InvalidTenant {
+            tenant_id: tenant_id.get_string_repr().to_string(),
+        },
+    ) {
+        Ok(s) => s,
+        Err(e) => return api::log_and_return_error_response(e.into()),
+    };
 
     let auth_result = auth::AdminApiAuthWithMerchantIdFromHeader
-        .authenticate_and_fetch(req.headers(), &state)
+        .authenticate_and_fetch(req.headers(), &session_state)
         .await;
 
     let auth_data: auth::AuthenticationData = match auth_result {
@@ -136,14 +197,14 @@ pub async fn upload_revenue_recovery_report_stream_handler(
         merchant_id: merchant_id_str.clone(),
     };
 
-    let session_state_clone = state.get_ref().clone();
+    let session_state_clone = session_state.clone();
     let platform_clone = platform.clone();
     let metadata_clone = metadata.clone();
     let file_id_clone = file_id.clone();
     let initial_status_data_clone = initial_status_data.clone();
 
     let set_status_result = RevenueRecoveryUploadStatusManager::set_upload_status(
-        &session_state_clone.into(),
+        &session_state,
         &file_id,
         initial_status_data_clone,
         UPLOAD_STATUS_TTL_SECONDS,
@@ -156,9 +217,8 @@ pub async fn upload_revenue_recovery_report_stream_handler(
     }
 
     tokio::spawn(async move {
-        let session_state: SessionState = session_state_clone.into();
         let _ = revenue_recovery_reports::upload_revenue_recovery_report_background(
-            session_state,
+            session_state_clone,
             platform_clone,
             metadata_clone,
             file_stream,
@@ -188,9 +248,64 @@ pub async fn get_revenue_recovery_report_status_handler(
 ) -> HttpResponse {
     let flow = Flow::RevenueRecoveryReportUpload;
     let file_id = path.into_inner();
+    let app_state = state.get_ref().clone();
+
+    let tenant_id = if !app_state.conf.multitenancy.enabled {
+        match common_utils::id_type::TenantId::try_from_string(DEFAULT_TENANT.to_owned()) {
+            Ok(id) => id,
+            Err(_) => return api::log_and_return_error_response(
+                crate::core::errors::ApiErrorResponse::InternalServerError.into(),
+            ),
+        }
+    } else {
+        let request_tenant_id = match req
+            .headers()
+            .get(TENANT_HEADER)
+            .and_then(|v| v.to_str().ok())
+            .ok_or(crate::core::errors::ApiErrorResponse::MissingTenantId)
+        {
+            Ok(h) => h,
+            Err(e) => return api::log_and_return_error_response(e.into()),
+        };
+        let request_tenant_id = match common_utils::id_type::TenantId::try_from_string(
+            request_tenant_id.to_string(),
+        ) {
+            Ok(id) => id,
+            Err(_) => {
+                return api::log_and_return_error_response(
+                    crate::core::errors::ApiErrorResponse::InvalidRequestData {
+                        message: format!("`{}` header is invalid", headers::X_TENANT_ID),
+                    }
+                    .into(),
+                )
+            }
+        };
+        match app_state.conf.multitenancy.get_tenant(&request_tenant_id) {
+            Some(tenant) => tenant.tenant_id.clone(),
+            None => {
+                return api::log_and_return_error_response(
+                    crate::core::errors::ApiErrorResponse::InvalidTenant {
+                        tenant_id: request_tenant_id.get_string_repr().to_string(),
+                    }
+                    .into(),
+                )
+            }
+        }
+    };
+
+    let session_state = match Arc::new(app_state.clone()).get_session_state(
+        &tenant_id,
+        None,
+        || crate::core::errors::ApiErrorResponse::InvalidTenant {
+            tenant_id: tenant_id.get_string_repr().to_string(),
+        },
+    ) {
+        Ok(s) => s,
+        Err(e) => return api::log_and_return_error_response(e.into()),
+    };
 
     let auth_result = auth::AdminApiAuthWithMerchantIdFromHeader
-        .authenticate_and_fetch(req.headers(), &state)
+        .authenticate_and_fetch(req.headers(), &session_state)
         .await;
 
     let auth_data: auth::AuthenticationData = match auth_result {
@@ -199,7 +314,6 @@ pub async fn get_revenue_recovery_report_status_handler(
     };
 
     let platform = auth_data.platform;
-    let session_state = state.get_ref().clone().into();
 
     match revenue_recovery_reports::get_revenue_recovery_report_status(
         session_state,

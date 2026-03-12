@@ -1,19 +1,20 @@
 use error_stack::ResultExt;
 use redis_interface::RedisKey;
-use router_env::{instrument, logger};
+use router_env::{instrument, logger, tracing};
 use serde_json::json;
+
+use api_models::revenue_recovery_reports::{UploadStatus, UploadStatusData};
 
 use crate::{
     core::errors::{self, RouterResult},
     routes::SessionState,
-    types::api::revenue_recovery_reports::{UploadStatus, UploadStatusData},
 };
 
 pub struct RevenueRecoveryUploadStatusManager;
 
 impl RevenueRecoveryUploadStatusManager {
     fn get_upload_status_key(file_id: &str) -> RedisKey {
-        RedisKey::new(format!("revenue_recovery_upload:{}", file_id))
+        RedisKey::from(format!("revenue_recovery_upload:{}", file_id))
     }
 
     #[instrument(skip_all)]

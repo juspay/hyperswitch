@@ -115,4 +115,4 @@ pub use crate::analytics::routes::{self as analytics, Analytics};
 
 // Update exports:
 #[cfg(feature = "v2")]
-pub use self::app::{RecoveryDataBackfill, RecoveryReports, Tokenization};
+pub use self::app::RecoveryReports;

@@ -1,22 +1,21 @@
 use actix_web::web::Bytes;
 use api_models::revenue_recovery_reports::{
-    RevenueRecoveryReportMetadata, RevenueRecoveryReportStatusResponse,
-    RevenueRecoveryReportUploadResponse, UploadStatus, UploadStatusData,
+    RevenueRecoveryReportMetadata, RevenueRecoveryReportStatusResponse, UploadStatus,
+    UploadStatusData,
 };
-use common_utils::id_type;
 use error_stack::ResultExt;
+use external_services::file_storage::CompletedPart as StorageCompletedPart;
 use futures::{Stream, StreamExt};
 use router_env::logger;
 use time::format_description;
 
 use crate::{
-    consts,
     core::errors::{self, RouterResult},
     routes::SessionState,
     services::ApplicationResponse,
     types::{domain, storage::revenue_recovery_reports::RevenueRecoveryUploadStatusManager},
 };
-
+use actix_multipart::MultipartError;
 const DEFAULT_S3_CONTENT_TYPE: &str = "text/csv";
 const MIN_S3_MULTIPART_PART_SIZE: usize = 5 * 1024 * 1024;
 const UPLOAD_STATUS_TTL_SECONDS: i64 = 86400;
@@ -25,7 +24,7 @@ pub async fn upload_revenue_recovery_report_background(
     state: SessionState,
     platform: domain::Platform,
     metadata: RevenueRecoveryReportMetadata,
-    mut file_stream: impl Stream<Item = Result<Bytes, actix_web::error::MultipartError>> + Unpin,
+    mut file_stream: impl Stream<Item = Result<Bytes, MultipartError>> + Unpin,
     file_id: String,
     initial_status_data: UploadStatusData,
 ) -> RouterResult<()> {
@@ -64,7 +63,7 @@ pub async fn upload_revenue_recovery_report_background(
     let mut current_status_data = initial_status_data;
     current_status_data.s3_key = Some(s3_key.clone());
 
-    let result = async {
+    let result: RouterResult<()> = async {
         let upload_id = state
             .file_storage_client
             .initiate_multipart_upload(&s3_key, &s3_content_type)
@@ -78,7 +77,9 @@ pub async fn upload_revenue_recovery_report_background(
 
         while let Some(chunk_result) = file_stream.next().await {
             let chunk = chunk_result
-                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .map_err(|_| {
+                    error_stack::Report::from(errors::ApiErrorResponse::InternalServerError)
+                })
                 .attach_printable("Error while reading file stream chunk in background")?;
 
             part_buffer.extend_from_slice(&chunk);
@@ -104,7 +105,7 @@ pub async fn upload_revenue_recovery_report_background(
                         format!("Failed to upload S3 part {}", current_part_number)
                     })?;
 
-                uploaded_parts.push(api_models::revenue_recovery_reports::CompletedPart {
+                uploaded_parts.push(StorageCompletedPart {
                     part_number: current_part_number,
                     e_tag,
                 });
@@ -130,7 +131,7 @@ pub async fn upload_revenue_recovery_report_background(
                     format!("Failed to upload final S3 part {}", current_part_number)
                 })?;
 
-            uploaded_parts.push(api_models::revenue_recovery_reports::CompletedPart {
+            uploaded_parts.push(StorageCompletedPart {
                 part_number: current_part_number,
                 e_tag,
             });
@@ -200,7 +201,7 @@ pub async fn get_revenue_recovery_report_status(
 
     let status_data = RevenueRecoveryUploadStatusManager::get_upload_status(&state, &file_id)
         .await?
-        .ok_or(errors::ApiErrorResponse::ResourceNotFound {
+        .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
             message: format!("Upload status not found for file_id: {}", file_id),
         })?;
 

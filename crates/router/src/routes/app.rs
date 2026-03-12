@@ -403,11 +403,14 @@ pub async fn create_email_client(
                 settings.proxy.https_url.to_owned(),
             )
             .await,
-        ),
+        ) as Box<dyn EmailService>,
         EmailClientConfigs::Smtp { smtp } => {
             Box::new(SmtpServer::create(&settings.email, smtp.clone()).await)
+                as Box<dyn EmailService>
         }
-        EmailClientConfigs::NoEmailClient => Box::new(NoEmailClient::create().await),
+        EmailClientConfigs::NoEmailClient => {
+            Box::new(NoEmailClient::create().await) as Box<dyn EmailService>
+        }
     }
 }
 
@@ -609,7 +612,7 @@ impl AppState {
                     )
                     .await
                     .expect("Failed to create store"),
-                ),
+                ) as Box<dyn CommonStorageInterface>,
             },
             #[allow(clippy::expect_used)]
             StorageImpl::Mock => Box::new(

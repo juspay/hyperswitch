@@ -41,12 +41,20 @@ impl FileStorageConfig {
 
     /// Retrieves the appropriate file storage client based on the file storage configuration.
     pub async fn get_file_storage_client(&self) -> Arc<dyn FileStorageInterface> {
-        match self {
+        let client: Arc<dyn FileStorageInterface> = match self {
             #[cfg(feature = "aws_s3")]
             Self::AwsS3 { aws_s3 } => Arc::new(aws_s3::AwsFileStorageClient::new(aws_s3).await),
             Self::FileSystem => Arc::new(file_system::FileSystem),
-        }
+        };
+        client
     }
+}
+
+/// Part entry for S3 multipart upload completion.
+#[derive(Debug, Clone)]
+pub struct CompletedPart {
+    pub part_number: i32,
+    pub e_tag: String,
 }
 
 /// Trait for file storage operations
@@ -87,7 +95,7 @@ pub trait FileStorageInterface: dyn_clone::DynClone + Sync + Send {
         &self,
         _file_key: &str,
         _upload_id: &str,
-        _parts: Vec<api_models::revenue_recovery_reports::CompletedPart>,
+        _parts: Vec<CompletedPart>,
     ) -> CustomResult<(), FileStorageError> {
         Err(FileStorageError::NotSupported.into())
     }
