@@ -2392,7 +2392,6 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             browser_info,
             charges,
             moto: is_moto,
-            external_three_ds_data,
         })
     }
 }
