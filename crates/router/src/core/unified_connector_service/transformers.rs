@@ -690,7 +690,7 @@ impl
         let connector_order_reference_id = router_data.request.connector_reference_id.clone();
 
         // Todo fix request reference id in UCS
-        let request_ref_id = Some(Identifier {
+        let _request_ref_id = Some(Identifier {
             id_type: Some(payments_grpc::identifier::IdType::Id(
                 router_data.connector_request_reference_id.clone(),
             )),
