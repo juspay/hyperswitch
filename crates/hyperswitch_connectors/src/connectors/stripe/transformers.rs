@@ -226,13 +226,6 @@ pub struct PaymentIntentRequest {
     pub charges: Option<IntentCharges>,
     #[serde(rename = "payment_method_options[card][moto]")]
     pub moto: Option<bool>,
-<<<<<<< Updated upstream
-    #[serde(flatten)]
-    pub external_three_ds_data: Option<StripeExternalThreeDsData>,
-=======
-    // #[serde(flatten)]
-    // pub external_three_ds_data: Option<StripeExternalThreeDsData>,
->>>>>>> Stashed changes
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
