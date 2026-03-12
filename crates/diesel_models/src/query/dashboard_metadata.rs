@@ -150,11 +150,6 @@ impl DashboardMetadata {
         profile_id: Option<String>,
         data_key: enums::DashboardMetadata,
     ) -> StorageResult<Option<Self>> {
-        println!("\n\n\n\nuser_id: {:?}", user_id);
-        println!("merchant_id: {:?}", merchant_id);
-        println!("org_id: {:?}", org_id);
-        println!("profile_id: {:?}", profile_id);
-        println!("data_key: {:?}\n\n\n\n", data_key);
         dashboard_metadata_filter!(
             Some(&user_id),
             profile_id.as_ref(),
