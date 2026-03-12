@@ -4419,10 +4419,10 @@ impl
             })
         } else {
             let order_id = response
-            .connector_order_id
-            .as_ref()
-            .map(|id| router_request_types::ResponseId::ConnectorTransactionId(id.clone()))
-            .unwrap_or(router_request_types::ResponseId::NoResponseId);
+                .connector_order_id
+                .as_ref()
+                .map(|id| router_request_types::ResponseId::ConnectorTransactionId(id.clone()))
+                .unwrap_or(router_request_types::ResponseId::NoResponseId);
 
             let status = AttemptStatus::foreign_try_from((response.status(), prev_status))?;
 
