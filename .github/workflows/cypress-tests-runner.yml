@@ -396,20 +396,13 @@ jobs:
           scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
 
           kill "${{ env.PID }}"
-
-      - name: Compress and upload server logs on failure
-        if: env.RUN_TESTS == 'true' && failure()
-        run: |
-          if [[ -f "${{ env.SERVER_LOG_PATH }}" ]]; then
-            gzip -9 "${{ env.SERVER_LOG_PATH }}"
-          fi
-
+ 
       - name: Upload server logs on failure
         if: env.RUN_TESTS == 'true' && failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.batch.server_logs_artifact }}
-          path: ${{ env.SERVER_LOG_PATH }}.gz
+          path: ${{ env.SERVER_LOG_PATH }}
           if-no-files-found: ignore
           retention-days: 1
 
@@ -661,11 +654,11 @@ jobs:
           kill "${{ env.PID }}"
 
       - name: Upload server logs on failure
-        if: env.RUN_TESTS == 'true'
+        if: env.RUN_TESTS == 'true' && failure()
         uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.batch.server_logs_artifact }}
-          path: ${{ env.SERVER_LOG_PATH }}   # no .gz needed, compression is built-in
+          path: ${{ env.SERVER_LOG_PATH }} 
           if-no-files-found: ignore
           retention-days: 1
 
