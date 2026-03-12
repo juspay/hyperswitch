@@ -82,7 +82,7 @@ describe("Core flows", () => {
     it("Modular PM Service - Payment Method Session Update call", () => {
       cy.pmSessionUpdatePMCall(
         globalState,
-        fixtures.paymentMethodSessionUpadte
+        fixtures.paymentMethodSessionUpdate
       );
     });
 
