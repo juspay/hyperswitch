@@ -24,7 +24,8 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
@@ -42,6 +43,7 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
+use lazy_static::lazy_static;
 use masking::{ExposeInterface, Mask};
 use transformers as fiservcommercehub;
 
@@ -612,17 +614,75 @@ impl webhooks::IncomingWebhook for Fiservcommercehub {
     }
 }
 
-static FISERVCOMMERCEHUB_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
-    LazyLock::new(SupportedPaymentMethods::new);
+lazy_static! {
+    static ref FISERVCOMMERCEHUB_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
 
-static FISERVCOMMERCEHUB_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-    display_name: "Fiservcommercehub",
-    description: "Fiservcommercehub connector",
-    connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
-    integration_status: enums::ConnectorIntegrationStatus::Live,
-};
+        let supported_card_network = vec![
+        common_enums::CardNetwork::Mastercard,
+        common_enums::CardNetwork::Visa,
+        common_enums::CardNetwork::Interac,
+        common_enums::CardNetwork::AmericanExpress,
+        common_enums::CardNetwork::JCB,
+        common_enums::CardNetwork::DinersClub,
+        common_enums::CardNetwork::Discover,
+        common_enums::CardNetwork::CartesBancaires,
+        common_enums::CardNetwork::UnionPay,
+        common_enums::CardNetwork::Maestro,
+    ];
 
-static FISERVCOMMERCEHUB_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+        let mut fiservcommercehub_supported_payment_methods = SupportedPaymentMethods::new();
+        fiservcommercehub_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+        enums::PaymentMethodType::Credit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::Supported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network.clone(),
+                    }
+                }),
+            ),
+        },
+        );
+
+        fiservcommercehub_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+        enums::PaymentMethodType::Debit,
+        PaymentMethodDetails {
+            mandates: enums::FeatureStatus::NotSupported,
+            refunds: enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: Some(
+                api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                    api_models::feature_matrix::CardSpecificFeatures {
+                        three_ds: common_enums::FeatureStatus::Supported,
+                        no_three_ds: common_enums::FeatureStatus::Supported,
+                        supported_card_networks: supported_card_network,
+                    }
+                }),
+            ),
+        },
+        );
+
+        fiservcommercehub_supported_payment_methods
+    };
+
+    static ref FISERVCOMMERCEHUB_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+        display_name: "Fiservcommercehub",
+        description: "Fiservcommercehub is a developer-friendly, flexible communication standards, unified APIs, and pre-certified integrations, Commerce Hub reduces development time and accelerates speed to market.",
+        connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+        integration_status: enums::ConnectorIntegrationStatus::Live,
+    };
+
+    static ref FISERVCOMMERCEHUB_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
+
+}
 
 impl ConnectorSpecifications for Fiservcommercehub {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
