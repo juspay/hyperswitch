@@ -2269,21 +2269,8 @@ impl
                         })
                 });
 
-        let resource_id: router_request_types::ResponseId = match response
-            .connector_transaction_id
-            .as_ref()
-            .and_then(|id| id.id_type.clone())
-        {
-            Some(payments_grpc::identifier::IdType::Id(id)) => {
-                router_request_types::ResponseId::ConnectorTransactionId(id)
-            }
-            Some(payments_grpc::identifier::IdType::EncodedData(encoded_data)) => {
-                router_request_types::ResponseId::EncodedData(encoded_data)
-            }
-            Some(payments_grpc::identifier::IdType::NoResponseIdMarker(_)) | None => {
-                router_request_types::ResponseId::NoResponseId
-            }
-        };
+        let connector_transaction_id= response.connector_transaction_id.as_ref().map(|id| router_request_types::ResponseId::ConnectorTransactionId(id))
+            .unwrap_or(router_request_types::ResponseId::NoResponseId);
 
         let (mut connector_metadata, redirection_data) = match response.redirection_data.clone() {
             Some(redirection_data) => match redirection_data.form_type {
@@ -2414,7 +2401,7 @@ impl
                     .and_then(|cd| cd.reason.clone()),
                 status_code,
                 attempt_status,
-                connector_transaction_id: resource_id.get_optional_response_id(),
+                connector_transaction_id: connector_transaction_id.get_optional_response_id(),
                 connector_response_reference_id,
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
@@ -2438,7 +2425,7 @@ impl
 
             Ok((
                 PaymentsResponseData::TransactionResponse {
-                    resource_id,
+                    resource_id: connector_transaction_id,
                     redirection_data: Box::new(redirection_data),
                     mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata,
@@ -2483,21 +2470,7 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceCaptureResponse,
 
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
-        let resource_id: router_request_types::ResponseId = match response
-            .connector_transaction_id
-            .as_ref()
-            .and_then(|id| id.id_type.clone())
-        {
-            Some(payments_grpc::identifier::IdType::Id(id)) => {
-                router_request_types::ResponseId::ConnectorTransactionId(id)
-            }
-            Some(payments_grpc::identifier::IdType::EncodedData(encoded_data)) => {
-                router_request_types::ResponseId::EncodedData(encoded_data)
-            }
-            Some(payments_grpc::identifier::IdType::NoResponseIdMarker(_)) | None => {
-                router_request_types::ResponseId::NoResponseId
-            }
-        };
+        let connector_transaction_id = router_request_types::ResponseId::ConnectorTransactionId(response.connector_transaction_id.clone());
 
         // Extract connector_metadata from response if present
         let connector_metadata = response.connector_feature_data.clone().and_then(|secret| {
@@ -2550,7 +2523,7 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceCaptureResponse,
                     .and_then(|cd| cd.reason.clone()),
                 status_code,
                 attempt_status,
-                connector_transaction_id: resource_id.get_optional_response_id(),
+                connector_transaction_id: connector_transaction_id.get_optional_response_id(),
                 connector_response_reference_id,
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
@@ -2573,7 +2546,7 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceCaptureResponse,
             let status = AttemptStatus::foreign_try_from((response.status(), prev_status))?;
             Ok((
                 PaymentsResponseData::TransactionResponse {
-                    resource_id,
+                    resource_id: connector_transaction_id,
                     redirection_data: Box::new(None),
                     mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata,
@@ -2690,21 +2663,8 @@ impl
                     })
             });
 
-        let resource_id: router_request_types::ResponseId = match response
-            .connector_registration_id
-            .as_ref()
-            .and_then(|id| id.id_type.clone())
-        {
-            Some(payments_grpc::identifier::IdType::Id(id)) => {
-                router_request_types::ResponseId::ConnectorTransactionId(id)
-            }
-            Some(payments_grpc::identifier::IdType::EncodedData(encoded_data)) => {
-                router_request_types::ResponseId::EncodedData(encoded_data)
-            }
-            Some(payments_grpc::identifier::IdType::NoResponseIdMarker(_)) | None => {
-                router_request_types::ResponseId::NoResponseId
-            }
-        };
+        let connector_transaction_id= response.connector_recurring_payment_id.as_ref().map(|id| router_request_types::ResponseId::ConnectorTransactionId(id))
+            .unwrap_or(router_request_types::ResponseId::NoResponseId);
 
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
@@ -2744,7 +2704,7 @@ impl
                     .and_then(|cd| cd.reason.clone()),
                 status_code,
                 attempt_status,
-                connector_transaction_id: resource_id.get_optional_response_id(),
+                connector_transaction_id: connector_transaction_id.get_optional_response_id(),
                 connector_response_reference_id,
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
@@ -2783,7 +2743,7 @@ impl
 
             Ok((
                 PaymentsResponseData::TransactionResponse {
-                    resource_id,
+                    resource_id: connector_transaction_id,
                     redirection_data: Box::new(
                         response
                             .redirection_data
@@ -2835,21 +2795,8 @@ impl
                     })
             });
 
-        let resource_id: router_request_types::ResponseId = match response
-            .connector_transaction_id
-            .as_ref()
-            .and_then(|id| id.id_type.clone())
-        {
-            Some(payments_grpc::identifier::IdType::Id(id)) => {
-                router_request_types::ResponseId::ConnectorTransactionId(id)
-            }
-            Some(payments_grpc::identifier::IdType::EncodedData(encoded_data)) => {
-                router_request_types::ResponseId::EncodedData(encoded_data)
-            }
-            Some(payments_grpc::identifier::IdType::NoResponseIdMarker(_)) | None => {
-                router_request_types::ResponseId::NoResponseId
-            }
-        };
+        let connector_transaction_id= response.connector_transaction_id.as_ref().map(|id| router_request_types::ResponseId::ConnectorTransactionId(id))
+            .unwrap_or(router_request_types::ResponseId::NoResponseId);
 
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
@@ -2904,7 +2851,7 @@ impl
                     .and_then(|cd| cd.reason.clone()),
                 status_code,
                 attempt_status,
-                connector_transaction_id: resource_id.get_optional_response_id(),
+                connector_transaction_id: connector_transaction_id.get_optional_response_id(),
                 connector_response_reference_id,
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
@@ -2928,7 +2875,7 @@ impl
 
             Ok((
                 PaymentsResponseData::TransactionResponse {
-                    resource_id,
+                    resource_id: connector_transaction_id,
                     redirection_data: Box::new(None),
                     mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata,
@@ -4087,21 +4034,7 @@ impl
                     })
             });
 
-        let resource_id: router_request_types::ResponseId = match response
-            .connector_transaction_id
-            .as_ref()
-            .and_then(|id| id.id_type.clone())
-        {
-            Some(payments_grpc::identifier::IdType::Id(id)) => {
-                router_request_types::ResponseId::ConnectorTransactionId(id)
-            }
-            Some(payments_grpc::identifier::IdType::EncodedData(encoded_data)) => {
-                router_request_types::ResponseId::EncodedData(encoded_data)
-            }
-            Some(payments_grpc::identifier::IdType::NoResponseIdMarker(_)) | None => {
-                router_request_types::ResponseId::NoResponseId
-            }
-        };
+        let connector_transaction_id = router_request_types::ResponseId::ConnectorTransactionId(response.connector_transaction_id.clone());
 
         let (connector_metadata, redirection_data) = match response.redirection_data.clone() {
             Some(redirection_data) => match redirection_data.form_type {
@@ -4177,7 +4110,7 @@ impl
                     .and_then(|cd| cd.reason.clone()),
                 status_code,
                 attempt_status,
-                connector_transaction_id: resource_id.get_optional_response_id(),
+                connector_transaction_id: connector_transaction_id.get_optional_response_id(),
                 connector_response_reference_id,
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
@@ -4201,7 +4134,7 @@ impl
 
             Ok((
                 PaymentsResponseData::TransactionResponse {
-                    resource_id,
+                    resource_id: connector_transaction_id,
                     redirection_data: Box::new(redirection_data),
                     mandate_reference: Box::new(None),
                     connector_metadata,
@@ -5314,21 +5247,7 @@ impl
             .transpose()?
             .map(Box::new);
 
-        let resource_id: router_request_types::ResponseId = match response
-            .connector_transaction_id
-            .as_ref()
-            .and_then(|id| id.id_type.clone())
-        {
-            Some(payments_grpc::identifier::IdType::Id(id)) => {
-                router_request_types::ResponseId::ConnectorTransactionId(id)
-            }
-            Some(payments_grpc::identifier::IdType::EncodedData(encoded_data)) => {
-                router_request_types::ResponseId::EncodedData(encoded_data)
-            }
-            Some(payments_grpc::identifier::IdType::NoResponseIdMarker(_)) | None => {
-                router_request_types::ResponseId::NoResponseId
-            }
-        };
+        let connector_transaction_id = router_request_types::ResponseId::ConnectorTransactionId(response.connector_transaction_id.clone());
 
         let (connector_metadata, redirection_data) = match response.redirection_data.clone() {
             Some(redirection_data) => match redirection_data.form_type {
@@ -5397,7 +5316,7 @@ impl
                     .and_then(|cd| cd.reason.clone()),
                 status_code,
                 attempt_status,
-                connector_transaction_id: resource_id.get_optional_response_id(),
+                connector_transaction_id: connector_transaction_id.get_optional_response_id(),
                 connector_response_reference_id,
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
@@ -5421,7 +5340,7 @@ impl
 
             Ok((
                 PaymentsResponseData::TransactionResponse {
-                    resource_id,
+                    resource_id: connector_transaction_id,
                     redirection_data: Box::new(redirection_data),
                     mandate_reference: Box::new(None),
                     connector_metadata,
@@ -6124,21 +6043,7 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceVoidResponse, At
                         })
                 });
 
-        let resource_id: router_request_types::ResponseId = match response
-            .connector_transaction_id
-            .as_ref()
-            .and_then(|id| id.id_type.clone())
-        {
-            Some(payments_grpc::identifier::IdType::Id(id)) => {
-                router_request_types::ResponseId::ConnectorTransactionId(id)
-            }
-            Some(payments_grpc::identifier::IdType::EncodedData(encoded_data)) => {
-                router_request_types::ResponseId::EncodedData(encoded_data)
-            }
-            Some(payments_grpc::identifier::IdType::NoResponseIdMarker(_)) | None => {
-                router_request_types::ResponseId::NoResponseId
-            }
-        };
+        let connector_transaction_id = router_request_types::ResponseId::ConnectorTransactionId(response.connector_transaction_id.clone());
 
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
@@ -6193,7 +6098,7 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceVoidResponse, At
                     .and_then(|cd| cd.reason.clone()),
                 status_code,
                 attempt_status,
-                connector_transaction_id: resource_id.get_optional_response_id(),
+                connector_transaction_id: connector_transaction_id.get_optional_response_id(),
                 connector_response_reference_id,
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
@@ -6217,7 +6122,7 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceVoidResponse, At
 
             Ok((
                 PaymentsResponseData::TransactionResponse {
-                    resource_id,
+                    resource_id: connector_transaction_id,
                     redirection_data: Box::new(None),
                     mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata,
