@@ -31933,14 +31933,6 @@
               }
             ],
             "nullable": true
-          },
-          "connector_metadata": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ConnectorMetadata"
-              }
-            ],
-            "nullable": true
           }
         },
         "additionalProperties": false
