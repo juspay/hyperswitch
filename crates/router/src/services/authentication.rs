@@ -2572,40 +2572,25 @@ where
 /// it falls back to the provided authentication mechanism.
 pub struct InternalMerchantIdProfileIdAuth<F>(pub F);
 
-pub fn is_internal_merchant_id_profile_id_auth(
-    request_headers: &HeaderMap,
-) -> common_enums::ApiKeyType {
-    let merchant_id = HeaderMapStruct::new(request_headers)
-        .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)
-        .ok();
-    let internal_api_key = HeaderMapStruct::new(request_headers)
-        .get_header_value_by_key(headers::X_INTERNAL_API_KEY)
-        .map(|internal_api_key| internal_api_key.to_string());
-    let profile_id = HeaderMapStruct::new(request_headers)
-        .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)
-        .ok();
-
-    if merchant_id.is_some() && profile_id.is_some() && internal_api_key.is_some() {
-        common_enums::ApiKeyType::Internal
-    } else {
-        common_enums::ApiKeyType::External
-    }
+/// Validated data returned from successful internal merchant/profile authentication
+struct InternalAuthValidatedData {
+    key_store: domain::MerchantKeyStore,
+    profile: domain::Profile,
+    initiator_merchant: domain::MerchantAccount,
 }
 
-#[async_trait]
-impl<A, F> AuthenticateAndFetch<AuthenticationData, A> for InternalMerchantIdProfileIdAuth<F>
-where
-    A: SessionStateInfo + Sync + Send,
-    F: AuthenticateAndFetch<AuthenticationData, A> + Sync + Send,
-{
-    async fn authenticate_and_fetch(
-        &self,
+impl<F> InternalMerchantIdProfileIdAuth<F> {
+    /// Common authentication logic for internal merchant/profile ID auth.
+    /// Returns Ok(Some(data)) if authentication succeeds via internal API key,
+    /// Ok(None) if headers are missing (should fallback to wrapped auth),
+    /// Err if authentication fails.
+    async fn validate_internal_auth<A>(
         request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
-        if !state.conf().internal_merchant_id_profile_id_auth.enabled {
-            return self.0.authenticate_and_fetch(request_headers, state).await;
-        }
+    ) -> RouterResult<Option<InternalAuthValidatedData>>
+    where
+        A: SessionStateInfo + Sync + Send,
+    {
         let merchant_id = HeaderMapStruct::new(request_headers)
             .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)
             .ok();
@@ -2615,6 +2600,7 @@ where
         let profile_id = HeaderMapStruct::new(request_headers)
             .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)
             .ok();
+
         if let (Some(internal_api_key), Some(merchant_id), Some(profile_id)) =
             (internal_api_key, merchant_id, profile_id)
         {
@@ -2628,6 +2614,7 @@ where
                 return Err(errors::ApiErrorResponse::Unauthorized)
                     .attach_printable("Internal API key authentication failed");
             }
+
             let key_store = state
                 .store()
                 .get_merchant_key_store_by_merchant_id(
@@ -2653,35 +2640,91 @@ where
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-            let initiator = Some(domain::Initiator::Api {
-                merchant_id: initiator_merchant.get_id().clone(),
-                merchant_account_type: initiator_merchant.merchant_account_type,
-                publishable_key: initiator_merchant.publishable_key.clone(),
-            });
-
-            let platform = resolve_platform(
-                state,
-                request_headers,
-                initiator_merchant.clone(),
+            Ok(Some(InternalAuthValidatedData {
                 key_store,
-                initiator,
-            )
-            .await?;
-
-            let auth = AuthenticationData::construct_authentication_data_for_internal_merchant_id_profile_id_auth(platform, profile);
-
-            Ok((
-                auth.clone(),
-                AuthenticationType::InternalMerchantIdProfileId {
-                    merchant_id: merchant_id.clone(),
-                    profile_id: Some(profile_id),
-                },
-            ))
+                profile,
+                initiator_merchant,
+            }))
         } else {
-            Ok(self
-                .0
-                .authenticate_and_fetch(request_headers, state)
-                .await?)
+            Ok(None)
+        }
+    }
+}
+
+#[async_trait]
+impl<A, F> AuthenticateAndFetch<AuthenticationData, A> for InternalMerchantIdProfileIdAuth<F>
+where
+    A: SessionStateInfo + Sync + Send,
+    F: AuthenticateAndFetch<AuthenticationData, A> + Sync + Send,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        if !state.conf().internal_merchant_id_profile_id_auth.enabled {
+            return self.0.authenticate_and_fetch(request_headers, state).await;
+        }
+
+        match Box::pin(Self::validate_internal_auth(request_headers, state)).await? {
+            Some(validated_data) => {
+                let initiator = Some(domain::Initiator::Api {
+                    merchant_id: validated_data.initiator_merchant.get_id().clone(),
+                    merchant_account_type: validated_data.initiator_merchant.merchant_account_type,
+                    publishable_key: validated_data.initiator_merchant.publishable_key.clone(),
+                });
+
+                let platform = resolve_platform(
+                    state,
+                    request_headers,
+                    validated_data.initiator_merchant.clone(),
+                    validated_data.key_store,
+                    initiator,
+                )
+                .await?;
+
+                let auth = AuthenticationData::construct_authentication_data_for_internal_merchant_id_profile_id_auth(
+                    platform,
+                    validated_data.profile.clone(),
+                );
+
+                Ok((
+                    auth,
+                    AuthenticationType::InternalMerchantIdProfileId {
+                        merchant_id: validated_data.initiator_merchant.get_id().clone(),
+                        profile_id: Some(validated_data.profile.get_id().clone()),
+                    },
+                ))
+            }
+            None => self.0.authenticate_and_fetch(request_headers, state).await,
+        }
+    }
+}
+
+#[async_trait]
+impl<A, F> AuthenticateAndFetch<(), A> for InternalMerchantIdProfileIdAuth<F>
+where
+    A: SessionStateInfo + Sync + Send,
+    F: AuthenticateAndFetch<(), A> + Sync + Send,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<((), AuthenticationType)> {
+        if !state.conf().internal_merchant_id_profile_id_auth.enabled {
+            return self.0.authenticate_and_fetch(request_headers, state).await;
+        }
+
+        match Box::pin(Self::validate_internal_auth(request_headers, state)).await? {
+            Some(validated_data) => Ok((
+                (),
+                AuthenticationType::InternalMerchantIdProfileId {
+                    merchant_id: validated_data.initiator_merchant.get_id().clone(),
+                    profile_id: Some(validated_data.profile.get_id().clone()),
+                },
+            )),
+            None => self.0.authenticate_and_fetch(request_headers, state).await,
         }
     }
 }
