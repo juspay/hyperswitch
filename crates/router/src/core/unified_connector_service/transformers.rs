@@ -2274,7 +2274,7 @@ impl
         let connector_transaction_id = response
             .connector_transaction_id
             .as_ref()
-            .map(|id| router_request_types::ResponseId::ConnectorTransactionId(id))
+            .map(|id| router_request_types::ResponseId::ConnectorTransactionId(id.to_string()))
             .unwrap_or(router_request_types::ResponseId::NoResponseId);
 
         let (mut connector_metadata, redirection_data) = match response.redirection_data.clone() {
@@ -6044,21 +6044,18 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceVoidResponse, At
         (response, prev_status): (payments_grpc::PaymentServiceVoidResponse, AttemptStatus),
     ) -> Result<Self, Self::Error> {
         let connector_response_reference_id =
-            response
-                .merchant_transaction_id
-                .as_ref()
-                .and_then(|identifier| {
-                    identifier
-                        .id_type
-                        .clone()
-                        .and_then(|id_type| match id_type {
-                            payments_grpc::identifier::IdType::Id(id) => Some(id),
-                            payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
-                                Some(encoded_data)
-                            }
-                            payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
-                        })
-                });
+            response.merchant_void_id.as_ref().and_then(|identifier| {
+                identifier
+                    .id_type
+                    .clone()
+                    .and_then(|id_type| match id_type {
+                        payments_grpc::identifier::IdType::Id(id) => Some(id),
+                        payments_grpc::identifier::IdType::EncodedData(encoded_data) => {
+                            Some(encoded_data)
+                        }
+                        payments_grpc::identifier::IdType::NoResponseIdMarker(_) => None,
+                    })
+            });
 
         let connector_transaction_id = router_request_types::ResponseId::ConnectorTransactionId(
             response.connector_transaction_id.clone(),
