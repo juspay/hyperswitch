@@ -569,7 +569,6 @@ pub trait ConnectorActions: Connector {
             minor_amount_capturable: None,
             authorized_amount: None,
             customer_document_details: None,
-            connector_intent_metadata: None,
         }
     }
 
@@ -1026,6 +1025,7 @@ impl Default for PaymentAuthorizeType {
             rrn: None,
             feature_metadata: None,
             installment_details: None,
+            connector_intent_metadata: None,
         };
         Self(data)
     }

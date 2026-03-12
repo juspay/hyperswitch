@@ -222,7 +222,6 @@ where
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
-        connector_intent_metadata: None,
     };
     Ok(router_data)
 }
@@ -494,6 +493,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         rrn,
         feature_metadata: None,
         installment_details: None,
+        connector_intent_metadata: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -582,7 +582,6 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
-        connector_intent_metadata: None,
     };
 
     Ok(router_data)
@@ -930,7 +929,6 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
-        connector_intent_metadata: None,
     };
 
     Ok(router_data)
@@ -1067,7 +1065,6 @@ pub async fn construct_router_data_for_psync<'a>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
-        connector_intent_metadata: None,
     };
 
     Ok(router_data)
@@ -1439,7 +1436,6 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
-        connector_intent_metadata: None,
     };
 
     Ok(router_data)
@@ -1668,7 +1664,6 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
-        connector_intent_metadata: None,
     };
 
     Ok(router_data)
@@ -1900,12 +1895,6 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to extract customer document details from payment_intent")?;
 
-    let connector_intent_metadata = payment_data
-        .payment_intent
-        .get_connector_metadata_from_intent()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to extract connector metadata from payment_intent")?;
-
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: processor.get_account().get_id().clone(),
@@ -1995,7 +1984,6 @@ where
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details,
-        connector_intent_metadata,
     };
 
     Ok(router_data)
@@ -2133,12 +2121,6 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
 
     crate::logger::debug!("unified address details {:?}", unified_address);
 
-    let connector_intent_metadata = payment_data
-        .payment_intent
-        .get_connector_metadata_from_intent()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to extract connector metadata from payment_intent")?;
-
     router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: processor.get_account().get_id().clone(),
@@ -2222,7 +2204,6 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
             .get_customer_document_details()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
-        connector_intent_metadata,
     };
 
     Ok(router_data)
@@ -4849,6 +4830,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             rrn,
             feature_metadata: None,
             installment_details: None,
+            connector_intent_metadata: None,
         })
     }
 }
@@ -4901,6 +4883,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .get_optional_feature_metadata()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse feature metadata")?;
+
+        let connector_intent_metadata = payment_data
+            .get_payment_intent()
+            .get_connector_metadata_from_intent()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse connector metadata")?;
 
         let order_category = connector_metadata.as_ref().and_then(|cm| {
             cm.noon
@@ -5117,6 +5105,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             rrn,
             feature_metadata,
             installment_details: payment_data.payment_attempt.installment_data.clone(),
+            connector_intent_metadata,
         })
     }
 }

@@ -497,7 +497,7 @@ pub struct PaymentsUpdateIntentRequest {
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    /// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
+    /// Some connectors like Airwallex and Noon might require some additional information, find specific details in the child attributes below.
     #[schema(value_type = Option<ConnectorMetadata>)]
     pub connector_metadata: Option<ConnectorMetadata>,
 
@@ -672,7 +672,7 @@ pub struct PaymentsIntentResponse {
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    /// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
+    /// Some connectors like Airwallex and Noon might require some additional information, find specific details in the child attributes below.
     #[schema(value_type = Option<ConnectorMetadata>)]
     pub connector_metadata: Option<ConnectorMetadata>,
 
@@ -818,7 +818,7 @@ pub struct RevenueRecoveryGetIntentResponse {
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    /// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
+    /// Some connectors like Airwallex and Noon might require some additional information, find specific details in the child attributes below.
     #[schema(value_type = Option<ConnectorMetadata>)]
     pub connector_metadata: Option<ConnectorMetadata>,
 
@@ -1402,7 +1402,7 @@ pub struct PaymentsRequest {
     #[smithy(value_type = "Option<Object>")]
     pub metadata: Option<serde_json::Value>,
 
-    /// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
+    /// Some connectors like Airwallex and Noon might require some additional information, find specific details in the child attributes below.
     #[smithy(value_type = "Option<ConnectorMetadata>")]
     pub connector_metadata: Option<ConnectorMetadata>,
 
@@ -8179,7 +8179,7 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    /// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
+    /// Some connectors like Airwallex and Noon might require some additional information, find specific details in the child attributes below.
     pub connector_metadata: Option<ConnectorMetadata>,
 
     /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
@@ -9524,9 +9524,6 @@ pub struct PaymentsUpdateMetadataRequest {
     /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
     #[schema(value_type = Option<FeatureMetadata>)]
     pub feature_metadata: Option<FeatureMetadata>,
-    /// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
-    #[schema(value_type = Option<ConnectorMetadata>)]
-    pub connector_metadata: Option<ConnectorMetadata>,
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
@@ -12946,12 +12943,11 @@ impl PaymentsUpdateMetadataRequest {
             metadata,
             feature_metadata,
             payment_id: _,
-            connector_metadata,
         } = self;
 
-        if metadata.is_none() && feature_metadata.is_none() && connector_metadata.is_none() {
+        if metadata.is_none() && feature_metadata.is_none() {
             return Err(ValidationError::MissingRequiredField {
-                field_name: "metadata/feature_metadata/connector_metadata".to_string(),
+                field_name: "metadata or feature_metadata".to_string(),
             }
             .into());
         }

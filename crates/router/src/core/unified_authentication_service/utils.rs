@@ -148,7 +148,6 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
-        connector_intent_metadata: None,
     })
 }
 
@@ -700,7 +699,6 @@ pub fn construct_uas_webhook_router_data<F: Clone, Req, Res>(
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
         customer_document_details: None,
-        connector_intent_metadata: None,
     })
 }
 

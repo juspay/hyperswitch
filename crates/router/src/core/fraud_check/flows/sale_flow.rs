@@ -160,7 +160,6 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
                 .attach_printable(
                     "Failed to extract customer document details from payment_intent",
                 )?,
-            connector_intent_metadata: None,
         };
 
         Ok(router_data)

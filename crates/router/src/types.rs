@@ -1336,6 +1336,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             rrn: None,
             feature_metadata: None,
             installment_details: None,
+            connector_intent_metadata: None,
         }
     }
 }
@@ -1405,7 +1406,6 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             minor_amount_capturable: data.minor_amount_capturable,
             authorized_amount: data.authorized_amount,
             customer_document_details: data.customer_document_details.clone(),
-            connector_intent_metadata: data.connector_intent_metadata.clone(),
         }
     }
 }
@@ -1480,7 +1480,6 @@ impl<F1, F2>
             minor_amount_capturable: None,
             authorized_amount: None,
             customer_document_details: None,
-            connector_intent_metadata: None,
         }
     }
 }

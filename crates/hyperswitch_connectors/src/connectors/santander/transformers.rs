@@ -498,7 +498,12 @@ impl
                 max_value_or_percentage,
             ),
         ) = get_boleto_additional_fields_from_connector_metadata(
-            value.0.router_data.connector_intent_metadata.clone(),
+            value
+                .0
+                .router_data
+                .request
+                .connector_intent_metadata
+                .clone(),
         );
 
         Ok(Self::Boleto(Box::new(SantanderBoletoPaymentRequest {
@@ -1227,21 +1232,6 @@ impl TryFrom<&PaymentsUpdateMetadataRouterData> for SantanderBoletoPaymentReques
                 .or(Some(boleto_mca_metadata.covenant_code.clone()))
         });
 
-        let (
-            (beneficiary, discount, document_kind),
-            (fine_percentage, fine_quantity_days, interest_percentage, iof_percentage),
-            (protest_type, protest_quantity_days, write_off_quantity_days),
-            (
-                payment_type,
-                value_type,
-                parcels_quantity,
-                min_value_or_percentage,
-                max_value_or_percentage,
-            ),
-        ) = get_boleto_additional_fields_from_connector_metadata(
-            value.connector_intent_metadata.clone(),
-        );
-
         let key = Some(Key {
             key_type: value
                 .request
@@ -1273,21 +1263,21 @@ impl TryFrom<&PaymentsUpdateMetadataRouterData> for SantanderBoletoPaymentReques
             nominal_value: None,
             participant_code: None,
             payer: None,
-            beneficiary,
-            document_kind,
-            discount,
-            fine_percentage,
-            fine_quantity_days,
-            interest_percentage,
-            protest_type,
-            protest_quantity_days,
-            write_off_quantity_days,
-            payment_type,
-            parcels_quantity,
-            value_type,
-            min_value_or_percentage,
-            max_value_or_percentage,
-            iof_percentage,
+            beneficiary: None,
+            document_kind: None,
+            discount: None,
+            fine_percentage: None,
+            fine_quantity_days: None,
+            interest_percentage: None,
+            protest_type: None,
+            protest_quantity_days: None,
+            write_off_quantity_days: None,
+            payment_type: None,
+            parcels_quantity: None,
+            value_type: None,
+            min_value_or_percentage: None,
+            max_value_or_percentage: None,
+            iof_percentage: None,
             deduction_value: None,
             sharing: None,
             key,

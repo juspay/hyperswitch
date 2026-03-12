@@ -262,7 +262,6 @@ pub async fn construct_payout_router_data<'a, F>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
-        connector_intent_metadata: None,
     };
 
     Ok(router_data)
@@ -440,7 +439,6 @@ pub async fn construct_refund_router_data<'a, F>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
-        connector_intent_metadata: None,
     };
 
     Ok(router_data)
@@ -637,7 +635,6 @@ pub async fn construct_refund_router_data<'a, F>(
             .get_customer_document_details()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
-        connector_intent_metadata: None,
     };
 
     Ok(router_data)
@@ -1087,7 +1084,6 @@ pub async fn construct_accept_dispute_router_data<'a>(
             .get_customer_document_details()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
-        connector_intent_metadata: None,
     };
     Ok(router_data)
 }
@@ -1198,7 +1194,6 @@ pub async fn construct_submit_evidence_router_data<'a>(
             .get_customer_document_details()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
-        connector_intent_metadata: None,
     };
     Ok(router_data)
 }
@@ -1315,7 +1310,6 @@ pub async fn construct_upload_file_router_data<'a>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
-        connector_intent_metadata: None,
     };
     Ok(router_data)
 }
@@ -1393,7 +1387,6 @@ pub async fn construct_dispute_list_router_data<'a>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
-        connector_intent_metadata: None,
     })
 }
 
@@ -1506,7 +1499,6 @@ pub async fn construct_dispute_sync_router_data<'a>(
             .get_customer_document_details()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
-        connector_intent_metadata: None,
     };
     Ok(router_data)
 }
@@ -1642,7 +1634,6 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
             .get_customer_document_details()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
-        connector_intent_metadata: None,
     };
     Ok(router_data)
 }
@@ -1756,7 +1747,6 @@ pub async fn construct_defend_dispute_router_data<'a>(
             .get_customer_document_details()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
-        connector_intent_metadata: None,
     };
     Ok(router_data)
 }
@@ -1860,7 +1850,6 @@ pub async fn construct_retrieve_file_router_data<'a>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
-        connector_intent_metadata: None,
     };
     Ok(router_data)
 }
