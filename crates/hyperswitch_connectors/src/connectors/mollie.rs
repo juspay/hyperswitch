@@ -2,12 +2,13 @@ pub mod transformers;
 
 use common_enums::enums;
 use common_utils::{
+    crypto::Encryptable,
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
@@ -48,7 +49,6 @@ use lazy_static::lazy_static;
 use masking::{Mask, PeekInterface};
 use transformers as mollie;
 
-// use self::mollie::{webhook_headers, MollieWebhookBodyEventType};
 use crate::{
     constants::headers,
     types::ResponseRouterData,
@@ -840,25 +840,43 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Mollie {
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Mollie {
-    fn get_webhook_object_reference_id(
+    async fn verify_webhook_source(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: Encryptable<masking::Secret<serde_json::Value>>,
+        _connector_name: &str,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        // Mollie next gen webhooks are not ready for transaction events yet, need to update here once they support
+        Ok(false)
+    }
+    fn get_webhook_object_reference_id(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let details: mollie::MollieWebhookBody = serde_qs::from_bytes(request.body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+            api_models::payments::PaymentIdType::ConnectorTransactionId(details.id),
+        ))
     }
 
     fn get_webhook_event_type(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        Ok(api_models::webhooks::IncomingWebhookEvent::EventNotSupported)
+        Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentProcessing)
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let details: mollie::MollieWebhookBody = serde_qs::from_bytes(request.body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Ok(Box::new(details))
     }
 }
 
@@ -1020,6 +1038,16 @@ lazy_static! {
         mollie_supported_payment_methods.add(
             enums::PaymentMethod::BankDebit,
             enums::PaymentMethodType::Sepa,
+            PaymentMethodDetails{
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+         mollie_supported_payment_methods.add(
+            enums::PaymentMethod::PayLater,
+            enums::PaymentMethodType::Klarna,
             PaymentMethodDetails{
                 mandates: common_enums::FeatureStatus::NotSupported,
                 refunds: common_enums::FeatureStatus::Supported,

@@ -1438,6 +1438,7 @@ mod tests {
             net_amount: MinorUnit::new(6540),
             processor_merchant_id: merchant_id,
             initiator: None,
+            sdk_authorization: None,
             connector: None,
             customer: None,
             disputes: None,
@@ -1528,7 +1529,10 @@ mod tests {
             partner_merchant_identifier_details: None,
             payment_method_tokenization_details: None,
             error_details: None,
+            installment_options: None,
+            installment_data: None,
             state_metadata: None,
+            connector_response_metadata: None,
         };
         let content =
             api_webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(expected_response));

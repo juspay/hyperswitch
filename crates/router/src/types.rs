@@ -35,6 +35,7 @@ use hyperswitch_domain_models::router_flow_types::{
     dispute::{Accept, Defend, Dsync, Evidence, Fetch},
     files::{Retrieve, Upload},
     mandate_revoke::MandateRevoke,
+    merchant_connector_webhook_management::ConnectorWebhookRegister,
     payments::{
         Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture,
         CompleteAuthorize, CreateConnectorCustomer, CreateOrder, ExtendAuthorization,
@@ -59,6 +60,7 @@ pub use hyperswitch_domain_models::{
         RefundFlowData, RouterDataV2, UasFlowData, WebhookSourceVerifyData,
     },
     router_request_types::{
+        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
         revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             InvoiceRecordBackRequest,
@@ -86,6 +88,7 @@ pub use hyperswitch_domain_models::{
         VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
+        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
         revenue_recovery::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             InvoiceRecordBackResponse,
@@ -262,6 +265,12 @@ pub type DisputeSyncRouterData = RouterData<Dsync, DisputeSyncData, DisputeSyncR
 
 pub type MandateRevokeRouterData =
     RouterData<MandateRevoke, MandateRevokeRequestData, MandateRevokeResponseData>;
+
+pub type ConnectorWebhookRegisterRouterData = RouterData<
+    ConnectorWebhookRegister,
+    ConnectorWebhookRegisterRequest,
+    ConnectorWebhookRegisterResponse,
+>;
 
 #[cfg(feature = "payouts")]
 pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;
@@ -556,30 +565,13 @@ impl Capturable for PaymentsCancelPostCaptureData {
         &self,
         _payment_data: &PaymentData<F>,
         _amount_capturable: Option<i64>,
-        attempt_status: common_enums::AttemptStatus,
+        _attempt_status: common_enums::AttemptStatus,
     ) -> Option<i64>
     where
         F: Clone,
     {
-        let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
-        match intent_status {
-            common_enums::IntentStatus::Cancelled
-            | common_enums::IntentStatus::CancelledPostCapture
-            | common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::Conflicted
-            | common_enums::IntentStatus::Expired => Some(0),
-            common_enums::IntentStatus::Succeeded
-            | common_enums::IntentStatus::Failed
-            | common_enums::IntentStatus::RequiresCustomerAction
-            | common_enums::IntentStatus::RequiresMerchantAction
-            | common_enums::IntentStatus::RequiresPaymentMethod
-            | common_enums::IntentStatus::RequiresConfirmation
-            | common_enums::IntentStatus::RequiresCapture
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
-            | common_enums::IntentStatus::Processing
-            | common_enums::IntentStatus::PartiallyCapturedAndProcessing
-            | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => None,
-        }
+        // Capture not available after post capture void flow, hence return 0
+        Some(0)
     }
 }
 impl Capturable for PaymentsApproveData {}
@@ -1350,6 +1342,9 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
                 .request
                 .partner_merchant_identifier_details
                 .clone(),
+            rrn: None,
+            feature_metadata: None,
+            installment_details: None,
         }
     }
 }
@@ -1418,6 +1413,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             l2_l3_data: data.l2_l3_data.clone(),
             minor_amount_capturable: data.minor_amount_capturable,
             authorized_amount: data.authorized_amount,
+            customer_document_details: data.customer_document_details.clone(),
         }
     }
 }
@@ -1491,6 +1487,7 @@ impl<F1, F2>
             l2_l3_data: None,
             minor_amount_capturable: None,
             authorized_amount: None,
+            customer_document_details: None,
         }
     }
 }

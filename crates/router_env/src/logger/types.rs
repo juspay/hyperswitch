@@ -92,6 +92,8 @@ pub enum Flow {
     MerchantConnectorsList,
     /// Merchant Transfer Keys
     MerchantTransferKey,
+    /// Merchant Connector Webhook register flow.
+    MerchantConnectorWebhookRegister,
     /// ConfigKey create flow.
     ConfigKeyCreate,
     /// ConfigKey fetch flow.
@@ -727,6 +729,10 @@ pub enum Flow {
     GetEmbeddedToken,
     // Get embedded token info flow
     EmbeddedTokenInfo,
+    // Get user details internal
+    GetUserDetailsInternal,
+    // List users internal
+    ListUsersInternal,
 }
 
 /// Trait for providing generic behaviour to flow metric

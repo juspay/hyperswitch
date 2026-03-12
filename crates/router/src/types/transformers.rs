@@ -1,7 +1,8 @@
 use actix_web::http::header::HeaderMap;
 use api_models::{
     cards_info as card_info_types, enums as api_enums, gsm as gsm_api_types, payment_methods,
-    payments, routing::ConnectorSelection,
+    payments::{self, CustomerDetails},
+    routing::ConnectorSelection,
 };
 use common_utils::{
     consts::X_HS_LATENCY,
@@ -113,6 +114,29 @@ impl
             bank_transfer: None,
             last_used_at: None,
             client_secret: item.client_secret,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ForeignFrom<domain::PaymentMethodResponse> for payment_methods::PaymentMethodResponse {
+    fn foreign_from(domain_payment_method_response: domain::PaymentMethodResponse) -> Self {
+        Self {
+            merchant_id: domain_payment_method_response.merchant_id,
+            customer_id: domain_payment_method_response.customer_id,
+            payment_method_id: domain_payment_method_response.payment_method_id,
+            payment_method: domain_payment_method_response.payment_method,
+            payment_method_type: domain_payment_method_response.payment_method_type,
+            card: domain_payment_method_response.card,
+            recurring_enabled: domain_payment_method_response.recurring_enabled,
+            installment_payment_enabled: domain_payment_method_response.installment_payment_enabled,
+            payment_experience: domain_payment_method_response.payment_experience,
+            metadata: domain_payment_method_response.metadata,
+            created: domain_payment_method_response.created,
+            #[cfg(feature = "payouts")]
+            bank_transfer: domain_payment_method_response.bank_transfer,
+            last_used_at: domain_payment_method_response.last_used_at,
+            client_secret: domain_payment_method_response.client_secret,
         }
     }
 }
@@ -1013,6 +1037,7 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to encode ConnectorAuthType")?,
         );
+
         #[cfg(feature = "v2")]
         let response = Self {
             id: item.get_id(),
@@ -1066,9 +1091,11 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                 .transpose()?,
         };
 
-        let webhook_setup_details =
-            api_types::ConnectorData::convert_connector(item.connector_name.as_str())?
-                .get_api_webhook_config();
+        let webhook_setup_capabilities = item
+            .should_construct_webhook_setup_capability()
+            .then(|| api_types::ConnectorData::convert_connector(item.connector_name.as_str()))
+            .transpose()?
+            .map(|connector_enum| connector_enum.get_api_webhook_config().clone());
 
         #[cfg(feature = "v1")]
         let response = Self {
@@ -1125,7 +1152,7 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                 })
                 .transpose()?,
-            webhook_setup_capabilities: Some(webhook_setup_details.clone()),
+            webhook_setup_capabilities,
         };
         Ok(response)
     }
@@ -1337,6 +1364,7 @@ impl ForeignFrom<&api_models::payouts::BankRedirect> for api_enums::PaymentMetho
     fn foreign_from(value: &api_models::payouts::BankRedirect) -> Self {
         match value {
             api_models::payouts::BankRedirect::Interac(_) => Self::Interac,
+            api_models::payouts::BankRedirect::OpenBankingUk(_) => Self::OpenBankingUk,
         }
     }
 }
@@ -1687,6 +1715,17 @@ impl
                 .or_else(|| {
                     customer.and_then(|cust| cust.name.as_ref().map(|n| n.clone().into_inner()))
                 }),
+            customer: Some(CustomerDetails {
+                name: None,
+                email: None,
+                phone: None,
+                id: None,
+                phone_country_code: None,
+                tax_registration_id: None,
+                document_details: customer_details_from_pi
+                    .as_ref()
+                    .and_then(|doc_details| doc_details.customer_document_details.clone()),
+            }),
             ..Self::default()
         })
     }
@@ -1924,6 +1963,11 @@ impl ForeignFrom<&domain::Customer> for payments::CustomerDetailsResponse {
                 .as_ref()
                 .map(|phone| phone.get_inner().to_owned()),
             phone_country_code: customer.phone_country_code.clone(),
+            customer_document_details: customer
+                .document_details
+                .clone()
+                .map(|encryptable| encryptable.into_inner())
+                .and_then(|secret_value| secret_value.parse_value("CustomerDocumentDetails").ok()),
         }
     }
 }

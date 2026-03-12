@@ -8,6 +8,7 @@ use router_env::{instrument, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
+        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{self, helpers, operations, PaymentData},
     },
@@ -42,6 +43,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _payment_method_wrapper: Option<operations::PaymentMethodWithRawData>,
     ) -> RouterResult<
         operations::GetTrackerResponse<
             'a,
@@ -73,7 +75,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
             &[
                 enums::IntentStatus::Succeeded,
                 enums::IntentStatus::PartiallyCaptured,
-                enums::IntentStatus::PartiallyCapturedAndCapturable,
             ],
             "cancel_post_capture",
         )?;
@@ -149,7 +150,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
             payment_attempt,
             currency,
             amount,
-            email: None,
             mandate_id: None,
             mandate_connector: None,
             setup_mandate: None,
@@ -222,24 +222,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
             .refunds
             .iter()
             .any(|refund| refund.is_refund_applied());
-
         crate::utils::when(is_refund_issued, || {
             Err(error_stack::report!(
                 errors::ApiErrorResponse::PreconditionFailed {
-                    message: "Post Capture Void cannot be performed after a refund has been issued"
+                    message: "Post-capture void cannot be performed after a refund has been issued"
                         .into()
-                }
-            ))
-        })?;
-
-        let is_post_capture_void_applied_or_pending =
-            payment_data.payment_intent.is_post_capture_void_applied()
-                || payment_data.payment_intent.is_post_capture_void_pending();
-
-        crate::utils::when(is_post_capture_void_applied_or_pending, || {
-            Err(error_stack::report!(
-                errors::ApiErrorResponse::PreconditionFailed {
-                    message: "Voided post capture already attempted".into()
                 }
             ))
         })?;
@@ -259,6 +246,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCancelPostCaptureRequest, Pa
         _payment_data: &mut PaymentData<F>,
         _request: Option<payments::CustomerDetails>,
         _provider: &domain::Provider,
+        _initiator: Option<&domain::Initiator>,
+        _dimensions: DimensionsWithMerchantIdAndProfileId,
     ) -> errors::CustomResult<
         (
             PaymentCancelPostCaptureOperation<'a, F>,
@@ -288,7 +277,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCancelPostCaptureRequest, Pa
 
     async fn get_connector<'a>(
         &'a self,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         state: &SessionState,
         _request: &api::PaymentsCancelPostCaptureRequest,
         _payment_intent: &storage::PaymentIntent,

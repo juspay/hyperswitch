@@ -13,7 +13,7 @@ pub type CustomResult<T, E> = error_stack::Result<T, E>;
 
 /// Parsing Errors
 #[allow(missing_docs)] // Only to prevent warnings about struct fields not being documented
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, thiserror::Error)]
 pub enum ParsingError {
     ///Failed to parse enum
     #[error("Failed to parse enum: {0}")]
@@ -140,6 +140,14 @@ pub enum PercentageError {
         /// amount value
         amount: MinorUnit,
     },
+}
+
+/// Error type for installment interest rate operations
+#[derive(Debug, Clone, thiserror::Error, PartialEq)]
+pub enum InstallmentInterestRateError {
+    /// Error occurred while applying interest rate to amount
+    #[error("Failed to apply interest rate to amount")]
+    UnableToApplyInterestRate,
 }
 
 /// Allows [error_stack::Report] to change between error contexts

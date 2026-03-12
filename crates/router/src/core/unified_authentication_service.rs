@@ -873,7 +873,7 @@ pub async fn authentication_create_core(
         acquirer_details,
         new_authentication.profile_acquirer_id,
         customer_details,
-        req.customer_details.map(|details| details.id.clone()),
+        req.customer_details.and_then(|details| details.id.clone()),
     ))?;
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
@@ -928,12 +928,13 @@ impl
                 .ok_or(ApiErrorResponse::InternalServerError)
                 .attach_printable("Customer id not found in authentication create request")?;
             Some(CustomerDetails {
-                id: customer_id.clone(),
+                id: Some(customer_id.clone()),
                 name: details.name,
                 email: details.email,
                 phone: details.phone,
                 phone_country_code: details.phone_country_code,
                 tax_registration_id: details.tax_registration_id,
+                document_details: details.customer_document_details,
             })
         } else {
             None

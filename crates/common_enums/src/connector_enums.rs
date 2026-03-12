@@ -95,12 +95,14 @@ pub enum Connector {
     CtpMastercard,
     CtpVisa,
     Cybersource,
+    Cybersourcedecisionmanager,
     Datatrans,
     Deutschebank,
     Digitalvirgo,
     Dlocal,
     Dwolla,
     Ebanx,
+    Envoy,
     Elavon,
     Facilitapay,
     Finix,
@@ -117,6 +119,7 @@ pub enum Connector {
     Gpayments,
     Hipay,
     Helcim,
+    Hyperpg,
     HyperswitchVault,
     // Hyperwallet, added as template code for future usage
     Inespay,
@@ -162,6 +165,7 @@ pub enum Connector {
     Razorpay,
     Recurly,
     Redsys,
+    Revolv3,
     Santander,
     Shift4,
     Silverflow,
@@ -176,6 +180,7 @@ pub enum Connector {
     Tesouro,
     Tokenex,
     Tokenio,
+    Truelayer,
     Trustpay,
     Trustpayments,
     Tsys,
@@ -205,10 +210,12 @@ impl Connector {
         matches!(
             (self, payout_method),
             (Self::Paypal, Some(PayoutType::Wallet))
+                | (Self::Envoy, _)
                 | (_, Some(PayoutType::Card))
                 | (Self::Adyenplatform, _)
                 | (Self::Nomupay, _)
                 | (Self::Loonio, _)
+                | (Self::Truelayer, _)
                 | (Self::Worldpay, Some(PayoutType::Wallet))
                 | (Self::Worldpayxml, Some(PayoutType::Wallet))
         )
@@ -227,7 +234,10 @@ impl Connector {
     }
     #[cfg(feature = "payouts")]
     pub fn supports_access_token_for_payout(self, payout_method: Option<PayoutType>) -> bool {
-        matches!((self, payout_method), (Self::Paypal, _))
+        matches!(
+            (self, payout_method),
+            (Self::Paypal, _) | (Self::Truelayer, _)
+        )
     }
     #[cfg(feature = "payouts")]
     pub fn supports_access_token_for_external_vault(self) -> bool {
@@ -258,6 +268,8 @@ impl Connector {
                 | (Self::Itaubank, _)
                 | (Self::Facilitapay, _)
                 | (Self::Dwolla, _)
+                | (Self::Santander, _)
+                | (Self::Truelayer, _)
         )
     }
     pub fn requires_order_creation_before_payment(self, payment_method: PaymentMethod) -> bool {
@@ -311,10 +323,12 @@ impl Connector {
             | Self::Coingate
             | Self::Cryptopay
             | Self::Custombilling
+            | Self::Cybersourcedecisionmanager
             | Self::Deutschebank
             | Self::Digitalvirgo
             | Self::Dlocal
             | Self::Dwolla
+            | Self::Envoy
             | Self::Ebanx
             | Self::Elavon
             | Self::Facilitapay
@@ -332,6 +346,7 @@ impl Connector {
             | Self::Gpayments
             | Self::Hipay
             | Self::Helcim
+            | Self::Hyperpg
             | Self::HyperswitchVault
             | Self::Iatapay
 			| Self::Inespay
@@ -365,6 +380,7 @@ impl Connector {
             | Self::Rapyd
             | Self::Recurly
             | Self::Redsys
+            | Self::Revolv3
             | Self::Santander
             | Self::Shift4
             | Self::Silverflow
@@ -374,6 +390,7 @@ impl Connector {
             | Self::Taxjar
             | Self::Tesouro
             // | Self::Thunes
+            | Self::Truelayer
             | Self::Trustpay
             | Self::Trustpayments
             // | Self::Tokenio

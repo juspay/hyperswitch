@@ -60,6 +60,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Dwolla => Self::Dwolla,
             api_enums::Connector::Ebanx => Self::Ebanx,
             api_enums::Connector::Elavon => Self::Elavon,
+            api_enums::Connector::Envoy => Self::Envoy,
             api_enums::Connector::Facilitapay => Self::Facilitapay,
             api_enums::Connector::Finix => Self::Finix,
             api_enums::Connector::Fiserv => Self::Fiserv,
@@ -79,6 +80,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             }
             api_enums::Connector::Hipay => Self::Hipay,
             api_enums::Connector::Helcim => Self::Helcim,
+            api_enums::Connector::Hyperpg => Self::Hyperpg,
             api_enums::Connector::HyperswitchVault => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "Hyperswitch Vault is not a routable connector".to_string(),
@@ -132,6 +134,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Razorpay => Self::Razorpay,
             api_enums::Connector::Recurly => Self::Recurly,
             api_enums::Connector::Redsys => Self::Redsys,
+            api_enums::Connector::Revolv3 => Self::Revolv3,
             api_enums::Connector::Santander => Self::Santander,
             api_enums::Connector::Shift4 => Self::Shift4,
             api_enums::Connector::Zift => Self::Zift,
@@ -139,6 +142,11 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Signifyd => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "signifyd is not a routable connector".to_string(),
+                })?
+            }
+            api_enums::Connector::Cybersourcedecisionmanager => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "cybersourcedecisionmanager is not a routable connector".to_string(),
                 })?
             }
             api_enums::Connector::Riskified => {
@@ -158,6 +166,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
                 })?
             }
             api_enums::Connector::Tokenio => Self::Tokenio,
+            api_enums::Connector::Truelayer => Self::Truelayer,
             api_enums::Connector::Trustpay => Self::Trustpay,
             api_enums::Connector::Trustpayments => Self::Trustpayments,
             api_enums::Connector::Tsys => Self::Tsys,

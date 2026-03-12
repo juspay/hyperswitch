@@ -1,14 +1,22 @@
+use std::str::FromStr;
+
 use common_enums::AttemptStatus;
 use common_types::primitive_wrappers::{ExtendedAuthorizationAppliedBool, OvercaptureEnabledBool};
+use common_utils::request::Method;
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorResponseData, ErrorResponse,
         ExtendedAuthorizationResponseData,
     },
-    router_response_types::PaymentsResponseData,
+    router_response_types::{PaymentsResponseData, RedirectForm},
 };
+use unified_connector_service_masking::ExposeInterface;
 
-use crate::{helpers::ForeignTryFrom, unified_connector_service::payments_grpc};
+use crate::{
+    helpers::{ForeignFrom, ForeignTryFrom},
+    unified_connector_service::payments_grpc,
+};
 
 /// Unified Connector Service error variants
 #[derive(Debug, Clone, thiserror::Error)]
@@ -221,14 +229,14 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
             Err(ErrorResponse {
                 code: response.error_code().to_owned(),
                 message: response.error_message().to_owned(),
-                reason: Some(response.error_message().to_owned()),
+                reason: Some(response.error_reason().to_owned()),
                 status_code,
                 attempt_status,
                 connector_transaction_id: resource_id.get_optional_response_id(),
                 connector_response_reference_id,
-                network_decline_code: None,
-                network_advice_code: None,
-                network_error_message: None,
+                network_decline_code: response.network_decline_code.clone(),
+                network_advice_code: response.network_advice_code.clone(),
+                network_error_message: response.network_error_message.clone(),
                 connector_metadata: None,
             })
         } else {
@@ -237,7 +245,13 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
             Ok((
                 PaymentsResponseData::TransactionResponse {
                     resource_id,
-                    redirection_data: Box::new(None),
+                    redirection_data: Box::new(
+                        response
+                            .redirection_data
+                            .clone()
+                            .map(ForeignTryFrom::foreign_try_from)
+                            .transpose()?,
+                    ),
                     mandate_reference: Box::new(response.mandate_reference.map(|grpc_mandate| {
                         hyperswitch_domain_models::router_response_types::MandateReference {
                             connector_mandate_id: grpc_mandate.mandate_id,
@@ -314,8 +328,16 @@ impl ForeignTryFrom<payments_grpc::ConnectorResponseData> for ConnectorResponseD
         // Extract additional_payment_method_data
         let additional_payment_method_data = value
             .additional_payment_method_data
-            .map(AdditionalPaymentMethodConnectorResponse::foreign_try_from)
-            .transpose()?;
+            .and_then(|apmd| {
+                AdditionalPaymentMethodConnectorResponse::foreign_try_from(apmd)
+                    .inspect_err(|e| {
+                        router_env::logger::warn!(
+                            error=?e,
+                            "Failed to deserialize additional_payment_method_data from UCS - setting to None"
+                        );
+                    })
+                    .ok()
+            });
 
         let extended_authorization_response_data =
             value.extended_authorization_response_data.map(|data| {
@@ -355,34 +377,95 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
     fn foreign_try_from(
         value: payments_grpc::AdditionalPaymentMethodConnectorResponse,
     ) -> Result<Self, Self::Error> {
-        let card_data = value.card.unwrap_or_default();
+        match value.payment_method_data {
+            Some(
+                payments_grpc::additional_payment_method_connector_response::PaymentMethodData::Card(
+                    card_data,
+                ),
+            ) => Ok(Self::Card {
+                authentication_data: card_data.authentication_data.and_then(|data| {
+                    serde_json::from_slice(data.as_slice())
+                        .inspect_err(|e| {
+                            router_env::logger::warn!(
+                                deserialization_error=?e,
+                                "Failed to deserialize authentication_data from UCS connector response"
+                            );
+                        })
+                        .ok()
+                }),
+                payment_checks: card_data.payment_checks.and_then(|data| {
+                    serde_json::from_slice(data.as_slice())
+                        .inspect_err(|e| {
+                            router_env::logger::warn!(
+                                deserialization_error=?e,
+                                "Failed to deserialize payment_checks from UCS connector response"
+                            );
+                        })
+                        .ok()
+                }),
+                card_network: card_data.card_network,
+                domestic_network: card_data.domestic_network,
+                auth_code: card_data.auth_code,
+            }),
+            Some(payments_grpc::additional_payment_method_connector_response::PaymentMethodData::Upi(upi_data)) => {
+                let upi_mode = upi_data
+                    .upi_mode
+                    .map(|mode| {
+                        payments_grpc::UpiSource::try_from(mode)
+                            .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                            .attach_printable("Failed to parse upi_mode from UCS connector response")
+                    })
+                    .transpose()?
+                    .map(hyperswitch_domain_models::payment_method_data::UpiSource::foreign_from);
+                Ok(Self::Upi { upi_mode })
+            }
+            Some(
+                payments_grpc::additional_payment_method_connector_response::PaymentMethodData::GooglePay(
+                    google_pay_data,
+                ),
+            ) => Ok(Self::GooglePay {
+                auth_code: google_pay_data.auth_code,
+            }),
+            Some(
+                payments_grpc::additional_payment_method_connector_response::PaymentMethodData::ApplePay(
+                    apple_pay_data,
+                ),
+            ) => Ok(Self::ApplePay {
+                auth_code: apple_pay_data.auth_code,
+            }),
+            Some(payments_grpc::additional_payment_method_connector_response::PaymentMethodData::BankRedirect(bank_redirect_data)) => {
+                let interac = bank_redirect_data.interac.map(|proto_interac| {
+                    hyperswitch_domain_models::router_data::InteracCustomerInfo {
+                        customer_info: proto_interac.customer_info.map(|info| {
+                            common_types::payments::InteracCustomerInfoDetails {
+                                customer_name: info.customer_name.map(|secret| masking::Secret::new(secret.expose())),
+                                customer_email: info.customer_email
+                                    .and_then(|secret| {
+                                        common_utils::pii::Email::from_str(&secret.expose())
+                                            .map_err(|e| {
+                                                router_env::logger::warn!(
+                                                    email_parse_error=?e,
+                                                    "Failed to parse customer_email from UCS InteracCustomerInfo"
+                                                );
+                                                e
+                                            })
+                                            .ok()
+                                    }),
+                                customer_phone_number: info.customer_phone_number.map(|secret| masking::Secret::new(secret.expose())),
+                                customer_bank_id: info.customer_bank_id.map(|secret| masking::Secret::new(secret.expose())),
+                                customer_bank_name: info.customer_bank_name.map(|secret| masking::Secret::new(secret.expose())),
+                            }
+                        }),
+                    }
+                });
+                Ok(Self::BankRedirect { interac })
 
-        Ok(Self::Card {
-            authentication_data: card_data.authentication_data.and_then(|data| {
-                serde_json::from_slice(&data)
-                    .inspect_err(|e| {
-                        router_env::logger::warn!(
-                            deserialization_error=?e,
-                            "Failed to deserialize authentication_data from UCS connector response"
-                        );
-                    })
-                    .ok()
-            }),
-            payment_checks: card_data.payment_checks.and_then(|data| {
-                serde_json::from_slice(&data)
-                    .inspect_err(|e| {
-                        router_env::logger::warn!(
-                            deserialization_error=?e,
-                            "Failed to deserialize payment_checks from UCS connector response"
-                        );
-                    })
-                    .ok()
-            }),
-            card_network: card_data.card_network,
-            domestic_network: card_data.domestic_network,
-            // needs to be updated
-            auth_code: None,
-        })
+            }
+            None => Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::ResponseDeserializationFailed,
+            )
+            .attach_printable("Unexpected error: payment_method_data is None in UCS connector response")),
+        }
     }
 }
 
@@ -406,8 +489,6 @@ impl ForeignTryFrom<payments_grpc::Ach>
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(ach: payments_grpc::Ach) -> Result<Self, Self::Error> {
-        use unified_connector_service_masking::ExposeInterface;
-
         let bank_name = payments_grpc::BankNames::try_from(ach.bank_name)
             .ok()
             .and_then(|bn| common_enums::BankNames::foreign_try_from(bn).ok());
@@ -454,8 +535,6 @@ impl ForeignTryFrom<payments_grpc::Sepa>
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(sepa: payments_grpc::Sepa) -> Result<Self, Self::Error> {
-        use unified_connector_service_masking::ExposeInterface;
-
         Ok(Self::SepaBankDebit {
             iban: masking::Secret::new(
                 sepa.iban
@@ -477,8 +556,6 @@ impl ForeignTryFrom<payments_grpc::Bacs>
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(bacs: payments_grpc::Bacs) -> Result<Self, Self::Error> {
-        use unified_connector_service_masking::ExposeInterface;
-
         Ok(Self::BacsBankDebit {
             account_number: masking::Secret::new(
                 bacs.account_number
@@ -507,8 +584,6 @@ impl ForeignTryFrom<payments_grpc::Becs>
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(becs: payments_grpc::Becs) -> Result<Self, Self::Error> {
-        use unified_connector_service_masking::ExposeInterface;
-
         Ok(Self::BecsBankDebit {
             account_number: masking::Secret::new(
                 becs.account_number
@@ -617,6 +692,80 @@ impl ForeignTryFrom<payments_grpc::BankNames> for common_enums::BankNames {
                 UnifiedConnectorServiceError::ResponseDeserializationFailed,
             )
             .attach_printable("Unknown BankNames variant")),
+        }
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(value: payments_grpc::RedirectForm) -> Result<Self, Self::Error> {
+        match value.form_type {
+            Some(payments_grpc::redirect_form::FormType::Form(form)) => Ok(Self::Form {
+                endpoint: form.clone().endpoint,
+                method: Method::foreign_try_from(form.clone().method())?,
+                form_fields: form.clone().form_fields,
+            }),
+            Some(payments_grpc::redirect_form::FormType::Html(html)) => Ok(Self::Html {
+                html_data: html.html_data,
+            }),
+            Some(payments_grpc::redirect_form::FormType::Uri(_)) => Err(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "URI form type is not implemented".to_string(),
+                )
+                .into(),
+            ),
+            Some(payments_grpc::redirect_form::FormType::Braintree(braintree)) => {
+                Ok(Self::Braintree {
+                    client_token: braintree.client_token,
+                    card_token: braintree.card_token,
+                    bin: braintree.bin,
+                    acs_url: braintree.acs_url,
+                })
+            }
+            Some(payments_grpc::redirect_form::FormType::Mifinity(mifinity)) => {
+                Ok(Self::Mifinity {
+                    initialization_token: mifinity.initialization_token,
+                })
+            }
+            None => Err(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "Missing form type".to_string(),
+                )
+                .into(),
+            ),
+        }
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::HttpMethod> for Method {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(value: payments_grpc::HttpMethod) -> Result<Self, Self::Error> {
+        match value {
+            payments_grpc::HttpMethod::Get => Ok(Self::Get),
+            payments_grpc::HttpMethod::Post => Ok(Self::Post),
+            payments_grpc::HttpMethod::Put => Ok(Self::Put),
+            payments_grpc::HttpMethod::Delete => Ok(Self::Delete),
+            payments_grpc::HttpMethod::Unspecified => {
+                Err(UnifiedConnectorServiceError::ResponseDeserializationFailed)
+                    .attach_printable("Invalid Http Method")
+            }
+        }
+    }
+}
+
+impl ForeignFrom<payments_grpc::UpiSource>
+    for hyperswitch_domain_models::payment_method_data::UpiSource
+{
+    fn foreign_from(upi_source: payments_grpc::UpiSource) -> Self {
+        match upi_source {
+            payments_grpc::UpiSource::UpiCc => Self::UpiCc,
+            payments_grpc::UpiSource::UpiCl => Self::UpiCl,
+            payments_grpc::UpiSource::UpiAccount => Self::UpiAccount,
+            payments_grpc::UpiSource::UpiCcCl => Self::UpiCcCl,
+            payments_grpc::UpiSource::UpiPpi => Self::UpiPpi,
+            payments_grpc::UpiSource::UpiVoucher => Self::UpiVoucher,
         }
     }
 }

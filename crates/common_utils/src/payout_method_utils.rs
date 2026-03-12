@@ -25,7 +25,7 @@ pub enum AdditionalPayoutMethodData {
     /// Additional data for Bank Redirect payout method
     BankRedirect(Box<BankRedirectAdditionalData>),
     /// Additional data for Passthrough payout method
-    Passthrough(Box<PassthroughAddtionalData>),
+    Passthrough(Box<PassthroughAdditionalData>),
 }
 
 crate::impl_to_sql_from_sql_json!(AdditionalPayoutMethodData);
@@ -270,6 +270,8 @@ pub struct ApplePayDecryptAdditionalData {
 #[diesel(sql_type = Jsonb)]
 #[serde(untagged)]
 pub enum BankRedirectAdditionalData {
+    /// Additional data for OpenBankingUK bank redirect payout method
+    OpenBankingUk(Box<OpenBankingUkAdditionalData>),
     /// Additional data for interac bank redirect payout method
     Interac(Box<InteracAdditionalData>),
 }
@@ -285,12 +287,26 @@ pub struct InteracAdditionalData {
     pub email: Option<MaskedEmail>,
 }
 
+/// Masked payout method details for OpenBankingUK bank redirect payout method
+#[derive(
+    Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct OpenBankingUkAdditionalData {
+    /// Account holder name
+    #[schema(value_type = String, example = "John Doe")]
+    pub account_holder_name: Secret<String>,
+    /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
+    #[schema(value_type = String, example = "DE89370400440532013000")]
+    pub iban: Secret<String>,
+}
+
 /// additional payout method details for passthrough payout method
 #[derive(
     Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
 )]
 #[diesel(sql_type = Jsonb)]
-pub struct PassthroughAddtionalData {
+pub struct PassthroughAdditionalData {
     /// Psp_token of the passthrough flow
     #[schema(value_type = String, example = "token_12345")]
     pub psp_token: MaskedPspToken,

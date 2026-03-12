@@ -19,6 +19,7 @@ use crate::{
             helpers as payments_helpers, operations,
         },
         routing::helpers as routing_helpers,
+        utils as core_utils,
     },
     db::StorageInterface,
     routes::{
@@ -47,6 +48,7 @@ pub async fn do_gsm_actions<'a, F, ApiRequest, FData, D>(
     schedule_time: Option<time::PrimitiveDateTime>,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
     business_profile: &domain::Profile,
+    feature_config: &core_utils::FeatureConfig,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync + std::fmt::Debug + 'static,
@@ -77,8 +79,8 @@ where
 
     #[cfg(feature = "v1")]
     let is_no_three_ds_payment = matches!(
-        payment_data.get_payment_attempt().authentication_type,
-        Some(storage_enums::AuthenticationType::NoThreeDs)
+        router_data.auth_type,
+        storage_enums::AuthenticationType::NoThreeDs
     );
 
     #[cfg(feature = "v2")]
@@ -116,6 +118,7 @@ where
             false, //should_retry_with_pan is not applicable for step-up
             None,
             initial_gsm.clone(),
+            feature_config,
         )
         .await?;
     }
@@ -222,6 +225,7 @@ where
                         should_retry_with_pan,
                         routing_decision,
                         gsm.clone(),
+                        feature_config,
                     )
                     .await?;
 
@@ -370,6 +374,7 @@ pub async fn do_retry<'a, F, ApiRequest, FData, D>(
     should_retry_with_pan: bool,
     routing_decision: Option<routing_helpers::RoutingDecisionData>,
     initial_gsm: Option<hyperswitch_domain_models::gsm::GatewayStatusMap>,
+    feature_config: &core_utils::FeatureConfig,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync + std::fmt::Debug + 'static,
@@ -409,6 +414,7 @@ where
             business_profile,
             should_retry_with_pan,
             routing_decision,
+            feature_config,
         )
         .await?;
 
@@ -420,6 +426,7 @@ where
         payments::decide_unified_connector_service_call(
             state,
             platform.get_processor(),
+            platform.get_initiator(),
             connector.clone(),
             operation,
             payment_data,
@@ -848,6 +855,7 @@ pub fn make_new_auto_retry_payment_attempt(
         is_overcapture_enabled: Default::default(),
         error_details: Default::default(),
         retry_type: Some(storage_enums::RetryType::AutoRetry),
+        installment_data: Default::default(),
     }
 }
 

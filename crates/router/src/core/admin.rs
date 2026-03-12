@@ -22,6 +22,11 @@ use hyperswitch_domain_models::merchant_connector_account::{
 use masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::types as pm_auth_types;
 use uuid::Uuid;
+#[cfg(feature = "olap")]
+use {
+    base64::Engine,
+    common_utils::{keymanager, types::keymanager::EncryptionTransferRequest},
+};
 
 use super::routing::helpers::redact_cgraph_cache;
 #[cfg(any(feature = "v1", feature = "v2"))]
@@ -166,7 +171,7 @@ pub async fn get_organization(
 ) -> RouterResponse<api::OrganizationResponse> {
     #[cfg(all(feature = "v1", feature = "olap"))]
     {
-        CreateOrValidateOrganization::new(Some(org_id.organization_id))
+        CreateOrValidateOrganization::new(Some(org_id.organization_id), None)
             .create_or_validate(state.accounts_store.as_ref())
             .await
             .map(ForeignFrom::foreign_from)
@@ -321,9 +326,6 @@ pub async fn create_merchant_account(
     req: api::MerchantAccountCreate,
     org_data_from_auth: Option<authentication::AuthenticationDataWithOrg>,
 ) -> RouterResponse<api::MerchantAccountResponse> {
-    #[cfg(feature = "keymanager_create")]
-    use common_utils::{keymanager, types::keymanager::EncryptionTransferRequest};
-
     let db = state.store.as_ref();
     let key = services::generate_aes256_key()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -334,25 +336,16 @@ pub async fn create_merchant_account(
     let key_manager_state: &KeyManagerState = &(&state).into();
     let merchant_id = req.get_merchant_reference_id();
     let identifier = km_types::Identifier::Merchant(merchant_id.clone());
-    #[cfg(feature = "keymanager_create")]
-    {
-        use base64::Engine;
-
-        use crate::consts::BASE64_ENGINE;
-
-        if key_manager_state.enabled {
-            keymanager::transfer_key_to_key_manager(
-                key_manager_state,
-                EncryptionTransferRequest {
-                    identifier: identifier.clone(),
-                    key: masking::StrongSecret::new(BASE64_ENGINE.encode(key)),
-                },
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::DuplicateMerchantAccount)
-            .attach_printable("Failed to insert key to KeyManager")?;
-        }
-    }
+    keymanager::transfer_key_to_key_manager(
+        key_manager_state,
+        EncryptionTransferRequest {
+            identifier: identifier.clone(),
+            key: masking::StrongSecret::new(consts::BASE64_ENGINE.encode(key)),
+        },
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::DuplicateMerchantAccount)
+    .attach_printable("Failed to insert key to KeyManager")?;
 
     let key_store = domain::MerchantKeyStore {
         merchant_id: merchant_id.clone(),
@@ -387,6 +380,20 @@ pub async fn create_merchant_account(
         .insert_merchant(domain_merchant_account, &key_store)
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
+
+    if merchant_account.is_platform_account() {
+        state
+            .accounts_store
+            .update_organization_by_org_id(
+                &merchant_account.organization_id,
+                diesel_models::organization::OrganizationUpdate::UpdatePlatformMerchant {
+                    platform_merchant_id: merchant_id.clone(),
+                },
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update organization with platform_merchant_id")?;
+    }
 
     let platform = domain::Platform::new(
         merchant_account.clone(),
@@ -491,7 +498,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             (req_org_id, _) => req_org_id.clone(),
         };
 
-        let organization = CreateOrValidateOrganization::new(org_id)
+        let organization = CreateOrValidateOrganization::new(org_id, self.merchant_account_type)
             .create_or_validate(db)
             .await?;
 
@@ -647,7 +654,9 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
 enum CreateOrValidateOrganization {
     /// Creates a new organization
     #[cfg(feature = "v1")]
-    Create,
+    Create {
+        merchant_account_type: Option<MerchantAccountType>,
+    },
     /// Validates if this organization exists in the records
     Validate {
         organization_id: id_type::OrganizationId,
@@ -660,11 +669,16 @@ impl CreateOrValidateOrganization {
     /// Create an action to either create or validate the given organization_id
     /// If organization_id is passed, then validate if this organization exists
     /// If not passed, create a new organization
-    fn new(organization_id: Option<id_type::OrganizationId>) -> Self {
+    fn new(
+        organization_id: Option<id_type::OrganizationId>,
+        merchant_account_type: Option<MerchantAccountType>,
+    ) -> Self {
         if let Some(organization_id) = organization_id {
             Self::Validate { organization_id }
         } else {
-            Self::Create
+            Self::Create {
+                merchant_account_type,
+            }
         }
     }
 
@@ -682,11 +696,22 @@ impl CreateOrValidateOrganization {
     ) -> RouterResult<diesel_models::organization::Organization> {
         match self {
             #[cfg(feature = "v1")]
-            Self::Create => {
-                let new_organization = api_models::organization::OrganizationNew::new(
-                    OrganizationType::Standard,
-                    None,
-                );
+            Self::Create {
+                merchant_account_type,
+            } => {
+                let org_type = match merchant_account_type {
+                    Some(MerchantAccountType::Platform) => OrganizationType::Platform,
+                    Some(MerchantAccountType::Connected) => {
+                        return Err(errors::ApiErrorResponse::InvalidRequestData {
+                            message: "Organization cannot be created with connected merchant only"
+                                .to_string(),
+                        }
+                        .into());
+                    }
+                    Some(MerchantAccountType::Standard) | None => OrganizationType::Standard,
+                };
+                let new_organization =
+                    api_models::organization::OrganizationNew::new(org_type, None);
                 let db_organization = ForeignFrom::foreign_from(new_organization);
                 db.insert_organization(db_organization)
                     .await
@@ -2512,6 +2537,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             business_sub_label: self.business_sub_label.clone(),
             additional_merchant_data: encrypted_data.additional_merchant_data,
             version: common_types::consts::API_VERSION,
+            connector_webhook_registration_details: None,
         })
     }
 

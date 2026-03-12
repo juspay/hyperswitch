@@ -14,6 +14,7 @@ use crate::workflows::revenue_recovery::update_token_expiry_based_on_schedule_ti
 use crate::{
     consts,
     core::{
+        configs,
         errors::StorageErrorExt,
         payments::{self as payment_flows, operations},
     },
@@ -79,6 +80,8 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
             key_store.clone(),
             None,
         );
+        let dimensions = configs::dimension_state::Dimensions::new()
+            .with_merchant_id(platform.get_processor().get_account().get_id().clone());
         // TODO: Add support for ReqState in PT flows
         let (mut payment_data, _, _, _) = Box::pin(payment_flows::payments_operation_core::<
             api::PSync,
@@ -98,6 +101,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
             services::AuthFlow::Client,
             None,
             hyperswitch_domain_models::payments::HeaderPayload::default(),
+            dimensions,
         ))
         .await?;
 

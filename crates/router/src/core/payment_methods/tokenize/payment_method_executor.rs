@@ -367,7 +367,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         let customer_details = api::CustomerDetails {
-            id: customer.customer_id.clone(),
+            id: Some(customer.customer_id.clone()),
             name: customer.name.clone().map(|name| name.into_inner()),
             email: customer.email.clone().map(Email::from),
             phone: customer.phone.clone().map(|phone| phone.into_inner()),
@@ -376,6 +376,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
                 .tax_registration_id
                 .clone()
                 .map(|tax_registration_id| tax_registration_id.into_inner()),
+            document_details: None,
         };
 
         Ok((locker_id, customer_details))
@@ -386,6 +387,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
         payment_method: domain::PaymentMethod,
         network_token_details: &NetworkTokenizationResponse,
         card_details: &domain::CardDetail,
+        initiator: Option<&domain::Initiator>,
     ) -> RouterResult<domain::PaymentMethod> {
         // Form encrypted network token data
         let enc_token_data = self
@@ -397,7 +399,9 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
             network_token_requestor_reference_id: network_token_details.1.clone(),
             network_token_locker_id: Some(store_token_response.card_reference.clone()),
             network_token_payment_method_data: Some(enc_token_data.into()),
-            last_modified_by: None,
+            last_modified_by: initiator
+                .and_then(|initiator| initiator.to_created_by())
+                .map(|last_modified_by| last_modified_by.to_string()),
         };
         self.state
             .store

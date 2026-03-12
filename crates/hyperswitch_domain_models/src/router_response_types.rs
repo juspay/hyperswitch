@@ -1,5 +1,6 @@
 pub mod disputes;
 pub mod fraud_check;
+pub mod merchant_connector_webhook_management;
 pub mod revenue_recovery;
 pub mod subscriptions;
 use std::collections::HashMap;
@@ -117,6 +118,7 @@ pub enum PaymentsResponseData {
     },
     PaymentsCreateOrderResponse {
         order_id: String,
+        session_token: Option<api_models::payments::SessionToken>,
     },
 }
 
@@ -723,6 +725,12 @@ pub trait SupportedPaymentMethodsExt {
         payment_method_type: common_enums::PaymentMethodType,
         payment_method_details: PaymentMethodDetails,
     );
+
+    fn is_refund_supported(
+        &self,
+        payment_method: &common_enums::PaymentMethod,
+        payment_method_type: &common_enums::PaymentMethodType,
+    ) -> bool;
 }
 
 impl SupportedPaymentMethodsExt for SupportedPaymentMethods {
@@ -740,6 +748,23 @@ impl SupportedPaymentMethodsExt for SupportedPaymentMethods {
 
             self.insert(payment_method, payment_method_type_metadata);
         }
+    }
+
+    fn is_refund_supported(
+        &self,
+        payment_method: &common_enums::PaymentMethod,
+        payment_method_type: &common_enums::PaymentMethodType,
+    ) -> bool {
+        self.get(payment_method)
+            .and_then(|pm_types| pm_types.get(payment_method_type))
+            .map(|details| details.supports_refund())
+            .unwrap_or(true)
+    }
+}
+
+impl PaymentMethodDetails {
+    fn supports_refund(&self) -> bool {
+        self.refunds.is_supported()
     }
 }
 

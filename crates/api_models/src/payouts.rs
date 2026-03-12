@@ -204,9 +204,10 @@ pub struct PayoutCreateRequest {
 
 impl PayoutCreateRequest {
     pub fn get_customer_id(&self) -> Option<&id_type::CustomerId> {
-        self.customer_id
+        self.customer_id.as_ref().or(self
+            .customer
             .as_ref()
-            .or(self.customer.as_ref().map(|customer| &customer.id))
+            .and_then(|customer| customer.id.as_ref()))
     }
 }
 
@@ -390,6 +391,7 @@ pub enum Wallet {
 #[serde(rename_all = "snake_case")]
 pub enum BankRedirect {
     Interac(Interac),
+    OpenBankingUk(OpenBankingUk),
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -397,6 +399,16 @@ pub struct Interac {
     /// Customer email linked with interac account
     #[schema(value_type = String, example = "john.doe@example.com")]
     pub email: Email,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct OpenBankingUk {
+    /// Account holder name
+    #[schema(value_type = String, example = "John Doe")]
+    pub account_holder_name: Secret<String>,
+    /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
+    #[schema(value_type = String, example = "DE89370400440532013000")]
+    pub iban: Secret<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -660,8 +672,8 @@ pub enum PayoutMethodDataResponse {
     Wallet(Box<payout_method_utils::WalletAdditionalData>),
     #[schema(value_type = BankRedirectAdditionalData)]
     BankRedirect(Box<payout_method_utils::BankRedirectAdditionalData>),
-    #[schema(value_type = PassthroughAddtionalData)]
-    Passthrough(Box<payout_method_utils::PassthroughAddtionalData>),
+    #[schema(value_type = PassthroughAdditionalData)]
+    Passthrough(Box<payout_method_utils::PassthroughAdditionalData>),
 }
 
 #[derive(
@@ -1084,11 +1096,18 @@ impl From<BankRedirect> for payout_method_utils::BankRedirectAdditionalData {
                     email: Some(ForeignFrom::foreign_from(email)),
                 }))
             }
+            BankRedirect::OpenBankingUk(OpenBankingUk {
+                account_holder_name,
+                iban,
+            }) => Self::OpenBankingUk(Box::new(payout_method_utils::OpenBankingUkAdditionalData {
+                account_holder_name,
+                iban,
+            })),
         }
     }
 }
 
-impl From<Passthrough> for payout_method_utils::PassthroughAddtionalData {
+impl From<Passthrough> for payout_method_utils::PassthroughAdditionalData {
     fn from(passthrough_data: Passthrough) -> Self {
         Self {
             psp_token: passthrough_data.psp_token.into(),
