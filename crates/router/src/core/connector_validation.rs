@@ -306,10 +306,6 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 )?;
                 Ok(())
             }
-            api_enums::Connector::Hyperpg => {
-                hyperpg::transformers::HyperpgAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
             api_enums::Connector::Iatapay => {
                 iatapay::transformers::IatapayAuthType::try_from(self.auth_type)?;
                 Ok(())
