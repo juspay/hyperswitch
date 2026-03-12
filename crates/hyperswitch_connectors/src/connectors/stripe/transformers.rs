@@ -26,8 +26,8 @@ use hyperswitch_domain_models::{
     },
     router_flow_types::{Execute, RSync},
     router_request_types::{
-        BrowserInformation, ChargeRefundsOptions, DestinationChargeRefund, DirectChargeRefund,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        AuthenticationData, BrowserInformation, ChargeRefundsOptions, DestinationChargeRefund,
+        DirectChargeRefund, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, ResponseId, SplitRefundsRequest,
     },
     router_response_types::{
@@ -226,8 +226,13 @@ pub struct PaymentIntentRequest {
     pub charges: Option<IntentCharges>,
     #[serde(rename = "payment_method_options[card][moto]")]
     pub moto: Option<bool>,
+<<<<<<< Updated upstream
     #[serde(flatten)]
     pub external_three_ds_data: Option<StripeExternalThreeDsData>,
+=======
+    // #[serde(flatten)]
+    // pub external_three_ds_data: Option<StripeExternalThreeDsData>,
+>>>>>>> Stashed changes
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
@@ -278,6 +283,16 @@ pub struct SetupIntentRequest {
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum StripePaymentMethodAuthType {
+    External3ds(StripeExternalThreeDsData),
+    Request3ds {
+        #[serde(rename = "payment_method_options[card][request_three_d_secure]")]
+        payment_method_auth_type: Auth3ds,
+    },
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeCardData {
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_data_type: StripePaymentMethodType,
@@ -289,8 +304,8 @@ pub struct StripeCardData {
     pub payment_method_data_card_exp_year: Secret<String>,
     #[serde(rename = "payment_method_data[card][cvc]")]
     pub payment_method_data_card_cvc: Option<Secret<String>>,
-    #[serde(rename = "payment_method_options[card][request_three_d_secure]")]
-    pub payment_method_auth_type: Option<Auth3ds>,
+    #[serde(flatten)]
+    pub payment_method_auth_type: Option<StripePaymentMethodAuthType>,
     #[serde(rename = "payment_method_options[card][network]")]
     pub payment_method_data_card_preferred_network: Option<StripeCardNetwork>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1369,6 +1384,7 @@ pub struct PaymentRequestDetails {
 fn create_stripe_payment_method(
     payment_method_data: &PaymentMethodData,
     payment_request_details: PaymentRequestDetails,
+    authentication: Option<AuthenticationData>,
 ) -> Result<
     (
         StripePaymentMethodData,
@@ -1387,6 +1403,7 @@ fn create_stripe_payment_method(
                 StripePaymentMethodData::try_from((
                     card_details,
                     payment_method_auth_type,
+                    authentication,
                     payment_request_details.request_incremental_authorization,
                     payment_request_details.request_extended_authorization,
                     payment_request_details.request_overcapture,
@@ -1618,6 +1635,7 @@ impl
     TryFrom<(
         &Card,
         Auth3ds,
+        Option<AuthenticationData>,
         bool,
         Option<primitive_wrappers::RequestExtendedAuthorizationBool>,
         Option<StripeRequestOvercaptureBool>,
@@ -1628,24 +1646,47 @@ impl
         (
             card,
             payment_method_auth_type,
+            authentication_data,
             request_incremental_authorization,
             request_extended_authorization,
             request_overcapture,
         ): (
             &Card,
             Auth3ds,
+            Option<AuthenticationData>,
             bool,
             Option<primitive_wrappers::RequestExtendedAuthorizationBool>,
             Option<StripeRequestOvercaptureBool>,
         ),
     ) -> Result<Self, Self::Error> {
+        let payment_method_auth_type = match authentication_data {
+            Some(data) => Some(StripePaymentMethodAuthType::External3ds(
+                StripeExternalThreeDsData {
+                    three_ds_version: data.message_version.map(|version| version.to_string()),
+                    electronic_commerce_indicator: data.eci,
+                    cryptogram: data.cavv,
+                    transaction_id: data.ds_trans_id,
+                    ares_trans_status: data.transaction_status,
+                    exemption_indicator: data.exemption_indicator.and_then(|risk| match risk {
+                        common_enums::ExemptionIndicator::LowRiskProgram => {
+                            Some(StripeThreeDsExemptionIndicator::LowRisk)
+                        }
+                        _ => None,
+                    }),
+                    error_on_requires_action: true,
+                },
+            )),
+            None => Some(StripePaymentMethodAuthType::Request3ds {
+                payment_method_auth_type,
+            }),
+        };
         Ok(Self::Card(StripeCardData {
             payment_method_data_type: StripePaymentMethodType::Card,
             payment_method_data_card_number: card.card_number.clone(),
             payment_method_data_card_exp_month: card.card_exp_month.clone(),
             payment_method_data_card_exp_year: card.card_exp_year.clone(),
             payment_method_data_card_cvc: Some(card.card_cvc.clone()),
-            payment_method_auth_type: Some(payment_method_auth_type),
+            payment_method_auth_type,
             payment_method_data_card_preferred_network: card
                 .card_network
                 .clone()
@@ -2097,7 +2138,9 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                             request_overcapture: item.request
                                 .enable_overcapture
                                 .and_then(get_stripe_overcapture_request),
-                })?;
+                }
+            , item.request.authentication_data.clone()
+            )?;
 
                     validate_shipping_address_against_payment_method(
                         &shipping_address,
@@ -2501,6 +2544,7 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
                         request_extended_authorization: None,
                         request_overcapture: None,
                     },
+                    None,
                 )?
                 .0
             }
@@ -4615,6 +4659,7 @@ impl
                 Ok(Self::try_from((
                     ccard,
                     payment_method_auth_type,
+                    None,
                     item.request.request_incremental_authorization,
                     None,
                     None,
