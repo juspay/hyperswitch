@@ -329,10 +329,6 @@ pub enum StripeRequestExtendedAuthorization {
 pub enum StripeRequestOvercaptureBool {
     IfAvailable,
 }
-
-/// Data structure for Stripe external 3DS authentication payload.
-/// Used when 3DS authentication is performed externally (outside of Stripe)
-/// and the results need to be passed to Stripe.
 /// Reference: https://docs.stripe.com/payments/3d-secure/authentication-flow#external-three-ds
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct StripeExternalThreeDsData {
@@ -342,13 +338,13 @@ pub struct StripeExternalThreeDsData {
         rename = "payment_method_options[card][three_d_secure][version]"
     )]
     pub three_ds_version: Option<String>,
-    /// The Electronic Commerce Indicator value (e.g., "01", "02", "05", "06", "07")
+
     #[serde(
         skip_serializing_if = "Option::is_none",
         rename = "payment_method_options[card][three_d_secure][electronic_commerce_indicator]"
     )]
     pub electronic_commerce_indicator: Option<String>,
-    /// The cryptogram (CAVV/AAV) from the 3DS authentication
+
     #[serde(rename = "payment_method_options[card][three_d_secure][cryptogram]")]
     pub cryptogram: Secret<String>,
     /// The transaction ID (XID for 3DS1 or dsTransID for 3DS2)
@@ -357,14 +353,12 @@ pub struct StripeExternalThreeDsData {
         rename = "payment_method_options[card][three_d_secure][transaction_id]"
     )]
     pub transaction_id: Option<String>,
-    /// The transStatus returned from the card Issuer’s ACS in the ARes.
     #[serde(
         skip_serializing_if = "Option::is_none",
         rename = "payment_method_options[card][three_d_secure][ares_trans_status]"
     )]
     pub ares_trans_status: Option<common_enums::TransactionStatus>,
 
-    /// The exemption requested via 3DS and accepted by the issuer at authentication time.
     #[serde(
         skip_serializing_if = "Option::is_none",
         rename = "payment_method_options[card][three_d_secure][exemption_indicator]"
