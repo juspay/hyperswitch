@@ -321,7 +321,7 @@ where
             write!(f, "{}{}", value, "*".repeat(val_str.len() - 6))
         } else {
             #[cfg(not(target_arch = "wasm32"))]
-            logger::error!("Invalid card number {val_str}");
+            logger::error!("Invalid card number (masking failed for length {})", val_str.len());
             WithType::fmt(val, f)
         }
     }

@@ -1,5 +1,6 @@
 pub mod transformers;
 use api_models::{self, webhooks::IncomingWebhookEvent};
+use subtle::ConstantTimeEq;
 #[cfg(feature = "payouts")]
 use base64::Engine;
 #[cfg(feature = "payouts")]
@@ -361,7 +362,7 @@ impl IncomingWebhook for Adyenplatform {
         let signing_key = hmac::Key::new(hmac::HMAC_SHA256, &raw_key);
         let signed_messaged = hmac::sign(&signing_key, &message);
         let payload_sign = consts::BASE64_ENGINE.encode(signed_messaged.as_ref());
-        Ok(payload_sign.as_bytes().eq(&signature))
+        Ok(bool::from(payload_sign.as_bytes().ct_eq(&signature)))
     }
 
     #[cfg(feature = "payouts")]

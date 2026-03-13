@@ -68,6 +68,8 @@ use masking::{ExposeInterface, Mask, PeekInterface, Secret};
 #[cfg(feature = "frm")]
 use ring::hmac;
 #[cfg(feature = "frm")]
+use subtle::ConstantTimeEq;
+#[cfg(feature = "frm")]
 use transformers as riskified;
 
 #[cfg(feature = "frm")]
@@ -604,7 +606,7 @@ impl IncomingWebhook for Riskified {
         let signing_key = hmac::Key::new(hmac::HMAC_SHA256, &connector_webhook_secrets.secret);
         let signed_message = hmac::sign(&signing_key, &message);
         let payload_sign = BASE64_ENGINE.encode(signed_message.as_ref());
-        Ok(payload_sign.as_bytes().eq(&signature))
+        Ok(bool::from(payload_sign.as_bytes().ct_eq(&signature)))
     }
 
     fn get_webhook_source_verification_message(

@@ -3,6 +3,7 @@ use std::sync::LazyLock;
 
 use api_models::webhooks::IncomingWebhookEvent;
 use base64::Engine;
+use subtle::ConstantTimeEq;
 use common_enums::enums;
 use common_utils::{
     consts::BASE64_ENGINE_URL_SAFE,
@@ -827,7 +828,7 @@ impl IncomingWebhook for Rapyd {
         let key = hmac::Key::new(hmac::HMAC_SHA256, secret_key.peek().as_bytes());
         let tag = hmac::sign(&key, &message);
         let hmac_sign = hex::encode(tag);
-        Ok(hmac_sign.as_bytes().eq(&signature))
+        Ok(bool::from(hmac_sign.as_bytes().ct_eq(&signature)))
     }
 
     fn get_webhook_object_reference_id(

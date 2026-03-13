@@ -22,6 +22,7 @@ use jsonwebtoken::{
 #[cfg(feature = "v2")]
 use masking::ExposeInterface;
 use masking::PeekInterface;
+use subtle::ConstantTimeEq;
 use router_env::logger;
 use serde::Serialize;
 
@@ -567,7 +568,7 @@ where
         let (authenticated_entity, expected_secret) =
             P::get_credentials(state, &provided_identifier)?;
 
-        if provided_secret.peek() != expected_secret.peek() {
+        if !bool::from(provided_secret.peek().as_bytes().ct_eq(expected_secret.peek().as_bytes())) {
             return Err(errors::ApiErrorResponse::InvalidBasicAuth.into());
         }
 
@@ -1664,7 +1665,7 @@ where
 
         let admin_api_key = &conf.secrets.get_inner().admin_api_key;
 
-        if request_admin_api_key != admin_api_key.peek() {
+        if !bool::from(request_admin_api_key.as_bytes().ct_eq(admin_api_key.peek().as_bytes())) {
             Err(report!(errors::ApiErrorResponse::Unauthorized)
                 .attach_printable("Admin Authentication Failure"))?;
         }
@@ -1703,7 +1704,7 @@ where
 
         let admin_api_key = &conf.secrets.get_inner().admin_api_key;
 
-        if request_admin_api_key != admin_api_key.peek() {
+        if !bool::from(request_admin_api_key.as_bytes().ct_eq(admin_api_key.peek().as_bytes())) {
             Err(report!(errors::ApiErrorResponse::Unauthorized)
                 .attach_printable("Admin Authentication Failure"))?;
         }
@@ -1906,7 +1907,7 @@ where
 
         let admin_api_key = &conf.secrets.get_inner().admin_api_key;
 
-        if request_api_key == admin_api_key.peek() {
+        if bool::from(request_api_key.as_bytes().ct_eq(admin_api_key.peek().as_bytes())) {
             return Ok((None, AuthenticationType::AdminApiKey));
         }
         let Some(fallback_merchant_ids) = conf.fallback_merchant_ids_api_key_auth.as_ref() else {
@@ -2032,7 +2033,7 @@ where
 
         let admin_api_key: &masking::Secret<String> = &conf.secrets.get_inner().admin_api_key;
 
-        if request_api_key == admin_api_key.peek() {
+        if bool::from(request_api_key.as_bytes().ct_eq(admin_api_key.peek().as_bytes())) {
             let (key_store, merchant) =
                 Self::fetch_merchant_key_store_and_account(&merchant_id_from_route, state).await?;
 
