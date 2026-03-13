@@ -12,7 +12,6 @@ pub mod list;
 /// Retrieve payment method flow.
 pub mod retrieve;
 /// Update payment method flow.
-#[cfg(feature = "v1")]
 pub mod update;
 
 use common_utils::request::Headers;
@@ -23,7 +22,6 @@ use hyperswitch_interfaces::micro_service::MicroserviceClient;
 #[cfg(feature = "v1")]
 pub use retrieve::{RetrievePaymentMethod, RetrievePaymentMethodV1Request};
 use router_env::RequestIdentifier;
-#[cfg(feature = "v1")]
 pub use update::{UpdatePaymentMethod, UpdatePaymentMethodV1Request};
 
 use crate::configs::ModularPaymentMethodServiceUrl;
