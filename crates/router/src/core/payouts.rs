@@ -198,7 +198,7 @@ pub async fn make_connector_decision(
                     Box::pin(retry::do_gsm_single_connector_actions(
                         state,
                         routing_data.connector_data,
-                        &dimensions,
+                        dimensions,
                         payout_data,
                         platform,
                     ))
@@ -234,7 +234,7 @@ pub async fn make_connector_decision(
                     Box::pin(retry::do_gsm_multiple_connector_actions(
                         state,
                         routing_data,
-                        &dimensions,
+                        dimensions,
                         connector_data.clone(),
                         payout_data,
                         platform,
@@ -253,7 +253,7 @@ pub async fn make_connector_decision(
                     Box::pin(retry::do_gsm_single_connector_actions(
                         state,
                         connector_data,
-                        &dimensions,
+                        dimensions,
                         payout_data,
                         platform,
                     ))

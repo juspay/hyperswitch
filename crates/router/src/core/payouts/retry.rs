@@ -45,7 +45,7 @@ pub async fn do_gsm_multiple_connector_actions(
                 retries = get_retries(
                     state,
                     retries,
-                    &dimensions,
+                    dimensions,
                     payout_data.payout_attempt.customer_id.as_ref(),
                     PayoutRetryType::MultiConnector,
                 )
@@ -110,7 +110,7 @@ pub async fn do_gsm_single_connector_actions(
                 retries = get_retries(
                     state,
                     retries,
-                    &dimensions,
+                    dimensions,
                     payout_data.payout_attempt.customer_id.as_ref(),
                     PayoutRetryType::SingleConnector,
                 )
