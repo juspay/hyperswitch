@@ -699,7 +699,7 @@ pub async fn delete_user_role(
             .attach_printable("Error while deleting user role")?;
     }
 
-    let Some(deleted_user_role_info) = deleted_user_role_info else {
+    let Some(_deleted_user_role_info) = deleted_user_role_info else {
         return Err(report!(UserErrors::InvalidDeleteOperation))
             .attach_printable("User is not associated with the merchant");
     };

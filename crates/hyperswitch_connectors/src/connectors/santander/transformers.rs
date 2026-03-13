@@ -12,11 +12,11 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankTransferData, BoletoVoucherData, PaymentMethodData, VoucherData},
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
-    router_request_types::{PaymentsUpdateMetadataData, ResponseId},
+    router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsSyncRouterData,
-        PaymentsUpdateMetadataRouterData, RefundsRouterData,
+        RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -32,22 +32,21 @@ use crate::{
     connectors::santander::{
         requests::{
             Environment, SantanderAuthRequest, SantanderAuthType, SantanderBoletoCancelOperation,
-            SantanderBoletoCancelRequest, SantanderBoletoPaymentRequest,
-            SantanderBoletoUpdateRequest, SantanderDebtor, SantanderGrantType,
-            SantanderMetadataObject, SantanderPaymentRequest, SantanderPaymentsCancelRequest,
-            SantanderPixCancelRequest, SantanderPixDueDateCalendarRequest,
-            SantanderPixImmediateCalendarRequest, SantanderPixQRPaymentRequest,
-            SantanderPixRequestCalendar, SantanderRefundRequest, SantanderRouterData,
-            SantanderValue,
+            SantanderBoletoCancelRequest, SantanderBoletoPaymentRequest, SantanderDebtor,
+            SantanderGrantType, SantanderMetadataObject, SantanderPaymentRequest,
+            SantanderPaymentsCancelRequest, SantanderPixCancelRequest,
+            SantanderPixDueDateCalendarRequest, SantanderPixImmediateCalendarRequest,
+            SantanderPixQRPaymentRequest, SantanderPixRequestCalendar, SantanderRefundRequest,
+            SantanderRouterData, SantanderValue,
         },
         responses::{
-            Key, NsuComposite, Payer, SanatanderAccessTokenResponse, SanatanderTokenResponse,
+            Key, Payer, SanatanderAccessTokenResponse, SanatanderTokenResponse,
             SantanderAdditionalInfo, SantanderBoletoDocumentKind, SantanderBoletoPaymentType,
             SantanderBoletoStatus, SantanderDocumentKind, SantanderPaymentStatus,
             SantanderPaymentsResponse, SantanderPaymentsSyncResponse, SantanderPixKeyType,
             SantanderPixQRCodePaymentsResponse, SantanderPixQRCodeSyncResponse,
-            SantanderRefundResponse, SantanderRefundStatus, SantanderUpdateMetadataResponse,
-            SantanderVoidResponse, SantanderVoidStatus,
+            SantanderRefundResponse, SantanderRefundStatus, SantanderVoidResponse,
+            SantanderVoidStatus,
         },
     },
     types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
@@ -75,33 +74,6 @@ impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for SantanderMetadata
                 config: "metadata",
             })?;
         Ok(metadata)
-    }
-}
-
-impl TryFrom<&PaymentsUpdateMetadataRouterData> for SantanderBoletoUpdateRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &PaymentsUpdateMetadataRouterData) -> Result<Self, Self::Error> {
-        let santander_mca_metadata = SantanderMetadataObject::try_from(&item.connector_meta_data)?;
-
-        let boleto_mca_metadata = santander_mca_metadata
-            .boleto
-            .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
-
-        let boleto_components = extract_boleto_components(&item.request.connector_transaction_id)?;
-
-        let due_date = Some(format_as_date_only(
-            item.request
-                .feature_metadata
-                .clone()
-                .and_then(|data| data.boleto_additional_details)
-                .and_then(|boleto_details| boleto_details.due_date),
-        )?);
-
-        Ok(Self {
-            covenant_code: boleto_mca_metadata.covenant_code,
-            bank_number: boleto_components.bank_number,
-            due_date,
-        })
     }
 }
 
@@ -1193,193 +1165,6 @@ impl<F> TryFrom<RefundsResponseRouterData<F, SantanderRefundResponse>> for Refun
     }
 }
 
-impl TryFrom<&PaymentsUpdateMetadataRouterData> for SantanderPaymentRequest {
-    type Error = Error;
-    fn try_from(value: &PaymentsUpdateMetadataRouterData) -> Result<Self, Self::Error> {
-        match value.request.payment_method_type {
-            Some(common_enums::PaymentMethodType::Pix) => {
-                let pix_qr = SantanderPixQRPaymentRequest::try_from(value)?;
-                Ok(Self::PixQR(Box::new(pix_qr)))
-            }
-            Some(common_enums::PaymentMethodType::Boleto) => {
-                let boleto = SantanderBoletoPaymentRequest::try_from(value)?;
-                Ok(Self::Boleto(Box::new(boleto)))
-            }
-            _ => Err(errors::ConnectorError::NotImplemented(
-                crate::utils::get_unimplemented_payment_method_error_message("Santander"),
-            ))?,
-        }
-    }
-}
-
-impl TryFrom<&PaymentsUpdateMetadataRouterData> for SantanderBoletoPaymentRequest {
-    type Error = Error;
-
-    fn try_from(value: &PaymentsUpdateMetadataRouterData) -> Result<Self, Self::Error> {
-        let santander_mca_metadata = SantanderMetadataObject::try_from(&value.connector_meta_data)?;
-
-        let boleto_mca_metadata = santander_mca_metadata
-            .boleto
-            .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
-
-        let due_date = Some(
-            value
-                .request
-                .feature_metadata
-                .as_ref()
-                .and_then(|fm| fm.boleto_additional_details.as_ref())
-                .and_then(|details| details.due_date)
-                .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                    field_name: "feature_metadata.boleto_additional_details.due_date",
-                })?,
-        );
-
-        let covenant_code = value.request.feature_metadata.clone().and_then(|data| {
-            data.get_optional_boleto_covenant_code()
-                .or(Some(boleto_mca_metadata.covenant_code.clone()))
-        });
-
-        Ok(Self {
-            bank_number: Some(value.connector_request_reference_id.clone()),
-            covenant_code,
-            environment: None,
-            due_date: Some(format_as_date_only(due_date)?),
-            nsu_code: None,
-            nsu_date: None,
-            client_number: None,
-            issue_date: None,
-            nominal_value: None,
-            participant_code: None,
-            payer: None,
-            beneficiary: None,
-            document_kind: None,
-            discount: None,
-            fine_percentage: None,
-            fine_quantity_days: None,
-            interest_percentage: None,
-            deduction_value: None,
-            protest_type: None,
-            protest_quantity_days: None,
-            write_off_quantity_days: None,
-            payment_type: None,
-            parcels_quantity: None,
-            value_type: None,
-            min_value_or_percentage: None,
-            max_value_or_percentage: None,
-            iof_percentage: None,
-            sharing: None,
-            key: None,
-            tx_id: None,
-            messages: None,
-        })
-    }
-}
-
-impl TryFrom<&PaymentsUpdateMetadataRouterData> for SantanderPixQRPaymentRequest {
-    type Error = Error;
-
-    fn try_from(value: &PaymentsUpdateMetadataRouterData) -> Result<Self, Self::Error> {
-        match value.request.payment_method_type {
-            Some(common_enums::PaymentMethodType::Pix) => {
-                let santander_mca_metadata =
-                    SantanderMetadataObject::try_from(&value.connector_meta_data)?;
-                let pix_mca_metadata = santander_mca_metadata
-                    .pix
-                    .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
-                let calendar = match &value
-                    .request
-                    .feature_metadata
-                    .as_ref()
-                    .and_then(|f| f.pix_additional_details.as_ref())
-                {
-                    Some(api_models::payments::PixAdditionalDetails::Immediate(val)) => {
-                        let cal = SantanderPixRequestCalendar::Immediate(
-                            SantanderPixImmediateCalendarRequest {
-                                expiracao: val.time,
-                            },
-                        );
-                        Some(cal)
-                    }
-                    Some(api_models::payments::PixAdditionalDetails::Scheduled(val)) => {
-                        let cal = SantanderPixRequestCalendar::Scheduled(
-                            SantanderPixDueDateCalendarRequest {
-                                data_de_vencimento: format_as_date_only(Some(val.date))?,
-                                validade_apos_vencimento: val.validity_after_expiration,
-                            },
-                        );
-                        Some(cal)
-                    }
-                    None => {
-                        let cal = SantanderPixRequestCalendar::Immediate(
-                            SantanderPixImmediateCalendarRequest { expiracao: 3600 },
-                        );
-
-                        Some(cal)
-                    }
-                };
-
-                let chave = value
-                    .request
-                    .feature_metadata
-                    .clone()
-                    .and_then(|data| data.get_pix_key_and_value().1)
-                    .or(Some(pix_mca_metadata.pix_key_value.clone()));
-
-                Ok(Self {
-                    calendario: calendar,
-                    devedor: None,
-                    valor: None,
-                    chave,
-                    solicitacao_pagador: None,
-                    info_adicionais: None,
-                })
-            }
-            _ => Err(errors::ConnectorError::NotImplemented(
-                crate::utils::get_unimplemented_payment_method_error_message("Santander"),
-            ))?,
-        }
-    }
-}
-
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            SantanderUpdateMetadataResponse,
-            PaymentsUpdateMetadataData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsUpdateMetadataData, PaymentsResponseData>
-where
-    F: Clone,
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: ResponseRouterData<
-            F,
-            SantanderUpdateMetadataResponse,
-            PaymentsUpdateMetadataData,
-            PaymentsResponseData,
-        >,
-    ) -> Result<Self, Self::Error> {
-        let status = if item.http_code == 200 {
-            common_enums::PaymentResourceUpdateStatus::Success
-        } else {
-            common_enums::PaymentResourceUpdateStatus::Failure
-        };
-        match item.response {
-            SantanderUpdateMetadataResponse::Pix(_) => Ok(Self {
-                response: Ok(PaymentsResponseData::PaymentResourceUpdateResponse { status }),
-                ..item.data
-            }),
-            SantanderUpdateMetadataResponse::Boleto(_) => Ok(Self {
-                response: Ok(PaymentsResponseData::PaymentResourceUpdateResponse { status }),
-                ..item.data
-            }),
-        }
-    }
-}
-
 pub fn get_qr_code_type(
     metadata: Option<Value>,
 ) -> CustomResult<ExpiryType, errors::ConnectorError> {
@@ -1396,23 +1181,6 @@ pub fn get_qr_code_type(
         }
     };
     Ok(santander_variant.ok_or_else(|| errors::ConnectorError::ResponseDeserializationFailed)?)
-}
-
-fn extract_boleto_components(input: &str) -> Result<NsuComposite, errors::ConnectorError> {
-    let parts: Vec<&str> = input.split('.').collect();
-
-    let [nsu_code, nsu_date, environment, covenant_code, bank_number] = parts
-        .as_slice()
-        .try_into()
-        .map_err(|_| errors::ConnectorError::ParsingFailed)?;
-
-    Ok(NsuComposite {
-        nsu_code: nsu_code.to_string(),
-        nsu_date: nsu_date.to_string(),
-        environment: environment.to_string(),
-        covenant_code: covenant_code.to_string(),
-        bank_number: bank_number.to_string(),
-    })
 }
 
 pub fn format_as_date_only(

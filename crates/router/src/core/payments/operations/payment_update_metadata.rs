@@ -2,7 +2,6 @@ use std::marker::PhantomData;
 
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
-use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
 use masking::ExposeInterface;
 use router_derive::PaymentOperation;
@@ -74,7 +73,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsUpdateMe
                 storage_enums::IntentStatus::PartiallyCaptured,
                 storage_enums::IntentStatus::PartiallyCapturedAndCapturable,
                 storage_enums::IntentStatus::RequiresCapture,
-                storage_enums::IntentStatus::RequiresCustomerAction,
             ],
             "update_metadata",
         )?;
@@ -116,28 +114,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsUpdateMe
             )?;
 
             payment_intent.metadata = Some(merged_metadata);
-        }
-
-        if let Some(feature_metadata) = request.feature_metadata.clone() {
-            let existing_feature_metadata = payment_intent
-                .feature_metadata
-                .as_ref()
-                .map(|value| {
-                    value
-                        .clone()
-                        .parse_value::<api_models::payments::FeatureMetadata>("FeatureMetadata")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to parse feature metadata from payment intent")
-                })
-                .transpose()?;
-
-            let merged_feature_metadata = feature_metadata.clone().merge(existing_feature_metadata);
-
-            payment_intent.feature_metadata = Some(
-                serde_json::to_value(merged_feature_metadata)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to serialize feature metadata")?,
-            );
         }
 
         let payment_data = PaymentData {
@@ -282,11 +258,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsUpdateMetada
         let storage_scheme = processor.get_account().storage_scheme;
         let key_store = processor.get_key_store();
         let metadata = payment_data.payment_intent.metadata.clone();
-        let feature_metadata = payment_data
-            .payment_intent
-            .feature_metadata
-            .clone()
-            .map(masking::Secret::new);
 
         payment_data.payment_intent = state
             .store
@@ -294,7 +265,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsUpdateMetada
                 payment_data.payment_intent,
                 storage::PaymentIntentUpdate::MetadataUpdate {
                     metadata,
-                    feature_metadata,
                     updated_by: storage_scheme.to_string(),
                 },
                 key_store,
@@ -321,7 +291,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsUpdateMetadataReque
     )> {
         request.validate().change_context(
             payment_methods::errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "metadata/feature_metadata",
+                field_name: "metadata",
             },
         )?;
         //payment id is already generated and should be sent in the request
