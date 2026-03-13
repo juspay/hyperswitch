@@ -11,6 +11,7 @@ use super::{call_connector_payout, PayoutData};
 use crate::{
     consts,
     core::{
+        configs::dimension_state,
         errors::{self, RouterResult, StorageErrorExt},
         payouts,
     },
@@ -25,6 +26,7 @@ use crate::{
 pub async fn do_gsm_multiple_connector_actions(
     state: &app::SessionState,
     mut connectors_routing_data: IntoIter<api::ConnectorRoutingData>,
+    dimensions: &dimension_state::DimensionsWithMerchantId,
     original_connector_data: api::ConnectorData,
     payout_data: &mut PayoutData,
     platform: &domain::Platform,
@@ -43,7 +45,8 @@ pub async fn do_gsm_multiple_connector_actions(
                 retries = get_retries(
                     state,
                     retries,
-                    platform.get_processor().get_account().get_id(),
+                    dimensions,
+                    payout_data.payout_attempt.customer_id.as_ref(),
                     PayoutRetryType::MultiConnector,
                 )
                 .await;
@@ -83,6 +86,7 @@ pub async fn do_gsm_multiple_connector_actions(
 pub async fn do_gsm_single_connector_actions(
     state: &app::SessionState,
     original_connector_data: api::ConnectorData,
+    dimensions: &dimension_state::DimensionsWithMerchantId,
     payout_data: &mut PayoutData,
     platform: &domain::Platform,
 ) -> RouterResult<()> {
@@ -106,7 +110,8 @@ pub async fn do_gsm_single_connector_actions(
                 retries = get_retries(
                     state,
                     retries,
-                    platform.get_processor().get_account().get_id(),
+                    dimensions,
+                    payout_data.payout_attempt.customer_id.as_ref(),
                     PayoutRetryType::SingleConnector,
                 )
                 .await;
@@ -137,29 +142,40 @@ pub async fn do_gsm_single_connector_actions(
 pub async fn get_retries(
     state: &app::SessionState,
     retries: Option<i32>,
-    merchant_id: &common_utils::id_type::MerchantId,
+    dimensions: &dimension_state::DimensionsWithMerchantId,
+    customer_id: Option<&common_utils::id_type::CustomerId>,
     retry_type: PayoutRetryType,
 ) -> Option<i32> {
     match retries {
         Some(retries) => Some(retries),
         None => {
-            let key = merchant_id.get_max_auto_single_connector_payout_retries_enabled(retry_type);
-            let db = &*state.store;
-            db.find_config_by_key(key.as_str())
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .and_then(|retries_config| {
-                    retries_config
-                        .config
-                        .parse::<i32>()
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Retries config parsing failed")
-                })
-                .map_err(|err| {
-                    logger::error!(retries_error=?err);
-                    None::<i32>
-                })
-                .ok()
+            let storage = state.store.as_ref();
+            let superposition_client = state.superposition_service.as_deref();
+            let targeting_key = customer_id;
+
+            let retries_i64 = match retry_type {
+                PayoutRetryType::SingleConnector => {
+                    dimensions
+                        .get_max_auto_single_connector_payout_retries(
+                            storage,
+                            superposition_client,
+                            targeting_key,
+                        )
+                        .await
+                }
+                PayoutRetryType::MultiConnector => {
+                    dimensions
+                        .get_max_auto_multiple_connector_payout_retries(
+                            storage,
+                            superposition_client,
+                            targeting_key,
+                        )
+                        .await
+                }
+            };
+
+            let retries_i32 = retries_i64.try_into().unwrap_or(0).max(0);
+            Some(retries_i32)
         }
     }
 }
