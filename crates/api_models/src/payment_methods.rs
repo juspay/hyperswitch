@@ -1210,6 +1210,9 @@ pub struct ConnectorTokenDetails {
     /// Metadata associated with the connector token
     pub metadata: Option<pii::SecretSerdeValue>,
 
+    /// The connector customer identifier associated with this tokenized payment method
+    pub connector_customer_id: Option<String>,
+
     /// The value of the connector token. This token can be used to make merchant initiated payments ( MIT ), directly with the connector.
     pub token: masking::Secret<String>,
 }

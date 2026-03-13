@@ -1103,12 +1103,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                 },
                             )?;
 
-                            let payment_method_type = req.payment_method_type.ok_or(
-                                errors::ApiErrorResponse::MissingRequiredField {
-                                    field_name: "payment_method_type",
-                                },
-                            )?;
-
                             let payment_method_data = req
                                 .payment_method_data
                                 .as_ref()
@@ -1124,7 +1118,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                 platform.get_processor().get_account().get_id(),
                                 business_profile.get_id(),
                                 payment_method,
-                                payment_method_type,
+                                req.payment_method_type,
                                 payment_method_data,
                                 payment_data
                                     .address
@@ -1188,6 +1182,17 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
     ) -> RouterResult<Option<operations::PaymentMethodWithRawData>> {
         match feature_config.is_payment_method_modular_allowed {
             true => {
+                utils::when(
+                    req.off_session == Some(true) && req.recurring_details.is_none(),
+                    || {
+                        Err(error_stack::report!(
+                            errors::ApiErrorResponse::PreconditionFailed {
+                                message: "off_session requires recurring_details".into(),
+                            }
+                        ))
+                    },
+                )?;
+
                 let profile_id = req
                     .profile_id
                     .clone()
@@ -1219,7 +1224,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         &profile_id,
                         payment_token,
                         payment_method_data,
-                        false, // is_off_session, is false since customer present in the flow, but to be checked in On_session MIT
                     )
                     .await?;
                     logger::info!("Payment method fetched from PM Modular Service.");
