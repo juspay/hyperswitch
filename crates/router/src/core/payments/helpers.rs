@@ -461,7 +461,6 @@ pub async fn get_token_pm_type_mandate_details(
     platform: &domain::Platform,
     payment_method_id: Option<String>,
     payment_intent_customer_id: Option<&id_type::CustomerId>,
-    pm_info: Option<domain::PaymentMethod>,
 ) -> RouterResult<MandateGenericData> {
     let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
     let (
@@ -508,12 +507,69 @@ pub async fn get_token_pm_type_mandate_details(
                             let connector_name = db
                                 .find_merchant_connector_account_by_id(mca_id, merchant_key_store)
                                 .await
+                                .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                                    id: mca_id.clone().get_string_repr().to_string(),
+                                })?.connector_name;
+                                (
+                                    None,
+                                    request.payment_method,
+                                    None,
+                                    None,
+                                    None,
+                                    Some(payments::MandateConnectorDetails {
+                                        connector: connector_name,
+                                        merchant_connector_id: Some(mca_id.clone()),
+                                    }),
+                                    None,
+                                )
+                            } else {
+                                (None, request.payment_method, None, None, None, None, None)
+                            }
+                        }
+                        RecurringDetails::MandateId(mandate_id) => {
+                            let mandate_generic_data = Box::pin(get_token_for_recurring_mandate(
+                                state,
+                                request,
+                                platform,
+                                mandate_id.to_owned(),
+                            ))
+                            .await?;
+
+                            (
+                                mandate_generic_data.token,
+                                mandate_generic_data.payment_method,
+                                mandate_generic_data
+                                    .payment_method_type
+                                    .or(request.payment_method_type),
+                                None,
+                                mandate_generic_data.recurring_mandate_payment_data,
+                                mandate_generic_data.mandate_connector,
+                                mandate_generic_data.payment_method_info,
+                            )
+                        }
+                        RecurringDetails::PaymentMethodId(payment_method_id) => {
+                            let payment_method_info = state
+                                .store
+                                .find_payment_method(
+                                    platform.get_provider().get_key_store(),
+                                    payment_method_id,
+                                    platform.get_provider().get_account().storage_scheme,
+                                )
+                                .await
                                 .to_not_found_response(
-                                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                                        id: mca_id.clone().get_string_repr().to_string(),
-                                    },
-                                )?
-                                .connector_name;
+                                    errors::ApiErrorResponse::PaymentMethodNotFound,
+                                )?;
+                            let customer_id = request
+                                .get_customer_id()
+                                .get_required_value("customer_id")?;
+
+                            verify_mandate_details_for_recurring_payments(
+                                &payment_method_info.merchant_id,
+                                platform.get_provider().get_account().get_id(),
+                                &payment_method_info.customer_id,
+                                customer_id,
+                            )?;
+
                             (
                                 None,
                                 request.payment_method,
@@ -702,9 +758,9 @@ pub async fn get_token_pm_type_mandate_details(
                                 state
                                     .store
                                     .find_payment_method(
-                                        platform.get_processor().get_key_store(),
+                                        platform.get_provider().get_key_store(),
                                         &payment_method_id,
-                                        platform.get_processor().get_account().storage_scheme,
+                                        platform.get_provider().get_account().storage_scheme,
                                     )
                                     .await
                                     .to_not_found_response(
@@ -732,9 +788,9 @@ pub async fn get_token_pm_type_mandate_details(
                     state
                         .store
                         .find_payment_method(
-                            platform.get_processor().get_key_store(),
+                            platform.get_provider().get_key_store(),
                             &payment_method_id,
-                            platform.get_processor().get_account().storage_scheme,
+                            platform.get_provider().get_account().storage_scheme,
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)

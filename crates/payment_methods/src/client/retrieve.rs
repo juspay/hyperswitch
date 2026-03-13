@@ -17,6 +17,24 @@ pub struct RetrievePaymentMethod;
 #[derive(Debug)]
 pub struct RetrievePaymentMethodV1Request {
     pub payment_method_id: PaymentMethodId,
+    pub modular_service_prefix: String,
+    pub fetch_raw_detail: bool,
+}
+/// V1-facing retrieve response payload.
+#[derive(Clone, Debug)]
+pub struct RetrievePaymentMethodResponse {
+    pub payment_method_id: String,
+    pub merchant_id: id_type::MerchantId,
+    pub customer_id: Option<id_type::CustomerId>,
+    pub payment_method_type: common_enums::PaymentMethod,
+    pub payment_method_subtype: common_enums::PaymentMethodType,
+    pub recurring_enabled: Option<bool>,
+    pub created: Option<PrimitiveDateTime>,
+    pub last_used_at: Option<PrimitiveDateTime>,
+    pub payment_method_data: Option<PaymentMethodResponseData>,
+    pub connector_tokens: Option<Vec<ConnectorTokenDetails>>,
+    pub network_token: Option<NetworkTokenResponse>,
+    pub raw_payment_method_data: Option<RawPaymentMethodData>,
 }
 
 impl TryFrom<&RetrievePaymentMethodV1Request> for ModularPMRetrieveResquest {
@@ -46,9 +64,8 @@ impl TryFrom<ModularPMRetrieveResponse> for RetrievePaymentMethodResponse {
             payment_method_id,
             merchant_id: v2_resp.merchant_id,
             customer_id,
-            payment_method: v2_resp.payment_method_type,
-            payment_method_type: v2_resp.payment_method_subtype,
-            card,
+            payment_method_type: v2_resp.payment_method_type,
+            payment_method_subtype: v2_resp.payment_method_subtype,
             recurring_enabled: v2_resp.recurring_enabled,
             created: v2_resp.created,
             last_used_at: v2_resp.last_used_at,
