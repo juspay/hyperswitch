@@ -1,7 +1,6 @@
 use api_models::payment_methods::CardDetailFromLocker;
 use common_enums::{PaymentMethod, PaymentMethodType};
 use common_utils::{id_type, pii};
-use hyperswitch_domain_models::payment_method_data::NetworkTokenDetailsPaymentMethod;
 use serde::Deserialize;
 use time::PrimitiveDateTime;
 #[derive(Clone, Debug)]
@@ -67,7 +66,7 @@ pub struct ModularPMRetrieveResponse {
 }
 
 /// V2 ConnectorTokenDetails (for deserialization, ignored in transformation)
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct ConnectorTokenDetails {
     pub connector_id: id_type::MerchantConnectorAccountId,
     pub token_type: common_enums::TokenizationType,

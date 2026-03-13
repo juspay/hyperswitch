@@ -31,7 +31,7 @@ pub struct UpdatePaymentMethodV1Request {
 }
 
 /// V1-facing update payload.
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug)]
 pub struct UpdatePaymentMethodV1Payload {
     /// Payment method details to update.
     pub payment_method_data: Option<PaymentMethodUpdateData>,
@@ -42,7 +42,7 @@ pub struct UpdatePaymentMethodV1Payload {
 }
 
 /// Modular service update request payload.
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug)]
 pub struct ModularPMUpdateRequest {
     /// Payment method details to update.
     pub payment_method_data: Option<PaymentMethodUpdateData>,
@@ -81,9 +81,9 @@ pub struct UpdatePaymentMethodResponse {
     /// The unique identifier of the customer.
     pub customer_id: Option<id_type::CustomerId>,
     /// The type of payment method.
-    pub payment_method_type: PaymentMethod,
+    pub payment_method_type: Option<PaymentMethod>,
     /// The payment method subtype.
-    pub payment_method_subtype: PaymentMethodType,
+    pub payment_method_subtype: Option<PaymentMethodType>,
     /// Indicates whether recurring is enabled.
     pub recurring_enabled: Option<bool>,
     /// Timestamp for creation time.
@@ -109,9 +109,9 @@ impl TryFrom<&UpdatePaymentMethodV1Request> for ModularPMUpdateRequest {
 
     fn try_from(value: &UpdatePaymentMethodV1Request) -> Result<Self, Self::Error> {
         Ok(Self {
-            payment_method_data: value.payload.payment_method_data.clone(),
-            connector_token_details: value.payload.connector_token_details.clone(),
-            network_transaction_id: value.payload.network_transaction_id.clone(),
+            payment_method_data: value.payment_method_data.clone(),
+            connector_token_details: value.connector_token_details.clone(),
+            network_transaction_id: value.network_transaction_id.clone(),
         })
     }
 }

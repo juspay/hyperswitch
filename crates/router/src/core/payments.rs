@@ -643,16 +643,7 @@ where
         .to_validate_request()?
         .validate_request(&req, platform.get_processor())?;
 
-    // Create feature_config
-    let feature_config = core_utils::get_feature_config(state, platform).await;
-
-    let payment_method_info = operation
-        .to_domain()?
-        .fetch_payment_method(state, &req, platform, &feature_config)
-        .await?;
-
     tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
-
     // get profile from headers
     let operations::GetTrackerResponse {
         operation,
@@ -995,17 +986,16 @@ where
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
 
-                    handle_pm_and_mandate_post_update(
-                        state,
-                        operation.as_ref(),
-                        &router_data,
-                        platform,
-                        &mut payment_data,
-                        &business_profile,
-                        req.get_payment_method_data(),
-                        &feature_config,
-                    )
-                    .await?;
+                    operation
+                        .to_post_update_tracker()?
+                        .save_pm_and_mandate(
+                            state,
+                            &router_data,
+                            platform,
+                            &mut payment_data,
+                            &business_profile,
+                        )
+                        .await?;
 
                     let router_data_for_pm_mandate = router_data.clone();
                     let mut payment_data = operation
@@ -1030,7 +1020,6 @@ where
                             platform.get_provider(),
                             &payment_data,
                             &router_data_for_pm_mandate,
-                            &feature_config,
                         )
                         .await?;
 
@@ -1201,17 +1190,16 @@ where
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
 
-                    handle_pm_and_mandate_post_update(
-                        state,
-                        operation.as_ref(),
-                        &router_data,
-                        platform,
-                        &mut payment_data,
-                        &business_profile,
-                        req.get_payment_method_data(),
-                        &feature_config,
-                    )
-                    .await?;
+                    operation
+                        .to_post_update_tracker()?
+                        .save_pm_and_mandate(
+                            state,
+                            &router_data,
+                            platform,
+                            &mut payment_data,
+                            &business_profile,
+                        )
+                        .await?;
 
                     let router_data_for_pm_mandate = router_data.clone();
                     let mut payment_data = operation
@@ -1236,7 +1224,6 @@ where
                             platform.get_provider(),
                             &payment_data,
                             &router_data_for_pm_mandate,
-                            &feature_config,
                         )
                         .await?;
 
@@ -1444,8 +1431,6 @@ where
 
     tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
 
-    let feature_config = core_utils::get_feature_config(state, &platform).await;
-
     let operations::GetTrackerResponse {
         operation,
         customer_details,
@@ -1587,7 +1572,6 @@ where
             platform.get_provider(),
             &payment_data,
             &router_data_for_pm_mandate,
-            &feature_config,
         )
         .await?;
 
@@ -2279,58 +2263,6 @@ pub async fn call_surcharge_decision_management_for_session_flow(
             Some(api::SessionSurchargeDetails::Calculated(surcharge_results))
         })
     }
-}
-
-#[cfg(feature = "v1")]
-#[allow(clippy::too_many_arguments)]
-async fn handle_pm_and_mandate_post_update<F, R, Op, D>(
-    state: &SessionState,
-    operation: &Op,
-    router_data: &RouterData<F, R, router_types::PaymentsResponseData>,
-    platform: &domain::Platform,
-    payment_data: &mut D,
-    business_profile: &domain::Profile,
-    request_payment_method_data: Option<api_models::payments::PaymentMethodData>,
-    feature_config: &core_utils::FeatureConfig,
-) -> CustomResult<(), errors::ApiErrorResponse>
-where
-    F: Clone + Send + Sync,
-    R: Send,
-    D: OperationSessionGetters<F> + Send + Sync,
-    Op: Operation<F, R, Data = D> + Send + Sync,
-{
-    if feature_config.is_payment_method_modular_allowed {
-        logger::debug!(
-            payment_id = ?payment_data.get_payment_attempt().payment_id,
-            "Modular merchant detected; calling update_modular_pm_and_mandate"
-        );
-
-        let domain_payment_method_data =
-            request_payment_method_data.map(domain::PaymentMethodData::from);
-
-        operation
-            .to_post_update_tracker()?
-            .update_modular_pm_and_mandate(
-                state,
-                router_data,
-                platform,
-                payment_data,
-                business_profile,
-                domain_payment_method_data.as_ref(),
-            )
-            .await?;
-    } else {
-        logger::debug!(
-            payment_id = ?payment_data.get_payment_attempt().payment_id,
-            "Non-modular merchant; calling save_pm_and_mandate"
-        );
-        operation
-            .to_post_update_tracker()?
-            .save_pm_and_mandate(state, router_data, platform, payment_data, business_profile)
-            .await?;
-    }
-
-    Ok(())
 }
 
 #[cfg(feature = "v1")]
