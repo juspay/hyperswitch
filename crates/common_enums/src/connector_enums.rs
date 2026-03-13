@@ -95,7 +95,6 @@ pub enum Connector {
     CtpMastercard,
     CtpVisa,
     Cybersource,
-    Cybersourcedecisionmanager,
     Datatrans,
     Deutschebank,
     Digitalvirgo,
@@ -313,7 +312,6 @@ impl Connector {
             | Self::Coingate
             | Self::Cryptopay
             | Self::Custombilling
-            | Self::Cybersourcedecisionmanager
             | Self::Deutschebank
             | Self::Digitalvirgo
             | Self::Dlocal

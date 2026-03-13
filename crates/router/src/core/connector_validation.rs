@@ -593,10 +593,6 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 riskified::transformers::RiskifiedAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            api_enums::Connector::Cybersourcedecisionmanager => {
-                cybersourcedecisionmanager::transformers::CybersourcedecisionmanagerAuthType::try_from(self.auth_type)?;
-                Ok(())
-            }
             api_enums::Connector::Plaid => {
                 PlaidAuthType::foreign_try_from(self.auth_type)?;
                 Ok(())

@@ -171,7 +171,6 @@ pub enum FrmConnectors {
     /// Signifyd Risk Manager. Official docs: https://docs.signifyd.com/
     Signifyd,
     Riskified,
-    Cybersourcedecisionmanager,
 }
 
 #[derive(
