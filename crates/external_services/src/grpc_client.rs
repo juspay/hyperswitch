@@ -171,8 +171,15 @@ pub struct GrpcHeadersUcs {
 }
 
 /// Type aliase for GrpcHeaders builder in initial stage
-pub type GrpcHeadersUcsBuilderInitial =
-    GrpcHeadersUcsBuilder<((String,), (Option<RequestId>,), (), (), (), (Option<bool>,))>;
+pub type GrpcHeadersUcsBuilderInitial = GrpcHeadersUcsBuilder<(
+    (String,),
+    (Option<RequestId>,),
+    (),
+    (),
+    (),
+    (),
+    (Option<bool>,),
+)>;
 /// Type aliase for GrpcHeaders builder in intermediate stage
 pub type GrpcHeadersUcsBuilderFinal = GrpcHeadersUcsBuilder<(
     (String,),

@@ -4166,7 +4166,7 @@ pub async fn update_payment_method_core(
         )
         .await
         .attach_printable("Failed to update payment method in db")?;
-
+    };
     let response = handler
         .generate_response(card_cvc_details)
         .attach_printable("Failed to generate response for payment method update")?;

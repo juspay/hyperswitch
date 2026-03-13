@@ -119,7 +119,7 @@ pub struct RetrieveCardResp {
 pub struct RetrieveCardRespPayload {
     pub card: Option<Card>,
     pub enc_card_data: Option<Secret<String>>,
-    /// Additional metadata containing PAR, UPT, and other tokens   
+    /// Additional metadata containing PAR, UPT, and other tokens
     pub metadata: Option<SecretSerdeValue>,
 }
 

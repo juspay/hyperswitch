@@ -19,22 +19,6 @@ pub struct RetrievePaymentMethodV1Request {
     pub modular_service_prefix: String,
     pub fetch_raw_detail: bool,
 }
-/// V1-facing retrieve response payload.
-#[derive(Clone, Debug)]
-pub struct RetrievePaymentMethodResponse {
-    pub payment_method_id: String,
-    pub merchant_id: id_type::MerchantId,
-    pub customer_id: Option<id_type::CustomerId>,
-    pub payment_method_type: common_enums::PaymentMethod,
-    pub payment_method_subtype: common_enums::PaymentMethodType,
-    pub recurring_enabled: Option<bool>,
-    pub created: Option<PrimitiveDateTime>,
-    pub last_used_at: Option<PrimitiveDateTime>,
-    pub payment_method_data: Option<PaymentMethodResponseData>,
-    pub connector_tokens: Option<Vec<ConnectorTokenDetails>>,
-    pub network_token: Option<NetworkTokenResponse>,
-    pub raw_payment_method_data: Option<RawPaymentMethodData>,
-}
 
 /// Dummy modular service request payload.
 #[derive(Clone, Debug)]

@@ -545,25 +545,6 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             Ok(())
         }
     }
-
-    #[cfg(feature = "v1")]
-    async fn update_modular_pm_and_mandate<'b>(
-        &self,
-        state: &SessionState,
-        resp: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
-        _platform: &domain::Platform,
-        payment_data: &mut PaymentData<F>,
-        _business_profile: &domain::Profile,
-        request_payment_method_data: Option<&domain::PaymentMethodData>,
-    ) -> CustomResult<(), errors::ApiErrorResponse>
-    where
-        F: 'b + Clone + Send + Sync,
-    {
-        update_modular_pm_and_mandate_impl(state, resp, request_payment_method_data, payment_data)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to update modular payment method and mandate")
-    }
 }
 
 #[cfg(feature = "v1")]
@@ -835,25 +816,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         } else {
             Ok(())
         }
-    }
-
-    #[cfg(feature = "v1")]
-    async fn update_modular_pm_and_mandate<'b>(
-        &self,
-        state: &SessionState,
-        resp: &types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
-        _platform: &domain::Platform,
-        payment_data: &mut PaymentData<F>,
-        _business_profile: &domain::Profile,
-        request_payment_method_data: Option<&domain::PaymentMethodData>,
-    ) -> CustomResult<(), errors::ApiErrorResponse>
-    where
-        F: 'b + Clone + Send + Sync,
-    {
-        update_modular_pm_and_mandate_impl(state, resp, request_payment_method_data, payment_data)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to update modular payment method and mandate")
     }
 }
 
@@ -1678,25 +1640,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
         } else {
             Ok(())
         }
-    }
-
-    #[cfg(feature = "v1")]
-    async fn update_modular_pm_and_mandate<'b>(
-        &self,
-        state: &SessionState,
-        resp: &types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>,
-        _platform: &domain::Platform,
-        payment_data: &mut PaymentData<F>,
-        _business_profile: &domain::Profile,
-        request_payment_method_data: Option<&domain::PaymentMethodData>,
-    ) -> CustomResult<(), errors::ApiErrorResponse>
-    where
-        F: 'b + Clone + Send + Sync,
-    {
-        update_modular_pm_and_mandate_impl(state, resp, request_payment_method_data, payment_data)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to update modular payment method and mandate")
     }
 }
 
