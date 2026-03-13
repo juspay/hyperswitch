@@ -1,6 +1,7 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
+import reportErrors from "../../../utils/reportErrors";
 
 let globalState;
 
@@ -17,9 +18,10 @@ describe("UPI Payments - Hyperswitch", () => {
     });
 
     it("Create payment intent -> List Merchant payment methods -> Confirm payment -> Handle UPI Redirection -> Retrieve payment -> Refund payment", () => {
+      const errorStack = [];
       let shouldContinue = true;
 
-      cy.step("Create payment intent", () => {
+      cy.step("Create payment intent", errorStack, () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "upi_pm"
         ]["PaymentIntent"];
@@ -37,7 +39,7 @@ describe("UPI Payments - Hyperswitch", () => {
         }
       });
 
-      cy.step("List Merchant payment methods", () => {
+      cy.step("List Merchant payment methods", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: List Merchant payment methods");
           return;
@@ -45,7 +47,7 @@ describe("UPI Payments - Hyperswitch", () => {
         cy.paymentMethodsCallTest(globalState);
       });
 
-      cy.step("Confirm payment", () => {
+      cy.step("Confirm payment", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Confirm payment");
           return;
@@ -61,7 +63,7 @@ describe("UPI Payments - Hyperswitch", () => {
         }
       });
 
-      cy.step("Handle UPI Redirection", () => {
+      cy.step("Handle UPI Redirection", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Handle UPI Redirection");
           return;
@@ -76,7 +78,7 @@ describe("UPI Payments - Hyperswitch", () => {
         );
       });
 
-      cy.step("Retrieve payment", () => {
+      cy.step("Retrieve payment", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Retrieve payment");
           return;
@@ -92,7 +94,7 @@ describe("UPI Payments - Hyperswitch", () => {
         }
       });
 
-      cy.step("Refund payment", () => {
+      cy.step("Refund payment", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Refund payment");
           return;
@@ -102,6 +104,12 @@ describe("UPI Payments - Hyperswitch", () => {
         ]["Refund"];
 
         cy.refundCallTest(fixtures.refundBody, data, globalState);
+      });
+
+      cy.then(() => {
+        if (errorStack.length > 0) {
+          reportErrors(errorStack);
+        }
       });
     });
   });
@@ -119,9 +127,10 @@ describe("UPI Payments - Hyperswitch", () => {
     });
 
     it("Create payment intent -> List Merchant payment methods -> Confirm payment -> Handle UPI Redirection -> Retrieve payment", () => {
+      const errorStack = [];
       let shouldContinue = true;
 
-      cy.step("Create payment intent", () => {
+      cy.step("Create payment intent", errorStack, () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "upi_pm"
         ]["PaymentIntent"];
@@ -139,7 +148,7 @@ describe("UPI Payments - Hyperswitch", () => {
         }
       });
 
-      cy.step("List Merchant payment methods", () => {
+      cy.step("List Merchant payment methods", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: List Merchant payment methods");
           return;
@@ -147,7 +156,7 @@ describe("UPI Payments - Hyperswitch", () => {
         cy.paymentMethodsCallTest(globalState);
       });
 
-      cy.step("Confirm payment", () => {
+      cy.step("Confirm payment", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Confirm payment");
           return;
@@ -163,7 +172,7 @@ describe("UPI Payments - Hyperswitch", () => {
         }
       });
 
-      cy.step("Handle UPI Redirection", () => {
+      cy.step("Handle UPI Redirection", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Handle UPI Redirection");
           return;
@@ -178,7 +187,7 @@ describe("UPI Payments - Hyperswitch", () => {
         );
       });
 
-      cy.step("Retrieve payment", () => {
+      cy.step("Retrieve payment", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Retrieve payment");
           return;
@@ -188,6 +197,12 @@ describe("UPI Payments - Hyperswitch", () => {
         ]["UpiIntent"];
 
         cy.retrievePaymentCallTest({ globalState, data });
+      });
+
+      cy.then(() => {
+        if (errorStack.length > 0) {
+          reportErrors(errorStack);
+        }
       });
     });
   });

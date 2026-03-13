@@ -1,6 +1,7 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
+import reportErrors from "../../../utils/reportErrors";
 
 let globalState;
 
@@ -17,9 +18,10 @@ describe("Card - Sync payment flow test", () => {
 
   context("Card - Sync payment flow test", () => {
     it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Retrieve Payment after Confirmation", () => {
+      const errorStack = [];
       let shouldContinue = true;
 
-      cy.step("Create Payment Intent", () => {
+      cy.step("Create Payment Intent", errorStack, () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
@@ -37,7 +39,7 @@ describe("Card - Sync payment flow test", () => {
         }
       });
 
-      cy.step("Payment Methods Call", () => {
+      cy.step("Payment Methods Call", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Payment Methods Call");
           return;
@@ -45,7 +47,7 @@ describe("Card - Sync payment flow test", () => {
         cy.paymentMethodsCallTest(globalState);
       });
 
-      cy.step("Confirm Payment Intent", () => {
+      cy.step("Confirm Payment Intent", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Confirm Payment Intent");
           return;
@@ -66,7 +68,7 @@ describe("Card - Sync payment flow test", () => {
         }
       });
 
-      cy.step("Retrieve Payment after Confirmation", () => {
+      cy.step("Retrieve Payment after Confirmation", errorStack, () => {
         if (!shouldContinue) {
           cy.task(
             "cli_log",
@@ -79,6 +81,12 @@ describe("Card - Sync payment flow test", () => {
         ]["No3DSAutoCapture"];
 
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
+      });
+
+      cy.then(() => {
+        if (errorStack.length > 0) {
+          reportErrors(errorStack);
+        }
       });
     });
   });
