@@ -4,7 +4,7 @@ use common_utils::{id_type, pii};
 use masking::Secret;
 use strum::EnumString;
 
-use crate::{customers, disputes, enums, payouts, payments, refunds};
+use crate::{customers, disputes, enums, payments, payouts, refunds};
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub enum SetMetaDataRequest {
@@ -346,7 +346,10 @@ impl ResilientSavedView {
     pub fn get_view_name(&self) -> Option<String> {
         match self {
             Self::Parsed(v) => Some(v.view_name.clone()),
-            Self::Raw(v) => v.get("view_name").and_then(|n| n.as_str()).map(|n| n.to_string()),
+            Self::Raw(v) => v
+                .get("view_name")
+                .and_then(|n| n.as_str())
+                .map(|n| n.to_string()),
         }
     }
 }

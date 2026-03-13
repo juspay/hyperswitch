@@ -940,7 +940,9 @@ pub async fn create_saved_view(
                 .attach_printable("A saved view with this name already exists");
         }
 
-        views_data.views.push(api::ResilientSavedView::Parsed(new_view.clone()));
+        views_data
+            .views
+            .push(api::ResilientSavedView::Parsed(new_view.clone()));
 
         let filters_json =
             serde_json::to_value(&views_data).change_context(UserErrors::InternalServerError)?;
@@ -990,11 +992,13 @@ pub async fn create_saved_view(
         views_data.views
     };
 
-
-    let final_views: Vec<api::SavedView> = updated_views.into_iter().filter_map(|v| match v {
-        api::ResilientSavedView::Parsed(parsed) => Some(parsed),
-        api::ResilientSavedView::Raw(_) => None,
-    }).collect();
+    let final_views: Vec<api::SavedView> = updated_views
+        .into_iter()
+        .filter_map(|v| match v {
+            api::ResilientSavedView::Parsed(parsed) => Some(parsed),
+            api::ResilientSavedView::Raw(_) => None,
+        })
+        .collect();
 
     Ok(ApplicationResponse::Json(api::SavedViewResponse {
         count: final_views.len(),
@@ -1029,14 +1033,22 @@ pub async fn list_saved_views(
                 serde_json::from_value(row.data_value.peek().clone())
                     .change_context(UserErrors::InternalServerError)
                     .attach_printable("Error deserializing saved views")?;
-            
-            views_data.views.into_iter().filter_map(|v| match v {
-                api::ResilientSavedView::Parsed(parsed) => Some(parsed),
-                api::ResilientSavedView::Raw(raw) => {
-                    logger::warn!("Preserving schema-corrupted view from UI response for user {}: {:?}", user.user_id, raw);
-                    None
-                },
-            }).collect()
+
+            views_data
+                .views
+                .into_iter()
+                .filter_map(|v| match v {
+                    api::ResilientSavedView::Parsed(parsed) => Some(parsed),
+                    api::ResilientSavedView::Raw(raw) => {
+                        logger::warn!(
+                            "Preserving schema-corrupted view from UI response for user {}: {:?}",
+                            user.user_id,
+                            raw
+                        );
+                        None
+                    }
+                })
+                .collect()
         }
         None => vec![],
     };
@@ -1083,12 +1095,11 @@ pub async fn update_saved_view(
         .ok_or(report!(UserErrors::SavedViewNotFound))
         .attach_printable("Saved view with this name not found")?;
 
-
     *view = api::ResilientSavedView::Parsed(api::SavedView {
         version: api::SavedViewVersion::V1,
         view_name: request.view_name.clone(),
         data: request.data,
-        created_at: common_utils::date_time::now().to_string(), 
+        created_at: common_utils::date_time::now().to_string(),
         updated_at: common_utils::date_time::now().to_string(),
     });
 
@@ -1112,10 +1123,14 @@ pub async fn update_saved_view(
         .await
         .change_context(UserErrors::InternalServerError)?;
 
-    let final_views: Vec<api::SavedView> = views_data.views.into_iter().filter_map(|v| match v {
-        api::ResilientSavedView::Parsed(parsed) => Some(parsed),
-        api::ResilientSavedView::Raw(_) => None,
-    }).collect();
+    let final_views: Vec<api::SavedView> = views_data
+        .views
+        .into_iter()
+        .filter_map(|v| match v {
+            api::ResilientSavedView::Parsed(parsed) => Some(parsed),
+            api::ResilientSavedView::Raw(_) => None,
+        })
+        .collect();
 
     Ok(ApplicationResponse::Json(api::SavedViewResponse {
         count: final_views.len(),
@@ -1182,10 +1197,14 @@ pub async fn delete_saved_view(
         .await
         .change_context(UserErrors::InternalServerError)?;
 
-    let final_views: Vec<api::SavedView> = views_data.views.into_iter().filter_map(|v| match v {
-        api::ResilientSavedView::Parsed(parsed) => Some(parsed),
-        api::ResilientSavedView::Raw(_) => None,
-    }).collect();
+    let final_views: Vec<api::SavedView> = views_data
+        .views
+        .into_iter()
+        .filter_map(|v| match v {
+            api::ResilientSavedView::Parsed(parsed) => Some(parsed),
+            api::ResilientSavedView::Raw(_) => None,
+        })
+        .collect();
 
     Ok(ApplicationResponse::Json(api::SavedViewResponse {
         count: final_views.len(),

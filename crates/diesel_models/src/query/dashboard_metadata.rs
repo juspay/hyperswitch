@@ -1,5 +1,6 @@
 use common_utils::id_type;
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
+use error_stack::{report, ResultExt};
 
 use crate::{
     enums, errors,
@@ -11,7 +12,6 @@ use crate::{
     },
     PgPooledConn, StorageResult,
 };
-use error_stack::{report, ResultExt};
 
 macro_rules! dashboard_metadata_filter {
     ($user_id:expr, $profile_id:expr, $merchant_id:expr, $org_id:expr, $data_key:expr, $predicate:ident, $action:block) => {
