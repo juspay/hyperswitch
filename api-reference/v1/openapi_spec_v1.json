@@ -21187,6 +21187,42 @@
           }
         }
       },
+      "JuspayNetworkTokenizationCredentials": {
+        "type": "object",
+        "required": [
+          "token_service_api_key",
+          "public_key",
+          "private_key",
+          "key_id"
+        ],
+        "properties": {
+          "token_service_api_key": {
+            "type": "string",
+            "description": "The API key to contact the network tokenization provider",
+            "example": "MDRFRDU3Mzc1Q0Q0N2893727712QzQjJEQzlENTBCOg==",
+            "maxLength": 255
+          },
+          "public_key": {
+            "type": "string",
+            "description": "The public key to encrypt the card details before sending to the network tokenization provider",
+            "example": "-----BEGIN PUBLIC KEY-----\nsom8723hj1bajhgd123==\n-----END PUBLIC KEY-----",
+            "maxLength": 255
+          },
+          "private_key": {
+            "type": "string",
+            "description": "The private key to decrypt the tokenized card details received from the network tokenization provider",
+            "example": "-----BEGIN RSA PRIVATE KEY-----\n897238huhbsdbjh12==\n-----END RSA PRIVATE KEY-----",
+            "maxLength": 255
+          },
+          "key_id": {
+            "type": "string",
+            "description": "The key_id used in encryption",
+            "example": "key_1ac9895a6d85414897213gahdac838a8",
+            "maxLength": 255
+          }
+        },
+        "additionalProperties": false
+      },
       "KakaoPayRedirection": {
         "type": "object"
       },
@@ -21732,6 +21768,14 @@
               }
             ],
             "nullable": true
+          },
+          "network_tokenization_credentials": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokeizationProviderCredentials"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -22190,6 +22234,14 @@
           },
           "merchant_account_type": {
             "$ref": "#/components/schemas/MerchantAccountType"
+          },
+          "network_tokenization_credentials": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokeizationProviderCredentials"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -22323,6 +22375,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/BusinessCollectLinkConfig"
+              }
+            ],
+            "nullable": true
+          },
+          "network_tokenization_credentials": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokeizationProviderCredentials"
               }
             ],
             "nullable": true
@@ -23434,6 +23494,21 @@
             "nullable": true
           }
         }
+      },
+      "NetworkTokeizationProviderCredentials": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "juspay_token_service"
+            ],
+            "properties": {
+              "juspay_token_service": {
+                "$ref": "#/components/schemas/JuspayNetworkTokenizationCredentials"
+              }
+            }
+          }
+        ]
       },
       "NetworkTokenData": {
         "type": "object",
@@ -35041,6 +35116,14 @@
             "type": "boolean",
             "description": "Flag to enable Level 2 and Level 3 processing data for card transactions",
             "nullable": true
+          },
+          "network_tokenization_credentials": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokeizationProviderCredentials"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -35406,6 +35489,14 @@
           "is_l2_l3_enabled": {
             "type": "boolean",
             "description": "Flag to enable Level 2 and Level 3 processing data for card transactions",
+            "nullable": true
+          },
+          "network_tokenization_credentials": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokeizationProviderCredentials"
+              }
+            ],
             "nullable": true
           }
         }
