@@ -317,7 +317,7 @@ pub async fn payouts_create_core(
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     // Validate create request
     let (payout_id, payout_method_data, profile_id, customer, payment_method) =
-        validator::validate_create_request(&state, &platform, &req).await?;
+        Box::pin(validator::validate_create_request(&state, &platform, &req)).await?;
 
     // Create DB entries
     let mut payout_data = payout_create_db_entries(
