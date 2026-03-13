@@ -3850,10 +3850,15 @@ pub async fn list_payment_methods(
         .unwrap_or(true);
     let connector_supports_installments = currency.is_some_and(|cur| {
         filtered_mcas.iter().any(|mca| {
-            state
-                .conf
-                .installment_config
-                .is_connector_currency_supported(&mca.connector_name, cur)
+            mca.connector_name
+                .parse::<api_enums::Connector>()
+                .ok()
+                .is_some_and(|connector| {
+                    state
+                        .conf
+                        .installment_config
+                        .is_connector_currency_supported(&connector, cur)
+                })
         })
     });
 
