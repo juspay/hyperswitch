@@ -84,8 +84,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsPostCaptureVoidSyncWorkflo
         let dimensions = configs::dimension_state::Dimensions::new()
             .with_merchant_id(platform.get_processor().get_account().get_id().clone());
 
-           let (mut payment_data, _, _, _) =
-        payments_operation_core::<_, _, _, _, _>(
+        let (mut payment_data, _, _, _) = payments_operation_core::<_, _, _, _, _>(
             &state,
             state.get_req_state(),
             &platform,
