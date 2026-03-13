@@ -97,6 +97,7 @@ pub struct PaymentMethod {
     pub last_modified_by: Option<CreatedBy>,
     pub customer_details: OptionalEncryptableValue,
     pub locker_fingerprint_id: Option<String>,
+    pub network_tokenization_data: OptionalEncryptableValue,
 }
 
 #[cfg(feature = "v2")]
@@ -461,6 +462,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .map(|last_modified_by| last_modified_by.to_string()),
             customer_details: self.customer_details.map(|val| val.into()),
             locker_fingerprint_id: self.locker_fingerprint_id,
+            network_tokenization_data: self.network_tokenization_data.map(|val| val.into()),
         })
     }
 
@@ -478,6 +480,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             payment_method_data,
             payment_method_billing_address,
             network_token_payment_method_data,
+            network_tokenization_data,
             customer_details,
         ) = async {
             let payment_method_data = item
@@ -525,6 +528,21 @@ impl super::behaviour::Conversion for PaymentMethod {
                 })
                 .await?;
 
+            let network_tokenization_data = item
+                .network_tokenization_data
+                .async_lift(|inner| async {
+                    crypto_operation(
+                        state,
+                        type_name!(Self::DstType),
+                        CryptoOperation::DecryptOptional(inner),
+                        key_manager_identifier.clone(),
+                        key.peek(),
+                    )
+                    .await
+                    .and_then(|val| val.try_into_optionaloperation())
+                })
+                .await?;
+
             let customer_details = item
                 .customer_details
                 .async_lift(|inner| async {
@@ -544,6 +562,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 payment_method_data,
                 payment_method_billing_address,
                 network_token_payment_method_data,
+                network_tokenization_data,
                 customer_details,
             ))
         }
@@ -602,6 +621,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .and_then(|last_modified_by| last_modified_by.parse::<CreatedBy>().ok()),
             customer_details,
             locker_fingerprint_id: item.locker_fingerprint_id,
+            network_tokenization_data,
         })
     }
 
@@ -654,6 +674,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .map(|last_modified_by| last_modified_by.to_string()),
             customer_details: self.customer_details.map(|val| val.into()),
             locker_fingerprint_id: self.locker_fingerprint_id,
+            network_tokenization_data: self.network_tokenization_data.map(|val| val.into()),
         })
     }
 }
@@ -1584,6 +1605,7 @@ mod tests {
             last_modified_by: None,
             customer_details: None,
             locker_fingerprint_id: None,
+            network_tokenization_data: None,
         };
         payment_method.clone()
     }

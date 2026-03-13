@@ -1200,7 +1200,7 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
 
         let network_tokenization_credentials = self
             .network_tokenization_credentials
-            .async_map(|value| cards::create_encrypted_data(&key_manager_state, &key_store, value))
+            .async_map(|value| cards::create_encrypted_data(key_manager_state, key_store, value))
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3935,7 +3935,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
 
         let network_tokenization_credentials = self
             .network_tokenization_credentials
-            .async_map(|value| cards::create_encrypted_data(&key_manager_state, &key_store, value))
+            .async_map(|value| cards::create_encrypted_data(&key_manager_state, key_store, value))
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)

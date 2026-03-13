@@ -1359,6 +1359,7 @@ diesel::table! {
         customer_details -> Nullable<Bytea>,
         #[max_length = 64]
         locker_fingerprint_id -> Nullable<Varchar>,
+        network_tokenization_data -> Nullable<Bytea>,
     }
 }
 
