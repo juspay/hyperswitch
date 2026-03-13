@@ -322,6 +322,7 @@ pub async fn retry_delivery_attempt(
         delivery_attempt: Some(delivery_attempt),
         metadata: event_to_retry.metadata,
         is_overall_delivery_successful: Some(false),
+        processor_merchant_id: event_to_retry.processor_merchant_id,
     };
 
     let event = store
@@ -341,6 +342,8 @@ pub async fn retry_delivery_attempt(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to parse webhook event request information")?;
 
+    let processor_merchant_id = event.processor_merchant_id.clone();
+
     Box::pin(super::outgoing::trigger_webhook_and_raise_event(
         state.clone(),
         business_profile,
@@ -350,6 +353,7 @@ pub async fn retry_delivery_attempt(
         delivery_attempt,
         None,
         None,
+        processor_merchant_id,
     ))
     .await;
 

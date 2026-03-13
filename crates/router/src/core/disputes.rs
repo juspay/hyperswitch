@@ -946,6 +946,7 @@ pub async fn update_dispute_data(
         resolved_merchant_key_store,
         resolved_business_profile,
         compatible_connector,
+        Some(platform.get_processor().get_account().get_id().clone()),
         event_type,
         storage_enums::EventClass::Disputes,
         dispute_object.dispute_id.clone(),

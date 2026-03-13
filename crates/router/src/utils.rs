@@ -1227,6 +1227,8 @@ where
                     )
                     .await?;
                 let cloned_state = state.clone();
+                let processor_merchant_id =
+                    Some(platform.get_processor().get_account().get_id().clone());
                 tokio::spawn(
                     async move {
                         let primary_object_created_at = payments_response_json.created;
@@ -1235,6 +1237,7 @@ where
                             resolved_merchant_key_store,
                             resolved_business_profile,
                             compatible_connector,
+                            processor_merchant_id,
                             event_type,
                             diesel_models::enums::EventClass::Payments,
                             payment_id.get_string_repr().to_owned(),
@@ -1308,6 +1311,8 @@ pub async fn trigger_refund_outgoing_webhook(
                 )
                 .await?;
             let cloned_state = state.clone();
+            let processor_merchant_id =
+                Some(platform.get_processor().get_account().get_id().clone());
             tokio::spawn(
                 async move {
                     Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
@@ -1315,6 +1320,7 @@ pub async fn trigger_refund_outgoing_webhook(
                         resolved_merchant_key_store,
                         resolved_business_profile,
                         compatible_connector,
+                        processor_merchant_id,
                         outgoing_event_type,
                         diesel_models::enums::EventClass::Refunds,
                         refund_id.to_string(),
@@ -1387,6 +1393,8 @@ pub async fn trigger_payouts_webhook(
                 )
                 .await?;
             let cloned_state = state.clone();
+            let processor_merchant_id =
+                Some(platform.get_processor().get_account().get_id().clone());
 
             // This spawns this futures in a background thread, the exception inside this future won't affect
             // the current thread and the lifecycle of spawn thread is not handled by runtime.
@@ -1399,6 +1407,7 @@ pub async fn trigger_payouts_webhook(
                         resolved_merchant_key_store,
                         resolved_business_profile,
                         compatible_connector,
+                        processor_merchant_id,
                         event_type,
                         diesel_models::enums::EventClass::Payouts,
                         cloned_response.payout_id.get_string_repr().to_owned(),
@@ -1450,12 +1459,14 @@ pub async fn trigger_subscriptions_outgoing_webhook(
     let compatible_connector = merchant_account.get_compatible_connector();
     let cloned_key_store = key_store.clone();
 
+    let processor_merchant_id = Some(merchant_account.get_id().clone());
     tokio::spawn(async move {
         Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
             cloned_state,
             cloned_key_store,
             cloned_profile,
             compatible_connector,
+            processor_merchant_id,
             common_enums::enums::EventType::InvoicePaid,
             common_enums::enums::EventClass::Subscriptions,
             invoice_id,

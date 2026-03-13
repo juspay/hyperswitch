@@ -402,7 +402,7 @@ pub(crate) async fn resolve_webhook_recipient_from_created_by(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to fetch provider merchant default business profile")?
         };
-        #[cfg(not(feature = "v1"))]
+        #[cfg(feature = "v2")]
         let profile = state
             .store
             .list_profile_by_merchant_id(provider.get_key_store(), provider.get_account().get_id())

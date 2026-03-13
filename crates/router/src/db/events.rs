@@ -1080,6 +1080,7 @@ mod tests {
                         .unwrap(),
                     }),
                     is_overall_delivery_successful: Some(false),
+                    processor_merchant_id: Some(merchant_id.to_owned()),
                 },
                 &merchant_key_store,
             )
@@ -1193,6 +1194,7 @@ mod tests {
                         .unwrap(),
                     }),
                     is_overall_delivery_successful: Some(false),
+                    processor_merchant_id: Some(merchant_id.to_owned()),
                 },
                 &merchant_key_store,
             )
@@ -1542,6 +1544,7 @@ mod tests {
             .get_processor()
             .get_account()
             .get_compatible_connector();
+        let processor_merchant_id = Some(platform.get_processor().get_account().get_id().clone());
         let mut handles = vec![];
         for _ in 0..10 {
             let state_clone = state.clone();
@@ -1549,6 +1552,7 @@ mod tests {
             let business_profile_clone = business_profile.clone();
             let content_clone = content.clone();
             let primary_object_id_clone = primary_object_id.clone();
+            let processor_merchant_id_clone = processor_merchant_id.clone();
 
             let handle = tokio::spawn(async move {
                 webhooks_core::create_event_and_trigger_outgoing_webhook(
@@ -1556,6 +1560,7 @@ mod tests {
                     cloned_key_store,
                     business_profile_clone,
                     processor_compatible_connector,
+                    processor_merchant_id_clone,
                     event_type,
                     event_class,
                     (*primary_object_id_clone).to_string(),

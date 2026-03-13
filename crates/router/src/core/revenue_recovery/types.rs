@@ -1596,6 +1596,7 @@ impl RevenueRecoveryOutgoingWebhook {
                     state.clone(),
                     profile.clone(),
                     platform.get_processor().get_key_store(),
+                    Some(platform.get_processor().get_account().get_id().clone()),
                     event_status,
                     event_class,
                     payment_attempt_id,

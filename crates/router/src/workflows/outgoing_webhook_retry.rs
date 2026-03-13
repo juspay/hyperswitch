@@ -116,6 +116,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
             delivery_attempt: Some(delivery_attempt),
             metadata: initial_event.metadata,
             is_overall_delivery_successful: Some(false),
+            processor_merchant_id: initial_event.processor_merchant_id,
         };
 
         let event = db
@@ -124,6 +125,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
             .inspect_err(|error| {
                 logger::error!(?error, "Failed to insert event in events table");
             })?;
+        let processor_merchant_id = event.processor_merchant_id.clone();
 
         match &event.request {
             Some(request) => {
@@ -141,6 +143,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                     delivery_attempt,
                     None,
                     Some(process),
+                    processor_merchant_id,
                 ))
                 .await;
             }
@@ -195,6 +198,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                             delivery_attempt,
                             Some(content),
                             Some(process),
+                            processor_merchant_id,
                         ))
                         .await;
                     }

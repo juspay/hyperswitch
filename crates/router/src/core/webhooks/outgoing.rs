@@ -52,6 +52,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     merchant_key_store: domain::MerchantKeyStore,
     business_profile: domain::Profile,
     compatible_connector: Option<api_models::enums::Connector>,
+    processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     event_type: enums::EventType,
     event_class: enums::EventClass,
     primary_object_id: String,
@@ -134,6 +135,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         delivery_attempt: Some(delivery_attempt),
         metadata: Some(event_metadata),
         is_overall_delivery_successful: Some(false),
+        processor_merchant_id: processor_merchant_id.clone(),
     };
 
     let lock_value =
@@ -217,6 +219,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
                 delivery_attempt,
                 Some(content),
                 process_tracker,
+                processor_merchant_id,
             ))
             .await;
         }
@@ -237,6 +240,7 @@ pub(crate) async fn trigger_webhook_and_raise_event(
     delivery_attempt: enums::WebhookDeliveryAttempt,
     content: Option<api::OutgoingWebhookContent>,
     process_tracker: Option<storage::ProcessTracker>,
+    processor_merchant_id: Option<common_utils::id_type::MerchantId>,
 ) {
     logger::debug!(
         event_id=%event.event_id,
@@ -264,6 +268,7 @@ pub(crate) async fn trigger_webhook_and_raise_event(
         merchant_id,
         event,
         merchant_key_store,
+        processor_merchant_id,
     )
     .await;
 }
@@ -494,6 +499,7 @@ async fn raise_webhooks_analytics_event(
     merchant_id: common_utils::id_type::MerchantId,
     event: domain::Event,
     merchant_key_store: &domain::MerchantKeyStore,
+    processor_merchant_id: Option<common_utils::id_type::MerchantId>,
 ) {
     let event_id = event.event_id;
 
@@ -552,6 +558,7 @@ async fn raise_webhooks_analytics_event(
         event.initial_attempt_id,
         status_code,
         event.delivery_attempt,
+        processor_merchant_id,
     );
     state.event_handler().log_event(&webhook_event);
 }
