@@ -1215,6 +1215,7 @@ pub async fn list_users_internal(
     .await
 }
 
+#[cfg(feature = "v1")]
 pub async fn create_saved_view(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -1259,6 +1260,7 @@ pub async fn list_saved_views(
     .await
 }
 
+#[cfg(feature = "v1")]
 pub async fn update_saved_view(
     state: web::Data<AppState>,
     req: HttpRequest,
