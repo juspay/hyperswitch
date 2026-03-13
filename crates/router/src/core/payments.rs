@@ -921,7 +921,7 @@ where
                 &mut payment_data,
                 &connector_details,
                 &business_profile,
-                platform,
+                platform.get_processor(),
             )
             .await?;
 
@@ -1106,7 +1106,7 @@ where
                     if is_eligible_for_uas {
                         complete_confirmation_for_click_to_pay_if_required(
                             state,
-                            platform,
+                            platform.get_processor(),
                             &payment_data,
                         )
                         .await?;
@@ -1317,7 +1317,7 @@ where
                     if is_eligible_for_uas {
                         complete_confirmation_for_click_to_pay_if_required(
                             state,
-                            platform,
+                            platform.get_processor(),
                             &payment_data,
                         )
                         .await?;
@@ -1330,7 +1330,7 @@ where
                     let session_surcharge_details =
                         call_surcharge_decision_management_for_session_flow(
                             state,
-                            platform,
+                            platform.get_processor(),
                             &business_profile,
                             payment_data.get_payment_attempt(),
                             payment_data.get_payment_intent(),
@@ -2351,7 +2351,7 @@ fn get_connector_data_with_routing_decision(
 #[instrument(skip_all)]
 pub async fn call_surcharge_decision_management_for_session_flow(
     _state: &SessionState,
-    _platform: &domain::Platform,
+    _processor: &domain::Processor,
     _payment_attempt: &storage::PaymentAttempt,
     _payment_intent: &storage::PaymentIntent,
     _billing_address: Option<hyperswitch_domain_models::address::Address>,
@@ -2364,7 +2364,7 @@ pub async fn call_surcharge_decision_management_for_session_flow(
 #[instrument(skip_all)]
 pub async fn call_surcharge_decision_management_for_session_flow(
     state: &SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     _business_profile: &domain::Profile,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
@@ -2391,8 +2391,7 @@ pub async fn call_surcharge_decision_management_for_session_flow(
             .collect();
 
         #[cfg(feature = "v1")]
-        let algorithm_ref: api::routing::RoutingAlgorithmRef = platform
-            .get_processor()
+        let algorithm_ref: api::routing::RoutingAlgorithmRef = processor
             .get_account()
             .routing_algorithm
             .clone()
@@ -4150,27 +4149,54 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 }),
                 ..Default::default()
             };
-            Box::pin(payments_core::<
-                api::Authorize,
-                api::PaymentsResponse,
-                _,
-                _,
-                _,
-                _,
-            >(
-                state.clone(),
-                req_state,
-                platform.clone(),
-                None,
-                PaymentConfirm,
-                payment_confirm_req,
-                services::api::AuthFlow::Merchant,
-                connector_action,
-                None,
-                None,
-                HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
-            ))
-            .await?
+            let is_setup_mandate = payment_intent.amount == MinorUnit::zero()
+                && payment_intent.setup_future_usage
+                    == Some(storage_enums::FutureUsage::OffSession);
+            if is_setup_mandate {
+                Box::pin(payments_core::<
+                    api::SetupMandate,
+                    api::PaymentsResponse,
+                    _,
+                    _,
+                    _,
+                    _,
+                >(
+                    state.clone(),
+                    req_state,
+                    platform.clone(),
+                    None,
+                    PaymentConfirm,
+                    payment_confirm_req,
+                    services::api::AuthFlow::Merchant,
+                    connector_action,
+                    None,
+                    None,
+                    HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
+                ))
+                .await?
+            } else {
+                Box::pin(payments_core::<
+                    api::Authorize,
+                    api::PaymentsResponse,
+                    _,
+                    _,
+                    _,
+                    _,
+                >(
+                    state.clone(),
+                    req_state,
+                    platform.clone(),
+                    None,
+                    PaymentConfirm,
+                    payment_confirm_req,
+                    services::api::AuthFlow::Merchant,
+                    connector_action,
+                    None,
+                    None,
+                    HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
+                ))
+                .await?
+            }
         } else {
             let payment_sync_req = api::PaymentsRetrieveRequest {
                 resource_id: req.resource_id,
@@ -7374,7 +7400,7 @@ where
 #[cfg(feature = "v1")]
 async fn complete_confirmation_for_click_to_pay_if_required<F, D>(
     state: &SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     payment_data: &D,
 ) -> RouterResult<()>
 where
@@ -7401,8 +7427,8 @@ where
             .attach_printable(
                 "Failed to get authentication connector id from authentication table",
             )?;
-        let key_store = platform.get_processor().get_key_store();
-        let merchant_id = platform.get_processor().get_account().get_id();
+        let key_store = processor.get_key_store();
+        let merchant_id = processor.get_account().get_id();
 
         let connector_mca = state
             .store

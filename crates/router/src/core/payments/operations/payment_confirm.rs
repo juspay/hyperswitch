@@ -1141,6 +1141,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                     .customer_id
                                     .clone()
                                     .get_required_value("customer_id")?,
+                                business_profile.is_network_tokenization_enabled,
                             )
                             .await
                             {
@@ -1763,6 +1764,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                         bank_code: None,
                                         nick_name: None,
                                         eci: authentication_details.eci,
+                                        par: None,
                                     }),common_enums::AuthenticationStatus::Success)
                             },
 
