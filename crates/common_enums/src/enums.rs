@@ -10859,3 +10859,10 @@ impl PostCaptureVoidStatus {
         }
     }
 }
+
+/// Event override options for webhook events
+pub enum EventOverride {
+    Override(EventType),
+    Ignore,
+    NoOverride,
+}

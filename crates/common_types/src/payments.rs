@@ -1041,7 +1041,7 @@ impl PaymentIntentStateMetadata {
     }
 
     /// Check if post capture void is pending for the payment intent
-    pub fn is_post_capture(&self) -> bool {
+    pub fn is_post_capture_void_pending(&self) -> bool {
         matches!(
             self.post_capture_void
                 .as_ref()

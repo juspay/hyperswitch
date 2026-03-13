@@ -265,7 +265,7 @@ impl PaymentIntent {
     pub fn is_post_capture_void_applied(&self) -> bool {
         self.state_metadata
             .as_ref()
-            .map(|state_metadata| state_metadata.is_post_capture_void_applied())
+            .map(|state_metadata| state_metadata.is_post_capture_void_successful())
             .unwrap_or(false)
     }
 

@@ -48,10 +48,11 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsPostCaptureVoidSyncWorkflo
         process: storage::ProcessTracker,
     ) -> Result<(), sch_errors::ProcessTrackerError> {
         let db: &dyn StorageInterface = &*state.store;
-        let tracking_data: api::PaymentsCancelPostCaptureSyncBody = process
-            .tracking_data
-            .clone()
-            .parse_value("PaymentsCancelPostCaptureSyncBody")?;
+        let tracking_data: api::PaymentsCancelPostCaptureSyncBody =
+            process
+                .tracking_data
+                .clone()
+                .parse_value("PaymentsCancelPostCaptureSyncBody")?;
         let key_store = db
             .get_merchant_key_store_by_merchant_id(
                 tracking_data
@@ -79,15 +80,13 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsPostCaptureVoidSyncWorkflo
             key_store.clone(),
             None,
         );
-        // TODO: Add support for ReqState in PT flows
-        let (mut payment_data, _, _, _) = Box::pin(payment_flows::payments_operation_core::<
-            api::PostCaptureVoidSync,
-            _,
-            _,
-            _,
-            payment_flows::PaymentData<api::PostCaptureVoidSync>,
-        >(
-            state,
+
+        let dimensions = configs::dimension_state::Dimensions::new()
+            .with_merchant_id(platform.get_processor().get_account().get_id().clone());
+
+           let (mut payment_data, _, _, _) =
+        payments_operation_core::<_, _, _, _, _>(
+            &state,
             state.get_req_state(),
             &platform,
             None,
@@ -98,7 +97,8 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsPostCaptureVoidSyncWorkflo
             services::AuthFlow::Client,
             None,
             hyperswitch_domain_models::payments::HeaderPayload::default(),
-        ))
+            dimensions,
+        )
         .await?;
 
         let terminal_status = [
@@ -109,32 +109,29 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsPostCaptureVoidSyncWorkflo
             enums::AttemptStatus::Failure,
         ];
 
-        let is_post_capture_void_attempted_state = payment_data.payment_intent.is_post_capture_void_applied() || 
+        let is_post_capture_void_attempted_state =
+            payment_data.payment_intent.is_post_capture_void_applied();
 
-        match &payment_data.payment_attempt.status {
-    status
-        if terminal_status.contains(status)
-            || !payment_data
-                .payment_intent
-                .is_post_capture_void_pending() =>
-    {
-        state
-            .store
-            .as_scheduler()
-            .finish_process_with_business_status(
+        if is_post_capture_void_attempted_state {
+            // already applied, nothing more to process
+        } else if terminal_status.contains(&payment_data.payment_attempt.status)
+            || !payment_data.payment_intent.is_post_capture_void_pending()
+        {
+            state
+                .store
+                .as_scheduler()
+                .finish_process_with_business_status(process, business_status::COMPLETED_BY_PT)
+                .await?;
+        } else {
+            retry_sync_task(
+                db,
+                connector,
+                payment_data.payment_attempt.merchant_id.clone(),
                 process,
-                business_status::COMPLETED_BY_PT,
             )
             .await?;
-    }
-    _ => {retry_sync_task(
-                    db,
-                    connector,
-                    payment_data.payment_attempt.merchant_id.clone(),
-                    process,
-                )
-                .await?}
-};Ok(())
+        };
+        Ok(())
     }
 
     async fn error_handler<'a>(
