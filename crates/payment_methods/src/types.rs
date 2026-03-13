@@ -77,7 +77,7 @@ pub struct ConnectorTokenDetails {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub token: masking::Secret<String>,
 }
-
+use hyperswitch_domain_models::payment_method_data::NetworkTokenDetailsPaymentMethod;
 /// V2 NetworkTokenResponse (for deserialization, ignored in transformation)
 #[derive(Clone, Debug, Deserialize)]
 pub struct NetworkTokenResponse {

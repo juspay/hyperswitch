@@ -1,14 +1,12 @@
-//! Retrieve payment method flow types and models.
+//! Retrieve payment method flow types and dummy models.
 
-use api_models::payment_methods::{
-    PaymentMethodId, PaymentMethodResponse as RetrievePaymentMethodResponse,
-};
+use api_models::payment_methods::PaymentMethodId;
 use common_utils::request::Method;
 use hyperswitch_interfaces::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind};
+use serde::Deserialize;
 
-use crate::types::{
-    ModularPMRetrieveResponse, ModularPMRetrieveResquest, PaymentMethodResponseData,
-};
+const DUMMY_PM_ID: &str = "pm_dummy";
+
 /// V1-facing retrieve flow type.
 #[derive(Debug)]
 pub struct RetrievePaymentMethod;
@@ -16,6 +14,7 @@ pub struct RetrievePaymentMethod;
 /// V1-facing retrieve request payload.
 #[derive(Debug)]
 pub struct RetrievePaymentMethodV1Request {
+    /// Identifier for the payment method to fetch.
     pub payment_method_id: PaymentMethodId,
     pub modular_service_prefix: String,
     pub fetch_raw_detail: bool,
@@ -37,43 +36,49 @@ pub struct RetrievePaymentMethodResponse {
     pub raw_payment_method_data: Option<RawPaymentMethodData>,
 }
 
-impl TryFrom<&RetrievePaymentMethodV1Request> for ModularPMRetrieveResquest {
+/// Dummy modular service request payload.
+#[derive(Clone, Debug)]
+// TODO: replace dummy request types with real v1/modular models.
+pub struct RetrievePaymentMethodV2Request {
+    /// Identifier for the payment method to fetch.
+    pub payment_method_id: PaymentMethodId,
+}
+
+/// Dummy modular service response payload.
+#[derive(Clone, Debug, Deserialize)]
+// TODO: replace dummy response types with real v1/modular models.
+pub struct RetrievePaymentMethodV2Response {
+    /// Dummy identifier returned by the modular service.
+    pub id: String,
+}
+
+/// V1-facing retrieve response (dummy for now).
+#[derive(Clone, Debug)]
+// TODO: replace dummy response types with real v1/modular models.
+pub struct RetrievePaymentMethodResponse {
+    /// V1 payment method identifier.
+    pub payment_method_id: String,
+    /// Dummy delete marker (unused).
+    pub deleted: Option<bool>,
+}
+
+impl TryFrom<&RetrievePaymentMethodV1Request> for RetrievePaymentMethodV2Request {
     type Error = MicroserviceClientError;
 
-    fn try_from(_value: &RetrievePaymentMethodV1Request) -> Result<Self, Self::Error> {
-        Ok(Self)
+    fn try_from(value: &RetrievePaymentMethodV1Request) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_id: value.payment_method_id.clone(),
+        })
     }
 }
 
-impl TryFrom<ModularPMRetrieveResponse> for RetrievePaymentMethodResponse {
+impl TryFrom<RetrievePaymentMethodV2Response> for RetrievePaymentMethodResponse {
     type Error = MicroserviceClientError;
 
-    fn try_from(v2_resp: ModularPMRetrieveResponse) -> Result<Self, Self::Error> {
-        // Extract payment_method_id from GlobalPaymentMethodId
-        let payment_method_id = v2_resp.id.clone();
-
-        // Convert GlobalCustomerId to CustomerId
-        let customer_id = v2_resp.customer_id;
-
-        // Convert card details from V2 to V1 format
-        let card = v2_resp.payment_method_data.map(|data| match data {
-            PaymentMethodResponseData::Card(card_detail) => card_detail,
-        });
-
+    fn try_from(_: RetrievePaymentMethodV2Response) -> Result<Self, Self::Error> {
         Ok(Self {
-            payment_method_id,
-            merchant_id: v2_resp.merchant_id,
-            customer_id,
-            payment_method_type: v2_resp.payment_method_type,
-            payment_method_subtype: v2_resp.payment_method_subtype,
-            recurring_enabled: v2_resp.recurring_enabled,
-            created: v2_resp.created,
-            last_used_at: v2_resp.last_used_at,
-            installment_payment_enabled: None,
-            payment_experience: None,
-            metadata: None,
-            bank_transfer: None,
-            client_secret: None,
+            payment_method_id: DUMMY_PM_ID.to_string(),
+            deleted: None,
         })
     }
 }
@@ -112,8 +117,8 @@ hyperswitch_interfaces::impl_microservice_flow!(
     method = Method::Get,
     path = "/v2/payment-methods/{id}",
     v1_request = RetrievePaymentMethodV1Request,
-    v2_request = ModularPMRetrieveResquest,
-    v2_response = ModularPMRetrieveResponse,
+    v2_request = RetrievePaymentMethodV2Request,
+    v2_response = RetrievePaymentMethodV2Response,
     v1_response = RetrievePaymentMethodResponse,
     client = crate::client::PaymentMethodClient<'_>,
     path_params = RetrievePaymentMethod::build_path_params,
