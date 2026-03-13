@@ -16,20 +16,13 @@ describe("Profile Setup for Merchants", () => {
 
   context("Platform Merchant Cannot Create Profile For Self", () => {
     it("platform-merchant-cannot-create-profile-for-self", () => {
-      const baseUrl = globalState.get("baseUrl");
-      const merchantId = globalState.get("platformMerchantId");
-
-      cy.request({
-        method: "POST",
-        url: `${baseUrl}/account/${merchantId}/business_profile`,
-        headers: {
-          "Content-Type": "application/json",
-          "api-key": globalState.get("apiKey"),
-        },
-        body: fixtures.businessProfile.bpCreate,
-        failOnStatusCode: false,
-      }).then((response) => {
-        expect(response.status).to.be.oneOf([400, 403, 422]);
+      cy.createBusinessProfileWithApiKeyCallTest(
+        fixtures.businessProfile.bpCreate,
+        globalState.get("apiKey"),
+        globalState.get("platformMerchantId"),
+        globalState
+      ).then((response) => {
+        expect(response.status).to.equal(400);
       });
     });
   });
@@ -57,42 +50,34 @@ describe("Profile Setup for Merchants", () => {
 
   context("Platform Creates Profile For Connected Merchant 2", () => {
     it("platform-creates-profile-for-cm2", () => {
-      const baseUrl = globalState.get("baseUrl");
-      const merchantId = globalState.get("connectedMerchantId_2");
+      const savedMerchantId = globalState.get("merchantId");
+      globalState.set("merchantId", globalState.get("connectedMerchantId_2"));
 
-      cy.request({
-        method: "POST",
-        url: `${baseUrl}/account/${merchantId}/business_profile`,
-        headers: {
-          "Content-Type": "application/json",
-          "api-key": globalState.get("apiKey"),
-          "x-connected-merchant-id": merchantId,
-        },
-        body: fixtures.businessProfile.bpCreate,
-        failOnStatusCode: false,
-      }).then((response) => {
+      cy.createBusinessProfileWithHeaderCallTest(
+        fixtures.businessProfile.bpCreate,
+        globalState.get("apiKey"),
+        globalState.get("connectedMerchantId_2"),
+        globalState
+      ).then((response) => {
         expect(response.status).to.equal(200);
         globalState.set("profileId_CM2_New", response.body.profile_id);
+      });
+
+      cy.then(() => {
+        globalState.set("merchantId", savedMerchantId);
       });
     });
   });
 
   context("Platform Cannot Create Profile For Standard Merchant", () => {
     it("platform-cannot-create-profile-for-standard-merchant", () => {
-      const baseUrl = globalState.get("baseUrl");
-      const merchantId = globalState.get("standardMerchantId");
-
-      cy.request({
-        method: "POST",
-        url: `${baseUrl}/account/${merchantId}/business_profile`,
-        headers: {
-          "Content-Type": "application/json",
-          "api-key": globalState.get("apiKey"),
-        },
-        body: fixtures.businessProfile.bpCreate,
-        failOnStatusCode: false,
-      }).then((response) => {
-        expect(response.status).to.be.oneOf([400, 403, 422]);
+      cy.createBusinessProfileWithApiKeyCallTest(
+        fixtures.businessProfile.bpCreate,
+        globalState.get("apiKey"),
+        globalState.get("standardMerchantId"),
+        globalState
+      ).then((response) => {
+        expect(response.status).to.equal(400);
       });
     });
   });

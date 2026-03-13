@@ -5334,15 +5334,14 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "createPaymentWithApiKeyCallTest",
   (paymentBody, apiKey, globalState) => {
-    const baseUrl = globalState
-      ? globalState.get("baseUrl")
-      : Cypress.env("BASEURL");
+    const baseUrl = globalState.get("baseUrl");
 
     return cy
       .request({
         method: "POST",
         url: `${baseUrl}/payments`,
         headers: {
+          Accept: "application/json",
           "Content-Type": "application/json",
           "api-key": apiKey,
         },
@@ -5359,15 +5358,14 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "createPaymentWithHeaderCallTest",
   (paymentBody, apiKey, connectedMerchantId, globalState) => {
-    const baseUrl = globalState
-      ? globalState.get("baseUrl")
-      : Cypress.env("BASEURL");
+    const baseUrl = globalState.get("baseUrl");
 
     return cy
       .request({
         method: "POST",
         url: `${baseUrl}/payments`,
         headers: {
+          Accept: "application/json",
           "Content-Type": "application/json",
           "api-key": apiKey,
           "x-connected-merchant-id": connectedMerchantId,
@@ -5383,17 +5381,115 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add(
+  "createBusinessProfileWithHeaderCallTest",
+  (businessProfileBody, apiKey, connectedMerchantId, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    const merchantId = globalState.get("merchantId");
+
+    return cy
+      .request({
+        method: "POST",
+        url: `${baseUrl}/account/${merchantId}/business_profile`,
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "api-key": apiKey,
+          "x-connected-merchant-id": connectedMerchantId,
+        },
+        body: businessProfileBody,
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        logRequestId(response.headers["x-request-id"]);
+        return cy.wrap(response);
+      });
+  }
+);
+
+Cypress.Commands.add(
   "listPaymentsWithApiKeyCallTest",
   (apiKey, globalState) => {
-    const baseUrl = globalState
-      ? globalState.get("baseUrl")
-      : Cypress.env("BASEURL");
+    const baseUrl = globalState.get("baseUrl");
 
     return cy
       .request({
         method: "GET",
         url: `${baseUrl}/payments/list`,
         headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "api-key": apiKey,
+        },
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        logRequestId(response.headers["x-request-id"]);
+        return cy.wrap(response);
+      });
+  }
+);
+
+Cypress.Commands.add(
+  "createBusinessProfileWithApiKeyCallTest",
+  (businessProfileBody, apiKey, merchantId, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+
+    return cy
+      .request({
+        method: "POST",
+        url: `${baseUrl}/account/${merchantId}/business_profile`,
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "api-key": apiKey,
+        },
+        body: businessProfileBody,
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        logRequestId(response.headers["x-request-id"]);
+        return cy.wrap(response);
+      });
+  }
+);
+
+Cypress.Commands.add(
+  "createConnectorWithApiKeyCallTest",
+  (connectorBody, apiKey, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    const merchantId = globalState.get("merchantId");
+    const profileId = globalState.get("profileId");
+
+    return cy
+      .request({
+        method: "POST",
+        url: `${baseUrl}/account/${merchantId}/profiles/${profileId}/connectors`,
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "api-key": apiKey,
+        },
+        body: connectorBody,
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        logRequestId(response.headers["x-request-id"]);
+        return cy.wrap(response);
+      });
+  }
+);
+
+Cypress.Commands.add(
+  "customerRetrieveWithApiKeyCallTest",
+  (apiKey, customerId, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+
+    return cy
+      .request({
+        method: "GET",
+        url: `${baseUrl}/customers/${customerId}`,
+        headers: {
+          Accept: "application/json",
           "Content-Type": "application/json",
           "api-key": apiKey,
         },

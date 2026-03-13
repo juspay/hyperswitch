@@ -94,17 +94,11 @@ describe("Platform Customer Flows", () => {
       const savedApiKey = globalState.get("apiKey");
       globalState.set("apiKey", globalState.get("apiKey_SM"));
 
-      const customerId = globalState.get("customerId");
-
-      cy.request({
-        method: "GET",
-        url: `${globalState.get("baseUrl")}/customers/${customerId}`,
-        headers: {
-          "Content-Type": "application/json",
-          "api-key": globalState.get("apiKey"),
-        },
-        failOnStatusCode: false,
-      }).then((response) => {
+      cy.customerRetrieveWithApiKeyCallTest(
+        globalState.get("apiKey"),
+        globalState.get("customerId"),
+        globalState
+      ).then((response) => {
         expect(response.status).to.equal(404);
       });
 
@@ -140,15 +134,11 @@ describe("Platform Customer Flows", () => {
         const savedCustomerId = globalState.get("customerId");
         globalState.set("customerId", globalState.get("customerId_SM_Created"));
 
-        cy.request({
-          method: "GET",
-          url: `${globalState.get("baseUrl")}/customers/${globalState.get("customerId")}`,
-          headers: {
-            "Content-Type": "application/json",
-            "api-key": globalState.get("apiKey"),
-          },
-          failOnStatusCode: false,
-        }).then((response) => {
+        cy.customerRetrieveWithApiKeyCallTest(
+          globalState.get("apiKey"),
+          globalState.get("customerId"),
+          globalState
+        ).then((response) => {
           expect(response.status).to.equal(404);
         });
 
@@ -164,15 +154,11 @@ describe("Platform Customer Flows", () => {
         globalState.set("apiKey", globalState.get("apiKey_CM1"));
         globalState.set("customerId", globalState.get("customerId_SM_Created"));
 
-        cy.request({
-          method: "GET",
-          url: `${globalState.get("baseUrl")}/customers/${globalState.get("customerId")}`,
-          headers: {
-            "Content-Type": "application/json",
-            "api-key": globalState.get("apiKey"),
-          },
-          failOnStatusCode: false,
-        }).then((response) => {
+        cy.customerRetrieveWithApiKeyCallTest(
+          globalState.get("apiKey"),
+          globalState.get("customerId"),
+          globalState
+        ).then((response) => {
           expect(response.status).to.equal(404);
         });
 
@@ -188,15 +174,11 @@ describe("Platform Customer Flows", () => {
         globalState.set("apiKey", globalState.get("apiKey_CM2"));
         globalState.set("customerId", globalState.get("customerId_SM_Created"));
 
-        cy.request({
-          method: "GET",
-          url: `${globalState.get("baseUrl")}/customers/${globalState.get("customerId")}`,
-          headers: {
-            "Content-Type": "application/json",
-            "api-key": globalState.get("apiKey"),
-          },
-          failOnStatusCode: false,
-        }).then((response) => {
+        cy.customerRetrieveWithApiKeyCallTest(
+          globalState.get("apiKey"),
+          globalState.get("customerId"),
+          globalState
+        ).then((response) => {
           expect(response.status).to.equal(404);
         });
 

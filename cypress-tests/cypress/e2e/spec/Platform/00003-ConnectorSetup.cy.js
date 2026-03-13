@@ -197,27 +197,18 @@ describe("Connector Setup for Connected Merchants", () => {
       globalState.set("merchantId", globalState.get("platformMerchantId"));
       globalState.set("profileId", globalState.get("profileId"));
 
-      const baseUrl = globalState.get("baseUrl");
-      const merchantId = globalState.get("merchantId");
-      const profileId = globalState.get("profileId");
-
-      cy.request({
-        method: "POST",
-        url: `${baseUrl}/account/${merchantId}/profiles/${profileId}/connectors`,
-        headers: {
-          "Content-Type": "application/json",
-          "api-key": globalState.get("apiKey"),
-        },
-        body: {
+      cy.createConnectorWithApiKeyCallTest(
+        {
           connector_type: "payment_processor",
           connector_name: "stripe",
           connector_label: "stripe_platform_test",
           ...fixtures.createConnectorBody,
           payment_methods_enabled,
         },
-        failOnStatusCode: false,
-      }).then((response) => {
-        expect(response.status).to.be.oneOf([400, 403, 404, 422]);
+        globalState.get("apiKey"),
+        globalState
+      ).then((response) => {
+        expect(response.status).to.equal(404);
       });
 
       cy.then(() => {

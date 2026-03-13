@@ -72,7 +72,7 @@ describe("Platform Payment Flows", () => {
         globalState.get("apiKey"),
         globalState
       ).then((response) => {
-        expect(response.status).to.be.oneOf([400, 401, 403, 404, 422]);
+        expect(response.status).to.equal(400);
       });
     });
   });
@@ -90,7 +90,7 @@ describe("Platform Payment Flows", () => {
         globalState.get("standardMerchantId"),
         globalState
       ).then((response) => {
-        expect(response.status).to.be.oneOf([400, 401, 403, 404, 422]);
+        expect(response.status).to.equal(401);
       });
     });
   });
@@ -146,7 +146,7 @@ describe("Platform Payment Flows", () => {
         globalState.get("connectedMerchantId_2"),
         globalState
       ).then((response) => {
-        expect(response.status).to.be.oneOf([401, 403]);
+        expect(response.status).to.equal(401);
       });
     });
   });
