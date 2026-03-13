@@ -323,6 +323,8 @@ pub mod core {
         TokenReplacementFailed(String),
         #[error("HTTP request failed")]
         HttpRequestFailed,
+        #[error("Response size exceeds limit of {limit} bytes (received at least {actual} bytes)")]
+        ResponseTooLarge { limit: usize, actual: usize },
         #[error("Serialization error: {0}")]
         SerializationError(String),
         #[error("Invalid template: {0}")]
@@ -759,7 +761,7 @@ pub mod core {
 
             // Convert reqwest::Response to InjectorResponse using trait
             response
-                .into_injector_response()
+                .into_injector_response_with_limit(config.max_response_size)
                 .await
                 .map_err(|e| error_stack::Report::new(e))
         }
