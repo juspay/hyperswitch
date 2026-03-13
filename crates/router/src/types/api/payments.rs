@@ -42,15 +42,15 @@ pub use hyperswitch_domain_models::router_flow_types::payments::{
     IncrementalAuthorization, InitPayment, PSync, PaymentCreateIntent, PaymentGetIntent,
     PaymentMethodToken, PaymentUpdateIntent, PostCaptureVoid, PostProcessing, PostSessionTokens,
     PreProcessing, RecordAttempt, Reject, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata,
-    Void, UpdatePostConfirm,
+    UpdatePostConfirm, Void,
 };
 pub use hyperswitch_interfaces::api::payments::{
     ConnectorCustomer, MandateSetup, Payment, PaymentApprove, PaymentAuthorize,
     PaymentAuthorizeSessionToken, PaymentCapture, PaymentIncrementalAuthorization,
     PaymentPostCaptureVoid, PaymentPostSessionTokens, PaymentReject, PaymentSession,
-    PaymentSessionUpdate, PaymentSync, PaymentToken, PaymentUpdateMetadata, PaymentVoid,
-    PaymentsCompleteAuthorize, PaymentsCreateOrder, PaymentsPostProcessing, PaymentsPreProcessing,
-    TaxCalculation, PaymentUpdate,
+    PaymentSessionUpdate, PaymentSync, PaymentToken, PaymentUpdate, PaymentUpdateMetadata,
+    PaymentVoid, PaymentsCompleteAuthorize, PaymentsCreateOrder, PaymentsPostProcessing,
+    PaymentsPreProcessing, TaxCalculation,
 };
 
 pub use super::payments_v2::{

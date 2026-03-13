@@ -36,7 +36,8 @@ use hyperswitch_domain_models::{
             Approve, AuthorizeSessionToken, CalculateTax, CompleteAuthorize,
             CreateConnectorCustomer, CreateOrder, ExtendAuthorization, GiftCardBalanceCheck,
             IncrementalAuthorization, PostCaptureVoid, PostProcessing, PostSessionTokens,
-            PreProcessing, Reject, SdkSessionUpdate, SettlementSplitCreate, UpdateMetadata, UpdatePostConfirm,
+            PreProcessing, Reject, SdkSessionUpdate, SettlementSplitCreate, UpdateMetadata,
+            UpdatePostConfirm,
         },
         subscriptions::{
             GetSubscriptionEstimate, GetSubscriptionItemPrices, GetSubscriptionItems,
@@ -70,9 +71,10 @@ use hyperswitch_domain_models::{
         PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
         PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
         PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RetrieveFileRequestData,
-        SdkPaymentsSessionUpdateData, SettlementSplitRequestData, SubmitEvidenceRequestData,
-        UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData, PaymentsUpdatePostConfirmData,
+        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, PaymentsUpdatePostConfirmData,
+        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SettlementSplitRequestData,
+        SubmitEvidenceRequestData, UploadFileRequestData, VaultRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
@@ -141,10 +143,11 @@ use hyperswitch_interfaces::{
             ConnectorCustomer, ExternalVaultProxyPaymentsCreateV1, PaymentApprove,
             PaymentAuthorizeSessionToken, PaymentExtendAuthorization,
             PaymentIncrementalAuthorization, PaymentPostCaptureVoid, PaymentPostSessionTokens,
-            PaymentReject, PaymentSessionUpdate, PaymentUpdateMetadata, PaymentsAuthenticate,
-            PaymentsCompleteAuthorize, PaymentsCreateOrder, PaymentsGiftCardBalanceCheck,
-            PaymentsPostAuthenticate, PaymentsPostProcessing, PaymentsPreAuthenticate,
-            PaymentsPreProcessing, PaymentsSettlementSplitCreate, TaxCalculation, PaymentUpdate,
+            PaymentReject, PaymentSessionUpdate, PaymentUpdate, PaymentUpdateMetadata,
+            PaymentsAuthenticate, PaymentsCompleteAuthorize, PaymentsCreateOrder,
+            PaymentsGiftCardBalanceCheck, PaymentsPostAuthenticate, PaymentsPostProcessing,
+            PaymentsPreAuthenticate, PaymentsPreProcessing, PaymentsSettlementSplitCreate,
+            TaxCalculation,
         },
         revenue_recovery::RevenueRecovery,
         subscriptions::{
@@ -1127,7 +1130,7 @@ macro_rules! default_imp_for_update_post_confirm {
         {}
     )*
     };
-} 
+}
 
 default_imp_for_update_post_confirm!(
     connectors::Aci,
@@ -1269,8 +1272,8 @@ default_imp_for_update_post_confirm!(
     connectors::Volt,
     connectors::Zen,
     connectors::Zsl,
-    connectors::CtpMastercard,     
-    connectors::Razorpay 
+    connectors::CtpMastercard,
+    connectors::Razorpay
 );
 
 default_imp_for_update_metadata!(

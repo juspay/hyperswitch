@@ -135,9 +135,7 @@ impl Conversion {
             Derives::UpdateMetadataData => {
                 syn::Ident::new("PaymentsUpdateMetadataData", Span::call_site())
             }
-            Derives::UpdatePostConfirm => {
-                syn::Ident::new("PaymentsRequest", Span::call_site())
-            }
+            Derives::UpdatePostConfirm => syn::Ident::new("PaymentsRequest", Span::call_site()),
             Derives::UpdatePostConfirmData => {
                 syn::Ident::new("PaymentsUpdatePostConfirmData", Span::call_site())
             }
