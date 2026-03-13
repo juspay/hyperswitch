@@ -1517,9 +1517,9 @@ async fn create_vault_request<R: pm_types::VaultingInterface>(
     let mut request = request::Request::new(services::Method::Post, &url);
 
     // Add query param for write mode if specified
-    write_mode  
-    .and_then(|query_params| query_params.to_query_value())  
-    .map(|query_params_value| request.query_params = Some(query_params_value));
+    write_mode
+        .and_then(|query_params| query_params.to_query_value())
+        .map(|query_params_value| request.query_params = Some(query_params_value));
 
     request.add_header(
         headers::CONTENT_TYPE,

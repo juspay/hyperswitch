@@ -10,8 +10,8 @@ use common_utils::id_type;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payment_method_data::NetworkTokenDetails;
 use masking::Secret;
-use serde::{Deserialize, Serialize};
 use router_env::logger;
+use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "v2")]
 use crate::types::storage;
@@ -472,19 +472,17 @@ pub enum VaultQueryParam {
 impl VaultQueryParam {
     pub fn to_query_value(&self) -> Option<serde_json::Value> {
         match self {
-            Self::Add(params) => {
-                match serde_json::to_value(params) {
-                    Ok(value) => Some(value),
-                    Err(error) => {
-                        logger::error!(  
-                            error = ?error,  
-                            params = ?params,  
-                            "Failed to serialize VaultQueryParam::Add to JSON value"  
-                        );  
-                        None
-                    }
+            Self::Add(params) => match serde_json::to_value(params) {
+                Ok(value) => Some(value),
+                Err(error) => {
+                    logger::error!(
+                        error = ?error,
+                        params = ?params,
+                        "Failed to serialize VaultQueryParam::Add to JSON value"
+                    );
+                    None
                 }
-            }
+            },
         }
     }
 }
