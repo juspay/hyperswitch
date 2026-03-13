@@ -5327,8 +5327,10 @@ Cypress.Commands.add("stepTest", (stepName, errorStack, fn) => {
       chai.Assertion.prototype.assert = originalAssert;
       const stepFailures = errorStack.filter((e) => e.step === stepName);
       if (stepFailures.length > 0) {
+        cy.task("cli_log", `${ANSI_RED}[FAILED]${ANSI_RESET} ${stepName}`);
         log.set({ displayName: "✗ STEP", message: stepName });
       } else {
+        cy.task("cli_log", `${ANSI_GREEN}[SUCCEEDED]${ANSI_RESET} ${stepName}`);
         log.set({ displayName: "✓ STEP", message: stepName, collapsed: true });
       }
       Cypress.log({ groupEnd: true, emitOnly: true });
