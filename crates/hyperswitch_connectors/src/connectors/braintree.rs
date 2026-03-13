@@ -25,13 +25,13 @@ use hyperswitch_domain_models::{
         mandate_revoke::MandateRevoke,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
-        CompleteAuthorize,
+        CompleteAuthorize, PreAuthenticate,
     },
     router_request_types::{
         AccessTokenRequestData, CompleteAuthorizeData, MandateRevokeRequestData,
         PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData, RefundsData,
-        SetupMandateRequestData,
+        PaymentsCaptureData, PaymentsPreAuthenticateData, PaymentsSessionData, PaymentsSyncData,
+        RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails, PaymentsResponseData,
@@ -39,8 +39,9 @@ use hyperswitch_domain_models::{
     },
     types::{
         MandateRevokeRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
-        PaymentsCaptureRouterData, PaymentsCompleteAuthorizeRouterData, PaymentsSessionRouterData,
-        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData, TokenizationRouterData,
+        PaymentsCaptureRouterData, PaymentsCompleteAuthorizeRouterData,
+        PaymentsPreAuthenticateRouterData, PaymentsSessionRouterData, PaymentsSyncRouterData,
+        RefundSyncRouterData, RefundsRouterData, TokenizationRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -55,8 +56,9 @@ use hyperswitch_interfaces::{
     events::connector_api_logs::ConnectorEvent,
     types::{
         MandateRevokeType, PaymentsAuthorizeType, PaymentsCaptureType,
-        PaymentsCompleteAuthorizeType, PaymentsSessionType, PaymentsSyncType, PaymentsVoidType,
-        RefundExecuteType, RefundSyncType, Response, TokenizationType,
+        PaymentsCompleteAuthorizeType, PaymentsPreAuthenticateType, PaymentsSessionType,
+        PaymentsSyncType, PaymentsVoidType, RefundExecuteType, RefundSyncType, Response,
+        TokenizationType,
     },
     webhooks::{
         IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails, WebhookContext,
@@ -240,6 +242,7 @@ impl api::PaymentsCompleteAuthorize for Braintree {}
 impl api::PaymentSession for Braintree {}
 impl api::ConnectorAccessToken for Braintree {}
 impl api::ConnectorMandateRevoke for Braintree {}
+impl api::PaymentsPreAuthenticate for Braintree {}
 
 impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Braintree {
     // Not Implemented (R)
@@ -312,6 +315,96 @@ impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> fo
         router_env::logger::info!(connector_response=?response);
         utils::ForeignTryFrom::foreign_try_from((
             crate::types::PaymentsSessionResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            data.clone(),
+        ))
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, PaymentsResponseData>
+    for Braintree
+{
+    fn get_headers(
+        &self,
+        req: &PaymentsPreAuthenticateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &PaymentsPreAuthenticateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(self.base_url(connectors).to_string())
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsPreAuthenticateRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let metadata: braintree::BraintreeMeta =
+            braintree::BraintreeMeta::try_from(&req.connector_meta_data)?;
+        let connector_req = braintree::BraintreeClientTokenRequest::try_from(metadata)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsPreAuthenticateRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&PaymentsPreAuthenticateType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(PaymentsPreAuthenticateType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(PaymentsPreAuthenticateType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsPreAuthenticateRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsPreAuthenticateRouterData, errors::ConnectorError>
+    where
+        PaymentsResponseData: Clone,
+    {
+        let response: braintree::BraintreeSessionResponse = res
+            .response
+            .parse_struct("BraintreeSessionResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        utils::ForeignTryFrom::foreign_try_from((
+            crate::types::PaymentsPreAuthenticateResponseRouterData {
                 response,
                 data: data.clone(),
                 http_code: res.status_code,
@@ -1463,5 +1556,13 @@ impl ConnectorSpecifications for Braintree {
             enums::PaymentMethodType::GooglePay,
             enums::PaymentMethodType::Paypal,
         ]
+    }
+
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize { auth_type, .. } => auth_type.is_three_ds(),
+            api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+            api::CurrentFlowInfo::SetupMandate { auth_type, .. } => auth_type.is_three_ds(),
+        }
     }
 }

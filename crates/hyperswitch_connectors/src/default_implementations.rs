@@ -2199,7 +2199,6 @@ default_imp_for_pre_authenticate_steps!(
     connectors::Calida,
     connectors::Bluesnap,
     connectors::Boku,
-    connectors::Braintree,
     connectors::Breadpay,
     connectors::Cashtocode,
     connectors::Celero,
