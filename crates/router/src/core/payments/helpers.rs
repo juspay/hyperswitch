@@ -123,9 +123,7 @@ use crate::{
 #[cfg(feature = "v2")]
 use crate::{core::admin as core_admin, headers, types::ConnectorAuthType};
 #[cfg(feature = "v1")]
-use crate::{
-    core::payment_methods::cards::create_encrypted_data, types::storage::CustomerUpdate::Update,
-};
+use crate::{core::utils::create_encrypted_data, types::storage::CustomerUpdate::Update};
 
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
@@ -1657,9 +1655,28 @@ pub async fn validate_blocking_threshold(
 /// Get the customer details from customer field if present
 /// or from the individual fields in `PaymentsRequest`
 #[instrument(skip_all)]
-pub fn get_customer_details_from_request(
+pub fn get_customer_details_from_request_or_pm_table(
     request: &api_models::payments::PaymentsRequest,
-) -> CustomerDetails {
+    payment_method: &Option<domain::PaymentMethod>,
+) -> Result<
+    CustomerDetails,
+    error_stack::Report<hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse>,
+> {
+    // Extracting customer details from Payment Methods Table in case of MIT
+    let customer_details_from_pm = payment_method
+        .clone()
+        .and_then(|data| data.customer_details)
+        .as_ref()
+        .map(|encryptable| {
+            encryptable
+                .clone()
+                .into_inner()
+                .parse_value::<CustomerDocumentDetails>("CustomerDocumentDetails")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse CustomerDocumentDetails from Payment Method")
+        })
+        .transpose()?;
+
     let customer_id = request.get_customer_id().map(ToOwned::to_owned);
 
     let customer_name = request
@@ -1693,12 +1710,12 @@ pub fn get_customer_details_from_request(
         .as_ref()
         .and_then(|customer_details| customer_details.tax_registration_id.clone());
 
-    let document_details = request
+    let document_details = customer_details_from_pm.or(request
         .customer
         .as_ref()
-        .and_then(|customer_details| customer_details.document_details.clone());
+        .and_then(|customer_details| customer_details.document_details.clone()));
 
-    CustomerDetails {
+    Ok(CustomerDetails {
         customer_id,
         name: customer_name,
         email: customer_email,
@@ -1706,7 +1723,7 @@ pub fn get_customer_details_from_request(
         phone_country_code: customer_phone_code,
         tax_registration_id,
         document_details,
-    }
+    })
 }
 
 pub async fn get_connector_default(
@@ -1819,7 +1836,12 @@ pub async fn populate_raw_customer_details<F: Clone>(
     let key_manager_state = state.into();
     payment_data.payment_intent.customer_details = raw_customer_details
         .async_map(|customer_details| {
-            create_encrypted_data(&key_manager_state, key_store, customer_details)
+            create_encrypted_data(
+                &key_manager_state,
+                key_store,
+                customer_details,
+                common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+            )
         })
         .await
         .transpose()
@@ -1859,7 +1881,7 @@ pub async fn merge_request_and_intent_customer_data(
 
             // Encrypt and update customer details in payment intent
             Some(
-                create_encrypted_data(&key_manager_state, key_store, request_customer_data)
+                create_encrypted_data(&key_manager_state, key_store, request_customer_data, common_utils::type_name!(diesel_models::payment_method::PaymentMethod))
                     .await
                     .change_context(errors::StorageError::EncryptionError)
                     .attach_printable("Unable to encrypt customer details")?,
@@ -2134,10 +2156,15 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
 
                 // Encrypt and store the final customer data
                 payment_data.payment_intent.customer_details = Some(
-                    create_encrypted_data(key_manager_state, key_store, final_customer_data)
-                        .await
-                        .change_context(errors::StorageError::EncryptionError)
-                        .attach_printable("Unable to encrypt customer details")?,
+                    create_encrypted_data(
+                        key_manager_state,
+                        key_store,
+                        final_customer_data,
+                        common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+                    )
+                    .await
+                    .change_context(errors::StorageError::EncryptionError)
+                    .attach_printable("Unable to encrypt customer details")?,
                 );
 
                 payment_data.payment_intent.customer_id = Some(customer.customer_id.clone());
@@ -7727,6 +7754,7 @@ pub async fn get_payment_method_data_and_encrypted_payment_method_data(
                     key_manager_state,
                     key_store,
                     additional_payment_method_data_intermediate,
+                    common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
                 )
             })
             .await

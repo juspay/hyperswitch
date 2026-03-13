@@ -18,6 +18,7 @@ use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::cards,
+        utils::create_encrypted_data,
     },
     logger,
     routes::{app::SessionStateInfo, SessionState},
@@ -314,10 +315,11 @@ pub async fn handle_metadata_update(
 
             let pm_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> = pm_details
                 .async_map(|pm_card| {
-                    cards::create_encrypted_data(
+                    create_encrypted_data(
                         &key_manager_state,
                         platform.get_processor().get_key_store(),
                         pm_card,
+                        common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
                     )
                 })
                 .await
