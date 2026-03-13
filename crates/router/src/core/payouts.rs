@@ -47,6 +47,7 @@ use crate::types::domain::behaviour::Conversion;
 use crate::types::PayoutActionData;
 use crate::{
     core::{
+        configs,
         errors::{
             self, ConnectorErrorExt, CustomResult, RouterResponse, RouterResult, StorageErrorExt,
         },
@@ -319,6 +320,9 @@ pub async fn payouts_create_core(
     let (payout_id, payout_method_data, profile_id, customer, payment_method) =
         validator::validate_create_request(&state, &platform, &req).await?;
 
+    let dimensions = configs::dimension_state::Dimensions::new()
+        .with_merchant_id(platform.get_processor().get_account().get_id().clone())
+        .with_profile_id(profile_id.clone());
     // Create DB entries
     let mut payout_data = payout_create_db_entries(
         &state,
@@ -330,6 +334,7 @@ pub async fn payouts_create_core(
         &state.locale,
         customer.as_ref(),
         payment_method.clone(),
+        &dimensions,
     )
     .await?;
 
@@ -2737,11 +2742,12 @@ pub async fn payout_create_db_entries(
     _platform: &domain::Platform,
     _req: &payouts::PayoutCreateRequest,
     _payout_id: &str,
-    _profile_id: &str,
+    _profile_id: &id_type::ProfileId,
     _stored_payout_method_data: Option<&payouts::PayoutMethodData>,
     _locale: &str,
     _customer: Option<&domain::Customer>,
     _payment_method: Option<PaymentMethod>,
+    _dimesnions: &configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
 ) -> RouterResult<PayoutData> {
     todo!()
 }
@@ -2759,6 +2765,7 @@ pub async fn payout_create_db_entries(
     locale: &str,
     customer: Option<&domain::Customer>,
     payment_method: Option<PaymentMethod>,
+    dimensions: &configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
 ) -> RouterResult<PayoutData> {
     let db = &*state.store;
     let merchant_id = platform.get_processor().get_account().get_id();
@@ -2902,13 +2909,19 @@ pub async fn payout_create_db_entries(
     // Make payout_attempt entry
     let payout_attempt_id = utils::get_payout_attempt_id(payout_id.get_string_repr(), 1);
 
+    let customer_id_for_pm_data = customer_id.clone();
     let additional_pm_data_value = req
         .payout_method_data
         .clone()
         .or(stored_payout_method_data.cloned())
         .async_and_then(|payout_method_data| async move {
-            helpers::get_additional_payout_data(&payout_method_data, &*state.store, profile_id)
-                .await
+            helpers::get_additional_payout_data(
+                &payout_method_data,
+                state,
+                dimensions,
+                customer_id_for_pm_data.as_ref(),
+            )
+            .await
         })
         .await
         // If no payout method data in request but we have a stored payment method, populate from it
@@ -2931,7 +2944,7 @@ pub async fn payout_create_db_entries(
         business_label: req.business_label.to_owned(),
         payout_token: req.payout_token.to_owned(),
         profile_id: profile_id.to_owned(),
-        customer_id,
+        customer_id: customer_id.clone(),
         address_id,
         connector: None,
         connector_payout_id: None,
@@ -3006,6 +3019,8 @@ pub async fn make_payout_data(
 ) -> RouterResult<PayoutData> {
     let db = &*state.store;
     let merchant_id = platform.get_processor().get_account().get_id();
+    let dimensions =
+        configs::dimension_state::Dimensions::new().with_merchant_id(merchant_id.clone());
     let payout_id = match req {
         payouts::PayoutRequest::PayoutActionRequest(r) => r.payout_id.clone(),
         payouts::PayoutRequest::PayoutCreateRequest(r) => {
@@ -3121,10 +3136,15 @@ pub async fn make_payout_data(
         payouts::PayoutRequest::PayoutRetrieveRequest(_) => None,
     };
 
+    let dimensions = dimensions.with_profile_id(profile_id.clone());
     if let Some(payout_method_data) = payout_method_data_req.clone() {
-        let additional_payout_method_data =
-            helpers::get_additional_payout_data(&payout_method_data, &*state.store, &profile_id)
-                .await;
+        let additional_payout_method_data = helpers::get_additional_payout_data(
+            &payout_method_data,
+            state,
+            &dimensions,
+            customer_id,
+        )
+        .await;
 
         let update_additional_payout_method_data =
             storage::PayoutAttemptUpdate::AdditionalPayoutMethodDataUpdate {
