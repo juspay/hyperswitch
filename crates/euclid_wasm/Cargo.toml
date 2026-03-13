@@ -32,7 +32,6 @@ kgraph_utils = { version = "0.1.0", path = "../kgraph_utils" }
 # Third party crates
 getrandom = { version = "0.3", features = ["wasm_js"] }
 getrandom_v2 = { package = "getrandom", version = "0.2", features = ["js"] }
-cpf_cnpj = "0.3"
 ron-parser = "0.1.4"
 serde = { version = "1.0", features = [] }
 serde-wasm-bindgen = "0.6.5"
