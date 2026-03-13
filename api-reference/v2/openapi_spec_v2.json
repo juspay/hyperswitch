@@ -7546,11 +7546,25 @@
                 "$ref": "#/components/schemas/Interac"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "open_banking_uk"
+            ],
+            "properties": {
+              "open_banking_uk": {
+                "$ref": "#/components/schemas/OpenBankingUk"
+              }
+            }
           }
         ]
       },
       "BankRedirectAdditionalData": {
         "oneOf": [
+          {
+            "$ref": "#/components/schemas/OpenBankingUkAdditionalData"
+          },
           {
             "$ref": "#/components/schemas/InteracAdditionalData"
           }
@@ -10534,6 +10548,7 @@
           "dlocal",
           "dwolla",
           "ebanx",
+          "envoy",
           "elavon",
           "facilitapay",
           "finix",
@@ -10606,6 +10621,7 @@
           "tesouro",
           "tokenex",
           "tokenio",
+          "truelayer",
           "trustpay",
           "trustpayments",
           "tsys",
@@ -10779,6 +10795,21 @@
             "nullable": true
           }
         }
+      },
+      "ConnectorMetadataResponse": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "santander"
+            ],
+            "properties": {
+              "santander": {
+                "$ref": "#/components/schemas/SantanderData"
+              }
+            }
+          }
+        ]
       },
       "ConnectorSelection": {
         "oneOf": [
@@ -17497,6 +17528,11 @@
             "type": "string",
             "description": "The ECI(Electronic Commerce Indicator) value for this authentication.",
             "nullable": true
+          },
+          "par": {
+            "type": "string",
+            "description": "The Payment Account Reference (PAR) for this card.",
+            "nullable": true
           }
         }
       },
@@ -17561,6 +17597,11 @@
           },
           "saved_to_locker": {
             "type": "boolean"
+          },
+          "par": {
+            "type": "string",
+            "example": "522134KAVJ1JPZ8L77N0Z2LRYZS7J",
+            "nullable": true
           }
         }
       },
@@ -18158,6 +18199,11 @@
                 "type": "string",
                 "nullable": true
               },
+              "raw_qr_data": {
+                "type": "string",
+                "description": "The raw QR code data (EMV copy and paste) used for Brazilian payment methods like Pix",
+                "nullable": true
+              },
               "type": {
                 "type": "string",
                 "enum": [
@@ -18555,6 +18601,45 @@
           "open_banking_session_token": {
             "type": "string",
             "description": "The session token for OpenBanking Connectors"
+          }
+        }
+      },
+      "OpenBankingUk": {
+        "type": "object",
+        "required": [
+          "account_holder_name",
+          "iban"
+        ],
+        "properties": {
+          "account_holder_name": {
+            "type": "string",
+            "description": "Account holder name",
+            "example": "John Doe"
+          },
+          "iban": {
+            "type": "string",
+            "description": "International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.",
+            "example": "DE89370400440532013000"
+          }
+        }
+      },
+      "OpenBankingUkAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for OpenBankingUK bank redirect payout method",
+        "required": [
+          "account_holder_name",
+          "iban"
+        ],
+        "properties": {
+          "account_holder_name": {
+            "type": "string",
+            "description": "Account holder name",
+            "example": "John Doe"
+          },
+          "iban": {
+            "type": "string",
+            "description": "International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.",
+            "example": "DE89370400440532013000"
           }
         }
       },
@@ -21706,6 +21791,14 @@
           "keep_alive": {
             "type": "boolean",
             "description": "Whether the card with new status should be listed in the session"
+          },
+          "network_tokenization_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokenResponse"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -23974,9 +24067,11 @@
           "payone",
           "paypal",
           "stripe",
+          "truelayer",
           "wise",
           "worldpay",
-          "worldpayxml"
+          "worldpayxml",
+          "envoy"
         ]
       },
       "PayoutCreatePayoutLinkConfig": {
@@ -27569,6 +27664,7 @@
           "dwolla",
           "ebanx",
           "elavon",
+          "envoy",
           "facilitapay",
           "finix",
           "fiserv",
@@ -27634,6 +27730,7 @@
           "stripe",
           "stripebilling",
           "tesouro",
+          "truelayer",
           "trustpay",
           "trustpayments",
           "tokenio",
@@ -28112,6 +28209,16 @@
             "$ref": "#/components/schemas/SamsungPayTokenData"
           }
         }
+      },
+      "SantanderData": {
+        "type": "object",
+        "properties": {
+          "end_to_end_id": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
       },
       "ScaExemptionType": {
         "type": "string",

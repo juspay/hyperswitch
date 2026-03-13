@@ -195,4 +195,22 @@ impl DashboardMetadata {
         )
         .await
     }
+
+    pub async fn delete_all_by_user_id(
+        conn: &PgPooledConn,
+        user_id: String,
+    ) -> StorageResult<bool> {
+        match generics::generic_delete::<<Self as HasTable>::Table, _>(
+            conn,
+            dsl::user_id.eq(user_id),
+        )
+        .await
+        {
+            Ok(result) => Ok(result),
+            Err(error) => match error.current_context() {
+                errors::DatabaseError::NotFound => Ok(true),
+                _ => Err(error),
+            },
+        }
+    }
 }

@@ -319,6 +319,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::CloneConnector
             | Flow::EmbeddedTokenInfo
             | Flow::GetEmbeddedToken
+            | Flow::GetUserDetailsInternal
+            | Flow::ListUsersInternal
             | Flow::CreateSavedView
             | Flow::ListSavedViews
             | Flow::UpdateSavedView

@@ -102,6 +102,7 @@ pub enum Connector {
     Dlocal,
     Dwolla,
     Ebanx,
+    Envoy,
     Elavon,
     Facilitapay,
     Finix,
@@ -179,7 +180,7 @@ pub enum Connector {
     Tesouro,
     Tokenex,
     Tokenio,
-    // Truelayer,
+    Truelayer,
     Trustpay,
     Trustpayments,
     Tsys,
@@ -209,10 +210,12 @@ impl Connector {
         matches!(
             (self, payout_method),
             (Self::Paypal, Some(PayoutType::Wallet))
+                | (Self::Envoy, _)
                 | (_, Some(PayoutType::Card))
                 | (Self::Adyenplatform, _)
                 | (Self::Nomupay, _)
                 | (Self::Loonio, _)
+                | (Self::Truelayer, _)
                 | (Self::Worldpay, Some(PayoutType::Wallet))
                 | (Self::Worldpayxml, Some(PayoutType::Wallet))
         )
@@ -231,7 +234,10 @@ impl Connector {
     }
     #[cfg(feature = "payouts")]
     pub fn supports_access_token_for_payout(self, payout_method: Option<PayoutType>) -> bool {
-        matches!((self, payout_method), (Self::Paypal, _))
+        matches!(
+            (self, payout_method),
+            (Self::Paypal, _) | (Self::Truelayer, _)
+        )
     }
     #[cfg(feature = "payouts")]
     pub fn supports_access_token_for_external_vault(self) -> bool {
@@ -263,6 +269,7 @@ impl Connector {
                 | (Self::Facilitapay, _)
                 | (Self::Dwolla, _)
                 | (Self::Santander, _)
+                | (Self::Truelayer, _)
         )
     }
     pub fn requires_order_creation_before_payment(self, payment_method: PaymentMethod) -> bool {
@@ -321,6 +328,7 @@ impl Connector {
             | Self::Digitalvirgo
             | Self::Dlocal
             | Self::Dwolla
+            | Self::Envoy
             | Self::Ebanx
             | Self::Elavon
             | Self::Facilitapay
@@ -382,7 +390,7 @@ impl Connector {
             | Self::Taxjar
             | Self::Tesouro
             // | Self::Thunes
-            // | Self::Truelayer
+            | Self::Truelayer
             | Self::Trustpay
             | Self::Trustpayments
             // | Self::Tokenio

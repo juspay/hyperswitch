@@ -26,7 +26,7 @@ use crate::{
     consts,
     core::{
         errors::{self, ConnectorErrorExt, CustomResult, RouterResult},
-        payment_methods::transformers as pm_transforms,
+        payment_methods::{access_token, transformers as pm_transforms},
         payments, utils as core_utils,
     },
     db, headers, logger,
@@ -982,8 +982,16 @@ impl Vaultable for api::BankRedirectPayout {
     ) -> CustomResult<String, errors::VaultError> {
         let value1 = match self {
             Self::Interac(interac_data) => TokenizedBankRedirectSensitiveValues {
-                email: interac_data.email.clone(),
+                email: Some(interac_data.email.clone()),
                 bank_redirect_type: PaymentMethodType::Interac,
+                account_holder_name: None,
+                iban: None,
+            },
+            Self::OpenBankingUk(open_banking_uk_data) => TokenizedBankRedirectSensitiveValues {
+                email: None,
+                iban: Some(open_banking_uk_data.iban.clone()),
+                account_holder_name: Some(open_banking_uk_data.account_holder_name.clone()),
+                bank_redirect_type: PaymentMethodType::OpenBankingUk,
             },
         };
 
@@ -1022,9 +1030,21 @@ impl Vaultable for api::BankRedirectPayout {
             .attach_printable("Could not deserialize into wallet data value2")?;
 
         let bank_redirect = match value1.bank_redirect_type {
-            PaymentMethodType::Interac => Self::Interac(api_models::payouts::Interac {
-                email: value1.email,
-            }),
+            PaymentMethodType::Interac => match value1.email {
+                Some(email) => Self::Interac(api_models::payouts::Interac { email }),
+                _ => Err(errors::VaultError::ResponseDeserializationFailed)
+                    .attach_printable("Failed to deserialize into Interac")?,
+            },
+            PaymentMethodType::OpenBankingUk => match (value1.account_holder_name, value1.iban) {
+                (Some(account_holder_name), Some(iban)) => {
+                    Self::OpenBankingUk(api_models::payouts::OpenBankingUk {
+                        account_holder_name,
+                        iban,
+                    })
+                }
+                _ => Err(errors::VaultError::ResponseDeserializationFailed)
+                    .attach_printable("Failed to deserialize into OpenBankingUk")?,
+            },
             _ => Err(errors::VaultError::PayoutMethodNotSupported)
                 .attach_printable("Payout method not supported")?,
         };
@@ -1101,7 +1121,9 @@ impl Vaultable for api::PassthroughPayout {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedBankRedirectSensitiveValues {
-    pub email: Email,
+    pub email: Option<Email>,
+    pub iban: Option<masking::Secret<String>>,
+    pub account_holder_name: Option<masking::Secret<String>>,
     pub bank_redirect_type: PaymentMethodType,
 }
 
@@ -2306,7 +2328,7 @@ pub async fn retrieve_payment_method_from_vault_external_v1(
     )
     .await?;
 
-    let old_router_data = VaultConnectorFlowData::to_old_router_data(router_data)
+    let mut old_router_data = VaultConnectorFlowData::to_old_router_data(router_data)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable(
             "Cannot construct router data for making the external vault retrieve api call",
@@ -2323,24 +2345,35 @@ pub async fn retrieve_payment_method_from_vault_external_v1(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to get the connector data")?;
 
-    let connector_integration: services::BoxedVaultConnectorIntegrationInterface<
-        hyperswitch_domain_models::router_flow_types::ExternalVaultRetrieveFlow,
-        types::VaultRequestData,
-        types::VaultResponseData,
-    > = connector_data.connector.get_connector_integration();
+    access_token::create_access_token(state, &connector_data, merchant_id, &mut old_router_data)
+        .await?;
 
-    let router_data_resp = services::execute_connector_processing_step(
-        state,
-        connector_integration,
-        &old_router_data,
-        payments::CallConnectorAction::Trigger,
-        None,
-        None,
-    )
-    .await
-    .to_vault_failed_response()?;
+    if old_router_data.response.is_ok() {
+        let connector_integration: services::BoxedVaultConnectorIntegrationInterface<
+            hyperswitch_domain_models::router_flow_types::ExternalVaultRetrieveFlow,
+            types::VaultRequestData,
+            types::VaultResponseData,
+        > = connector_data.connector.get_connector_integration();
 
-    get_vault_response_for_retrieve_payment_method_data_v1(router_data_resp)
+        let router_data_resp = services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            &old_router_data,
+            payments::CallConnectorAction::Trigger,
+            None,
+            None,
+        )
+        .await
+        .to_vault_failed_response()?;
+        get_vault_response_for_retrieve_payment_method_data_v1(router_data_resp)
+    } else {
+        logger::error!(
+            "Error vaulting payment method: {:?}",
+            old_router_data.response
+        );
+        Err(report!(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to create access token for external vault"))
+    }
 }
 
 pub fn get_vault_response_for_retrieve_payment_method_data_v1<F>(
