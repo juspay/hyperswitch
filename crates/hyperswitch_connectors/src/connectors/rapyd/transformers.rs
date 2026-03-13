@@ -376,7 +376,7 @@ pub struct RefundResponseData {
     pub amount: FloatMajorUnit,
     pub currency: enums::Currency,
     pub status: RefundStatus,
-    pub created_at: Option<i64>,
+    pub created_at: Option<FloatMajorUnit>,
     pub failure_reason: Option<String>,
 }
 
