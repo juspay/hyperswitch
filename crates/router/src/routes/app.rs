@@ -1569,6 +1569,10 @@ impl Payouts {
                         .route(web::post().to(payouts_list_available_filters_for_profile)),
                 )
                 .service(
+                    web::resource("/v2/profile/filter")
+                        .route(web::post().to(get_payout_filters_profile)),
+                )
+                .service(
                     web::resource("/{payout_id}/manual-update")
                         .route(web::put().to(payouts_manual_update)),
                 );
