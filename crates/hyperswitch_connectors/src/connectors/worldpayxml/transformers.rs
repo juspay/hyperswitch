@@ -49,7 +49,7 @@ use crate::{
     utils::{
         self as connector_utils, AddressDetailsData, BrowserInformationData, CardData,
         ForeignTryFrom, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
-        PaymentsSyncRequestData, RouterData as _,
+        PaymentsSetupMandateRequestData, PaymentsSyncRequestData, RouterData as _,
     },
 };
 
@@ -2192,17 +2192,12 @@ impl TryFrom<WorldpayxmlRouterData<&PaymentsCompleteAuthorizeRouterData>> for Pa
 }
 
 impl<F>
-    ForeignTryFrom<(
-        ResponseRouterData<F, PaymentService, CompleteAuthorizeData, PaymentsResponseData>,
-        Option<HeaderMap>,
-    )> for RouterData<F, CompleteAuthorizeData, PaymentsResponseData>
+    TryFrom<ResponseRouterData<F, PaymentService, SetupMandateRequestData, PaymentsResponseData>>
+    for RouterData<F, SetupMandateRequestData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn foreign_try_from(
-        (item, header): (
-            ResponseRouterData<F, PaymentService, CompleteAuthorizeData, PaymentsResponseData>,
-            Option<HeaderMap>,
-        ),
+    fn try_from(
+        item: ResponseRouterData<F, PaymentService, SetupMandateRequestData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let is_auto_capture = item.data.request.is_auto_capture()?;
         let reply = item
@@ -2285,12 +2280,17 @@ impl<F>
 }
 
 impl<F>
-    TryFrom<ResponseRouterData<F, PaymentService, SetupMandateRequestData, PaymentsResponseData>>
-    for RouterData<F, SetupMandateRequestData, PaymentsResponseData>
+    ForeignTryFrom<(
+        ResponseRouterData<F, PaymentService, CompleteAuthorizeData, PaymentsResponseData>,
+        Option<HeaderMap>,
+    )> for RouterData<F, CompleteAuthorizeData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: ResponseRouterData<F, PaymentService, SetupMandateRequestData, PaymentsResponseData>,
+    fn foreign_try_from(
+        (item, header): (
+            ResponseRouterData<F, PaymentService, CompleteAuthorizeData, PaymentsResponseData>,
+            Option<HeaderMap>,
+        ),
     ) -> Result<Self, Self::Error> {
         let reply = item
             .response

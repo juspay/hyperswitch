@@ -34,8 +34,8 @@ use hyperswitch_domain_models::{
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsCompleteAuthorizeRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
-        RefundsRouterData, SetupMandateRouterData, PaymentsPreAuthenticateRouterData,
+        PaymentsCompleteAuthorizeRouterData, PaymentsPreAuthenticateRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData, SetupMandateRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -266,31 +266,45 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
             .into());
         }
 
-        let authorize_req = utils::convert_payment_authorize_router_response((
-            req,
-            utils::convert_setup_mandate_router_data_to_authorize_router_data(req),
-        ));
+        match req.payment_method_type {
+            Some(common_enums::PaymentMethodType::GooglePay)
+            | Some(common_enums::PaymentMethodType::ApplePay) => {
+                let authorize_req = utils::convert_payment_authorize_router_response((
+                    req,
+                    utils::convert_setup_mandate_router_data_to_authorize_router_data(req),
+                ));
 
-        let amount = utils::convert_amount(
-            self.amount_converter,
-            authorize_req.request.minor_amount,
-            authorize_req.request.currency,
-        )?;
+                let amount = utils::convert_amount(
+                    self.amount_converter,
+                    authorize_req.request.minor_amount,
+                    authorize_req.request.currency,
+                )?;
 
-        let connector_router_data =
-            worldpayxml::WorldpayxmlRouterData::from((amount, &authorize_req));
-        let connector_req_object = worldpayxml::PaymentService::try_from(&connector_router_data)?;
-        router_env::logger::info!(raw_connector_request=?connector_req_object);
+                let connector_router_data =
+                    worldpayxml::WorldpayxmlRouterData::from((amount, &authorize_req));
+                let connector_req_object =
+                    worldpayxml::PaymentService::try_from(&connector_router_data)?;
+                router_env::logger::info!(raw_connector_request=?connector_req_object);
 
-        let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
-            &connector_req_object,
-            worldpayxml::worldpayxml_constants::XML_VERSION,
-            Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
-            None,
-            Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE),
-        )?;
+                let connector_req = utils::XmlSerializer::serialize_to_xml_bytes(
+                    &connector_req_object,
+                    worldpayxml::worldpayxml_constants::XML_VERSION,
+                    Some(worldpayxml::worldpayxml_constants::XML_ENCODING),
+                    None,
+                    Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE),
+                )?;
 
-        Ok(RequestContent::RawBytes(connector_req))
+                Ok(RequestContent::RawBytes(connector_req))
+            }
+            _ => {
+                return Err(errors::ConnectorError::FlowNotSupported {
+                    flow: "Setup Mandate flow is not implemented for this payment method"
+                        .to_string(),
+                    connector: "WorldpayWPG".to_string(),
+                }
+                .into());
+            }
+        }
     }
 
     fn build_request(
