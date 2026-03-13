@@ -1,6 +1,6 @@
 pub mod transformers;
 
-use std::{fmt::Debug, sync::LazyLock};
+use std::sync::LazyLock;
 
 use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::enums;
@@ -8,6 +8,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::ByteSliceExt,
     request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -49,14 +50,23 @@ use hyperswitch_interfaces::{
 use masking::{Mask, PeekInterface, Secret};
 use transformers as stax;
 
-use self::stax::StaxWebhookEventType;
 use crate::{
-    constants::headers,
-    types::ResponseRouterData,
-    utils::{self, RefundsRequestData},
+    connectors::stax::transformers::StaxWebhookEventType, constants::headers,
+    types::ResponseRouterData, utils, utils::RefundsRequestData,
 };
-#[derive(Debug, Clone)]
-pub struct Stax;
+
+#[derive(Clone)]
+pub struct Stax {
+    amount_convertor: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
+}
+
+impl Stax {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_convertor: &FloatMajorUnitForConnector,
+        }
+    }
+}
 
 impl api::Payment for Stax {}
 impl api::PaymentSession for Stax {}
@@ -385,12 +395,13 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = stax::StaxRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = utils::convert_amount(
+            self.amount_convertor,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = stax::StaxRouterData::try_from((amount, req))?;
         let connector_req = stax::StaxPaymentsRequest::try_from(&connector_router_data)?;
 
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -553,12 +564,13 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = stax::StaxRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = utils::convert_amount(
+            self.amount_convertor,
+            req.request.minor_amount_to_capture,
             req.request.currency,
-            req.request.amount_to_capture,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = stax::StaxRouterData::try_from((amount, req))?;
         let connector_req = stax::StaxCaptureRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -721,12 +733,13 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Stax {
         req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = stax::StaxRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = utils::convert_amount(
+            self.amount_convertor,
+            req.request.minor_refund_amount,
             req.request.currency,
-            req.request.refund_amount,
-            req,
-        ))?;
+        )?;
+
+        let connector_router_data = stax::StaxRouterData::try_from((amount, req))?;
         let connector_req = stax::StaxRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
