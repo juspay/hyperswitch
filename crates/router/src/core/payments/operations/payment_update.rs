@@ -858,7 +858,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     payment_method_data,
                     &*state.store,
                     state.superposition_service.as_deref(),
-                    &payment_data.payment_intent.merchant_id,
+                    &payment_data.payment_intent.processor_merchant_id,
                     profile_id,
                     customer_id,
                     payment_data.payment_method_token.as_ref(),

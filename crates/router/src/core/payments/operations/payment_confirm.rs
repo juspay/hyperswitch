@@ -513,7 +513,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let store = state.clone().store;
         let superposition_service = state.clone().superposition_service;
-        let merchant_id = payment_intent.merchant_id.clone();
+        let m_merchant_id = processor_merchant_id.clone();
         let profile_id = payment_intent
             .profile_id
             .clone()
@@ -530,7 +530,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                             &payment_method_data,
                             store.as_ref(),
                             superposition_service.as_deref(),
-                            &merchant_id,
+                            &m_merchant_id,
                             &profile_id,
                             customer_id.as_ref(),
                             None,
@@ -2327,7 +2327,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     payment_method_data,
                     &*state.store,
                     state.superposition_service.as_deref(),
-                    &payment_data.payment_intent.merchant_id,
+                    &payment_data.payment_intent.processor_merchant_id,
                     profile_id,
                     customer_id,
                     payment_data.payment_method_token.as_ref(),
