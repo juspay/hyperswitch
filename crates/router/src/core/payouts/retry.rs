@@ -92,10 +92,6 @@ pub async fn do_gsm_single_connector_actions(
 ) -> RouterResult<()> {
     let mut retries = None;
 
-    let merchant_id = platform.get_processor().get_account().get_id().clone();
-    let dimensions: dimension_state::DimensionsWithMerchantId =
-        dimension_state::Dimensions::new().with_merchant_id(merchant_id.clone());
-
     metrics::AUTO_PAYOUT_RETRY_ELIGIBLE_REQUEST_COUNT.add(1, &[]);
 
     let mut previous_gsm = None; // to compare previous status
