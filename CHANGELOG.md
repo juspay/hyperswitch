@@ -4,6 +4,21 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.03.13.0
+
+### Features
+
+- **cypress:** Add cypress tests for modular pm service ([#11305](https://github.com/juspay/hyperswitch/pull/11305)) ([`94c4c8c`](https://github.com/juspay/hyperswitch/commit/94c4c8ccf514416712e4596b952586e95f724373))
+
+### Bug Fixes
+
+- **connector:** [Worldpayxml] correctly map authenticate_shopper_id and scheme transaction id ([#11483](https://github.com/juspay/hyperswitch/pull/11483)) ([`8ad2cf4`](https://github.com/juspay/hyperswitch/commit/8ad2cf459a0d89127f6c948855bb3e5c724d50c1))
+- **payment-methods:** Add vault access token call in external vault retrieve flow ([#11488](https://github.com/juspay/hyperswitch/pull/11488)) ([`78e40c7`](https://github.com/juspay/hyperswitch/commit/78e40c7dd12e17d09bf7f353c92904710b9945f9))
+
+**Full Changelog:** [`2026.03.12.0...2026.03.13.0`](https://github.com/juspay/hyperswitch/compare/2026.03.12.0...2026.03.13.0)
+
+- - -
+
 ## 2026.03.12.0
 
 ### Features

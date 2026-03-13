@@ -2814,7 +2814,7 @@ pub async fn fetch_card_details_from_locker(
         domain::PaymentMethodVaultSourceDetails::ExternalVault {
             ref external_vault_source,
         } => {
-            fetch_card_details_from_external_vault(
+            Box::pin(fetch_card_details_from_external_vault(
                 state,
                 platform.get_processor().get_account().get_id(),
                 card_token_data,
@@ -2822,7 +2822,7 @@ pub async fn fetch_card_details_from_locker(
                 payment_method_info,
                 platform.get_processor().get_key_store(),
                 external_vault_source,
-            )
+            ))
             .await
         }
         domain::PaymentMethodVaultSourceDetails::InternalVault => {
@@ -2920,12 +2920,12 @@ pub async fn fetch_card_details_from_external_vault(
             id: external_vault_mca_id.get_string_repr().to_string(),
         })?;
 
-    let vault_resp = vault::retrieve_payment_method_from_vault_external_v1(
+    let vault_resp = Box::pin(vault::retrieve_payment_method_from_vault_external_v1(
         state,
         merchant_id,
         &payment_method_info,
         merchant_connector_account_details,
-    )
+    ))
     .await?;
 
     let payment_methods_data = payment_method_info.get_payment_methods_data();
