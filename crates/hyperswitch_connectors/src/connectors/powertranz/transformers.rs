@@ -288,6 +288,8 @@ pub struct PowertranzBaseResponse {
     redirect_data: Option<Secret<String>>,
     response_message: String,
     order_identifier: String,
+    pub total_amount: Option<FloatMajorUnit>,
+    pub currency_code: Option<String>,
 }
 
 fn get_status((transaction_type, approved, is_3ds): (u8, bool, bool)) -> enums::AttemptStatus {
