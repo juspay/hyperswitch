@@ -206,6 +206,7 @@ impl PaymentMethodsController for PmCards<'_> {
                     last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
                     customer_details: payment_method_customer_details_encrypted,
                     locker_fingerprint_id,
+                    network_tokenization_data: None, // setting this to None as write path will be introduced in a later PR
                 },
                 self.provider.get_account().storage_scheme,
             )
@@ -437,6 +438,7 @@ impl PaymentMethodsController for PmCards<'_> {
                     last_modified_by: initiator
                         .and_then(|initiator| initiator.to_created_by())
                         .map(|last_modified_by| last_modified_by.to_string()),
+                    network_tokenization_data: None, // setting this to None as write path will be introduced in a later PR
                 };
                 let db = &*self.state.store;
                 let existing_pm = db
@@ -1761,6 +1763,7 @@ pub async fn add_payment_method_data(
                             metadata: None,
                             last_used_at: None,
                             connector_mandate_details: None,
+                            network_tokenization_data: None, // setting it to None as write path will be introduced in a later PR
                         };
 
                         db.update_payment_method(
@@ -2443,6 +2446,7 @@ pub async fn update_payment_method_metadata_and_network_token_data_and_last_used
         metadata: pm_metadata,
         last_used_at: Some(common_utils::date_time::now()),
         connector_mandate_details: None,
+        network_tokenization_data: None, // setting this to None as write path will be introduced in a later PR
     };
 
     db.update_payment_method(key_store, pm, pm_update, storage_scheme)
@@ -2470,6 +2474,7 @@ pub async fn update_payment_method_network_token_data(
         last_modified_by: initiator
             .and_then(|initiator| initiator.to_created_by())
             .map(|last_modified_by| last_modified_by.to_string()),
+        network_tokenization_data: None, // setting this to None as write path will be introduced in a later PR
     };
 
     db.update_payment_method(key_store, pm, pm_update, storage_scheme)
@@ -2591,7 +2596,8 @@ pub async fn update_payment_method_connector_mandate_details_and_network_token_d
             .map(|last_modified_by| last_modified_by.to_string()),
         metadata: None,
         last_used_at: None,
-        connector_mandate_details: connector_mandate_details_value,
+        connector_mandate_details: connector_mandate_details_value.map(Box::new),
+        network_tokenization_data: None, // setting this to None as write path will be introduced in a later PR
     };
 
     db.update_payment_method(key_store, pm, pm_update, storage_scheme)

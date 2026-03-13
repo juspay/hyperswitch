@@ -402,6 +402,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
             last_modified_by: initiator
                 .and_then(|initiator| initiator.to_created_by())
                 .map(|last_modified_by| last_modified_by.to_string()),
+            network_tokenization_data: None,
         };
         self.state
             .store
