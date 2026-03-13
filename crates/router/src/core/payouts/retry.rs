@@ -26,15 +26,12 @@ use crate::{
 pub async fn do_gsm_multiple_connector_actions(
     state: &app::SessionState,
     mut connectors_routing_data: IntoIter<api::ConnectorRoutingData>,
+    dimensions: &dimension_state::DimensionsWithMerchantId,
     original_connector_data: api::ConnectorData,
     payout_data: &mut PayoutData,
     platform: &domain::Platform,
 ) -> RouterResult<()> {
     let mut retries = None;
-
-    let merchant_id = platform.get_processor().get_account().get_id().clone();
-    let dimensions: dimension_state::DimensionsWithMerchantId =
-        dimension_state::Dimensions::new().with_merchant_id(merchant_id.clone());
 
     metrics::AUTO_PAYOUT_RETRY_ELIGIBLE_REQUEST_COUNT.add(1, &[]);
 
@@ -49,7 +46,7 @@ pub async fn do_gsm_multiple_connector_actions(
                     state,
                     retries,
                     &dimensions,
-                    &merchant_id,
+                    payout_data.payout_attempt.customer_id.as_ref(),
                     PayoutRetryType::MultiConnector,
                 )
                 .await;
@@ -89,6 +86,7 @@ pub async fn do_gsm_multiple_connector_actions(
 pub async fn do_gsm_single_connector_actions(
     state: &app::SessionState,
     original_connector_data: api::ConnectorData,
+    dimensions: &dimension_state::DimensionsWithMerchantId,
     payout_data: &mut PayoutData,
     platform: &domain::Platform,
 ) -> RouterResult<()> {
@@ -117,7 +115,7 @@ pub async fn do_gsm_single_connector_actions(
                     state,
                     retries,
                     &dimensions,
-                    &merchant_id,
+                    payout_data.payout_attempt.customer_id.as_ref(),
                     PayoutRetryType::SingleConnector,
                 )
                 .await;
@@ -149,7 +147,7 @@ pub async fn get_retries(
     state: &app::SessionState,
     retries: Option<i32>,
     dimensions: &dimension_state::DimensionsWithMerchantId,
-    merchant_id: &common_utils::id_type::MerchantId,
+    customer_id: Option<&common_utils::id_type::CustomerId>,
     retry_type: PayoutRetryType,
 ) -> Option<i32> {
     match retries {
@@ -157,7 +155,7 @@ pub async fn get_retries(
         None => {
             let storage = state.store.as_ref();
             let superposition_client = state.superposition_service.as_deref();
-            let targeting_key = Some(merchant_id);
+            let targeting_key = customer_id;
 
             let retries_i64 = match retry_type {
                 PayoutRetryType::SingleConnector => {

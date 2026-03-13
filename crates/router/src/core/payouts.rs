@@ -171,6 +171,7 @@ pub async fn get_connector_choice(
 pub async fn make_connector_decision(
     state: &SessionState,
     platform: &domain::Platform,
+    dimensions: &crate::core::configs::dimension_state::DimensionsWithMerchantId,
     connector_call_type: api::ConnectorCallType,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
@@ -197,6 +198,7 @@ pub async fn make_connector_decision(
                     Box::pin(retry::do_gsm_single_connector_actions(
                         state,
                         routing_data.connector_data,
+                        &dimensions,
                         payout_data,
                         platform,
                     ))
@@ -232,6 +234,7 @@ pub async fn make_connector_decision(
                     Box::pin(retry::do_gsm_multiple_connector_actions(
                         state,
                         routing_data,
+                        &dimensions,
                         connector_data.clone(),
                         payout_data,
                         platform,
@@ -250,6 +253,7 @@ pub async fn make_connector_decision(
                     Box::pin(retry::do_gsm_single_connector_actions(
                         state,
                         connector_data,
+                        &dimensions,
                         payout_data,
                         platform,
                     ))
@@ -276,6 +280,10 @@ pub async fn payouts_core(
 ) -> RouterResult<()> {
     let payout_attempt = &payout_data.payout_attempt;
 
+    let dimensions: crate::core::configs::dimension_state::DimensionsWithMerchantId =
+        crate::core::configs::dimension_state::Dimensions::new()
+            .with_merchant_id(platform.get_processor().get_account().get_id().clone());
+
     // Form connector data
     let connector_call_type = get_connector_choice(
         state,
@@ -291,6 +299,7 @@ pub async fn payouts_core(
     Box::pin(make_connector_decision(
         state,
         platform,
+        &dimensions,
         connector_call_type,
         payout_data,
     ))

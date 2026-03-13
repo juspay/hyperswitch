@@ -157,7 +157,7 @@ config! {
     output = i64,
     default = 0i64,
     requires = DimensionsWithMerchantId,
-    targeting_key = id_type::MerchantId
+    targeting_key = id_type::CustomerId
 }
 
 impl DatabaseBackedConfig for MaxAutoSingleConnectorPayoutRetries {
@@ -176,7 +176,7 @@ config! {
     output = i64,
     default = 0i64,
     requires = DimensionsWithMerchantId,
-    targeting_key = id_type::MerchantId
+    targeting_key = id_type::CustomerId
 }
 
 impl DatabaseBackedConfig for MaxAutoMultipleConnectorPayoutRetries {
