@@ -1149,6 +1149,52 @@
             "api_key": []
           }
         ]
+      },
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Cancel Post Capture Retrieve",
+        "description": "Retrieves a canceled Payment post capture",
+        "operationId": "Cancel a Payment Post Capture Retrieve",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment canceled post capture",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing mandatory fields",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
       }
     },
     "/payments/{payment_id}/extend_authorization": {
@@ -25749,6 +25795,22 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "total_disputed_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "post_capture_void": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PostCaptureVoidResponse"
               }
             ],
             "nullable": true
