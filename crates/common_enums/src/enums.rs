@@ -8512,7 +8512,11 @@ impl PayoutStatus {
     }
 
     pub fn is_non_terminal_status(&self) -> bool {
-        !matches!(
+        !self.is_terminal_status()
+    }
+
+    pub fn is_terminal_status(&self) -> bool {
+        matches!(
             self,
             Self::Success | Self::Failed | Self::Cancelled | Self::Expired | Self::Reversed
         )
@@ -10253,6 +10257,7 @@ pub enum ProcessTrackerRunner {
     ProcessDisputeWorkflow,
     DisputeListWorkflow,
     InvoiceSyncflow,
+    PayoutSyncWorkFlow,
 }
 
 #[derive(

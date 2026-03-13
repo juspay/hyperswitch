@@ -64,6 +64,7 @@ use crate::{
         transformers::{ForeignFrom, ForeignTryFrom},
     },
     utils::{self, OptionExt},
+    workflows::payout_sync,
 };
 
 // ********************************************** TYPES **********************************************
@@ -2470,8 +2471,33 @@ pub async fn fulfill_payout(
     .await?;
 
     // 3. Call connector service
+    let db = &*state.store;
     let router_data_resp = match helpers::should_continue_payout(&router_data) {
         true => {
+            let scheduled_time =
+                payout_sync::PayoutSyncWorkFlow::get_payout_sync_process_schedule_time(
+                    state,
+                    connector_data.connector_name,
+                    payout_data.payouts.payout_id.clone(),
+                    payout_data.payouts.merchant_id.clone(),
+                    0,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while getting process schedule time")?;
+
+            // add payout sync task to process tracker
+
+            add_payout_sync_task_to_process_tracker(
+                db,
+                payout_data,
+                scheduled_time,
+                state.conf.application_source,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to add payout sync task to process tracker")?;
+
             let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
                 api::PoFulfill,
                 types::PayoutsData,
@@ -2493,7 +2519,6 @@ pub async fn fulfill_payout(
     };
 
     // 4. Process data returned by the connector
-    let db = &*state.store;
     match router_data_resp.response {
         Ok(payout_response_data) => {
             let status = payout_response_data
@@ -2537,24 +2562,19 @@ pub async fn fulfill_payout(
                     .payout_method_data
                     .clone()
                     .get_required_value("payout_method_data")?;
-                payout_data
-                    .payouts
-                    .customer_id
-                    .clone()
-                    .async_map(|customer_id| async move {
-                        helpers::save_payout_data_to_locker(
-                            state,
-                            payout_data,
-                            &customer_id,
-                            &payout_method_data,
-                            None,
-                            platform,
-                        )
-                        .await
-                    })
+
+                if let Some(customer_id) = payout_data.payouts.customer_id.clone() {
+                    helpers::save_payout_data_to_locker(
+                        state,
+                        payout_data,
+                        &customer_id,
+                        &payout_method_data,
+                        None,
+                        platform,
+                    )
                     .await
-                    .transpose()
                     .attach_printable("Failed to save payout data to locker")?;
+                }
             }
         }
         Err(err) => {
@@ -3237,6 +3257,48 @@ pub async fn add_external_account_addition_task(
 
     db.insert_process(process_tracker_entry).await?;
     Ok(())
+}
+
+pub async fn add_payout_sync_task_to_process_tracker(
+    db: &dyn StorageInterface,
+    payout_data: &PayoutData,
+    schedule_time: Option<time::PrimitiveDateTime>,
+    application_source: common_enums::ApplicationSource,
+) -> CustomResult<(), errors::StorageError> {
+    match schedule_time {
+        Some(schedule_time) => {
+            let runner = storage::ProcessTrackerRunner::PayoutSyncWorkFlow;
+            let task = "PAYOUTS_SYNC";
+            let tag = ["PAYOUTS", "SYNC"];
+            let process_tracker_id = pt_utils::get_process_tracker_id(
+                runner,
+                task,
+                &payout_data.payout_attempt.payout_attempt_id,
+                &payout_data.payout_attempt.merchant_id,
+            );
+            let tracking_data = api::PayoutRetrieveRequest {
+                payout_id: payout_data.payouts.payout_id.to_owned(),
+                force_sync: Some(true),
+                merchant_id: Some(payout_data.payouts.merchant_id.to_owned()),
+            };
+            let process_tracker_entry = storage::ProcessTrackerNew::new(
+                process_tracker_id,
+                task,
+                runner,
+                tag,
+                tracking_data,
+                None,
+                schedule_time,
+                common_types::consts::API_VERSION,
+                application_source,
+            )
+            .map_err(errors::StorageError::from)?;
+
+            db.insert_process(process_tracker_entry).await?;
+            Ok(())
+        }
+        None => Ok(()),
+    }
 }
 
 async fn validate_and_get_business_profile(
