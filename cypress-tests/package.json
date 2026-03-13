@@ -36,19 +36,19 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/node": "^24.2.1",
-    "cypress": "^14.5.4",
-    "cypress-mochawesome-reporter": "^4.0.0",
+    "cypress": "^15.10.0",
+    "cypress-mochawesome-reporter": "^4.0.2",
     "eslint": "^9.32.0",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-cypress": "^5.1.0",
+    "eslint-plugin-cypress": "^5.3.0",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-prettier": "^5.5.4",
-    "globals": "^16.3.0",
+    "globals": "^17.3.0",
     "jsqr": "^1.4.0",
     "prettier": "^3.6.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.2",
-    "typescript-eslint": "^8.39.1"
+    "typescript-eslint": "^8.55.0"
   },
   "optionalDependencies": {
     "fsevents": "^2.3.3"
