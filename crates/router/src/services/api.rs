@@ -1662,7 +1662,7 @@ pub fn build_redirection_form(
                     div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-left: auto; margin-right: auto;" { "" }
 
                         h3 style="text-align: center;" { "Please wait while we perform Device Data Collection ..." }
-                        (PreEscaped(format!(r#"<iframe id="ddcFrame" height="1" width="1" style="display: none;"></iframe>"#)))
+                        iframe id="ddcFrame" height="1" width="1" style="display: none;" {}
 
                         (PreEscaped(format!(r#"<script>
                             {logging_template}
