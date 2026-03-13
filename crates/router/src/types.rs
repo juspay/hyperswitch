@@ -41,7 +41,7 @@ use hyperswitch_domain_models::router_flow_types::{
         CompleteAuthorize, CreateConnectorCustomer, CreateOrder, ExtendAuthorization,
         ExternalVaultProxy, IncrementalAuthorization, InitPayment, PSync, PostCaptureVoid,
         PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
-        SetupMandate, UpdateMetadata, Void,
+        SetupMandate, UpdateMetadata, Void, UpdatePostConfirm,
     },
     refunds::{Execute, RSync},
     webhooks::VerifyWebhookSource,
@@ -85,7 +85,7 @@ pub use hyperswitch_domain_models::{
         PaymentsUpdateMetadataData, RefundsData, ResponseId, RetrieveFileRequestData,
         SdkPaymentsSessionUpdateData, SetupMandateRequestData, SplitRefundsRequest,
         SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData, VaultRequestData,
-        VerifyWebhookSourceRequestData,
+        VerifyWebhookSourceRequestData, PaymentsUpdatePostConfirmData,
     },
     router_response_types::{
         merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
@@ -173,6 +173,9 @@ pub type PaymentsPostSessionTokensRouterData =
 
 pub type PaymentsUpdateMetadataRouterData =
     RouterData<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsResponseData>;
+
+pub type PaymentsUpdatePostConfirmRouterData =
+    RouterData<UpdatePostConfirm, PaymentsUpdatePostConfirmData, PaymentsResponseData>;
 
 pub type PaymentsCancelRouterData = RouterData<Void, PaymentsCancelData, PaymentsResponseData>;
 pub type PaymentsCancelPostCaptureRouterData =

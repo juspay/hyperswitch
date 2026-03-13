@@ -23,7 +23,7 @@ use hyperswitch_domain_models::{
             CreateConnectorCustomer, CreateOrder, ExtendAuthorization, ExternalVaultProxy,
             GiftCardBalanceCheck, IncrementalAuthorization, PSync, PaymentMethodToken,
             PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing, Reject,
-            SdkSessionUpdate, Session, SettlementSplitCreate, SetupMandate, UpdateMetadata, Void,
+            SdkSessionUpdate, Session, SettlementSplitCreate, SetupMandate, UpdateMetadata, Void, UpdatePostConfirm,
         },
         refunds::{Execute, RSync},
         revenue_recovery::{
@@ -54,7 +54,7 @@ use hyperswitch_domain_models::{
         PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
         RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SettlementSplitRequestData,
         SetupMandateRequestData, SubmitEvidenceRequestData, UploadFileRequestData,
-        VaultRequestData, VerifyWebhookSourceRequestData,
+        VaultRequestData, VerifyWebhookSourceRequestData, PaymentsUpdatePostConfirmData,
     },
     router_response_types::{
         merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
@@ -294,6 +294,13 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             UpdateMetadata,
             PaymentFlowData,
             PaymentsUpdateMetadataData,
+            PaymentsResponseData,
+            > for $path::$connector{}
+                    impl
+            ConnectorIntegrationV2<
+            UpdatePostConfirm,
+            PaymentFlowData,
+            PaymentsUpdatePostConfirmData,
             PaymentsResponseData,
             > for $path::$connector{}
         impl ConnectorIntegrationV2<CreateOrder, PaymentFlowData, CreateOrderRequestData, PaymentsResponseData>
