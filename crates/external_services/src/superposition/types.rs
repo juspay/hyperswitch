@@ -2,8 +2,79 @@
 
 use std::collections::HashMap;
 
+use aws_smithy_types::Document;
 use common_utils::{errors::CustomResult, fp_utils::when};
 use masking::{ExposeInterface, Secret};
+
+/// Trait for converting Rust types to Superposition Document for write operations
+pub trait ToDocument {
+    /// Convert the value to a Document for storage in Superposition
+    fn to_document(&self) -> Document;
+}
+
+impl ToDocument for String {
+    fn to_document(&self) -> Document {
+        Document::String(self.clone())
+    }
+}
+
+impl ToDocument for bool {
+    fn to_document(&self) -> Document {
+        Document::Bool(*self)
+    }
+}
+
+impl ToDocument for i64 {
+    fn to_document(&self) -> Document {
+        if *self >= 0 {
+            Document::Number(aws_smithy_types::Number::PosInt(*self as u64))
+        } else {
+            Document::Number(aws_smithy_types::Number::NegInt(*self))
+        }
+    }
+}
+
+impl ToDocument for i32 {
+    fn to_document(&self) -> Document {
+        if *self >= 0 {
+            Document::Number(aws_smithy_types::Number::PosInt(*self as u64))
+        } else {
+            Document::Number(aws_smithy_types::Number::NegInt(*self as i64))
+        }
+    }
+}
+
+impl ToDocument for serde_json::Value {
+    fn to_document(&self) -> Document {
+        match self {
+            serde_json::Value::String(s) => Document::String(s.clone()),
+            serde_json::Value::Bool(b) => Document::Bool(*b),
+            serde_json::Value::Number(n) => {
+                if let Some(n) = n.as_i64() {
+                    if n >= 0 {
+                        Document::Number(aws_smithy_types::Number::PosInt(n as u64))
+                    } else {
+                        Document::Number(aws_smithy_types::Number::NegInt(n))
+                    }
+                } else if let Some(n) = n.as_u64() {
+                    Document::Number(aws_smithy_types::Number::PosInt(n))
+                } else {
+                    // For floats, serialize as string since Document Number doesn't support floats directly
+                    Document::String(n.to_string())
+                }
+            }
+            serde_json::Value::Object(obj) => Document::Object(
+                obj.iter()
+                    .map(|(k, v)| (k.clone(), v.to_document()))
+                    .collect(),
+            ),
+            serde_json::Value::Array(arr) => {
+                Document::Array(arr.iter().map(|v| v.to_document()).collect())
+            }
+            serde_json::Value::Null => Document::Null,
+        }
+    }
+}
 
 /// Wrapper type for JSON values from Superposition
 #[derive(Debug, Clone)]
