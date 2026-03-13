@@ -1,3 +1,5 @@
+use std::{collections::HashMap, fmt::Debug};
+
 use api_models::enums as api_enums;
 use cards::{CardNumber, NetworkToken};
 #[cfg(feature = "v2")]
@@ -9,8 +11,6 @@ use common_utils::id_type;
 use hyperswitch_domain_models::payment_method_data::NetworkTokenDetails;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::fmt::Debug;
 
 #[cfg(feature = "v2")]
 use crate::types::storage;
