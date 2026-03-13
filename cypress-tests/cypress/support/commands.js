@@ -5672,10 +5672,7 @@ Cypress.Commands.add("step", (stepName, errorStack, fn) => {
         cy.task("cli_log", `${ANSI_RED}[FAILED]${ANSI_RESET} ${stepName}`);
         log.set({ displayName: "✗ STEP", message: stepName });
       } else {
-        cy.task(
-          "cli_log",
-          `${ANSI_GREEN}[SUCCEEDED]${ANSI_RESET} ${stepName}`
-        );
+        cy.task("cli_log", `${ANSI_GREEN}[SUCCEEDED]${ANSI_RESET} ${stepName}`);
         log.set({ displayName: "✓ STEP", message: stepName, collapsed: true });
       }
       Cypress.log({ groupEnd: true, emitOnly: true });

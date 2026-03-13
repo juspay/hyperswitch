@@ -1022,31 +1022,35 @@ describe("Corner cases", () => {
         cy.retrievePaymentCallTest({ globalState, data });
       });
 
-      cy.step("Create a payment with a duplicate payment ID", errorStack, () => {
-        if (!shouldContinue) {
-          cy.task(
-            "cli_log",
-            "Skipping step: Create a payment with a duplicate payment ID"
+      cy.step(
+        "Create a payment with a duplicate payment ID",
+        errorStack,
+        () => {
+          if (!shouldContinue) {
+            cy.task(
+              "cli_log",
+              "Skipping step: Create a payment with a duplicate payment ID"
+            );
+            return;
+          }
+          const createConfirmBody = Cypress._.cloneDeep(
+            fixtures.createConfirmPaymentBody
           );
-          return;
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["DuplicatePaymentID"];
+
+          data.Request.payment_id = globalState.get("paymentID");
+
+          cy.createConfirmPaymentTest(
+            createConfirmBody,
+            data,
+            "no_three_ds",
+            "automatic",
+            globalState
+          );
         }
-        const createConfirmBody = Cypress._.cloneDeep(
-          fixtures.createConfirmPaymentBody
-        );
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["DuplicatePaymentID"];
-
-        data.Request.payment_id = globalState.get("paymentID");
-
-        cy.createConfirmPaymentTest(
-          createConfirmBody,
-          data,
-          "no_three_ds",
-          "automatic",
-          globalState
-        );
-      });
+      );
 
       cy.then(() => {
         if (errorStack.length > 0) {
@@ -1166,12 +1170,16 @@ describe("Corner cases", () => {
         cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
       });
 
-      cy.step("Create a customer with a duplicate customer ID", errorStack, () => {
-        const customerData = fixtures.customerCreateBody;
-        customerData.customer_id = globalState.get("customerId");
+      cy.step(
+        "Create a customer with a duplicate customer ID",
+        errorStack,
+        () => {
+          const customerData = fixtures.customerCreateBody;
+          customerData.customer_id = globalState.get("customerId");
 
-        cy.createCustomerCallTest(customerData, globalState);
-      });
+          cy.createCustomerCallTest(customerData, globalState);
+        }
+      );
 
       cy.then(() => {
         if (errorStack.length > 0) {
@@ -1204,26 +1212,32 @@ describe("Corner cases", () => {
         }
       });
 
-      cy.step("Confirm payment with invalid publishable key", errorStack, () => {
-        if (!shouldContinue) {
-          cy.task(
-            "cli_log",
-            "Skipping step: Confirm payment with invalid publishable key"
+      cy.step(
+        "Confirm payment with invalid publishable key",
+        errorStack,
+        () => {
+          if (!shouldContinue) {
+            cy.task(
+              "cli_log",
+              "Skipping step: Confirm payment with invalid publishable key"
+            );
+            return;
+          }
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["InvalidPublishableKey"];
+
+          const originalKey = globalState.get("publishableKey");
+          //set invalid publishable key
+          cy.then(() =>
+            globalState.set("publishableKey", "pk_snd_invalid_key")
           );
-          return;
+          cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+
+          // Restore key synchronously after test
+          cy.then(() => globalState.set("publishableKey", originalKey));
         }
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["InvalidPublishableKey"];
-
-        const originalKey = globalState.get("publishableKey");
-        //set invalid publishable key
-        cy.then(() => globalState.set("publishableKey", "pk_snd_invalid_key"));
-        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
-
-        // Restore key synchronously after test
-        cy.then(() => globalState.set("publishableKey", originalKey));
-      });
+      );
 
       cy.then(() => {
         if (errorStack.length > 0) {

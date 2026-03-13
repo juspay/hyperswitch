@@ -771,49 +771,57 @@ describe("Card - SaveCard payment flow test", () => {
           cy.listCustomerPMCallTest(globalState);
         });
 
-        cy.step("Create Payment Intent for Subsequent Payment", errorStack, () => {
-          if (!shouldContinue) {
-            cy.task(
-              "cli_log",
-              "Skipping step: Create Payment Intent for Subsequent Payment"
+        cy.step(
+          "Create Payment Intent for Subsequent Payment",
+          errorStack,
+          () => {
+            if (!shouldContinue) {
+              cy.task(
+                "cli_log",
+                "Skipping step: Create Payment Intent for Subsequent Payment"
+              );
+              return;
+            }
+            const paymentIntentData = getConnectorDetails(
+              globalState.get("connectorId")
+            )["card_pm"]["PaymentIntentOffSession"];
+            cy.createPaymentIntentTest(
+              fixtures.createPaymentBody,
+              paymentIntentData,
+              "no_three_ds",
+              "automatic",
+              globalState
             );
-            return;
+            if (!utils.should_continue_further(paymentIntentData)) {
+              shouldContinue = false;
+            }
           }
-          const paymentIntentData = getConnectorDetails(
-            globalState.get("connectorId")
-          )["card_pm"]["PaymentIntentOffSession"];
-          cy.createPaymentIntentTest(
-            fixtures.createPaymentBody,
-            paymentIntentData,
-            "no_three_ds",
-            "automatic",
-            globalState
-          );
-          if (!utils.should_continue_further(paymentIntentData)) {
-            shouldContinue = false;
-          }
-        });
+        );
 
-        cy.step("Save Card Confirm Call for Subsequent Payment", errorStack, () => {
-          if (!shouldContinue) {
-            cy.task(
-              "cli_log",
-              "Skipping step: Save Card Confirm Call for Subsequent Payment"
+        cy.step(
+          "Save Card Confirm Call for Subsequent Payment",
+          errorStack,
+          () => {
+            if (!shouldContinue) {
+              cy.task(
+                "cli_log",
+                "Skipping step: Save Card Confirm Call for Subsequent Payment"
+              );
+              return;
+            }
+            const saveCardBody = Cypress._.cloneDeep(
+              fixtures.saveCardConfirmBody
             );
-            return;
+            const saveCardConfirmData = getConnectorDetails(
+              globalState.get("connectorId")
+            )["card_pm"]["SaveCardConfirmAutoCaptureOffSession"];
+            cy.saveCardConfirmCallTest(
+              saveCardBody,
+              saveCardConfirmData,
+              globalState
+            );
           }
-          const saveCardBody = Cypress._.cloneDeep(
-            fixtures.saveCardConfirmBody
-          );
-          const saveCardConfirmData = getConnectorDetails(
-            globalState.get("connectorId")
-          )["card_pm"]["SaveCardConfirmAutoCaptureOffSession"];
-          cy.saveCardConfirmCallTest(
-            saveCardBody,
-            saveCardConfirmData,
-            globalState
-          );
-        });
+        );
 
         cy.then(() => {
           if (errorStack.length > 0) {
@@ -882,28 +890,32 @@ describe("Card - SaveCard payment flow test", () => {
           cy.listCustomerPMCallTest(globalState);
         });
 
-        cy.step("Create Payment Intent for Subsequent Payment", errorStack, () => {
-          if (!shouldContinue) {
-            cy.task(
-              "cli_log",
-              "Skipping step: Create Payment Intent for Subsequent Payment"
+        cy.step(
+          "Create Payment Intent for Subsequent Payment",
+          errorStack,
+          () => {
+            if (!shouldContinue) {
+              cy.task(
+                "cli_log",
+                "Skipping step: Create Payment Intent for Subsequent Payment"
+              );
+              return;
+            }
+            const paymentIntentData = getConnectorDetails(
+              globalState.get("connectorId")
+            )["card_pm"]["PaymentIntentOffSession"];
+            cy.createPaymentIntentTest(
+              fixtures.createPaymentBody,
+              paymentIntentData,
+              "no_three_ds",
+              "automatic",
+              globalState
             );
-            return;
+            if (!utils.should_continue_further(paymentIntentData)) {
+              shouldContinue = false;
+            }
           }
-          const paymentIntentData = getConnectorDetails(
-            globalState.get("connectorId")
-          )["card_pm"]["PaymentIntentOffSession"];
-          cy.createPaymentIntentTest(
-            fixtures.createPaymentBody,
-            paymentIntentData,
-            "no_three_ds",
-            "automatic",
-            globalState
-          );
-          if (!utils.should_continue_further(paymentIntentData)) {
-            shouldContinue = false;
-          }
-        });
+        );
 
         cy.step(
           "Save Card Confirm Call for Subsequent Payment without Billing Address",
