@@ -1767,7 +1767,7 @@ Cypress.Commands.add(
             );
           }
           expect(response.body.payment_id, "payment_id").to.not.be.null;
-          expect(response.body.merchant_id, "merchant_id").to.be.null;
+          expect(response.body.merchant_id, "merchant_id").to.not.be.null;
           expect(createPaymentBody.amount, "amount").to.equal(
             response.body.amount
           );
@@ -5584,37 +5584,6 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add("step", (stepName, fn) => {
-  cy.task("cli_log", `\nSTEP: ${stepName}`);
-
-  const log = Cypress.log({
-    name: "step",
-    displayName: "⬡ STEP",
-    message: `**${stepName}**`,
-    groupStart: true,
-    consoleProps: () => ({ Step: stepName }),
-  });
-
-  let failed = false;
-
-  try {
-    fn();
-  } catch (err) {
-    failed = true;
-    Cypress.log({ groupEnd: true, emitOnly: true });
-    throw err;
-  }
-
-  cy.then(() => {
-    if (failed) {
-      log.set({ displayName: "✗ STEP", message: stepName });
-    } else {
-      log.set({ displayName: "✓ STEP", message: stepName, collapsed: true });
-    }
-    Cypress.log({ groupEnd: true, emitOnly: true });
-  });
-});
-
 const ANSI_GREEN = "\x1b[32m";
 const ANSI_RED = "\x1b[31m";
 const ANSI_RESET = "\x1b[0m";
@@ -5645,7 +5614,7 @@ function buildDiff(actual, expected) {
   ].join("\n");
 }
 
-Cypress.Commands.add("stepTest", (stepName, errorStack, fn) => {
+Cypress.Commands.add("step", (stepName, errorStack, fn) => {
   cy.task("cli_log", `\nSTEP: ${stepName}`);
 
   const log = Cypress.log({
@@ -5703,7 +5672,10 @@ Cypress.Commands.add("stepTest", (stepName, errorStack, fn) => {
         cy.task("cli_log", `${ANSI_RED}[FAILED]${ANSI_RESET} ${stepName}`);
         log.set({ displayName: "✗ STEP", message: stepName });
       } else {
-        cy.task("cli_log", `${ANSI_GREEN}[SUCCEEDED]${ANSI_RESET} ${stepName}`);
+        cy.task(
+          "cli_log",
+          `${ANSI_GREEN}[SUCCEEDED]${ANSI_RESET} ${stepName}`
+        );
         log.set({ displayName: "✓ STEP", message: stepName, collapsed: true });
       }
       Cypress.log({ groupEnd: true, emitOnly: true });

@@ -1,6 +1,7 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
+import reportErrors from "../../../utils/reportErrors";
 
 let globalState;
 
@@ -21,9 +22,10 @@ describe("Reward Payment - Cashtocode", () => {
 
   context("Evoucher payment method flow", () => {
     it("Create Payment Intent for Evoucher -> Payment Methods Call Test -> Confirm Evoucher Payment -> Handle redirection -> Retrieve Payment Call Test", () => {
+      const errorStack = [];
       let shouldContinue = true;
 
-      cy.step("Create Payment Intent for Evoucher", () => {
+      cy.step("Create Payment Intent for Evoucher", errorStack, () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "reward_pm"
         ]["PaymentIntentUSD"];
@@ -41,7 +43,7 @@ describe("Reward Payment - Cashtocode", () => {
         }
       });
 
-      cy.step("Payment Methods Call Test", () => {
+      cy.step("Payment Methods Call Test", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Payment Methods Call Test");
           return;
@@ -49,7 +51,7 @@ describe("Reward Payment - Cashtocode", () => {
         cy.paymentMethodsCallTest(globalState);
       });
 
-      cy.step("Confirm Evoucher Payment", () => {
+      cy.step("Confirm Evoucher Payment", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Confirm Evoucher Payment");
           return;
@@ -65,7 +67,7 @@ describe("Reward Payment - Cashtocode", () => {
         }
       });
 
-      cy.step("Handle redirection", () => {
+      cy.step("Handle redirection", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Handle redirection");
           return;
@@ -79,7 +81,7 @@ describe("Reward Payment - Cashtocode", () => {
         );
       });
 
-      cy.step("Retrieve Payment Call Test", () => {
+      cy.step("Retrieve Payment Call Test", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Retrieve Payment Call Test");
           return;
@@ -90,14 +92,21 @@ describe("Reward Payment - Cashtocode", () => {
 
         cy.retrievePaymentCallTest({ globalState, data });
       });
+
+      cy.then(() => {
+        if (errorStack.length > 0) {
+          reportErrors(errorStack);
+        }
+      });
     });
   });
 
   context("Classic payment method flow", () => {
     it("Create Payment Intent for Classic -> Payment Methods Call Test -> Confirm Classic Payment -> Handle Redirection for Classic -> Retrieve Payment Call Test", () => {
+      const errorStack = [];
       let shouldContinue = true;
 
-      cy.step("Create Payment Intent for Classic", () => {
+      cy.step("Create Payment Intent for Classic", errorStack, () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "reward_pm"
         ]["PaymentIntentEUR"];
@@ -115,7 +124,7 @@ describe("Reward Payment - Cashtocode", () => {
         }
       });
 
-      cy.step("Payment Methods Call Test", () => {
+      cy.step("Payment Methods Call Test", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Payment Methods Call Test");
           return;
@@ -123,7 +132,7 @@ describe("Reward Payment - Cashtocode", () => {
         cy.paymentMethodsCallTest(globalState);
       });
 
-      cy.step("Confirm Classic Payment", () => {
+      cy.step("Confirm Classic Payment", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Confirm Classic Payment");
           return;
@@ -139,7 +148,7 @@ describe("Reward Payment - Cashtocode", () => {
         }
       });
 
-      cy.step("Handle Redirection for Classic", () => {
+      cy.step("Handle Redirection for Classic", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Handle Redirection for Classic");
           return;
@@ -153,7 +162,7 @@ describe("Reward Payment - Cashtocode", () => {
         );
       });
 
-      cy.step("Retrieve Payment Call Test", () => {
+      cy.step("Retrieve Payment Call Test", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Retrieve Payment Call Test");
           return;
@@ -163,6 +172,12 @@ describe("Reward Payment - Cashtocode", () => {
         ]["Classic"];
 
         cy.retrievePaymentCallTest({ globalState, data });
+      });
+
+      cy.then(() => {
+        if (errorStack.length > 0) {
+          reportErrors(errorStack);
+        }
       });
     });
   });

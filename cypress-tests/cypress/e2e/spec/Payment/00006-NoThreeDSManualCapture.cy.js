@@ -1,6 +1,7 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
+import reportErrors from "../../../utils/reportErrors";
 
 let globalState;
 
@@ -19,9 +20,10 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
     "Card - NoThreeDS Manual Full Capture payment flow test - Create and Confirm",
     () => {
       it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Retrieve Payment after Confirmation -> Capture Payment -> Retrieve Payment after Capture", () => {
+        const errorStack = [];
         let shouldContinue = true;
 
-        cy.step("Create Payment Intent", () => {
+        cy.step("Create Payment Intent", errorStack, () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["PaymentIntent"];
@@ -39,7 +41,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           }
         });
 
-        cy.step("Payment Methods Call", () => {
+        cy.step("Payment Methods Call", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Payment Methods Call");
             return;
@@ -47,7 +49,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           cy.paymentMethodsCallTest(globalState);
         });
 
-        cy.step("Confirm Payment Intent", () => {
+        cy.step("Confirm Payment Intent", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Confirm Payment Intent");
             return;
@@ -68,7 +70,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           }
         });
 
-        cy.step("Retrieve Payment after Confirmation", () => {
+        cy.step("Retrieve Payment after Confirmation", errorStack, () => {
           if (!shouldContinue) {
             cy.task(
               "cli_log",
@@ -87,7 +89,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           }
         });
 
-        cy.step("Capture Payment", () => {
+        cy.step("Capture Payment", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Capture Payment");
             return;
@@ -103,7 +105,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           }
         });
 
-        cy.step("Retrieve Payment after Capture", () => {
+        cy.step("Retrieve Payment after Capture", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Retrieve Payment after Capture");
             return;
@@ -113,6 +115,12 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           )["card_pm"]["Capture"];
 
           cy.retrievePaymentCallTest({ globalState, data: captureData });
+        });
+
+        cy.then(() => {
+          if (errorStack.length > 0) {
+            reportErrors(errorStack);
+          }
         });
       });
     }
@@ -122,9 +130,10 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
     "Card - NoThreeDS Manual Full Capture payment flow test - Create+Confirm",
     () => {
       it("Create and Confirm Payment Intent -> Retrieve Payment after Confirmation -> Capture Payment -> Retrieve Payment after Capture", () => {
+        const errorStack = [];
         let shouldContinue = true;
 
-        cy.step("Create and Confirm Payment Intent", () => {
+        cy.step("Create and Confirm Payment Intent", errorStack, () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["No3DSManualCapture"];
@@ -142,7 +151,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           }
         });
 
-        cy.step("Retrieve Payment after Confirmation", () => {
+        cy.step("Retrieve Payment after Confirmation", errorStack, () => {
           if (!shouldContinue) {
             cy.task(
               "cli_log",
@@ -161,7 +170,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           }
         });
 
-        cy.step("Capture Payment", () => {
+        cy.step("Capture Payment", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Capture Payment");
             return;
@@ -177,7 +186,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           }
         });
 
-        cy.step("Retrieve Payment after Capture", () => {
+        cy.step("Retrieve Payment after Capture", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Retrieve Payment after Capture");
             return;
@@ -188,6 +197,12 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
 
           cy.retrievePaymentCallTest({ globalState, data: captureData });
         });
+
+        cy.then(() => {
+          if (errorStack.length > 0) {
+            reportErrors(errorStack);
+          }
+        });
       });
     }
   );
@@ -196,9 +211,10 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
     "Card - NoThreeDS Manual Partial Capture payment flow test - Create and Confirm",
     () => {
       it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Retrieve Payment after Confirmation -> Partial Capture Payment -> Retrieve Payment after Partial Capture", () => {
+        const errorStack = [];
         let shouldContinue = true;
 
-        cy.step("Create Payment Intent", () => {
+        cy.step("Create Payment Intent", errorStack, () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["PaymentIntent"];
@@ -216,7 +232,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           }
         });
 
-        cy.step("Payment Methods Call", () => {
+        cy.step("Payment Methods Call", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Payment Methods Call");
             return;
@@ -224,7 +240,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           cy.paymentMethodsCallTest(globalState);
         });
 
-        cy.step("Confirm Payment Intent", () => {
+        cy.step("Confirm Payment Intent", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Confirm Payment Intent");
             return;
@@ -245,7 +261,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           }
         });
 
-        cy.step("Retrieve Payment after Confirmation", () => {
+        cy.step("Retrieve Payment after Confirmation", errorStack, () => {
           if (!shouldContinue) {
             cy.task(
               "cli_log",
@@ -264,7 +280,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           }
         });
 
-        cy.step("Partial Capture Payment", () => {
+        cy.step("Partial Capture Payment", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Partial Capture Payment");
             return;
@@ -284,7 +300,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           }
         });
 
-        cy.step("Retrieve Payment after Partial Capture", () => {
+        cy.step("Retrieve Payment after Partial Capture", errorStack, () => {
           if (!shouldContinue) {
             cy.task(
               "cli_log",
@@ -298,6 +314,12 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
 
           cy.retrievePaymentCallTest({ globalState, data: partialCaptureData });
         });
+
+        cy.then(() => {
+          if (errorStack.length > 0) {
+            reportErrors(errorStack);
+          }
+        });
       });
     }
   );
@@ -306,9 +328,10 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
     "Card - NoThreeDS Manual Partial Capture payment flow test - Create+Confirm",
     () => {
       it("Create and Confirm Payment Intent -> Retrieve Payment after Confirmation -> Partial Capture Payment -> Retrieve Payment after Partial Capture", () => {
+        const errorStack = [];
         let shouldContinue = true;
 
-        cy.step("Create and Confirm Payment Intent", () => {
+        cy.step("Create and Confirm Payment Intent", errorStack, () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["No3DSManualCapture"];
@@ -326,7 +349,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           }
         });
 
-        cy.step("Retrieve Payment after Confirmation", () => {
+        cy.step("Retrieve Payment after Confirmation", errorStack, () => {
           if (!shouldContinue) {
             cy.task(
               "cli_log",
@@ -345,7 +368,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           }
         });
 
-        cy.step("Partial Capture Payment", () => {
+        cy.step("Partial Capture Payment", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Partial Capture Payment");
             return;
@@ -365,7 +388,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           }
         });
 
-        cy.step("Retrieve Payment after Partial Capture", () => {
+        cy.step("Retrieve Payment after Partial Capture", errorStack, () => {
           if (!shouldContinue) {
             cy.task(
               "cli_log",
@@ -378,6 +401,12 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           )["card_pm"]["PartialCapture"];
 
           cy.retrievePaymentCallTest({ globalState, data: partialCaptureData });
+        });
+
+        cy.then(() => {
+          if (errorStack.length > 0) {
+            reportErrors(errorStack);
+          }
         });
       });
     }

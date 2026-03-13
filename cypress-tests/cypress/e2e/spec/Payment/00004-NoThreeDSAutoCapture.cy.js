@@ -21,7 +21,7 @@ describe("Card - NoThreeDS payment flow test", () => {
       const errorStack = [];
       let shouldContinue = true;
 
-      cy.stepTest("Create Payment Intent", errorStack, () => {
+      cy.step("Create Payment Intent", errorStack, () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
@@ -39,7 +39,7 @@ describe("Card - NoThreeDS payment flow test", () => {
         }
       });
 
-      cy.stepTest("Payment Methods Call", errorStack, () => {
+      cy.step("Payment Methods Call", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Payment Methods Call");
           return;
@@ -47,7 +47,7 @@ describe("Card - NoThreeDS payment flow test", () => {
         cy.paymentMethodsCallTest(globalState);
       });
 
-      cy.stepTest("Confirm Payment", errorStack, () => {
+      cy.step("Confirm Payment", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Confirm Payment");
           return;
@@ -68,7 +68,7 @@ describe("Card - NoThreeDS payment flow test", () => {
         }
       });
 
-      cy.stepTest("Retrieve Payment", errorStack, () => {
+      cy.step("Retrieve Payment", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Retrieve Payment");
           return;
@@ -93,7 +93,7 @@ describe("Card - NoThreeDS payment flow test", () => {
       const errorStack = [];
       let shouldContinue = true;
 
-      cy.stepTest("Create and Confirm Payment", errorStack, () => {
+      cy.step("Create and Confirm Payment", errorStack, () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["No3DSAutoCapture"];
@@ -111,7 +111,7 @@ describe("Card - NoThreeDS payment flow test", () => {
         }
       });
 
-      cy.stepTest("Retrieve Payment", errorStack, () => {
+      cy.step("Retrieve Payment", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Retrieve Payment");
           return;
@@ -136,7 +136,7 @@ describe("Card - NoThreeDS payment flow test", () => {
       const errorStack = [];
       let shouldContinue = true;
 
-      cy.stepTest(
+      cy.step(
         "Create Payment Intent with shipping cost",
         errorStack,
         () => {
@@ -158,7 +158,7 @@ describe("Card - NoThreeDS payment flow test", () => {
         }
       );
 
-      cy.stepTest("Payment Methods Call", errorStack, () => {
+      cy.step("Payment Methods Call", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Payment Methods Call");
           return;
@@ -166,7 +166,7 @@ describe("Card - NoThreeDS payment flow test", () => {
         cy.paymentMethodsCallTest(globalState);
       });
 
-      cy.stepTest("Confirm Payment with shipping cost", errorStack, () => {
+      cy.step("Confirm Payment with shipping cost", errorStack, () => {
         if (!shouldContinue) {
           cy.task(
             "cli_log",
@@ -190,7 +190,7 @@ describe("Card - NoThreeDS payment flow test", () => {
         }
       });
 
-      cy.stepTest("Retrieve Payment with shipping cost", errorStack, () => {
+      cy.step("Retrieve Payment with shipping cost", errorStack, () => {
         if (!shouldContinue) {
           cy.task(
             "cli_log",

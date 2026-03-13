@@ -22,7 +22,7 @@ describe("Card - ThreeDS payment flow test", () => {
       errorStack = [];
       let shouldContinue = true;
 
-      cy.stepTest("create payment intent", errorStack, () => {
+      cy.step("create payment intent", errorStack, () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
@@ -40,7 +40,7 @@ describe("Card - ThreeDS payment flow test", () => {
         }
       });
 
-      cy.stepTest("payment methods call", errorStack, () => {
+      cy.step("payment methods call", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: payment methods call");
           return;
@@ -48,7 +48,7 @@ describe("Card - ThreeDS payment flow test", () => {
         cy.paymentMethodsCallTest(globalState);
       });
 
-      cy.stepTest("confirm payment intent", errorStack, () => {
+      cy.step("confirm payment intent", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: confirm payment intent");
           return;
@@ -69,7 +69,7 @@ describe("Card - ThreeDS payment flow test", () => {
         }
       });
 
-      cy.stepTest("handle redirection", errorStack, () => {
+      cy.step("handle redirection", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: handle redirection");
           return;
