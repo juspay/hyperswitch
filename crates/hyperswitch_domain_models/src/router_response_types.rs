@@ -639,7 +639,7 @@ pub enum VerifyWebhookStatus {
     SourceNotVerified,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct MandateRevokeResponseData {
     pub mandate_status: common_enums::MandateStatus,
 }
