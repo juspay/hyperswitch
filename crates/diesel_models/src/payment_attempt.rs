@@ -4606,6 +4606,10 @@ pub enum RedirectForm {
         form_fields: std::collections::HashMap<String, String>,
         collection_id: Option<String>,
     },
+    WorldpayxmlDDCForm {
+        bin: String,
+        jwt: String,
+    },
     WorldpayxmlRedirectForm {
         jwt: String,
     },
