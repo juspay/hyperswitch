@@ -942,9 +942,7 @@ pub async fn create_saved_view(
         }
 
         views_data
-            
             .views
-            
             .push(api::ResilientSavedView::Parsed(Box::new(new_view.clone())));
 
         let filters_json =

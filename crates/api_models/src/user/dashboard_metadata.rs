@@ -6,10 +6,10 @@ use common_utils::{id_type, pii};
 use masking::Secret;
 use strum::EnumString;
 
-#[cfg(feature = "v1")]
-use crate::{customers, disputes, enums, payments, refunds};
 #[cfg(all(feature = "payouts", feature = "v1"))]
 use crate::payouts;
+#[cfg(feature = "v1")]
+use crate::{customers, disputes, enums, payments, refunds};
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub enum SetMetaDataRequest {
