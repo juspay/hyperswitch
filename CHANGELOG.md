@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.03.11.0-hotfix1
+
+### Bug Fixes
+
+- **payment-methods:** Add vault access token call in external vault retrieve flow ([#11497](https://github.com/juspay/hyperswitch/pull/11497)) ([`7d212c7`](https://github.com/juspay/hyperswitch/commit/7d212c770b995383e7d2c3895f16728c1119d482))
+
+**Full Changelog:** [`2026.03.11.0...2026.03.11.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.03.11.0...2026.03.11.0-hotfix1)
+
+- - -
+
 ## 2026.03.11.0
 
 ### Features
