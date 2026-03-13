@@ -32,7 +32,7 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
         self.subscriber.manage_subscriptions();
 
         self.subscriber
-            .subscribe::<_>(channel)
+            .subscribe(channel)
             .await
             .change_context(redis_errors::RedisError::SubscribeError)?;
 
