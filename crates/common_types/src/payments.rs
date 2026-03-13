@@ -1402,6 +1402,15 @@ pub struct InstallmentOptionData {
 pub struct InstallmentEntries(Vec<InstallmentOptionData>);
 
 impl InstallmentEntries {
+    /// Validates that no installment count appears more than once for the same billing frequency
+    /// across all entries.
+    /// Uses two nested `try_fold`s because the data is two-dimensional:
+    /// - The **outer** `try_fold` iterates over each `InstallmentOptionData` entry, carrying a
+    ///   `HashMap<BillingFrequency, HashSet<count>>` as the accumulator to track all counts seen
+    ///   so far grouped by frequency.
+    /// - The **inner** `try_fold` iterates over the `number_of_installments` vec within a single
+    ///   entry, attempting to insert each count into the set for its frequency. If `insert` returns
+    ///   `false` (count already present), it short-circuits with a validation error.
     fn validate_no_duplicate_counts_per_frequency(
         installments: &[InstallmentOptionData],
     ) -> Result<(), errors::ValidationError> {
