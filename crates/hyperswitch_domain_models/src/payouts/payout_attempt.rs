@@ -2,7 +2,7 @@ use api_models::enums::PayoutConnectors;
 use common_enums as storage_enums;
 use common_utils::{
     id_type, payout_method_utils, pii,
-    types::{UnifiedCode, UnifiedMessage},
+    types::{self, UnifiedCode, UnifiedMessage},
 };
 use serde::{Deserialize, Serialize};
 use storage_enums::MerchantStorageScheme;
@@ -93,6 +93,8 @@ pub struct PayoutAttempt {
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
     pub merchant_order_reference_id: Option<String>,
     pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
+    pub processor_merchant_id: Option<id_type::MerchantId>,
+    pub created_by: Option<types::CreatedBy>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -121,6 +123,8 @@ pub struct PayoutAttemptNew {
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
     pub merchant_order_reference_id: Option<String>,
     pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
+    pub processor_merchant_id: Option<id_type::MerchantId>,
+    pub created_by: Option<types::CreatedBy>,
 }
 
 #[derive(Debug, Clone)]

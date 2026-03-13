@@ -227,6 +227,7 @@ pub async fn perform_pre_authentication(
     psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
     billing_address: Option<hyperswitch_domain_models::address::Address>,
     shipping_address: Option<hyperswitch_domain_models::address::Address>,
+    initiator: Option<&domain::Initiator>,
 ) -> CustomResult<
     hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore,
     ApiErrorResponse,
@@ -248,7 +249,8 @@ pub async fn perform_pre_authentication(
         organization_id,
         force_3ds_challenge,
         psd2_sca_exemption_type,
-        processor.get_key_store(),
+        processor,
+        initiator,
     )
     .await?;
 
