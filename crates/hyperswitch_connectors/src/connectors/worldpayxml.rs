@@ -1528,4 +1528,14 @@ impl ConnectorSpecifications for Worldpayxml {
     fn should_trigger_handle_response_without_body(&self) -> bool {
         true
     }
+
+    fn generate_connector_customer_id(
+        &self,
+        customer_id: &Option<common_utils::id_type::CustomerId>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+    ) -> Option<String> {
+        customer_id
+            .as_ref()
+            .map(|cid| cid.get_string_repr().to_string())
+    }
 }
