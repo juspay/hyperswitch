@@ -75,7 +75,7 @@ pub async fn verify_external_token(
 
     let user_in_db = state
         .global_store
-        .find_user_by_id(&token.user_id)
+        .find_active_user_by_user_id(&token.user_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("User not found in database")?;
