@@ -5327,11 +5327,6 @@ Cypress.Commands.add("stepTest", (stepName, errorStack, fn) => {
       chai.Assertion.prototype.assert = originalAssert;
       const stepFailures = errorStack.filter((e) => e.step === stepName);
       if (stepFailures.length > 0) {
-        const screenshotName = `[FAIL] ${stepName}`.replace(
-          /[^a-zA-Z0-9\-_ ]/g,
-          ""
-        );
-        cy.screenshot(screenshotName, { capture: "runner" });
         log.set({ displayName: "✗ STEP", message: stepName });
       } else {
         log.set({ displayName: "✓ STEP", message: stepName, collapsed: true });
