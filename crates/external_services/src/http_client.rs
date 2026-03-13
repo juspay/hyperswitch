@@ -38,8 +38,6 @@ pub async fn send_request(
         url.host_str().unwrap_or_default().to_owned()
     ));
 
-    let query_params = request.query_params;
-
     let request_builder = {
         match request.method {
             Method::Get => client.get(url),
@@ -92,10 +90,9 @@ pub async fn send_request(
         }
     };
 
-    let request = if let Some(params) = query_params {
-        request_builder.query(&params)
-    } else {
-        request_builder
+    let request = match request.query_params.as_ref() {
+        Some(params) => request_builder.query(params),
+        None => request_builder,
     };
 
     let request = request.add_headers(headers).timeout(Duration::from_secs(

@@ -1605,7 +1605,7 @@ async fn execute_payment_method_create(
         None,
         fingerprint_id_from_vault,
         customer_id,
-        None, // Insert mode for new payment methods
+        Some(pm_types::WriteMode::Insert), // Insert mode for new payment methods
     )
     .await;
 
@@ -2037,7 +2037,7 @@ pub async fn network_tokenize_and_vault_the_pmd(
             &network_token_vaulting_data,
             None,
             customer_id,
-            None, // Insert mode for new network tokens
+            Some(pm_types::WriteMode::Insert), // Insert mode for new network tokens
         )
         .await
         .change_context(errors::NetworkTokenizationError::SaveNetworkTokenFailed)
@@ -5787,7 +5787,7 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
                         .customer_id
                         .to_owned()
                         .get_required_value("GlobalCustomerId")?,
-                    None,
+                    Some(pm_types::WriteMode::Insert), // Use Insert mode for new payment methods
                 )
                 .await
                 .attach_printable("Failed to add payment method in vault")?;

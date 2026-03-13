@@ -1517,9 +1517,9 @@ async fn create_vault_request<R: pm_types::VaultingInterface>(
     let mut request = request::Request::new(services::Method::Post, &url);
 
     // Add query param for write mode if specified
-    if let Some(query_value) = write_mode.and_then(|q| q.to_query_value()) {
-        request.query_params = Some(query_value);
-    }
+    write_mode  
+    .and_then(|query_params| query_params.to_query_value())  
+    .map(|query_params_value| request.query_params = Some(query_params_value));
 
     request.add_header(
         headers::CONTENT_TYPE,
@@ -1632,8 +1632,7 @@ pub async fn add_payment_method_to_vault(
     .change_context(errors::VaultError::RequestEncodingFailed)
     .attach_printable("Failed to encode AddVaultRequest")?;
 
-    let query_params = write_mode
-        .map(|m| pm_types::VaultQueryParam::Add(pm_types::AddVaultQueryParam { mode: Some(m) }));
+    let query_params = write_mode.map(pm_types::VaultQueryParam::from);
 
     let resp = call_to_vault::<pm_types::AddVault>(state, payload, query_params)
         .await
