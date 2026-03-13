@@ -256,6 +256,10 @@ impl AuthenticationInterface for MockDb {
             merchant_country_code: authentication.merchant_country_code,
             billing_country: authentication.billing_country,
             shipping_country: authentication.shipping_country,
+            processor_merchant_id: authentication.processor_merchant_id,
+            created_by: authentication
+                .created_by
+                .map(|created_by| created_by.to_string()),
         };
 
         let authentication: hyperswitch_domain_models::authentication::Authentication =
