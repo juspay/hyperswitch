@@ -1560,6 +1560,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             card_network: additional_card_info
                                 .as_ref()
                                 .and_then(|info| info.card_network.clone()),
+                            card_discovery: payment_data.payment_attempt.card_discovery,
                         },
                     ),
                     issuer: Some(api_models::three_ds_decision_rule::IssuerData {
