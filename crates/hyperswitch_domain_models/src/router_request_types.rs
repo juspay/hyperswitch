@@ -231,6 +231,9 @@ pub struct PaymentsUpdateMetadataData {
     pub connector_transaction_id: String,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct PaymentsUpdatePostConfirmData {}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct AuthoriseIntegrityObject {
     /// Authorise amount

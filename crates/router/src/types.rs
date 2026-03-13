@@ -41,7 +41,7 @@ use hyperswitch_domain_models::router_flow_types::{
         CompleteAuthorize, CreateConnectorCustomer, CreateOrder, ExtendAuthorization,
         ExternalVaultProxy, IncrementalAuthorization, InitPayment, PSync, PostCaptureVoid,
         PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
-        SetupMandate, UpdateMetadata, Void,
+        SetupMandate, UpdateMetadata, UpdatePostConfirm, Void,
     },
     refunds::{Execute, RSync},
     webhooks::VerifyWebhookSource,
@@ -82,10 +82,10 @@ pub use hyperswitch_domain_models::{
         PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
         PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsRejectData,
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
-        PaymentsUpdateMetadataData, RefundsData, ResponseId, RetrieveFileRequestData,
-        SdkPaymentsSessionUpdateData, SetupMandateRequestData, SplitRefundsRequest,
-        SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData, VaultRequestData,
-        VerifyWebhookSourceRequestData,
+        PaymentsUpdateMetadataData, PaymentsUpdatePostConfirmData, RefundsData, ResponseId,
+        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
+        SplitRefundsRequest, SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData,
+        VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
@@ -173,6 +173,9 @@ pub type PaymentsPostSessionTokensRouterData =
 
 pub type PaymentsUpdateMetadataRouterData =
     RouterData<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsResponseData>;
+
+pub type PaymentsUpdatePostConfirmRouterData =
+    RouterData<UpdatePostConfirm, PaymentsUpdatePostConfirmData, PaymentsResponseData>;
 
 pub type PaymentsCancelRouterData = RouterData<Void, PaymentsCancelData, PaymentsResponseData>;
 pub type PaymentsCancelPostCaptureRouterData =

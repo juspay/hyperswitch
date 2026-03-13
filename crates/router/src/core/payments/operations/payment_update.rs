@@ -40,7 +40,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, PaymentOperation)]
-#[operation(operations = "all", flow = "authorize")]
+#[operation(operations = "all", flow = "update_post_confirm")]
 pub struct PaymentUpdate;
 
 type PaymentUpdateOperation<'a, F> = BoxedOperation<'a, F, api::PaymentsRequest, PaymentData<F>>;

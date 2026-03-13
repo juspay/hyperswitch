@@ -2341,12 +2341,12 @@ where
         // no list of eligible connectors will be passed in the confirm call
         logger::debug!("Authorize call for NTI and Card Details flow");
         payments::proxy_for_payments_core::<
-            api_types::Authorize,
+            api_types::UpdatePostConfirm,
             payment_types::PaymentsResponse,
             _,
             _,
             _,
-            payments::PaymentData<api_types::Authorize>,
+            payments::PaymentData<api_types::UpdatePostConfirm>,
         >(
             state,
             req_state,
@@ -2368,12 +2368,12 @@ where
             | api_models::enums::PaymentType::NewMandate
             | api_models::enums::PaymentType::Installment => {
                 payments::payments_core::<
-                    api_types::Authorize,
+                    api_types::UpdatePostConfirm,
                     payment_types::PaymentsResponse,
                     _,
                     _,
                     _,
-                    payments::PaymentData<api_types::Authorize>,
+                    payments::PaymentData<api_types::UpdatePostConfirm>,
                 >(
                     state,
                     req_state,
@@ -2391,12 +2391,12 @@ where
             }
             api_models::enums::PaymentType::SetupMandate => {
                 payments::payments_core::<
-                    api_types::SetupMandate,
+                    api_types::UpdatePostConfirm,
                     payment_types::PaymentsResponse,
                     _,
                     _,
                     _,
-                    payments::PaymentData<api_types::SetupMandate>,
+                    payments::PaymentData<api_types::UpdatePostConfirm>,
                 >(
                     state,
                     req_state,
