@@ -3102,6 +3102,7 @@ pub async fn retrieve_payment_method_from_db_with_token_data(
         storage::PaymentTokenData::Temporary(_)
         | storage::PaymentTokenData::TemporaryGeneric(_)
         | storage::PaymentTokenData::Permanent(_)
+        | storage::PaymentTokenData::ModularServiceToken(_)
         | storage::PaymentTokenData::AuthBankDebit(_) => Ok(None),
         storage::PaymentTokenData::BankDebit(data) => state
             .store
@@ -7901,7 +7902,8 @@ pub async fn get_payment_method_details_from_payment_token(
             .await
         }
 
-        storage::PaymentTokenData::WalletToken(_) => Ok(None),
+        storage::PaymentTokenData::WalletToken(_)
+        | storage::PaymentTokenData::ModularServiceToken(_) => Ok(None),
 
         // TODO: External authentication not implemented for BankDebit
         storage::PaymentTokenData::BankDebit(_) => Ok(None),
