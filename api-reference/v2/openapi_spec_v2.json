@@ -12464,6 +12464,22 @@
         },
         "additionalProperties": false
       },
+      "DDCData": {
+        "type": "object",
+        "required": [
+          "iframe_url"
+        ],
+        "properties": {
+          "iframe_url": {
+            "type": "string"
+          },
+          "timeout_ms": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        }
+      },
       "DecisionEngineEliminationData": {
         "type": "object",
         "required": [
@@ -18428,17 +18444,17 @@
             "type": "object",
             "description": "Contains url to be rendered in an iframe",
             "required": [
-              "redirect_to_url",
+              "ddc_data",
               "type"
             ],
             "properties": {
-              "redirect_to_url": {
-                "type": "string"
+              "ddc_data": {
+                "$ref": "#/components/schemas/DDCData"
               },
               "type": {
                 "type": "string",
                 "enum": [
-                  "invoke_hidden_iframe_url"
+                  "invoke_ddc"
                 ]
               }
             }

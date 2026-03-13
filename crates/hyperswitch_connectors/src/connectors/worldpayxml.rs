@@ -297,12 +297,12 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
                 Ok(RequestContent::RawBytes(connector_req))
             }
             _ => {
-                return Err(errors::ConnectorError::FlowNotSupported {
+                Err(errors::ConnectorError::FlowNotSupported {
                     flow: "Setup Mandate flow is not implemented for this payment method"
                         .to_string(),
                     connector: "WorldpayWPG".to_string(),
                 }
-                .into());
+                .into())
             }
         }
     }
