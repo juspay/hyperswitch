@@ -2,6 +2,7 @@ pub mod transformers;
 use std::sync::LazyLock;
 
 use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse},
     router_flow_types::{
@@ -23,7 +24,6 @@ use hyperswitch_interfaces::{
     api, configs::Connectors, errors, events::connector_api_logs::ConnectorEvent, types::Response,
     webhooks,
 };
-use error_stack::ResultExt;
 
 #[derive(Clone)]
 pub struct Revolv3 {}
@@ -114,12 +114,23 @@ impl webhooks::IncomingWebhook for Revolv3 {
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)
             .attach_printable_lazy(|| "Failed to parse Revolv3 payment webhook body structure")?;
 
-        let webhook_body: transformers::Revolv3InvoiceWebhookBody = serde_json::from_str(&webhook_data.body)
-            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)
-            .attach_printable_lazy(|| "Failed to parse invoice data from Revolv3 webhook body")?;
+        let webhook_body: transformers::Revolv3InvoiceWebhookBody =
+            serde_json::from_str(&webhook_data.body)
+                .change_context(errors::ConnectorError::WebhookEventTypeNotFound)
+                .attach_printable_lazy(|| {
+                    "Failed to parse invoice data from Revolv3 webhook body"
+                })?;
 
         let invoice_id = webhook_body.invoice.invoice_id;
-       Ok(api_models::webhooks::ObjectReferenceId::PaymentId(api_models::payments::PaymentIdType::ConnectorTransactionId(invoice_id.to_string())))
+        if webhook_body.invoice.invoice_status.is_refund_event() {
+            Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                api_models::webhooks::RefundIdType::ConnectorRefundId(invoice_id.to_string()),
+            ))
+        } else {
+            Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(invoice_id.to_string()),
+            ))
+        }
     }
 
     fn get_webhook_event_type(

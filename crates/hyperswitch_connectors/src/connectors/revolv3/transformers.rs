@@ -36,5 +36,39 @@ pub struct Revolv3InvoiceWebhookBody {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct Revolv3WebhookInvoiceData {
-    pub invoice_id: i64
+    pub invoice_id: i64,
+    pub invoice_status: WebhookInvoiceStatus,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub enum WebhookInvoiceStatus {
+    Paid,
+    MerchantPaid,
+    Void,
+    Pending,
+    Recycle,
+    Noncollectable,
+    Refund,
+    MerchantCancelled,
+    OneTimePaymentPending,
+    PartialRefund,
+    BatchPending,
+    CapturePending,
+    RefundPending,
+    RefundDeclined,
+    RefundFailed,
+    Failed,
+}
+
+impl WebhookInvoiceStatus {
+    pub fn is_refund_event(&self) -> bool {
+        matches!(
+            self,
+            WebhookInvoiceStatus::Refund
+                | WebhookInvoiceStatus::PartialRefund
+                | WebhookInvoiceStatus::RefundDeclined
+                | WebhookInvoiceStatus::RefundFailed
+        )
+    }
 }

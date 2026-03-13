@@ -382,7 +382,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         Some(decoded_body) => &IncomingWebhookRequestDetails {
             method: request_details.method.clone(),
             uri: request_details.uri.clone(),
-             url: request_details.url.to_string(),
+            url: request_details.url.to_string(),
             headers: request_details.headers,
             query_params: request_details.query_params.clone(),
             body: decoded_body,
