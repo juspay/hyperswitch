@@ -720,6 +720,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .last_modified_by
                 .map(|last_modified_by| last_modified_by.to_string()),
             customer_details: self.customer_details.map(|val| val.into()),
+            network_tokenization_data: None,
         })
     }
 

@@ -2456,6 +2456,7 @@ impl Conversion for Profile {
             is_l2_l3_enabled: None,
             always_enable_overcapture: None,
             billing_processor_id: self.billing_processor_id,
+            network_tokenization_credentials: None,
         })
     }
 

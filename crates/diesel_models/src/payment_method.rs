@@ -98,6 +98,7 @@ pub struct PaymentMethod {
     pub last_modified_by: Option<String>,
     pub customer_details: Option<Encryption>,
     pub locker_fingerprint_id: Option<String>,
+    pub network_tokenization_data: Option<Encryption>,
     pub payment_method_type_v2: Option<storage_enums::PaymentMethod>,
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     pub id: common_utils::id_type::GlobalPaymentMethodId,
@@ -431,6 +432,7 @@ impl PaymentMethodUpdateInternal {
             created_by: source.created_by,
             last_modified_by: last_modified_by.or(source.last_modified_by),
             customer_details: customer_details.or(source.customer_details),
+            network_tokenization_data: source.network_tokenization_data,
         }
     }
 }
@@ -1122,6 +1124,7 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             created_by: payment_method_new.created_by.clone(),
             last_modified_by: payment_method_new.last_modified_by.clone(),
             customer_details: payment_method_new.customer_details.clone(),
+            network_tokenization_data: None,
         }
     }
 }

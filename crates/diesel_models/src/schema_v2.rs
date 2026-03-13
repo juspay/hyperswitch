@@ -290,6 +290,7 @@ diesel::table! {
         is_external_vault_enabled -> Nullable<Bool>,
         external_vault_connector_details -> Nullable<Jsonb>,
         is_l2_l3_enabled -> Nullable<Bool>,
+        network_tokenization_credentials -> Nullable<Bytea>,
         #[max_length = 64]
         routing_algorithm_id -> Nullable<Varchar>,
         order_fulfillment_time -> Nullable<Int8>,
@@ -924,6 +925,7 @@ diesel::table! {
         product_type -> Nullable<Varchar>,
         #[max_length = 64]
         merchant_account_type -> Nullable<Varchar>,
+        network_tokenization_credentials -> Nullable<Bytea>,
     }
 }
 
@@ -1295,6 +1297,7 @@ diesel::table! {
         customer_details -> Nullable<Bytea>,
         #[max_length = 64]
         locker_fingerprint_id -> Nullable<Varchar>,
+        network_tokenization_data -> Nullable<Bytea>,
         #[max_length = 64]
         payment_method_type_v2 -> Nullable<Varchar>,
         #[max_length = 64]
