@@ -1452,4 +1452,14 @@ impl ConnectorSpecifications for Worldpayxml {
     fn get_supported_webhook_flows(&self) -> Option<&'static [common_enums::EventClass]> {
         Some(WORLDPAYXML_SUPPORTED_WEBHOOK_FLOWS)
     }
+
+    fn generate_connector_customer_id(
+        &self,
+        customer_id: &Option<common_utils::id_type::CustomerId>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+    ) -> Option<String> {
+        customer_id
+            .as_ref()
+            .map(|cid| cid.get_string_repr().to_string())
+    }
 }

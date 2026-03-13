@@ -1634,7 +1634,7 @@ async fn execute_payment_method_create(
                 &payment_method,
                 None,
                 None,
-                network_tokenization_resp,
+                network_tokenization_resp.clone(),
                 Some(req.payment_method_type),
                 payment_method_subtype,
                 external_vault_source,
@@ -3267,7 +3267,7 @@ pub async fn vault_payment_method_external(
     access_token::create_access_token(
         state,
         &connector_data,
-        merchant_account,
+        merchant_account.get_id(),
         &mut old_router_data,
     )
     .await?;
@@ -3418,7 +3418,7 @@ pub async fn vault_payment_method_external_v1(
     access_token::create_access_token(
         state,
         &connector_data,
-        merchant_account,
+        merchant_account.get_id(),
         &mut old_router_data,
     )
     .await?;
@@ -4648,6 +4648,7 @@ pub async fn payment_methods_session_create(
         request.storage_type,
         None,
         None,
+        None,
     );
 
     Ok(services::ApplicationResponse::Json(response))
@@ -4716,6 +4717,7 @@ pub async fn payment_methods_session_update(
         update_state_change.storage_type,
         None,
         None,
+        None,
     );
 
     Ok(services::ApplicationResponse::Json(response))
@@ -4774,6 +4776,7 @@ pub async fn payment_methods_session_retrieve(
         expiry.map(|time| {
             payment_methods::CardCVCTokenStorageDetails::generate_expiry_timestamp(time)
         }),
+        None,
         None,
     );
 
@@ -4876,6 +4879,7 @@ pub async fn payment_methods_session_update_payment_method(
         updated_payment_method_session.storage_type,
         update_response.card_cvc_token_storage,
         update_response.payment_method_data.clone(),
+        None,
     );
 
     Ok(services::ApplicationResponse::Json(response))
@@ -5207,6 +5211,7 @@ pub async fn payment_methods_session_confirm(
         payment_method_response.storage_type,
         payment_method_response.card_cvc_token_storage,
         None,
+        payment_method_response.network_token,
     );
 
     Ok(services::ApplicationResponse::Json(
