@@ -177,9 +177,8 @@ where
 
                 router_data.response = router_data_response;
                 router_data.amount_captured = payment_get_response.captured_amount;
-                router_data.minor_amount_captured = payment_get_response
-                    .minor_captured_amount
-                    .map(MinorUnit::new);
+                router_data.minor_amount_captured =
+                    payment_get_response.captured_amount.map(MinorUnit::new);
                 router_data.raw_connector_response = payment_get_response
                     .raw_connector_response
                     .clone()

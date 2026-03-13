@@ -786,10 +786,10 @@ async fn process_non_ucs_webhook<'a>(
 
 /// Extract resource object from UCS WebhookResponseContent
 fn get_ucs_webhook_resource_object(
-    webhook_response_content: &payments_grpc::WebhookResponseContent,
+    event_response: &payments_grpc::EventResponse,
 ) -> errors::RouterResult<Box<dyn masking::ErasedMaskSerialize>> {
-    let resource_object = match &webhook_response_content.content {
-        Some(payments_grpc::webhook_response_content::Content::IncompleteTransformation(
+    let resource_object = match &event_response.content {
+        Some(payments_grpc::event_response::Content::IncompleteTransformation(
             incomplete_transformation_response,
         )) => {
             // Deserialize resource object
@@ -801,7 +801,7 @@ fn get_ucs_webhook_resource_object(
         }
         _ => {
             // Convert UCS webhook content to appropriate format
-            serde_json::to_value(webhook_response_content)
+            serde_json::to_value(event_response)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to serialize UCS webhook content")?
         }
