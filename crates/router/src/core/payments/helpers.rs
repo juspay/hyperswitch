@@ -88,7 +88,7 @@ use crate::{
     consts::{self, BASE64_ENGINE},
     core::{
         authentication,
-        configs::{self as configs, dimension_state::DimensionsWithMerchantIdAndProfileId},
+        configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers::MandateGenericData,
         payment_methods::{
@@ -463,9 +463,10 @@ pub async fn get_token_pm_type_mandate_details(
     payment_method_id: Option<String>,
     payment_intent_customer_id: Option<&id_type::CustomerId>,
     pm_info: Option<domain::PaymentMethod>,
+    dimensions: &dimension_state::DimensionsWithMerchantId,
 ) -> RouterResult<MandateGenericData> {
     let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
-    let feature_config = core_utils::get_feature_config(state, platform).await;
+    let feature_config = core_utils::get_feature_config(state, platform, dimensions).await;
     let (
         payment_token,
         payment_method,
@@ -1880,7 +1881,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     _payment_data: &mut PaymentData<F>,
     _req: Option<CustomerDetails>,
     _provider: &domain::Provider,
-    _dimensions: &DimensionsWithMerchantIdAndProfileId,
+    _dimensions: &dimension_state::DimensionsWithMerchantIdAndProfileId,
 ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
     todo!()
 }
@@ -1895,7 +1896,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     req: Option<CustomerDetails>,
     provider: &domain::Provider,
     initiator: Option<&domain::Initiator>,
-    dimensions: &DimensionsWithMerchantIdAndProfileId,
+    dimensions: &dimension_state::DimensionsWithMerchantIdAndProfileId,
 ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
     let merchant_id = provider.get_account().get_id();
     let storage_scheme = provider.get_account().storage_scheme;
@@ -5374,17 +5375,13 @@ pub async fn get_additional_payment_data(
     pm_data: &domain::PaymentMethodData,
     db: &dyn StorageInterface,
     superposition_service: Option<&external_services::superposition::SuperpositionClient>,
-    merchant_id: &id_type::MerchantId,
-    profile_id: &id_type::ProfileId,
     customer_id: Option<&id_type::CustomerId>,
     payment_method_token: Option<&PaymentMethodToken>,
+    dimensions: &dimension_state::DimensionsWithMerchantIdAndProfileId,
 ) -> Result<
     Option<api_models::payments::AdditionalPaymentData>,
     error_stack::Report<errors::ApiErrorResponse>,
 > {
-    let dimensions = configs::dimension_state::Dimensions::new()
-        .with_merchant_id(merchant_id.clone())
-        .with_profile_id(profile_id.clone());
 
     match pm_data {
         domain::PaymentMethodData::Card(card_data) => {
@@ -8172,7 +8169,7 @@ pub async fn config_skip_saving_wallet_at_connector(
 #[cfg(feature = "v1")]
 pub async fn override_setup_future_usage_to_on_session<F, D>(
     state: &SessionState,
-    dimensions: &DimensionsWithMerchantIdAndProfileId,
+    dimensions: &dimension_state::DimensionsWithMerchantIdAndProfileId,
     payment_data: &mut D,
 ) -> CustomResult<(), errors::ApiErrorResponse>
 where
@@ -8496,7 +8493,7 @@ pub fn validate_platform_request_for_marketplace(
 }
 
 pub async fn is_merchant_eligible_authentication_service(
-    dimensions: &configs::dimension_state::DimensionsWithOrgIdAndMerchantId,
+    dimensions: &dimension_state::DimensionsWithOrgIdAndMerchantId,
     state: &SessionState,
 ) -> RouterResult<bool> {
     Ok(dimensions
@@ -8599,7 +8596,7 @@ pub async fn validate_allowed_payment_method_types_request(
 
 pub async fn allow_payment_update_enabled_for_client_auth(
     state: &SessionState,
-    dimensions: &configs::dimension_state::DimensionsWithMerchantId,
+    dimensions: &dimension_state::DimensionsWithMerchantId,
     auth_flow: services::AuthFlow,
 ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
     match auth_flow {

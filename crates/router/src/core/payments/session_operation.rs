@@ -31,6 +31,7 @@ use crate::{
             transformers, vault_session, OperationSessionGetters, OperationSessionSetters,
         },
         utils as core_utils,
+        configs::dimension_state,
     },
     db::errors::ConnectorErrorExt,
     errors::RouterResponse,
@@ -73,6 +74,10 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, FData, router_types::PaymentsResponseData>,
 {
+    let dimensions = dimension_state::Dimensions::new()
+        .with_merchant_id(platform.get_processor().get_account().get_id().clone())
+        .with_profile_id(profile.get_id().clone());
+
     let (payment_data, _req, customer, connector_http_status_code, external_latency) =
         payments_session_operation_core::<_, _, _, _, _>(
             &state,
@@ -84,6 +89,7 @@ where
             payment_id,
             call_connector_action,
             header_payload.clone(),
+            &dimensions
         )
         .await?;
 
@@ -112,6 +118,7 @@ pub async fn payments_session_operation_core<F, Req, Op, FData, D>(
     payment_id: id_type::GlobalPaymentId,
     _call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
+    dimensions: &dimension_state::DimensionsWithMerchantIdAndProfileId,
 ) -> RouterResult<(D, Req, Option<domain::Customer>, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync,
@@ -191,6 +198,7 @@ where
                     payment_data.clone(),
                     None,
                     header_payload.clone(),
+                    &dimensions,
                 )
                 .await?;
             // todo: call surcharge manager for session token call.

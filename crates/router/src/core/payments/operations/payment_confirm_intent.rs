@@ -20,6 +20,7 @@ use crate::{
             PaymentData,
         },
         utils as core_utils,
+        configs::dimension_state,
     },
     routes::{app::ReqState, SessionState},
     services::{self, connector_integration_interface::ConnectorEnum},
@@ -758,6 +759,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
         mut payment_data: PaymentConfirmData<F>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _dimensions: &dimension_state::DimensionsWithMerchantIdAndProfileId,
     ) -> RouterResult<(BoxedConfirmOperation<'b, F>, PaymentConfirmData<F>)>
     where
         F: 'b + Send,

@@ -27,6 +27,7 @@ use crate::{
             self, helpers,
             operations::{self, ValidateStatusForOperation},
         },
+        configs::dimension_state,
     },
     db::errors::StorageErrorExt,
     routes::{app::ReqState, SessionState},
@@ -333,6 +334,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
         mut payment_data: payments::PaymentIntentData<F>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _dimensions: &dimension_state::DimensionsWithMerchantIdAndProfileId,
     ) -> RouterResult<(
         PaymentsUpdateIntentOperation<'b, F>,
         payments::PaymentIntentData<F>,

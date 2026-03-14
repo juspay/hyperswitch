@@ -37,7 +37,7 @@ use crate::{
         authentication,
         blocklist::utils as blocklist_utils,
         card_testing_guard::utils as card_testing_guard_utils,
-        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
+        configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         metrics,
@@ -87,6 +87,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         auth_flow: services::AuthFlow,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         payment_method_with_raw_data: Option<pm_transformers::PaymentMethodWithRawData>,
+        dimensions: &dimension_state::DimensionsWithMerchantId,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let processor_merchant_id = platform.get_processor().get_account().get_id();
@@ -178,6 +179,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .get_required_value("profile_id")
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("'profile_id' not set in payment intent")?;
+        
+        let dimensions = dimensions.with_profile_id(profile_id.clone());
 
         let store = state.store.clone();
         let key_store_clone = platform.get_processor().get_key_store().clone();
@@ -513,14 +516,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let store = state.clone().store;
         let superposition_service = state.clone().superposition_service;
-        let merchant_id = payment_intent.merchant_id.clone();
-        let profile_id = payment_intent
-            .profile_id
-            .clone()
-            .get_required_value("profile_id")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("'profile_id' not set in payment intent")?;
         let customer_id = payment_intent.customer_id.clone();
+        let additional_pm_data_dimensions = dimensions.clone();
 
         let additional_pm_data_fut = tokio::spawn(
             async move {
@@ -530,10 +527,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                             &payment_method_data,
                             store.as_ref(),
                             superposition_service.as_deref(),
-                            &merchant_id,
-                            &profile_id,
                             customer_id.as_ref(),
                             None,
+                            &additional_pm_data_dimensions,
                         )
                         .await
                     })
@@ -607,6 +603,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let payment_intent_customer_id = payment_intent.customer_id.clone();
 
         let m_pm_wrapper = payment_method_with_raw_data.clone();
+        let m_pm_dimensions = dimensions.without_profile_id();
         let mandate_details_fut = tokio::spawn(
             async move {
                 Box::pin(helpers::get_token_pm_type_mandate_details(
@@ -617,6 +614,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     None,
                     payment_intent_customer_id.as_ref(),
                     m_pm_wrapper.map(|pm| pm.payment_method.0),
+                    &m_pm_dimensions,
                 ))
                 .await
             }
@@ -655,9 +653,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             &token,
             &request.ctp_service_details,
         )?;
-        let pm_modular_dimensions = crate::core::configs::dimension_state::Dimensions::new()
-                .with_organization_id(platform.get_processor().get_account().organization_id.clone())
-                .with_merchant_id(platform.get_processor().get_account().get_id().clone());
+        let pm_modular_dimensions = dimensions
+            .with_organization_id(platform.get_processor().get_account().organization_id.clone())
+            .without_profile_id();
 
         //fetch for repeat cit using payment token
 
@@ -1007,7 +1005,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
         initiator: Option<&domain::Initiator>,
-        dimensions: &DimensionsWithMerchantIdAndProfileId,
+        dimensions: &dimension_state::DimensionsWithMerchantIdAndProfileId,
     ) -> CustomResult<
         (PaymentConfirmOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,
@@ -2202,6 +2200,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         _customer: Option<domain::Customer>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _dimensions: &dimension_state::DimensionsWithMerchantIdAndProfileId,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsRequest, PaymentData<F>>,
         PaymentData<F>,
@@ -2225,6 +2224,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         mut payment_data: PaymentData<F>,
         frm_suggestion: Option<FrmSuggestion>,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        dimensions: &dimension_state::DimensionsWithMerchantIdAndProfileId,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsRequest, PaymentData<F>>,
         PaymentData<F>,
@@ -2311,12 +2311,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .clone();
         let payment_token = payment_data.token.clone();
         let payment_method_type = payment_data.payment_attempt.payment_method_type;
-        let profile_id = payment_data
-            .payment_intent
-            .profile_id
-            .as_ref()
-            .get_required_value("profile_id")
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         let customer_id = payment_data.payment_intent.customer_id.as_ref();
 
@@ -2329,10 +2323,9 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     payment_method_data,
                     &*state.store,
                     state.superposition_service.as_deref(),
-                    &payment_data.payment_intent.merchant_id,
-                    profile_id,
                     customer_id,
                     payment_data.payment_method_token.as_ref(),
+                    &dimensions,
                 )
                 .await
             })

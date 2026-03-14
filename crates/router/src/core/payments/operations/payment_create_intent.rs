@@ -16,6 +16,7 @@ use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
         payments::{self, helpers, operations},
+        configs::dimension_state,
     },
     routes::{app::ReqState, SessionState},
     types::{
@@ -201,6 +202,7 @@ impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsC
         payment_data: payments::PaymentIntentData<F>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _dimensions: &dimension_state::DimensionsWithMerchantIdAndProfileId,
     ) -> RouterResult<(
         PaymentsCreateIntentOperation<'b, F>,
         payments::PaymentIntentData<F>,

@@ -23,45 +23,59 @@ pub enum DimensionError {
 }
 
 /// Marker for state WITHOUT merchant_id
+#[derive(Clone)]
 pub struct NoMerchantId;
 
 /// Marker for state WITH merchant_id
+#[derive(Clone)]
 pub struct HasMerchantId;
 
 /// Marker for state WITHOUT organization_id
+#[derive(Clone)]
 pub struct NoOrgId;
 
 /// Marker for state WITH organization_id
+#[derive(Clone)]
 pub struct HasOrgId;
 
 /// Marker for state WITHOUT profile_id
+#[derive(Clone)]
 pub struct NoProfileId;
 
 /// Marker for state WITH profile_id
+#[derive(Clone)]
 pub struct HasProfileId;
 
 /// Marker for state WITHOUT connector
+#[derive(Clone)]
 pub struct NoConnector;
 
 /// Marker for state WITH connector
+#[derive(Clone)]
 pub struct HasConnector;
 
 /// Marker for state WITHOUT payment_method_type
+#[derive(Clone)]
 pub struct NoPaymentMethodType;
 
 /// Marker for state WITH payment_method_type
+#[derive(Clone)]
 pub struct HasPaymentMethodType;
 
 /// Marker for state WITHOUT payout_retry_type
+#[derive(Clone)]
 pub struct NoPayoutRetryType;
 
 /// Marker for state WITH payout_retry_type
+#[derive(Clone)]
 pub struct HasPayoutRetryType;
 
 /// Marker for state WITHOUT payment_method
+#[derive(Clone)]
 pub struct NoPaymentMethod;
 
 /// Marker for state WITH payment_method
+#[derive(Clone)]
 pub struct HasPaymentMethod;
 
 // Dimensional State with type parameters
@@ -78,6 +92,7 @@ pub struct HasPaymentMethod;
 /// * `Pmt` - Payment method type: `HasPaymentMethodType` (present) or `NoPaymentMethodType` (absent)
 /// * `Pr` - Payout retry type: `HasPayoutRetryType` (present) or `NoPayoutRetryType` (absent)
 /// * `Pm` - Payment method type: `HasPaymentMethod` (present) or `NoPaymentMethod` (absent)
+#[derive(Clone)]
 pub struct Dimensions<M, O, P, Cn, Pmt, Pr, Pm> {
     merchant_id: Option<id_type::MerchantId>,
     organization_id: Option<id_type::OrganizationId>,

@@ -70,7 +70,7 @@ use super::{
 #[cfg(feature = "v2")]
 use crate::{
     configs::settings,
-    core::{payment_methods::transformers as pm_transforms, tokenization as tokenization_core},
+    core::{payment_methods::transformers as pm_transforms, tokenization as tokenization_core, configs::dimension_state},
     headers,
     routes::{self, payment_methods as pm_routes},
     services::encryption,
@@ -89,7 +89,7 @@ use crate::{
         errors::{ProcessTrackerError, RouterResult},
         payments::{self as payments_core, helpers as payment_helpers},
         utils as core_utils,
-        configs::dimension_state,
+        
     },
     db::errors::ConnectorErrorExt,
     errors, logger,
@@ -3854,6 +3854,10 @@ pub async fn retrieve_payment_method(
 ) -> RouterResponse<api::PaymentMethodResponse> {
     let db = state.store.as_ref();
 
+    let dimensions = dimension_state::Dimensions::new()
+        .with_merchant_id(platform.get_provider().get_account().get_id().clone())
+        .with_profile_id(profile.get_id().clone());
+
     // 1. Resolve parent token (if any) -> storage type & optional token data
     let (storage_type, card_token_data_opt) =
         resolve_storage_type_from_token(&state, &pm.payment_method_id).await?;
@@ -3872,9 +3876,7 @@ pub async fn retrieve_payment_method(
         },
     )?;
 
-    let dimensions = configs::dimension_state::Dimensions::new()
-        .with_merchant_id(platform.get_provider().get_account().get_id().clone())
-        .with_profile_id(profile.get_id().clone());
+    
     let raw_payment_method_fetch_access = get_raw_payment_method_data_fetch_access(
         &state,
         &dimensions,
@@ -4142,12 +4144,13 @@ impl RawPaymentMethodFetchAccess {
     }
 }
 
+#[cfg(feature = "v2")]
 pub async fn get_raw_payment_method_data_fetch_access(
     state: &SessionState,
     dimensions: &dimension_state::DimensionsWithMerchantIdAndProfileId,
     api_key_type: enums::ApiKeyType,
     fetch_raw_detail_query_param: bool,
-    customer_id: Option<&id_type::CustomerId>,
+    customer_id: Option<&id_type::GlobalCustomerId>,
 ) -> RouterResult<RawPaymentMethodFetchAccess> {
     // If query param not set, never allowed to fetch raw payment method details
     let fetch_access = match fetch_raw_detail_query_param {

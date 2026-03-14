@@ -31,7 +31,7 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     consts,
     core::{
-        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
+        configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payment_link,
@@ -76,6 +76,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         _auth_flow: services::AuthFlow,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         payment_method_with_raw_data: Option<pm_transformers::PaymentMethodWithRawData>,
+        dimensions: &dimension_state::DimensionsWithMerchantId,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let db = &*state.store;
@@ -167,6 +168,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             None,
             None,
             m_pm_wrapper.map(|pm| pm.payment_method.0),
+            dimensions,
         )
         .await?;
 
@@ -345,6 +347,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             &customer_acceptance,
             payment_method_recurring_details.clone(),
             customer_details.customer_id.as_ref(),
+            dimensions,
         )
         .await?;
 
@@ -698,7 +701,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
         initiator: Option<&domain::Initiator>,
-        dimensions: &DimensionsWithMerchantIdAndProfileId,
+        dimensions: &dimension_state::DimensionsWithMerchantIdAndProfileId,
     ) -> CustomResult<(PaymentCreateOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
     {
         match provider.get_account().merchant_account_type {
@@ -975,6 +978,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         mut payment_data: PaymentData<F>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _dimensions: &dimension_state::DimensionsWithMerchantIdAndProfileId,
     ) -> RouterResult<(PaymentCreateOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -1276,10 +1280,13 @@ impl PaymentCreate {
         customer_acceptance: &Option<common_payments_types::CustomerAcceptance>,
         payment_method_recurring_details: Option<domain::PaymentMethodData>,
         customer_id: Option<&common_utils::id_type::CustomerId>,
+        dimensions: &dimension_state::DimensionsWithMerchantId,
     ) -> RouterResult<(
         PaymentAttempt,
         Option<api_models::payments::AdditionalPaymentData>,
     )> {
+
+        let dimensions= dimensions.with_profile_id(profile_id.clone());
         let payment_method_data =
             request
                 .payment_method_data
@@ -1292,7 +1299,6 @@ impl PaymentCreate {
         let status = helpers::payment_attempt_status_fsm(payment_method_data, request.confirm);
         let (amount, currency) = (money.0, Some(money.1));
 
-        let merchant_id = platform.get_processor().get_account().get_id().clone();
         let mut additional_pm_data = request
             .payment_method_data
             .as_ref()
@@ -1302,15 +1308,14 @@ impl PaymentCreate {
             .map(domain::PaymentMethodData::from)
             .or(payment_method_recurring_details)
             .zip(Some(profile_id.clone())) // since data is consumed by async move, profile_id needs to be send separately
-            .async_map(|(payment_method_data, profile_id)| async move {
+            .async_map(|(payment_method_data, _profile_id)| async move {
                 helpers::get_additional_payment_data(
                     &payment_method_data,
                     &*state.store,
                     state.superposition_service.as_deref(),
-                    &merchant_id,
-                    &profile_id,
                     customer_id,
                     None,
+                    &dimensions,
                 )
                 .await
             })

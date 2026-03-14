@@ -382,15 +382,16 @@ impl DatabaseBackedConfig for ShouldDisableAuthTokenization {
         Some(format!("{}_{}", Self::KEY, merchant_id))
     }
 }
-
+#[cfg(feature = "v2")]
 config! {
     superposition_key = SHOULD_RETURN_RAW_PAYMENT_METHOD_DETAILS,
     output = bool,
     default = false,
     requires = DimensionsWithMerchantIdAndProfileId,
-    targeting_key = id_type::CustomerId
+    targeting_key = id_type::GlobalCustomerId
 }
 
+#[cfg(feature = "v2")]
 impl DatabaseBackedConfig for ShouldReturnRawPaymentMethodDetails {
     const KEY: &'static str = "should_return_raw_payment_method_details";
 

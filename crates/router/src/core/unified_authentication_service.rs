@@ -53,7 +53,7 @@ use crate::{
     consts,
     core::{
         authentication::utils as auth_utils,
-        configs::{self as configs, dimension_state},
+        configs::dimension_state,
         errors::utils::StorageErrorExt,
         metrics, payment_methods,
         payments::{helpers, validate_customer_details_for_click_to_pay},
@@ -1589,8 +1589,7 @@ pub async fn authentication_eligibility_check_core(
     let merchant_account = platform.get_processor().get_account();
     let merchant_id = merchant_account.get_id();
     let key_manager_state = (&state).into();
-    let dimensions =
-        configs::dimension_state::Dimensions::new().with_merchant_id(merchant_id.clone());
+    let dimensions = dimension_state::Dimensions::new().with_merchant_id(merchant_id.clone());
 
     let authentication = db
         .find_authentication_by_merchant_id_authentication_id(

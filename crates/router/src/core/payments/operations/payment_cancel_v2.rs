@@ -14,6 +14,7 @@ use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::operations,
+        configs::dimension_state,
     },
     routes::{app::ReqState, SessionState},
     types::{
@@ -204,6 +205,7 @@ impl<F: Clone + Send + Sync>
         mut payment_data: hyperswitch_domain_models::payments::PaymentCancelData<F>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _dimensions: &dimension_state::DimensionsWithMerchantIdAndProfileId,
     ) -> RouterResult<(
         BoxedCancelOperation<'b, F>,
         hyperswitch_domain_models::payments::PaymentCancelData<F>,

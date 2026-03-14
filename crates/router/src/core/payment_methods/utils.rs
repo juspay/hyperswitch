@@ -14,12 +14,10 @@ use euclid::frontend::dir;
 use hyperswitch_constraint_graph as cgraph;
 use kgraph_utils::{error::KgraphError, transformers::IntoDirValue};
 use masking::ExposeInterface;
-#[cfg(feature = "v1")]
-use router_env::logger;
 use storage_impl::redis::cache::{CacheKey, PM_FILTERS_CGRAPH_CACHE};
 
 use crate::{
-    configs::settings, core::configs::dimension_state, db::StorageInterface, routes::SessionState,
+    configs::settings, core::configs::dimension_state, routes::SessionState,
 };
 #[cfg(feature = "v2")]
 use crate::{

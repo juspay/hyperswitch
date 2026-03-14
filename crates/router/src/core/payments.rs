@@ -662,7 +662,7 @@ where
         .validate_request(&req, platform.get_processor())?;
 
     // Create feature_config
-    let feature_config = core_utils::get_feature_config(state, platform).await;
+    let feature_config = core_utils::get_feature_config(state, platform, dimensions).await;
 
     let payment_method_info = operation
         .to_domain()?
@@ -688,6 +688,7 @@ where
             auth_flow,
             &header_payload,
             payment_method_info,
+            dimensions,
         )
         .await?;
     let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
@@ -1385,6 +1386,7 @@ where
                     #[cfg(not(feature = "frm"))]
                     None,
                     header_payload.clone(),
+                    &dimensions,
                 )
                 .await?;
         }
@@ -1415,6 +1417,7 @@ where
                 payment_data.clone(),
                 None,
                 header_payload.clone(),
+                &dimensions,
             )
             .await?;
     }
@@ -1505,7 +1508,7 @@ where
 
     tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
 
-    let feature_config = core_utils::get_feature_config(state, &platform).await;
+    let feature_config = core_utils::get_feature_config(state, &platform, dimensions).await;
 
     let operations::GetTrackerResponse {
         operation,
@@ -1523,6 +1526,7 @@ where
             auth_flow,
             &header_payload,
             None,
+            dimensions,
         )
         .await?;
     let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
@@ -1973,6 +1977,9 @@ where
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
 
+    let dimensions = dimension_state::Dimensions::new()
+        .with_merchant_id(platform.get_processor().get_account().get_id().clone())
+        .with_profile_id(profile.get_id().clone());
     let (_operation, payment_data) = operation
         .to_update_tracker()?
         .update_trackers(
@@ -1982,6 +1989,7 @@ where
             payment_data,
             None,
             header_payload,
+            &dimensions,
         )
         .await?;
 
@@ -2018,6 +2026,10 @@ where
             .get_string_repr(),
     );
 
+    let dimensions = dimension_state::Dimensions::new()
+        .with_merchant_id(platform.get_processor().get_account().get_id().clone())
+        .with_profile_id(profile.get_id().clone());
+
     let _validate_result = operation
         .to_validate_request()?
         .validate_request(&req, &platform)?;
@@ -2048,6 +2060,7 @@ where
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
 
+    
     let (_operation, payment_data) = operation
         .to_update_tracker()?
         .update_trackers(
@@ -2057,6 +2070,7 @@ where
             payment_data,
             None,
             header_payload,
+            &dimensions,
         )
         .await?;
 
@@ -2882,6 +2896,9 @@ pub async fn record_attempt_core(
         payment_address: payment_data.payment_address.clone(),
     };
 
+    let dimensions = dimension_state::Dimensions::new()
+        .with_merchant_id(platform.get_processor().get_account().get_id().clone())
+        .with_profile_id(profile.get_id().clone());
     let (_operation, final_payment_data) = boxed_operation
         .to_update_tracker()?
         .update_trackers(
@@ -2891,6 +2908,7 @@ pub async fn record_attempt_core(
             record_payment_data,
             None,
             header_payload.clone(),
+            &dimensions,
         )
         .await?;
 
@@ -4682,6 +4700,9 @@ where
         + Sync,
 {
     // Update payment trackers
+    let dimensions = dimension_state::Dimensions::new()
+        .with_merchant_id(processor.get_account().get_id().clone())
+        .with_profile_id(business_profile.get_id().clone());
     let (_, new_payment_data) = operation
         .to_update_tracker()?
         .update_trackers(
@@ -4691,6 +4712,7 @@ where
             payment_data.clone(),
             frm_suggestion,
             header_payload.clone(),
+            &dimensions,
         )
         .await?;
     *payment_data = new_payment_data;
@@ -5142,6 +5164,9 @@ where
         + Sync,
 {
     // Update payment trackers
+    let dimensions = dimension_state::Dimensions::new()
+        .with_merchant_id(processor.get_account().get_id().clone())
+        .with_profile_id(business_profile.get_id().clone());
     let (_, new_payment_data) = operation
         .to_update_tracker()?
         .update_trackers(
@@ -5151,6 +5176,7 @@ where
             payment_data.clone(),
             frm_suggestion,
             header_payload.clone(),
+            &dimensions,
         )
         .await?;
     *payment_data = new_payment_data;
@@ -5528,6 +5554,9 @@ where
         None => true,
     };
 
+    let dimensions = dimension_state::Dimensions::new()
+        .with_merchant_id(platform.get_processor().get_account().get_id().clone())
+        .with_profile_id(business_profile.get_id().clone());
     (_, *payment_data) = operation
         .to_update_tracker()?
         .update_trackers(
@@ -5537,6 +5566,7 @@ where
             payment_data.clone(),
             None, // frm_suggestion is not used in internal flows
             header_payload.clone(),
+            &dimensions,
         )
         .await?;
 
@@ -5698,6 +5728,9 @@ where
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
     record_time_taken_with(|| async {
+        let dimensions = dimension_state::Dimensions::new()
+            .with_merchant_id(processor.get_account().get_id().clone())
+            .with_profile_id(business_profile.get_id().clone());
         (_, *payment_data) = operation
             .to_update_tracker()?
             .update_trackers(
@@ -5707,6 +5740,7 @@ where
                 payment_data.clone(),
                 frm_suggestion,
                 header_payload.clone(),
+                &dimensions,
             )
             .await?;
         let lineage_ids = grpc_client::LineageIds::new(
@@ -5891,7 +5925,9 @@ where
     }
 
     let frm_suggestion = None;
-
+    let dimensions = dimension_state::Dimensions::new()
+        .with_merchant_id(platform.get_processor().get_account().get_id().clone())
+        .with_profile_id(business_profile.get_id().clone());
     (_, *payment_data) = operation
         .to_update_tracker()?
         .update_trackers(
@@ -5901,6 +5937,7 @@ where
             payment_data.clone(),
             frm_suggestion,
             header_payload.clone(),
+            &dimensions,
         )
         .await?;
 
@@ -6039,6 +6076,11 @@ where
             payment_data.clone(),
             None,
             header_payload.clone(),
+            &{
+                dimension_state::Dimensions::new()
+                    .with_merchant_id(platform.get_processor().get_account().get_id().clone())
+                    .with_profile_id(business_profile.get_id().clone())
+            },
         )
         .await?;
 
@@ -6162,6 +6204,11 @@ where
             payment_data.clone(),
             None,
             header_payload.clone(),
+            &{
+                dimension_state::Dimensions::new()
+                    .with_merchant_id(platform.get_processor().get_account().get_id().clone())
+                    .with_profile_id(business_profile.get_id().clone())
+            },
         )
         .await?;
 

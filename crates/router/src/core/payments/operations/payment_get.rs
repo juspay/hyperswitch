@@ -13,6 +13,7 @@ use crate::{
             helpers,
             operations::{self, ValidateStatusForOperation},
         },
+        configs::dimension_state,
     },
     routes::{app::ReqState, SessionState},
     types::{
@@ -372,6 +373,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentStatusData<F>, PaymentsRetrieveReq
         payment_data: PaymentStatusData<F>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _dimensions: &dimension_state::DimensionsWithMerchantIdAndProfileId,
     ) -> RouterResult<(BoxedConfirmOperation<'b, F>, PaymentStatusData<F>)>
     where
         F: 'b + Send,
