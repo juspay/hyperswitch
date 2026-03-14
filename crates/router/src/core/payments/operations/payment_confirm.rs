@@ -713,10 +713,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Card cobadge check failed due to an invalid card network regex")?;
 
-        let payment_method_data = payment_method_with_raw_data
-            .clone()
-            .and_then(|pm| pm.raw_payment_method_data)
-            .or(payment_method_data_after_card_bin_call.map(Into::into));
+        // let payment_method_data = payment_method_with_raw_data
+        //     .clone()
+        //     .and_then(|pm| pm.raw_payment_method_data)
+        //     .or(payment_method_data_after_card_bin_call.map(Into::into));
 
         payment_attempt.payment_method_billing_address_id = payment_method_billing
             .as_ref()
@@ -766,13 +766,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 }
                 api_models::mandates::RecurringDetails::CardWithLimitedData(_)
                 | api_models::mandates::RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_)
-                | api_models::mandates::RecurringDetails::NetworkTransactionIdAndCardDetails(_) => {
-                    Some(api_models::payments::MandateIds {
-                        mandate_id: None,
-                        mandate_reference_id: mandate_reference_id_from_recurring_details,
-                    })
-                }
-                api_models::mandates::RecurringDetails::PaymentMethodId(_) | api_models::mandates::RecurringDetails::MandateId(_) => None,
+                | api_models::mandates::RecurringDetails::NetworkTransactionIdAndCardDetails(_)
+                | api_models::mandates::RecurringDetails::PaymentMethodId(_) | api_models::mandates::RecurringDetails::MandateId(_) => None,
             });
 
         let pmt_order_tax_amount = payment_intent.tax_details.clone().and_then(|tax| {

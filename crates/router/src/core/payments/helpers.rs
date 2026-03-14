@@ -548,42 +548,15 @@ pub async fn get_token_pm_type_mandate_details(
                                 mandate_generic_data.payment_method_info,
                             )
                         }
-                        RecurringDetails::PaymentMethodId(payment_method_id) => {
-                            let payment_method_info = match pm_info {
-                                Some(pm) => pm.clone(),
-                                None => state
-                                    .store
-                                    .find_payment_method(
-                                        platform.get_provider().get_key_store(),
-                                        payment_method_id,
-                                        platform.get_provider().get_account().storage_scheme,
-                                    )
-                                    .await
-                                    .to_not_found_response(
-                                        errors::ApiErrorResponse::PaymentMethodNotFound,
-                                    )?,
-                            };
-                            let customer_id = request
-                                .get_customer_id()
-                                .get_required_value("customer_id")?;
-
-                            verify_mandate_details_for_recurring_payments(
-                                &payment_method_info.merchant_id,
-                                platform.get_provider().get_account().get_id(),
-                                &payment_method_info.customer_id,
-                                customer_id,
-                            )?;
-
-                            (
-                                None,
-                                payment_method_info.get_payment_method_type(),
-                                payment_method_info.get_payment_method_subtype(),
-                                None,
-                                None,
-                                None,
-                                Some(payment_method_info),
-                            )
-                        }
+                        RecurringDetails::PaymentMethodId(_) => (
+                            None,
+                            request.payment_method,
+                            request.payment_method_type,
+                            None,
+                            None,
+                            None,
+                            None,
+                        )
                         RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => (
                             None,
                             request.payment_method,

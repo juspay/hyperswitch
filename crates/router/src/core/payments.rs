@@ -977,17 +977,17 @@ where
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
 
-                    handle_pm_and_mandate_post_update(
-                        state,
-                        operation.as_ref(),
-                        &router_data,
-                        platform,
-                        &mut payment_data,
-                        &business_profile,
-                        req.get_payment_method_data(),
-                        &feature_set,
-                    )
-                    .await?;
+                    // handle_pm_and_mandate_post_update(
+                    //     state,
+                    //     operation.as_ref(),
+                    //     &router_data,
+                    //     platform,
+                    //     &mut payment_data,
+                    //     &business_profile,
+                    //     req.get_payment_method_data(),
+                    //     &feature_set,
+                    // )
+                    // .await?;
 
                     let router_data_for_pm_mandate = router_data.clone();
                     let mut payment_data = operation
@@ -1181,17 +1181,17 @@ where
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
 
-                    handle_pm_and_mandate_post_update(
-                        state,
-                        operation.as_ref(),
-                        &router_data,
-                        platform,
-                        &mut payment_data,
-                        &business_profile,
-                        req.get_payment_method_data(),
-                        &feature_set,
-                    )
-                    .await?;
+                    // handle_pm_and_mandate_post_update(
+                    //     state,
+                    //     operation.as_ref(),
+                    //     &router_data,
+                    //     platform,
+                    //     &mut payment_data,
+                    //     &business_profile,
+                    //     req.get_payment_method_data(),
+                    //     &feature_set,
+                    // )
+                    // .await?;
 
                     let router_data_for_pm_mandate = router_data.clone();
                     let mut payment_data = operation
@@ -2287,17 +2287,17 @@ where
         let domain_payment_method_data =
             request_payment_method_data.map(domain::PaymentMethodData::from);
 
-        operation
-            .to_post_update_tracker()?
-            .update_modular_pm_and_mandate(
-                state,
-                router_data,
-                platform,
-                payment_data,
-                business_profile,
-                domain_payment_method_data.as_ref(),
-            )
-            .await?;
+        // operation
+        //     .to_post_update_tracker()?
+        //     .update_modular_pm_and_mandate(
+        //         state,
+        //         router_data,
+        //         platform,
+        //         payment_data,
+        //         business_profile,
+        //         domain_payment_method_data.as_ref(),
+        //     )
+        //     .await?;
     } else {
         logger::debug!(
             payment_id = ?payment_data.get_payment_attempt().payment_id,

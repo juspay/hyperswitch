@@ -3414,9 +3414,9 @@ impl TryFrom<mandates::RecurringDetails> for RecurringDetails {
                 network_transaction_id_and_network_token_details,
             ) => Ok(Self::NetworkTransactionIdAndNetworkTokenDetails(Box::new(
                 (*network_transaction_id_and_network_token_details).into(),
-            )),
+            ))),
             mandates::RecurringDetails::CardWithLimitedData(card_with_limited_data) => {
-                Self::CardWithLimitedData(Box::new((*card_with_limited_data).into()))
+                Ok(Self::CardWithLimitedData(Box::new((*card_with_limited_data).into())))
             }
         }
     }
