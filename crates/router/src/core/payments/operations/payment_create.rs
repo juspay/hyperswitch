@@ -439,7 +439,15 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                             ),
                         })
                     }
-                    _ => None,
+                    RecurringDetails::CardWithLimitedData(_)
+                    | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_)
+                    | RecurringDetails::NetworkTransactionIdAndCardDetails(_) => {
+                        Some(api_models::payments::MandateIds {
+                            mandate_id: None,
+                            mandate_reference_id: mandate_reference_id_from_recurring_details,
+                        })
+                    }
+                    RecurringDetails::PaymentMethodId(_) | RecurringDetails::MandateId(_) => None,
                 })
         } else {
             mandate_id

@@ -764,7 +764,15 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         ),
                     })
                 }
-                _ => None,
+                api_models::mandates::RecurringDetails::CardWithLimitedData(_)
+                | api_models::mandates::RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_)
+                | api_models::mandates::RecurringDetails::NetworkTransactionIdAndCardDetails(_) => {
+                    Some(api_models::payments::MandateIds {
+                        mandate_id: None,
+                        mandate_reference_id: mandate_reference_id_from_recurring_details,
+                    })
+                }
+                api_models::mandates::RecurringDetails::PaymentMethodId(_) | api_models::mandates::RecurringDetails::MandateId(_) => None,
             });
 
         let pmt_order_tax_amount = payment_intent.tax_details.clone().and_then(|tax| {
