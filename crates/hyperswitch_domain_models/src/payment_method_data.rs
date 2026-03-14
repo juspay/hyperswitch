@@ -3498,6 +3498,11 @@ impl TryFrom<mandates::RecurringDetails> for RecurringDetails {
             mandates::RecurringDetails::CardWithLimitedData(card_with_limited_data) => Ok(
                 Self::CardWithLimitedData(Box::new((*card_with_limited_data).into())),
             ),
+            mandates::RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(val) => {
+                Ok(Self::NetworkTransactionIdAndDecryptedWalletTokenDetails(
+                    val,
+                ))
+            }
         }
     }
 }
@@ -3570,7 +3575,7 @@ impl RecurringDetails {
                 Ok(CardWithLimitedDetails::get_card_details_for_mit_flow(*card_with_limited_data))
             }
             Self::NetworkTransactionIdAndDecryptedWalletTokenDetails(network_transaction_id_and_decrypted_wallet_token_details) => {
-                Some(DecryptedWalletTokenDetailsForNetworkTransactionId::get_nti_and_decrypted_wallet_token_details_for_mit_flow(*network_transaction_id_and_decrypted_wallet_token_details))
+                Ok(DecryptedWalletTokenDetailsForNetworkTransactionId::get_nti_and_decrypted_wallet_token_details_for_mit_flow(*network_transaction_id_and_decrypted_wallet_token_details))
             }
             Self::PaymentMethodId(_)
             | Self::MandateId(_)

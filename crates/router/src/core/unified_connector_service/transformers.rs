@@ -756,6 +756,7 @@ impl
             .map(|s| s.into());
 
         Ok(Self {
+            test_mode: None,
             transaction_id: connector_transaction_id,
             encoded_data: router_data.request.encoded_data.clone(),
             request_ref_id,
@@ -1147,6 +1148,8 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             .map(|s| s.into());
 
         Ok(Self {
+            test_mode: None,
+            merchant_order_reference_id: None,
             transaction_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     connector_transaction_id,
@@ -5550,6 +5553,8 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
             .map(|s| s.into());
 
         Ok(Self {
+            test_mode: None,
+            merchant_order_reference_id: None,
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     router_data.connector_request_reference_id.clone(),
