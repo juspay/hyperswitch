@@ -136,7 +136,7 @@ hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_m
 hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces", default-features = false }
 injector = { version = "0.1.0", path = "../injector", optional = true }
 kgraph_utils = { version = "0.1.0", path = "../kgraph_utils" }
-masking = { version = "0.1.0", path = "../masking" }
+hyperswitch_masking = "0.0.1"
 pm_auth = { version = "0.1.0", path = "../pm_auth", package = "pm_auth" }
 redis_interface = { version = "0.1.0", path = "../redis_interface" }
 router_derive = { version = "0.1.0", path = "../router_derive" }

@@ -7,7 +7,7 @@ use hyperswitch_interfaces::secrets_interface::{
     secret_state::{RawSecret, SecretStateContainer, SecuredSecret},
     SecretManagementInterface, SecretsManagementError,
 };
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{self, Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

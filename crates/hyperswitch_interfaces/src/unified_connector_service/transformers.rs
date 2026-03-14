@@ -438,7 +438,7 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                     hyperswitch_domain_models::router_data::InteracCustomerInfo {
                         customer_info: proto_interac.customer_info.map(|info| {
                             common_types::payments::InteracCustomerInfoDetails {
-                                customer_name: info.customer_name.map(|secret| masking::Secret::new(secret.expose())),
+                                customer_name: info.customer_name.map(|secret| hyperswitch_masking::Secret::new(secret.expose())),
                                 customer_email: info.customer_email
                                     .and_then(|secret| {
                                         common_utils::pii::Email::from_str(&secret.expose())
@@ -451,9 +451,9 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                                             })
                                             .ok()
                                     }),
-                                customer_phone_number: info.customer_phone_number.map(|secret| masking::Secret::new(secret.expose())),
-                                customer_bank_id: info.customer_bank_id.map(|secret| masking::Secret::new(secret.expose())),
-                                customer_bank_name: info.customer_bank_name.map(|secret| masking::Secret::new(secret.expose())),
+                                customer_phone_number: info.customer_phone_number.map(|secret| hyperswitch_masking::Secret::new(secret.expose())),
+                                customer_bank_id: info.customer_bank_id.map(|secret| hyperswitch_masking::Secret::new(secret.expose())),
+                                customer_bank_name: info.customer_bank_name.map(|secret| hyperswitch_masking::Secret::new(secret.expose())),
                             }
                         }),
                     }
@@ -502,14 +502,14 @@ impl ForeignTryFrom<payments_grpc::Ach>
             .and_then(|bht| common_enums::BankHolderType::foreign_try_from(bht).ok());
 
         Ok(Self::AchBankDebit {
-            account_number: masking::Secret::new(
+            account_number: hyperswitch_masking::Secret::new(
                 ach.account_number
                     .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
                         field_name: "account_number",
                     })?
                     .expose(),
             ),
-            routing_number: masking::Secret::new(
+            routing_number: hyperswitch_masking::Secret::new(
                 ach.routing_number
                     .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
                         field_name: "routing_number",
@@ -518,10 +518,10 @@ impl ForeignTryFrom<payments_grpc::Ach>
             ),
             card_holder_name: ach
                 .card_holder_name
-                .map(|s| masking::Secret::new(s.expose())),
+                .map(|s| hyperswitch_masking::Secret::new(s.expose())),
             bank_account_holder_name: ach
                 .bank_account_holder_name
-                .map(|s| masking::Secret::new(s.expose())),
+                .map(|s| hyperswitch_masking::Secret::new(s.expose())),
             bank_name,
             bank_type,
             bank_holder_type,
@@ -536,7 +536,7 @@ impl ForeignTryFrom<payments_grpc::Sepa>
 
     fn foreign_try_from(sepa: payments_grpc::Sepa) -> Result<Self, Self::Error> {
         Ok(Self::SepaBankDebit {
-            iban: masking::Secret::new(
+            iban: hyperswitch_masking::Secret::new(
                 sepa.iban
                     .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
                         field_name: "iban",
@@ -545,7 +545,7 @@ impl ForeignTryFrom<payments_grpc::Sepa>
             ),
             bank_account_holder_name: sepa
                 .bank_account_holder_name
-                .map(|name| masking::Secret::new(name.expose())),
+                .map(|name| hyperswitch_masking::Secret::new(name.expose())),
         })
     }
 }
@@ -557,14 +557,14 @@ impl ForeignTryFrom<payments_grpc::Bacs>
 
     fn foreign_try_from(bacs: payments_grpc::Bacs) -> Result<Self, Self::Error> {
         Ok(Self::BacsBankDebit {
-            account_number: masking::Secret::new(
+            account_number: hyperswitch_masking::Secret::new(
                 bacs.account_number
                     .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
                         field_name: "account_number",
                     })?
                     .expose(),
             ),
-            sort_code: masking::Secret::new(
+            sort_code: hyperswitch_masking::Secret::new(
                 bacs.sort_code
                     .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
                         field_name: "sort_code",
@@ -573,7 +573,7 @@ impl ForeignTryFrom<payments_grpc::Bacs>
             ),
             bank_account_holder_name: bacs
                 .bank_account_holder_name
-                .map(|name| masking::Secret::new(name.expose())),
+                .map(|name| hyperswitch_masking::Secret::new(name.expose())),
         })
     }
 }
@@ -585,14 +585,14 @@ impl ForeignTryFrom<payments_grpc::Becs>
 
     fn foreign_try_from(becs: payments_grpc::Becs) -> Result<Self, Self::Error> {
         Ok(Self::BecsBankDebit {
-            account_number: masking::Secret::new(
+            account_number: hyperswitch_masking::Secret::new(
                 becs.account_number
                     .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
                         field_name: "account_number",
                     })?
                     .expose(),
             ),
-            bsb_number: masking::Secret::new(
+            bsb_number: hyperswitch_masking::Secret::new(
                 becs.bsb_number
                     .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
                         field_name: "bsb_number",
@@ -601,7 +601,7 @@ impl ForeignTryFrom<payments_grpc::Becs>
             ),
             bank_account_holder_name: becs
                 .bank_account_holder_name
-                .map(|name| masking::Secret::new(name.expose())),
+                .map(|name| hyperswitch_masking::Secret::new(name.expose())),
         })
     }
 }

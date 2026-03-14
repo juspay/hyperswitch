@@ -18,8 +18,8 @@ use hyperswitch_domain_models::{
     router_response_types::AuthenticationResponseData,
 };
 use hyperswitch_interfaces::{api::CurrencyUnit, consts::NO_ERROR_MESSAGE, errors};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use iso_currency::Currency;
-use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, to_string};
 
