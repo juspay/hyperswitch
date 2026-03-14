@@ -208,11 +208,10 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
         allow_platform_self_operation: false,
     };
 
-    let (auth_type, _auth_flow) =
-        match auth::check_authorization_header_or_get_auth(req.headers(), api_auth) {
-            Ok(auth) => auth,
-            Err(err) => return api::log_and_return_error_response(report!(err)),
-        };
+    let (auth_type, _auth_flow) = match auth::get_auth_type_and_flow(req.headers(), api_auth) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(report!(err)),
+    };
 
     let flow = match json_payload.force_sync {
         Some(true) => Flow::PaymentsRetrieveForceSync,
@@ -295,11 +294,10 @@ pub async fn payment_intents_update(
         allow_platform_self_operation: false,
     };
 
-    let (auth_type, auth_flow) =
-        match auth::check_authorization_header_or_get_auth(req.headers(), api_auth) {
-            Ok(auth) => auth,
-            Err(err) => return api::log_and_return_error_response(report!(err)),
-        };
+    let (auth_type, auth_flow) = match auth::get_auth_type_and_flow(req.headers(), api_auth) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(report!(err)),
+    };
 
     let flow = Flow::PaymentsUpdate;
     let locking_action = payload.get_locking_input(flow.clone());
@@ -541,11 +539,10 @@ pub async fn payment_intents_cancel(
         allow_platform_self_operation: false,
     };
 
-    let (auth_type, auth_flow) =
-        match auth::check_authorization_header_or_get_auth(req.headers(), api_auth) {
-            Ok(auth) => auth,
-            Err(err) => return api::log_and_return_error_response(report!(err)),
-        };
+    let (auth_type, auth_flow) = match auth::get_auth_type_and_flow(req.headers(), api_auth) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(report!(err)),
+    };
 
     let flow = Flow::PaymentsCancel;
     let locking_action = payload.get_locking_input(flow.clone());
