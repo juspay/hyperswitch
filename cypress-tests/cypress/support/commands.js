@@ -1052,7 +1052,7 @@ Cypress.Commands.add(
               );
 
               throw new Error(
-                `Connector Create Call Failed ${response.body?.error?.message || response.status}`
+                `Connector Create Call Failed ${response.body.error.message}`
               );
             }
           });

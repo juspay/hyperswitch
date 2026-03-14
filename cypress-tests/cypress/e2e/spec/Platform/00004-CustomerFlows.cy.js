@@ -11,6 +11,7 @@ describe("Platform Customer Flows", () => {
   });
 
   after("flush global state", () => {
+    globalState.set("customerId", globalState.get("customerId_CM1_Created"));
     cy.task("setGlobalState", globalState.data);
   });
 
