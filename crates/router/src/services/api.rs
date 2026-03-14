@@ -738,22 +738,18 @@ impl Authenticate for api_models::payment_methods::PaymentMethodListRequest {
 #[cfg(feature = "v1")]
 impl Authenticate for api_models::payments::PaymentsSessionRequest {
     fn get_client_secret(&self) -> Option<&String> {
-        self.client_secret.as_ref()
+        Some(&self.client_secret)
     }
 }
 impl Authenticate for api_models::payments::PaymentsDynamicTaxCalculationRequest {
     fn get_client_secret(&self) -> Option<&String> {
-        self.client_secret
-            .as_ref()
-            .map(|client_secret| client_secret.peek())
+        Some(self.client_secret.peek())
     }
 }
 
 impl Authenticate for api_models::payments::PaymentsPostSessionTokensRequest {
     fn get_client_secret(&self) -> Option<&String> {
-        self.client_secret
-            .as_ref()
-            .map(|client_secret| client_secret.peek())
+        Some(self.client_secret.peek())
     }
 }
 

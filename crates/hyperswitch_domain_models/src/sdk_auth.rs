@@ -68,8 +68,8 @@ pub struct SdkAuthorization {
     /// Platform publishable key (only for platform-initiated flows)
     pub platform_publishable_key: Option<String>,
 
-    /// Client secret for the payment/session (required for SDK authorization)
-    pub client_secret: String,
+    /// Client secret for the payment (if available)
+    pub client_secret: Option<String>,
 
     /// Customer ID for the payment/session (if available)
     #[cfg(feature = "v1")]
@@ -93,10 +93,10 @@ impl SdkAuthorization {
             Some(format!("publishable_key={}", self.publishable_key)),
             self.platform_publishable_key
                 .as_ref()
-                .map(|platform_publishable_key| {
-                    format!("platform_publishable_key={}", platform_publishable_key)
-                }),
-            Some(format!("client_secret={}", self.client_secret)),
+                .map(|k| format!("platform_publishable_key={}", k)),
+            self.client_secret
+                .as_ref()
+                .map(|s| format!("client_secret={}", s)),
             self.customer_id
                 .as_ref()
                 .map(|id| format!("customer_id={}", id.get_string_repr())),
@@ -169,18 +169,8 @@ impl SdkAuthorization {
                     })
                 })?
                 .to_string(),
-            platform_publishable_key: parts
-                .get("platform_publishable_key")
-                .map(|platform_publishable_key| platform_publishable_key.to_string()),
-            client_secret: parts
-                .get("client_secret")
-                .ok_or_else(|| {
-                    report!(ValidationError::InvalidValue {
-                        message: "Missing required field: client_secret".to_string()
-                    })
-                })?
-                .to_string(),
-            #[cfg(feature = "v1")]
+            platform_publishable_key: parts.get("platform_publishable_key").map(|v| v.to_string()),
+            client_secret: parts.get("client_secret").map(|v| v.to_string()),
             customer_id: parts
                 .get("customer_id")
                 .map(|customer_id| {

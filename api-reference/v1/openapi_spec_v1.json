@@ -27539,6 +27539,9 @@
       },
       "PaymentsCompleteAuthorizeRequest": {
         "type": "object",
+        "required": [
+          "client_secret"
+        ],
         "properties": {
           "shipping": {
             "allOf": [
@@ -27550,8 +27553,7 @@
           },
           "client_secret": {
             "type": "string",
-            "description": "Client Secret",
-            "nullable": true
+            "description": "Client Secret"
           },
           "threeds_method_comp_ind": {
             "allOf": [
@@ -29313,6 +29315,7 @@
         "type": "object",
         "required": [
           "shipping",
+          "client_secret",
           "payment_method_type"
         ],
         "properties": {
@@ -29321,8 +29324,7 @@
           },
           "client_secret": {
             "type": "string",
-            "description": "Client Secret",
-            "nullable": true
+            "description": "Client Secret"
           },
           "payment_method_type": {
             "$ref": "#/components/schemas/PaymentMethodType"
@@ -29426,14 +29428,14 @@
       "PaymentsExternalAuthenticationRequest": {
         "type": "object",
         "required": [
+          "client_secret",
           "device_channel",
           "threeds_method_comp_ind"
         ],
         "properties": {
           "client_secret": {
             "type": "string",
-            "description": "Client Secret",
-            "nullable": true
+            "description": "Client Secret"
           },
           "sdk_information": {
             "allOf": [
@@ -29534,14 +29536,14 @@
       "PaymentsPostSessionTokensRequest": {
         "type": "object",
         "required": [
+          "client_secret",
           "payment_method_type",
           "payment_method"
         ],
         "properties": {
           "client_secret": {
             "type": "string",
-            "description": "It's a token used for client side verification.",
-            "nullable": true
+            "description": "It's a token used for client side verification."
           },
           "payment_method_type": {
             "$ref": "#/components/schemas/PaymentMethodType"
@@ -30986,6 +30988,7 @@
         "type": "object",
         "required": [
           "payment_id",
+          "client_secret",
           "wallets"
         ],
         "properties": {
@@ -30995,8 +30998,7 @@
           },
           "client_secret": {
             "type": "string",
-            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
-            "nullable": true
+            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK"
           },
           "wallets": {
             "type": "array",

@@ -137,11 +137,7 @@ pub async fn setup_intents_retrieve(
         state.into_inner(),
         &req,
         payload,
-        |state, auth, mut payload, req_state| {
-            if let Some(client_secret) = auth.client_secret {
-                payload.client_secret = Some(client_secret);
-            }
-
+        |state, auth, payload, req_state| {
             payments::payments_core::<
                 api_types::PSync,
                 api_types::PaymentsResponse,
@@ -222,11 +218,7 @@ pub async fn setup_intents_update(
         state.into_inner(),
         &req,
         payload,
-        |state, auth, mut req, req_state| {
-            if let Some(client_secret) = auth.client_secret {
-                req.client_secret = Some(client_secret);
-            }
-
+        |state, auth, req, req_state| {
             payments::payments_core::<
                 api_types::SetupMandate,
                 api_types::PaymentsResponse,
@@ -308,11 +300,7 @@ pub async fn setup_intents_confirm(
         state.into_inner(),
         &req,
         payload,
-        |state, auth, mut req, req_state| {
-            if let Some(client_secret) = auth.client_secret {
-                req.client_secret = Some(client_secret);
-            }
-
+        |state, auth, req, req_state| {
             payments::payments_core::<
                 api_types::SetupMandate,
                 api_types::PaymentsResponse,

@@ -52,13 +52,7 @@ pub async fn card_iin_info(
         state,
         &req,
         payload,
-        |state, auth, mut req, _| {
-            if let Some(client_secret) = auth.client_secret {
-                req.client_secret = Some(client_secret);
-            }
-
-            cards_info::retrieve_card_info(state, auth.platform, req)
-        },
+        |state, auth, req, _| cards_info::retrieve_card_info(state, auth.platform, req),
         &*auth,
         api_locking::LockAction::NotApplicable,
     ))

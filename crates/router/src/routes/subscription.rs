@@ -225,11 +225,7 @@ pub async fn confirm_subscription(
         state,
         &req,
         payload,
-        |state, auth, mut payload, _| {
-            if let Some(client_secret) = auth.client_secret {
-                payload.client_secret = Some(subscription_types::ClientSecret::new(client_secret));
-            }
-
+        |state, auth: auth::AuthenticationData, payload, _| {
             subscriptions::confirm_subscription(
                 state.into(),
                 auth.platform,
@@ -275,11 +271,7 @@ pub async fn get_subscription_items(
         state,
         &req,
         payload,
-        |state, auth, mut query, _| {
-            if let Some(client_secret) = auth.client_secret {
-                query.client_secret = Some(subscription_types::ClientSecret::new(client_secret));
-            }
-
+        |state, auth: auth::AuthenticationData, query, _| {
             subscriptions::get_subscription_items(
                 state.into(),
                 auth.platform,
@@ -406,7 +398,7 @@ pub async fn get_estimate(
         state,
         &req,
         query.into_inner(),
-        |state, auth, query, _| {
+        |state, auth: auth::AuthenticationData, query, _| {
             subscriptions::get_estimate(state.into(), auth.platform, profile_id.clone(), query)
         },
         &*auth_type,
