@@ -86,8 +86,7 @@ use crate::{
     connector,
     consts::{self, BASE64_ENGINE},
     core::{
-        authentication,
-        configs::dimension_state::DimensionsWithMerchantId,
+        authentication, configs,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers::MandateGenericData,
         payment_methods::{
@@ -1831,7 +1830,6 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     _payment_data: &mut PaymentData<F>,
     _req: Option<CustomerDetails>,
     _provider: &domain::Provider,
-    _dimensions: DimensionsWithMerchantId,
 ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
     todo!()
 }
@@ -1845,7 +1843,6 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     payment_data: &mut PaymentData<F>,
     req: Option<CustomerDetails>,
     provider: &domain::Provider,
-    dimensions: DimensionsWithMerchantId,
 ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
     let merchant_id = provider.get_account().get_id();
     let storage_scheme = provider.get_account().storage_scheme;
@@ -1941,13 +1938,21 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
 
             Some(match customer_data {
                 Some(c) => {
-                    let implicit_customer_update = dimensions
-                        .get_implicit_customer_update(
-                            state.store.as_ref(),
-                            state.superposition_service.as_deref(),
-                            Some(&customer_id),
-                        )
-                        .await;
+                    let implicit_customer_update = configs::get_config_bool(
+                        state,
+                        consts::superposition::IMPLICIT_CUSTOMER_UPDATE,
+                        &provider
+                            .get_account()
+                            .get_id()
+                            .get_implicit_customer_update_key(), // database
+                        Some(external_services::superposition::ConfigContext::new().with(
+                            "merchant_id",
+                            provider.get_account().get_id().get_string_repr(),
+                        )), // context
+                        false, // Implicit Customer update is disabled by default
+                    )
+                    .await
+                    .attach_printable("Failed to fetch implicit_customer_update config")?;
 
                     // Update the customer data if new data is passed in the request
                     if implicit_customer_update
