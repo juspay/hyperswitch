@@ -13,8 +13,6 @@ pub mod fraud_check;
 #[cfg(feature = "frm")]
 pub mod fraud_check_v2;
 pub mod gateway;
-pub mod merchant_connector_webhook_management;
-pub mod merchant_connector_webhook_management_v2;
 pub mod payments;
 pub mod payments_v2;
 #[cfg(feature = "payouts")]
@@ -52,21 +50,16 @@ use hyperswitch_domain_models::{
         RouterData,
     },
     router_data_v2::{
-        flow_common_types::{
-            AuthenticationTokenFlowData, ConnectorWebhookConfigurationFlowData,
-            WebhookSourceVerifyData,
-        },
+        flow_common_types::{AuthenticationTokenFlowData, WebhookSourceVerifyData},
         AccessTokenFlowData, MandateRevokeFlowData, UasFlowData,
     },
     router_flow_types::{
-        mandate_revoke::MandateRevoke,
-        merchant_connector_webhook_management::ConnectorWebhookRegister, AccessTokenAuth,
-        AccessTokenAuthentication, Authenticate, AuthenticationConfirmation, PostAuthenticate,
-        PreAuthenticate, ProcessIncomingWebhook, VerifyWebhookSource,
+        mandate_revoke::MandateRevoke, AccessTokenAuth, AccessTokenAuthentication, Authenticate,
+        AuthenticationConfirmation, PostAuthenticate, PreAuthenticate, ProcessIncomingWebhook,
+        VerifyWebhookSource,
     },
     router_request_types::{
         self,
-        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
@@ -76,9 +69,8 @@ use hyperswitch_domain_models::{
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        self, merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
-        ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails, SupportedPaymentMethods,
-        VerifyWebhookSourceResponseData,
+        self, ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails,
+        SupportedPaymentMethods, VerifyWebhookSourceResponseData,
     },
 };
 use masking::Maskable;
@@ -92,10 +84,7 @@ pub use self::fraud_check_v2::*;
 pub use self::payouts::*;
 #[cfg(feature = "payouts")]
 pub use self::payouts_v2::*;
-pub use self::{
-    merchant_connector_webhook_management::*, merchant_connector_webhook_management_v2::*,
-    payments::*, refunds::*, vault::*, vault_v2::*,
-};
+pub use self::{payments::*, refunds::*, vault::*, vault_v2::*};
 use crate::{
     api::subscriptions::Subscriptions, connector_integration_v2::ConnectorIntegrationV2, consts,
     errors, events::connector_api_logs::ConnectorEvent, metrics, types, webhooks,
@@ -124,7 +113,6 @@ pub trait Connector:
     + ExternalVault
     + Subscriptions
     + ConnectorAccessTokenSuffix
-    + WebhookRegister
 {
 }
 
@@ -134,7 +122,6 @@ impl<
             + ConnectorRedirectResponse
             + Send
             + webhooks::IncomingWebhook
-            + WebhookRegister
             + ConnectorAccessToken
             + ConnectorAuthenticationToken
             + disputes::Dispute
@@ -822,17 +809,6 @@ pub trait UasProcessWebhookV2:
     UasFlowData,
     UasWebhookRequestData,
     UasAuthenticationResponseData,
->
-{
-}
-
-/// trait ConnectorVerifyWebhookSource
-pub trait WebhookRegisterV2:
-    ConnectorIntegrationV2<
-    ConnectorWebhookRegister,
-    ConnectorWebhookConfigurationFlowData,
-    ConnectorWebhookRegisterRequest,
-    ConnectorWebhookRegisterResponse,
 >
 {
 }

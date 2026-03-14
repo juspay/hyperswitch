@@ -8,7 +8,6 @@ use hyperswitch_domain_models::{
         dispute::{Accept, Defend, Dsync, Evidence, Fetch},
         files::{Retrieve, Upload},
         mandate_revoke::MandateRevoke,
-        merchant_connector_webhook_management::ConnectorWebhookRegister,
         payments::{
             Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
             CreateConnectorCustomer, CreateOrder, ExtendAuthorization, IncrementalAuthorization,
@@ -34,7 +33,6 @@ use hyperswitch_domain_models::{
         ProcessIncomingWebhook,
     },
     router_request_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
         revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             InvoiceRecordBackRequest,
@@ -64,7 +62,6 @@ use hyperswitch_domain_models::{
         VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
         revenue_recovery::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             InvoiceRecordBackResponse,
@@ -103,13 +100,6 @@ pub struct Response {
     /// status code
     pub status_code: u16,
 }
-
-/// Type alias for `ConnectorIntegration<ConnectorWebhookRegister, ConnectorWebhookRegisterRequest, ConnectorWebhookRegisterResponse>`
-pub type ConnectorWebhookRegisterType = dyn ConnectorIntegration<
-    ConnectorWebhookRegister,
-    ConnectorWebhookRegisterRequest,
-    ConnectorWebhookRegisterResponse,
->;
 
 /// Type alias for `ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData>`
 pub type PaymentsAuthorizeType =
@@ -282,13 +272,6 @@ pub type VerifyWebhookSourceType = dyn ConnectorIntegration<
     VerifyWebhookSource,
     VerifyWebhookSourceRequestData,
     VerifyWebhookSourceResponseData,
->;
-
-/// Type alias for `ConnectorIntegration<VerifyWebhookSource, VerifyWebhookSourceRequestData, VerifyWebhookSourceResponseData>`
-pub type WebhookRegisterType = dyn ConnectorIntegration<
-    ConnectorWebhookRegister,
-    ConnectorWebhookRegisterRequest,
-    ConnectorWebhookRegisterResponse,
 >;
 
 /// Type alias for `ConnectorIntegration<Evidence, SubmitEvidenceRequestData, SubmitEvidenceResponse>`

@@ -1036,7 +1036,6 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to encode ConnectorAuthType")?,
         );
-
         #[cfg(feature = "v2")]
         let response = Self {
             id: item.get_id(),

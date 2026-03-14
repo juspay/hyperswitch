@@ -975,7 +975,6 @@ diesel::table! {
         version -> ApiVersion,
         #[max_length = 64]
         id -> Nullable<Varchar>,
-        connector_webhook_registration_details -> Nullable<Jsonb>,
     }
 }
 

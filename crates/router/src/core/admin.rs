@@ -2512,7 +2512,6 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             business_sub_label: self.business_sub_label.clone(),
             additional_merchant_data: encrypted_data.additional_merchant_data,
             version: common_types::consts::API_VERSION,
-            connector_webhook_registration_details: None,
         })
     }
 

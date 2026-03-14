@@ -22,7 +22,6 @@ pub trait ConnectorV2:
     + api::payments_v2::PaymentV2
     + api::ConnectorRedirectResponse
     + webhooks::IncomingWebhook
-    + api::merchant_connector_webhook_management_v2::ConfigureConnectorWebhookV2
     + api::ConnectorAuthenticationTokenV2
     + api::ConnectorAccessTokenV2
     + api::disputes_v2::DisputeV2
@@ -45,7 +44,6 @@ impl<
             + api::ConnectorRedirectResponse
             + Send
             + webhooks::IncomingWebhook
-            + api::merchant_connector_webhook_management_v2::ConfigureConnectorWebhookV2
             + api::ConnectorAuthenticationTokenV2
             + api::ConnectorAccessTokenV2
             + api::disputes_v2::DisputeV2
