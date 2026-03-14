@@ -1896,17 +1896,12 @@ async fn payout_incoming_webhook_update_status(
         let payout_create_response =
             payouts::response_handler(&state, &platform, payout_data).await?;
 
-        let payout_created_by = payout_data
-            .payout_attempt
-            .created_by
-            .as_deref()
-            .map(|s| s.parse::<CreatedBy>().unwrap_or(CreatedBy::Invalid));
         let (resolved_merchant_key_store, resolved_business_profile, compatible_connector) =
             utils::resolve_webhook_recipient_from_created_by(
                 &state,
                 &platform,
                 business_profile,
-                payout_created_by.as_ref(),
+                payout_data.payout_attempt.created_by.as_ref(),
             )
             .await?;
         Box::pin(super::create_event_and_trigger_outgoing_webhook(
@@ -1980,17 +1975,12 @@ async fn payout_incoming_webhook_retrieve_status(
     if let Some(outgoing_event_type) = event_type {
         let payout_response = payouts::response_handler(&state, &platform, payout_data).await?;
 
-        let payout_created_by = payout_data
-            .payout_attempt
-            .created_by
-            .as_deref()
-            .map(|s| s.parse::<CreatedBy>().unwrap_or(CreatedBy::Invalid));
         let (resolved_merchant_key_store, resolved_business_profile, compatible_connector) =
             utils::resolve_webhook_recipient_from_created_by(
                 &state,
                 &platform,
                 business_profile,
-                payout_created_by.as_ref(),
+                payout_data.payout_attempt.created_by.as_ref(),
             )
             .await?;
         Box::pin(super::create_event_and_trigger_outgoing_webhook(
@@ -2582,10 +2572,6 @@ async fn external_authentication_incoming_webhook_flow(
                         // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
                         if let Some(outgoing_event_type) = event_type {
                             let primary_object_created_at = payments_response.created;
-                            let auth_created_by = updated_authentication
-                                .created_by
-                                .as_deref()
-                                .map(|s| s.parse::<CreatedBy>().unwrap_or(CreatedBy::Invalid));
                             let (
                                 resolved_merchant_key_store,
                                 resolved_business_profile,
@@ -2594,7 +2580,7 @@ async fn external_authentication_incoming_webhook_flow(
                                 &state,
                                 &platform,
                                 business_profile,
-                                auth_created_by.as_ref(),
+                                updated_authentication.created_by.as_ref(),
                             )
                             .await?;
                             Box::pin(super::create_event_and_trigger_outgoing_webhook(
