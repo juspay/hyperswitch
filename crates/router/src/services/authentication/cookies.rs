@@ -6,9 +6,9 @@ use cookie::{
 };
 use error_stack::{report, ResultExt};
 #[cfg(feature = "olap")]
-use masking::Mask;
+use hyperswitch_masking::Mask;
 #[cfg(feature = "olap")]
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 
 use crate::{
     consts::JWT_TOKEN_COOKIE_NAME,

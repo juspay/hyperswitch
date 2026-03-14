@@ -361,7 +361,7 @@ dependencies = [
  "error-stack 0.4.1",
  "futures 0.3.31",
  "hyperswitch_interfaces",
- "masking 0.1.0",
+ "hyperswitch_masking",
  "opensearch",
  "reqwest 0.11.27",
  "router_env",
@@ -467,7 +467,7 @@ dependencies = [
  "deserialize_form_style_query_parameter",
  "error-stack 0.4.1",
  "euclid",
- "masking 0.1.0",
+ "hyperswitch_masking",
  "mime",
  "nutype",
  "reqwest 0.11.27",
@@ -1745,7 +1745,7 @@ version = "0.1.0"
 dependencies = [
  "common_utils",
  "error-stack 0.4.1",
- "masking 0.1.0",
+ "hyperswitch_masking",
  "regex",
  "router_env",
  "serde",
@@ -2057,7 +2057,7 @@ name = "common_enums"
 version = "0.1.0"
 dependencies = [
  "diesel",
- "masking 0.1.0",
+ "hyperswitch_masking",
  "router_derive",
  "serde",
  "serde_json",
@@ -2079,7 +2079,7 @@ dependencies = [
  "diesel",
  "error-stack 0.4.1",
  "euclid",
- "masking 0.1.0",
+ "hyperswitch_masking",
  "serde",
  "serde_json",
  "smithy",
@@ -2106,7 +2106,7 @@ dependencies = [
  "globset",
  "hex",
  "http 0.2.12",
- "masking 0.1.0",
+ "hyperswitch_masking",
  "md5",
  "nanoid",
  "nutype",
@@ -2889,7 +2889,7 @@ dependencies = [
  "common_utils",
  "diesel",
  "error-stack 0.4.1",
- "masking 0.1.0",
+ "hyperswitch_masking",
  "router_derive",
  "router_env",
  "serde",
@@ -2983,7 +2983,7 @@ dependencies = [
  "error-stack 0.4.1",
  "external_services",
  "hyperswitch_interfaces",
- "masking 0.1.0",
+ "hyperswitch_masking",
  "mime",
  "redis_interface",
  "reqwest 0.11.27",
@@ -3298,7 +3298,7 @@ name = "events"
 version = "0.1.0"
 dependencies = [
  "error-stack 0.4.1",
- "masking 0.1.0",
+ "hyperswitch_masking",
  "router_env",
  "serde",
  "serde_json",
@@ -3330,8 +3330,8 @@ dependencies = [
  "hyper-proxy",
  "hyper-util",
  "hyperswitch_interfaces",
+ "hyperswitch_masking",
  "lettre",
- "masking 0.1.0",
  "once_cell",
  "open-feature",
  "prost",
@@ -4392,12 +4392,12 @@ dependencies = [
  "http 0.2.12",
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
+ "hyperswitch_masking",
  "image",
  "iso_currency",
  "isocountry",
  "josekit",
  "lazy_static",
- "masking 0.1.0",
  "mime",
  "nanoid",
  "num-traits",
@@ -4457,7 +4457,7 @@ dependencies = [
  "error-stack 0.4.1",
  "futures 0.3.31",
  "http 0.2.12",
- "masking 0.1.0",
+ "hyperswitch_masking",
  "mime",
  "payment_link",
  "router_derive",
@@ -4486,7 +4486,7 @@ dependencies = [
  "error-stack 0.4.1",
  "http 0.2.12",
  "hyperswitch_domain_models",
- "masking 0.1.0",
+ "hyperswitch_masking",
  "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2025.11.24.0)",
  "mime",
  "reqwest 0.11.27",
@@ -4499,6 +4499,22 @@ dependencies = [
  "time",
  "tokio 1.48.0",
  "url",
+]
+
+[[package]]
+name = "hyperswitch_masking"
+version = "0.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6d110ac2d2ce7a5f84c7172e710ca1241fd5ecec6e77aa83a85071b8d52e04f3"
+dependencies = [
+ "diesel",
+ "erased-serde 0.4.6",
+ "serde",
+ "serde_json",
+ "subtle",
+ "time",
+ "url",
+ "zeroize",
 ]
 
 [[package]]
@@ -4752,7 +4768,7 @@ dependencies = [
  "base64 0.22.1",
  "common_utils",
  "error-stack 0.4.1",
- "masking 0.1.0",
+ "hyperswitch_masking",
  "nom 7.1.3",
  "reqwest 0.12.7",
  "router_env",
@@ -4975,7 +4991,7 @@ dependencies = [
  "criterion",
  "euclid",
  "hyperswitch_constraint_graph",
- "masking 0.1.0",
+ "hyperswitch_masking",
  "serde",
  "serde_json",
  "strum 0.26.3",
@@ -6225,7 +6241,7 @@ dependencies = [
  "error-stack 0.4.1",
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
- "masking 0.1.0",
+ "hyperswitch_masking",
  "rdkafka",
  "router_env",
  "scheduler",
@@ -6537,7 +6553,7 @@ dependencies = [
  "common_utils",
  "error-stack 0.4.1",
  "http 0.2.12",
- "masking 0.1.0",
+ "hyperswitch_masking",
  "mime",
  "serde",
  "serde_json",
@@ -7427,12 +7443,12 @@ dependencies = [
  "hyperswitch_constraint_graph",
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
+ "hyperswitch_masking",
  "infer",
  "injector",
  "josekit",
  "jsonwebtoken",
  "kgraph_utils",
- "masking 0.1.0",
  "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2025.11.24.0)",
  "maud",
  "mimalloc",
@@ -8168,10 +8184,11 @@ checksum = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
 
 [[package]]
 name = "serde"
-version = "1.0.219"
+version = "1.0.228"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f0e2c6ed6606019b4e29e69dbaba95b11854410e5347d525002456dbbb786b6"
+checksum = "9a8e94ea7f378bd32cbbd37198a4a91436180c5bb472411e48b5ec2e2124ae9e"
 dependencies = [
+ "serde_core",
  "serde_derive",
 ]
 
@@ -8208,10 +8225,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_derive"
-version = "1.0.219"
+name = "serde_core"
+version = "1.0.228"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b0276cf7f2c73365f7157c8123c21cd9a50fbbd844757af28ca1f5925fc2a00"
+checksum = "41d385c7d4ca58e59fc732af25c3983b67ac852c1a25000afe1175de458b67ad"
+dependencies = [
+ "serde_derive",
+]
+
+[[package]]
+name = "serde_derive"
+version = "1.0.228"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d540f220d3187173da220f885ab66608367b6574e925011a9353e4badda91d79"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -8891,7 +8917,7 @@ dependencies = [
  "error-stack 0.4.1",
  "futures 0.3.31",
  "hyperswitch_domain_models",
- "masking 0.1.0",
+ "hyperswitch_masking",
  "moka",
  "redis_interface",
  "router_derive",
@@ -9016,7 +9042,7 @@ dependencies = [
  "error-stack 0.4.1",
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
- "masking 0.1.0",
+ "hyperswitch_masking",
  "router_env",
  "scheduler",
  "serde",
@@ -9439,7 +9465,7 @@ dependencies = [
  "base64 0.22.1",
  "clap 4.5.38",
  "common_enums",
- "masking 0.1.0",
+ "hyperswitch_masking",
  "rand 0.8.5",
  "regex",
  "reqwest 0.11.27",

@@ -27,7 +27,7 @@ use diesel_models::payment_intent::TaxDetails;
 use error_stack::Report;
 #[cfg(feature = "v2")]
 use error_stack::ResultExt;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router_derive::ToEncryption;
 use rustc_hash::FxHashMap;
 use serde_json::Value;
@@ -48,7 +48,7 @@ use common_enums as storage_enums;
 use diesel_models::types::{FeatureMetadata, OrderDetailsWithAmount};
 #[cfg(feature = "v1")]
 use error_stack::ResultExt;
-use masking::ExposeInterface;
+use hyperswitch_masking::ExposeInterface;
 
 use self::{payment_attempt::PaymentAttempt, payment_intent::CustomerData};
 #[cfg(feature = "v2")]
@@ -276,7 +276,7 @@ impl PaymentIntent {
         type_name: &'static str,
     ) -> CustomResult<Option<T>, common_utils::errors::ParsingError>
     where
-        T: for<'de> masking::Deserialize<'de>,
+        T: for<'de> hyperswitch_masking::Deserialize<'de>,
     {
         self.metadata
             .clone()

@@ -62,7 +62,7 @@ where
         None => Ok(None),
     }
 }
-use masking::{PeekInterface, Secret, WithType};
+use hyperswitch_masking::{PeekInterface, Secret, WithType};
 use router_derive::Setter;
 #[cfg(feature = "v1")]
 use serde::{de, Deserializer};
@@ -6314,7 +6314,7 @@ pub struct Address {
     pub email: Option<Email>,
 }
 
-impl masking::SerializableSecret for Address {}
+impl hyperswitch_masking::SerializableSecret for Address {}
 
 impl Address {
     /// Unify the address, giving priority to `self` when details are present in both
@@ -9495,7 +9495,7 @@ pub struct OrderDetailsWithAmount {
     pub unit_discount_amount: Option<MinorUnit>,
 }
 
-impl masking::SerializableSecret for OrderDetailsWithAmount {}
+impl hyperswitch_masking::SerializableSecret for OrderDetailsWithAmount {}
 
 #[derive(
     Default,
@@ -12398,7 +12398,7 @@ mod payments_response_api_contract {
 #[cfg(test)]
 mod billing_from_payment_method_data {
     use common_enums::CountryAlpha2;
-    use masking::ExposeOptionInterface;
+    use hyperswitch_masking::ExposeOptionInterface;
 
     use super::*;
 

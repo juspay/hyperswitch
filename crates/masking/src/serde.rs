@@ -151,7 +151,7 @@ mod pii_serializer {
             format!("{value:?}").serialize(serializer)
         } else if std::any::type_name::<S>()
             == std::any::type_name::<
-                serde::__private::ser::FlatMapSerializer<'_, SerializeMap<PIISerializer>>,
+                serde::__private228::ser::FlatMapSerializer<'_, SerializeMap<PIISerializer>>,
             >()
         {
             std::collections::HashMap::<String, String>::from([]).serialize(serializer)
