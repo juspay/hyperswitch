@@ -71,6 +71,11 @@ pub struct Event {
 
     /// Indicates whether the event was ultimately delivered.
     pub is_overall_delivery_successful: Option<bool>,
+
+    /// The merchant_id of the processor (connected merchant) regardless of who initiated the
+    /// payment. For standard merchants this equals `merchant_id`. For platform-connected
+    /// merchants this is the connected merchant's merchant_id
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
 }
 
 #[derive(Debug)]
@@ -130,6 +135,7 @@ impl super::behaviour::Conversion for Event {
             delivery_attempt: self.delivery_attempt,
             metadata: self.metadata,
             is_overall_delivery_successful: self.is_overall_delivery_successful,
+            processor_merchant_id: self.processor_merchant_id,
         })
     }
 
@@ -180,6 +186,7 @@ impl super::behaviour::Conversion for Event {
             delivery_attempt: item.delivery_attempt,
             metadata: item.metadata,
             is_overall_delivery_successful: item.is_overall_delivery_successful,
+            processor_merchant_id: item.processor_merchant_id,
         })
     }
 
@@ -202,6 +209,7 @@ impl super::behaviour::Conversion for Event {
             delivery_attempt: self.delivery_attempt,
             metadata: self.metadata,
             is_overall_delivery_successful: self.is_overall_delivery_successful,
+            processor_merchant_id: self.processor_merchant_id,
         })
     }
 }

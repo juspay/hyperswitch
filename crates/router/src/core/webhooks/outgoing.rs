@@ -49,8 +49,10 @@ use crate::{
 #[instrument(skip_all)]
 pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     state: SessionState,
-    processor: domain::Processor,
+    merchant_key_store: domain::MerchantKeyStore,
     business_profile: domain::Profile,
+    compatible_connector: Option<api_models::enums::Connector>,
+    processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     event_type: enums::EventType,
     event_class: enums::EventClass,
     primary_object_id: String,
@@ -91,7 +93,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     };
 
     let request_content =
-        get_outgoing_webhook_request(&processor, outgoing_webhook, &business_profile)
+        get_outgoing_webhook_request(compatible_connector, outgoing_webhook, &business_profile)
             .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
             .attach_printable("Failed to construct outgoing webhook request content")?;
 
@@ -121,8 +123,8 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
                         .attach_printable("Failed to encode outgoing webhook request content")
                         .map(Secret::new)?,
                 ),
-                Identifier::Merchant(processor.get_key_store().merchant_id.clone()),
-                processor.get_key_store().key.get_inner().peek(),
+                Identifier::Merchant(merchant_key_store.merchant_id.clone()),
+                merchant_key_store.key.get_inner().peek(),
             )
             .await
             .and_then(|val| val.try_into_operation())
@@ -133,14 +135,11 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         delivery_attempt: Some(delivery_attempt),
         metadata: Some(event_metadata),
         is_overall_delivery_successful: Some(false),
+        processor_merchant_id: processor_merchant_id.clone(),
     };
 
-    let lock_value = utils::perform_redis_lock(
-        &state,
-        &idempotent_event_id,
-        processor.get_account().get_id().to_owned(),
-    )
-    .await?;
+    let lock_value =
+        utils::perform_redis_lock(&state, &idempotent_event_id, merchant_id.clone()).await?;
 
     if lock_value.is_none() {
         return Ok(());
@@ -151,7 +150,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         .find_event_by_merchant_id_idempotent_event_id(
             &merchant_id,
             &idempotent_event_id,
-            processor.get_key_store(),
+            &merchant_key_store,
         )
         .await)
         .is_ok()
@@ -162,7 +161,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         utils::free_redis_lock(
             &state,
             &idempotent_event_id,
-            processor.get_account().get_id().to_owned(),
+            merchant_id.clone(),
             lock_value,
         )
         .await?;
@@ -171,7 +170,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
 
     let event_insert_result = state
         .store
-        .insert_event(new_event, processor.get_key_store())
+        .insert_event(new_event, &merchant_key_store)
         .await;
 
     let event = match event_insert_result {
@@ -187,7 +186,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     utils::free_redis_lock(
         &state,
         &idempotent_event_id,
-        processor.get_account().get_id().to_owned(),
+        merchant_id.clone(),
         lock_value,
     )
     .await?;
@@ -207,7 +206,6 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     })
     .ok();
 
-    let cloned_key_store = processor.get_key_store().clone();
     // Using a tokio spawn here and not arbiter because not all caller of this function
     // may have an actix arbiter
     tokio::spawn(
@@ -215,12 +213,13 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
             Box::pin(trigger_webhook_and_raise_event(
                 state,
                 business_profile,
-                &cloned_key_store,
+                &merchant_key_store,
                 event,
                 request_content,
                 delivery_attempt,
                 Some(content),
                 process_tracker,
+                processor_merchant_id,
             ))
             .await;
         }
@@ -241,6 +240,7 @@ pub(crate) async fn trigger_webhook_and_raise_event(
     delivery_attempt: enums::WebhookDeliveryAttempt,
     content: Option<api::OutgoingWebhookContent>,
     process_tracker: Option<storage::ProcessTracker>,
+    processor_merchant_id: Option<common_utils::id_type::MerchantId>,
 ) {
     logger::debug!(
         event_id=%event.event_id,
@@ -268,6 +268,7 @@ pub(crate) async fn trigger_webhook_and_raise_event(
         merchant_id,
         event,
         merchant_key_store,
+        processor_merchant_id,
     )
     .await;
 }
@@ -498,6 +499,7 @@ async fn raise_webhooks_analytics_event(
     merchant_id: common_utils::id_type::MerchantId,
     event: domain::Event,
     merchant_key_store: &domain::MerchantKeyStore,
+    processor_merchant_id: Option<common_utils::id_type::MerchantId>,
 ) {
     let event_id = event.event_id;
 
@@ -556,6 +558,7 @@ async fn raise_webhooks_analytics_event(
         event.initial_attempt_id,
         status_code,
         event.delivery_attempt,
+        processor_merchant_id,
     );
     state.event_handler().log_event(&webhook_event);
 }
@@ -639,7 +642,7 @@ fn get_webhook_url_from_business_profile(
 }
 
 pub(crate) fn get_outgoing_webhook_request(
-    processor: &domain::Processor,
+    compatible_connector: Option<api_models::enums::Connector>,
     outgoing_webhook: api::OutgoingWebhook,
     business_profile: &domain::Profile,
 ) -> CustomResult<OutgoingWebhookRequestContent, errors::WebhooksFlowError> {
@@ -695,7 +698,7 @@ pub(crate) fn get_outgoing_webhook_request(
         })
     }
 
-    match processor.get_account().get_compatible_connector() {
+    match compatible_connector {
         #[cfg(feature = "stripe")]
         Some(api_models::enums::Connector::Stripe) => get_outgoing_webhook_request_inner::<
             stripe_webhooks::StripeOutgoingWebhook,

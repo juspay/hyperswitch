@@ -147,7 +147,7 @@ pub async fn retrieve_dispute(
                     id: payment_attempt.profile_id.get_string_repr().to_owned(),
                 })?;
 
-            update_dispute_data(
+            Box::pin(update_dispute_data(
                 &state,
                 platform.clone(),
                 business_profile,
@@ -155,7 +155,7 @@ pub async fn retrieve_dispute(
                 dispute_sync_response,
                 payment_attempt,
                 dispute.connector.as_str(),
-            )
+            ))
             .await
             .attach_printable("Dispute update failed")?
         } else {
@@ -933,10 +933,20 @@ pub async fn update_dispute_data(
     let disputes_response: dispute_models::DisputeResponse = dispute_object.clone().foreign_into();
     let event_type: storage_enums::EventType = dispute_details.dispute_status.into();
 
+    let (resolved_merchant_key_store, resolved_business_profile, compatible_connector) =
+        webhooks::utils::resolve_webhook_recipient_from_initiator(
+            state,
+            &platform,
+            business_profile,
+        )
+        .await?;
+
     Box::pin(webhooks::create_event_and_trigger_outgoing_webhook(
         state.clone(),
-        platform.get_processor().clone(),
-        business_profile,
+        resolved_merchant_key_store,
+        resolved_business_profile,
+        compatible_connector,
+        Some(platform.get_processor().get_account().get_id().clone()),
         event_type,
         storage_enums::EventClass::Disputes,
         dispute_object.dispute_id.clone(),

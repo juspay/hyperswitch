@@ -116,6 +116,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
             delivery_attempt: Some(delivery_attempt),
             metadata: initial_event.metadata,
             is_overall_delivery_successful: Some(false),
+            processor_merchant_id: initial_event.processor_merchant_id,
         };
 
         let event = db
@@ -124,6 +125,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
             .inspect_err(|error| {
                 logger::error!(?error, "Failed to insert event in events table");
             })?;
+        let processor_merchant_id = event.processor_merchant_id.clone();
 
         match &event.request {
             Some(request) => {
@@ -141,6 +143,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                     delivery_attempt,
                     None,
                     Some(process),
+                    processor_merchant_id,
                 ))
                 .await;
             }
@@ -152,13 +155,6 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                     .find_merchant_account_by_merchant_id(&tracking_data.merchant_id, &key_store)
                     .await?;
 
-                let platform = domain::Platform::new(
-                    merchant_account.clone(),
-                    key_store.clone(),
-                    merchant_account.clone(),
-                    key_store.clone(),
-                    None,
-                );
                 // TODO: Add request state for the PT flows as well
                 let (content, event_type) = Box::pin(get_outgoing_webhook_content_and_event_type(
                     state.clone(),
@@ -181,7 +177,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                         };
 
                         let request_content = webhooks_core::get_outgoing_webhook_request(
-                            platform.get_processor(),
+                            merchant_account.get_compatible_connector(),
                             outgoing_webhook,
                             &business_profile,
                         )
@@ -202,6 +198,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                             delivery_attempt,
                             Some(content),
                             Some(process),
+                            processor_merchant_id,
                         ))
                         .await;
                     }

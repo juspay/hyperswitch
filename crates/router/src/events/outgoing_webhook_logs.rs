@@ -22,6 +22,7 @@ pub struct OutgoingWebhookEvent {
     initial_attempt_id: Option<String>,
     status_code: Option<u16>,
     delivery_attempt: Option<WebhookDeliveryAttempt>,
+    processor_merchant_id: Option<common_utils::id_type::MerchantId>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -177,6 +178,7 @@ impl OutgoingWebhookEvent {
         initial_attempt_id: Option<String>,
         status_code: Option<u16>,
         delivery_attempt: Option<WebhookDeliveryAttempt>,
+        processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     ) -> Self {
         Self {
             tenant_id,
@@ -190,6 +192,7 @@ impl OutgoingWebhookEvent {
             initial_attempt_id,
             status_code,
             delivery_attempt,
+            processor_merchant_id,
         }
     }
 }

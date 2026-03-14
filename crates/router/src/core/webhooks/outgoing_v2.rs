@@ -38,6 +38,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     state: SessionState,
     business_profile: domain::Profile,
     merchant_key_store: &domain::MerchantKeyStore,
+    processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     event_type: enums::EventType,
     event_class: enums::EventClass,
     primary_object_id: String,
@@ -94,6 +95,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         primary_object_created_at: Some(primary_object_created_at),
         idempotent_event_id: Some(idempotent_event_id.clone()),
         initial_attempt_id: Some(event_id.clone()),
+        processor_merchant_id: processor_merchant_id.clone(),
         request: Some(
             crypto_operation(
                 key_manager_state,
@@ -152,6 +154,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
                 request_content,
                 delivery_attempt,
                 Some(content),
+                processor_merchant_id,
             ))
             .await;
         }
@@ -171,6 +174,7 @@ pub(crate) async fn trigger_webhook_and_raise_event(
     request_content: webhook_events::OutgoingWebhookRequestContent,
     delivery_attempt: enums::WebhookDeliveryAttempt,
     content: Option<api::OutgoingWebhookContent>,
+    processor_merchant_id: Option<common_utils::id_type::MerchantId>,
 ) {
     logger::debug!(
         event_id=%event.event_id,
@@ -190,9 +194,15 @@ pub(crate) async fn trigger_webhook_and_raise_event(
     )
     .await;
 
-    let _ =
-        raise_webhooks_analytics_event(state, trigger_webhook_result, content, merchant_id, event)
-            .await;
+    let _ = raise_webhooks_analytics_event(
+        state,
+        trigger_webhook_result,
+        content,
+        merchant_id,
+        event,
+        processor_merchant_id,
+    )
+    .await;
 }
 
 async fn trigger_webhook_to_merchant(
@@ -254,6 +264,7 @@ async fn raise_webhooks_analytics_event(
     content: Option<api::OutgoingWebhookContent>,
     merchant_id: common_utils::id_type::MerchantId,
     fallback_event: domain::Event,
+    processor_merchant_id: Option<common_utils::id_type::MerchantId>,
 ) {
     let (updated_event, optional_error) = match trigger_webhook_result {
         Ok((updated_event, error)) => (updated_event, error),
@@ -308,6 +319,7 @@ async fn raise_webhooks_analytics_event(
         updated_event.initial_attempt_id,
         status_code,
         updated_event.delivery_attempt,
+        processor_merchant_id,
     );
     state.event_handler().log_event(&webhook_event);
 }
