@@ -17,8 +17,8 @@ use crate::{strategy::Strategy, PeekInterface, StrongSecret};
 /// ## Masking Example
 ///
 /// ```
-/// use masking::Strategy;
-/// use masking::Secret;
+/// use hyperswitch_masking::Strategy;
+/// use hyperswitch_masking::Secret;
 /// use std::fmt;
 ///
 /// enum MyStrategy {}

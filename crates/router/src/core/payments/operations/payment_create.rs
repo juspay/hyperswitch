@@ -21,7 +21,7 @@ use hyperswitch_domain_models::{
     payment_method_data::RecurringDetails as domain_recurring_details,
     payments::{payment_attempt::PaymentAttempt, FromRequestEncryptablePaymentIntent},
 };
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
 use storage_impl::platform_wrapper;

@@ -78,8 +78,8 @@ use hyperswitch_domain_models::{
     types::{OrderDetailsWithAmount, SetupMandateRouterData},
 };
 use hyperswitch_interfaces::{api, consts, errors, types::Response};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use image::{DynamicImage, ImageBuffer, ImageFormat, Luma, Rgba};
-use masking::{ExposeInterface, PeekInterface, Secret};
 use quick_xml::{
     events::{BytesDecl, BytesText, Event},
     Writer,
@@ -7782,11 +7782,11 @@ pub trait CustomerDetails {
     fn get_customer_id(&self) -> Result<id_type::CustomerId, errors::ConnectorError>;
     fn get_customer_name(
         &self,
-    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError>;
+    ) -> Result<Secret<String, hyperswitch_masking::WithType>, errors::ConnectorError>;
     fn get_customer_email(&self) -> Result<Email, errors::ConnectorError>;
     fn get_customer_phone(
         &self,
-    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError>;
+    ) -> Result<Secret<String, hyperswitch_masking::WithType>, errors::ConnectorError>;
     fn get_customer_phone_country_code(&self) -> Result<String, errors::ConnectorError>;
 }
 
@@ -7802,7 +7802,7 @@ impl CustomerDetails for hyperswitch_domain_models::router_request_types::Custom
 
     fn get_customer_name(
         &self,
-    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError> {
+    ) -> Result<Secret<String, hyperswitch_masking::WithType>, errors::ConnectorError> {
         self.name
             .clone()
             .ok_or(errors::ConnectorError::MissingRequiredField {
@@ -7820,7 +7820,7 @@ impl CustomerDetails for hyperswitch_domain_models::router_request_types::Custom
 
     fn get_customer_phone(
         &self,
-    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError> {
+    ) -> Result<Secret<String, hyperswitch_masking::WithType>, errors::ConnectorError> {
         self.phone
             .clone()
             .ok_or(errors::ConnectorError::MissingRequiredField {

@@ -11,7 +11,7 @@ use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse, payments as domain_payments,
 };
 use hyperswitch_interfaces::api::gateway;
-use masking::ExposeInterface;
+use hyperswitch_masking::ExposeInterface;
 use unified_connector_service_client::payments as payments_grpc;
 use unified_connector_service_masking::ExposeInterface as UcsMaskingExposeInterface;
 

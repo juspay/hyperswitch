@@ -41,7 +41,7 @@ pub use hyperswitch_interfaces::{
         WebhookTransformationStatus,
     },
 };
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::tracing;
 use time::{Duration, OffsetDateTime};
 use unified_connector_service_cards::{CardNumber, NetworkToken};
