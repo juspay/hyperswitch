@@ -429,6 +429,14 @@ pub enum Flow {
     SetDashboardMetadata,
     /// Get Multiple Dashboard Metadata flow
     GetMultipleDashboardMetadata,
+    /// Create Saved View flow
+    CreateSavedView,
+    /// List Saved Views flow
+    ListSavedViews,
+    /// Update Saved View flow
+    UpdateSavedView,
+    /// Delete Saved View flow
+    DeleteSavedView,
     /// Payment Connector Verify
     VerifyPaymentConnector,
     /// Internal user signup

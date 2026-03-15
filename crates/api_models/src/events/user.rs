@@ -9,7 +9,9 @@ use crate::user::theme::{
 };
 use crate::user::{
     dashboard_metadata::{
-        GetMetaDataRequest, GetMetaDataResponse, GetMultipleMetaDataPayload, SetMetaDataRequest,
+        CreateSavedViewRequest, DeleteSavedViewRequest, GetMetaDataRequest, GetMetaDataResponse,
+        GetMultipleMetaDataPayload, ListSavedViewsRequest, SavedViewResponse, SetMetaDataRequest,
+        UpdateSavedViewRequest,
     },
     AcceptInviteFromEmailRequest, AcceptInviteResponse, AuthSelectRequest, AuthorizeResponse,
     BeginTotpResponse, ChangePasswordRequest, CloneConnectorRequest, ConnectAccountRequest,
@@ -83,7 +85,12 @@ common_utils::impl_api_event_type!(
         EmbeddedTokenInfoResponse,
         GetUserInternalDetailsResponse,
         ListUsersInternalRequest,
-        ListUsersInternalResponse
+        ListUsersInternalResponse,
+        CreateSavedViewRequest,
+        ListSavedViewsRequest,
+        UpdateSavedViewRequest,
+        DeleteSavedViewRequest,
+        SavedViewResponse
     )
 );
 

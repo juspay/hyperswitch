@@ -320,7 +320,11 @@ impl From<Flow> for ApiIdentifier {
             | Flow::EmbeddedTokenInfo
             | Flow::GetEmbeddedToken
             | Flow::GetUserDetailsInternal
-            | Flow::ListUsersInternal => Self::User,
+            | Flow::ListUsersInternal
+            | Flow::CreateSavedView
+            | Flow::ListSavedViews
+            | Flow::UpdateSavedView
+            | Flow::DeleteSavedView => Self::User,
 
             Flow::GetDataFromHyperswitchAiFlow | Flow::ListAllChatInteractions => Self::AiWorkflow,
 
