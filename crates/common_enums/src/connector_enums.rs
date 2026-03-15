@@ -108,6 +108,7 @@ pub enum Connector {
     Finix,
     Fiserv,
     Fiservemea,
+    Fiservcommercehub,
     Fiuu,
     Flexiti,
     Forte,
@@ -270,6 +271,7 @@ impl Connector {
                 | (Self::Dwolla, _)
                 | (Self::Santander, _)
                 | (Self::Truelayer, _)
+                | (Self::Fiservcommercehub, _)
         )
     }
     pub fn requires_order_creation_before_payment(self, payment_method: PaymentMethod) -> bool {
@@ -335,6 +337,7 @@ impl Connector {
             | Self::Finix
             | Self::Fiserv
             | Self::Fiservemea
+            | Self::Fiservcommercehub
             | Self::Fiuu
             | Self::Flexiti
             | Self::Forte
