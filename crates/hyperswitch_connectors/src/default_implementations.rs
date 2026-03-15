@@ -1549,7 +1549,6 @@ default_imp_for_cancel_post_capture_sync!(
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
-    connectors::Nuvei,
     connectors::Opayo,
     connectors::Opennode,
     connectors::Nmi,

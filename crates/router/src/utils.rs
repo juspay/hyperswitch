@@ -1174,7 +1174,6 @@ where
     D: payments_core::OperationSessionGetters<F>,
 {
     let status = payment_data.get_payment_intent().status;
-    let state_metadata = payment_data.get_payment_intent().state_metadata.clone();
 
     // Trigger an outgoing webhook regardless of the current payment intent status if nothing is configured in the profile.
     let should_trigger_webhook = business_profile
@@ -1207,7 +1206,7 @@ where
             initiator,
         )?;
 
-        let event_type = webhooks_core::get_event_type(status, state_metadata);
+        let event_type = status.into();
 
         if let services::ApplicationResponse::JsonWithHeaders((payments_response_json, _)) =
             payments_response
