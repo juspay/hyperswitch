@@ -65,10 +65,10 @@ impl WebhookInvoiceStatus {
     pub fn is_refund_event(&self) -> bool {
         matches!(
             self,
-            WebhookInvoiceStatus::Refund
-                | WebhookInvoiceStatus::PartialRefund
-                | WebhookInvoiceStatus::RefundDeclined
-                | WebhookInvoiceStatus::RefundFailed
+            Self::Refund
+                | Self::PartialRefund
+                | Self::RefundDeclined
+                | Self::RefundFailed
         )
     }
 }
