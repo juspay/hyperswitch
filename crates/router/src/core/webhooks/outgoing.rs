@@ -45,7 +45,6 @@ use crate::{
     workflows::outgoing_webhook_retry,
 };
 
-
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 pub(crate) async fn create_event_and_trigger_outgoing_webhook(
