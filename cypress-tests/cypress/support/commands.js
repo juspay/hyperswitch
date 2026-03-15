@@ -5853,6 +5853,32 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add(
+  "createConnectorWithHeaderCallTest",
+  (connectorBody, apiKey, connectedMerchantId, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    const merchantId = globalState.get("merchantId");
+
+    return cy
+      .request({
+        method: "POST",
+        url: `${baseUrl}/account/${merchantId}/connectors`,
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "api-key": apiKey,
+          "x-connected-merchant-id": connectedMerchantId,
+        },
+        body: connectorBody,
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        logRequestId(response.headers["x-request-id"]);
+        return cy.wrap(response);
+      });
+  }
+);
+
+Cypress.Commands.add(
   "customerRetrieveWithApiKeyCallTest",
   (apiKey, customerId, globalState) => {
     const baseUrl = globalState.get("baseUrl");

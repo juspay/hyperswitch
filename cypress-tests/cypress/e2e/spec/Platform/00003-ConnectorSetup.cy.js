@@ -180,12 +180,69 @@ describe("Connector Setup for Connected Merchants", () => {
     });
   });
 
+  context("Platform Creates Connector for Connected Merchant 1", () => {
+    it("platform-create-connector-for-cm1", () => {
+      const savedMerchantId = globalState.get("merchantId");
+
+      globalState.set("merchantId", globalState.get("connectedMerchantId_1"));
+
+      cy.createConnectorWithHeaderCallTest(
+        {
+          connector_type: "payment_processor",
+          connector_name: "stripe",
+          connector_label: "stripe_platform_for_cm1",
+          ...fixtures.createConnectorBody,
+          payment_methods_enabled,
+          profile_id: globalState.get("profileId_CM1"),
+        },
+        globalState.get("apiKey"),
+        globalState.get("connectedMerchantId_1"),
+        globalState
+      ).then((response) => {
+        expect(response.status).to.equal(200);
+        expect(response.body).to.have.property("connector_name", "stripe");
+      });
+
+      cy.then(() => {
+        globalState.set("merchantId", savedMerchantId);
+      });
+    });
+  });
+
   context("Verify Connectors Are Separate", () => {
     it("verify-cm1-and-cm2-have-different-connectors", () => {
       const connectorIdCM1 = globalState.get("connectorId_CM1");
       const connectorIdCM2 = globalState.get("connectorId_CM2");
 
       expect(connectorIdCM1).to.not.equal(connectorIdCM2);
+    });
+  });
+
+  context("Platform Cannot Create Connector for Standard Merchant", () => {
+    it("platform-cannot-create-connector-for-standard-merchant", () => {
+      const savedMerchantId = globalState.get("merchantId");
+
+      globalState.set("merchantId", globalState.get("standardMerchantId"));
+
+      cy.createConnectorWithHeaderCallTest(
+        {
+          connector_type: "payment_processor",
+          connector_name: "stripe",
+          connector_label: "stripe_platform_for_sm",
+          ...fixtures.createConnectorBody,
+          payment_methods_enabled,
+          profile_id: globalState.get("profileId_SM"),
+        },
+        globalState.get("apiKey"),
+        globalState.get("standardMerchantId"),
+        globalState
+      ).then((response) => {
+        expect(response.status).to.equal(401);
+      });
+
+      cy.then(() => {
+        globalState.set("merchantId", savedMerchantId);
+      });
     });
   });
 
