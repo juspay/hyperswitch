@@ -440,13 +440,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     }
                     RecurringDetails::CardWithLimitedData(_)
                     | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_)
-                    | RecurringDetails::NetworkTransactionIdAndCardDetails(_) => {
-                        Some(api_models::payments::MandateIds {
-                            mandate_id: None,
-                            mandate_reference_id: mandate_reference_id_from_recurring_details,
-                        })
-                    }
-                    RecurringDetails::PaymentMethodId(_) | RecurringDetails::MandateId(_) => None,
+                    | RecurringDetails::NetworkTransactionIdAndCardDetails(_)
+                    | RecurringDetails::PaymentMethodId(_)
+                    | RecurringDetails::MandateId(_) => None,
                 })
         } else {
             mandate_id
@@ -498,10 +494,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Card cobadge check failed due to an invalid card network regex")?;
 
-        let payment_method_data = payment_method_with_raw_data
-            .as_ref()
-            .and_then(|pm| pm.raw_payment_method_data.clone())
-            .or(payment_method_data_after_card_bin_call.map(Into::into));
+        // let payment_method_data = payment_method_with_raw_data
+        //     .as_ref()
+        //     .and_then(|pm| pm.raw_payment_method_data.clone())
+        //     .or(payment_method_data_after_card_bin_call.map(Into::into));
 
         let additional_pm_data_from_locker = if let Some(ref pm) = payment_method_info {
             let card_detail_from_locker: Option<api::CardDetailFromLocker> = pm

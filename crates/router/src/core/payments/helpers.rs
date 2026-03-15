@@ -555,7 +555,7 @@ pub async fn get_token_pm_type_mandate_details(
                             None,
                             None,
                             None,
-                        )
+                        ),
                         RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => (
                             None,
                             request.payment_method,

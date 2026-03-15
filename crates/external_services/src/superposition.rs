@@ -107,7 +107,7 @@ impl SuperpositionClient {
         key: &str,
         context: Option<&ConfigContext>,
     ) -> CustomResult<bool, SuperpositionError> {
-        let evaluation_context = self.build_evaluation_context(context);
+        let evaluation_context = self.build_evaluation_context(context, None);
 
         self.client
             .get_bool_value(key, Some(&evaluation_context), None)
@@ -125,7 +125,7 @@ impl SuperpositionClient {
         key: &str,
         context: Option<&ConfigContext>,
     ) -> CustomResult<String, SuperpositionError> {
-        let evaluation_context = self.build_evaluation_context(context);
+        let evaluation_context = self.build_evaluation_context(context, None);
 
         self.client
             .get_string_value(key, Some(&evaluation_context), None)
@@ -143,7 +143,7 @@ impl SuperpositionClient {
         key: &str,
         context: Option<&ConfigContext>,
     ) -> CustomResult<i64, SuperpositionError> {
-        let evaluation_context = self.build_evaluation_context(context);
+        let evaluation_context = self.build_evaluation_context(context, None);
 
         self.client
             .get_int_value(key, Some(&evaluation_context), None)
@@ -161,7 +161,7 @@ impl SuperpositionClient {
         key: &str,
         context: Option<&ConfigContext>,
     ) -> CustomResult<f64, SuperpositionError> {
-        let evaluation_context = self.build_evaluation_context(context);
+        let evaluation_context = self.build_evaluation_context(context, None);
 
         self.client
             .get_float_value(key, Some(&evaluation_context), None)
@@ -179,7 +179,7 @@ impl SuperpositionClient {
         key: &str,
         context: Option<&ConfigContext>,
     ) -> CustomResult<serde_json::Value, SuperpositionError> {
-        let evaluation_context = self.build_evaluation_context(context);
+        let evaluation_context = self.build_evaluation_context(context, None);
 
         let json_result = self
             .client

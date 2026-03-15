@@ -2589,8 +2589,8 @@ where
                 .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
             let initiator = Some(domain::Initiator::Api {
-                merchant_id: merchant.get_id().clone(),
-                merchant_account_type: merchant.merchant_account_type,
+                merchant_id: initiator_merchant.get_id().clone(),
+                merchant_account_type: initiator_merchant.merchant_account_type,
             });
 
             let platform = resolve_platform(
