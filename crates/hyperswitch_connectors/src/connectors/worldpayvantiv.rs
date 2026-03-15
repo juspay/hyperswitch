@@ -17,8 +17,8 @@ use hyperswitch_domain_models::{
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{
-            Authorize, Capture, PSync, PaymentMethodToken, PostCaptureVoid, Session, SetupMandate,
-            Void,
+            Authorize, Capture, PSync, PaymentMethodToken, PostCaptureVoid, PostCaptureVoidSync,
+            Session, SetupMandate, Void,
         },
         refunds::{Execute, RSync},
         Accept, Dsync, Evidence, Fetch, Retrieve, Upload,
@@ -26,9 +26,10 @@ use hyperswitch_domain_models::{
     router_request_types::{
         AcceptDisputeRequestData, AccessTokenRequestData, DisputeSyncData,
         FetchDisputesRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsSessionData, PaymentsSyncData, RefundsData, RetrieveFileRequestData,
-        SetupMandateRequestData, SubmitEvidenceRequestData, UploadFileRequestData,
+        PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCancelPostCaptureSyncData,
+        PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData, RefundsData,
+        RetrieveFileRequestData, SetupMandateRequestData, SubmitEvidenceRequestData,
+        UploadFileRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, ConnectorInfo, DisputeSyncResponse, FetchDisputesResponse,
@@ -37,7 +38,8 @@ use hyperswitch_domain_models::{
         UploadFileResponse,
     },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelPostCaptureRouterData, PaymentsCancelRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelPostCaptureRouterData,
+        PaymentsCancelPostCaptureSyncRouterData, PaymentsCancelRouterData,
         PaymentsCaptureRouterData, PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
         SetupMandateRouterData,
     },
@@ -437,6 +439,85 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
+        let response: worldpayvantiv::VantivSyncResponse = res
+            .response
+            .parse_struct("VantivSyncResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        handle_vantiv_json_error_response(res, event_builder)
+    }
+}
+
+impl api::PaymentPostCaptureVoidSync for Worldpayvantiv {}
+impl
+    ConnectorIntegration<
+        PostCaptureVoidSync,
+        PaymentsCancelPostCaptureSyncData,
+        PaymentsResponseData,
+    > for Worldpayvantiv
+{
+    fn get_headers(
+        &self,
+        req: &PaymentsCancelPostCaptureSyncRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.get_auth_header(&req.connector_auth_type)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        "application/json"
+    }
+
+    fn get_url(
+        &self,
+        req: &PaymentsCancelPostCaptureSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}/reports/dtrPaymentStatus/{}",
+            connectors.worldpayvantiv.secondary_base_url.to_owned(),
+            req.request.connector_post_capture_void_transaction_id
+        ))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsCancelPostCaptureSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Get)
+                .url(&types::PaymentsPostCaptureVoidSyncType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::PaymentsPostCaptureVoidSyncType::get_headers(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsCancelPostCaptureSyncRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsCancelPostCaptureSyncRouterData, errors::ConnectorError> {
         let response: worldpayvantiv::VantivSyncResponse = res
             .response
             .parse_struct("VantivSyncResponse")
