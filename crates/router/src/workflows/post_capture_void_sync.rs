@@ -12,9 +12,8 @@ use scheduler::{
 #[cfg(feature = "v2")]
 use crate::workflows::revenue_recovery::update_token_expiry_based_on_schedule_time;
 use crate::{
-    consts,
     core::{
-        errors::StorageErrorExt,
+        configs,
         payments::{self as payment_flows, operations},
     },
     db::StorageInterface,
@@ -25,7 +24,6 @@ use crate::{
         api, domain,
         storage::{self, enums},
     },
-    utils,
 };
 
 pub struct PaymentsPostCaptureVoidSyncWorkflow;
@@ -84,8 +82,14 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsPostCaptureVoidSyncWorkflo
         let dimensions = configs::dimension_state::Dimensions::new()
             .with_merchant_id(platform.get_processor().get_account().get_id().clone());
 
-        let (mut payment_data, _, _, _) = payments_operation_core::<_, _, _, _, _>(
-            &state,
+        let (payment_data, _, _, _) = Box::pin(payment_flows::payments_operation_core::<
+            api::PostCaptureVoidSync,
+            _,
+            _,
+            _,
+            payment_flows::PaymentData<api::PostCaptureVoidSync>,
+        >(
+            state,
             state.get_req_state(),
             &platform,
             None,
@@ -97,7 +101,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsPostCaptureVoidSyncWorkflo
             None,
             hyperswitch_domain_models::payments::HeaderPayload::default(),
             dimensions,
-        )
+        ))
         .await?;
 
         let terminal_status = [
@@ -108,10 +112,10 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsPostCaptureVoidSyncWorkflo
             enums::AttemptStatus::Failure,
         ];
 
-        let is_post_capture_void_attempted_state =
+        let is_post_capture_void_successful =
             payment_data.payment_intent.is_post_capture_void_applied();
 
-        if is_post_capture_void_attempted_state {
+        if is_post_capture_void_successful {
             // already applied, nothing more to process
         } else if terminal_status.contains(&payment_data.payment_attempt.status)
             || !payment_data.payment_intent.is_post_capture_void_pending()
@@ -122,6 +126,12 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsPostCaptureVoidSyncWorkflo
                 .finish_process_with_business_status(process, business_status::COMPLETED_BY_PT)
                 .await?;
         } else {
+            let connector = payment_data
+                .payment_attempt
+                .connector
+                .clone()
+                .ok_or(sch_errors::ProcessTrackerError::MissingRequiredField)?;
+
             retry_sync_task(
                 db,
                 connector,
@@ -182,8 +192,13 @@ pub async fn retry_sync_task(
     merchant_id: common_utils::id_type::MerchantId,
     pt: storage::ProcessTracker,
 ) -> Result<bool, sch_errors::ProcessTrackerError> {
-    let schedule_time =
-        get_sync_process_schedule_time(db, &connector, &merchant_id, pt.retry_count + 1).await?;
+    let schedule_time = get_post_capture_void_sync_process_schedule_time(
+        db,
+        &connector,
+        &merchant_id,
+        pt.retry_count + 1,
+    )
+    .await?;
 
     match schedule_time {
         Some(s_time) => {
