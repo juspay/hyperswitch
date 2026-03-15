@@ -223,12 +223,9 @@ pub fn separate_metadata_type_based_on_scope(
             | DBEnum::OnboardingSurvey
             | DBEnum::IsMultipleConfiguration
             | DBEnum::ReconStatus
-            | DBEnum::ProdIntent
-            | DBEnum::PaymentViews
-            | DBEnum::RefundViews
-            | DBEnum::CustomerViews
-            | DBEnum::DisputeViews
-            | DBEnum::PayoutViews => merchant_scoped.push(key),
+            | DBEnum::ProdIntent => merchant_scoped.push(key),
+            #[cfg(feature = "v1")]
+            DBEnum::PaymentViews => merchant_scoped.push(key),
             DBEnum::Feedback | DBEnum::IsChangePasswordRequired => user_scoped.push(key),
         }
     }

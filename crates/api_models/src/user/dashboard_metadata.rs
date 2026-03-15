@@ -1,15 +1,11 @@
 use common_enums::{CountryAlpha2, MerchantProductType};
-#[cfg(feature = "v1")]
-use common_types::primitive_wrappers::CustomerListLimit;
 use common_types::primitive_wrappers::SafeString;
 use common_utils::{id_type, pii};
 use masking::Secret;
 use strum::EnumString;
 
 #[cfg(feature = "v1")]
-use crate::{customers, disputes, enums, payments, refunds};
-#[cfg(all(feature = "payouts", feature = "v1"))]
-use crate::payouts;
+use crate::{enums, payments};
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub enum SetMetaDataRequest {
@@ -45,18 +41,18 @@ pub struct ProductionAgreementRequest {
     pub ip_address: Option<Secret<String, pii::IpAddress>>,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct SetupProcessor {
     pub connector_id: String,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct ProcessorConnected {
     pub processor_id: id_type::MerchantConnectorAccountId,
     pub processor_name: String,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct OnboardingSurvey {
     pub designation: Option<SafeString>,
     pub about_business: Option<SafeString>,
@@ -70,12 +66,12 @@ pub struct OnboardingSurvey {
     pub miscellaneous: Option<SafeString>,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct ConfiguredRouting {
     pub routing_id: String,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct TestPayment {
     pub payment_id: id_type::PaymentId,
 }
@@ -187,6 +183,7 @@ pub enum GetMetaDataResponse {
     IsChangePasswordRequired(bool),
     OnboardingSurvey(Option<OnboardingSurvey>),
     ReconStatus(Option<ReconStatus>),
+    PaymentViews(Option<Vec<SavedView>>),
 }
 
 // === Saved Views API Types ===
@@ -197,10 +194,6 @@ pub enum GetMetaDataResponse {
 #[strum(serialize_all = "snake_case")]
 pub enum SavedViewEntity {
     PaymentViews,
-    RefundViews,
-    CustomerViews,
-    DisputeViews,
-    PayoutViews,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, Default)]
@@ -216,11 +209,6 @@ pub enum SavedViewVersion {
 #[serde(rename_all = "snake_case")]
 pub enum SavedViewFiltersV1 {
     PaymentViews(PaymentListFilterConstraintsV1),
-    RefundViews(RefundListRequestV1),
-    #[cfg(feature = "payouts")]
-    PayoutViews(PayoutListFilterConstraintsV1),
-    DisputeViews(DisputeListGetConstraintsV1),
-    CustomerViews(CustomerListRequestWithConstraintsV1),
 }
 
 #[cfg(feature = "v1")]
@@ -250,69 +238,6 @@ pub struct PaymentListFilterConstraintsV1 {
     pub customer_email: Option<pii::Email>,
 }
 
-#[cfg(feature = "v1")]
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub struct RefundListRequestV1 {
-    pub payment_id: Option<id_type::PaymentId>,
-    pub refund_id: Option<String>,
-    pub profile_id: Option<id_type::ProfileId>,
-    pub limit: Option<i64>,
-    pub offset: Option<i64>,
-    #[serde(flatten)]
-    pub time_range: Option<common_utils::types::TimeRange>,
-    pub amount_filter: Option<payments::AmountFilter>,
-    pub connector: Option<Vec<String>>,
-    pub merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
-    pub currency: Option<Vec<enums::Currency>>,
-    pub refund_status: Option<Vec<enums::RefundStatus>>,
-}
-
-#[cfg(all(feature = "payouts", feature = "v1"))]
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub struct PayoutListFilterConstraintsV1 {
-    pub payout_id: Option<id_type::PayoutId>,
-    pub merchant_order_reference_id: Option<String>,
-    pub profile_id: Option<id_type::ProfileId>,
-    pub customer_id: Option<id_type::CustomerId>,
-    pub limit: u32,
-    pub offset: Option<u32>,
-    #[serde(flatten)]
-    pub time_range: Option<common_utils::types::TimeRange>,
-    pub connector: Option<Vec<enums::PayoutConnectors>>,
-    pub currency: Option<Vec<enums::Currency>>,
-    pub status: Option<Vec<enums::PayoutStatus>>,
-    pub payout_method: Option<Vec<common_enums::PayoutType>>,
-    pub entity_type: Option<common_enums::PayoutEntityType>,
-}
-
-#[cfg(feature = "v1")]
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub struct DisputeListGetConstraintsV1 {
-    pub dispute_id: Option<String>,
-    pub payment_id: Option<id_type::PaymentId>,
-    pub limit: Option<u32>,
-    pub offset: Option<u32>,
-    pub profile_id: Option<id_type::ProfileId>,
-    pub dispute_status: Option<Vec<enums::DisputeStatus>>,
-    pub dispute_stage: Option<Vec<enums::DisputeStage>>,
-    pub reason: Option<String>,
-    pub connector: Option<Vec<String>>,
-    pub currency: Option<Vec<enums::Currency>>,
-    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
-    #[serde(flatten)]
-    pub time_range: Option<common_utils::types::TimeRange>,
-}
-
-#[cfg(feature = "v1")]
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub struct CustomerListRequestWithConstraintsV1 {
-    pub offset: Option<u32>,
-    pub limit: Option<CustomerListLimit>,
-    pub customer_id: Option<id_type::CustomerId>,
-    #[serde(flatten)]
-    pub time_range: Option<common_utils::types::TimeRange>,
-}
-
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(untagged)]
 pub enum SavedViewFilters {
@@ -326,11 +251,6 @@ impl SavedViewFilters {
         match self {
             Self::V1(filters) => match filters {
                 SavedViewFiltersV1::PaymentViews(_) => SavedViewEntity::PaymentViews,
-                SavedViewFiltersV1::RefundViews(_) => SavedViewEntity::RefundViews,
-                #[cfg(feature = "payouts")]
-                SavedViewFiltersV1::PayoutViews(_) => SavedViewEntity::PayoutViews,
-                SavedViewFiltersV1::DisputeViews(_) => SavedViewEntity::DisputeViews,
-                SavedViewFiltersV1::CustomerViews(_) => SavedViewEntity::CustomerViews,
             },
         }
     }
@@ -367,7 +287,7 @@ impl ResilientSavedView {
 }
 
 /// Wrapper for the JSONB `filters` column
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, Default)]
 pub struct SavedViewsData {
     pub views: Vec<ResilientSavedView>,
 }
@@ -515,242 +435,6 @@ impl From<PaymentListFilterConstraintsV1> for payments::PaymentListFilterConstra
             merchant_order_reference_id,
             card_discovery,
             customer_email,
-        }
-    }
-}
-
-#[cfg(feature = "v1")]
-impl From<refunds::RefundListRequest> for RefundListRequestV1 {
-    fn from(item: refunds::RefundListRequest) -> Self {
-        let refunds::RefundListRequest {
-            payment_id,
-            refund_id,
-            profile_id,
-            limit,
-            offset,
-            time_range,
-            amount_filter,
-            connector,
-            merchant_connector_id,
-            currency,
-            refund_status,
-        } = item;
-        Self {
-            payment_id,
-            refund_id,
-            profile_id,
-            limit,
-            offset,
-            time_range,
-            amount_filter,
-            connector,
-            merchant_connector_id,
-            currency,
-            refund_status,
-        }
-    }
-}
-
-#[cfg(feature = "v1")]
-impl From<RefundListRequestV1> for refunds::RefundListRequest {
-    fn from(item: RefundListRequestV1) -> Self {
-        let RefundListRequestV1 {
-            payment_id,
-            refund_id,
-            profile_id,
-            limit,
-            offset,
-            time_range,
-            amount_filter,
-            connector,
-            merchant_connector_id,
-            currency,
-            refund_status,
-        } = item;
-        Self {
-            payment_id,
-            refund_id,
-            profile_id,
-            limit,
-            offset,
-            time_range,
-            amount_filter,
-            connector,
-            merchant_connector_id,
-            currency,
-            refund_status,
-        }
-    }
-}
-
-#[cfg(all(feature = "payouts", feature = "v1"))]
-impl From<payouts::PayoutListFilterConstraints> for PayoutListFilterConstraintsV1 {
-    fn from(item: payouts::PayoutListFilterConstraints) -> Self {
-        let payouts::PayoutListFilterConstraints {
-            payout_id,
-            merchant_order_reference_id,
-            profile_id,
-            customer_id,
-            limit,
-            offset,
-            time_range,
-            connector,
-            currency,
-            status,
-            payout_method,
-            entity_type,
-        } = item;
-        Self {
-            payout_id,
-            merchant_order_reference_id,
-            profile_id,
-            customer_id,
-            limit,
-            offset,
-            time_range,
-            connector,
-            currency,
-            status,
-            payout_method,
-            entity_type,
-        }
-    }
-}
-
-#[cfg(all(feature = "payouts", feature = "v1"))]
-impl From<PayoutListFilterConstraintsV1> for payouts::PayoutListFilterConstraints {
-    fn from(item: PayoutListFilterConstraintsV1) -> Self {
-        let PayoutListFilterConstraintsV1 {
-            payout_id,
-            merchant_order_reference_id,
-            profile_id,
-            customer_id,
-            limit,
-            offset,
-            time_range,
-            connector,
-            currency,
-            status,
-            payout_method,
-            entity_type,
-        } = item;
-        Self {
-            payout_id,
-            merchant_order_reference_id,
-            profile_id,
-            customer_id,
-            limit,
-            offset,
-            time_range,
-            connector,
-            currency,
-            status,
-            payout_method,
-            entity_type,
-        }
-    }
-}
-
-#[cfg(feature = "v1")]
-impl From<disputes::DisputeListGetConstraints> for DisputeListGetConstraintsV1 {
-    fn from(item: disputes::DisputeListGetConstraints) -> Self {
-        let disputes::DisputeListGetConstraints {
-            dispute_id,
-            payment_id,
-            limit,
-            offset,
-            profile_id,
-            dispute_status,
-            dispute_stage,
-            reason,
-            connector,
-            currency,
-            merchant_connector_id,
-            time_range,
-        } = item;
-        Self {
-            dispute_id,
-            payment_id,
-            limit,
-            offset,
-            profile_id,
-            dispute_status,
-            dispute_stage,
-            reason,
-            connector,
-            currency,
-            merchant_connector_id,
-            time_range,
-        }
-    }
-}
-
-#[cfg(feature = "v1")]
-impl From<DisputeListGetConstraintsV1> for disputes::DisputeListGetConstraints {
-    fn from(item: DisputeListGetConstraintsV1) -> Self {
-        let DisputeListGetConstraintsV1 {
-            dispute_id,
-            payment_id,
-            limit,
-            offset,
-            profile_id,
-            dispute_status,
-            dispute_stage,
-            reason,
-            connector,
-            currency,
-            merchant_connector_id,
-            time_range,
-        } = item;
-        Self {
-            dispute_id,
-            payment_id,
-            limit,
-            offset,
-            profile_id,
-            dispute_status,
-            dispute_stage,
-            reason,
-            connector,
-            currency,
-            merchant_connector_id,
-            time_range,
-        }
-    }
-}
-
-#[cfg(feature = "v1")]
-impl From<customers::CustomerListRequestWithConstraints> for CustomerListRequestWithConstraintsV1 {
-    fn from(item: customers::CustomerListRequestWithConstraints) -> Self {
-        let customers::CustomerListRequestWithConstraints {
-            offset,
-            limit,
-            customer_id,
-            time_range,
-        } = item;
-        Self {
-            offset,
-            limit,
-            customer_id,
-            time_range,
-        }
-    }
-}
-
-#[cfg(feature = "v1")]
-impl From<CustomerListRequestWithConstraintsV1> for customers::CustomerListRequestWithConstraints {
-    fn from(item: CustomerListRequestWithConstraintsV1) -> Self {
-        let CustomerListRequestWithConstraintsV1 {
-            offset,
-            limit,
-            customer_id,
-            time_range,
-        } = item;
-        Self {
-            offset,
-            limit,
-            customer_id,
-            time_range,
         }
     }
 }

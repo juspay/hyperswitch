@@ -1238,6 +1238,7 @@ pub async fn create_saved_view(
     .await
 }
 
+#[cfg(feature = "v1")]
 pub async fn list_saved_views(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -1286,6 +1287,7 @@ pub async fn update_saved_view(
     .await
 }
 
+#[cfg(feature = "v1")]
 pub async fn delete_saved_view(
     state: web::Data<AppState>,
     req: HttpRequest,
