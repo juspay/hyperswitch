@@ -61,6 +61,10 @@ describe("Platform Setup & Connected Merchant Onboarding", () => {
           );
           globalState.set("connectedMerchantId_1", response.body.merchant_id);
           globalState.set("profileId_CM1", response.body.default_profile);
+          globalState.set(
+            "publishableKey_CM1",
+            response.body.publishable_key
+          );
         }
       );
     });
@@ -102,6 +106,10 @@ describe("Platform Setup & Connected Merchant Onboarding", () => {
           );
           globalState.set("connectedMerchantId_2", response.body.merchant_id);
           globalState.set("profileId_CM2", response.body.default_profile);
+          globalState.set(
+            "publishableKey_CM2",
+            response.body.publishable_key
+          );
         }
       );
 
