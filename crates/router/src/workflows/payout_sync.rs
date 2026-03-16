@@ -12,10 +12,13 @@ use scheduler::{
 };
 
 use crate::{
-    core::{configs, payouts, webhooks},
+    core::{
+        configs::{self, dimension_state::DimensionsWithMerchantIdAndConnector},
+        payouts, webhooks,
+    },
     errors as core_errors,
     routes::SessionState,
-    types::{self, api, domain, storage},
+    types::{api, domain, storage},
 };
 
 pub struct PayoutSyncWorkFlow;
@@ -96,6 +99,10 @@ impl ProcessTrackerWorkflow<SessionState> for PayoutSyncWorkFlow {
         payouts::create_payout_retrieve(state, &platform, &connector_data, &mut payout_data)
             .await?;
 
+        let dimensions = configs::dimension_state::Dimensions::new()
+            .with_merchant_id(merchant_id.clone())
+            .with_connector(connector_data.connector_name);
+
         if payout_data.payout_attempt.status.is_terminal_status() {
             Self::process_terminal_task(
                 state,
@@ -108,10 +115,9 @@ impl ProcessTrackerWorkflow<SessionState> for PayoutSyncWorkFlow {
         } else {
             Self::retry_payout_sync_task(
                 state,
-                connector_data.connector_name,
                 payout_data.payouts.payout_id,
-                merchant_id.clone(),
                 process,
+                &dimensions,
             )
             .await?;
         }
@@ -151,15 +157,10 @@ impl PayoutSyncWorkFlow {
     ///     After than do 2 retries with an interval of 1800 seconds.
     pub async fn get_payout_sync_process_schedule_time(
         state: &SessionState,
-        connector: types::Connector,
         payout_id: common_utils::id_type::PayoutId,
-        merchant_id: common_utils::id_type::MerchantId,
         retry_count: i32,
+        dimensions: &DimensionsWithMerchantIdAndConnector,
     ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
-        let dimensions = configs::dimension_state::Dimensions::new()
-            .with_merchant_id(merchant_id)
-            .with_connector(connector);
-
         let value = dimensions
             .get_payout_tracker_mapping(
                 state.store.as_ref(),
@@ -186,7 +187,6 @@ impl PayoutSyncWorkFlow {
     }
 
     /// get the schedule time for next process
-    #[cfg(feature = "v1")]
     pub fn get_schedule_time(mapping: process_data::RetryMapping, retry_count: i32) -> Option<i32> {
         // For first try, get the `start_after` time
         if retry_count == 0 {
@@ -244,19 +244,17 @@ impl PayoutSyncWorkFlow {
     /// Schedule the task for retry
     pub async fn retry_payout_sync_task(
         state: &SessionState,
-        connector: types::Connector,
         payout_id: common_utils::id_type::PayoutId,
-        merchant_id: common_utils::id_type::MerchantId,
         pt: storage::ProcessTracker,
+        dimensions: &DimensionsWithMerchantIdAndConnector,
     ) -> Result<(), errors::ProcessTrackerError> {
         let db = &*state.store;
         let schedule_time: Option<time::PrimitiveDateTime> =
             Self::get_payout_sync_process_schedule_time(
                 state,
-                connector,
                 payout_id,
-                merchant_id,
                 pt.retry_count + 1,
+                dimensions,
             )
             .await?;
 

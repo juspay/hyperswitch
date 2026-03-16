@@ -166,15 +166,7 @@ config! {
 
 impl DatabaseBackedConfig for PayoutTrackerMapping {
     const KEY: &'static str = "payout_tracker_mapping";
-    fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
-        let merchant_id = dimensions
-            .get_merchant_id()
-            .map(|id| id.get_string_repr())
-            .unwrap_or_default();
-        let connector = dimensions
-            .get_connector()
-            .map(|connector| connector.to_string())
-            .unwrap_or_default();
-        Some(format!("{}_{}_{}", merchant_id, connector, Self::KEY))
+    fn db_key(_dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+        None
     }
 }

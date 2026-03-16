@@ -47,6 +47,7 @@ use crate::types::domain::behaviour::Conversion;
 use crate::types::PayoutActionData;
 use crate::{
     core::{
+        configs::{self as configs, dimension_state::DimensionsWithMerchantId},
         errors::{
             self, ConnectorErrorExt, CustomResult, RouterResponse, RouterResult, StorageErrorExt,
         },
@@ -174,6 +175,7 @@ pub async fn make_connector_decision(
     platform: &domain::Platform,
     connector_call_type: api::ConnectorCallType,
     payout_data: &mut PayoutData,
+    dimensions: DimensionsWithMerchantId,
 ) -> RouterResult<()> {
     match connector_call_type {
         api::ConnectorCallType::PreDetermined(routing_data) => {
@@ -182,6 +184,7 @@ pub async fn make_connector_decision(
                 platform,
                 &routing_data.connector_data,
                 payout_data,
+                &dimensions,
             ))
             .await?;
 
@@ -200,6 +203,7 @@ pub async fn make_connector_decision(
                         routing_data.connector_data,
                         payout_data,
                         platform,
+                        &dimensions,
                     ))
                     .await?;
                 }
@@ -217,6 +221,7 @@ pub async fn make_connector_decision(
                 platform,
                 &connector_data,
                 payout_data,
+                &dimensions,
             ))
             .await?;
 
@@ -236,6 +241,7 @@ pub async fn make_connector_decision(
                         connector_data.clone(),
                         payout_data,
                         platform,
+                        &dimensions,
                     ))
                     .await?;
                 }
@@ -253,6 +259,7 @@ pub async fn make_connector_decision(
                         connector_data,
                         payout_data,
                         platform,
+                        &dimensions,
                     ))
                     .await?;
                 }
@@ -274,6 +281,7 @@ pub async fn payouts_core(
     payout_data: &mut PayoutData,
     routing_algorithm: Option<serde_json::Value>,
     eligible_connectors: Option<Vec<api_enums::PayoutConnectors>>,
+    dimensions: DimensionsWithMerchantId,
 ) -> RouterResult<()> {
     let payout_attempt = &payout_data.payout_attempt;
 
@@ -294,6 +302,7 @@ pub async fn payouts_core(
         platform,
         connector_call_type,
         payout_data,
+        dimensions,
     ))
     .await
 }
@@ -319,6 +328,8 @@ pub async fn payouts_create_core(
     // Validate create request
     let (payout_id, payout_method_data, profile_id, customer, payment_method) =
         validator::validate_create_request(&state, &platform, &req).await?;
+    let dimensions = configs::dimension_state::Dimensions::new()
+        .with_merchant_id(platform.get_processor().get_account().get_id().clone());
 
     // Create DB entries
     let mut payout_data = payout_create_db_entries(
@@ -365,6 +376,7 @@ pub async fn payouts_create_core(
             &mut payout_data,
             req.routing.clone(),
             req.connector.clone(),
+            dimensions,
         )
         .await?
     };
@@ -378,6 +390,9 @@ pub async fn payouts_confirm_core(
     platform: domain::Platform,
     req: payouts::PayoutCreateRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
+    let dimensions = configs::dimension_state::Dimensions::new()
+        .with_merchant_id(platform.get_processor().get_account().get_id().clone());
+
     let mut payout_data = Box::pin(make_payout_data(
         &state,
         &platform,
@@ -428,6 +443,7 @@ pub async fn payouts_confirm_core(
         &mut payout_data,
         req.routing.clone(),
         req.connector.clone(),
+        dimensions,
     )
     .await?;
 
@@ -439,6 +455,9 @@ pub async fn payouts_update_core(
     platform: domain::Platform,
     req: payouts::PayoutCreateRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
+    let dimensions = configs::dimension_state::Dimensions::new()
+        .with_merchant_id(platform.get_processor().get_account().get_id().clone());
+
     let payout_id = req.payout_id.clone().get_required_value("payout_id")?;
     let mut payout_data = Box::pin(make_payout_data(
         &state,
@@ -498,6 +517,7 @@ pub async fn payouts_update_core(
             &mut payout_data,
             req.routing.clone(),
             req.connector.clone(),
+            dimensions,
         )
         .await?;
     }
@@ -664,6 +684,8 @@ pub async fn payouts_fulfill_core(
 
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let status = payout_attempt.status;
+    let dimensions = configs::dimension_state::Dimensions::new()
+        .with_merchant_id(platform.get_processor().get_account().get_id().clone());
 
     // Verify if fulfillment can be triggered
     if helpers::is_payout_terminal_state(status)
@@ -702,6 +724,7 @@ pub async fn payouts_fulfill_core(
         &platform,
         &connector_data,
         &mut payout_data,
+        &dimensions,
     ))
     .await
     .attach_printable("Payout fulfillment failed for given Payout request")?;
@@ -1060,6 +1083,7 @@ pub async fn call_connector_payout(
     platform: &domain::Platform,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
+    dimensions: &DimensionsWithMerchantId,
 ) -> RouterResult<()> {
     let payout_attempt = &payout_data.payout_attempt.to_owned();
     let payouts = &payout_data.payouts.to_owned();
@@ -1147,9 +1171,15 @@ pub async fn call_connector_payout(
     // Auto fulfillment flow
     let status = payout_data.payout_attempt.status;
     if payouts.auto_fulfill && status == storage_enums::PayoutStatus::RequiresFulfillment {
-        Box::pin(fulfill_payout(state, platform, connector_data, payout_data))
-            .await
-            .attach_printable("Payout fulfillment failed for given Payout request")?;
+        Box::pin(fulfill_payout(
+            state,
+            platform,
+            connector_data,
+            payout_data,
+            dimensions,
+        ))
+        .await
+        .attach_printable("Payout fulfillment failed for given Payout request")?;
     }
 
     Ok(())
@@ -2454,6 +2484,7 @@ pub async fn fulfill_payout(
     platform: &domain::Platform,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
+    dimensions: &DimensionsWithMerchantId,
 ) -> RouterResult<()> {
     // 1. Form Router data
     let mut router_data =
@@ -2472,15 +2503,15 @@ pub async fn fulfill_payout(
 
     // 3. Call connector service
     let db = &*state.store;
+    let dimension_with_connector = dimensions.with_connector(connector_data.connector_name);
     let router_data_resp = match helpers::should_continue_payout(&router_data) {
         true => {
             let scheduled_time =
                 payout_sync::PayoutSyncWorkFlow::get_payout_sync_process_schedule_time(
                     state,
-                    connector_data.connector_name,
                     payout_data.payouts.payout_id.clone(),
-                    payout_data.payouts.merchant_id.clone(),
                     0,
+                    &dimension_with_connector,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)

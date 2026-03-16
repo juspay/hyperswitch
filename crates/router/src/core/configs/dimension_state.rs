@@ -114,11 +114,11 @@ impl<M, O, C> Dimensions<M, O, NoProfileId, C> {
 
 /// Can only add connector if not already present
 impl<M, O, P> Dimensions<M, O, P, NoConnector> {
-    pub fn with_connector(self, connector: types::Connector) -> Dimensions<M, O, P, HasConnector> {
+    pub fn with_connector(&self, connector: types::Connector) -> Dimensions<M, O, P, HasConnector> {
         Dimensions {
-            merchant_id: self.merchant_id,
-            organization_id: self.organization_id,
-            profile_id: self.profile_id,
+            merchant_id: self.merchant_id.clone(),
+            organization_id: self.organization_id.clone(),
+            profile_id: self.profile_id.clone(),
             connector: Some(connector),
             _phantom: PhantomData,
         }
