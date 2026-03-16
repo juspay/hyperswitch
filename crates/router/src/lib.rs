@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 #[cfg(all(feature = "stripe", feature = "v1"))]
 pub mod compatibility;
 pub mod configs;
