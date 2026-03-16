@@ -741,9 +741,9 @@ impl Url {
     }
 
     /// Validate the return URL provided in the ReportRequest payload
-    /// Validating the URL upfront means we immediately reject invalid or restricted IPs with a 400 Bad Request. 
-    /// This prevents us from unnecessarily spinning up a Lambda worker, executing expensive database queries, 
-    /// and generating a report that the infrastructure would just end up blocking anyway. 
+    /// Validating the URL upfront means we immediately reject invalid or restricted IPs with a 400 Bad Request.
+    /// This prevents us from unnecessarily spinning up a Lambda worker, executing expensive database queries,
+    /// and generating a report that the infrastructure would just end up blocking anyway.
     /// It saves compute costs and gives the merchant immediate feedback.
     pub fn validate_return_url(&self) -> Result<(), String> {
         let url_str = self.get_string_repr();
@@ -777,7 +777,7 @@ impl Url {
             let ip = addr.ip();
 
             if self.is_private_ip(&ip) {
-                return Err("Private URL not allowed.".to_string())
+                return Err("Private URL not allowed.".to_string());
             }
         }
 
@@ -791,7 +791,7 @@ impl Url {
                 // 0.0.0.0/8 (Current network / Linux localhost alias)
                 octets[0] == 0 ||
                 // 10.0.0.0/8
-                octets[0] == 10 || 
+                octets[0] == 10 ||
                 // 172.16.0.0./12
                 (octets[0] == 172 && octets[1] >= 16 && octets[1] <= 31) ||
                 // 192.168.0.0/16
@@ -800,13 +800,13 @@ impl Url {
                 octets[0] == 127 ||
                 // 169.254.0.0/16 (link-local)
                 (octets[0] == 169 && octets[1] == 254)
-            },
+            }
             IpAddr::V6(ipv6) => {
                 let segments = ipv6.segments();
                 // fc00::/7 - IPv6 unique local
                 (segments[0] & 0xfe00) == 0xfc00 ||
                 // fe80::/10 - IPv6 link-local
-                (segments[0] & 0xffc0) == 0xfe80 || 
+                (segments[0] & 0xffc0) == 0xfe80 ||
                 // ::1 - IPv6 loopback
                 segments == [0, 0, 0, 0, 0, 0, 0, 1]
             }
@@ -1296,7 +1296,7 @@ pub struct BrowserInformation {
 
     /// Ip address of the client
     #[schema(value_type = Option<String>)]
-    pub ip_address: Option<std::net::IpAddr>,
+    pub ip_address: Option<IpAddr>,
 
     /// List of headers that are accepted
     #[schema(
