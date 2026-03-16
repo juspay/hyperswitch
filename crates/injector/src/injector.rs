@@ -791,7 +791,7 @@ pub mod core {
                 ),
                 (
                     "Authorization".to_string(),
-                    format!("api-key={vault_auth.api_key}").into_masked(),
+                    masking::Maskable::Masked(format!("api-key={}", vault_auth.api_key).into()),
                 ),
                 (
                     "x-profile-id".to_string(),
