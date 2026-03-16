@@ -600,7 +600,7 @@ jobs:
         if: env.RUN_TESTS == 'true' && failure()
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ matrix.batch.server_logs_artifact }}
+          name: hyperswitch-runners-server-logs
           path: ${{ env.SERVER_LOG_PATH }}
           if-no-files-found: ignore
           retention-days: 1
