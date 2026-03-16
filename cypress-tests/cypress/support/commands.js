@@ -35,9 +35,14 @@ import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { isoTimeTomorrow, validateEnv } from "../utils/RequestBodyUtils.js";
 import { handleRedirection } from "./redirectionHandler";
 
+function getOriginalConnectorId(globalState) {
+  return (
+    globalState.get("originalConnectorId") || globalState.get("connectorId")
+  );
+}
+
 function isStripeConnect(globalState) {
-  const connectorId =
-    globalState.get("originalConnectorId") || globalState.get("connectorId");
+  const connectorId = getOriginalConnectorId(globalState);
   return (
     typeof connectorId === "string" &&
     connectorId.toLowerCase() === "stripeconnect"
@@ -46,8 +51,7 @@ function isStripeConnect(globalState) {
 
 function updateConnectorState(globalState, responseConnector) {
   if (isStripeConnect(globalState)) {
-    const originalConnectorId =
-      globalState.get("originalConnectorId") || "stripeconnect";
+    const originalConnectorId = getOriginalConnectorId(globalState);
     globalState.set("connectorId", originalConnectorId);
     return;
   }
@@ -1019,12 +1023,12 @@ Cypress.Commands.add(
     // This is needed to retrieve the correct config (e.g., stripeconnect vs stripe)
     globalState.set("originalConnectorId", connector_id);
 
-    // Use backend connector name for connector_name field (handles stripeconnect -> stripe mapping)
-    const backendConnectorName = getBackendConnectorName(connector_id);
+    // Use originalConnectorName variable for connector_name field (resolved via stripeconnect -> stripe mapping)
+    const originalConnectorName = getBackendConnectorName(connector_id);
 
     createConnectorBody.connector_type = connectorType;
     createConnectorBody.profile_id = profile_id;
-    createConnectorBody.connector_name = backendConnectorName;
+    createConnectorBody.connector_name = originalConnectorName;
     createConnectorBody.payment_methods_enabled = payment_methods_enabled;
 
     // readFile is used to read the contents of the file and it always returns a promise ([Object Object]) due to its asynchronous nature
@@ -1070,7 +1074,7 @@ Cypress.Commands.add(
           cy.wrap(response).then(() => {
             if (response.status === 200) {
               // The backend returns the mapped connector name (e.g., "stripe" for "stripeconnect")
-              expect(backendConnectorName).to.equal(
+              expect(originalConnectorName).to.equal(
                 response.body.connector_name
               );
               globalState.set(
@@ -1173,8 +1177,7 @@ Cypress.Commands.add(
 Cypress.Commands.add("connectorRetrieveCall", (globalState) => {
   const merchant_id = globalState.get("merchantId");
   // Prefer originalConnectorId (set before API overwrites connectorId), fall back to connectorId
-  const connector_id =
-    globalState.get("originalConnectorId") || globalState.get("connectorId");
+  const connector_id = getOriginalConnectorId(globalState);
   // The backend always stores/returns the canonical connector name (e.g. "stripe" for "stripeconnect")
   const expected_connector_name = getBackendConnectorName(connector_id);
   const merchant_connector_id = globalState.get("merchantConnectorId");
@@ -1233,8 +1236,7 @@ Cypress.Commands.add(
     const api_key = globalState.get("apiKey");
     const base_url = globalState.get("baseUrl");
     // Use originalConnectorId (preserved before API overwrites connectorId) with fallback
-    const connector_id =
-      globalState.get("originalConnectorId") || globalState.get("connectorId");
+    const connector_id = getOriginalConnectorId(globalState);
     // Normalize to backend name (e.g. stripeconnect → stripe) for assertions
     const expected_connector_name = getBackendConnectorName(connector_id);
     const merchant_id = globalState.get("merchantId");
@@ -3167,10 +3169,7 @@ Cypress.Commands.add(
 
     // Include split_payments only for stripeconnect connector
     // This handles Stripe Connect flows where split_payments is defined in the connector config
-    // Use originalConnectorId if available, otherwise fallback to connectorId
-    const originalConnectorId =
-      globalState.get("originalConnectorId") || globalState.get("connectorId");
-    if (reqData?.split_payments && originalConnectorId === "stripeconnect") {
+    if (reqData?.split_payments && isStripeConnect(globalState)) {
       requestBody.split_payments = reqData.split_payments;
     }
 
@@ -3343,10 +3342,7 @@ Cypress.Commands.add(
 
     // Include split_payments only for stripeconnect connector
     // This handles Stripe Connect flows where split_payments is defined in the connector config
-    // Use originalConnectorId if available, otherwise fallback to connectorId
-    const originalConnectorId =
-      globalState.get("originalConnectorId") || globalState.get("connectorId");
-    if (reqData?.split_payments && originalConnectorId === "stripeconnect") {
+    if (reqData?.split_payments && isStripeConnect(globalState)) {
       requestBody.split_payments = reqData.split_payments;
     }
 

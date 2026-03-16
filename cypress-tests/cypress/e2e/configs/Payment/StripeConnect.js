@@ -133,10 +133,6 @@ const requiredFields = {
 };
 
 export const connectorDetails = {
-  multi_credential_config: {
-    specName: ["connectorAgnosticNTID"],
-    value: "connector_2",
-  },
   card_pm: {
     PaymentIntent: {
       Request: {
@@ -154,12 +150,6 @@ export const connectorDetails = {
       },
     },
     PaymentIntentOffSession: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          specName: ["connectorAgnosticNTID"],
-          value: "connector_2",
-        },
-      },
       Request: {
         currency: "USD",
         customer_acceptance: null,
@@ -711,12 +701,6 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSAutoCaptureOffSession: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          specName: ["connectorAgnosticNTID"],
-          value: "connector_2",
-        },
-      },
       Request: {
         payment_method: "card",
         payment_method_type: "debit",
@@ -735,12 +719,6 @@ export const connectorDetails = {
       },
     },
     SaveCardUse3DSAutoCaptureOffSession: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          specName: ["connectorAgnosticNTID"],
-          value: "connector_2",
-        },
-      },
       Request: {
         payment_method: "card",
         payment_method_type: "debit",
@@ -776,12 +754,6 @@ export const connectorDetails = {
       },
     },
     SaveCardConfirmAutoCaptureOffSession: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          specName: ["connectorAgnosticNTID"],
-          value: "connector_2",
-        },
-      },
       Request: {
         setup_future_usage: "off_session",
         split_payments: stripeSplitPaymentData,
