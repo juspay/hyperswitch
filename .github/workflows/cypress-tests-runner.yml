@@ -542,7 +542,7 @@ jobs:
       - name: Download hyperswitch server artifact
         uses: actions/download-artifact@v8
         with:
-          name: hyperswitch-server-hyperswitch-runners
+          name: hyperswitch-server
           path: target/debug
 
       - name: Make server executable
