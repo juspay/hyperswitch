@@ -79,6 +79,7 @@ impl_api_event_type!(
         ConvertOrganizationToPlatformRequest,
         ConvertOrganizationToPlatformResponse,
         ConnectorWebhookRegisterRequest,
+        ConnectorWebhookListResponse,
         MerchantConnectorResponse,
         MerchantConnectorId,
         MandateResponse,
