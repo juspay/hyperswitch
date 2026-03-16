@@ -4,8 +4,6 @@ use common_utils::{id_type, pii};
 use masking::Secret;
 use strum::EnumString;
 
-#[cfg(all(feature = "payouts", feature = "v1"))]
-use crate::payouts;
 #[cfg(feature = "v1")]
 use crate::{enums, payments};
 
