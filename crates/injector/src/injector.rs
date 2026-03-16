@@ -337,7 +337,7 @@ pub mod core {
         logger::info!("Starting injector_core processing");
 
         // Extract values for metrics before moving request
-        let vault_connector_str = format!("{:?}", request.token_data.vault_connector);
+        let vault_connector_str = format!("{:?}", request.connection_config.vault_connector_id);
         let http_method_str = format!("{:?}", request.connection_config.http_method);
 
         // Track total number of invocations with vault connector dimension
