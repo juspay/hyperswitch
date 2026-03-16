@@ -2799,7 +2799,7 @@
         ]
       }
     },
-    "/account/{account_id}/connectors/webhooks/{merchant_connector_id}": {
+    "/account/{account_id}/webhooks/{merchant_connector_id}": {
       "post": {
         "tags": [
           "Merchant Connector Account"
@@ -15413,6 +15413,25 @@
           }
         ]
       },
+      "ConnectorWebhookListResponse": {
+        "type": "object",
+        "required": [
+          "connector",
+          "webhooks"
+        ],
+        "properties": {
+          "connector": {
+            "type": "string"
+          },
+          "webhooks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConnectorWebhookResponse"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
       "ConnectorWebhookRegisterRequest": {
         "type": "object",
         "description": "Register a webhook at the connector",
@@ -15424,6 +15443,26 @@
               }
             ],
             "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ConnectorWebhookResponse": {
+        "type": "object",
+        "required": [
+          "connector_webhook_id"
+        ],
+        "properties": {
+          "event_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorWebhookEventType"
+              }
+            ],
+            "nullable": true
+          },
+          "connector_webhook_id": {
+            "type": "string"
           }
         },
         "additionalProperties": false
