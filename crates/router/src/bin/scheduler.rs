@@ -279,7 +279,7 @@ impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
                     Ok(Box::new(workflows::payment_sync::PaymentsSyncWorkflow))
                 }
                 storage::ProcessTrackerRunner::PaymentsPostCaptureVoidSyncWorkflow => Ok(Box::new(
-                    workflows::post_capture_void_sync::PostCaptureVoidSyncWorkflow,
+                    workflows::post_capture_void_sync::PaymentsPostCaptureVoidSyncWorkflow,
                 )),
                 storage::ProcessTrackerRunner::RefundWorkflowRouter => {
                     Ok(Box::new(workflows::refund_router::RefundWorkflowRouter))
