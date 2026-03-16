@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 pub use common_utils::types::TimeRange;
-use common_utils::{events::ApiEventMetric, pii::Email, types::authentication::AuthInfo};
+use common_utils::{events::ApiEventMetric, pii::Email, types::{Url, authentication::AuthInfo}};
 
 use self::{
     active_payments::ActivePaymentsMetrics,
@@ -150,6 +150,8 @@ pub struct RefundDistributionBody {
 pub struct ReportRequest {
     pub time_range: TimeRange,
     pub emails: Option<Vec<Email>>,
+    #[serde(default)]
+    pub return_url: Option<Url>,
     #[cfg(feature = "v2")]
     #[serde(default)]
     pub report_type: ReportType,
