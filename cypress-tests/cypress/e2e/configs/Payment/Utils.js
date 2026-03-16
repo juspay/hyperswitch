@@ -467,6 +467,7 @@ export const CONNECTOR_LISTS = {
       "worldpayxml",
     ],
     PAYMENTS_WEBHOOK: ["noon", "stripe", "authorizedotnet"],
+    CARD_INSTALLMENTS: ["adyen"],
     AUTO_RETRY: ["stripe", "adyen"],
     // Add more inclusion lists
   },
