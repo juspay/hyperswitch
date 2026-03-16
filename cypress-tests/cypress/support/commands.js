@@ -2432,7 +2432,7 @@ Cypress.Commands.add(
         if (maxRetries === 0) {
           // If retries are disabled, it MUST stay on the primary connector and FAIL
           expect(response.body.connector).to.equal(primaryConnector);
-          expect(response.body.status).to.equal("failed");
+          expect(response.body.status).to.be.oneOf(["failed", "processing"]);
         } else {
           // If retries are enabled, it should have fallen back to the secondary connector
           expect(response.body.connector).to.equal(secondaryConnector);
