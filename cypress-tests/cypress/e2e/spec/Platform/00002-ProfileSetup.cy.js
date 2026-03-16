@@ -1,0 +1,105 @@
+import * as fixtures from "../../../fixtures/imports";
+import State from "../../../utils/State";
+
+let globalState;
+
+describe("Profile Setup for Merchants", () => {
+  before("seed global state", () => {
+    cy.task("getGlobalState").then((state) => {
+      globalState = new State(state);
+    });
+  });
+
+  after("flush global state", () => {
+    cy.task("setGlobalState", globalState.data);
+  });
+
+  context("Platform Merchant Cannot Create Profile For Self", () => {
+    it("platform-merchant-cannot-create-profile-for-self", () => {
+      cy.createBusinessProfileWithApiKeyCallTest(
+        fixtures.businessProfile.bpCreate,
+        globalState.get("apiKey"),
+        globalState.get("platformMerchantId"),
+        globalState
+      ).then((response) => {
+        expect(response.status).to.equal(400);
+      });
+    });
+  });
+
+  context("Connected Merchant 1 Creates Profile", () => {
+    it("cm1-creates-profile", () => {
+      const savedMerchantId = globalState.get("merchantId");
+      const savedApiKey = globalState.get("apiKey");
+
+      globalState.set("merchantId", globalState.get("connectedMerchantId_1"));
+      globalState.set("apiKey", globalState.get("apiKey_CM1"));
+
+      cy.createBusinessProfileTest(
+        fixtures.businessProfile.bpCreate,
+        globalState
+      );
+
+      cy.then(() => {
+        globalState.set("profileId_CM1_New", globalState.get("profileId"));
+        globalState.set("merchantId", savedMerchantId);
+        globalState.set("apiKey", savedApiKey);
+      });
+    });
+  });
+
+  context("Platform Creates Profile For Connected Merchant 2", () => {
+    it("platform-creates-profile-for-cm2", () => {
+      const savedMerchantId = globalState.get("merchantId");
+      globalState.set("merchantId", globalState.get("connectedMerchantId_2"));
+
+      cy.createBusinessProfileWithHeaderCallTest(
+        fixtures.businessProfile.bpCreate,
+        globalState.get("apiKey"),
+        globalState.get("connectedMerchantId_2"),
+        globalState
+      ).then((response) => {
+        expect(response.status).to.equal(200);
+        globalState.set("profileId_CM2_New", response.body.profile_id);
+      });
+
+      cy.then(() => {
+        globalState.set("merchantId", savedMerchantId);
+      });
+    });
+  });
+
+  context("Platform Cannot Create Profile For Standard Merchant", () => {
+    it("platform-cannot-create-profile-for-standard-merchant", () => {
+      cy.createBusinessProfileWithApiKeyCallTest(
+        fixtures.businessProfile.bpCreate,
+        globalState.get("apiKey"),
+        globalState.get("standardMerchantId"),
+        globalState
+      ).then((response) => {
+        expect(response.status).to.equal(400);
+      });
+    });
+  });
+
+  context("Standard Merchant Creates Profile", () => {
+    it("standard-merchant-creates-profile", () => {
+      const savedMerchantId = globalState.get("merchantId");
+      const savedApiKey = globalState.get("apiKey");
+
+      globalState.set("merchantId", globalState.get("standardMerchantId"));
+      globalState.set("apiKey", globalState.get("apiKey_SM"));
+
+      cy.createBusinessProfileTest(
+        fixtures.businessProfile.bpCreate,
+        globalState
+      );
+
+      cy.then(() => {
+        globalState.set("profileId_SM_New", globalState.get("profileId"));
+        globalState.set("merchantId", savedMerchantId);
+        globalState.set("apiKey", savedApiKey);
+      });
+    });
+  });
+});
