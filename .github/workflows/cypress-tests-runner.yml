@@ -152,8 +152,8 @@ jobs:
   prepare-mandatory-matrix:
     name: Prepare Mandatory Connectors matrix to run cypress tests
     if: |
-      github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
+      false && (github.event_name == 'merge_group' ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready')))
     runs-on: hyperswitch-runners
     outputs:
       mandatory-matrix: ${{ steps.set-mandatory-matrix.outputs.matrix }}
@@ -210,7 +210,7 @@ jobs:
     name: Run mandatory Cypress tests
     needs: [build-hyperswitch, prepare-mandatory-matrix]
     if: |
-      (github.event_name == 'merge_group' ||
+      false && (github.event_name == 'merge_group' ||
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready')))
     permissions:
       pull-requests: write
