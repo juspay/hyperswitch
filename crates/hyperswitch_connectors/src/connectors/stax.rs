@@ -1031,6 +1031,4 @@ impl ConnectorSpecifications for Stax {
     ) -> bool {
         true
     }
-
-
 }

@@ -957,6 +957,4 @@ impl ConnectorSpecifications for Gocardless {
     ) -> bool {
         true
     }
-
-
 }

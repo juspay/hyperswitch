@@ -763,12 +763,11 @@ impl ConnectorSpecifications for ConnectorEnum {
             Self::Old(connector) => connector.should_call_connector_customer(payment_attempt),
             Self::New(connector) => connector.should_call_connector_customer(payment_attempt),
         }
-         #[cfg(feature = "v2")]
-         match self {
+        #[cfg(feature = "v2")]
+        match self {
             Self::Old(connector) => connector.should_call_connector_customer(),
             Self::New(connector) => connector.should_call_connector_customer(),
         }
-
     }
 
     fn should_call_tokenization_before_setup_mandate(&self) -> bool {

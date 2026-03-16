@@ -114,9 +114,7 @@ pub fn should_call_connector_create_customer<'a>(
     // Check if create customer is required for the connector
     match merchant_connector_account {
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(_) => {
-            let connector_needs_customer = connector
-                .connector
-                .should_call_connector_customer();
+            let connector_needs_customer = connector.connector.should_call_connector_customer();
 
             if connector_needs_customer {
                 let connector_customer_details = customer
