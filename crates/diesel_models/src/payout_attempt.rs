@@ -39,6 +39,8 @@ pub struct PayoutAttempt {
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
     pub merchant_order_reference_id: Option<String>,
     pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
 }
 
 #[derive(
@@ -80,6 +82,8 @@ pub struct PayoutAttemptNew {
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
     pub merchant_order_reference_id: Option<String>,
     pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
