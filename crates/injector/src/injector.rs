@@ -484,10 +484,8 @@ pub mod core {
             let mut result = template;
 
             for token_ref in tokens.into_iter() {
-                let extracted_field_value = self.extract_field_from_vault_data(
-                    vault_data,
-                    &token_ref.field,
-                )?;
+                let extracted_field_value =
+                    self.extract_field_from_vault_data(vault_data, &token_ref.field)?;
                 let token_str = match extracted_field_value {
                     Value::String(token_value) => token_value,
                     _ => serde_json::to_string(&extracted_field_value).unwrap_or_default(),
@@ -519,20 +517,15 @@ pub mod core {
                     let new_obj = obj
                         .into_iter()
                         .map(|(key, val)| {
-                            self.interpolate_token_references_with_vault_data(
-                                val,
-                                vault_data,
-                            )
-                            .map(|processed| (key, processed))
+                            self.interpolate_token_references_with_vault_data(val, vault_data)
+                                .map(|processed| (key, processed))
                         })
                         .collect::<error_stack::Result<serde_json::Map<_, _>, InjectorError>>()?;
                     Ok(Value::Object(new_obj))
                 }
                 Value::String(s) => {
-                    let processed_string = self.interpolate_string_template_with_vault_data(
-                        s,
-                        vault_data,
-                    )?;
+                    let processed_string =
+                        self.interpolate_string_template_with_vault_data(s, vault_data)?;
                     Ok(Value::String(processed_string))
                 }
                 _ => Ok(value),
@@ -545,20 +538,15 @@ pub mod core {
             vault_data: &Value,
             field_name: &str,
         ) -> error_stack::Result<Value, InjectorError> {
-            logger::debug!(
-                "Extracting field '{}' from vault data",
-                field_name,
-            );
+            logger::debug!("Extracting field '{}' from vault data", field_name,);
 
             match vault_data {
-                Value::Object(obj) => {
-                    find_field_recursively_in_vault_data(obj, field_name)
-                        .ok_or_else(|| {
-                            error_stack::Report::new(InjectorError::TokenReplacementFailed(
-                                format!("Field '{field_name}' not found"),
-                            ))
-                        })
-                }
+                Value::Object(obj) => find_field_recursively_in_vault_data(obj, field_name)
+                    .ok_or_else(|| {
+                        error_stack::Report::new(InjectorError::TokenReplacementFailed(format!(
+                            "Field '{field_name}' not found"
+                        )))
+                    }),
                 _ => Err(error_stack::Report::new(
                     InjectorError::TokenReplacementFailed(
                         "Vault data is not a valid JSON object".to_string(),
@@ -764,7 +752,8 @@ pub mod core {
                 .as_ref()
                 .ok_or_else(|| {
                     error_stack::Report::new(InjectorError::InvalidTemplate(
-                        "vault_auth_data is required for HyperswitchVault proxy request".to_string(),
+                        "vault_auth_data is required for HyperswitchVault proxy request"
+                            .to_string(),
                     ))
                 })?;
 
@@ -777,12 +766,11 @@ pub mod core {
                 )
                 .map_err(error_stack::Report::new)?;
 
-            let vault_request_body = serde_json::to_string(&vault_proxy_request)
-                .map_err(|e| {
-                    error_stack::Report::new(InjectorError::SerializationError(format!(
-                        "Failed to serialize HyperswitchVault proxy request: {e}"
-                    )))
-                })?;
+            let vault_request_body = serde_json::to_string(&vault_proxy_request).map_err(|e| {
+                error_stack::Report::new(InjectorError::SerializationError(format!(
+                    "Failed to serialize HyperswitchVault proxy request: {e}"
+                )))
+            })?;
 
             logger::info!(
                 vault_endpoint = %vault_endpoint,
@@ -834,10 +822,7 @@ pub mod core {
             let http_request = request_builder.build();
 
             // Track outgoing call to vault
-            let vault_host = vault_url
-                .host_str()
-                .unwrap_or("unknown")
-                .to_string();
+            let vault_host = vault_url.host_str().unwrap_or("unknown").to_string();
 
             metrics::INJECTOR_OUTGOING_CALLS_COUNT.add(
                 1,
@@ -905,9 +890,7 @@ pub mod core {
                 Some(injector_types::VaultConnectorType::Proxy) | None => {
                     // Proxy vault: interpolate {{$field_name}} placeholders with token aliases
                     // The forward proxy (e.g. VGS) detokenizes the aliases on the wire
-                    logger::debug!(
-                        "Proxy vault: interpolating template with token aliases"
-                    );
+                    logger::debug!("Proxy vault: interpolating template with token aliases");
                     self.interpolate_string_template_with_vault_data(
                         request.connector_payload.template.clone(),
                         &vault_data,
@@ -973,9 +956,7 @@ pub mod core {
                 Some(injector_types::VaultConnectorType::Transformation) => {
                     match &request.connection_config.vault_connector_id {
                         Some(injector_types::VaultConnectors::HyperswitchVault) => {
-                            logger::debug!(
-                                "Routing request through HyperswitchVault proxy"
-                            );
+                            logger::debug!("Routing request through HyperswitchVault proxy");
                             self.make_hyperswitch_vault_request(&request, &processed_payload)
                                 .await?
                         }
@@ -1064,31 +1045,29 @@ mod tests {
         println!("  vault_connector_type : {:?}", vault_connector_type);
         println!("  vault_connector_id   : {:?}", vault_connector_id);
         println!("  input template       : {}", template);
-        println!("  token_data           : {}", serde_json::to_string_pretty(&vault_data).unwrap());
+        println!(
+            "  token_data           : {}",
+            serde_json::to_string_pretty(&vault_data).unwrap()
+        );
         println!("------------------------------------------------------------");
 
         let processed_payload = match &vault_connector_type {
             Some(VaultConnectorType::Proxy) | None => {
                 println!("  BRANCH: Proxy | None → INTERPOLATE placeholders with token aliases");
                 injector
-                    .interpolate_string_template_with_vault_data(
-                        template.to_string(),
-                        &vault_data,
-                    )
+                    .interpolate_string_template_with_vault_data(template.to_string(), &vault_data)
                     .map_err(|e| format!("{e:?}"))?
             }
-            Some(VaultConnectorType::Transformation) => {
-                match &vault_connector_id {
-                    Some(VaultConnectors::HyperswitchVault) => {
-                        println!("  BRANCH: Transformation + HyperswitchVault → SKIP interpolation, keep placeholders");
-                        template.to_string()
-                    }
-                    other => {
-                        println!("  BRANCH: Transformation + {:?} → SKIP (future connector, no transform yet)", other);
-                        template.to_string()
-                    }
+            Some(VaultConnectorType::Transformation) => match &vault_connector_id {
+                Some(VaultConnectors::HyperswitchVault) => {
+                    println!("  BRANCH: Transformation + HyperswitchVault → SKIP interpolation, keep placeholders");
+                    template.to_string()
                 }
-            }
+                other => {
+                    println!("  BRANCH: Transformation + {:?} → SKIP (future connector, no transform yet)", other);
+                    template.to_string()
+                }
+            },
         };
 
         println!("\n  OUTPUT payload       : {}", processed_payload);

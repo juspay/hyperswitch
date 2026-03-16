@@ -72,7 +72,7 @@ pub mod models {
 
         /// Optional vault endpoint to use for token retrieval (overrides default vault endpoint if provided)
         pub vault_endpoint: Option<String>,
-        
+
         /// Optional vault connector type to use for token retrieval (overrides default vault connector if provided)
         pub vault_connector_id: Option<VaultConnectors>,
 

@@ -308,7 +308,9 @@ mod tests {
             proxy_url: "https://vgs-proxy.example.com:8443"
                 .parse()
                 .expect("Valid test URL"),
-            certificate: Secret::new("-----BEGIN CERTIFICATE-----\nMIIBtest\n-----END CERTIFICATE-----".to_string()),
+            certificate: Secret::new(
+                "-----BEGIN CERTIFICATE-----\nMIIBtest\n-----END CERTIFICATE-----".to_string(),
+            ),
         };
 
         let metadata = ExternalVaultProxyMetadata::VgsMetadata(vgs_metadata);
@@ -341,8 +343,12 @@ mod tests {
         connection_config.headers = headers;
 
         // Extract and apply vault metadata
-        let result = connection_config.extract_and_apply_vault_metadata(&connection_config.headers.clone());
-        assert!(result.is_ok(), "Vault metadata extraction should succeed: {result:?}");
+        let result =
+            connection_config.extract_and_apply_vault_metadata(&connection_config.headers.clone());
+        assert!(
+            result.is_ok(),
+            "Vault metadata extraction should succeed: {result:?}"
+        );
 
         // Verify vault metadata was applied to connection config
         assert!(connection_config.proxy_url.is_some());

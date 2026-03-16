@@ -42,8 +42,8 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
 use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments::{
-    self as payments_grpc, payment_method::PaymentMethod, CardDetails, ClassicReward, ProxyCardDetails,
-    CryptoCurrency, EVoucher, OpenBanking, PaymentServiceAuthorizeResponse,
+    self as payments_grpc, payment_method::PaymentMethod, CardDetails, ClassicReward,
+    CryptoCurrency, EVoucher, OpenBanking, PaymentServiceAuthorizeResponse, ProxyCardDetails,
 };
 
 #[cfg(feature = "v2")]
@@ -1784,12 +1784,10 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
             }
         }
         api_enums::VaultConnectors::HyperswitchVault => {
-            let vault_endpoint_url = url::Url::parse(
-                &connectors.hyperswitch_vault.base_url,
-            )
-            .map(common_utils::types::Url::wrap)
-            .change_context(UnifiedConnectorServiceError::ParsingFailed)
-            .attach_printable("Failed to parse hyperswitch_vault base_url from config")?;
+            let vault_endpoint_url = url::Url::parse(&connectors.hyperswitch_vault.base_url)
+                .map(common_utils::types::Url::wrap)
+                .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                .attach_printable("Failed to parse hyperswitch_vault base_url from config")?;
 
             let auth_type: ConnectorAuthType = external_vault_merchant_connector_account
                 .get_connector_account_details()
@@ -1798,15 +1796,15 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
 
             let (api_key, api_secret) = match &auth_type {
                 ConnectorAuthType::SignatureKey {
-                    api_key, api_secret, ..
+                    api_key,
+                    api_secret,
+                    ..
                 } => (api_key.clone(), api_secret.clone()),
                 _ => {
                     return Err(error_stack::report!(
                         UnifiedConnectorServiceError::FailedToObtainAuthType
                     )
-                    .attach_printable(
-                        "HyperswitchVault requires SignatureKey auth type",
-                    ))
+                    .attach_printable("HyperswitchVault requires SignatureKey auth type"))
                 }
             };
 
@@ -1825,13 +1823,11 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
                 ),
             }
         }
-        api_enums::VaultConnectors::Tokenex => {
-            Err(error_stack::report!(
-                UnifiedConnectorServiceError::NotImplemented(
-                    "External vault proxy metadata is not supported for Tokenex".to_string(),
-                )
-            ))?
-        }
+        api_enums::VaultConnectors::Tokenex => Err(error_stack::report!(
+            UnifiedConnectorServiceError::NotImplemented(
+                "External vault proxy metadata is not supported for Tokenex".to_string(),
+            )
+        ))?,
     };
 
     let external_vault_config_bytes = serde_json::to_vec(&external_vault_proxy_config)
