@@ -109,7 +109,6 @@ pub fn should_call_connector_create_customer<'a>(
 pub fn should_call_connector_create_customer<'a>(
     connector: &api::ConnectorData,
     customer: &'a Option<domain::Customer>,
-    payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
 ) -> (bool, Option<&'a str>) {
     // Check if create customer is required for the connector
@@ -117,7 +116,7 @@ pub fn should_call_connector_create_customer<'a>(
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(_) => {
             let connector_needs_customer = connector
                 .connector
-                .should_call_connector_customer(payment_attempt);
+                .should_call_connector_customer();
 
             if connector_needs_customer {
                 let connector_customer_details = customer

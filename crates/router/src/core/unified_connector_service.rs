@@ -1784,10 +1784,12 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
             }
         }
         api_enums::VaultConnectors::HyperswitchVault => {
-            let vault_endpoint_url = url::Url::parse(&connectors.hyperswitch_vault.base_url)
+            let base = &connectors.hyperswitch_vault.base_url;
+            let vault_endpoint_url = format!("{}/v2/proxy", base)
+                .parse::<url::Url>()
                 .map(common_utils::types::Url::wrap)
                 .change_context(UnifiedConnectorServiceError::ParsingFailed)
-                .attach_printable("Failed to parse hyperswitch_vault base_url from config")?;
+                .attach_printable("Failed to parse hyperswitch_vault endpoint URL")?;
 
             let auth_type: ConnectorAuthType = external_vault_merchant_connector_account
                 .get_connector_account_details()

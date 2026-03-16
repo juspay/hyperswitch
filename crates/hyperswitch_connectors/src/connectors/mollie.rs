@@ -1087,8 +1087,10 @@ impl ConnectorSpecifications for Mollie {
     #[cfg(feature = "v1")]
     fn should_call_connector_customer(
         &self,
+        #[cfg(feature = "v1")]
         payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> bool {
+        #[cfg(feature = "v1")]
         matches!(
             payment_attempt.setup_future_usage_applied,
             Some(enums::FutureUsage::OffSession)

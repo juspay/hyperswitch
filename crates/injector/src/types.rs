@@ -136,6 +136,8 @@ pub mod models {
         /// The single token reference extracted from specific_token_data.card_number.
         /// For HyperswitchVault, all fields share the same token value.
         pub token: String,
+
+        pub token_type: String,
         /// HTTP method to use for the forwarded request
         pub method: String,
     }
@@ -183,6 +185,7 @@ pub mod models {
                 destination_url: connection_config.endpoint.clone(),
                 headers,
                 token,
+                token_type: "payment_method_token".to_string(),
                 method,
             })
         }

@@ -19,8 +19,7 @@ pub async fn proxy_core(
     let proxy_record = req_wrapper
         .get_proxy_record(
             &state,
-            platform.get_provider().get_key_store(),
-            platform.get_provider().get_account().storage_scheme,
+            &platform,
         )
         .await?;
 
