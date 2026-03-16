@@ -6,206 +6,235 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 let globalState;
 
 describe("Auto Retry Tests", () => {
-  before(() => {
+  before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
     });
   });
 
-  after(() => {
+  after("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
-  });
-  it("create secondary connector for the same profile", () => {
-    const CONNECTOR_POOL = ["stripe", "adyen", "cybersource"];
-    const primaryConnector = globalState.get("connectorId"); // Save Stripe here
-
-    const secondaryConnector = CONNECTOR_POOL.find(
-      (connector) => connector !== primaryConnector
-    );
-
-    globalState.set("connectorId", secondaryConnector);
-    globalState.set("secondaryConnector", secondaryConnector);
-
-    cy.createConnectorCallTest(
-      "payment_processor",
-      fixtures.createConnectorBody,
-      payment_methods_enabled,
-      globalState,
-      "profile",
-      "merchantConnectorSecondary"
-    ).then(() => {
-
-      globalState.set("connectorId", primaryConnector);
-    });
   });
 
   context("auto retries enabled with max retries = 1", () => {
-    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
+    it("Create Secondary Connector -> Update Business Profile -> Create Payment Intent -> Confirm Payment -> Retrieve Payment", () => {
+      let shouldContinue = true;
 
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
+      cy.step("Create Secondary Connector", () => {
+        const CONNECTOR_POOL = ["stripe", "adyen", "cybersource"];
+        const primaryConnector = globalState.get("connectorId");
 
-      const connectorId = globalState.get("connectorId");
-      if (
-        utils.shouldIncludeConnector(
-          connectorId,
-          utils.CONNECTOR_LISTS.INCLUDE.AUTO_RETRY
-        )
-      ) {
-        cy.log(
-          `Skipping Auto Retry - connector not supported: ${connectorId}`
+        const secondaryConnector = CONNECTOR_POOL.find(
+          (connector) => connector !== primaryConnector
         );
-        this.skip();
-      }
-    });
 
-    it("updates business profile to enable auto retries with 1 max retry", () => {
-      const updateBusinessProfileBody = {
-        is_auto_retries_enabled: true,
-        max_auto_retries_enabled: 1,
-      };
+        globalState.set("connectorId", secondaryConnector);
+        globalState.set("secondaryConnector", secondaryConnector);
 
-      cy.UpdateBusinessProfileTest(
-        updateBusinessProfileBody,
-        false, // is_connector_agnostic_enabled
-        false, // collect_billing_address_from_wallet_connector
-        false, // collect_shipping_address_from_wallet_connector
-        false, // always_collect_billing_address_from_wallet_connector
-        false, // always_collect_shipping_address_from_wallet_connector
-        globalState
+        cy.createConnectorCallTest(
+          "payment_processor",
+          fixtures.createConnectorBody,
+          payment_methods_enabled,
+          globalState,
+          "profile",
+          "merchantConnectorSecondary"
+        ).then(() => {
+          globalState.set("connectorId", primaryConnector);
+        });
+      });
+
+      cy.step(
+        "Update Business Profile to enable auto retries with 1 max retry",
+        () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: Update Business Profile");
+            return;
+          }
+
+          const connectorId = globalState.get("connectorId");
+          if (
+            utils.shouldIncludeConnector(
+              connectorId,
+              utils.CONNECTOR_LISTS.INCLUDE.AUTO_RETRY
+            )
+          ) {
+            cy.log(
+              `Skipping Auto Retry - connector not supported: ${connectorId}`
+            );
+            shouldContinue = false;
+            return;
+          }
+
+          const updateBusinessProfileBody = {
+            is_auto_retries_enabled: true,
+            max_auto_retries_enabled: 1,
+          };
+
+          cy.UpdateBusinessProfileTest(
+            updateBusinessProfileBody,
+            false,
+            false,
+            false,
+            false,
+            false,
+            globalState
+          );
+
+          globalState.set("max_auto_retries_enabled", 1);
+        }
       );
 
-      globalState.set("max_auto_retries_enabled", 1);
-    });
+      cy.step("Create Payment Intent", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Create Payment Intent");
+          return;
+        }
 
-    it("creates a payment intent", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["PaymentIntent"];
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntent"];
 
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        data,
-        "no_three_ds",
-        "automatic",
-        globalState
-      );
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
 
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
 
-    it("confirm payment", () => {
-      const activeConnector = globalState.get("connectorId");
+      cy.step("Confirm Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment");
+          return;
+        }
 
-      const data =
-        getConnectorDetails(activeConnector)["card_pm"]["No3DSFailPayment"];
+        const activeConnector = globalState.get("connectorId");
 
-      cy.confirmCallAutoRetryTest(
-        fixtures.confirmBody,
-        data,
-        true,
-        globalState
-      );
-    });
+        const data =
+          getConnectorDetails(activeConnector)["card_pm"]["No3DSFailPayment"];
 
-    it("retrieve payment", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["No3DSFailPayment"];
+        cy.confirmCallAutoRetryTest(
+          fixtures.confirmBody,
+          data,
+          true,
+          globalState
+        );
+      });
 
-      cy.retrievePaymentCallAutoRetryTest({ globalState, data });
+      cy.step("Retrieve Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
+
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["No3DSFailPayment"];
+
+        cy.retrievePaymentCallAutoRetryTest({ globalState, data });
+      });
     });
   });
 
   context("auto retries enabled with max retries = 0", () => {
-    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
+    it("Update Business Profile -> Create Payment Intent -> Confirm Payment -> Retrieve Payment", () => {
+      let shouldContinue = true;
 
-    before("seed global state", () => {
-      cy.task("getGlobalState").then((state) => {
-        globalState = new State(state);
-      });
-    });
+      cy.step(
+        "Update Business Profile to enable auto retries with 0 max retries",
+        () => {
+          const connectorId = globalState.get("connectorId");
+          if (
+            utils.shouldIncludeConnector(
+              connectorId,
+              utils.CONNECTOR_LISTS.INCLUDE.AUTO_RETRY
+            )
+          ) {
+            cy.log(
+              `Skipping Auto Retry - connector not supported: ${connectorId}`
+            );
+            shouldContinue = false;
+            return;
+          }
 
-    after("flush global state", () => {
-      cy.task("setGlobalState", globalState.data);
-    });
+          const body = {
+            is_auto_retries_enabled: true,
+            max_auto_retries_enabled: 0,
+          };
 
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
+          cy.UpdateBusinessProfileTest(
+            body,
+            false,
+            false,
+            false,
+            false,
+            false,
+            globalState
+          );
 
-      const connectorId = globalState.get("connectorId");
-      if (
-        utils.shouldIncludeConnector(
-          connectorId,
-          utils.CONNECTOR_LISTS.INCLUDE.AUTO_RETRY
-        )
-      ) {
-        cy.log(
-          `Skipping Auto Retry - connector not supported: ${connectorId}`
+          globalState.set("max_auto_retries_enabled", 0);
+        }
+      );
+
+      cy.step("Create Payment Intent", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Create Payment Intent");
+          return;
+        }
+
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntent"];
+
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
         );
-        this.skip();
-      }
-    });
 
-    it("updates business profile to enable auto retries with 0 max retries", () => {
-      const body = {
-        is_auto_retries_enabled: true,
-        max_auto_retries_enabled: 0,
-      };
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
 
-      cy.UpdateBusinessProfileTest(
-        body,
-        false,
-        false,
-        false,
-        false,
-        false,
-        globalState
-      );
+      cy.step("Confirm Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment");
+          return;
+        }
 
-      // Sync local state so the command knows to expect failure
-      globalState.set("max_auto_retries_enabled", 0);
-    });
+        const activeConnector = globalState.get("connectorId");
 
-    it("create payment intent", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["PaymentIntent"];
+        const data =
+          getConnectorDetails(activeConnector)["card_pm"]["No3DSFailPayment"];
 
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        data,
-        "no_three_ds",
-        "automatic",
-        globalState
-      );
+        cy.confirmCallAutoRetryTest(
+          fixtures.confirmBody,
+          data,
+          true,
+          globalState
+        );
+      });
 
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
+      cy.step("Retrieve Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
 
-    it("confirm payment", () => {
-      const activeConnector = globalState.get("connectorId");
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["No3DSFailPayment"];
 
-      const data =
-        getConnectorDetails(activeConnector)["card_pm"]["No3DSFailPayment"];
-
-      cy.confirmCallAutoRetryTest(
-        fixtures.confirmBody,
-        data,
-        true,
-        globalState
-      );
-    });
-    it("retrieve payment", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["No3DSFailPayment"];
-
-      cy.retrievePaymentCallAutoRetryTest({ globalState, data });
+        cy.retrievePaymentCallAutoRetryTest({ globalState, data });
+      });
     });
   });
 });
