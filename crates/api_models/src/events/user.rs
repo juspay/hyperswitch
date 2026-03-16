@@ -7,11 +7,9 @@ use crate::user::theme::{
     CreateThemeRequest, CreateUserThemeRequest, GetThemeResponse, ThemeVersionResponse,
     UpdateThemeRequest, UploadFileRequest,
 };
-
 use crate::user::{
     dashboard_metadata::{
-        GetMetaDataRequest, GetMetaDataResponse, GetMultipleMetaDataPayload,
-        SetMetaDataRequest,
+        GetMetaDataRequest, GetMetaDataResponse, GetMultipleMetaDataPayload, SetMetaDataRequest,
     },
     AcceptInviteFromEmailRequest, AcceptInviteResponse, AuthSelectRequest, AuthorizeResponse,
     BeginTotpResponse, ChangePasswordRequest, CloneConnectorRequest, ConnectAccountRequest,
