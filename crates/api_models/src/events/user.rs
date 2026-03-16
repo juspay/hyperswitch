@@ -7,11 +7,11 @@ use crate::user::theme::{
     CreateThemeRequest, CreateUserThemeRequest, GetThemeResponse, ThemeVersionResponse,
     UpdateThemeRequest, UploadFileRequest,
 };
+
 use crate::user::{
     dashboard_metadata::{
-        CreateSavedViewRequest, DeleteSavedViewRequest, GetMetaDataRequest, GetMetaDataResponse,
-        GetMultipleMetaDataPayload, ListSavedViewsRequest, SavedViewResponse, SetMetaDataRequest,
-        UpdateSavedViewRequest,
+        GetMetaDataRequest, GetMetaDataResponse, GetMultipleMetaDataPayload,
+        SetMetaDataRequest,
     },
     AcceptInviteFromEmailRequest, AcceptInviteResponse, AuthSelectRequest, AuthorizeResponse,
     BeginTotpResponse, ChangePasswordRequest, CloneConnectorRequest, ConnectAccountRequest,
@@ -85,12 +85,7 @@ common_utils::impl_api_event_type!(
         EmbeddedTokenInfoResponse,
         GetUserInternalDetailsResponse,
         ListUsersInternalRequest,
-        ListUsersInternalResponse,
-        CreateSavedViewRequest,
-        ListSavedViewsRequest,
-        UpdateSavedViewRequest,
-        DeleteSavedViewRequest,
-        SavedViewResponse
+        ListUsersInternalResponse
     )
 );
 
