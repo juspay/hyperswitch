@@ -19,7 +19,9 @@ use x509_parser::nom::{
 use crate::{
     core::{
         errors::{self, RouterResult},
-        payment_methods::{cards, vault, resolve_storage_type_from_token, fetch_payment_method_by_storage},
+        payment_methods::{
+            cards, fetch_payment_method_by_storage, resolve_storage_type_from_token, vault,
+        },
     },
     routes::SessionState,
     types::{domain, payment_methods as pm_types},
@@ -52,7 +54,11 @@ impl ProxyRequestWrapper {
 
                 let payment_method_record = state
                     .store
-                    .find_payment_method(platform.get_provider().get_key_store(), &pm_id, platform.get_provider().get_account().storage_scheme)
+                    .find_payment_method(
+                        platform.get_provider().get_key_store(),
+                        &pm_id,
+                        platform.get_provider().get_account().storage_scheme,
+                    )
                     .await
                     .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)?;
                 Ok(ProxyRecord::PaymentMethodRecord(Box::new(
@@ -68,7 +74,10 @@ impl ProxyRequestWrapper {
                 let db = state.store.as_ref();
 
                 let tokenization_record = db
-                    .get_entity_id_vault_id_by_token_id(&token_id, platform.get_provider().get_key_store())
+                    .get_entity_id_vault_id_by_token_id(
+                        &token_id,
+                        platform.get_provider().get_key_store(),
+                    )
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Error while fetching tokenization record from vault")?;
@@ -102,7 +111,12 @@ impl ProxyRequestWrapper {
                             keymanager_state,
                             payment_method,
                             platform.get_provider().get_key_store().key.get_inner(),
-                            platform.get_provider().get_key_store().merchant_id.clone().into(),
+                            platform
+                                .get_provider()
+                                .get_key_store()
+                                .merchant_id
+                                .clone()
+                                .into(),
                         )
                         .await
                         .change_context(errors::StorageError::EncryptionError)
@@ -125,7 +139,7 @@ impl ProxyRequestWrapper {
                 // 1. Resolve parent token (if any) -> storage type & optional token data
                 let (storage_type, card_token_data_opt) =
                     resolve_storage_type_from_token(&state, token).await?;
-                
+
                 let pm_id = PaymentMethodId {
                     payment_method_id: token.clone(),
                 };
@@ -149,7 +163,9 @@ impl ProxyRequestWrapper {
                     }
                     common_enums::enums::StorageType::Volatile => {
                         println!("Storage type is Volatileee");
-                        Ok(ProxyRecord::VolatilePaymentMethodRecord(Box::new(payment_method)))
+                        Ok(ProxyRecord::VolatilePaymentMethodRecord(Box::new(
+                            payment_method,
+                        )))
                     }
                 }
             }
@@ -239,30 +255,30 @@ impl ProxyRecord {
 
                 let mut vault_data = vault_resp.data;
 
-                    // If vault data is card, try to retrieve CVC from redis and attach it
-                    if vault_data.get_card().is_some() {
-                        let payment_method_id_str =
-                            payment_method.get_id().get_string_repr().to_string();
-                        let key_store = platform.get_provider().get_key_store();
+                // If vault data is card, try to retrieve CVC from redis and attach it
+                if vault_data.get_card().is_some() {
+                    let payment_method_id_str =
+                        payment_method.get_id().get_string_repr().to_string();
+                    let key_store = platform.get_provider().get_key_store();
 
-                        match vault::retrieve_and_delete_cvc_from_payment_token(
-                            state,
-                            &payment_method_id_str,
-                            key_store,
-                        )
-                        .await
-                        {
-                            Ok(card_cvc) => {
-                                vault_data.set_card_cvc(card_cvc);
-                            }
-                            Err(err) => {
-                                router_env::logger::warn!(
-                                    "Failed to retrieve CVC from redis: {:?}",
-                                    err
-                                );
-                            }
+                    match vault::retrieve_and_delete_cvc_from_payment_token(
+                        state,
+                        &payment_method_id_str,
+                        key_store,
+                    )
+                    .await
+                    {
+                        Ok(card_cvc) => {
+                            vault_data.set_card_cvc(card_cvc);
+                        }
+                        Err(err) => {
+                            router_env::logger::warn!(
+                                "Failed to retrieve CVC from redis: {:?}",
+                                err
+                            );
                         }
                     }
+                }
 
                 Ok(vault_data
                     .encode_to_value()
@@ -317,30 +333,30 @@ impl ProxyRecord {
 
                         let mut vault_data = decrypted_payload.clone();
 
-                    // If vault data is card, try to retrieve CVC from redis and attach it
-                    if vault_data.get_card().is_some() {
-                        let payment_method_id_str =
-                            payment_method.get_id().get_string_repr().to_string();
-                        let key_store = platform.get_provider().get_key_store();
+                        // If vault data is card, try to retrieve CVC from redis and attach it
+                        if vault_data.get_card().is_some() {
+                            let payment_method_id_str =
+                                payment_method.get_id().get_string_repr().to_string();
+                            let key_store = platform.get_provider().get_key_store();
 
-                        match vault::retrieve_and_delete_cvc_from_payment_token(
-                            state,
-                            &payment_method_id_str,
-                            key_store,
-                        )
-                        .await
-                        {
-                            Ok(card_cvc) => {
-                                vault_data.set_card_cvc(card_cvc);
-                            }
-                            Err(err) => {
-                                router_env::logger::warn!(
-                                    "Failed to retrieve CVC from redis: {:?}",
-                                    err
-                                );
+                            match vault::retrieve_and_delete_cvc_from_payment_token(
+                                state,
+                                &payment_method_id_str,
+                                key_store,
+                            )
+                            .await
+                            {
+                                Ok(card_cvc) => {
+                                    vault_data.set_card_cvc(card_cvc);
+                                }
+                                Err(err) => {
+                                    router_env::logger::warn!(
+                                        "Failed to retrieve CVC from redis: {:?}",
+                                        err
+                                    );
+                                }
                             }
                         }
-                    }
 
                         Ok(vault_data
                             .encode_to_value()
