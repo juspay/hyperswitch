@@ -30,7 +30,7 @@ pub enum MetaData {
     OnboardingSurvey(api::OnboardingSurvey),
     ReconStatus(api::ReconStatus),
     #[cfg(feature = "v1")]
-    PaymentViews(PaymentViewsValue),
+    PaymentViews(api::SavedViewOperation),
 }
 
 impl From<&MetaData> for DBEnum {

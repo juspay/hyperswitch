@@ -7,7 +7,7 @@ use strum::EnumString;
 #[cfg(feature = "v1")]
 use crate::{enums, payments};
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub enum SetMetaDataRequest {
     ProductionAgreement(ProductionAgreementRequest),
     SetupProcessor(SetupProcessor),
@@ -32,9 +32,20 @@ pub enum SetMetaDataRequest {
     IsChangePasswordRequired,
     OnboardingSurvey(OnboardingSurvey),
     ReconStatus(ReconStatus),
+    #[cfg(feature = "v1")]
+    PaymentViews(SavedViewOperation),
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "type", content = "data")]
+pub enum SavedViewOperation {
+    Create(CreateSavedViewRequest),
+    Update(UpdateSavedViewRequest),
+    Delete(DeleteSavedViewRequest),
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct ProductionAgreementRequest {
     pub version: String,
     #[serde(skip_deserializing)]
@@ -144,6 +155,8 @@ pub enum GetMetaDataRequest {
     IsChangePasswordRequired,
     OnboardingSurvey,
     ReconStatus,
+    #[cfg(feature = "v1")]
+    PaymentViews,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -334,14 +347,11 @@ pub struct DeleteSavedViewRequest {
     pub view_name: String,
 }
 
-/// Response for saved view CRUD operations
 #[derive(Debug, serde::Serialize)]
 pub struct SavedViewResponse {
     pub count: usize,
     pub views: Vec<SavedView>,
 }
-
-// === Mapping Traits for Strict Versioning ===
 
 #[cfg(feature = "v1")]
 impl From<payments::PaymentListFilterConstraints> for PaymentListFilterConstraintsV1 {
