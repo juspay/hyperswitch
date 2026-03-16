@@ -519,7 +519,7 @@ export const CONNECTOR_LISTS = {
       "shift4",
       "trustpay",
       "worldpay",
-      "worldpayvantiv"
+      "worldpayvantiv",
     ],
     // Add more inclusion lists
   },
