@@ -1804,6 +1804,12 @@ pub mod routes {
                             })
                             .ok_or(AnalyticsError::MissingEmail)?;
 
+                        if let Some(ref url) = payload.return_url {
+                            url
+                            .validate_return_url()
+                            .map_err(|return_url_err| AnalyticsError::InvalidReturnUrl(return_url_err))?;
+                        }
+
                         (primary_email, Some(other_emails))
                     }
                 };
@@ -1892,6 +1898,12 @@ pub mod routes {
                             })
                             .ok_or(AnalyticsError::MissingEmail)?;
 
+                        if let Some(ref url) = payload.return_url {
+                            url
+                            .validate_return_url()
+                            .map_err(|return_url_err| AnalyticsError::InvalidReturnUrl(return_url_err))?;
+                        }
+
                         (primary_email, Some(other_emails))
                     }
                 };
@@ -1979,6 +1991,12 @@ pub mod routes {
                                 }
                             })
                             .ok_or(AnalyticsError::MissingEmail)?;
+
+                        if let Some(ref url) = payload.return_url {
+                            url
+                            .validate_return_url()
+                            .map_err(|return_url_err| AnalyticsError::InvalidReturnUrl(return_url_err))?;
+                        }
 
                         (primary_email, Some(other_emails))
                     }
@@ -2073,6 +2091,12 @@ pub mod routes {
                             })
                             .ok_or(AnalyticsError::MissingEmail)?;
 
+                        if let Some(ref url) = payload.return_url {
+                            url
+                            .validate_return_url()
+                            .map_err(|return_url_err| AnalyticsError::InvalidReturnUrl(return_url_err))?;
+                        }
+
                         (primary_email, Some(other_emails))
                     }
                 };
@@ -2159,6 +2183,12 @@ pub mod routes {
                                 }
                             })
                             .ok_or(AnalyticsError::MissingEmail)?;
+
+                        if let Some(ref url) = payload.return_url {
+                            url
+                            .validate_return_url()
+                            .map_err(|return_url_err| AnalyticsError::InvalidReturnUrl(return_url_err))?;
+                        }
 
                         (primary_email, Some(other_emails))
                     }
@@ -2247,6 +2277,12 @@ pub mod routes {
                                 }
                             })
                             .ok_or(AnalyticsError::MissingEmail)?;
+
+                        if let Some(ref url) = payload.return_url {
+                            url
+                            .validate_return_url()
+                            .map_err(|return_url_err| AnalyticsError::InvalidReturnUrl(return_url_err))?;
+                        }
 
                         (primary_email, Some(other_emails))
                     }
@@ -2342,6 +2378,12 @@ pub mod routes {
                             })
                             .ok_or(AnalyticsError::MissingEmail)?;
 
+                        if let Some(ref url) = payload.return_url {
+                            url
+                            .validate_return_url()
+                            .map_err(|return_url_err| AnalyticsError::InvalidReturnUrl(return_url_err))?;
+                        }
+
                         (primary_email, Some(other_emails))
                     }
                 };
@@ -2430,6 +2472,12 @@ pub mod routes {
                             })
                             .ok_or(AnalyticsError::MissingEmail)?;
 
+                        if let Some(ref url) = payload.return_url {
+                            url
+                            .validate_return_url()
+                            .map_err(|return_url_err| AnalyticsError::InvalidReturnUrl(return_url_err))?;
+                        }
+
                         (primary_email, Some(other_emails))
                     }
                 };
@@ -2517,6 +2565,12 @@ pub mod routes {
                                 }
                             })
                             .ok_or(AnalyticsError::MissingEmail)?;
+
+                        if let Some(ref url) = payload.return_url {
+                            url
+                            .validate_return_url()
+                            .map_err(|return_url_err| AnalyticsError::InvalidReturnUrl(return_url_err))?;
+                        }
 
                         (primary_email, Some(other_emails))
                     }
@@ -2610,6 +2664,12 @@ pub mod routes {
                             })
                             .ok_or(AnalyticsError::MissingEmail)?;
 
+                        if let Some(ref url) = payload.return_url {
+                            url
+                            .validate_return_url()
+                            .map_err(|return_url_err| AnalyticsError::InvalidReturnUrl(return_url_err))?;
+                        }
+
                         (primary_email, Some(other_emails))
                     }
                 };
@@ -2697,6 +2757,12 @@ pub mod routes {
                             })
                             .ok_or(AnalyticsError::MissingEmail)?;
 
+                        if let Some(ref url) = payload.return_url {
+                            url
+                            .validate_return_url()
+                            .map_err(|return_url_err| AnalyticsError::InvalidReturnUrl(return_url_err))?;
+                        }
+
                         (primary_email, Some(other_emails))
                     }
                 };
@@ -2783,6 +2849,12 @@ pub mod routes {
                                 }
                             })
                             .ok_or(AnalyticsError::MissingEmail)?;
+
+                        if let Some(ref url) = payload.return_url {
+                            url
+                            .validate_return_url()
+                            .map_err(|return_url_err| AnalyticsError::InvalidReturnUrl(return_url_err))?;
+                        }
 
                         (primary_email, Some(other_emails))
                     }
@@ -2885,6 +2957,12 @@ pub mod routes {
                             })
                             .ok_or(AnalyticsError::MissingEmail)?;
 
+                        if let Some(ref url) = payload.return_url {
+                            url
+                            .validate_return_url()
+                            .map_err(|return_url_err| AnalyticsError::InvalidReturnUrl(return_url_err))?;
+                        }
+
                         (primary_email, Some(other_emails))
                     }
                 };
@@ -2973,6 +3051,12 @@ pub mod routes {
                             })
                             .ok_or(AnalyticsError::MissingEmail)?;
 
+                        if let Some(ref url) = payload.return_url {
+                            url
+                            .validate_return_url()
+                            .map_err(|return_url_err| AnalyticsError::InvalidReturnUrl(return_url_err))?;
+                        }
+
                         (primary_email, Some(other_emails))
                     }
                 };
@@ -3060,6 +3144,12 @@ pub mod routes {
                                 }
                             })
                             .ok_or(AnalyticsError::MissingEmail)?;
+
+                        if let Some(ref url) = payload.return_url {
+                            url
+                            .validate_return_url()
+                            .map_err(|return_url_err| AnalyticsError::InvalidReturnUrl(return_url_err))?;
+                        }
 
                         (primary_email, Some(other_emails))
                     }

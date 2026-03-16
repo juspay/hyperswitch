@@ -13,6 +13,7 @@ use std::{
     borrow::Cow,
     fmt::Display,
     iter::Sum,
+    net::{IpAddr, ToSocketAddrs},
     num::{NonZeroI64, NonZeroU8},
     ops::{Add, Div, Mul, Sub},
     primitive::i64,
@@ -737,6 +738,79 @@ impl Url {
             .finish()
             .clone();
         Self(url)
+    }
+
+    /// Validate the return URL provided in the ReportRequest payload
+    /// Validating the URL upfront means we immediately reject invalid or restricted IPs with a 400 Bad Request. 
+    /// This prevents us from unnecessarily spinning up a Lambda worker, executing expensive database queries, 
+    /// and generating a report that the infrastructure would just end up blocking anyway. 
+    /// It saves compute costs and gives the merchant immediate feedback.
+    pub fn validate_return_url(&self) -> Result<(), String> {
+        let url_str = self.get_string_repr();
+        let parsed = url::Url::parse(url_str)
+            .map_err(|_| "Failed to parse URL".to_string())?;
+
+        // Validate scheme - only HTTPS allowed
+        if parsed.scheme() != "https" {
+            return Err("Invalid URL scheme. The scheme must be HTTPS.".to_string());
+        }
+
+        // Get host
+        let host = parsed.host_str()
+            .ok_or_else(|| "URL must have a host.".to_string())?;
+
+        // Block localhost and common internal hostnames
+        let lowercase_host = host.to_lowercase();
+        let blocked_hosts = ["localhost", "127.0.0.1", "::1", "0.0.0.0"];
+        if blocked_hosts.contains(&lowercase_host.as_str()) || lowercase_host.ends_with(".local") {
+            return Err("Private URL not allowed.".to_string());
+        }
+
+        // DNS resolution and IP validation
+        let host_with_port = format!("{}:443", host);
+        // Resolve the host to its actual IP addresses
+        let socket_addrs = host_with_port.to_socket_addrs()
+            .map_err(|_| "Failed to resolve hostname".to_string())?;
+
+        // A domain name can resolve to multiple IPs. We must check all of them
+        for addr in socket_addrs {
+            let ip = addr.ip();
+
+            if self.is_private_ip(&ip) {
+                return Err("Private URL not allowed.".to_string())
+            }
+        }
+
+        Ok(())
+    }
+
+    fn is_private_ip(&self, ip: &IpAddr) -> bool {
+        match ip {
+            IpAddr::V4(ipv4) => {
+                let octets = ipv4.octets();
+                // 0.0.0.0/8 (Current network / Linux localhost alias)
+                octets[0] == 0 ||
+                // 10.0.0.0/8
+                octets[0] == 10 || 
+                // 172.16.0.0./12
+                (octets[0] == 172 && octets[1] >= 16 && octets[1] <= 31) ||
+                // 192.168.0.0/16
+                (octets[0] == 192 && octets[1] == 168) ||
+                // 127.0.0.0/8 (loopback)
+                octets[0] == 127 ||
+                // 169.254.0.0/16 (link-local)
+                (octets[0] == 169 && octets[1] == 254)
+            },
+            IpAddr::V6(ipv6) => {
+                let segments = ipv6.segments();
+                // fc00::/7 - IPv6 unique local
+                (segments[0] & 0xfe00) == 0xfc00 ||
+                // fe80::/10 - IPv6 link-local
+                (segments[0] & 0xffc0) == 0xfe80 || 
+                // ::1 - IPv6 loopback
+                segments == [0, 0, 0, 0, 0, 0, 0, 1]
+            }
+        }
     }
 }
 
