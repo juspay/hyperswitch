@@ -179,7 +179,10 @@ describe("Platform - Card ThreeDS Manual Capture payment flow test", () => {
 
         globalState.set("apiKey", globalState.get("apiKey_CM1"));
         globalState.set("profileId", globalState.get("profileId_CM1"));
-        globalState.set("publishableKey", globalState.get("publishableKey_CM1"));
+        globalState.set(
+          "publishableKey",
+          globalState.get("publishableKey_CM1")
+        );
         globalState.set("connectorId", "stripe");
         globalState.set(
           "merchantConnectorId",
