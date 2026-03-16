@@ -8034,9 +8034,12 @@ key1 = "Merchant Account Id"
 [[payjustnow.pay_later]]
   payment_method_type = "payjustnow"
 
-[envoy]
-[envoy.connector_auth.HeaderKey]
-api_key = "API Key"
+[envoy_payout]
+[[envoy_payout.bank_transfer]]
+  payment_method_type = "sepa_bank_transfer"
+[envoy_payout.connector_auth.BodyKey]
+api_key = "Password"
+key1 = "Username"
 
 [vgs]
 [vgs.connector_auth.SignatureKey]
@@ -8235,3 +8238,7 @@ payment_method_type = "CartesBancaires"
 payment_method_type = "UnionPay"
 [revolv3.connector_auth.HeaderKey]
 api_key = "Static Tokens"
+
+[trustly]
+[trustly.connector_auth.HeaderKey]
+api_key = "API Key"
