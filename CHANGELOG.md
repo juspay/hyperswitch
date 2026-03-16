@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.03.16.0
+
+### Features
+
+- **platform:** Add processor_merchant_id and created_by to payouts and authentication ([#11480](https://github.com/juspay/hyperswitch/pull/11480)) ([`19b8f61`](https://github.com/juspay/hyperswitch/commit/19b8f61017eb3bbc62a1cea2483ee9ca1544fc0a))
+
+**Full Changelog:** [`2026.03.13.0...2026.03.16.0`](https://github.com/juspay/hyperswitch/compare/2026.03.13.0...2026.03.16.0)
+
+- - -
+
 ## 2026.03.13.0
 
 ### Features
