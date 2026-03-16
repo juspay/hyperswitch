@@ -143,7 +143,7 @@ jobs:
 
       - name: Upload binary artifact
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: hyperswitch-server
           overwrite: true
@@ -201,7 +201,7 @@ jobs:
 
       - name: Upload binary artifact
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: hyperswitch-server-hyperswitch-runners
           overwrite: true
@@ -271,7 +271,7 @@ jobs:
 
       - name: Download hyperswitch server artifact
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: hyperswitch-server
           path: target/debug
@@ -394,7 +394,7 @@ jobs:
 
       - name: Upload Cypress test results
         if: env.RUN_TESTS == 'true' && failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cypress-test-results-mandatory-github-runners
           path: |
@@ -471,7 +471,7 @@ jobs:
 
       - name: Download hyperswitch server artifact
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: hyperswitch-server-hyperswitch-runners
           path: target/debug
@@ -595,25 +595,19 @@ jobs:
 
           kill "${{ env.PID }}"
 
-      - name: Compress and upload server logs on failure
-        if: env.RUN_TESTS == 'true' && failure()
-        run: |
-          if [[ -f "${{ env.SERVER_LOG_PATH }}" ]]; then
-            gzip -9 "${{ env.SERVER_LOG_PATH }}"
-          fi
 
       - name: Upload server logs on failure
         if: env.RUN_TESTS == 'true' && failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: server-logs
-          path: ${{ env.SERVER_LOG_PATH }}.gz
+          name: ${{ matrix.batch.server_logs_artifact }}
+          path: ${{ env.SERVER_LOG_PATH }}
           if-no-files-found: ignore
           retention-days: 1
-
+      
       - name: Upload Cypress test results
         if: env.RUN_TESTS == 'true' && failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cypress-test-results-mandatory-hyperswitch-runners
           path: |
@@ -742,7 +736,7 @@ jobs:
           checksum: true
 
       - name: Download hyperswitch server artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: hyperswitch-server-hyperswitch-runners
           path: target/debug
@@ -853,25 +847,18 @@ jobs:
 
           kill "${{ env.PID }}"
 
-      - name: Compress and upload server logs on failure
-        if: env.RUN_TESTS == 'true' && failure()
-        run: |
-          if [[ -f "${{ env.SERVER_LOG_PATH }}" ]]; then
-            gzip -9 "${{ env.SERVER_LOG_PATH }}"
-          fi
-
       - name: Upload server logs on failure
         if: env.RUN_TESTS == 'true' && failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.batch.server_logs_artifact }}
-          path: ${{ env.SERVER_LOG_PATH }}.gz
+          path: ${{ env.SERVER_LOG_PATH }}
           if-no-files-found: ignore
           retention-days: 1
 
       - name: Upload Cypress test results
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name:  ${{ matrix.batch.report_artifact_name }}
           path: |
@@ -923,7 +910,7 @@ jobs:
 
       - name: Download hyperswitch server artifact
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: hyperswitch-server-hyperswitch-runners
           path: target/debug
@@ -1079,7 +1066,7 @@ jobs:
 
       - name: Upload Cypress test results for Alpha Connectors
         if: env.RUN_TESTS == 'true' && failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cypress-test-results-alpha
           path: |
@@ -1286,7 +1273,7 @@ jobs:
 
       - name: Upload Cypress test results
         if: env.RUN_TESTS == 'true' && failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cypress-v2-test-results
           path: |
