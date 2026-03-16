@@ -315,6 +315,7 @@ pub async fn payouts_core(
     payout_data: &mut PayoutData,
     routing_algorithm: Option<serde_json::Value>,
     eligible_connectors: Option<Vec<api_enums::PayoutConnectors>>,
+    dimensions: DimensionsWithMerchantId,
 ) -> RouterResult<()> {
     todo!()
 }
