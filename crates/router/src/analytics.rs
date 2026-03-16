@@ -1909,7 +1909,7 @@ pub mod routes {
                         if let Some(ref url) = payload.return_url {
                             url
                             .validate_return_url()
-                            .map_err(|return_url_err| AnalyticsError::InvalidReturnUrl(return_url_err))?;
+                            .map_err(AnalyticsError::InvalidReturnUrl)?;
                         }
 
                         (primary_email, Some(other_emails))
@@ -2008,7 +2008,7 @@ pub mod routes {
                         if let Some(ref url) = payload.return_url {
                             url
                             .validate_return_url()
-                            .map_err(|return_url_err| AnalyticsError::InvalidReturnUrl(return_url_err))?;
+                            .map_err(AnalyticsError::InvalidReturnUrl)?;
                         }
 
                         (primary_email, Some(other_emails))
@@ -2105,7 +2105,7 @@ pub mod routes {
                         if let Some(ref url) = payload.return_url {
                             url
                             .validate_return_url()
-                            .map_err(|return_url_err| AnalyticsError::InvalidReturnUrl(return_url_err))?;
+                            .map_err(AnalyticsError::InvalidReturnUrl)?;
                         }
 
                         (primary_email, Some(other_emails))
@@ -2210,7 +2210,7 @@ pub mod routes {
                         if let Some(ref url) = payload.return_url {
                             url
                             .validate_return_url()
-                            .map_err(|return_url_err| AnalyticsError::InvalidReturnUrl(return_url_err))?;
+                            .map_err(AnalyticsError::InvalidReturnUrl)?;
                         }
 
                         (primary_email, Some(other_emails))
@@ -2308,7 +2308,7 @@ pub mod routes {
                         if let Some(ref url) = payload.return_url {
                             url
                             .validate_return_url()
-                            .map_err(|return_url_err| AnalyticsError::InvalidReturnUrl(return_url_err))?;
+                            .map_err(AnalyticsError::InvalidReturnUrl)?;
                         }
 
                         (primary_email, Some(other_emails))
@@ -2405,7 +2405,7 @@ pub mod routes {
                         if let Some(ref url) = payload.return_url {
                             url
                             .validate_return_url()
-                            .map_err(|return_url_err| AnalyticsError::InvalidReturnUrl(return_url_err))?;
+                            .map_err(AnalyticsError::InvalidReturnUrl)?;
                         }
 
                         (primary_email, Some(other_emails))
@@ -2511,7 +2511,7 @@ pub mod routes {
                         if let Some(ref url) = payload.return_url {
                             url
                             .validate_return_url()
-                            .map_err(|return_url_err| AnalyticsError::InvalidReturnUrl(return_url_err))?;
+                            .map_err(AnalyticsError::InvalidReturnUrl)?;
                         }
 
                         (primary_email, Some(other_emails))
@@ -2610,7 +2610,7 @@ pub mod routes {
                         if let Some(ref url) = payload.return_url {
                             url
                             .validate_return_url()
-                            .map_err(|return_url_err| AnalyticsError::InvalidReturnUrl(return_url_err))?;
+                            .map_err(AnalyticsError::InvalidReturnUrl)?;
                         }
 
                         (primary_email, Some(other_emails))
@@ -2707,7 +2707,7 @@ pub mod routes {
                         if let Some(ref url) = payload.return_url {
                             url
                             .validate_return_url()
-                            .map_err(|return_url_err| AnalyticsError::InvalidReturnUrl(return_url_err))?;
+                            .map_err(AnalyticsError::InvalidReturnUrl)?;
                         }
 
                         (primary_email, Some(other_emails))
@@ -2811,7 +2811,7 @@ pub mod routes {
                         if let Some(ref url) = payload.return_url {
                             url
                             .validate_return_url()
-                            .map_err(|return_url_err| AnalyticsError::InvalidReturnUrl(return_url_err))?;
+                            .map_err(AnalyticsError::InvalidReturnUrl)?;
                         }
 
                         (primary_email, Some(other_emails))
@@ -2909,7 +2909,7 @@ pub mod routes {
                         if let Some(ref url) = payload.return_url {
                             url
                             .validate_return_url()
-                            .map_err(|return_url_err| AnalyticsError::InvalidReturnUrl(return_url_err))?;
+                            .map_err(AnalyticsError::InvalidReturnUrl)?;
                         }
 
                         (primary_email, Some(other_emails))
@@ -3005,7 +3005,7 @@ pub mod routes {
                         if let Some(ref url) = payload.return_url {
                             url
                             .validate_return_url()
-                            .map_err(|return_url_err| AnalyticsError::InvalidReturnUrl(return_url_err))?;
+                            .map_err(AnalyticsError::InvalidReturnUrl)?;
                         }
 
                         (primary_email, Some(other_emails))
@@ -3118,7 +3118,7 @@ pub mod routes {
                         if let Some(ref url) = payload.return_url {
                             url
                             .validate_return_url()
-                            .map_err(|return_url_err| AnalyticsError::InvalidReturnUrl(return_url_err))?;
+                            .map_err(AnalyticsError::InvalidReturnUrl)?;
                         }
 
                         (primary_email, Some(other_emails))
@@ -3217,7 +3217,7 @@ pub mod routes {
                         if let Some(ref url) = payload.return_url {
                             url
                             .validate_return_url()
-                            .map_err(|return_url_err| AnalyticsError::InvalidReturnUrl(return_url_err))?;
+                            .map_err(AnalyticsError::InvalidReturnUrl)?;
                         }
 
                         (primary_email, Some(other_emails))
@@ -3314,7 +3314,7 @@ pub mod routes {
                         if let Some(ref url) = payload.return_url {
                             url
                             .validate_return_url()
-                            .map_err(|return_url_err| AnalyticsError::InvalidReturnUrl(return_url_err))?;
+                            .map_err(AnalyticsError::InvalidReturnUrl)?;
                         }
 
                         (primary_email, Some(other_emails))

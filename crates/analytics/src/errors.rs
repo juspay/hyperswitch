@@ -17,7 +17,7 @@ pub enum AnalyticsError {
     #[error("Missing email")]
     MissingEmail,
     #[error("Invalid URL scheme: {0}")]
-    InvalidReturnUrl(String)
+    InvalidReturnUrl(String),
 }
 
 impl ErrorSwitch<ApiErrorResponse> for AnalyticsError {
