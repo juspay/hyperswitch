@@ -3262,7 +3262,6 @@ dependencies = [
  "connector_configs",
  "currency_conversion",
  "euclid",
- "getrandom 0.2.16",
  "getrandom 0.3.3",
  "hyperswitch_constraint_graph",
  "kgraph_utils",
