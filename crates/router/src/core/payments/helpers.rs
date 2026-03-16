@@ -1658,25 +1658,11 @@ pub async fn validate_blocking_threshold(
 pub fn get_customer_details_from_request_or_pm_table(
     request: &api_models::payments::PaymentsRequest,
     payment_method: &Option<domain::PaymentMethod>,
+    mandate_type: &Option<api::MandateTransactionType>,
 ) -> Result<
     CustomerDetails,
     error_stack::Report<hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse>,
 > {
-    // Extracting customer details from Payment Methods Table in case of MIT
-    let customer_details_from_pm = payment_method
-        .clone()
-        .and_then(|data| data.customer_details)
-        .as_ref()
-        .map(|encryptable| {
-            encryptable
-                .clone()
-                .into_inner()
-                .parse_value::<CustomerDocumentDetails>("CustomerDocumentDetails")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to parse CustomerDocumentDetails from Payment Method")
-        })
-        .transpose()?;
-
     let customer_id = request.get_customer_id().map(ToOwned::to_owned);
 
     let customer_name = request
@@ -1710,10 +1696,33 @@ pub fn get_customer_details_from_request_or_pm_table(
         .as_ref()
         .and_then(|customer_details| customer_details.tax_registration_id.clone());
 
-    let document_details = customer_details_from_pm.or(request
-        .customer
-        .as_ref()
-        .and_then(|customer_details| customer_details.document_details.clone()));
+    let document_details = match mandate_type {
+        Some(api::MandateTransactionType::NewMandateTransaction) | None => {
+            // Extracting customer details from request in case of CIT/One-Off
+            request
+                .customer
+                .as_ref()
+                .and_then(|customer_details| customer_details.document_details.clone())
+        }
+        Some(api::MandateTransactionType::RecurringMandateTransaction) => {
+            // Extracting customer details from Payment Methods Table in case of MIT
+            payment_method
+                .clone()
+                .and_then(|data| data.customer_details)
+                .as_ref()
+                .map(|encryptable| {
+                    encryptable
+                        .clone()
+                        .into_inner()
+                        .parse_value::<CustomerDocumentDetails>("CustomerDocumentDetails")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Failed to parse CustomerDocumentDetails from Payment Method",
+                        )
+                })
+                .transpose()?
+        }
+    };
 
     Ok(CustomerDetails {
         customer_id,

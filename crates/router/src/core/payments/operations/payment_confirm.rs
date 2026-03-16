@@ -162,7 +162,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
 
         let customer_details =
-            helpers::get_customer_details_from_request_or_pm_table(request, &None)?;
+            helpers::get_customer_details_from_request_or_pm_table(request, &None, &None)?;
 
         payment_intent.customer_details = helpers::merge_request_and_intent_customer_data(
             state,
@@ -1393,6 +1393,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         connector_call_type: &ConnectorCallType,
         business_profile: &domain::Profile,
         processor: &domain::Processor,
+        initiator: Option<&domain::Initiator>,
         mandate_type: Option<MandateTransactionType>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         let external_authentication_flow =
@@ -1426,6 +1427,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     payment_data.payment_intent.psd2_sca_exemption_type,
                     billing_address,
                     shipping,
+                    initiator,
                 ))
                 .await?;
                 if authentication_store
@@ -1827,7 +1829,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             None,
                             None,
                             None,
-                            platform.get_processor().get_key_store()
+                            platform.get_processor(),
+                            platform.get_initiator(),
                         )
                         .await?;
                         let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
@@ -1879,7 +1882,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     None,
                     None,
                     None,
-                    platform.get_processor().get_key_store()
+                    platform.get_processor(),
+                    platform.get_initiator(),
                 )
                 .await?;
             let acquirer_configs = authentication

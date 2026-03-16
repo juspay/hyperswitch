@@ -184,7 +184,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         .await?;
 
         let customer_details =
-            helpers::get_customer_details_from_request_or_pm_table(request, &None)?;
+            helpers::get_customer_details_from_request_or_pm_table(request, &None, &mandate_type)?;
 
         let shipping_address = helpers::create_or_find_address_for_payment_by_request(
             state,
@@ -1665,10 +1665,25 @@ impl PaymentCreate {
 
         let split_payments = request.split_payments.clone();
 
+        let mandate_type = m_helpers::get_mandate_type(
+            request.mandate_data.clone(),
+            request.off_session,
+            request.setup_future_usage,
+            request.customer_acceptance.clone(),
+            request.payment_token.clone(),
+            request.payment_method,
+        )
+        .change_context(errors::ApiErrorResponse::MandateValidationFailed {
+            reason: "Expected one out of recurring_details and mandate_data but got both".into(),
+        })?;
+
         // Derivation of directly supplied Customer data in our Payment Create Request
-        let raw_customer_details =
-            helpers::get_customer_details_from_request_or_pm_table(request, &payment_method_info)?
-                .get_customer_data();
+        let raw_customer_details = helpers::get_customer_details_from_request_or_pm_table(
+            request,
+            &payment_method_info,
+            &mandate_type,
+        )?
+        .get_customer_data();
         let is_payment_processor_token_flow = request.recurring_details.as_ref().and_then(
             |recurring_details| match recurring_details {
                 RecurringDetails::ProcessorPaymentToken(_) => Some(true),
