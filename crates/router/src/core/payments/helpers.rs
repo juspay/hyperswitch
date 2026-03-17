@@ -3211,21 +3211,44 @@ pub fn make_modular_pm_data<F: Clone, D>(
 where
     D: OperationSessionGetters<F> + Send + Sync + Clone,
 {
-    let is_connector_mandate_selected = payment_data
+    let selected_mandate_reference = payment_data
         .get_mandate_id()
-        .and_then(|mandate_id| mandate_id.mandate_reference_id.as_ref())
-        .is_some_and(|mandate_reference_id| {
-            matches!(
-                mandate_reference_id,
-                api_models::payments::MandateReferenceId::ConnectorMandateId(_)
-            )
-        });
+        .and_then(|mandate_id| mandate_id.mandate_reference_id.as_ref());
 
     let payment_method_data = match payment_data.get_payment_method_data() {
         Some(domain::PaymentMethodData::CardWithOptionalCVC(_card_data))
-            if is_connector_mandate_selected =>
+            if matches!(
+                selected_mandate_reference,
+                Some(api_models::payments::MandateReferenceId::ConnectorMandateId(_))
+            ) =>
         {
             Some(domain::PaymentMethodData::MandatePayment)
+        }
+        Some(domain::PaymentMethodData::CardWithOptionalCVC(card_data))
+            if matches!(
+                selected_mandate_reference,
+                Some(api_models::payments::MandateReferenceId::NetworkMandateId(
+                    _
+                ))
+            ) =>
+        {
+            Some(
+                domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
+                    domain::CardDetailsForNetworkTransactionId {
+                        card_number: card_data.card_number.clone(),
+                        card_exp_month: card_data.card_exp_month.clone(),
+                        card_exp_year: card_data.card_exp_year.clone(),
+                        card_issuer: card_data.card_issuer.clone(),
+                        card_network: card_data.card_network.clone(),
+                        card_type: card_data.card_type.clone(),
+                        card_issuing_country: card_data.card_issuing_country.clone(),
+                        card_issuing_country_code: card_data.card_issuing_country_code.clone(),
+                        bank_code: card_data.bank_code.clone(),
+                        nick_name: card_data.nick_name.clone(),
+                        card_holder_name: card_data.card_holder_name.clone(),
+                    },
+                ),
+            )
         }
         Some(domain::PaymentMethodData::CardWithOptionalCVC(card_data)) => {
             let card_cvc = card_data.card_cvc.clone().ok_or(
@@ -3250,7 +3273,12 @@ where
                 co_badged_card_data: card_data.co_badged_card_data.clone(),
             }))
         }
-        Some(domain::PaymentMethodData::Card(_)) if is_connector_mandate_selected => {
+        Some(domain::PaymentMethodData::Card(_))
+            if matches!(
+                selected_mandate_reference,
+                Some(api_models::payments::MandateReferenceId::ConnectorMandateId(_))
+            ) =>
+        {
             Some(domain::PaymentMethodData::MandatePayment)
         }
         Some(payment_method_data) => Some(payment_method_data.clone()),
