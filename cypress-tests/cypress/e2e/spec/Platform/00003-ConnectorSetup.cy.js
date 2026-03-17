@@ -197,11 +197,9 @@ describe("Connector Setup for Connected Merchants", () => {
         },
         globalState.get("apiKey"),
         globalState.get("connectedMerchantId_1"),
-        globalState
-      ).then((response) => {
-        expect(response.status).to.equal(200);
-        expect(response.body).to.have.property("connector_name", "stripe");
-      });
+        globalState,
+        200
+      );
 
       cy.then(() => {
         globalState.set("merchantId", savedMerchantId);
@@ -235,10 +233,9 @@ describe("Connector Setup for Connected Merchants", () => {
         },
         globalState.get("apiKey"),
         globalState.get("standardMerchantId"),
-        globalState
-      ).then((response) => {
-        expect(response.status).to.equal(401);
-      });
+        globalState,
+        401
+      );
 
       cy.then(() => {
         globalState.set("merchantId", savedMerchantId);
@@ -254,19 +251,21 @@ describe("Connector Setup for Connected Merchants", () => {
       globalState.set("merchantId", globalState.get("platformMerchantId"));
       globalState.set("profileId", globalState.get("profileId"));
 
-      cy.createConnectorWithApiKeyCallTest(
+      cy.createConnectorCallTest(
+        "payment_processor",
         {
-          connector_type: "payment_processor",
           connector_name: "stripe",
           connector_label: "stripe_platform_test",
           ...fixtures.createConnectorBody,
           payment_methods_enabled,
         },
-        globalState.get("apiKey"),
-        globalState
-      ).then((response) => {
-        expect(response.status).to.equal(404);
-      });
+        payment_methods_enabled,
+        globalState,
+        "profile",
+        "merchantConnector",
+        400,
+        globalState.get("apiKey")
+      );
 
       cy.then(() => {
         globalState.set("merchantId", savedMerchantId);

@@ -1,5 +1,6 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
+import getConnectorDetails from "../../configs/Payment/Utils";
 
 let globalState;
 
@@ -26,18 +27,10 @@ describe("Platform Payment Flows", () => {
         paymentRequestBody,
         globalState.get("apiKey"),
         globalState.get("connectedMerchantId_1"),
-        globalState
-      ).then((response) => {
-        if (response.status !== 200) {
-          cy.task(
-            "cli_log",
-            `Payment create failed: ${JSON.stringify(response.body)}`
-          );
-        }
-        expect(response.status).to.equal(200);
-        expect(response.body).to.have.property("payment_id");
-        globalState.set("platformPaymentId_CM1", response.body.payment_id);
-      });
+        globalState,
+        200,
+        "platformPaymentId_CM1"
+      );
     });
 
     it("platform-creates-payment-for-cm2-using-header", () => {
@@ -51,29 +44,25 @@ describe("Platform Payment Flows", () => {
         paymentRequestBody,
         globalState.get("apiKey"),
         globalState.get("connectedMerchantId_2"),
-        globalState
-      ).then((response) => {
-        expect(response.status).to.equal(200);
-        expect(response.body).to.have.property("payment_id");
-        globalState.set("platformPaymentId_CM2", response.body.payment_id);
-      });
+        globalState,
+        200,
+        "platformPaymentId_CM2"
+      );
     });
   });
 
   context("Platform Cannot Create Payment Without On-Behalf-Of Header", () => {
     it("platform-cannot-create-payment-without-header", () => {
-      const paymentRequestBody = {
-        ...fixtures.createConfirmPaymentBody,
-        customer_id: globalState.get("customerId"),
-      };
+      const data = getConnectorDetails("stripe")["card_pm"]["No3DSAutoCapture"];
 
-      cy.createPaymentWithApiKeyCallTest(
-        paymentRequestBody,
-        globalState.get("apiKey"),
-        globalState
-      ).then((response) => {
-        expect(response.status).to.equal(400);
-      });
+      cy.createConfirmPaymentTest(
+        fixtures.createConfirmPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState,
+        400
+      );
     });
   });
 
@@ -88,48 +77,51 @@ describe("Platform Payment Flows", () => {
         paymentRequestBody,
         globalState.get("apiKey"),
         globalState.get("standardMerchantId"),
-        globalState
-      ).then((response) => {
-        expect(response.status).to.equal(401);
-      });
+        globalState,
+        401
+      );
     });
   });
 
   context("Connected Merchants Create Own Payments", () => {
     it("cm1-creates-payment-for-shared-customer", () => {
-      const paymentRequestBody = {
-        ...fixtures.createConfirmPaymentBody,
-        customer_id: globalState.get("customerId_CM1_Created"),
-        profile_id: globalState.get("profileId_CM1"),
-      };
+      globalState.set("apiKey", globalState.get("apiKey_CM1"));
+      globalState.set("customerId", globalState.get("customerId_CM1_Created"));
+      globalState.set("profileId", globalState.get("profileId_CM1"));
+      globalState.set(
+        "merchantConnectorId",
+        globalState.get("connectorId_CM1")
+      );
 
-      cy.createPaymentWithApiKeyCallTest(
-        paymentRequestBody,
-        globalState.get("apiKey_CM1"),
+      const data = getConnectorDetails("stripe")["card_pm"]["No3DSAutoCapture"];
+
+      cy.createConfirmPaymentTest(
+        fixtures.createConfirmPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
         globalState
-      ).then((response) => {
-        expect(response.status).to.equal(200);
-        expect(response.body).to.have.property("payment_id");
-        globalState.set("cm1PaymentId", response.body.payment_id);
-      });
+      );
     });
 
     it("cm2-creates-payment-for-same-shared-customer", () => {
-      const paymentRequestBody = {
-        ...fixtures.createConfirmPaymentBody,
-        customer_id: globalState.get("customerId_CM1_Created"),
-        profile_id: globalState.get("profileId_CM2"),
-      };
+      globalState.set("apiKey", globalState.get("apiKey_CM2"));
+      globalState.set("customerId", globalState.get("customerId_CM1_Created"));
+      globalState.set("profileId", globalState.get("profileId_CM2"));
+      globalState.set(
+        "merchantConnectorId",
+        globalState.get("connectorId_CM2")
+      );
 
-      cy.createPaymentWithApiKeyCallTest(
-        paymentRequestBody,
-        globalState.get("apiKey_CM2"),
+      const data = getConnectorDetails("stripe")["card_pm"]["No3DSAutoCapture"];
+
+      cy.createConfirmPaymentTest(
+        fixtures.createConfirmPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
         globalState
-      ).then((response) => {
-        expect(response.status).to.equal(200);
-        expect(response.body).to.have.property("payment_id");
-        globalState.set("cm2PaymentId", response.body.payment_id);
-      });
+      );
     });
   });
 
@@ -144,10 +136,9 @@ describe("Platform Payment Flows", () => {
         paymentRequestBody,
         globalState.get("apiKey_CM1"),
         globalState.get("connectedMerchantId_2"),
-        globalState
-      ).then((response) => {
-        expect(response.status).to.equal(401);
-      });
+        globalState,
+        401
+      );
     });
   });
 
@@ -155,35 +146,17 @@ describe("Platform Payment Flows", () => {
     it("cm1-lists-only-own-payments", () => {
       cy.listPaymentsWithApiKeyCallTest(
         globalState.get("apiKey_CM1"),
-        globalState
-      ).then((response) => {
-        expect(response.status).to.equal(200);
-        expect(response.body).to.have.property("data");
-        expect(response.body.data).to.be.an("array");
-
-        const cm2PaymentId = globalState.get("cm2PaymentId");
-        const hasCM2Payment = response.body.data.some(
-          (payment) => payment.payment_id === cm2PaymentId
-        );
-        expect(hasCM2Payment).to.be.false;
-      });
+        globalState,
+        "cm2PaymentId"
+      );
     });
 
     it("cm2-lists-only-own-payments", () => {
       cy.listPaymentsWithApiKeyCallTest(
         globalState.get("apiKey_CM2"),
-        globalState
-      ).then((response) => {
-        expect(response.status).to.equal(200);
-        expect(response.body).to.have.property("data");
-        expect(response.body.data).to.be.an("array");
-
-        const cm1PaymentId = globalState.get("cm1PaymentId");
-        const hasCM1Payment = response.body.data.some(
-          (payment) => payment.payment_id === cm1PaymentId
-        );
-        expect(hasCM1Payment).to.be.false;
-      });
+        globalState,
+        "cm1PaymentId"
+      );
     });
   });
 });

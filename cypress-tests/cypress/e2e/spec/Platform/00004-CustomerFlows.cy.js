@@ -95,13 +95,7 @@ describe("Platform Customer Flows", () => {
       const savedApiKey = globalState.get("apiKey");
       globalState.set("apiKey", globalState.get("apiKey_SM"));
 
-      cy.customerRetrieveWithApiKeyCallTest(
-        globalState.get("apiKey"),
-        globalState.get("customerId"),
-        globalState
-      ).then((response) => {
-        expect(response.status).to.equal(404);
-      });
+      cy.customerRetrieveCall(globalState, 404);
 
       cy.then(() => {
         globalState.set("apiKey", savedApiKey);
@@ -135,13 +129,7 @@ describe("Platform Customer Flows", () => {
         const savedCustomerId = globalState.get("customerId");
         globalState.set("customerId", globalState.get("customerId_SM_Created"));
 
-        cy.customerRetrieveWithApiKeyCallTest(
-          globalState.get("apiKey"),
-          globalState.get("customerId"),
-          globalState
-        ).then((response) => {
-          expect(response.status).to.equal(404);
-        });
+        cy.customerRetrieveCall(globalState, 404);
 
         cy.then(() => {
           globalState.set("apiKey", savedApiKey);
@@ -155,13 +143,7 @@ describe("Platform Customer Flows", () => {
         globalState.set("apiKey", globalState.get("apiKey_CM1"));
         globalState.set("customerId", globalState.get("customerId_SM_Created"));
 
-        cy.customerRetrieveWithApiKeyCallTest(
-          globalState.get("apiKey"),
-          globalState.get("customerId"),
-          globalState
-        ).then((response) => {
-          expect(response.status).to.equal(404);
-        });
+        cy.customerRetrieveCall(globalState, 404);
 
         cy.then(() => {
           globalState.set("apiKey", savedApiKey);
@@ -175,13 +157,7 @@ describe("Platform Customer Flows", () => {
         globalState.set("apiKey", globalState.get("apiKey_CM2"));
         globalState.set("customerId", globalState.get("customerId_SM_Created"));
 
-        cy.customerRetrieveWithApiKeyCallTest(
-          globalState.get("apiKey"),
-          globalState.get("customerId"),
-          globalState
-        ).then((response) => {
-          expect(response.status).to.equal(404);
-        });
+        cy.customerRetrieveCall(globalState, 404);
 
         cy.then(() => {
           globalState.set("apiKey", savedApiKey);
