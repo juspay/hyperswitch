@@ -85,7 +85,7 @@ impl ConnectorIntegration<ExternalVaultCreateFlow, VaultRequestData, VaultRespon
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}/v2/payment-method-sessions",
+            "{}/payment-method-sessions",
             self.base_url(connectors)
         ))
     }
@@ -269,7 +269,7 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
         _req: &ConnectorCustomerRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/v2/customers", self.base_url(connectors)))
+        Ok(format!("{}/customers", self.base_url(connectors)))
     }
 
     fn get_request_body(
