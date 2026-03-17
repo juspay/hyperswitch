@@ -217,11 +217,28 @@ cargo clippy --all-features
 cargo test --all-features
 ```
 
-The `cargo fmt` command requires the nightly toolchain, as we use a few of the
-unstable features:
+### Formatting
+
+Run formatting checks:
 
 ```shell
-cargo +nightly fmt
+just precommit
+```
+
+Or directly:
+
+```shell
+pre-commit run -a
+```
+
+The rustfmt configuration uses unstable features, so it requires nightly.
+
+### Linting
+
+Run clippy:
+
+```shell
+just clippy
 ```
 
 ### Code Coverage

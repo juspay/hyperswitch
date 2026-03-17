@@ -50,7 +50,7 @@ Or did you test this change manually (provide relevant screenshots)?
 ## Checklist
 <!-- Put an `x` in the boxes that apply -->
 
-- [ ] I formatted the code `cargo +nightly fmt --all`
-- [ ] I addressed lints thrown by `cargo clippy`
+- [ ] I ran `just precommit` (formatting)
+- [ ] I ran `just clippy` and addressed lints
 - [ ] I reviewed the submitted code
 - [ ] I added unit tests for my changes where possible

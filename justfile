@@ -148,8 +148,9 @@ euclid-wasm features='dummy_connector':
         {{ source_directory() }}/crates/euclid_wasm \
         --features '{{ features }}'
 
-# Run pre-commit checks
-precommit: fmt clippy
+# Run pre-commit checks (formatting, linting, etc.)
+precommit:
+    pre-commit run -a
 
 # Use the env variables if present, or fallback to default values
 
