@@ -735,14 +735,11 @@ impl PaymentMethodsController for PmCards<'_> {
 
             let query_params = Some(pm_types::VaultQueryParam::from(pm_types::WriteMode::Insert));
 
-            let resp = vault::call_to_vault::<pm_types::AddVault>(
-                self.state,
-                payload,
-                query_params,
-            )
-            .await
-            .change_context(errors::VaultError::VaultAPIError)
-            .attach_printable("Call to vault failed")?;
+            let resp =
+                vault::call_to_vault::<pm_types::AddVault>(self.state, payload, query_params)
+                    .await
+                    .change_context(errors::VaultError::VaultAPIError)
+                    .attach_printable("Call to vault failed")?;
 
             let stored_pm_resp: pm_types::InternalAddVaultResponse = resp
                 .parse_struct("InternalAddVaultResponse")
