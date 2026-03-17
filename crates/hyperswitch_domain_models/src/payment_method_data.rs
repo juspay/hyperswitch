@@ -29,6 +29,7 @@ use crate::router_data::PaymentMethodToken;
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum PaymentMethodData {
     Card(Card),
+    CardWithOptionalCVC(CardWithOptionalCVC),
     CardDetailsForNetworkTransactionId(CardDetailsForNetworkTransactionId),
     CardWithLimitedDetails(CardWithLimitedDetails),
     NetworkTokenDetailsForNetworkTransactionId(NetworkTokenDetailsForNetworkTransactionId),
@@ -206,6 +207,9 @@ impl PaymentMethodData {
                 Self::Card(card) => {
                     Self::Card(card.apply_additional_card_info(*additional_card_info))
                 }
+                Self::CardWithOptionalCVC(card_with_optional_cvc) => Self::CardWithOptionalCVC(
+                    card_with_optional_cvc.apply_additional_card_info(*additional_card_info),
+                ),
                 Self::CardWithLimitedDetails(card_with_limited_details) => {
                     Self::CardWithLimitedDetails(
                         card_with_limited_details.apply_additional_card_info(*additional_card_info),
@@ -227,6 +231,7 @@ impl PaymentMethodData {
     pub fn get_payment_method(&self) -> Option<common_enums::PaymentMethod> {
         match self {
             Self::Card(_)
+            | Self::CardWithOptionalCVC(_)
             | Self::NetworkToken(_)
             | Self::CardDetailsForNetworkTransactionId(_)
             | Self::NetworkTokenDetailsForNetworkTransactionId(_)
@@ -263,10 +268,10 @@ impl PaymentMethodData {
     }
 
     pub fn get_co_badged_card_data(&self) -> Option<&payment_methods::CoBadgedCardData> {
-        if let Self::Card(card) = self {
-            card.co_badged_card_data.as_ref()
-        } else {
-            None
+        match self {
+            Self::Card(card) => card.co_badged_card_data.as_ref(),
+            Self::CardWithOptionalCVC(card) => card.co_badged_card_data.as_ref(),
+            _ => None,
         }
     }
 
@@ -309,6 +314,58 @@ pub struct Card {
 }
 
 impl Card {
+    fn apply_additional_card_info(
+        &self,
+        additional_card_info: api_models::payments::AdditionalCardInfo,
+    ) -> Self {
+        Self {
+            card_number: self.card_number.clone(),
+            card_exp_month: self.card_exp_month.clone(),
+            card_exp_year: self.card_exp_year.clone(),
+            card_holder_name: self.card_holder_name.clone(),
+            card_cvc: self.card_cvc.clone(),
+            card_issuer: self
+                .card_issuer
+                .clone()
+                .or(additional_card_info.card_issuer),
+            card_network: self
+                .card_network
+                .clone()
+                .or(additional_card_info.card_network.clone()),
+            card_type: self.card_type.clone().or(additional_card_info.card_type),
+            card_issuing_country: self
+                .card_issuing_country
+                .clone()
+                .or(additional_card_info.card_issuing_country),
+            card_issuing_country_code: self
+                .card_issuing_country_code
+                .clone()
+                .or(additional_card_info.card_issuing_country_code),
+            bank_code: self.bank_code.clone().or(additional_card_info.bank_code),
+            nick_name: self.nick_name.clone(),
+            co_badged_card_data: self.co_badged_card_data.clone(),
+        }
+    }
+}
+
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
+pub struct CardWithOptionalCVC {
+    pub card_number: cards::CardNumber,
+    pub card_exp_month: Secret<String>,
+    pub card_exp_year: Secret<String>,
+    pub card_cvc: Option<Secret<String>>,
+    pub card_issuer: Option<String>,
+    pub card_network: Option<common_enums::CardNetwork>,
+    pub card_type: Option<String>,
+    pub card_issuing_country: Option<String>,
+    pub card_issuing_country_code: Option<String>,
+    pub bank_code: Option<String>,
+    pub nick_name: Option<Secret<String>>,
+    pub card_holder_name: Option<Secret<String>>,
+    pub co_badged_card_data: Option<payment_methods::CoBadgedCardData>,
+}
+
+impl CardWithOptionalCVC {
     fn apply_additional_card_info(
         &self,
         additional_card_info: api_models::payments::AdditionalCardInfo,
@@ -667,6 +724,7 @@ impl From<NetworkTokenDetailsForNetworkTransactionId> for NetworkTokenData {
             bank_code: network_token_details_for_nti.bank_code,
             nick_name: network_token_details_for_nti.nick_name,
             eci: network_token_details_for_nti.eci,
+            par: None, // Setting Par to None as it is not required for NetworkTransactionId flows
         }
     }
 }
@@ -1385,6 +1443,7 @@ pub struct NetworkTokenData {
     pub bank_code: Option<String>,
     pub nick_name: Option<Secret<String>>,
     pub eci: Option<String>,
+    pub par: Option<Secret<String>>,
 }
 
 #[cfg(feature = "v2")]
@@ -1402,6 +1461,7 @@ pub struct NetworkTokenData {
     pub card_holder_name: Option<Secret<String>>,
     pub nick_name: Option<Secret<String>>,
     pub eci: Option<String>,
+    pub par: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
@@ -1416,6 +1476,7 @@ pub struct NetworkTokenDetails {
     pub card_issuing_country: Option<api_enums::CountryAlpha2>,
     pub card_holder_name: Option<Secret<String>>,
     pub nick_name: Option<Secret<String>>,
+    pub par: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
@@ -2591,6 +2652,7 @@ impl From<api_models::payments::NetworkTokenData> for NetworkTokenData {
             bank_code: network_token_data.bank_code,
             nick_name: network_token_data.nick_name,
             eci: network_token_data.eci,
+            par: network_token_data.par,
         }
     }
 }
@@ -2615,6 +2677,7 @@ impl From<api_models::payments::NetworkTokenData> for NetworkTokenData {
             card_holder_name: network_token_data.card_holder_name,
             nick_name: network_token_data.nick_name,
             eci: network_token_data.eci,
+            par: network_token_data.par,
         }
     }
 }
@@ -3052,6 +3115,7 @@ pub struct NetworkTokenDetailsPaymentMethod {
     pub card_type: Option<String>,
     #[serde(default = "saved_in_locker_default")]
     pub saved_to_locker: bool,
+    pub par: Option<Secret<String>>,
 }
 
 fn saved_in_locker_default() -> bool {
@@ -3301,6 +3365,7 @@ impl From<NetworkTokenDetails> for NetworkTokenDetailsPaymentMethod {
             card_network: item.card_network,
             card_type: item.card_type.map(|card| card.to_string()),
             saved_to_locker: true,
+            par: item.par,
         }
     }
 }
@@ -3339,6 +3404,7 @@ impl From<NetworkTokenDetailsPaymentMethod> for payment_methods::NetworkTokenDet
             card_network: item.card_network,
             card_type: item.card_type,
             saved_to_locker: item.saved_to_locker,
+            par: item.par,
         }
     }
 }
@@ -3411,6 +3477,7 @@ impl From<NetworkTokenData> for AdditionalNetworkTokenInfo {
             card_holder_name: None,
             last4: Some(network_token_data.token_number.get_last4().clone()),
             token_isin: Some(network_token_data.token_number.get_card_isin().clone()),
+            par: network_token_data.par.clone(),
         }
     }
 }
@@ -3431,6 +3498,7 @@ impl From<NetworkTokenData> for AdditionalNetworkTokenInfo {
             card_holder_name: network_token_data.card_holder_name.to_owned(),
             last4: Some(network_token_data.network_token.get_last4().clone()),
             token_isin: Some(network_token_data.network_token.get_card_isin().clone()),
+            par: network_token_data.par.clone(),
         }
     }
 }
@@ -3453,6 +3521,7 @@ impl From<NetworkTokenDetailsForNetworkTransactionId> for AdditionalNetworkToken
                     .get_card_isin()
                     .clone(),
             ),
+            par: None,
         }
     }
 }
@@ -3475,6 +3544,7 @@ impl From<DecryptedWalletTokenDetailsForNetworkTransactionId> for AdditionalNetw
                     .get_card_isin()
                     .clone(),
             ),
+            par: None, // Setting Par to None as it is not required for NetworkTransactionId flows
         }
     }
 }

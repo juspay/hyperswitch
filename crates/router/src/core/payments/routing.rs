@@ -404,6 +404,7 @@ pub fn make_dsl_input(
             .as_ref()
             .and_then(|pm_data| match pm_data {
                 domain::PaymentMethodData::Card(card) => card.card_network.clone(),
+                domain::PaymentMethodData::CardWithOptionalCVC(card) => card.card_network.clone(),
                 domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
                     card_details_for_ntid,
                 ) => card_details_for_ntid.card_network.clone(),
@@ -444,6 +445,7 @@ pub fn make_dsl_input(
             .as_ref()
             .and_then(|pm_data| match pm_data {
                 domain::PaymentMethodData::Card(card) => card.card_issuer.clone(),
+                domain::PaymentMethodData::CardWithOptionalCVC(card) => card.card_issuer.clone(),
                 domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
                     card_details_for_ntid,
                 ) => card_details_for_ntid.card_issuer.clone(),
@@ -1149,7 +1151,7 @@ pub struct PreRoutingInput<'a> {
         &'a Option<HashMap<api_enums::PaymentMethodType, PreRoutingConnectorChoice>>,
     pub payment_method_type: &'a storage_enums::PaymentMethodType,
     pub connectors: &'a hyperswitch_interfaces::configs::Connectors,
-    pub platform: &'a domain::Platform,
+    pub processor: &'a domain::Processor,
     pub business_profile: &'a domain::Profile,
     pub creds_identifier: Option<&'a str>,
 }
@@ -1280,7 +1282,7 @@ where
 #[cfg(feature = "v1")]
 pub async fn try_pre_routing_connectors<F, D>(
     state: &SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     business_profile: &domain::Profile,
     payment_data: &mut D,
     routing_data: &mut RoutingData,
@@ -1303,7 +1305,7 @@ where
             pre_routing_results: &routing_data.routing_info.pre_routing_results,
             payment_method_type,
             connectors: &state.conf.connectors,
-            platform,
+            processor,
             business_profile,
             creds_identifier: payment_data.get_creds_identifier(),
         };
@@ -1317,7 +1319,7 @@ where
             {
                 let should_do_retry = crate::core::payments::retry::config_should_call_gsm(
                     &*state.store,
-                    platform.get_processor().get_account().get_id(),
+                    processor.get_account().get_id(),
                     business_profile,
                 )
                 .await;
@@ -1329,7 +1331,7 @@ where
                     let retryable_connector_data =
                         crate::core::payments::helpers::get_apple_pay_retryable_connectors(
                             state,
-                            platform,
+                            processor,
                             payment_data.get_creds_identifier(),
                             &connectors.clone(),
                             first_connector
@@ -2143,6 +2145,100 @@ pub async fn perform_cgraph_filtering(
     Ok(final_selection)
 }
 
+#[cfg(feature = "v1")]
+fn is_installment_payment(payment_data: &routing::PaymentsDslInput<'_>) -> bool {
+    payment_data.payment_attempt.installment_data.is_some()
+}
+
+#[cfg(feature = "v1")]
+fn get_payment_method_and_type_for_installment(
+    payment_data: &routing::PaymentsDslInput<'_>,
+) -> (
+    Option<api_enums::PaymentMethod>,
+    Option<api_enums::PaymentMethodType>,
+) {
+    (
+        payment_data.payment_attempt.payment_method,
+        payment_data.payment_attempt.payment_method_type,
+    )
+}
+
+#[cfg(feature = "v1")]
+fn get_payment_data_for_installments<'a>(
+    transaction_data: &'a routing::TransactionData<'a>,
+) -> Option<&'a routing::PaymentsDslInput<'a>> {
+    match transaction_data {
+        routing::TransactionData::Payment(payment_data) => Some(payment_data),
+        #[cfg(feature = "payouts")]
+        routing::TransactionData::Payout(_) => None,
+    }
+}
+
+#[cfg(feature = "v1")]
+fn get_installment_supported_connectors(
+    state: &SessionState,
+    transaction_data: &routing::TransactionData<'_>,
+) -> Option<Vec<api_enums::RoutableConnectors>> {
+    get_payment_data_for_installments(transaction_data)
+        .filter(|payment_data| is_installment_payment(payment_data))
+        .map(|payment_data| {
+            let (payment_method, payment_method_type) =
+                get_payment_method_and_type_for_installment(payment_data);
+
+            payment_method
+                .zip(payment_method_type)
+                .and_then(|(payment_method, payment_method_type)| {
+                    state
+                        .conf
+                        .installments
+                        .supported_payment_methods
+                        .0
+                        .get(&payment_method)
+                        .and_then(|supported_payment_method_types| {
+                            supported_payment_method_types.0.get(&payment_method_type)
+                        })
+                        .map(|supported_connectors| {
+                            supported_connectors
+                                .0
+                                .iter()
+                                .filter_map(|connector| {
+                                    api_enums::RoutableConnectors::from_str(
+                                        connector.to_string().as_str(),
+                                    )
+                                    .ok()
+                                })
+                                .collect::<Vec<_>>()
+                        })
+                })
+                .unwrap_or_default()
+        })
+}
+
+#[cfg(feature = "v1")]
+fn update_eligible_connectors_for_installments(
+    state: &SessionState,
+    transaction_data: &routing::TransactionData<'_>,
+    eligible_connectors: Option<Vec<api_enums::RoutableConnectors>>,
+) -> Option<Vec<api_enums::RoutableConnectors>> {
+    let installment_supported_connectors =
+        get_installment_supported_connectors(state, transaction_data);
+
+    eligible_connectors
+        .map(|existing_eligible_connectors| {
+            installment_supported_connectors.as_ref().map_or(
+                existing_eligible_connectors.clone(),
+                |installment_supported_connectors| {
+                    installment_supported_connectors
+                        .iter()
+                        .filter(|connector| existing_eligible_connectors.contains(connector))
+                        .copied()
+                        .collect()
+                },
+            )
+        })
+        .or(installment_supported_connectors)
+}
+
 pub async fn perform_eligibility_analysis(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -2230,6 +2326,11 @@ pub async fn perform_eligibility_analysis_with_fallback(
     business_profile: &domain::Profile,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     logger::debug!("euclid_routing: performing eligibility");
+
+    #[cfg(feature = "v1")]
+    let eligible_connectors =
+        update_eligible_connectors_for_installments(state, transaction_data, eligible_connectors);
+
     let mut final_selection = perform_eligibility_analysis(
         state,
         key_store,
