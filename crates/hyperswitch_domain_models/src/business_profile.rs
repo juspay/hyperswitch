@@ -1315,6 +1315,7 @@ pub struct Profile {
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub split_txns_enabled: common_enums::SplitTxnsEnabled,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
 }
 
 #[cfg(feature = "v2")]
@@ -1374,6 +1375,7 @@ pub struct ProfileSetter {
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub split_txns_enabled: common_enums::SplitTxnsEnabled,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
 }
 
 #[cfg(feature = "v2")]
@@ -1438,6 +1440,7 @@ impl From<ProfileSetter> for Profile {
             merchant_country_code: value.merchant_country_code,
             split_txns_enabled: value.split_txns_enabled,
             billing_processor_id: value.billing_processor_id,
+            payment_method_blocking: value.payment_method_blocking,
         }
     }
 }
@@ -1689,6 +1692,7 @@ pub struct ProfileGeneralUpdate {
     pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
 }
 
 #[cfg(feature = "v2")]
@@ -1772,6 +1776,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     revenue_recovery_retry_algorithm_type,
                     split_txns_enabled,
                     billing_processor_id,
+                    payment_method_blocking,
                 } = *update;
                 Self {
                     profile_name,
@@ -1828,6 +1833,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     merchant_country_code,
                     split_txns_enabled,
                     billing_processor_id,
+                    payment_method_blocking,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -1887,6 +1893,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 split_txns_enabled: None,
                 billing_processor_id: None,
+                payment_method_blocking: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -1944,6 +1951,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 split_txns_enabled: None,
                 billing_processor_id: None,
+                payment_method_blocking: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -2001,6 +2009,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 split_txns_enabled: None,
                 billing_processor_id: None,
+                payment_method_blocking: None,
             },
             ProfileUpdate::DefaultRoutingFallbackUpdate {
                 default_fallback_routing,
@@ -2058,6 +2067,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 split_txns_enabled: None,
                 billing_processor_id: None,
+                payment_method_blocking: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -2115,6 +2125,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 split_txns_enabled: None,
                 billing_processor_id: None,
+                payment_method_blocking: None,
             },
             ProfileUpdate::CollectCvvDuringPaymentUpdate {
                 should_collect_cvv_during_payment,
@@ -2172,6 +2183,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 split_txns_enabled: None,
                 billing_processor_id: None,
+                payment_method_blocking: None,
             },
             ProfileUpdate::DecisionManagerRecordUpdate {
                 three_ds_decision_manager_config,
@@ -2229,6 +2241,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 split_txns_enabled: None,
                 billing_processor_id: None,
+                payment_method_blocking: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -2286,6 +2299,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 split_txns_enabled: None,
                 billing_processor_id: None,
+                payment_method_blocking: None,
             },
             ProfileUpdate::RevenueRecoveryAlgorithmUpdate {
                 revenue_recovery_retry_algorithm_type,
@@ -2344,6 +2358,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 split_txns_enabled: None,
                 billing_processor_id: None,
+                payment_method_blocking: None,
             },
         }
     }
@@ -2428,6 +2443,7 @@ impl Conversion for Profile {
             is_l2_l3_enabled: None,
             always_enable_overcapture: None,
             billing_processor_id: self.billing_processor_id,
+            payment_method_blocking: self.payment_method_blocking,
         })
     }
 
@@ -2525,6 +2541,7 @@ impl Conversion for Profile {
                 merchant_country_code: item.merchant_country_code,
                 split_txns_enabled: item.split_txns_enabled.unwrap_or_default(),
                 billing_processor_id: item.billing_processor_id,
+                payment_method_blocking: item.payment_method_blocking,
             })
         }
         .await
@@ -2598,6 +2615,7 @@ impl Conversion for Profile {
             merchant_country_code: self.merchant_country_code,
             split_txns_enabled: Some(self.split_txns_enabled),
             billing_processor_id: self.billing_processor_id,
+            payment_method_blocking: self.payment_method_blocking,
         })
     }
 }
