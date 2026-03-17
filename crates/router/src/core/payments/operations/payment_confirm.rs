@@ -1843,12 +1843,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
-        blocklist_utils::validate_data_for_blocklist(
-            state,
-            processor,
-            payment_data,
-        )
-        .await
+        blocklist_utils::validate_data_for_blocklist(state, processor, payment_data).await
     }
 
     #[instrument(skip_all)]

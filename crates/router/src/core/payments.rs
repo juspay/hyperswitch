@@ -4588,8 +4588,14 @@ where
     routing_decision.map(|decision| decision.apply_routing_decision(payment_data));
 
     // Validating the blocklist guard and generate the fingerprint
-    blocklist_guard(state, platform.get_processor(), operation, payment_data, business_profile)
-        .await?;
+    blocklist_guard(
+        state,
+        platform.get_processor(),
+        operation,
+        payment_data,
+        business_profile,
+    )
+    .await?;
 
     let merchant_recipient_data = payment_data
         .get_merchant_recipient_data(
