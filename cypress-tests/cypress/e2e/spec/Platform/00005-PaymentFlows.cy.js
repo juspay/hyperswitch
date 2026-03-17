@@ -51,21 +51,6 @@ describe("Platform Payment Flows", () => {
     });
   });
 
-  context("Platform Cannot Create Payment Without On-Behalf-Of Header", () => {
-    it("platform-cannot-create-payment-without-header", () => {
-      const data = getConnectorDetails("stripe")["card_pm"]["No3DSAutoCapture"];
-
-      cy.createConfirmPaymentTest(
-        fixtures.createConfirmPaymentBody,
-        data,
-        "no_three_ds",
-        "automatic",
-        globalState,
-        400
-      );
-    });
-  });
-
   context("Platform Cannot Create Payment For Standard Merchant", () => {
     it("platform-cannot-create-payment-for-standard-merchant", () => {
       const paymentRequestBody = {

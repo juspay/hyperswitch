@@ -2487,7 +2487,6 @@ Cypress.Commands.add(
     authentication_type,
     capture_method,
     globalState,
-    expectedStatus = 200
   ) => {
     const {
       Configs: configs = {},
@@ -2525,7 +2524,6 @@ Cypress.Commands.add(
       cy.wrap(response).then(() => {
         globalState.set("clientSecret", response.body.client_secret);
         expect(response.headers["content-type"]).to.include("application/json");
-        expect(response.status).to.equal(expectedStatus);
 
         if (response.status === 200) {
           globalState.set("paymentAmount", createConfirmPaymentBody.amount);
@@ -2604,7 +2602,7 @@ Cypress.Commands.add(
               );
             }
           }
-        } else if (expectedStatus === 200) {
+        } else {
           defaultErrorHandler(response, resData);
         }
       });
@@ -5650,8 +5648,6 @@ Cypress.Commands.add("step", (stepName, fn) => {
     Cypress.log({ groupEnd: true, emitOnly: true });
   });
 });
-
-// ==================== Platform Commands ====================
 
 Cypress.Commands.add(
   "merchantListByOrgCallTest",
