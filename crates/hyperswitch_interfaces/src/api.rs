@@ -415,7 +415,7 @@ impl ConnectorAccessTokenSuffix for BoxedConnector {
 
 /// Current flow information passed to the connector specifications trait
 ///
-/// In order to make some desicion about the preprocessing or alternate flow
+/// In order to make some decision about the preprocessing or alternate flow
 #[derive(Clone, Debug)]
 pub enum CurrentFlowInfo<'a> {
     /// Authorize flow information

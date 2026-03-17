@@ -292,7 +292,7 @@ where
 
     /// Flush memory buffer into an output stream trailing it with next line.
     ///
-    /// Should be done by single `write_all` call to avoid fragmentation of log because of mutlithreading.
+    /// Should be done by single `write_all` call to avoid fragmentation of log because of multithreading.
     fn flush(&self, mut buffer: Vec<u8>) -> Result<(), std::io::Error> {
         buffer.write_all(b"\n")?;
         self.dst_writer.make_writer().write_all(&buffer)
