@@ -47,7 +47,7 @@ use time::{Duration, OffsetDateTime};
 use unified_connector_service_cards::{CardNumber, NetworkToken};
 use unified_connector_service_client::payments::{
     self as payments_grpc, session_token, ConnectorState, EventServiceHandleRequest,
-    EventServiceHandleResponse, Identifier,
+    EventServiceHandleResponse,
 };
 use unified_connector_service_masking::ExposeInterface as UcsMaskingExposeInterface;
 
@@ -689,12 +689,7 @@ impl
 
         let connector_order_reference_id = router_data.request.connector_reference_id.clone();
 
-        // Todo fix request reference id in UCS
-        let _request_ref_id = Some(Identifier {
-            id_type: Some(payments_grpc::identifier::IdType::Id(
-                router_data.connector_request_reference_id.clone(),
-            )),
-        });
+        let merchant_transaction_id = Some(router_data.connector_request_reference_id.clone());
 
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
@@ -731,6 +726,7 @@ impl
 
         Ok(Self {
             connector_transaction_id,
+            merchant_transaction_id,
             encoded_data: router_data.request.encoded_data.clone(),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             handle_response,
