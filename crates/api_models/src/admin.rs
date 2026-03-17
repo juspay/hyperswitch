@@ -269,6 +269,29 @@ pub struct CardTestingGuardConfig {
     pub card_testing_guard_expiry: i32,
 }
 
+/// Configuration for payment method blocking based on card attributes
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct PaymentMethodBlockingConfig {
+    /// Card-specific blocking configuration
+    pub card: Option<CardBlockingConfig>,
+}
+
+/// Card-specific blocking configuration
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct CardBlockingConfig {
+    /// Set of issuing countries to block using ISO 3166-1 alpha-2 codes (e.g., ["IN", "US"])
+    pub issuing_country: Option<HashSet<String>>,
+    /// Set of card types to block (e.g., ["Credit", "Debit"])
+    pub card_types: Option<HashSet<String>>,
+    /// Set of card subtypes to block (e.g., ["Business", "Corporate"])
+    pub card_subtypes: Option<HashSet<String>>,
+    /// Set of card issuers to block (e.g., ["HDFC Bank", "ICICI Bank"])
+    pub issuers: Option<HashSet<String>>,
+    /// Whether to block if BIN is provided but no matching record found in cards_info table.
+    /// Defaults to false (allow payment if BIN not found in database).
+    pub block_if_bin_info_unavailable: Option<bool>,
+}
+
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum CardTestingGuardStatus {
@@ -2276,6 +2299,10 @@ pub struct ProfileCreate {
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
     pub is_l2_l3_enabled: Option<bool>,
+
+    /// Payment method blocking configuration for the profile
+    #[schema(value_type = Option<PaymentMethodBlockingConfig>)]
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
 }
 
 #[nutype::nutype(
@@ -2441,6 +2468,10 @@ pub struct ProfileCreate {
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
     pub is_l2_l3_enabled: Option<bool>,
+
+    /// Payment method blocking configuration for the profile
+    #[schema(value_type = Option<PaymentMethodBlockingConfig>)]
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
 }
 
 #[cfg(feature = "v1")]
@@ -2649,6 +2680,10 @@ pub struct ProfileResponse {
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
     pub is_l2_l3_enabled: Option<bool>,
+
+    /// Payment method blocking configuration for the profile
+    #[schema(value_type = Option<PaymentMethodBlockingConfig>)]
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
 }
 
 #[cfg(feature = "v2")]
@@ -2827,6 +2862,10 @@ pub struct ProfileResponse {
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
     pub is_l2_l3_enabled: Option<bool>,
+
+    /// Payment method blocking configuration for the profile
+    #[schema(value_type = Option<PaymentMethodBlockingConfig>)]
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
 }
 
 #[cfg(feature = "v1")]
@@ -3025,6 +3064,10 @@ pub struct ProfileUpdate {
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
     pub is_l2_l3_enabled: Option<bool>,
+
+    /// Payment method blocking configuration for the profile
+    #[schema(value_type = Option<PaymentMethodBlockingConfig>)]
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
 }
 
 #[cfg(feature = "v2")]
@@ -3181,6 +3224,10 @@ pub struct ProfileUpdate {
     /// Merchant Connector id to be stored for billing_processor connector
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
+
+    /// Payment method blocking configuration for the profile
+    #[schema(value_type = Option<PaymentMethodBlockingConfig>)]
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
