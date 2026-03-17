@@ -169,72 +169,72 @@ impl UnifiedConnectorServiceClient {
                     }
                 };
 
-            let timeout = unified_connector_service_client_config.connection_timeout;
+                let timeout = unified_connector_service_client_config.connection_timeout;
 
-            let payment_service_client = build_grpc_client!(
-                PaymentServiceClient<tonic::transport::Channel>,
-                "payment_service_client",
-                uri,
-                timeout
-            );
+                let payment_service_client = build_grpc_client!(
+                    PaymentServiceClient<tonic::transport::Channel>,
+                    "payment_service_client",
+                    uri,
+                    timeout
+                );
 
-            let refund_service_client = build_grpc_client!(
-                RefundServiceClient<tonic::transport::Channel>,
-                "refund_service_client",
-                uri,
-                timeout
-            );
+                let refund_service_client = build_grpc_client!(
+                    RefundServiceClient<tonic::transport::Channel>,
+                    "refund_service_client",
+                    uri,
+                    timeout
+                );
 
-            let event_service_client = build_grpc_client!(
-                EventServiceClient<tonic::transport::Channel>,
-                "event_service_client",
-                uri,
-                timeout
-            );
+                let event_service_client = build_grpc_client!(
+                    EventServiceClient<tonic::transport::Channel>,
+                    "event_service_client",
+                    uri,
+                    timeout
+                );
 
-            let recurring_payment_service_client = build_grpc_client!(
-                RecurringPaymentServiceClient<tonic::transport::Channel>,
-                "recurring_payment_service_client",
-                uri,
-                timeout
-            );
+                let recurring_payment_service_client = build_grpc_client!(
+                    RecurringPaymentServiceClient<tonic::transport::Channel>,
+                    "recurring_payment_service_client",
+                    uri,
+                    timeout
+                );
 
-            let dispute_service_client = build_grpc_client!(
-                DisputeServiceClient<tonic::transport::Channel>,
-                "dispute_service_client",
-                uri,
-                timeout
-            );
+                let dispute_service_client = build_grpc_client!(
+                    DisputeServiceClient<tonic::transport::Channel>,
+                    "dispute_service_client",
+                    uri,
+                    timeout
+                );
 
-            let payment_method_service_client = build_grpc_client!(
-                PaymentMethodServiceClient<tonic::transport::Channel>,
-                "payment_method_service_client",
-                uri,
-                timeout
-            );
+                let payment_method_service_client = build_grpc_client!(
+                    PaymentMethodServiceClient<tonic::transport::Channel>,
+                    "payment_method_service_client",
+                    uri,
+                    timeout
+                );
 
-            let customer_service_client = build_grpc_client!(
-                CustomerServiceClient<tonic::transport::Channel>,
-                "customer_service_client",
-                uri,
-                timeout
-            );
+                let customer_service_client = build_grpc_client!(
+                    CustomerServiceClient<tonic::transport::Channel>,
+                    "customer_service_client",
+                    uri,
+                    timeout
+                );
 
-            let merchant_authentication_service_client = build_grpc_client!(
-                MerchantAuthenticationServiceClient<tonic::transport::Channel>,
-                "merchant_authentication_service_client",
-                uri,
-                timeout
-            );
+                let merchant_authentication_service_client = build_grpc_client!(
+                    MerchantAuthenticationServiceClient<tonic::transport::Channel>,
+                    "merchant_authentication_service_client",
+                    uri,
+                    timeout
+                );
 
-            let payment_method_authentication_service_client = build_grpc_client!(
-                PaymentMethodAuthenticationServiceClient<tonic::transport::Channel>,
-                "payment_method_authentication_service_client",
-                uri,
-                timeout
-            );
+                let payment_method_authentication_service_client = build_grpc_client!(
+                    PaymentMethodAuthenticationServiceClient<tonic::transport::Channel>,
+                    "payment_method_authentication_service_client",
+                    uri,
+                    timeout
+                );
 
-            logger::info!("Successfully connected to Unified Connector Service");
+                logger::info!("Successfully connected to Unified Connector Service");
 
                 Some(Self {
                     payment_service_client,
