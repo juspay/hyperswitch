@@ -235,6 +235,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 elavon::transformers::ElavonAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Envoy => {
+                envoy::transformers::EnvoyAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Facilitapay => {
                 facilitapay::transformers::FacilitapayAuthType::try_from(self.auth_type)?;
                 facilitapay::transformers::FacilitapayConnectorMetadataObject::try_from(
@@ -249,6 +253,12 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Fiservemea => {
                 fiservemea::transformers::FiservemeaAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Fiservcommercehub => {
+                fiservcommercehub::transformers::FiservcommercehubAuthType::try_from(
+                    self.auth_type,
+                )?;
                 Ok(())
             }
             api_enums::Connector::Fiuu => {

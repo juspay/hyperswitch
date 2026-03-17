@@ -212,3 +212,29 @@ pub fn construct_connector_webhook_registration_response(
         error_message: register_webhook_response.error_message.clone(),
     })
 }
+#[cfg(feature = "v1")]
+pub fn get_connector_webhook_list_response(
+    register_webhook_response: &Option<serde_json::Value>,
+) -> RouterResult<Vec<api_models::merchant_connector_webhook_management::ConnectorWebhookResponse>>
+{
+    use std::collections::HashMap;
+
+    let webhook_map: HashMap<String, domain::ConnectorWebhookData> = match register_webhook_response
+    {
+        Some(webhook_response) => serde_json::from_value(webhook_response.clone())
+            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+        None => HashMap::new(),
+    };
+
+    let webhooks = webhook_map
+        .into_iter()
+        .map(|(connector_webhook_id, webhook_data)| {
+            api_models::merchant_connector_webhook_management::ConnectorWebhookResponse {
+                event_type: webhook_data.event_type,
+                connector_webhook_id,
+            }
+        })
+        .collect();
+
+    Ok(webhooks)
+}

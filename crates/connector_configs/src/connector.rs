@@ -293,6 +293,7 @@ pub struct ConnectorConfig {
     pub facilitapay: Option<ConnectorTomlConfig>,
     pub finix: Option<ConnectorTomlConfig>,
     pub fiserv: Option<ConnectorTomlConfig>,
+    pub fiservcommercehub: Option<ConnectorTomlConfig>,
     pub fiservemea: Option<ConnectorTomlConfig>,
     pub fiuu: Option<ConnectorTomlConfig>,
     pub flexiti: Option<ConnectorTomlConfig>,
@@ -369,6 +370,7 @@ pub struct ConnectorConfig {
     pub tokenex: Option<ConnectorTomlConfig>,
     pub tokenio: Option<ConnectorTomlConfig>,
     pub truelayer: Option<ConnectorTomlConfig>,
+    pub trustly: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub truelayer_payout: Option<ConnectorTomlConfig>,
     pub trustpay: Option<ConnectorTomlConfig>,
@@ -442,6 +444,7 @@ impl ConnectorConfig {
             PayoutConnectors::Wise => Ok(connector_data.wise_payout),
             PayoutConnectors::Worldpay => Ok(connector_data.worldpay_payout),
             PayoutConnectors::Worldpayxml => Ok(connector_data.worldpayxml_payout),
+            PayoutConnectors::Envoy => Ok(connector_data.envoy),
         }
     }
 
@@ -544,12 +547,14 @@ impl ConnectorConfig {
             Connector::Digitalvirgo => Ok(connector_data.digitalvirgo),
             Connector::Dlocal => Ok(connector_data.dlocal),
             Connector::Dwolla => Ok(connector_data.dwolla),
+            Connector::Envoy => Ok(connector_data.envoy),
             Connector::Ebanx => Ok(connector_data.ebanx_payout),
             Connector::Elavon => Ok(connector_data.elavon),
             Connector::Facilitapay => Ok(connector_data.facilitapay),
             Connector::Finix => Ok(connector_data.finix),
             Connector::Fiserv => Ok(connector_data.fiserv),
             Connector::Fiservemea => Ok(connector_data.fiservemea),
+            Connector::Fiservcommercehub => Ok(connector_data.fiservcommercehub),
             Connector::Fiuu => Ok(connector_data.fiuu),
             Connector::Flexiti => Ok(connector_data.flexiti),
             Connector::Forte => Ok(connector_data.forte),

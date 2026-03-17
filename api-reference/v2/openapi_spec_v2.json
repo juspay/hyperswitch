@@ -10548,11 +10548,13 @@
           "dlocal",
           "dwolla",
           "ebanx",
+          "envoy",
           "elavon",
           "facilitapay",
           "finix",
           "fiserv",
           "fiservemea",
+          "fiservcommercehub",
           "fiuu",
           "flexiti",
           "forte",
@@ -24069,7 +24071,8 @@
           "truelayer",
           "wise",
           "worldpay",
-          "worldpayxml"
+          "worldpayxml",
+          "envoy"
         ]
       },
       "PayoutCreatePayoutLinkConfig": {
@@ -27662,10 +27665,12 @@
           "dwolla",
           "ebanx",
           "elavon",
+          "envoy",
           "facilitapay",
           "finix",
           "fiserv",
           "fiservemea",
+          "fiservcommercehub",
           "fiuu",
           "flexiti",
           "forte",
