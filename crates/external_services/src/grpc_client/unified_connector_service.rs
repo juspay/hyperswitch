@@ -112,6 +112,37 @@ pub enum ExternalVaultProxyMetadata {
     VgsMetadata(VgsMetadata),
 }
 
+/// Builds a gRPC client with timeout handling
+#[macro_export]
+macro_rules! build_grpc_client {
+    ($client:ty, $name:expr, $uri:expr, $timeout:expr) => {{
+        match timeout(
+            Duration::from_secs($timeout),
+            <$client>::connect($uri.clone()),
+        )
+        .await
+        {
+            Ok(Ok(client)) => client,
+            Ok(Err(err)) => {
+                router_env::logger::error!(
+                    "Failed to connect to Unified Connector Service for {}: {:?}",
+                    $name,
+                    err
+                );
+                return None;
+            }
+            Err(err) => {
+                router_env::logger::error!(
+                    "Connection to Unified Connector Service timed out for {}: {:?}",
+                    $name,
+                    err
+                );
+                return None;
+            }
+        }
+    }};
+}
+
 /// VGS proxy data
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct VgsMetadata {
@@ -138,160 +169,72 @@ impl UnifiedConnectorServiceClient {
                     }
                 };
 
-                let payment_service_client = match timeout(
-                    Duration::from_secs(unified_connector_service_client_config.connection_timeout),
-                    PaymentServiceClient::connect(uri.clone()),
-                )
-                .await
-                {
-                    Ok(Ok(client)) => client,
-                    Ok(Err(err)) => {
-                        logger::error!(error = ?err, "Failed to connect to Unified Connector Service");
-                        return None;
-                    }
-                    Err(err) => {
-                        logger::error!(error = ?err, "Connection to Unified Connector Service timed out");
-                        return None;
-                    }
-                };
+            let timeout = unified_connector_service_client_config.connection_timeout;
 
-                let refund_service_client = match timeout(
-                    Duration::from_secs(unified_connector_service_client_config.connection_timeout),
-                    RefundServiceClient::connect(uri.clone()),
-                )
-                .await
-                {
-                    Ok(Ok(client)) => client,
-                    Ok(Err(err)) => {
-                        logger::error!(error = ?err, "Failed to connect to Unified Connector Service");
-                        return None;
-                    }
-                    Err(err) => {
-                        logger::error!(error = ?err, "Connection to Unified Connector Service timed out");
-                        return None;
-                    }
-                };
+            let payment_service_client = build_grpc_client!(
+                PaymentServiceClient<tonic::transport::Channel>,
+                "payment_service_client",
+                uri,
+                timeout
+            );
 
-                let event_service_client = match timeout(
-                    Duration::from_secs(unified_connector_service_client_config.connection_timeout),
-                    EventServiceClient::connect(uri.clone()),
-                )
-                .await
-                {
-                    Ok(Ok(client)) => client,
-                    Ok(Err(err)) => {
-                        logger::error!(error = ?err, "Failed to connect to Unified Connector Service");
-                        return None;
-                    }
-                    Err(err) => {
-                        logger::error!(error = ?err, "Connection to Unified Connector Service timed out");
-                        return None;
-                    }
-                };
+            let refund_service_client = build_grpc_client!(
+                RefundServiceClient<tonic::transport::Channel>,
+                "refund_service_client",
+                uri,
+                timeout
+            );
 
-                let recurring_payment_service_client = match timeout(
-                    Duration::from_secs(unified_connector_service_client_config.connection_timeout),
-                    RecurringPaymentServiceClient::connect(uri.clone()),
-                )
-                .await
-                {
-                    Ok(Ok(client)) => client,
-                    Ok(Err(err)) => {
-                        logger::error!(error = ?err, "Failed to connect to Unified Connector Service");
-                        return None;
-                    }
-                    Err(err) => {
-                        logger::error!(error = ?err, "Connection to Unified Connector Service timed out");
-                        return None;
-                    }
-                };
+            let event_service_client = build_grpc_client!(
+                EventServiceClient<tonic::transport::Channel>,
+                "event_service_client",
+                uri,
+                timeout
+            );
 
-                let dispute_service_client = match timeout(
-                    Duration::from_secs(unified_connector_service_client_config.connection_timeout),
-                    DisputeServiceClient::connect(uri.clone()),
-                )
-                .await
-                {
-                    Ok(Ok(client)) => client,
-                    Ok(Err(err)) => {
-                        logger::error!(error = ?err, "Failed to connect to Unified Connector Service");
-                        return None;
-                    }
-                    Err(err) => {
-                        logger::error!(error = ?err, "Connection to Unified Connector Service timed out");
-                        return None;
-                    }
-                };
+            let recurring_payment_service_client = build_grpc_client!(
+                RecurringPaymentServiceClient<tonic::transport::Channel>,
+                "recurring_payment_service_client",
+                uri,
+                timeout
+            );
 
-                let payment_method_service_client = match timeout(
-                    Duration::from_secs(unified_connector_service_client_config.connection_timeout),
-                    PaymentMethodServiceClient::connect(uri.clone()),
-                )
-                .await
-                {
-                    Ok(Ok(client)) => client,
-                    Ok(Err(err)) => {
-                        logger::error!(error = ?err, "Failed to connect to Unified Connector Service");
-                        return None;
-                    }
-                    Err(err) => {
-                        logger::error!(error = ?err, "Connection to Unified Connector Service timed out");
-                        return None;
-                    }
-                };
+            let dispute_service_client = build_grpc_client!(
+                DisputeServiceClient<tonic::transport::Channel>,
+                "dispute_service_client",
+                uri,
+                timeout
+            );
 
-                let customer_service_client = match timeout(
-                    Duration::from_secs(unified_connector_service_client_config.connection_timeout),
-                    CustomerServiceClient::connect(uri.clone()),
-                )
-                .await
-                {
-                    Ok(Ok(client)) => client,
-                    Ok(Err(err)) => {
-                        logger::error!(error = ?err, "Failed to connect to Unified Connector Service");
-                        return None;
-                    }
-                    Err(err) => {
-                        logger::error!(error = ?err, "Connection to Unified Connector Service timed out");
-                        return None;
-                    }
-                };
+            let payment_method_service_client = build_grpc_client!(
+                PaymentMethodServiceClient<tonic::transport::Channel>,
+                "payment_method_service_client",
+                uri,
+                timeout
+            );
 
-                let merchant_authentication_service_client = match timeout(
-                    Duration::from_secs(unified_connector_service_client_config.connection_timeout),
-                    MerchantAuthenticationServiceClient::connect(uri.clone()),
-                )
-                .await
-                {
-                    Ok(Ok(client)) => client,
-                    Ok(Err(err)) => {
-                        logger::error!(error = ?err, "Failed to connect to Unified Connector Service");
-                        return None;
-                    }
-                    Err(err) => {
-                        logger::error!(error = ?err, "Connection to Unified Connector Service timed out");
-                        return None;
-                    }
-                };
+            let customer_service_client = build_grpc_client!(
+                CustomerServiceClient<tonic::transport::Channel>,
+                "customer_service_client",
+                uri,
+                timeout
+            );
 
-                let payment_method_authentication_service_client = match timeout(
-                    Duration::from_secs(unified_connector_service_client_config.connection_timeout),
-                    PaymentMethodAuthenticationServiceClient::connect(uri),
-                )
-                .await
-                {
-                    Ok(Ok(client)) => client,
-                    Ok(Err(err)) => {
-                        logger::error!(error = ?err, "Failed to connect to Unified Connector Service");
-                        return None;
-                    }
-                    Err(err) => {
-                        logger::error!(error = ?err, "Connection to Unified Connector Service timed out");
-                        return None;
-                    }
-                };
+            let merchant_authentication_service_client = build_grpc_client!(
+                MerchantAuthenticationServiceClient<tonic::transport::Channel>,
+                "merchant_authentication_service_client",
+                uri,
+                timeout
+            );
 
-                logger::info!("Successfully connected to Unified Connector Service");
+            let payment_method_authentication_service_client = build_grpc_client!(
+                PaymentMethodAuthenticationServiceClient<tonic::transport::Channel>,
+                "payment_method_authentication_service_client",
+                uri,
+                timeout
+            );
+
+            logger::info!("Successfully connected to Unified Connector Service");
 
                 Some(Self {
                     payment_service_client,
