@@ -790,24 +790,24 @@ pub mod core {
             );
 
             // Build headers for the vault endpoint request
-            let vault_headers: Vec<(String, hyperswitch_masking::Maskable<String>)> = vec![
+            let vault_headers: Vec<(String, masking::Maskable<String>)> = vec![
                 (
                     "Content-Type".to_string(),
-                    hyperswitch_masking::Maskable::new_normal("application/json".to_string()),
+                    masking::Maskable::new_normal("application/json".to_string()),
                 ),
                 (
                     "Accept".to_string(),
-                    hyperswitch_masking::Maskable::new_normal("application/json".to_string()),
+                    masking::Maskable::new_normal("application/json".to_string()),
                 ),
                 (
                     "Authorization".to_string(),
-                    hyperswitch_masking::Maskable::Masked(
+                    masking::Maskable::Masked(
                         format!("api-key={}", vault_auth.api_key.clone().expose()).into(),
                     ),
                 ),
                 (
                     "x-profile-id".to_string(),
-                    hyperswitch_masking::Maskable::Masked(vault_auth.api_secret.clone()),
+                    masking::Maskable::Masked(vault_auth.api_secret.clone()),
                 ),
             ];
 

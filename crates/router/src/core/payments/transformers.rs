@@ -1326,10 +1326,6 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         .clone()
         .and_then(|tax| tax.get_default_tax_amount());
 
-    let payment_attempt = payment_data.get_payment_attempt();
-    let payment_method = Some(payment_attempt.payment_method_type);
-    let payment_method_type = payment_attempt.payment_method_subtype;
-
     // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsSessionData {
         amount: payment_data
