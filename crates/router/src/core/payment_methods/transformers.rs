@@ -30,8 +30,6 @@ use router_env::logger;
 use router_env::RequestId;
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "v1")]
-use crate::core::utils as core_utils;
 use crate::{
     configs::settings,
     core::{
@@ -1617,7 +1615,7 @@ pub async fn fetch_payment_method_from_modular_service(
 
     let pm_wrapper = PaymentMethodWithRawData {
         payment_method,
-        raw_payment_method_data,
+        raw_payment_method_data: raw_payment_method_data.map(|wrapper| wrapper.0),
     };
     Ok(pm_wrapper)
 }
