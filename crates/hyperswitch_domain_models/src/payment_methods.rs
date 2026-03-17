@@ -9,15 +9,12 @@ use common_enums::enums::MerchantStorageScheme;
 #[cfg(feature = "v1")]
 use common_utils::crypto::OptionalEncryptableValue;
 #[cfg(feature = "v2")]
-use common_utils::{
-    crypto::Encryptable, encryption::Encryption,
-    types::keymanager::ToEncryptable,
-};
+use common_utils::{crypto::Encryptable, encryption::Encryption, types::keymanager::ToEncryptable};
 use common_utils::{
     errors::{CustomResult, ParsingError, ValidationError},
+    ext_traits::OptionExt,
     id_type, pii, type_name,
     types::{keymanager, CreatedBy},
-    ext_traits::OptionExt
 };
 pub use diesel_models::{
     enums as storage_enums, PaymentMethodUpdate as StoragePaymentMethodUpdate,

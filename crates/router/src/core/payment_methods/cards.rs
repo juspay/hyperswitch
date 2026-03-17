@@ -949,11 +949,13 @@ impl PaymentMethodsController for PmCards<'_> {
             .get_payment_method_type()
             .get_required_value("payment_method")?;
 
-        let mm_customer_id = payment_method.customer_id.clone().get_required_value("customer_id")?;
+        let mm_customer_id = payment_method
+            .customer_id
+            .clone()
+            .get_required_value("customer_id")?;
 
         utils::when(
-            &mm_customer_id != customer_id
-                || payment_method.merchant_id != *merchant_id,
+            &mm_customer_id != customer_id || payment_method.merchant_id != *merchant_id,
             || {
                 Err(errors::ApiErrorResponse::PreconditionFailed {
                     message: "The payment_method_id is not valid".to_string(),
@@ -1646,7 +1648,10 @@ pub async fn add_payment_method_data(
         return Err((errors::ApiErrorResponse::ClientSecretExpired).into());
     }
 
-    let customer_id = payment_method.customer_id.clone().get_required_value("customer_id")?;
+    let customer_id = payment_method
+        .customer_id
+        .clone()
+        .get_required_value("customer_id")?;
 
     let customer = db
         .find_customer_by_customer_id_merchant_id(

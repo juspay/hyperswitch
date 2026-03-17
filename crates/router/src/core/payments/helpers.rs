@@ -575,7 +575,10 @@ pub async fn get_token_pm_type_mandate_details(
                         verify_mandate_details_for_recurring_payments(
                             &payment_method_info.merchant_id,
                             platform.get_provider().get_account().get_id(),
-                            &payment_method_info.customer_id.clone().get_required_value("customer_id")?,
+                            &payment_method_info
+                                .customer_id
+                                .clone()
+                                .get_required_value("customer_id")?,
                             customer_id,
                         )?;
 
