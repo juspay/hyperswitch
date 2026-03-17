@@ -84,6 +84,7 @@ pub struct Profile {
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub is_l2_l3_enabled: Option<bool>,
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
 }
 
 #[cfg(feature = "v1")]
@@ -147,6 +148,7 @@ pub struct ProfileNew {
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub is_l2_l3_enabled: Option<bool>,
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
 }
 
 #[cfg(feature = "v1")]
@@ -211,6 +213,7 @@ pub struct ProfileUpdateInternal {
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
 }
 
 #[cfg(feature = "v1")]
@@ -272,6 +275,7 @@ impl ProfileUpdateInternal {
             is_external_vault_enabled,
             external_vault_connector_details,
             billing_processor_id,
+            payment_method_blocking,
         } = self;
         Profile {
             profile_id: source.profile_id,
@@ -367,6 +371,7 @@ impl ProfileUpdateInternal {
             external_vault_connector_details: external_vault_connector_details
                 .or(source.external_vault_connector_details),
             billing_processor_id: billing_processor_id.or(source.billing_processor_id),
+            payment_method_blocking: payment_method_blocking.or(source.payment_method_blocking),
         }
     }
 }
@@ -449,6 +454,7 @@ pub struct Profile {
     pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
     pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
 }
 
 impl Profile {
@@ -527,6 +533,7 @@ pub struct ProfileNew {
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub is_l2_l3_enabled: Option<bool>,
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
 }
 
 #[cfg(feature = "v2")]
@@ -589,6 +596,7 @@ pub struct ProfileUpdateInternal {
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub is_l2_l3_enabled: Option<bool>,
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
 }
 
 #[cfg(feature = "v2")]
@@ -648,6 +656,7 @@ impl ProfileUpdateInternal {
             merchant_country_code,
             split_txns_enabled,
             is_l2_l3_enabled,
+            payment_method_blocking,
         } = self;
         Profile {
             id: source.id,
@@ -749,6 +758,7 @@ impl ProfileUpdateInternal {
             always_enable_overcapture: None,
             is_l2_l3_enabled: None,
             billing_processor_id: billing_processor_id.or(source.billing_processor_id),
+            payment_method_blocking: payment_method_blocking.or(source.payment_method_blocking),
         }
     }
 }
@@ -922,3 +932,28 @@ impl RevenueRecoveryAlgorithmData {
 }
 
 common_utils::impl_to_sql_from_sql_json!(RevenueRecoveryAlgorithmData);
+
+/// Configuration for payment method blocking based on card attributes
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub struct PaymentMethodBlockingConfig {
+    pub card: Option<CardBlockingConfig>,
+}
+
+/// Card-specific blocking configuration
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct CardBlockingConfig {
+    /// Set of issuing countries to block using ISO 3166-1 alpha-2 codes (e.g., ["IN", "US"])
+    pub issuing_country: Option<HashSet<String>>,
+    /// Set of card types to block (e.g., ["Credit", "Debit"])
+    pub card_types: Option<HashSet<String>>,
+    /// Set of card subtypes to block (e.g., ["Business", "Corporate"])
+    pub card_subtypes: Option<HashSet<String>>,
+    /// Set of card issuers to block (e.g., ["HDFC Bank", "ICICI Bank"])
+    pub issuers: Option<HashSet<String>>,
+    /// Whether to block if BIN is provided but no matching record found in cards_info table.
+    /// Defaults to false (allow payment if BIN not found in database).
+    pub block_if_bin_info_unavailable: Option<bool>,
+}
+
+common_utils::impl_to_sql_from_sql_json!(PaymentMethodBlockingConfig);

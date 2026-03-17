@@ -1403,6 +1403,7 @@ mod tests {
             external_vault_details: domain::ExternalVaultDetails::Skip,
             billing_processor_id: None,
             is_l2_l3_enabled: false,
+            payment_method_blocking: None,
         });
 
         let business_profile = state

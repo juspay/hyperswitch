@@ -4588,7 +4588,8 @@ where
     routing_decision.map(|decision| decision.apply_routing_decision(payment_data));
 
     // Validating the blocklist guard and generate the fingerprint
-    blocklist_guard(state, platform.get_processor(), operation, payment_data).await?;
+    blocklist_guard(state, platform.get_processor(), operation, payment_data, business_profile)
+        .await?;
 
     let merchant_recipient_data = payment_data
         .get_merchant_recipient_data(
@@ -6376,6 +6377,7 @@ async fn blocklist_guard<F, ApiRequest, D>(
     processor: &domain::Processor,
     operation: &BoxedOperation<'_, F, ApiRequest, D>,
     payment_data: &mut D,
+    business_profile: &domain::Profile,
 ) -> CustomResult<bool, errors::ApiErrorResponse>
 where
     F: Send + Clone + Sync,
@@ -6403,7 +6405,7 @@ where
     if blocklist_guard_enabled {
         Ok(operation
             .to_domain()?
-            .guard_payment_against_blocklist(state, processor, payment_data)
+            .guard_payment_against_blocklist(state, processor, payment_data, business_profile)
             .await?)
     } else {
         Ok(false)
