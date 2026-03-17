@@ -2486,7 +2486,7 @@ Cypress.Commands.add(
     data,
     authentication_type,
     capture_method,
-    globalState,
+    globalState
   ) => {
     const {
       Configs: configs = {},
