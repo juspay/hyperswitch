@@ -340,15 +340,6 @@ pub fn is_prod_email_required(data: &ProdIntent, user_email: String) -> bool {
     poc_email_check && business_website_check && user_email_check
 }
 
-#[cfg(feature = "v1")]
-pub fn entity_to_data_key(
-    entity: &api_models::user::dashboard_metadata::SavedViewEntity,
-) -> DBEnum {
-    match entity {
-        api_models::user::dashboard_metadata::SavedViewEntity::PaymentViews => DBEnum::PaymentViews,
-    }
-}
-
 pub async fn get_profile_id_from_role(
     state: &SessionState,
     user: &UserFromToken,
@@ -376,27 +367,20 @@ pub async fn get_profile_id_from_role(
     }
 }
 
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn modify_dashboard_metadata<T, F>(
     state: &SessionState,
     user: UserFromToken,
     metadata_key: DBEnum,
     profile_id: Option<String>,
-    user_id_to_store: Option<String>,
-    is_user_scoped: bool,
-    last_modified_by: String,
     transform: F,
 ) -> UserResult<DashboardMetadata>
 where
     T: serde::Serialize + serde::de::DeserializeOwned,
     F: FnOnce(Option<T>) -> UserResult<T>,
 {
-    #[cfg(feature = "v1")]
-    let is_payment_view = metadata_key == DBEnum::PaymentViews;
-    #[cfg(not(feature = "v1"))]
-    let is_payment_view = false;
-
-    let existing = if is_user_scoped || is_payment_view {
+    let existing = {
         state
             .store
             .find_saved_view_metadata(
@@ -407,16 +391,6 @@ where
                 metadata_key,
             )
             .await
-    } else {
-        state
-            .store
-            .find_merchant_scoped_dashboard_metadata(
-                &user.merchant_id,
-                &user.org_id,
-                vec![metadata_key],
-            )
-            .await
-            .map(|v| v.into_iter().next())
     }
     .change_context(UserErrors::InternalServerError)
     .attach_printable("Error fetching dashboard metadata")?;
@@ -445,7 +419,7 @@ where
                 DashboardMetadataUpdate::UpdateData {
                     data_key: metadata_key,
                     data_value: Secret::new(data_value),
-                    last_modified_by,
+                    last_modified_by: user.user_id.clone(),
                 },
             )
             .await
@@ -456,14 +430,14 @@ where
             state
                 .store
                 .insert_metadata(DashboardMetadataNew {
-                    user_id: user_id_to_store,
+                    user_id: Some(user.user_id.clone()),
                     merchant_id: user.merchant_id,
                     org_id: user.org_id,
                     data_key: metadata_key,
                     data_value: Secret::new(data_value),
-                    created_by: last_modified_by.clone(),
+                    created_by: user.user_id.clone(),
                     created_at: now,
-                    last_modified_by: last_modified_by.clone(),
+                    last_modified_by: user.user_id.clone(),
                     last_modified_at: now,
                     profile_id,
                 })
@@ -482,7 +456,6 @@ pub async fn handle_saved_view_operations(
     operation: api_models::user::dashboard_metadata::SavedViewOperation,
 ) -> UserResult<DashboardMetadata> {
     let profile_id = get_profile_id_from_role(state, &user).await?;
-    let last_modified_by = user.user_id.clone();
     match operation {
         api_models::user::dashboard_metadata::SavedViewOperation::Create(request) => {
             request.validate().map_err(|_| {
@@ -510,9 +483,6 @@ pub async fn handle_saved_view_operations(
                 user,
                 metadata_key,
                 profile_id,
-                Some(last_modified_by.clone()),
-                true,
-                last_modified_by,
                 |existing: Option<types::PaymentViewsValue>| {
                     let mut views_data =
                         existing.unwrap_or(types::PaymentViewsValue { views: vec![] });
@@ -544,9 +514,6 @@ pub async fn handle_saved_view_operations(
                 user,
                 metadata_key,
                 profile_id,
-                Some(last_modified_by.clone()),
-                true,
-                last_modified_by,
                 |existing: Option<types::PaymentViewsValue>| {
                     let mut views_data = existing.ok_or(report!(UserErrors::SavedViewNotFound))?;
 
@@ -581,9 +548,6 @@ pub async fn handle_saved_view_operations(
                 user,
                 metadata_key,
                 profile_id,
-                Some(last_modified_by.clone()),
-                true,
-                last_modified_by,
                 |existing: Option<types::PaymentViewsValue>| {
                     let mut views_data = existing.ok_or(report!(UserErrors::SavedViewNotFound))?;
 

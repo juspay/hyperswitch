@@ -1,4 +1,5 @@
 use api_models::user::dashboard_metadata::{self as api, GetMultipleMetaDataPayload};
+#[cfg(feature = "email")]
 use common_enums::EntityType;
 use diesel_models::{
     enums::DashboardMetadata as DBEnum, user::dashboard_metadata::DashboardMetadata,
