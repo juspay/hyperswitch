@@ -1790,7 +1790,7 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
         }
         api_enums::VaultConnectors::HyperswitchVault => {
             let base = &connectors.hyperswitch_vault.base_url;
-            let vault_endpoint_url = format!("{}/v2/proxy", base)
+            let vault_endpoint_url = format!("{}/proxy", base)
                 .parse::<url::Url>()
                 .map(common_utils::types::Url::wrap)
                 .change_context(UnifiedConnectorServiceError::ParsingFailed)
