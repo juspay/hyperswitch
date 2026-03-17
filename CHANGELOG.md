@@ -4,6 +4,19 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.02.0-hotfix8
+
+### Bug Fixes
+
+- **connector:**
+  - [Worldpayxml] correctly map authenticate_shopper_id and scheme transaction id ([#11525](https://github.com/juspay/hyperswitch/pull/11525)) ([`1daf6ae`](https://github.com/juspay/hyperswitch/commit/1daf6aecdcf41bc810b615981b3337c49a814878))
+  - [ADYEN] Remove recurringProcessingModel for CIT transactions ([#11530](https://github.com/juspay/hyperswitch/pull/11530)) ([`d7a231b`](https://github.com/juspay/hyperswitch/commit/d7a231b0baa4cf3fb18cec904c2215db503b6974))
+- **payload:** Update request structure and switch to JSON payload format ([#11528](https://github.com/juspay/hyperswitch/pull/11528)) ([`647623e`](https://github.com/juspay/hyperswitch/commit/647623ef3766d63e608ccc2e79dea4cbf3e2de57))
+
+**Full Changelog:** [`2026.02.02.0-hotfix7...2026.02.02.0-hotfix8`](https://github.com/juspay/hyperswitch/compare/2026.02.02.0-hotfix7...2026.02.02.0-hotfix8)
+
+- - -
+
 ## 2026.02.02.0-hotfix7
 
 ### Bug Fixes
