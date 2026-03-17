@@ -1,10 +1,12 @@
 //! Payment related types
-
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    num::NonZeroU8,
+};
 
 use common_enums::enums;
 use common_utils::{
-    date_time, errors, events, ext_traits::OptionExt, impl_to_sql_from_sql_json, pii,
+    consts, date_time, errors, events, ext_traits::OptionExt, impl_to_sql_from_sql_json, pii,
     types::MinorUnit,
 };
 use diesel::{
@@ -1247,60 +1249,137 @@ pub struct NetworkTransactionIdAndDecryptedWalletTokenDetails {
 }
 
 /// Billing frequency for a card installment plan
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum BillingFrequency {
     /// Monthly billing
     Month,
 }
 
-/// A non-empty list of installment counts where each value is >= 2 and all values are unique.
+/// A non-empty list of unique installment counts.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
-#[serde(try_from = "Vec<u8>", into = "Vec<u8>")]
-pub struct InstallmentCounts(Vec<u8>);
+#[serde(try_from = "Vec<NonZeroU8>")]
+pub struct InstallmentCounts(Vec<NonZeroU8>);
 
 impl InstallmentCounts {
-    fn validate_not_empty(counts: &[u8]) -> std::result::Result<(), errors::ValidationError> {
-        (!counts.is_empty())
-            .then_some(())
-            .ok_or_else(|| errors::ValidationError::InvalidValue {
-                message: "number_of_installments must not be empty.".to_string(),
-            })
+    /// Check if this `InstallmentCounts` contains the given count.
+    pub fn contains(&self, count: NonZeroU8) -> bool {
+        self.0.contains(&count)
     }
 
-    fn validate_values(counts: &[u8]) -> std::result::Result<(), errors::ValidationError> {
+    /// Returns a slice of the installment counts.
+    pub fn as_slice(&self) -> &[NonZeroU8] {
+        &self.0
+    }
+
+    fn validate_not_empty(counts: &[NonZeroU8]) -> Result<(), errors::ValidationError> {
+        (!counts.is_empty()).then_some(()).ok_or_else(|| {
+            error_stack::report!(errors::ValidationError::InvalidValue {
+                message: "number_of_installments must not be empty.".to_string(),
+            })
+        })
+    }
+
+    fn validate_unique(counts: &[NonZeroU8]) -> Result<(), errors::ValidationError> {
         counts
             .iter()
             .try_fold(HashSet::new(), |mut seen, &n| {
-                (n >= 1)
-                    .then_some(())
-                    .ok_or_else(|| errors::ValidationError::InvalidValue {
-                        message: "each value in number_of_installments must be at least 1."
-                            .to_string(),
-                    })?;
                 seen.insert(n).then_some(seen).ok_or_else(|| {
-                    errors::ValidationError::InvalidValue {
+                    error_stack::report!(errors::ValidationError::InvalidValue {
                         message: "number_of_installments must contain unique values.".to_string(),
-                    }
+                    })
                 })
             })
             .map(|_| ())
     }
 }
 
-impl TryFrom<Vec<u8>> for InstallmentCounts {
-    type Error = errors::ValidationError;
+impl TryFrom<Vec<NonZeroU8>> for InstallmentCounts {
+    type Error = Report<errors::ValidationError>;
 
-    fn try_from(counts: Vec<u8>) -> std::result::Result<Self, Self::Error> {
+    fn try_from(counts: Vec<NonZeroU8>) -> Result<Self, errors::ValidationError> {
         Self::validate_not_empty(&counts)?;
-        Self::validate_values(&counts)?;
+        Self::validate_unique(&counts)?;
         Ok(Self(counts))
     }
 }
 
-impl From<InstallmentCounts> for Vec<u8> {
-    fn from(c: InstallmentCounts) -> Self {
-        c.0
+/// An interest rate with at most 2 decimal places.
+/// Serializes and deserializes as a plain float (e.g. `2.5`).
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq)]
+#[serde(try_from = "f64")]
+pub struct InstallmentInterestRate(f64);
+
+impl InstallmentInterestRate {
+    /// apply the interest rate to amount and ceil the result
+    pub fn apply_and_ceil_result(
+        &self,
+        amount: MinorUnit,
+    ) -> errors::CustomResult<MinorUnit, errors::InstallmentInterestRateError> {
+        let max_amount = i64::MAX / 10000;
+        let amount = amount.get_amount_as_i64();
+        if amount > max_amount {
+            // value gets rounded off after i64::MAX/10000
+            Err(error_stack::report!(
+                errors::InstallmentInterestRateError::UnableToApplyInterestRate
+            ))
+            .attach_printable(format!(
+                "Cannot calculate interest rate for amount greater than {max_amount}",
+            ))
+        } else {
+            let amount_f64 = amount
+                .to_string()
+                .parse::<f64>()
+                .change_context(errors::InstallmentInterestRateError::UnableToApplyInterestRate)
+                .attach_printable("Failed to parse amount as f64")?;
+            let ceiled = (amount_f64 * (self.0 / 100.0)).ceil();
+            let result = ceiled
+                .to_string()
+                .parse::<i64>()
+                .change_context(errors::InstallmentInterestRateError::UnableToApplyInterestRate)
+                .attach_printable("Failed to parse ceiled result as i64")?;
+            Ok(MinorUnit::new(result))
+        }
+    }
+
+    fn is_valid_precision_length(value: &str) -> bool {
+        if value.contains('.') {
+            // if string has '.' then take the decimal part and verify precision length
+            match value.split('.').next_back() {
+                Some(decimal_part) => {
+                    decimal_part.trim_end_matches('0').len()
+                        <= usize::from(consts::INSTALLMENT_INTEREST_RATE_PRECISION_LENGTH)
+                }
+                // will never be None
+                None => false,
+            }
+        } else {
+            // if there is no '.' then it is a whole number with no decimal part. So return true
+            true
+        }
+    }
+
+    fn is_non_negative(rate: f64) -> bool {
+        rate >= 0.0
+    }
+}
+
+impl TryFrom<f64> for InstallmentInterestRate {
+    type Error = Report<errors::ValidationError>;
+
+    fn try_from(rate: f64) -> Result<Self, errors::ValidationError> {
+        Self::is_non_negative(rate).then_some(()).ok_or_else(|| {
+            error_stack::report!(errors::ValidationError::InvalidValue {
+                message: "interest_rate must not be negative.".to_string(),
+            })
+        })?;
+        Self::is_valid_precision_length(&rate.to_string())
+            .then_some(Self(rate))
+            .ok_or_else(|| {
+                error_stack::report!(errors::ValidationError::InvalidValue {
+                    message: "interest_rate must have at most 2 decimal places.".to_string(),
+                })
+            })
     }
 }
 
@@ -1312,8 +1391,84 @@ pub struct InstallmentOptionData {
     pub number_of_installments: InstallmentCounts,
     /// Billing frequency for each installment cycle
     pub billing_frequency: BillingFrequency,
-    /// Interest rate applied per installment as a percentage
-    pub interest_rate: f64,
+    /// Interest rate per installment as a percentage max 2 decimal places
+    #[schema(value_type = f64)]
+    pub interest_rate: InstallmentInterestRate,
+}
+
+/// A validated list of installment entries with no duplicate counts per billing frequency.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
+#[serde(try_from = "Vec<InstallmentOptionData>")]
+pub struct InstallmentEntries(Vec<InstallmentOptionData>);
+
+impl InstallmentEntries {
+    /// Validates that no installment count appears more than once for the same billing frequency
+    /// across all entries.
+    /// Uses two nested `try_fold`s because the data is two-dimensional:
+    /// - The **outer** `try_fold` iterates over each `InstallmentOptionData` entry, carrying a
+    ///   `HashMap<BillingFrequency, HashSet<count>>` as the accumulator to track all counts seen
+    ///   so far grouped by frequency.
+    /// - The **inner** `try_fold` iterates over the `number_of_installments` vec within a single
+    ///   entry, attempting to insert each count into the set for its frequency. If `insert` returns
+    ///   `false` (count already present), it short-circuits with a validation error.
+    fn validate_no_duplicate_counts_per_frequency(
+        installments: &[InstallmentOptionData],
+    ) -> Result<(), errors::ValidationError> {
+        installments
+            .iter()
+            .try_fold(
+                HashMap::<&BillingFrequency, HashSet<NonZeroU8>>::new(),
+                |mut seen, entry| {
+                    entry
+                        .number_of_installments
+                        .as_slice()
+                        .iter()
+                        .try_fold(&mut seen, |seen, &count| {
+                            seen.entry(&entry.billing_frequency)
+                                .or_default()
+                                .insert(count)
+                                .then_some(seen)
+                                .ok_or_else(|| {
+                                    error_stack::report!(
+                                        errors::ValidationError::InvalidValue {
+                                            message: format!(
+                                                "installment count {count} appears in multiple entries with the same billing frequency."
+                                            ),
+                                        }
+                                    )
+                                })
+                        })?;
+                    Ok(seen)
+                },
+            )
+            .map(|_| ())
+    }
+}
+
+impl TryFrom<Vec<InstallmentOptionData>> for InstallmentEntries {
+    type Error = Report<errors::ValidationError>;
+
+    fn try_from(entries: Vec<InstallmentOptionData>) -> Result<Self, errors::ValidationError> {
+        Self::validate_no_duplicate_counts_per_frequency(&entries)?;
+        Ok(Self(entries))
+    }
+}
+
+impl std::ops::Deref for InstallmentEntries {
+    type Target = Vec<InstallmentOptionData>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl IntoIterator for InstallmentEntries {
+    type Item = InstallmentOptionData;
+    type IntoIter = std::vec::IntoIter<InstallmentOptionData>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
 }
 
 /// Installment options grouped by payment method
@@ -1323,7 +1478,8 @@ pub struct InstallmentOption {
     #[schema(value_type = PaymentMethod)]
     pub payment_method: common_enums::PaymentMethod,
     /// List of available installment configurations
-    pub installments: Vec<InstallmentOptionData>,
+    #[schema(value_type = Vec<InstallmentOptionData>)]
+    pub installments: InstallmentEntries,
 }
 
 /// A list of installment options stored as a single JSONB column value.
@@ -1340,6 +1496,30 @@ pub struct InstallmentOption {
 #[diesel(sql_type = Jsonb)]
 pub struct InstallmentOptions(pub Vec<InstallmentOption>);
 impl_to_sql_from_sql_json!(InstallmentOptions);
+
+/// Installment selection made by the customer during payment confirmation.
+#[derive(
+    Debug,
+    Clone,
+    serde::Serialize,
+    serde::Deserialize,
+    ToSchema,
+    PartialEq,
+    Eq,
+    FromSqlRow,
+    AsExpression,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct InstallmentData {
+    /// Number of installments chosen by the customer
+    #[schema(value_type = u8)]
+    pub number_of_installments: NonZeroU8,
+    /// Billing frequency for the chosen installment plan
+    pub billing_frequency: BillingFrequency,
+    /// Total interest amount applied for this installment plan
+    pub installment_interest: Option<MinorUnit>,
+}
+impl_to_sql_from_sql_json!(InstallmentData);
 
 #[derive(
     Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,

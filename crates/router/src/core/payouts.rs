@@ -98,7 +98,7 @@ pub fn get_next_connector(
 #[cfg(all(feature = "payouts", feature = "v1"))]
 pub async fn get_connector_choice(
     state: &SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     connector: Option<String>,
     routing_algorithm: Option<serde_json::Value>,
     payout_data: &mut PayoutData,
@@ -135,7 +135,7 @@ pub async fn get_connector_choice(
             };
             helpers::decide_payout_connector(
                 state,
-                platform,
+                processor,
                 Some(request_straight_through),
                 &mut routing_data,
                 payout_data,
@@ -156,7 +156,7 @@ pub async fn get_connector_choice(
             };
             helpers::decide_payout_connector(
                 state,
-                platform,
+                processor,
                 None,
                 &mut routing_data,
                 payout_data,
@@ -279,7 +279,7 @@ pub async fn payouts_core(
     // Form connector data
     let connector_call_type = get_connector_choice(
         state,
-        platform,
+        platform.get_processor(),
         payout_attempt.connector.clone(),
         routing_algorithm,
         payout_data,
@@ -527,7 +527,7 @@ pub async fn payouts_retrieve_core(
         // Form connector data
         let connector_call_type = get_connector_choice(
             &state,
-            &platform,
+            platform.get_processor(),
             payout_attempt.connector.clone(),
             None,
             &mut payout_data,
@@ -2884,6 +2884,10 @@ pub async fn payout_create_db_entries(
         status,
         created_at: common_utils::date_time::now(),
         last_modified_at: common_utils::date_time::now(),
+        processor_merchant_id: Some(platform.get_processor().get_account().get_id().clone()),
+        created_by: platform
+            .get_initiator()
+            .and_then(|initiator| initiator.to_created_by()),
     };
     let payouts = db
         .insert_payout(
@@ -2941,6 +2945,10 @@ pub async fn payout_create_db_entries(
         unified_code: None,
         unified_message: None,
         payout_connector_metadata: None,
+        processor_merchant_id: Some(platform.get_processor().get_account().get_id().clone()),
+        created_by: platform
+            .get_initiator()
+            .and_then(|initiator| initiator.to_created_by()),
     };
     let payout_attempt = db
         .insert_payout_attempt(

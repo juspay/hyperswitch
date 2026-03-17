@@ -102,11 +102,13 @@ pub enum Connector {
     Dlocal,
     Dwolla,
     Ebanx,
+    Envoy,
     Elavon,
     Facilitapay,
     Finix,
     Fiserv,
     Fiservemea,
+    Fiservcommercehub,
     Fiuu,
     Flexiti,
     Forte,
@@ -209,6 +211,7 @@ impl Connector {
         matches!(
             (self, payout_method),
             (Self::Paypal, Some(PayoutType::Wallet))
+                | (Self::Envoy, _)
                 | (_, Some(PayoutType::Card))
                 | (Self::Adyenplatform, _)
                 | (Self::Nomupay, _)
@@ -268,6 +271,7 @@ impl Connector {
                 | (Self::Dwolla, _)
                 | (Self::Santander, _)
                 | (Self::Truelayer, _)
+                | (Self::Fiservcommercehub, _)
         )
     }
     pub fn requires_order_creation_before_payment(self, payment_method: PaymentMethod) -> bool {
@@ -326,12 +330,14 @@ impl Connector {
             | Self::Digitalvirgo
             | Self::Dlocal
             | Self::Dwolla
+            | Self::Envoy
             | Self::Ebanx
             | Self::Elavon
             | Self::Facilitapay
             | Self::Finix
             | Self::Fiserv
             | Self::Fiservemea
+            | Self::Fiservcommercehub
             | Self::Fiuu
             | Self::Flexiti
             | Self::Forte

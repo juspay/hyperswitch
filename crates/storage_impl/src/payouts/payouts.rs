@@ -107,6 +107,8 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     client_secret: new.client_secret.clone(),
                     priority: new.priority,
                     organization_id: new.organization_id.clone(),
+                    processor_merchant_id: new.processor_merchant_id.clone(),
+                    created_by: new.created_by.clone(),
                 };
 
                 let redis_entry = kv::TypedSql {
@@ -981,6 +983,8 @@ impl DataModelExt for Payouts {
             client_secret: self.client_secret,
             priority: self.priority,
             organization_id: self.organization_id,
+            processor_merchant_id: self.processor_merchant_id,
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
         }
     }
 
@@ -1011,6 +1015,10 @@ impl DataModelExt for Payouts {
             client_secret: storage_model.client_secret,
             priority: storage_model.priority,
             organization_id: storage_model.organization_id,
+            processor_merchant_id: storage_model.processor_merchant_id,
+            created_by: storage_model
+                .created_by
+                .and_then(|created_by| created_by.parse::<common_utils::types::CreatedBy>().ok()),
         }
     }
 }
@@ -1044,6 +1052,8 @@ impl DataModelExt for PayoutsNew {
             client_secret: self.client_secret,
             priority: self.priority,
             organization_id: self.organization_id,
+            processor_merchant_id: self.processor_merchant_id,
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
         }
     }
 
@@ -1074,6 +1084,10 @@ impl DataModelExt for PayoutsNew {
             client_secret: storage_model.client_secret,
             priority: storage_model.priority,
             organization_id: storage_model.organization_id,
+            processor_merchant_id: storage_model.processor_merchant_id,
+            created_by: storage_model
+                .created_by
+                .and_then(|created_by| created_by.parse::<common_utils::types::CreatedBy>().ok()),
         }
     }
 }
