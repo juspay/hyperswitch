@@ -791,7 +791,9 @@ pub mod core {
                 ),
                 (
                     "Authorization".to_string(),
-                    masking::Maskable::Masked(format!("api-key={}", vault_auth.api_key.clone().expose()).into()),
+                    masking::Maskable::Masked(
+                        format!("api-key={}", vault_auth.api_key.clone().expose()).into(),
+                    ),
                 ),
                 (
                     "x-profile-id".to_string(),
@@ -1026,53 +1028,183 @@ pub use core::*;
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
+    use router_env::logger;
+
     use crate::*;
 
-    /// Simulates the injector_core branching logic without making any HTTP calls.
-    /// Returns the processed payload exactly as injector_core would produce it.
-    fn simulate_injector_core_transformation(
-        template: &str,
-        token_data_json: serde_json::Value,
-        vault_connector_type: Option<VaultConnectorType>,
-        vault_connector_id: Option<VaultConnectors>,
-    ) -> Result<String, String> {
-        let injector = Injector::new();
-        let vault_data = token_data_json;
-
-        println!("\n============================================================");
-        println!("  INJECTOR CORE TRANSFORMATION");
-        println!("============================================================");
-        println!("  vault_connector_type : {:?}", vault_connector_type);
-        println!("  vault_connector_id   : {:?}", vault_connector_id);
-        println!("  input template       : {}", template);
-        println!(
-            "  token_data           : {}",
-            serde_json::to_string_pretty(&vault_data).unwrap()
+    #[tokio::test]
+    #[ignore = "Integration test that requires network access"]
+    async fn test_injector_core_integration() {
+        // Create test request
+        let mut headers = HashMap::new();
+        headers.insert(
+            "Content-Type".to_string(),
+            masking::Secret::new("application/x-www-form-urlencoded".to_string()),
         );
-        println!("------------------------------------------------------------");
+        headers.insert(
+            "Authorization".to_string(),
+            masking::Secret::new("Bearer Test".to_string()),
+        );
 
-        let processed_payload = match &vault_connector_type {
-            Some(VaultConnectorType::Proxy) | None => {
-                println!("  BRANCH: Proxy | None → INTERPOLATE placeholders with token aliases");
-                injector
-                    .interpolate_string_template_with_vault_data(template.to_string(), &vault_data)
-                    .map_err(|e| format!("{e:?}"))?
-            }
-            Some(VaultConnectorType::Transformation) => match &vault_connector_id {
-                Some(VaultConnectors::HyperswitchVault) => {
-                    println!("  BRANCH: Transformation + HyperswitchVault → SKIP interpolation, keep placeholders");
-                    template.to_string()
-                }
-                other => {
-                    println!("  BRANCH: Transformation + {:?} → SKIP (future connector, no transform yet)", other);
-                    template.to_string()
-                }
+        let specific_token_data = common_utils::pii::SecretSerdeValue::new(serde_json::json!({
+            "card_number": "TEST_123",
+            "cvv": "123",
+            "exp_month": "12",
+            "exp_year": "25"
+        }));
+
+        let request = InjectorRequest {
+            connector_payload: ConnectorPayload {
+                template: "card_number={{$card_number}}&cvv={{$cvv}}&expiry={{$exp_month}}/{{$exp_year}}&amount=50&currency=USD&transaction_type=purchase".to_string(),
+            },
+            token_data: TokenData {
+                specific_token_data,
+            },
+            connection_config: ConnectionConfig {
+                endpoint: "https://api.stripe.com/v1/payment_intents".to_string(),
+                http_method: HttpMethod::POST,
+                headers,
+                proxy_url: None, // Remove proxy that was causing issues
+                backup_proxy_url: None,
+                // Certificate fields (None for basic test)
+                client_cert: None,
+                client_key: None,
+                ca_cert: None, // Empty CA cert for testing
+                insecure: None,
+                cert_password: None,
+                cert_format: None,
+                max_response_size: None, // Use default
+                vault_auth_data: None,
+                vault_connector_id: Some(VaultConnectors::VGS), // Use VGS as example vault connector
+                vault_connector_type: Some(VaultConnectorType::Proxy), // Use Proxy type for direct interpolation
+                vault_endpoint: None, // No vault endpoint needed for proxy test
+
             },
         };
 
-        println!("\n  OUTPUT payload       : {}", processed_payload);
-        println!("============================================================\n");
+        // Test the core function - this will make a real HTTP request to httpbin.org
+        let result = injector_core(request).await;
 
-        Ok(processed_payload)
+        // The request should succeed (httpbin.org should be accessible)
+        if let Err(ref e) = result {
+            logger::info!("Error: {e:?}");
+        }
+        assert!(
+            result.is_ok(),
+            "injector_core should succeed with valid request: {result:?}"
+        );
+
+        let response = result.unwrap();
+
+        // Print the actual response for demonstration
+        logger::info!("=== HTTP RESPONSE FROM HTTPBIN.ORG ===");
+        logger::info!(
+            "{}",
+            serde_json::to_string_pretty(&response).unwrap_or_default()
+        );
+        logger::info!("=======================================");
+
+        // Response should have a proper status code and response data
+        assert!(
+            response.status_code >= 200 && response.status_code < 300,
+            "Response should have successful status code: {}",
+            response.status_code
+        );
+
+        assert!(
+            response.response.is_object() || response.response.is_string(),
+            "Response data should be JSON object or string"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_certificate_configuration() {
+        let mut headers = HashMap::new();
+        headers.insert(
+            "Content-Type".to_string(),
+            masking::Secret::new("application/x-www-form-urlencoded".to_string()),
+        );
+        headers.insert(
+            "Authorization".to_string(),
+            masking::Secret::new("Bearer TEST".to_string()),
+        );
+
+        let specific_token_data = common_utils::pii::SecretSerdeValue::new(serde_json::json!({
+            "card_number": "4242429789164242",
+            "cvv": "123",
+            "exp_month": "12",
+            "exp_year": "25"
+        }));
+
+        // Test with insecure flag (skip certificate verification)
+        let request = InjectorRequest {
+            connector_payload: ConnectorPayload {
+                template: "card_number={{$card_number}}&cvv={{$cvv}}&expiry={{$exp_month}}/{{$exp_year}}&amount=50&currency=USD&transaction_type=purchase".to_string(),
+            },
+            token_data: TokenData {
+                specific_token_data,
+            },
+            connection_config: ConnectionConfig {
+                endpoint: "https://httpbin.org/post".to_string(),
+                http_method: HttpMethod::POST,
+                headers,
+                proxy_url: None, // Remove proxy to make test work reliably
+                backup_proxy_url: None,
+                // Test without certificates for basic functionality
+                client_cert: None,
+                client_key: None,
+                ca_cert: None,
+                insecure: None,
+                cert_password: None,
+                cert_format: None,
+                max_response_size: None,
+                vault_auth_data: None,
+                vault_connector_id: Some(VaultConnectors::VGS), // Use VGS as example vault connector
+                vault_connector_type: Some(VaultConnectorType::Proxy), // Use Proxy type for direct interpolation
+                vault_endpoint: None, // No vault endpoint needed for proxy test
+            },
+        };
+
+        let result = injector_core(request).await;
+
+        // Should succeed even with insecure flag
+        assert!(
+            result.is_ok(),
+            "Certificate test should succeed: {result:?}"
+        );
+
+        let response = result.unwrap();
+
+        // Print the actual response for demonstration
+        logger::info!("=== CERTIFICATE TEST RESPONSE ===");
+        logger::info!(
+            "{}",
+            serde_json::to_string_pretty(&response).unwrap_or_default()
+        );
+        logger::info!("================================");
+
+        // Should succeed with proper status code
+        assert!(
+            response.status_code >= 200 && response.status_code < 300,
+            "Certificate test should have successful status code: {}",
+            response.status_code
+        );
+
+        // Verify the tokens were replaced correctly in the form data
+        // httpbin.org returns the request data in the 'form' field
+        let response_str = serde_json::to_string(&response.response).unwrap_or_default();
+
+        // Check that our test tokens were replaced with the actual values from vault data
+        let tokens_replaced = response_str.contains("4242429789164242") && // card_number
+                              response_str.contains("123") &&               // cvv
+                              response_str.contains("12/25"); // expiry
+
+        assert!(
+            tokens_replaced,
+            "Response should contain replaced tokens (card_number, cvv, expiry): {}",
+            serde_json::to_string_pretty(&response.response).unwrap_or_default()
+        );
     }
 }
