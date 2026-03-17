@@ -10,13 +10,14 @@ use common_enums::enums::MerchantStorageScheme;
 use common_utils::crypto::OptionalEncryptableValue;
 #[cfg(feature = "v2")]
 use common_utils::{
-    crypto::Encryptable, encryption::Encryption, ext_traits::OptionExt,
+    crypto::Encryptable, encryption::Encryption,
     types::keymanager::ToEncryptable,
 };
 use common_utils::{
     errors::{CustomResult, ParsingError, ValidationError},
     id_type, pii, type_name,
     types::{keymanager, CreatedBy},
+    ext_traits::OptionExt
 };
 pub use diesel_models::{
     enums as storage_enums, PaymentMethodUpdate as StoragePaymentMethodUpdate,
@@ -58,7 +59,9 @@ impl VaultId {
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug)]
 pub struct PaymentMethod {
-    pub customer_id: id_type::CustomerId,
+    /// The customer id against which the payment method is saved
+    /// It is made optional to support guest checkout tokenization
+    pub customer_id: Option<id_type::CustomerId>,
     pub merchant_id: id_type::MerchantId,
     pub payment_method_id: String,
     pub accepted_currency: Option<Vec<storage_enums::Currency>>,
@@ -414,8 +417,10 @@ impl super::behaviour::Conversion for PaymentMethod {
     type NewDstType = diesel_models::payment_method::PaymentMethodNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         let (vault_type, external_vault_source) = self.vault_source_details.into();
+        // Note: caller must ensure customer_id is Some when converting to storage
+        // Storage requires customer_id, but domain allows None for guest checkout
         Ok(Self::DstType {
-            customer_id: self.customer_id,
+            customer_id: self.customer_id.get_required_value("customer_id")?,
             merchant_id: self.merchant_id,
             payment_method_id: self.payment_method_id,
             accepted_currency: self.accepted_currency,
@@ -558,8 +563,9 @@ impl super::behaviour::Conversion for PaymentMethod {
         ))?;
 
         // Construct the domain type
+        // Storage always has customer_id, wrap in Some for domain
         Ok(Self {
-            customer_id: item.customer_id,
+            customer_id: Some(item.customer_id),
             merchant_id: item.merchant_id,
             payment_method_id: item.payment_method_id,
             accepted_currency: item.accepted_currency,
@@ -607,8 +613,9 @@ impl super::behaviour::Conversion for PaymentMethod {
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         let (vault_type, external_vault_source) = self.vault_source_details.into();
+        // Note: caller must ensure customer_id is Some when converting to storage
         Ok(Self::NewDstType {
-            customer_id: self.customer_id,
+            customer_id: self.customer_id.get_required_value("customer_id")?,
             merchant_id: self.merchant_id,
             payment_method_id: self.payment_method_id,
             accepted_currency: self.accepted_currency,
@@ -1545,7 +1552,7 @@ mod tests {
         mandate_data: Option<serde_json::Value>,
     ) -> PaymentMethod {
         let payment_method = PaymentMethod {
-            customer_id: id_type::CustomerId::default(),
+            customer_id: Some(id_type::CustomerId::default()),
             merchant_id: id_type::MerchantId::default(),
             payment_method_id: String::from("abc"),
             accepted_currency: None,

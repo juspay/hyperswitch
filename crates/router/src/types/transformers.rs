@@ -99,7 +99,7 @@ impl
     ) -> Self {
         Self {
             merchant_id: item.merchant_id.to_owned(),
-            customer_id: Some(item.customer_id.to_owned()),
+            customer_id: item.customer_id.to_owned(),
             payment_method_id: item.get_id().clone(),
             payment_method: item.get_payment_method_type(),
             payment_method_type: item.get_payment_method_subtype(),

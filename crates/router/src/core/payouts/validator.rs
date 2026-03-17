@@ -183,8 +183,13 @@ pub async fn validate_create_request(
                         .await
                         .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
                         .attach_printable("Unable to find payment method")?;
+                
+                    let pm_customer_id = payment_method
+                        .customer_id
+                        .clone().get_required_value("customer_id")?;
 
-                    utils::when(payment_method.customer_id != customer.customer_id, || {
+
+                    utils::when(pm_customer_id != customer.customer_id, || {
                         Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                         message: "Payment method does not belong to this customer_id".to_string(),
                     })
