@@ -843,14 +843,13 @@ impl
         };
 
         // Get the card network from wallet metadata if available
-        let scheme = apple_pay_wallet_data
-            .payment_method
-            .network
-            .as_ref()
-            .and_then(|network| parse_wallet_card_network(network));
+        let scheme = parse_wallet_card_network(&apple_pay_wallet_data.payment_method.network);
 
         let network_token_data = NetworkTokenDetails {
-            token: apple_pay_data.application_primary_account_number.clone(),
+            token: apple_pay_data
+                .application_primary_account_number
+                .clone()
+                .into(),
             expiry_year: apple_pay_data.get_two_digit_expiry_year().change_context(
                 errors::ConnectorError::InvalidDataFormat {
                     field_name: "application_expiration_year",
@@ -944,14 +943,13 @@ impl
         };
 
         // Get the card network from wallet info if available
-        let scheme = google_pay_wallet_data
-            .info
-            .card_network
-            .as_ref()
-            .and_then(|network| parse_wallet_card_network(network));
+        let scheme = parse_wallet_card_network(&google_pay_wallet_data.info.card_network);
 
         let network_token_data = NetworkTokenDetails {
-            token: google_pay_data.application_primary_account_number.clone(),
+            token: google_pay_data
+                .application_primary_account_number
+                .clone()
+                .into(),
             expiry_year: google_pay_data.get_two_digit_expiry_year().change_context(
                 errors::ConnectorError::InvalidDataFormat {
                     field_name: "card_exp_year",
