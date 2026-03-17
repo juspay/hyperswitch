@@ -1,8 +1,8 @@
 use external_services::superposition;
 
 use super::{
-    dimension_state::{Dimensions, HasMerchantId},
-    fetch_db_with_dimensions, DatabaseBackedConfig,
+    dimension_state::{DimensionsWithMerchantId, DimensionsWithMerchantIdAndProfileId},
+    fetch_db_config_for_dimensions, DatabaseBackedConfig,
 };
 use crate::{consts::superposition as superposition_consts, db::StorageInterface, utils::id_type};
 
@@ -35,48 +35,79 @@ use crate::{consts::superposition as superposition_consts, db::StorageInterface,
 ///
 /// As a rule of thumb: pick the entity whose experience should remain stable throughout
 /// the experiment.
-#[macro_export]
 macro_rules! config {
+    // Object config variant (with object = true)
     (
-        superposition_key = $superposition_key:ident,
+        superposition_key = $key:ident,
+        output = $output:ty,
+        default = $default:expr,
+        object = true,
+        requires = $requirement:ty,
+        targeting_key = $targeting_type:ty
+    ) => {
+        paste::paste! {
+            pub struct [<$key:camel>];
+
+            impl superposition::Config for [<$key:camel>] {
+                type Output = serde_json::Value;
+                type TargetingKey = $targeting_type;
+                const SUPERPOSITION_KEY: &'static str = superposition_consts::$key;
+                fn default_value() -> Self::Output {
+                    serde_json::to_value(&$default).expect("Failed to serialize default")
+                }
+            }
+
+            impl $requirement {
+                pub async fn [<get_ $key:lower>](
+                    &self,
+                    storage: &dyn StorageInterface,
+                    superposition_client: Option<&superposition::SuperpositionClient>,
+                    targeting_key: Option<&$targeting_type>,
+                ) -> $output {
+                    // Fetch JSON and convert to $output using the conversion function
+                    crate::core::configs::fetch_db_config_for_objects::<[<$key:camel>], $output>(
+                        storage, superposition_client, self, targeting_key
+                    ).await
+                }
+            }
+
+            impl DatabaseBackedConfig for [<$key:camel>] {
+                const KEY: &'static str = stringify!([<$key:snake>]);
+                fn db_key(_dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+                    None
+                }
+            }
+        }
+    };
+
+    // Primitive config variant (no helper function - use get_{{key_name}}() directly on Dimensions)
+    (
+        superposition_key = $key:ident,
         output = $output:ty,
         default = $default:expr,
         requires = $requirement:ty,
         targeting_key = $targeting_type:ty
     ) => {
         paste::paste! {
-            /// Config definition
-            pub struct [<$superposition_key:camel>];
+            pub struct [<$key:camel>];
 
-            impl superposition::Config for [<$superposition_key:camel>] {
+            impl superposition::Config for [<$key:camel>] {
                 type Output = $output;
                 type TargetingKey = $targeting_type;
-
-                const SUPERPOSITION_KEY: &'static str =
-                    superposition_consts::$superposition_key;
-
-                const DEFAULT_VALUE: $output = $default;
+                const SUPERPOSITION_KEY: &'static str = superposition_consts::$key;
+                fn default_value() -> Self::Output {
+                    $default
+                }
             }
 
-            /// Get [<$superposition_key:camel>] - ONLY available when Dimensions has required state
-            impl<O, P> Dimensions<$requirement, O, P>
-            where
-                O: Send + Sync,
-                P: Send + Sync,
-            {
-                pub async fn [<get_ $superposition_key:lower>](
+            impl $requirement {
+                pub async fn [<get_ $key:lower>](
                     &self,
                     storage: &dyn StorageInterface,
                     superposition_client: Option<&superposition::SuperpositionClient>,
                     targeting_key: Option<&$targeting_type>,
                 ) -> $output {
-                    fetch_db_with_dimensions::<[<$superposition_key:camel>], $requirement, O, P>(
-                        storage,
-                        superposition_client,
-                        self,
-                        targeting_key,
-                    )
-                    .await
+                    fetch_db_config_for_dimensions::<[<$key:camel>]>(storage, superposition_client, self, targeting_key).await
                 }
             }
         }
@@ -87,19 +118,18 @@ config! {
     superposition_key = REQUIRES_CVV,
     output = bool,
     default = true,
-    requires = HasMerchantId,
+    requires = DimensionsWithMerchantId,
     targeting_key = id_type::CustomerId
 }
 
 impl DatabaseBackedConfig for RequiresCvv {
     const KEY: &'static str = "requires_cvv";
-
-    fn db_key<M, O, P>(dimensions: &Dimensions<M, O, P>) -> String {
+    fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
         let merchant_id = dimensions
             .get_merchant_id()
             .map(|id| id.get_string_repr())
             .unwrap_or_default();
-        format!("{}_{}", merchant_id, Self::KEY)
+        Some(format!("{}_{}", merchant_id, Self::KEY))
     }
 }
 
@@ -107,18 +137,17 @@ config! {
     superposition_key = IMPLICIT_CUSTOMER_UPDATE,
     output = bool,
     default = false,
-    requires = HasMerchantId,
+    requires = DimensionsWithMerchantIdAndProfileId,
     targeting_key = id_type::CustomerId
 }
 
 impl DatabaseBackedConfig for ImplicitCustomerUpdate {
     const KEY: &'static str = "implicit_customer_update";
-
-    fn db_key<M, O, P>(dimensions: &Dimensions<M, O, P>) -> String {
+    fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
         let merchant_id = dimensions
             .get_merchant_id()
             .map(|id| id.get_string_repr())
             .unwrap_or_default();
-        format!("{}_{}", merchant_id, Self::KEY)
+        Some(format!("{}_{}", merchant_id, Self::KEY))
     }
 }

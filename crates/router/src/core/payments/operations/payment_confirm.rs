@@ -37,7 +37,7 @@ use crate::{
         authentication,
         blocklist::utils as blocklist_utils,
         card_testing_guard::utils as card_testing_guard_utils,
-        configs::dimension_state::DimensionsWithMerchantId,
+        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         metrics,
@@ -997,7 +997,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
         initiator: Option<&domain::Initiator>,
-        dimensions: DimensionsWithMerchantId,
+        dimensions: DimensionsWithMerchantIdAndProfileId,
     ) -> CustomResult<
         (PaymentConfirmOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,
@@ -1135,6 +1135,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                     .customer_id
                                     .clone()
                                     .get_required_value("customer_id")?,
+                                business_profile.is_network_tokenization_enabled,
                             )
                             .await
                             {
@@ -1362,6 +1363,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         connector_call_type: &ConnectorCallType,
         business_profile: &domain::Profile,
         processor: &domain::Processor,
+        initiator: Option<&domain::Initiator>,
         mandate_type: Option<api_models::payments::MandateTransactionType>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         let external_authentication_flow =
@@ -1395,6 +1397,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     payment_data.payment_intent.psd2_sca_exemption_type,
                     billing_address,
                     shipping,
+                    initiator,
                 ))
                 .await?;
                 if authentication_store
@@ -1757,6 +1760,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                         bank_code: None,
                                         nick_name: None,
                                         eci: authentication_details.eci,
+                                        par: None,
                                     }),common_enums::AuthenticationStatus::Success)
                             },
 
@@ -1795,7 +1799,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             None,
                             None,
                             None,
-                            platform.get_processor().get_key_store()
+                            platform.get_processor(),
+                            platform.get_initiator(),
                         )
                         .await?;
                         let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
@@ -1847,7 +1852,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     None,
                     None,
                     None,
-                    platform.get_processor().get_key_store()
+                    platform.get_processor(),
+                    platform.get_initiator(),
                 )
                 .await?;
             let acquirer_configs = authentication
