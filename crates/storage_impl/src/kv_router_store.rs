@@ -49,6 +49,12 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             .as_ref()
             .ok_or_else(|| errors::StorageError::DecryptionError)
     }
+    pub fn update_key_manager_request_id(&mut self, request_id: String) {
+        if let Some(ref mut km_state) = self.key_manager_state {
+            km_state.request_id = Some(request_id.clone());
+        }
+        self.router_store.update_key_manager_request_id(request_id);
+    }
 }
 
 pub struct InsertResourceParams<'a> {

@@ -569,8 +569,8 @@ impl AppState {
             enabled: km_conf.enabled,
             url: km_conf.url.clone(),
             client_idle_timeout: conf.proxy.idle_pool_connection_timeout,
-            #[cfg(feature = "km_forward_x_request_id")]
             request_id: None,
+            event_emitter: Some(Arc::new(event_handler.clone())),
             #[cfg(feature = "keymanager_mtls")]
             cert: km_conf.cert.clone(),
             #[cfg(feature = "keymanager_mtls")]

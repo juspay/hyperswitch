@@ -9,14 +9,16 @@ use http::{HeaderMap, HeaderName, HeaderValue, Method, StatusCode};
 use masking::{PeekInterface, StrongSecret};
 use once_cell::sync::OnceCell;
 use router_env::{instrument, logger, tracing};
+use time::OffsetDateTime;
 
 use crate::{
     consts::{BASE64_ENGINE, TENANT_HEADER},
     errors,
     types::keymanager::{
         BatchDecryptDataRequest, DataKeyCreateResponse, DecryptDataRequest,
-        EncryptionCreateRequest, EncryptionTransferRequest, GetKeymanagerTenant, KeyManagerState,
-        TransientBatchDecryptDataRequest, TransientDecryptDataRequest,
+        EncryptionCreateRequest, EncryptionTransferRequest, ExternalServiceCall,
+        GetKeymanagerTenant, KeyManagerState, TransientBatchDecryptDataRequest,
+        TransientDecryptDataRequest,
     },
 };
 
@@ -105,6 +107,11 @@ where
 {
     let url = format!("{}/{endpoint}", &state.url);
 
+    // Capture values before they are moved
+    let tenant_id = request_body.get_tenant_id(state).get_string_repr().to_owned();
+    let method_str = method.to_string();
+    let request_id = state.request_id.clone();
+
     logger::info!(key_manager_request=?request_body);
     let mut header = vec![];
     header.push((
@@ -127,50 +134,99 @@ where
     header.push((
         HeaderName::from_str(TENANT_HEADER)
             .change_context(errors::KeyManagerClientError::FailedtoConstructHeader)?,
-        HeaderValue::from_str(request_body.get_tenant_id(state).get_string_repr())
+        HeaderValue::from_str(&tenant_id)
             .change_context(errors::KeyManagerClientError::FailedtoConstructHeader)?,
     ));
+
+    let start_time = std::time::Instant::now();
 
     let response = send_encryption_request(
         state,
         HeaderMap::from_iter(header.into_iter()),
-        url,
+        url.clone(),
         method,
         request_body,
     )
     .await
-    .map_err(|err| err.change_context(errors::KeyManagerClientError::RequestSendFailed))?;
+    .map_err(|err| err.change_context(errors::KeyManagerClientError::RequestSendFailed));
+
+    let latency_ms = start_time.elapsed().as_millis();
+    let created_at_timestamp = OffsetDateTime::now_utc().unix_timestamp_nanos();
+
+    let response = match response {
+        Ok(resp) => resp,
+        Err(err) => {
+            // Emit event for request failure
+            if let Some(ref emitter) = state.event_emitter {
+                emitter.emit_external_service_call(ExternalServiceCall {
+                    service_name: "keymanager".to_string(),
+                    endpoint: endpoint.to_string(),
+                    method: method_str,
+                    request_id,
+                    tenant_id,
+                    status_code: None,
+                    latency_ms,
+                    created_at_timestamp,
+                    error: Some("Request failed".to_string()),
+                });
+            }
+            return Err(err);
+        }
+    };
 
     logger::info!(key_manager_response=?response);
+
+    let status_code = response.status().as_u16();
+
+    let emit_event = |error: Option<String>| {
+        if let Some(ref emitter) = state.event_emitter {
+            emitter.emit_external_service_call(ExternalServiceCall {
+                service_name: "keymanager".to_string(),
+                endpoint: endpoint.to_string(),
+                method: method_str,
+                request_id,
+                tenant_id,
+                status_code: Some(status_code),
+                latency_ms,
+                created_at_timestamp,
+                error,
+            });
+        }
+    };
 
     match response.status() {
         StatusCode::OK => response
             .json::<R>()
             .await
+            .map(|result| {
+                emit_event(None);
+                result
+            })
             .change_context(errors::KeyManagerClientError::ResponseDecodingFailed),
         StatusCode::INTERNAL_SERVER_ERROR => {
-            Err(errors::KeyManagerClientError::InternalServerError(
-                response
-                    .bytes()
-                    .await
-                    .change_context(errors::KeyManagerClientError::ResponseDecodingFailed)?,
-            )
-            .into())
+            let bytes = response
+                .bytes()
+                .await
+                .change_context(errors::KeyManagerClientError::ResponseDecodingFailed)?;
+            emit_event(Some("Internal server error".to_string()));
+            Err(errors::KeyManagerClientError::InternalServerError(bytes).into())
         }
-        StatusCode::BAD_REQUEST => Err(errors::KeyManagerClientError::BadRequest(
-            response
+        StatusCode::BAD_REQUEST => {
+            let bytes = response
                 .bytes()
                 .await
-                .change_context(errors::KeyManagerClientError::ResponseDecodingFailed)?,
-        )
-        .into()),
-        _ => Err(errors::KeyManagerClientError::Unexpected(
-            response
+                .change_context(errors::KeyManagerClientError::ResponseDecodingFailed)?;
+            emit_event(Some("Bad request".to_string()));
+            Err(errors::KeyManagerClientError::BadRequest(bytes).into())
+        }
+        _ => {
+            let bytes = response
                 .bytes()
                 .await
-                .change_context(errors::KeyManagerClientError::ResponseDecodingFailed)?,
-        )
-        .into()),
+                .change_context(errors::KeyManagerClientError::ResponseDecodingFailed)?;
+            emit_event(Some(format!("Unexpected status: {}", status_code)));
+            Err(errors::KeyManagerClientError::Unexpected(bytes).into())
+        }
     }
 }
 

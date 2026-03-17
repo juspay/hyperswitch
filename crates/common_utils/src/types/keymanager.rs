@@ -1,13 +1,13 @@
 #![allow(missing_docs)]
 
 use core::fmt;
+use std::sync::Arc;
 
 use base64::Engine;
 use masking::{ExposeInterface, PeekInterface, Secret, Strategy, StrongSecret};
 #[cfg(feature = "encryption_service")]
 use router_env::logger;
-#[cfg(feature = "km_forward_x_request_id")]
-use router_env::RequestId;
+
 use rustc_hash::FxHashMap;
 use serde::{
     de::{self, Unexpected, Visitor},
@@ -43,8 +43,8 @@ pub struct KeyManagerState {
     pub enabled: bool,
     pub url: String,
     pub client_idle_timeout: Option<u64>,
-    #[cfg(feature = "km_forward_x_request_id")]
-    pub request_id: Option<RequestId>,
+    pub request_id: Option<String>,
+    pub event_emitter: Option<Arc<dyn ExternalServiceEventEmitter>>,
     #[cfg(feature = "keymanager_mtls")]
     pub ca: Secret<String>,
     #[cfg(feature = "keymanager_mtls")]
@@ -62,8 +62,8 @@ impl KeyManagerState {
             enabled: Default::default(),
             url: String::default(),
             client_idle_timeout: Default::default(),
-            #[cfg(feature = "km_forward_x_request_id")]
-            request_id: Default::default(),
+            request_id: None,
+            event_emitter: None,
             #[cfg(feature = "keymanager_mtls")]
             ca: Default::default(),
             #[cfg(feature = "keymanager_mtls")]
@@ -552,4 +552,24 @@ pub trait ToEncryptable<T, S: Clone, E>: Sized {
     fn from_encryptable(
         hashmap: FxHashMap<String, Encryptable<S>>,
     ) -> CustomResult<T, errors::ParsingError>;
+}
+
+/// Represents a completed call to an external service.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ExternalServiceCall {
+    pub service_name: String,
+    pub endpoint: String,
+    pub method: String,
+    pub request_id: Option<String>,
+    pub tenant_id: String,
+    pub status_code: Option<u16>,
+    pub latency_ms: u128,
+    pub created_at_timestamp: i128,
+    pub error: Option<String>,
+}
+
+/// Trait for emitting external service call events to Kafka.
+/// Debug supertrait needed so KeyManagerState can derive Debug.
+pub trait ExternalServiceEventEmitter: std::fmt::Debug + Send + Sync {
+    fn emit_external_service_call(&self, event: ExternalServiceCall);
 }

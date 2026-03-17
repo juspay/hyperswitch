@@ -19,6 +19,7 @@ pub mod api_logs;
 pub mod audit_events;
 pub mod connector_api_logs;
 pub mod event_logger;
+pub mod external_service_call;
 pub mod outgoing_webhook_logs;
 pub mod routing_api_logs;
 #[derive(Debug, Serialize, Clone, Copy)]
@@ -39,6 +40,7 @@ pub enum EventType {
     Authentication,
     RoutingApiLogs,
     RevenueRecovery,
+    ExternalServiceCall,
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]
@@ -68,6 +70,15 @@ impl Default for EventsHandler {
 impl events_interfaces::EventHandlerInterface for EventsHandler {
     fn log_connector_event(&self, event: &events_interfaces::connector_api_logs::ConnectorEvent) {
         self.log_event(event);
+    }
+}
+
+impl common_utils::types::keymanager::ExternalServiceEventEmitter for EventsHandler {
+    fn emit_external_service_call(
+        &self,
+        event: common_utils::types::keymanager::ExternalServiceCall,
+    ) {
+        self.log_event(&external_service_call::KafkaExternalServiceCall { event: &event });
     }
 }
 
