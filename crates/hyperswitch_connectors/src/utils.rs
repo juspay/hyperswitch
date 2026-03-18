@@ -6758,6 +6758,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
     fn from(pm_data: PaymentMethodData) -> Self {
         match pm_data {
             PaymentMethodData::Card(_) => Self::Card,
+            PaymentMethodData::CardWithOptionalCVC(_) => Self::Card,
             PaymentMethodData::NetworkToken(_) => Self::NetworkToken,
             PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Self::NetworkTransactionIdAndCardDetails
@@ -7563,6 +7564,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
             .clone(),
         rrn: None,
         feature_metadata: None,
+        installment_details: None,
     }
 }
 

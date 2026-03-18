@@ -31,7 +31,7 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     consts,
     core::{
-        configs::dimension_state::DimensionsWithMerchantId,
+        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payment_link,
@@ -697,7 +697,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
         initiator: Option<&domain::Initiator>,
-        dimensions: DimensionsWithMerchantId,
+        dimensions: DimensionsWithMerchantIdAndProfileId,
     ) -> CustomResult<(PaymentCreateOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
     {
         match provider.get_account().merchant_account_type {
@@ -742,7 +742,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         payment_data: &mut PaymentData<F>,
         _connector_call_type: &ConnectorCallType,
         business_profile: &domain::Profile,
-        platform: &domain::Platform,
+        processor: &domain::Processor,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         let is_tax_connector_enabled = business_profile.get_is_tax_connector_enabled();
         let skip_external_tax_calculation = payment_data
@@ -762,7 +762,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                     &business_profile.merchant_id,
                     merchant_connector_id,
-                    platform.get_processor().get_key_store(),
+                    processor.get_key_store(),
                 )
                 .await
                 .to_not_found_response(
@@ -786,7 +786,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
             let router_data = core_utils::construct_payments_dynamic_tax_calculation_router_data(
                 state,
-                platform,
+                processor,
                 payment_data,
                 &mca,
             )
@@ -864,8 +864,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .clone())
                     .get_required_value("profile_id")?;
 
-                let (payment_method_reference, is_off_session_payment) =
-                    self.get_payment_method_reference_and_off_session_status(req);
+                let payment_method_reference = self.get_payment_method_reference(req);
 
                 let pm_info = if let Some(payment_method_ref) = payment_method_reference {
                     // Fetch payment method using PM Modular Service
@@ -875,14 +874,16 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         &profile_id,
                         payment_method_ref,
                         None, // CVC token data is not passed in create api
-                        is_off_session_payment,
                     )
                     .await?;
                     logger::info!("Payment method fetched from PM Modular Service.");
 
                     utils::when(
                         pm_info.payment_method.0.customer_id
-                            != req.customer_id.clone().get_required_value("customer_id")?,
+                            != req
+                                .get_customer_id()
+                                .get_required_value("customer_id")?
+                                .clone(),
                         || {
                             logger::info!("Payment method id does not belong to the customer id provided in the request.");
                             Err(errors::ApiErrorResponse::PaymentMethodNotFound)
@@ -942,7 +943,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
     async fn get_connector<'a>(
         &'a self,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         state: &SessionState,
         request: &api::PaymentsRequest,
         _payment_intent: &storage::PaymentIntent,
@@ -1167,6 +1168,13 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
         })?;
 
         if request.confirm.unwrap_or(false) {
+            helpers::validate_installment_data_in_create(
+                &request.installment_options,
+                &request.installment_data,
+            )?;
+        }
+
+        if request.confirm.unwrap_or(false) {
             helpers::validate_pm_or_token_given(
                 &request.payment_method,
                 &request
@@ -1222,28 +1230,15 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
 }
 
 impl PaymentCreate {
-    /// Determines the payment method reference and off-session status for modular payment flows.
-    ///
-    /// Client payment uses `setup_future_usage=off_session` without `off_session=true`.
-    /// Mark it as off-session so modular raw PM conversion
-    /// can fall back to mandate payment data when CVC is unavailable.
-    fn get_payment_method_reference_and_off_session_status(
-        self,
-        req: &api::PaymentsRequest,
-    ) -> (Option<&String>, bool) {
-        match (
-            req.off_session,
-            req.recurring_details.as_ref(),
-            req.setup_future_usage,
-        ) {
+    /// Determines the payment method reference for modular payment flows.
+    fn get_payment_method_reference(self, req: &api::PaymentsRequest) -> Option<&String> {
+        match (req.off_session, req.recurring_details.as_ref()) {
             // Payment using off_session MITs using PM ID
-            (Some(true), Some(RecurringDetails::PaymentMethodId(payment_method_id)), _) => {
-                (Some(payment_method_id), true)
+            (Some(true), Some(RecurringDetails::PaymentMethodId(payment_method_id))) => {
+                Some(payment_method_id)
             }
-            // Payment by client using tokens (PSP / NTI flows)
-            (_, _, Some(enums::FutureUsage::OffSession)) => (req.payment_token.as_ref(), true),
             // All other cases
-            _ => (req.payment_token.as_ref(), false),
+            _ => req.payment_token.as_ref(),
         }
     }
 
@@ -1579,6 +1574,7 @@ impl PaymentCreate {
                 encrypted_payment_method_data: None,
                 error_details: None,
                 retry_type: None,
+                installment_data: None,
             },
             additional_pm_data,
 
