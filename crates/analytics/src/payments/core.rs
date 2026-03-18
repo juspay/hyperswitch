@@ -215,9 +215,7 @@ pub async fn get_metrics(
                                 .add_metrics_bucket(&value);
                         }
                         PaymentMetrics::RevenueRecovered => {
-                            metrics_builder
-                                .revenue_recovered
-                                .add_metrics_bucket(&value);
+                            metrics_builder.revenue_recovered.add_metrics_bucket(&value);
                         }
                         PaymentMetrics::RevenueRecoveredByCode => {
                             metrics_builder

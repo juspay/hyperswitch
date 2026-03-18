@@ -849,8 +849,12 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     retry_type: payment_attempt.retry_type,
                     installment_data: payment_attempt.installment_data.clone(),
                     recovered_from_error_code: payment_attempt.recovered_from_error_code.clone(),
-                    recovered_from_error_reason: payment_attempt.recovered_from_error_reason.clone(),
-                    recovered_from_standardised_code: payment_attempt.recovered_from_standardised_code.clone(),
+                    recovered_from_error_reason: payment_attempt
+                        .recovered_from_error_reason
+                        .clone(),
+                    recovered_from_standardised_code: payment_attempt
+                        .recovered_from_standardised_code
+                        .clone(),
                     recovered_from_connector: payment_attempt.recovered_from_connector.clone(),
                 };
 

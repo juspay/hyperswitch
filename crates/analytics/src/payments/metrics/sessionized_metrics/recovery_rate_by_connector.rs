@@ -12,7 +12,10 @@ use time::PrimitiveDateTime;
 use super::PaymentMetricRow;
 use crate::{
     enums::AuthInfo,
-    query::{Aggregate, FilterTypes, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql, Window},
+    query::{
+        Aggregate, FilterTypes, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql,
+        Window,
+    },
     types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult},
 };
 
