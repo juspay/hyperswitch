@@ -7,14 +7,12 @@ use masking::StrongSecret;
 
 use super::{errors, transformers::generate_fingerprint, SessionState};
 use crate::{
-    consts,
     core::{
         errors::{RouterResult, StorageErrorExt},
         payments::PaymentData,
     },
     logger,
     types::{domain, storage, transformers::ForeignInto},
-    utils,
 };
 
 pub async fn delete_entry_from_blocklist(
@@ -204,34 +202,28 @@ pub async fn get_merchant_fingerprint_secret(
     state: &SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
 ) -> RouterResult<String> {
-    let key = merchant_id.get_merchant_fingerprint_secret_key();
-    let config_fetch_result = state.store.find_config_by_key(&key).await;
+    use crate::core::configs::dimension_state::DimensionsWithMerchantId;
 
-    match config_fetch_result {
-        Ok(config) => Ok(config.config),
+    // Use the FingerprintSecret config from dimension_config
+    let dimensions = DimensionsWithMerchantId::from_merchant_id(merchant_id.clone());
 
-        Err(e) if e.current_context().is_db_not_found() => {
-            let new_fingerprint_secret =
-                utils::generate_id(consts::FINGERPRINT_SECRET_LENGTH, "fs");
-            let new_config = storage::ConfigNew {
-                key,
-                config: new_fingerprint_secret.clone(),
-            };
+    // Fetch from Superposition only
+    let secret = dimensions
+        .get_fingerprint_secret(
+            &*state.store,
+            state.superposition_service.as_deref(),
+            None, // No targeting key needed for merchant-level config
+        )
+        .await;
 
-            state
-                .store
-                .insert_config(new_config)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("unable to create new fingerprint secret for merchant")?;
-
-            Ok(new_fingerprint_secret)
-        }
-
-        Err(e) => Err(e)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("error fetching merchant fingerprint secret"),
+    // If we got a non-empty secret, return it
+    if !secret.is_empty() {
+        return Ok(secret);
     }
+
+    // If secret is empty (not found in Superposition), return error
+    Err(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("fingerprint_secret not found in Superposition for merchant")
 }
 
 async fn duplicate_check_insert_bin(

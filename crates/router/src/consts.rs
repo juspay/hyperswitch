@@ -354,6 +354,8 @@ pub mod superposition {
     pub const REQUIRES_CVV: &str = "requires_cvv";
     /// implicit customer update configuration key
     pub const IMPLICIT_CUSTOMER_UPDATE: &str = "implicit_customer_update";
+    /// Fingerprint secret configuration key
+    pub const FINGERPRINT_SECRET: &str = "fingerprint_secret";
 }
 
 #[cfg(test)]
