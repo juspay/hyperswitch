@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use common_enums::connector_enums::Connector;
 use common_utils::id_type;
 use external_services::superposition;
 
@@ -13,6 +14,8 @@ pub enum DimensionError {
     MissingOrganizationId,
     #[error("profile_id not available in dimension state")]
     MissingProfileId,
+    #[error("connector not available in dimension state")]
+    MissingConnector,
 }
 
 /// Marker for state WITHOUT merchant_id
@@ -49,13 +52,13 @@ pub struct HasConnector;
 /// * `M` - Merchant ID type: `HasMerchantId` (present) or `NoMerchantId` (absent)
 /// * `O` - Organization ID type: `HasOrgId` (present) or `NoOrgId` (absent)
 /// * `P` - Profile ID type: `HasProfileId` (present) or `NoProfileId` (absent)
-/// * `C` - Connector type: `HasConnector` (present) or `NoConnector` (absent)
-pub struct Dimensions<M, O, P, C> {
+/// * `Cn` - Connector type: `HasConnector` (present) or `NoConnector` (absent)
+pub struct Dimensions<M, O, P, Cn> {
     merchant_id: Option<id_type::MerchantId>,
     organization_id: Option<id_type::OrganizationId>,
     profile_id: Option<id_type::ProfileId>,
-    connector: Option<types::Connector>,
-    _phantom: PhantomData<(M, O, P, C)>,
+    connector: Option<Connector>,
+    _phantom: PhantomData<(M, O, P, Cn)>,
 }
 
 impl Dimensions<NoMerchantId, NoOrgId, NoProfileId, NoConnector> {
@@ -71,12 +74,12 @@ impl Dimensions<NoMerchantId, NoOrgId, NoProfileId, NoConnector> {
 }
 
 /// Can only add merchant_id if not already present
-impl<O, P, C> Dimensions<NoMerchantId, O, P, C> {
-    pub fn with_merchant_id(self, id: id_type::MerchantId) -> Dimensions<HasMerchantId, O, P, C> {
+impl<O, P, Cn> Dimensions<NoMerchantId, O, P, Cn> {
+    pub fn with_merchant_id(&self, id: id_type::MerchantId) -> Dimensions<HasMerchantId, O, P, Cn> {
         Dimensions {
             merchant_id: Some(id),
-            organization_id: self.organization_id,
-            profile_id: self.profile_id,
+            organization_id: self.organization_id.clone(),
+            profile_id: self.profile_id.clone(),
             connector: self.connector,
             _phantom: PhantomData,
         }
@@ -84,15 +87,15 @@ impl<O, P, C> Dimensions<NoMerchantId, O, P, C> {
 }
 
 /// Can only add organization_id if not already present
-impl<M, P, C> Dimensions<M, NoOrgId, P, C> {
+impl<M, P, Cn> Dimensions<M, NoOrgId, P, Cn> {
     pub fn with_organization_id(
-        self,
+        &self,
         id: id_type::OrganizationId,
-    ) -> Dimensions<M, HasOrgId, P, C> {
+    ) -> Dimensions<M, HasOrgId, P, Cn> {
         Dimensions {
-            merchant_id: self.merchant_id,
+            merchant_id: self.merchant_id.clone(),
             organization_id: Some(id),
-            profile_id: self.profile_id,
+            profile_id: self.profile_id.clone(),
             connector: self.connector,
             _phantom: PhantomData,
         }
@@ -100,11 +103,11 @@ impl<M, P, C> Dimensions<M, NoOrgId, P, C> {
 }
 
 /// Can only add profile_id if not already present
-impl<M, O, C> Dimensions<M, O, NoProfileId, C> {
-    pub fn with_profile_id(self, id: id_type::ProfileId) -> Dimensions<M, O, HasProfileId, C> {
+impl<M, O, Cn> Dimensions<M, O, NoProfileId, Cn> {
+    pub fn with_profile_id(&self, id: id_type::ProfileId) -> Dimensions<M, O, HasProfileId, Cn> {
         Dimensions {
-            merchant_id: self.merchant_id,
-            organization_id: self.organization_id,
+            merchant_id: self.merchant_id.clone(),
+            organization_id: self.organization_id.clone(),
             profile_id: Some(id),
             connector: self.connector,
             _phantom: PhantomData,
@@ -114,7 +117,7 @@ impl<M, O, C> Dimensions<M, O, NoProfileId, C> {
 
 /// Can only add connector if not already present
 impl<M, O, P> Dimensions<M, O, P, NoConnector> {
-    pub fn with_connector(&self, connector: types::Connector) -> Dimensions<M, O, P, HasConnector> {
+    pub fn with_connector(&self, connector: Connector) -> Dimensions<M, O, P, HasConnector> {
         Dimensions {
             merchant_id: self.merchant_id.clone(),
             organization_id: self.organization_id.clone(),
@@ -125,8 +128,60 @@ impl<M, O, P> Dimensions<M, O, P, NoConnector> {
     }
 }
 
+/// Can only remove merchant_id if currently present
+impl<O, P, Cn> Dimensions<HasMerchantId, O, P, Cn> {
+    pub fn without_merchant_id(&self) -> Dimensions<NoMerchantId, O, P, Cn> {
+        Dimensions {
+            merchant_id: None,
+            organization_id: self.organization_id.clone(),
+            profile_id: self.profile_id.clone(),
+            connector: self.connector,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+/// Can only remove organization_id if currently present
+impl<M, P, Cn> Dimensions<M, HasOrgId, P, Cn> {
+    pub fn without_organization_id(&self) -> Dimensions<M, NoOrgId, P, Cn> {
+        Dimensions {
+            merchant_id: self.merchant_id.clone(),
+            organization_id: None,
+            profile_id: self.profile_id.clone(),
+            connector: self.connector,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+/// Can only remove profile_id if currently present
+impl<M, O, Cn> Dimensions<M, O, HasProfileId, Cn> {
+    pub fn without_profile_id(&self) -> Dimensions<M, O, NoProfileId, Cn> {
+        Dimensions {
+            merchant_id: self.merchant_id.clone(),
+            organization_id: self.organization_id.clone(),
+            profile_id: None,
+            connector: self.connector,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+/// Can only remove connector if currently present
+impl<M, O, P> Dimensions<M, O, P, HasConnector> {
+    pub fn without_connector(&self) -> Dimensions<M, O, P, NoConnector> {
+        Dimensions {
+            merchant_id: self.merchant_id.clone(),
+            organization_id: self.organization_id.clone(),
+            profile_id: self.profile_id.clone(),
+            connector: None,
+            _phantom: PhantomData,
+        }
+    }
+}
+
 /// merchant_id getter - only available if HasMerchantId
-impl<O, P, C> Dimensions<HasMerchantId, O, P, C> {
+impl<O, P, Cn> Dimensions<HasMerchantId, O, P, Cn> {
     pub fn merchant_id(&self) -> Result<&id_type::MerchantId, DimensionError> {
         self.merchant_id
             .as_ref()
@@ -135,7 +190,7 @@ impl<O, P, C> Dimensions<HasMerchantId, O, P, C> {
 }
 
 /// organization_id getter - only available if HasOrgId
-impl<M, P, C> Dimensions<M, HasOrgId, P, C> {
+impl<M, P, Cn> Dimensions<M, HasOrgId, P, Cn> {
     pub fn organization_id(&self) -> Result<&id_type::OrganizationId, DimensionError> {
         self.organization_id
             .as_ref()
@@ -144,7 +199,7 @@ impl<M, P, C> Dimensions<M, HasOrgId, P, C> {
 }
 
 /// profile_id getter - only available if HasProfileId
-impl<M, O, C> Dimensions<M, O, HasProfileId, C> {
+impl<M, O, Cn> Dimensions<M, O, HasProfileId, Cn> {
     pub fn profile_id(&self) -> Result<&id_type::ProfileId, DimensionError> {
         self.profile_id
             .as_ref()
@@ -154,13 +209,13 @@ impl<M, O, C> Dimensions<M, O, HasProfileId, C> {
 
 /// connector getter - only available if HasConnector
 impl<M, O, P> Dimensions<M, O, P, HasConnector> {
-    pub fn connector(&self) -> Result<types::Connector, DimensionError> {
-        self.connector.ok_or(DimensionError::MissingProfileId)
+    pub fn connector(&self) -> Result<Connector, DimensionError> {
+        self.connector.ok_or(DimensionError::MissingConnector)
     }
 }
 
 // Optional getters (available in any state)
-impl<M, O, P, C> Dimensions<M, O, P, C> {
+impl<M, O, P, Cn> Dimensions<M, O, P, Cn> {
     pub fn get_merchant_id(&self) -> Option<&id_type::MerchantId> {
         self.merchant_id.as_ref()
     }
@@ -173,13 +228,13 @@ impl<M, O, P, C> Dimensions<M, O, P, C> {
         self.profile_id.as_ref()
     }
 
-    pub fn get_connector(&self) -> Option<types::Connector> {
+    pub fn get_connector(&self) -> Option<Connector> {
         self.connector
     }
 }
 
 // Superposition context conversion
-impl<M, O, P, C> Dimensions<M, O, P, C> {
+impl<M, O, P, Cn> Dimensions<M, O, P, Cn> {
     /// Converts dimension state to Superposition config context
     pub fn to_superposition_context(&self) -> Option<superposition::ConfigContext> {
         let mut ctx = superposition::ConfigContext::new();
@@ -196,9 +251,10 @@ impl<M, O, P, C> Dimensions<M, O, P, C> {
             ctx = ctx.with("profile_id", pid.get_string_repr());
         }
 
-        if let Some(connector) = self.connector {
-            ctx = ctx.with("connector", &connector.to_string())
+        if let Some(conn) = self.connector {
+            ctx = ctx.with("connector", conn.to_string().as_str());
         }
+
         Some(ctx)
     }
 }
@@ -223,10 +279,11 @@ pub trait DimensionsBase {
     /// Get profile_id (if available)
     fn get_profile_id(&self) -> Option<&id_type::ProfileId>;
 
-    fn get_connector(&self) -> Option<types::Connector>;
+    /// Get connector (if available)
+    fn get_connector(&self) -> Option<Connector>;
 }
 
-impl<M, O, P, C> DimensionsBase for Dimensions<M, O, P, C> {
+impl<M, O, P, Cn> DimensionsBase for Dimensions<M, O, P, Cn> {
     fn to_superposition_context(&self) -> Option<superposition::ConfigContext> {
         self.to_superposition_context()
     }
@@ -243,13 +300,19 @@ impl<M, O, P, C> DimensionsBase for Dimensions<M, O, P, C> {
         self.get_profile_id()
     }
 
-    fn get_connector(&self) -> Option<types::Connector> {
+    fn get_connector(&self) -> Option<Connector> {
         self.get_connector()
     }
 }
 
 pub type DimensionsWithMerchantId = Dimensions<HasMerchantId, NoOrgId, NoProfileId, NoConnector>;
+pub type DimensionsWithOrgIdAndMerchantId =
+    Dimensions<HasMerchantId, HasOrgId, NoProfileId, NoConnector>;
+pub type DimensionsWithOrgIdAndMerchantIdAndProfileId =
+    Dimensions<HasMerchantId, HasOrgId, HasProfileId, NoConnector>;
 pub type DimensionsWithMerchantIdAndProfileId =
     Dimensions<HasMerchantId, NoOrgId, HasProfileId, NoConnector>;
 pub type DimensionsWithMerchantIdAndConnector =
     Dimensions<HasMerchantId, NoOrgId, NoProfileId, HasConnector>;
+pub type DimensionsWithMerchantIdAndProfileIdAndConnector =
+    Dimensions<HasMerchantId, NoOrgId, HasProfileId, HasConnector>;
