@@ -59,8 +59,8 @@ prost = { version = "0.13", optional = true }
 prost-types = { version = "0.13", optional = true }
 time = { version = "0.3.41", features = ["serde", "serde-well-known", "std"] }
 tokio = "1.48.0"
-tonic = "0.13.1"
-tonic-reflection = "0.13.1"
+tonic = "0.14"
+tonic-reflection = "0.14.0"
 tonic-types = "0.13.1"
 typed-builder = "0.21.2"
 hyper-util = { version = "0.1.12", optional = true }
@@ -69,7 +69,7 @@ reqwest = { version = "0.11.27", features = ["rustls-tls"] }
 http = "0.2.12"
 url = { version = "2.5.4", features = ["serde"] }
 quick-xml = { version = "0.31.0", features = ["serialize"] }
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "95144b0829b8b3d8c4b0914921b43540abb6ac50", package = "rust-grpc-client" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", branch = "hotfix-2026.03.04.0" , package = "rust-grpc-client" }
 open-feature = { version = "0.2.5", optional = true }
 superposition_provider = { version = "0.97.0", optional = true }
 
@@ -87,7 +87,7 @@ api_models = { version = "0.1.0", path = "../api_models", optional = true }
 
 
 [build-dependencies]
-tonic-build = "0.13.1"
+tonic-build = "0.14"
 router_env = { version = "0.1.0", path = "../router_env", default-features = false, optional = true }
 
 [lints]

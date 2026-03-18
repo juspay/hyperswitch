@@ -11,7 +11,7 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{PaymentsResponseData, RedirectForm},
 };
-use unified_connector_service_masking::ExposeInterface;
+use hyperswitch_masking::ExposeInterface;
 
 use crate::{
     helpers::{ForeignFrom, ForeignTryFrom},

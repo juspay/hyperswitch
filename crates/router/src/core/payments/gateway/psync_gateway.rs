@@ -11,8 +11,8 @@ use hyperswitch_interfaces::{
     errors::ConnectorError,
     unified_connector_service::handle_unified_connector_service_response_for_payment_get,
 };
+use hyperswitch_masking::ExposeInterface as UcsMaskingExposeInterface;
 use unified_connector_service_client::payments as payments_grpc;
-use unified_connector_service_masking::ExposeInterface as UcsMaskingExposeInterface;
 
 use crate::{
     core::{
