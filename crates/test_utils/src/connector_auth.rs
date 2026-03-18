@@ -57,6 +57,7 @@ pub struct ConnectorAuthentication {
     pub facilitapay: Option<BodyKey>,
     pub finix: Option<HeaderKey>,
     pub fiserv: Option<SignatureKey>,
+    pub fiservcommercehub: Option<HeaderKey>,
     pub fiservemea: Option<HeaderKey>,
     pub fiuu: Option<HeaderKey>,
     pub flexiti: Option<HeaderKey>,

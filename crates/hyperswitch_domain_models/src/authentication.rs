@@ -96,6 +96,8 @@ pub struct Authentication {
     pub customer_details: Option<Encryption>,
     pub amount: Option<common_utils::types::MinorUnit>,
     pub merchant_country_code: Option<String>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<common_utils::types::CreatedBy>,
 }
 
 impl Authentication {
@@ -211,6 +213,8 @@ impl behaviour::Conversion for Authentication {
             merchant_country_code: self.merchant_country_code,
             billing_country: self.billing_country,
             shipping_country: self.shipping_country,
+            processor_merchant_id: self.processor_merchant_id,
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
         })
     }
 
@@ -346,6 +350,10 @@ impl behaviour::Conversion for Authentication {
             billing_country: other.billing_country,
             shipping_country: other.shipping_country,
             merchant_country_code: other.merchant_country_code,
+            processor_merchant_id: other.processor_merchant_id,
+            created_by: other
+                .created_by
+                .and_then(|created_by| created_by.parse::<common_utils::types::CreatedBy>().ok()),
         })
     }
 
@@ -424,6 +432,8 @@ impl behaviour::Conversion for Authentication {
             authentication_data: __self.authentication_data,
             billing_country: __self.billing_country,
             shipping_country: __self.shipping_country,
+            processor_merchant_id: __self.processor_merchant_id,
+            created_by: __self.created_by.map(|created_by| created_by.to_string()),
         })
     }
 }
