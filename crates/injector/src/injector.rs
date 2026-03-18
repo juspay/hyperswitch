@@ -277,13 +277,16 @@ pub mod core {
         let mut req_builder = client.request(method, &request.url);
 
         // Add headers
+        logger::debug!("=== REQUEST HEADERS ({} total) ===", request.headers.len());
         for (key, value) in &request.headers {
             let header_value = match value {
                 masking::Maskable::Masked(secret) => secret.clone().expose(),
                 masking::Maskable::Normal(normal) => normal.clone(),
             };
+            logger::debug!("  Header: {} = {}", key, header_value);
             req_builder = req_builder.header(key, header_value);
         }
+        logger::debug!("=== END REQUEST HEADERS ===");
 
         // Add body if present
         if let Some(body) = request.body {
@@ -698,6 +701,7 @@ pub mod core {
             } else {
                 Proxy::default()
             };
+            logger::debug!("Vault Proxy URL: {}", url);
 
             // Track outgoing HTTP calls with dimensions
             let endpoint_host = config
@@ -713,6 +717,46 @@ pub mod core {
                     ("endpoint_host", endpoint_host)
                 ),
             );
+
+            // Log the full outgoing request details
+            logger::debug!("=== OUTGOING HTTP REQUEST ===");
+            logger::debug!("  URL: {}", request.url);
+            logger::debug!("  Method: {:?}", request.method);
+            logger::debug!("  Headers count: {}", request.headers.len());
+            for (key, value) in &request.headers {
+                let header_value = match value {
+                    masking::Maskable::Masked(secret) => secret.clone().expose(),
+                    masking::Maskable::Normal(normal) => normal.clone(),
+                };
+                logger::debug!("  Header: {} = {}", key, header_value);
+            }
+            if let Some(ref body) = request.body {
+                match body {
+                    RequestContent::Json(json) => {
+                        logger::debug!("  Body (JSON): {}", serde_json::to_string_pretty(json.as_ref()).unwrap_or_default());
+                    }
+                    RequestContent::FormUrlEncoded(form) => {
+                        logger::debug!("  Body (Form): {:?}", form);
+                    }
+                    RequestContent::RawBytes(bytes) => {
+                        logger::debug!("  Body (Raw): {} bytes", bytes.len());
+                        if let Ok(text) = std::str::from_utf8(bytes) {
+                            logger::debug!("  Body (Raw text): {}", text);
+                        }
+                    }
+                    _ => {
+                        logger::debug!("  Body: (other content type)");
+                    }
+                }
+            } else {
+                logger::debug!("  Body: None");
+            }
+            logger::debug!("  has_certificate: {}", request.certificate.is_some());
+            logger::debug!("  has_certificate_key: {}", request.certificate_key.is_some());
+            logger::debug!("  has_ca_certificate: {}", request.ca_certificate.is_some());
+            logger::debug!("  Proxy HTTP URL: {:?}", proxy.http_url);
+            logger::debug!("  Proxy HTTPS URL: {:?}", proxy.https_url);
+            logger::debug!("=== END OUTGOING HTTP REQUEST ===");
 
             // Send request using local standalone http client
             let response = send_request(&proxy, request, None).await?;
