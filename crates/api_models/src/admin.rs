@@ -270,7 +270,6 @@ pub struct CardTestingGuardConfig {
 }
 
 /// Configuration for payment method blocking based on card attributes
-#[cfg(feature = "v1")]
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct PaymentMethodBlockingConfig {
     /// Card-specific blocking configuration
@@ -278,7 +277,6 @@ pub struct PaymentMethodBlockingConfig {
 }
 
 /// Card-specific blocking configuration
-#[cfg(feature = "v1")]
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct CardBlockingConfig {
     /// Set of issuing countries to block using ISO 3166-1 alpha-2 codes (e.g., ["IN", "US"])
