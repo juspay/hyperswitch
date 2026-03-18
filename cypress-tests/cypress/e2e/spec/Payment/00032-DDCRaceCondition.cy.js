@@ -35,7 +35,7 @@ describe("[Payment] DDC Race Condition", () => {
         connector = globalState.get("connectorId");
 
         if (
-          shouldIncludeConnector(
+          !shouldIncludeConnector(
             connector,
             CONNECTOR_LISTS.INCLUDE.DDC_RACE_CONDITION
           )

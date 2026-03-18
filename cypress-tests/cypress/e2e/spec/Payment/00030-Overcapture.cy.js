@@ -17,7 +17,7 @@ describe("[Payment] Overcapture", () => {
 
         // Skip the test if the connector is not in the inclusion list
         if (
-          utils.shouldIncludeConnector(
+          !utils.shouldIncludeConnector(
             connector,
             utils.CONNECTOR_LISTS.INCLUDE.OVERCAPTURE
           )

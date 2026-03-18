@@ -27,7 +27,7 @@ describe("Manual Retry Tests", () => {
 
       const connectorId = globalState.get("connectorId");
       if (
-        utils.shouldIncludeConnector(
+        !utils.shouldIncludeConnector(
           connectorId,
           utils.CONNECTOR_LISTS.INCLUDE.MANUAL_RETRY
         )
@@ -99,7 +99,7 @@ describe("Manual Retry Tests", () => {
 
       const connectorId = globalState.get("connectorId");
       if (
-        utils.shouldIncludeConnector(
+        !utils.shouldIncludeConnector(
           connectorId,
           utils.CONNECTOR_LISTS.INCLUDE.MANUAL_RETRY
         )
@@ -171,7 +171,7 @@ describe("Manual Retry Tests", () => {
 
       const connectorId = globalState.get("connectorId");
       if (
-        utils.shouldIncludeConnector(
+        !utils.shouldIncludeConnector(
           connectorId,
           utils.CONNECTOR_LISTS.INCLUDE.MANUAL_RETRY
         )
@@ -247,7 +247,7 @@ describe("Manual Retry Tests", () => {
 
       const connectorId = globalState.get("connectorId");
       if (
-        utils.shouldIncludeConnector(
+        !utils.shouldIncludeConnector(
           connectorId,
           utils.CONNECTOR_LISTS.INCLUDE.MANUAL_RETRY
         )
