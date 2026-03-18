@@ -18,6 +18,7 @@ v2 = ["hyperswitch_interfaces/v2", "common_utils/v2"]
 revenue_recovery = [
     "dep:prost",
     "dep:router_env",
+    "dep:tonic-prost",
     "tokio/macros",
     "tokio/rt-multi-thread",
     "dep:hyper-util",
@@ -27,6 +28,7 @@ revenue_recovery = [
 dynamic_routing = [
     "dep:prost",
     "dep:api_models",
+    "dep:tonic-prost",
     "tokio/macros",
     "tokio/rt-multi-thread",
     "dep:router_env",
@@ -55,11 +57,12 @@ thiserror = "1.0.69"
 serde_json = "1.0.140"
 serde_urlencoded = "0.7.1"
 vaultrs = { version = "0.7.4", optional = true }
-prost = { version = "0.13", optional = true }
-prost-types = { version = "0.13", optional = true }
+prost = { version = "0.14", optional = true }
+prost-types = { version = "0.14", optional = true }
 time = { version = "0.3.41", features = ["serde", "serde-well-known", "std"] }
 tokio = "1.48.0"
 tonic = "0.14"
+tonic-prost = { version = "0.14", optional = true }
 tonic-reflection = "0.14.0"
 tonic-types = "0.13.1"
 typed-builder = "0.21.2"
@@ -87,8 +90,8 @@ api_models = { version = "0.1.0", path = "../api_models", optional = true }
 
 
 [build-dependencies]
-tonic-build = "0.14"
 router_env = { version = "0.1.0", path = "../router_env", default-features = false, optional = true }
+tonic-prost-build = "0.14"
 
 [lints]
 workspace = true
