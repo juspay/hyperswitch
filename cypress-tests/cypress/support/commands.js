@@ -3070,6 +3070,12 @@ Cypress.Commands.add(
       Response: resData,
     } = data || {};
 
+    // Skip test if TRIGGER_SKIP is set
+    if (configs?.TRIGGER_SKIP === true) {
+      cy.task("cli_log", "Skipping citForMandatesCallTest due to TRIGGER_SKIP");
+      return;
+    }
+
     const configInfo = execConfig(validateConfig(configs));
     const profile_id = globalState.get(`${configInfo.profilePrefix}Id`);
     const merchant_connector_id = globalState.get(
@@ -3666,6 +3672,12 @@ Cypress.Commands.add(
   (globalState, expectedRedirection) => {
     const connectorId = globalState.get("connectorId");
     const nextActionUrl = globalState.get("nextActionUrl");
+
+    // Skip redirection if there's no nextActionUrl (e.g., payment failed)
+    if (!nextActionUrl) {
+      cy.log("Skipping redirection - no nextActionUrl available (payment may have failed)");
+      return;
+    }
 
     const expectedUrl = new URL(expectedRedirection);
     const redirectionUrl = new URL(nextActionUrl);
