@@ -280,10 +280,13 @@ pub struct PaymentMethodBlockingConfig {
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct CardBlockingConfig {
     /// Set of issuing countries to block using ISO 3166-1 alpha-2 codes (e.g., ["IN", "US"])
+    #[schema(value_type = Option<Vec<CountryAlpha2>>)]
     pub issuing_country: Option<HashSet<common_enums::CountryAlpha2>>,
     /// Set of card types to block (e.g., ["Credit", "Debit"])
+    #[schema(value_type = Option<Vec<CardType>>)]
     pub card_types: Option<HashSet<common_enums::CardType>>,
     /// Set of card subtypes to block
+    #[schema(value_type = Option<Vec<CardSubtype>>)]
     pub card_subtypes: Option<HashSet<common_enums::CardSubtype>>,
     /// Set of card issuers to block (e.g., ["HDFC Bank", "ICICI Bank"])
     pub issuers: Option<HashSet<String>>,
