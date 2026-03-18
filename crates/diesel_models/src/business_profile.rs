@@ -442,6 +442,7 @@ pub struct Profile {
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub is_l2_l3_enabled: Option<bool>,
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
@@ -454,7 +455,6 @@ pub struct Profile {
     pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
     pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
-    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
 }
 
 impl Profile {
