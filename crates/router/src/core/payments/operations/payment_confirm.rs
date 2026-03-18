@@ -1538,6 +1538,9 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 })
                 .ok()
                 .flatten();
+            // Compute card_discovery and set it on payment_attempt BEFORE the 3DS rule evaluation
+            let card_discovery_value = payment_data.get_card_discovery_for_card_payment_method();
+            payment_data.payment_attempt.card_discovery = card_discovery_value;
             // get three_ds_decision_rule_output using algorithm_id and payment data
             let decision = three_ds_decision_rule::get_three_ds_decision_rule_output(
                 state,
