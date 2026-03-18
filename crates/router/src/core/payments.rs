@@ -10023,76 +10023,8 @@ where
             None,
             None,
             Some(api::MandateTransactionType::RecurringMandateTransaction),
-        ) => {
-            if !has_token_data {
-                logger::debug!("euclid_routing: modular fallback token-MIT path selected");
-            }
-            logger::debug!("euclid_routing: performing routing for token-based MIT flow");
-            let payment_method_info = payment_data
-                .get_payment_method_info()
-                .get_required_value("payment_method_info")?
-                .clone();
-
-            let retryable_connectors =
-                join_all(connectors.into_iter().map(|connector_routing_data| {
-                    let payment_method = payment_method_info.clone();
-                    async move {
-                        let action_types = get_all_action_types(
-                            state,
-                            is_connector_agnostic_mit_enabled,
-                            is_network_tokenization_enabled,
-                            &payment_method.clone(),
-                            connector_routing_data.connector_data.clone(),
-                        )
-                        .await;
-
-                        action_types
-                            .into_iter()
-                            .map(|action_type| api::ConnectorRoutingData {
-                                connector_data: connector_routing_data.connector_data.clone(),
-                                action_type: Some(action_type),
-                                network: connector_routing_data.network.clone(),
-                            })
-                            .collect::<Vec<_>>()
-                    }
-                }))
-                .await
-                .into_iter()
-                .flatten()
-                .collect::<Vec<_>>();
-
-            let chosen_connector_routing_data = retryable_connectors
-                .first()
-                .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
-                .attach_printable("no eligible connector found for token-based MIT payment")?;
-
-            let mandate_reference_id = get_mandate_reference_id(
-                chosen_connector_routing_data.action_type.clone(),
-                chosen_connector_routing_data.clone(),
-                payment_data,
-                &payment_method_info,
-            )?;
-
-            routing_data.routed_through = Some(
-                chosen_connector_routing_data
-                    .connector_data
-                    .connector_name
-                    .to_string(),
-            );
-
-            routing_data.merchant_connector_id.clone_from(
-                &chosen_connector_routing_data
-                    .connector_data
-                    .merchant_connector_id,
-            );
-
-            payment_data.set_mandate_id(payments_api::MandateIds {
-                mandate_id: None,
-                mandate_reference_id,
-            });
-            Ok(ConnectorCallType::Retryable(retryable_connectors))
-        }
-        (
+        )
+        | (
             None,
             _,
             Some(RecurringDetails::PaymentMethodId(_)),
@@ -10100,6 +10032,9 @@ where
             Some(api::MandateTransactionType::RecurringMandateTransaction),
         )
         | (None, true, None, Some(true), _) => {
+            if !has_token_data {
+                logger::debug!("euclid_routing: modular fallback token-MIT path selected");
+            }
             logger::debug!("euclid_routing: performing routing for token-based MIT flow");
             let payment_method_info = payment_data
                 .get_payment_method_info()
