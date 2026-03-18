@@ -735,8 +735,8 @@ pub mod core {
                     RequestContent::Json(json) => {
                         logger::debug!("  Body (JSON): {}", serde_json::to_string_pretty(json.as_ref()).unwrap_or_default());
                     }
-                    RequestContent::FormUrlEncoded(form) => {
-                        logger::debug!("  Body (Form): {:?}", form);
+                    RequestContent::FormUrlEncoded(_form) => {
+                        logger::debug!("  Body (Form): <form-urlencoded data>");
                     }
                     RequestContent::RawBytes(bytes) => {
                         logger::debug!("  Body (Raw): {} bytes", bytes.len());
