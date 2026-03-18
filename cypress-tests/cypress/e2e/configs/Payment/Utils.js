@@ -157,7 +157,7 @@ const connectorDetails = {
  * @param {string} connectorId - The test connector ID
  * @returns {string} - The backend connector name
  */
-export function getBackendConnectorName(connectorId) {
+export function getOriginalConnectorName(connectorId) {
   return connectorId === "stripeconnect" ? "stripe" : connectorId;
 }
 
