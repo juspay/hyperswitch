@@ -4,8 +4,6 @@ use common_enums::connector_enums::Connector;
 use common_utils::id_type;
 use external_services::superposition;
 
-use crate::types;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum DimensionError {
     #[error("merchant_id not available in dimension state")]

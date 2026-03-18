@@ -2520,7 +2520,7 @@ pub async fn fulfill_payout(
 
             // add payout sync task to process tracker
 
-            add_payout_sync_task_to_process_tracker(
+            payout_sync::PayoutSyncWorkFlow::add_payout_sync_task_to_process_tracker(
                 db,
                 payout_data,
                 scheduled_time,
@@ -3297,48 +3297,6 @@ pub async fn add_external_account_addition_task(
 
     db.insert_process(process_tracker_entry).await?;
     Ok(())
-}
-
-pub async fn add_payout_sync_task_to_process_tracker(
-    db: &dyn StorageInterface,
-    payout_data: &PayoutData,
-    schedule_time: Option<time::PrimitiveDateTime>,
-    application_source: common_enums::ApplicationSource,
-) -> CustomResult<(), errors::StorageError> {
-    match schedule_time {
-        Some(schedule_time) => {
-            let runner = storage::ProcessTrackerRunner::PayoutSyncWorkFlow;
-            let task = "PAYOUTS_SYNC";
-            let tag = ["PAYOUTS", "SYNC"];
-            let process_tracker_id = pt_utils::get_process_tracker_id(
-                runner,
-                task,
-                &payout_data.payout_attempt.payout_attempt_id,
-                &payout_data.payout_attempt.merchant_id,
-            );
-            let tracking_data = api::PayoutRetrieveRequest {
-                payout_id: payout_data.payouts.payout_id.to_owned(),
-                force_sync: Some(true),
-                merchant_id: Some(payout_data.payouts.merchant_id.to_owned()),
-            };
-            let process_tracker_entry = storage::ProcessTrackerNew::new(
-                process_tracker_id,
-                task,
-                runner,
-                tag,
-                tracking_data,
-                None,
-                schedule_time,
-                common_types::consts::API_VERSION,
-                application_source,
-            )
-            .map_err(errors::StorageError::from)?;
-
-            db.insert_process(process_tracker_entry).await?;
-            Ok(())
-        }
-        None => Ok(()),
-    }
 }
 
 async fn validate_and_get_business_profile(

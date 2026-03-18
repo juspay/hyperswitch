@@ -16,6 +16,7 @@ use crate::{
         configs::{self, dimension_state::DimensionsWithMerchantIdAndConnector},
         payouts, webhooks,
     },
+    db::StorageInterface,
     errors as core_errors,
     routes::SessionState,
     types::{api, domain, storage},
@@ -136,6 +137,47 @@ impl ProcessTrackerWorkflow<SessionState> for PayoutSyncWorkFlow {
 }
 
 impl PayoutSyncWorkFlow {
+    pub async fn add_payout_sync_task_to_process_tracker(
+        db: &dyn StorageInterface,
+        payout_data: &payouts::PayoutData,
+        schedule_time: Option<time::PrimitiveDateTime>,
+        application_source: common_enums::ApplicationSource,
+    ) -> common_utils::errors::CustomResult<(), core_errors::StorageError> {
+        match schedule_time {
+            Some(schedule_time) => {
+                let runner = storage::ProcessTrackerRunner::PayoutSyncWorkFlow;
+                let task = "PAYOUTS_SYNC";
+                let tag = ["PAYOUTS", "SYNC"];
+                let process_tracker_id = scheduler_utils::get_process_tracker_id(
+                    runner,
+                    task,
+                    &payout_data.payout_attempt.payout_attempt_id,
+                    &payout_data.payout_attempt.merchant_id,
+                );
+                let tracking_data = api::PayoutRetrieveRequest {
+                    payout_id: payout_data.payouts.payout_id.to_owned(),
+                    force_sync: Some(true),
+                    merchant_id: Some(payout_data.payouts.merchant_id.to_owned()),
+                };
+                let process_tracker_entry = storage::ProcessTrackerNew::new(
+                    process_tracker_id,
+                    task,
+                    runner,
+                    tag,
+                    tracking_data,
+                    None,
+                    schedule_time,
+                    common_types::consts::API_VERSION,
+                    application_source,
+                )
+                .map_err(core_errors::StorageError::from)?;
+
+                db.insert_process(process_tracker_entry).await?;
+                Ok(())
+            }
+            None => Ok(()),
+        }
+    }
     /// Get the next schedule time
     ///
     /// The schedule time can be configured in configs by this key `payout_tracker_mapping_trustpay`
