@@ -8,7 +8,7 @@ use error_stack::report;
 use hyperswitch_domain_models::{
     payment_method_data::{
         ApplePayWalletData, BankRedirectData, Card, GooglePayWalletData, NetworkTokenData,
-        PayLaterData, PaymentMethodData, WalletData,
+        PayLaterData, PaymentMethodData, SamsungPayWalletData, WalletData,
     },
     payment_methods::storage_enums::MitCategory,
     router_data::{ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
@@ -176,6 +176,9 @@ pub enum PaymentDetails {
     Klarna,
     Mandate,
     AciNetworkToken(Box<AciNetworkTokenData>),
+    AciApplePayEncrypted(Box<AciApplePayEncryptedData>),
+    AciGooglePayEncrypted(Box<AciGooglePayEncryptedData>),
+    AciSamsungPay(Box<AciSamsungPayData>),
 }
 
 impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for PaymentDetails {
@@ -194,12 +197,15 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for PaymentDetails {
                 payment_brand: PaymentBrand::AliPay,
                 account_id: None,
             })),
+            // ApplePay and GooglePay are handled separately in AciPaymentsRequest::try_from
+            // to extract decrypted token data
             WalletData::ApplePay(_) | WalletData::GooglePay(_) => {
                 Err(errors::ConnectorError::FlowNotSupported {
                     flow: "Wallet via PaymentDetails".to_string(),
                     connector: "ACI".to_string(),
                 })?
             }
+            WalletData::SamsungPay(samsung_pay_data) => Self::try_from(samsung_pay_data.as_ref())?,
             WalletData::AliPayHkRedirect(_)
             | WalletData::AmazonPayRedirect(_)
             | WalletData::Paysera(_)
@@ -217,7 +223,6 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for PaymentDetails {
             | WalletData::PaypalRedirect(_)
             | WalletData::PaypalSdk(_)
             | WalletData::Paze(_)
-            | WalletData::SamsungPay(_)
             | WalletData::TwintRedirect { .. }
             | WalletData::VippsRedirect { .. }
             | WalletData::TouchNGoRedirect(_)
@@ -255,36 +260,50 @@ impl
     ) -> Result<Self, Self::Error> {
         let (_item, apple_pay_wallet_data, payment_method_token) = value;
 
-        // Extract decrypted Apple Pay data
-        let apple_pay_data = get_apple_pay_data(apple_pay_wallet_data, payment_method_token)?;
+        // Try to get decrypted data; if available, use tokenAccount.* flow
+        match get_apple_pay_data(apple_pay_wallet_data, payment_method_token) {
+            Ok(apple_pay_data) => {
+                let payment_brand =
+                    parse_wallet_card_network(&apple_pay_wallet_data.payment_method.network)
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "apple_pay.payment_method.network",
+                        })?;
 
-        // Get card network from wallet metadata
-        let payment_brand = parse_wallet_card_network(
-            &apple_pay_wallet_data.payment_method.network,
-        )
-        .ok_or(errors::ConnectorError::MissingRequiredField {
-            field_name: "apple_pay.payment_method.network",
-        })?;
+                let aci_network_token_data = AciNetworkTokenData {
+                    token_type: AciTokenAccountType::Network,
+                    token_number: NetworkToken::from(
+                        apple_pay_data.application_primary_account_number.clone(),
+                    ),
+                    token_expiry_month: apple_pay_data.application_expiration_month.clone(),
+                    token_expiry_year: apple_pay_data.get_four_digit_expiry_year(),
+                    token_cryptogram: Some(
+                        apple_pay_data
+                            .payment_data
+                            .online_payment_cryptogram
+                            .clone(),
+                    ),
+                    eci: apple_pay_data.payment_data.eci_indicator.clone(),
+                    payment_brand,
+                };
 
-        // Build ACI network token data from decrypted Apple Pay data
-        let aci_network_token_data = AciNetworkTokenData {
-            token_type: AciTokenAccountType::Network,
-            token_number: NetworkToken::from(
-                apple_pay_data.application_primary_account_number.clone(),
-            ),
-            token_expiry_month: apple_pay_data.application_expiration_month.clone(),
-            token_expiry_year: apple_pay_data.get_four_digit_expiry_year(),
-            token_cryptogram: Some(
-                apple_pay_data
+                Ok(Self::AciNetworkToken(Box::new(aci_network_token_data)))
+            }
+            // Fall back to encrypted passthrough — let ACI decrypt
+            Err(_) => {
+                let encrypted_token = apple_pay_wallet_data
                     .payment_data
-                    .online_payment_cryptogram
-                    .clone(),
-            ),
-            eci: apple_pay_data.payment_data.eci_indicator.clone(),
-            payment_brand,
-        };
+                    .get_encrypted_apple_pay_payment_data_optional()
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "apple_pay.payment_data (encrypted)",
+                    })?;
 
-        Ok(Self::AciNetworkToken(Box::new(aci_network_token_data)))
+                Ok(Self::AciApplePayEncrypted(Box::new(
+                    AciApplePayEncryptedData {
+                        payment_token: Secret::new(encrypted_token.clone()),
+                    },
+                )))
+            }
+        }
     }
 }
 
@@ -306,33 +325,66 @@ impl
     ) -> Result<Self, Self::Error> {
         let (_item, google_pay_wallet_data, payment_method_token) = value;
 
-        // Extract decrypted Google Pay data
-        let google_pay_data = get_google_pay_data(google_pay_wallet_data, payment_method_token)?;
+        // Try to get decrypted data; if available, use tokenAccount.* flow
+        match get_google_pay_data(google_pay_wallet_data, payment_method_token) {
+            Ok(google_pay_data) => {
+                let payment_brand = parse_wallet_card_network(
+                    &google_pay_wallet_data.info.card_network,
+                )
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "google_pay.info.card_network",
+                })?;
 
-        // Get card network from wallet metadata
-        let payment_brand = parse_wallet_card_network(&google_pay_wallet_data.info.card_network)
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "google_pay.info.card_network",
-            })?;
+                let aci_network_token_data = AciNetworkTokenData {
+                    token_type: AciTokenAccountType::Network,
+                    token_number: NetworkToken::from(
+                        google_pay_data.application_primary_account_number.clone(),
+                    ),
+                    token_expiry_month: google_pay_data.card_exp_month.clone(),
+                    token_expiry_year: google_pay_data.get_four_digit_expiry_year().map_err(
+                        |_| errors::ConnectorError::MissingRequiredField {
+                            field_name: "google_pay.card_exp_year",
+                        },
+                    )?,
+                    token_cryptogram: google_pay_data.cryptogram.clone(),
+                    eci: google_pay_data.eci_indicator.clone(),
+                    payment_brand,
+                };
 
-        // Build ACI network token data from decrypted Google Pay data
-        let aci_network_token_data = AciNetworkTokenData {
-            token_type: AciTokenAccountType::Network,
-            token_number: NetworkToken::from(
-                google_pay_data.application_primary_account_number.clone(),
-            ),
-            token_expiry_month: google_pay_data.card_exp_month.clone(),
-            token_expiry_year: google_pay_data.get_four_digit_expiry_year().map_err(|_| {
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "google_pay.card_exp_year",
-                }
-            })?,
-            token_cryptogram: google_pay_data.cryptogram.clone(),
-            eci: google_pay_data.eci_indicator.clone(),
+                Ok(Self::AciNetworkToken(Box::new(aci_network_token_data)))
+            }
+            // Fall back to encrypted passthrough — let ACI decrypt
+            Err(_) => {
+                let encrypted_token = google_pay_wallet_data
+                    .tokenization_data
+                    .get_encrypted_google_pay_token()
+                    .map_err(|_| errors::ConnectorError::MissingRequiredField {
+                        field_name: "google_pay.tokenization_data (encrypted)",
+                    })?;
+
+                Ok(Self::AciGooglePayEncrypted(Box::new(
+                    AciGooglePayEncryptedData {
+                        payment_token: Secret::new(encrypted_token),
+                    },
+                )))
+            }
+        }
+    }
+}
+
+/// Convert Samsung Pay encrypted token to ACI Samsung Pay format
+impl TryFrom<&SamsungPayWalletData> for PaymentDetails {
+    type Error = Error;
+    fn try_from(samsung_pay_data: &SamsungPayWalletData) -> Result<Self, Self::Error> {
+        let payment_brand =
+            parse_samsung_pay_card_brand(&samsung_pay_data.payment_credential.card_brand)?;
+
+        let aci_samsung_pay_data = AciSamsungPayData {
+            payment_token: samsung_pay_data.payment_credential.token_data.data.clone(),
             payment_brand,
         };
 
-        Ok(Self::AciNetworkToken(Box::new(aci_network_token_data)))
+        Ok(Self::AciSamsungPay(Box::new(aci_samsung_pay_data)))
     }
 }
 
@@ -522,6 +574,22 @@ fn parse_wallet_card_network(network: &str) -> Option<PaymentBrand> {
     }
 }
 
+fn parse_samsung_pay_card_brand(
+    card_brand: &common_enums::SamsungPayCardBrand,
+) -> Result<PaymentBrand, Error> {
+    match card_brand {
+        common_enums::SamsungPayCardBrand::Visa => Ok(PaymentBrand::Visa),
+        common_enums::SamsungPayCardBrand::MasterCard => Ok(PaymentBrand::Mastercard),
+        common_enums::SamsungPayCardBrand::Amex => Ok(PaymentBrand::AmericanExpress),
+        common_enums::SamsungPayCardBrand::Discover => Ok(PaymentBrand::Discover),
+        common_enums::SamsungPayCardBrand::Unknown => {
+            Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "samsung_pay.card_brand",
+            })?
+        }
+    }
+}
+
 fn get_apple_pay_data(
     apple_pay_wallet_data: &ApplePayWalletData,
     payment_method_token: Option<&PaymentMethodToken>,
@@ -640,6 +708,29 @@ pub struct AciNetworkTokenData {
     #[serde(rename = "threeDSecure.eci")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub eci: Option<String>,
+    #[serde(rename = "paymentBrand")]
+    pub payment_brand: PaymentBrand,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciApplePayEncryptedData {
+    #[serde(rename = "applePay.paymentToken")]
+    pub payment_token: Secret<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciGooglePayEncryptedData {
+    #[serde(rename = "googlePay.paymentToken")]
+    pub payment_token: Secret<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciSamsungPayData {
+    #[serde(rename = "samsungPay.paymentToken")]
+    pub payment_token: Secret<String>,
     #[serde(rename = "paymentBrand")]
     pub payment_brand: PaymentBrand,
 }
@@ -877,7 +968,20 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &WalletData)> for Ac
                     recurring_type: None,
                 })
             }
+            WalletData::SamsungPay(samsung_pay_data) => {
+                let payment_method = PaymentDetails::try_from(samsung_pay_data.as_ref())?;
+                let instruction = get_instruction_details(item);
 
+                Ok(Self {
+                    txn_details,
+                    payment_method,
+                    instruction,
+                    shopper_result_url: item.router_data.request.router_return_url.clone(),
+                    three_ds_two_enrolled: None,
+                    recurring_type: None,
+                })
+            }
+            // Handle other wallet types via PaymentDetails::try_from
             _ => {
                 let payment_method = PaymentDetails::try_from((wallet_data, item.router_data))?;
 
