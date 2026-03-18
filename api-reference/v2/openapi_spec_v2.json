@@ -7004,6 +7004,9 @@
           },
           {
             "$ref": "#/components/schemas/PixBankTransfer"
+          },
+          {
+            "$ref": "#/components/schemas/TrustlyBankTransfer"
           }
         ]
       },
@@ -7020,6 +7023,9 @@
           },
           {
             "$ref": "#/components/schemas/PixBankTransferAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/TrustlyBankTransferAdditionalData"
           }
         ],
         "description": "Masked payout method details for bank payout method"
@@ -7557,17 +7563,6 @@
                 "$ref": "#/components/schemas/OpenBankingUk"
               }
             }
-          },
-          {
-            "type": "object",
-            "required": [
-              "trustly"
-            ],
-            "properties": {
-              "trustly": {
-                "$ref": "#/components/schemas/Trustly"
-              }
-            }
           }
         ]
       },
@@ -7578,9 +7573,6 @@
           },
           {
             "$ref": "#/components/schemas/InteracAdditionalData"
-          },
-          {
-            "$ref": "#/components/schemas/TrustlyAdditionalData"
           }
         ],
         "description": "Masked payout method details for wallet payout method"
@@ -29981,7 +29973,7 @@
           "external"
         ]
       },
-      "Trustly": {
+      "TrustlyBankTransfer": {
         "type": "object",
         "required": [
           "iban",
@@ -30010,9 +30002,9 @@
           }
         }
       },
-      "TrustlyAdditionalData": {
+      "TrustlyBankTransferAdditionalData": {
         "type": "object",
-        "description": "Masked payout method details for Trustly bank redirect payout method",
+        "description": "Masked payout method details for Trustly bank transfer payout method",
         "required": [
           "iban",
           "country_code",
