@@ -632,14 +632,9 @@ pub mod core {
 
             // Extract vault metadata directly from headers using existing functions
 
-            let (vault_proxy_url, vault_ca_cert) = if config
-                .headers
-                .contains_key(crate::consts::EXTERNAL_VAULT_METADATA_HEADER)
+            let (vault_proxy_url, vault_ca_cert) =
             {
-                let mut temp_config = injector_types::ConnectionConfig::new(
-                    config.endpoint.clone(),
-                    config.http_method,
-                );
+                let mut temp_config = config.clone();
 
                 // Use existing vault metadata extraction with fallback
                 if temp_config.extract_and_apply_vault_metadata_with_fallback(&config.headers) {
@@ -647,8 +642,6 @@ pub mod core {
                 } else {
                     (None, None)
                 }
-            } else {
-                (None, None)
             };
 
             // Build request safely with certificate configuration
@@ -678,12 +671,24 @@ pub mod core {
                 cert_format = ?final_config.cert_format,
                 "Certificate configuration applied"
             );
+            logger::debug!(
+                "Vault Proxy URL (from metadata): {}",
+                vault_proxy_url.as_ref().map(|p| p.clone().expose()).unwrap_or_else(|| "None".to_string())
+            );
+            logger::debug!(
+                "Backup Proxy URL (from config): {}",
+                config.backup_proxy_url.as_ref().map(|p| p.clone().expose()).unwrap_or_else(|| "None".to_string())
+            );
 
             // Build request with certificate configuration applied
             let request = build_request_with_certificates(request_builder, &final_config);
 
             // Determine which proxy to use: vault metadata > backup > none
             let final_proxy_url = vault_proxy_url.or_else(|| config.backup_proxy_url.clone());
+            logger::debug!(
+                "Final Proxy URL (selected): {}",
+                final_proxy_url.as_ref().map(|p| p.clone().expose()).unwrap_or_else(|| "None".to_string())
+            );
 
             let proxy = if let Some(proxy_url) = final_proxy_url {
                 let proxy_url_str = proxy_url.expose();
