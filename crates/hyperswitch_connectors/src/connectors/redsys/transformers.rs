@@ -427,7 +427,15 @@ impl TryFrom<&Option<PaymentMethodData>> for RedsysCardData {
             | Some(PaymentMethodData::CardToken(..))
             | Some(PaymentMethodData::NetworkToken(..))
             | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
-            | Some(PaymentMethodData::CardWithOptionalCVC(_))
+            | Some(
+                PaymentMethodData::CardWithOptionalCVC(_)
+                | PaymentMethodData::CardWithNetworkTokenDetails(
+                    hyperswitch_domain_models::payment_method_data::CardWithNetworkTokenDetails {
+                        card_details: _,
+                        ..
+                    },
+                ),
+            )
             | Some(PaymentMethodData::CardWithLimitedDetails(_))
             | Some(PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_))
             | Some(PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_))

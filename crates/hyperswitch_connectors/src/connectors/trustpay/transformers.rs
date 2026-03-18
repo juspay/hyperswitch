@@ -610,6 +610,12 @@ impl TryFrom<&TrustpayRouterData<&PaymentsAuthorizeRouterData>> for TrustpayPaym
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(
+                hyperswitch_domain_models::payment_method_data::CardWithNetworkTokenDetails {
+                    card_details: _,
+                    ..
+                },
+            )
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {

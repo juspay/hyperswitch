@@ -525,6 +525,12 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(
+                hyperswitch_domain_models::payment_method_data::CardWithNetworkTokenDetails {
+                    card_details: _,
+                    ..
+                },
+            )
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -903,6 +909,12 @@ impl TryFrom<&PaymentsAuthorizeRouterData> for PayRequest {
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(
+                hyperswitch_domain_models::payment_method_data::CardWithNetworkTokenDetails {
+                    card_details: _,
+                    ..
+                },
+            )
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -978,7 +990,15 @@ impl TryFrom<&PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
             | Some(PaymentMethodData::CardToken(_))
             | Some(PaymentMethodData::NetworkToken(_))
             | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
-            | Some(PaymentMethodData::CardWithOptionalCVC(_))
+            | Some(
+                PaymentMethodData::CardWithOptionalCVC(_)
+                | PaymentMethodData::CardWithNetworkTokenDetails(
+                    hyperswitch_domain_models::payment_method_data::CardWithNetworkTokenDetails {
+                        card_details: _,
+                        ..
+                    },
+                ),
+            )
             | Some(PaymentMethodData::CardWithLimitedDetails(_))
             | Some(PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_))
             | Some(PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_))
@@ -1026,6 +1046,12 @@ impl TryFrom<&TokenizationRouterData> for CaptureBuyerRequest {
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(
+                hyperswitch_domain_models::payment_method_data::CardWithNetworkTokenDetails {
+                    card_details: _,
+                    ..
+                },
+            )
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {

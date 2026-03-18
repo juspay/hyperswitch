@@ -214,6 +214,12 @@ impl TryFrom<&MifinityRouterData<&types::PaymentsAuthorizeRouterData>> for Mifin
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(
+                hyperswitch_domain_models::payment_method_data::CardWithNetworkTokenDetails {
+                    card_details: _,
+                    ..
+                },
+            )
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {

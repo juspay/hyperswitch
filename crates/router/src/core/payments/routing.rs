@@ -405,6 +405,11 @@ pub fn make_dsl_input(
             .and_then(|pm_data| match pm_data {
                 domain::PaymentMethodData::Card(card) => card.card_network.clone(),
                 domain::PaymentMethodData::CardWithOptionalCVC(card) => card.card_network.clone(),
+                domain::PaymentMethodData::CardWithNetworkTokenDetails(
+                    domain::CardWithNetworkTokenDetails {
+                        card_details: card, ..
+                    },
+                ) => card.card_network.clone(),
                 domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
                     card_details_for_ntid,
                 ) => card_details_for_ntid.card_network.clone(),
@@ -446,6 +451,11 @@ pub fn make_dsl_input(
             .and_then(|pm_data| match pm_data {
                 domain::PaymentMethodData::Card(card) => card.card_issuer.clone(),
                 domain::PaymentMethodData::CardWithOptionalCVC(card) => card.card_issuer.clone(),
+                domain::PaymentMethodData::CardWithNetworkTokenDetails(
+                    domain::CardWithNetworkTokenDetails {
+                        card_details: card, ..
+                    },
+                ) => card.card_issuer.clone(),
                 domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
                     card_details_for_ntid,
                 ) => card_details_for_ntid.card_issuer.clone(),

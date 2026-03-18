@@ -30,8 +30,6 @@ use router_env::logger;
 use router_env::RequestId;
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "v1")]
-use crate::core::utils as core_utils;
 use crate::{
     configs::settings,
     core::{
@@ -1487,38 +1485,89 @@ impl
             Option<domain::CardToken>,
         ),
     ) -> Result<Self, Self::Error> {
-        let card_detail = match raw_data {
-            payment_methods::types::RawPaymentMethodData::Card(card_detail) => card_detail,
-            payment_methods::types::RawPaymentMethodData::CardWithNT(card_with_nt) => {
-                card_with_nt.card_details
+        match raw_data {
+            payment_methods::types::RawPaymentMethodData::Card(card_detail) => {
+                let card_cvc = card_token
+                    .as_ref()
+                    .and_then(|token| token.card_cvc.clone())
+                    .or(card_detail.card_cvc.clone());
+                let card_holder_name = card_token
+                    .and_then(|token| token.card_holder_name.clone())
+                    .or(card_detail.card_holder_name.clone());
+
+                Ok(Self(domain::PaymentMethodData::CardWithOptionalCVC(
+                    hyperswitch_domain_models::payment_method_data::CardWithOptionalCVC {
+                        card_number: card_detail.card_number,
+                        card_exp_month: card_detail.card_exp_month,
+                        card_exp_year: card_detail.card_exp_year,
+                        card_cvc,
+                        card_issuer: card_detail.card_issuer,
+                        card_network: card_detail.card_network,
+                        card_type: card_detail.card_type.map(|card_type| card_type.to_string()),
+                        card_issuing_country: card_detail.card_issuing_country,
+                        card_issuing_country_code: None,
+                        bank_code: None,
+                        nick_name: card_detail.nick_name,
+                        card_holder_name,
+                        co_badged_card_data: None,
+                    },
+                )))
             }
-        };
+            payment_methods::types::RawPaymentMethodData::CardWithNT(card_with_nt) => {
+                let card_cvc = card_token
+                    .as_ref()
+                    .and_then(|token| token.card_cvc.clone())
+                    .or(card_with_nt.card_details.card_cvc.clone());
+                let card_holder_name = card_token
+                    .and_then(|token| token.card_holder_name.clone())
+                    .or(card_with_nt.card_details.card_holder_name.clone());
 
-        let card_cvc = card_token
-            .as_ref()
-            .and_then(|token| token.card_cvc.clone())
-            .or(card_detail.card_cvc.clone());
-        let card_holder_name = card_token
-            .and_then(|token| token.card_holder_name.clone())
-            .or(card_detail.card_holder_name.clone());
-
-        Ok(Self(domain::PaymentMethodData::CardWithOptionalCVC(
-            hyperswitch_domain_models::payment_method_data::CardWithOptionalCVC {
-                card_number: card_detail.card_number,
-                card_exp_month: card_detail.card_exp_month,
-                card_exp_year: card_detail.card_exp_year,
-                card_cvc,
-                card_issuer: card_detail.card_issuer,
-                card_network: card_detail.card_network,
-                card_type: card_detail.card_type.map(|card_type| card_type.to_string()),
-                card_issuing_country: card_detail.card_issuing_country,
-                card_issuing_country_code: None,
-                bank_code: None,
-                nick_name: card_detail.nick_name,
-                card_holder_name,
-                co_badged_card_data: None,
-            },
-        )))
+                Ok(Self(domain::PaymentMethodData::CardWithNetworkTokenDetails(
+                    domain::CardWithNetworkTokenDetails {
+                        card_details:
+                            hyperswitch_domain_models::payment_method_data::CardWithOptionalCVC {
+                                card_number: card_with_nt.card_details.card_number,
+                                card_exp_month: card_with_nt.card_details.card_exp_month,
+                                card_exp_year: card_with_nt.card_details.card_exp_year,
+                                card_cvc,
+                                card_issuer: card_with_nt.card_details.card_issuer,
+                                card_network: card_with_nt.card_details.card_network,
+                                card_type: card_with_nt
+                                    .card_details
+                                    .card_type
+                                    .map(|card_type| card_type.to_string()),
+                                card_issuing_country: card_with_nt.card_details.card_issuing_country,
+                                card_issuing_country_code: None,
+                                bank_code: None,
+                                nick_name: card_with_nt.card_details.nick_name,
+                                card_holder_name,
+                                co_badged_card_data: None,
+                            },
+                        network_token_details:
+                            domain::NetworkTokenDetailsForNetworkTransactionId {
+                                network_token: card_with_nt.network_token_details.card_number.into(),
+                                token_exp_month: card_with_nt.network_token_details.card_exp_month,
+                                token_exp_year: card_with_nt.network_token_details.card_exp_year,
+                                card_issuer: card_with_nt.network_token_details.card_issuer,
+                                card_network: card_with_nt.network_token_details.card_network,
+                                card_type: card_with_nt
+                                    .network_token_details
+                                    .card_type
+                                    .map(|card_type| card_type.to_string()),
+                                card_issuing_country: card_with_nt
+                                    .network_token_details
+                                    .card_issuing_country,
+                                bank_code: None,
+                                nick_name: card_with_nt.network_token_details.nick_name,
+                                card_holder_name: card_with_nt
+                                    .network_token_details
+                                    .card_holder_name,
+                                eci: None,
+                            },
+                    },
+                )))
+            }
+        }
     }
 }
 

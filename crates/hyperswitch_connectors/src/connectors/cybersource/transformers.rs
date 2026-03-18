@@ -435,6 +435,12 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(
+                hyperswitch_domain_models::payment_method_data::CardWithNetworkTokenDetails {
+                    card_details: _,
+                    ..
+                },
+            )
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -2705,7 +2711,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
                     | PaymentMethodData::GiftCard(_)
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::CardToken(_)
-                    | PaymentMethodData::CardWithOptionalCVC(_)
+                    | PaymentMethodData::CardWithOptionalCVC(_) | PaymentMethodData::CardWithNetworkTokenDetails(hyperswitch_domain_models::payment_method_data::CardWithNetworkTokenDetails { card_details: _, .. })
                     | PaymentMethodData::CardWithLimitedDetails(_)
                     | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                     | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -2839,6 +2845,12 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(
+                hyperswitch_domain_models::payment_method_data::CardWithNetworkTokenDetails {
+                    card_details: _,
+                    ..
+                },
+            )
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -2907,6 +2919,12 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPreAuthenticateRouterData>>
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(
+                hyperswitch_domain_models::payment_method_data::CardWithNetworkTokenDetails {
+                    card_details: _,
+                    ..
+                },
+            )
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -3596,6 +3614,12 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPreProcessingRouterData>>
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(
+                hyperswitch_domain_models::payment_method_data::CardWithNetworkTokenDetails {
+                    card_details: _,
+                    ..
+                },
+            )
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -3741,6 +3765,12 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthenticateRouterData>>
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(
+                hyperswitch_domain_models::payment_method_data::CardWithNetworkTokenDetails {
+                    card_details: _,
+                    ..
+                },
+            )
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -3866,6 +3896,12 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPostAuthenticateRouterData>>
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(
+                hyperswitch_domain_models::payment_method_data::CardWithNetworkTokenDetails {
+                    card_details: _,
+                    ..
+                },
+            )
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -3945,6 +3981,12 @@ impl TryFrom<&CybersourceRouterData<&PaymentsCompleteAuthorizeRouterData>>
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(
+                hyperswitch_domain_models::payment_method_data::CardWithNetworkTokenDetails {
+                    card_details: _,
+                    ..
+                },
+            )
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {

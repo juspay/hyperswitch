@@ -882,6 +882,12 @@ impl TryFrom<&TesouroRouterData<&PaymentsAuthorizeRouterData>> for TesouroAuthor
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(
+                hyperswitch_domain_models::payment_method_data::CardWithNetworkTokenDetails {
+                    card_details: _,
+                    ..
+                },
+            )
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::PayLater(_)

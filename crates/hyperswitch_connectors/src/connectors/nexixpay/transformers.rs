@@ -964,7 +964,7 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-                    | PaymentMethodData::CardWithOptionalCVC(_)
+                    | PaymentMethodData::CardWithOptionalCVC(_) | PaymentMethodData::CardWithNetworkTokenDetails(hyperswitch_domain_models::payment_method_data::CardWithNetworkTokenDetails { card_details: _, .. })
                     | PaymentMethodData::CardWithLimitedDetails(_)
                     | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                     | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
@@ -1116,6 +1116,12 @@ impl TryFrom<&NexixpayRouterData<&PaymentsPreAuthenticateRouterData>>
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(
+                hyperswitch_domain_models::payment_method_data::CardWithNetworkTokenDetails {
+                    card_details: _,
+                    ..
+                },
+            )
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
@@ -1759,6 +1765,12 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
                 | PaymentMethodData::NetworkToken(_)
                 | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::CardWithOptionalCVC(_)
+                | PaymentMethodData::CardWithNetworkTokenDetails(
+                    hyperswitch_domain_models::payment_method_data::CardWithNetworkTokenDetails {
+                        card_details: _,
+                        ..
+                    },
+                )
                 | PaymentMethodData::CardWithLimitedDetails(_)
                 | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
