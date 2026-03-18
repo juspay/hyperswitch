@@ -299,6 +299,8 @@ pub struct Sale {
     pub allow_partial_auth: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fraud_filter_override: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cardholder_authentication: Option<CardholderAuthentication>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -790,6 +792,7 @@ impl TryFrom<&WorldpayvantivRouterData<&PaymentsAuthorizeRouterData>> for CnpOnl
                             .and_then(|enable_partial_authorization| {
                                 enable_partial_authorization.then_some(true)
                             }),
+                        cardholder_authentication,
                     }),
                 )
             } else {
@@ -3585,7 +3588,7 @@ fn get_post_capture_void_status(
             | WorldpayvantivResponseCode::AccountNumberWasSuccessfullyRegistered
             | WorldpayvantivResponseCode::AccountNumberWasPreviouslyRegistered
             | WorldpayvantivResponseCode::ValidToken
-             => Ok(common_enums::PostCaptureVoidStatus::Pending),
+             => Ok(common_enums::PostCaptureVoidStatus::Succeeded),
         WorldpayvantivResponseCode::ShopperCheckoutExpired
             | WorldpayvantivResponseCode::ProcessingNetworkUnavailable
             | WorldpayvantivResponseCode::IssuerUnavailable
@@ -3954,13 +3957,12 @@ fn get_attempt_status(
             | WorldpayvantivResponseCode::AccountNumberWasPreviouslyRegistered
             | WorldpayvantivResponseCode::ValidToken
              => match flow {
-                WorldpayvantivPaymentFlow::Sale => Ok(common_enums::AttemptStatus::Pending),
-                WorldpayvantivPaymentFlow::Auth => Ok(common_enums::AttemptStatus::Authorizing),
-                WorldpayvantivPaymentFlow::Capture => Ok(common_enums::AttemptStatus::CaptureInitiated),
-                WorldpayvantivPaymentFlow::Void => Ok(common_enums::AttemptStatus::VoidInitiated),
-                WorldpayvantivPaymentFlow::VoidPC => {
-                    Ok(common_enums::AttemptStatus::VoidInitiated)
-                }
+                // For synchronous behaviour: mark approved/partially approved as terminal
+                WorldpayvantivPaymentFlow::Sale => Ok(common_enums::AttemptStatus::Charged),
+                WorldpayvantivPaymentFlow::Auth => Ok(common_enums::AttemptStatus::Authorized),
+                WorldpayvantivPaymentFlow::Capture => Ok(common_enums::AttemptStatus::Charged),
+                WorldpayvantivPaymentFlow::Void => Ok(common_enums::AttemptStatus::Voided),
+                WorldpayvantivPaymentFlow::VoidPC => Ok(common_enums::AttemptStatus::VoidedPostCharge),
             },
         WorldpayvantivResponseCode::ShopperCheckoutExpired
             | WorldpayvantivResponseCode::ProcessingNetworkUnavailable
@@ -4325,7 +4327,7 @@ fn get_refund_status(
             | WorldpayvantivResponseCode::PartiallyApproved
             | WorldpayvantivResponseCode::OfflineApproval
             | WorldpayvantivResponseCode::OfflineApprovalUnableToGoOnline => {
-                Ok(common_enums::RefundStatus::Pending)
+                Ok(common_enums::RefundStatus::Success)
             },
         WorldpayvantivResponseCode::TransactionReceived => Ok(common_enums::RefundStatus::Pending),
         WorldpayvantivResponseCode::ProcessingNetworkUnavailable
