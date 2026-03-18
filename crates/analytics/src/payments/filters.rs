@@ -64,9 +64,13 @@ pub struct PaymentFilterRow {
     pub card_last_4: Option<String>,
     pub card_issuer: Option<String>,
     pub error_reason: Option<String>,
+    pub standardised_code: Option<String>,
     pub first_attempt: Option<bool>,
     pub routing_approach: Option<DBEnumWrapper<RoutingApproach>>,
     pub signature_network: Option<String>,
     pub is_issuer_regulated: Option<bool>,
     pub is_debit_routed: Option<bool>,
+    pub recovered_from_error_code: Option<String>,
+    pub recovered_from_standardised_code: Option<String>,
+    pub recovered_from_connector: Option<String>,
 }

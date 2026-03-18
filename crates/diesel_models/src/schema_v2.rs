@@ -1120,6 +1120,13 @@ diesel::table! {
         #[max_length = 64]
         attempts_group_id -> Nullable<Varchar>,
         amount_captured -> Nullable<Int8>,
+        #[max_length = 255]
+        recovered_from_error_code -> Nullable<Varchar>,
+        recovered_from_error_reason -> Nullable<Text>,
+        #[max_length = 64]
+        recovered_from_standardised_code -> Nullable<Varchar>,
+        #[max_length = 64]
+        recovered_from_connector -> Nullable<Varchar>,
     }
 }
 

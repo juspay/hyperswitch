@@ -12,15 +12,15 @@ use time::PrimitiveDateTime;
 use super::PaymentMetricRow;
 use crate::{
     enums::AuthInfo,
-    query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql, Window},
+    query::{Aggregate, FilterTypes, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql, Window},
     types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult},
 };
 
 #[derive(Default)]
-pub(crate) struct PaymentSuccessCount;
+pub(crate) struct RevenueRecoveredByCode;
 
 #[async_trait::async_trait]
-impl<T> super::PaymentMetric<T> for PaymentSuccessCount
+impl<T> super::PaymentMetric<T> for RevenueRecoveredByCode
 where
     T: AnalyticsDataSource + super::PaymentMetricAnalytics,
     PrimitiveDateTime: ToSql<T>,
@@ -46,9 +46,9 @@ where
         }
 
         query_builder
-            .add_select_column(Aggregate::Count {
-                field: None,
-                alias: Some("count"),
+            .add_select_column(Aggregate::Sum {
+                field: "amount",
+                alias: Some("total"),
             })
             .switch()?;
         query_builder
@@ -73,6 +73,21 @@ where
             .attach_printable("Error filtering time range")
             .switch()?;
 
+        query_builder
+            .add_filter_clause(
+                PaymentDimensions::PaymentStatus,
+                storage_enums::AttemptStatus::Charged,
+            )
+            .switch()?;
+
+        query_builder
+            .add_custom_filter_clause(
+                PaymentDimensions::RecoveredFromStandardisedCode,
+                "NULL",
+                FilterTypes::IsNotNull,
+            )
+            .switch()?;
+
         for dim in dimensions.iter() {
             query_builder
                 .add_group_by_clause(dim)
@@ -87,12 +102,6 @@ where
                 .switch()?;
         }
 
-        query_builder
-            .add_filter_clause(
-                PaymentDimensions::PaymentStatus,
-                storage_enums::AttemptStatus::Charged,
-            )
-            .switch()?;
         query_builder
             .execute_query::<PaymentMetricRow, _>(pool)
             .await

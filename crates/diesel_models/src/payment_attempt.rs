@@ -190,6 +190,10 @@ pub struct PaymentAttempt {
     pub attempts_group_id: Option<id_type::GlobalAttemptGroupId>,
     /// Amount captured for this payment attempt
     pub amount_captured: Option<MinorUnit>,
+    pub recovered_from_error_code: Option<String>,
+    pub recovered_from_error_reason: Option<String>,
+    pub recovered_from_standardised_code: Option<String>,
+    pub recovered_from_connector: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -296,6 +300,10 @@ pub struct PaymentAttempt {
     /// Indicates the type of retry for this payment attempt (None for initial attempt)
     pub retry_type: Option<storage_enums::RetryType>,
     pub installment_data: Option<common_types::payments::InstallmentData>,
+    pub recovered_from_error_code: Option<String>,
+    pub recovered_from_error_reason: Option<String>,
+    pub recovered_from_standardised_code: Option<String>,
+    pub recovered_from_connector: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -448,6 +456,10 @@ pub struct PaymentAttemptNew {
     pub encrypted_payment_method_data: Option<common_utils::encryption::Encryption>,
     pub error_details: Option<ErrorDetails>,
     pub retry_type: Option<storage_enums::RetryType>,
+    pub recovered_from_error_code: Option<String>,
+    pub recovered_from_error_reason: Option<String>,
+    pub recovered_from_standardised_code: Option<String>,
+    pub recovered_from_connector: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -542,6 +554,10 @@ pub struct PaymentAttemptNew {
     /// Indicates the type of retry for this payment attempt (None for initial attempt)
     pub retry_type: Option<storage_enums::RetryType>,
     pub installment_data: Option<common_types::payments::InstallmentData>,
+    pub recovered_from_error_code: Option<String>,
+    pub recovered_from_error_reason: Option<String>,
+    pub recovered_from_standardised_code: Option<String>,
+    pub recovered_from_connector: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -1016,6 +1032,10 @@ pub struct PaymentAttemptUpdateInternal {
     pub network_error_message: Option<String>,
     pub connector_request_reference_id: Option<String>,
     pub amount_captured: Option<MinorUnit>,
+    pub recovered_from_error_code: Option<String>,
+    pub recovered_from_error_reason: Option<String>,
+    pub recovered_from_standardised_code: Option<String>,
+    pub recovered_from_connector: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -1051,6 +1071,10 @@ impl PaymentAttemptUpdateInternal {
             connector_request_reference_id,
             connector_response_reference_id,
             amount_captured,
+            recovered_from_error_code,
+            recovered_from_error_reason,
+            recovered_from_standardised_code,
+            recovered_from_connector,
         } = self;
 
         PaymentAttempt {
@@ -1140,6 +1164,13 @@ impl PaymentAttemptUpdateInternal {
             error_details: source.error_details,
             retry_type: source.retry_type,
             installment_data: source.installment_data,
+            recovered_from_error_code: recovered_from_error_code
+                .or(source.recovered_from_error_code),
+            recovered_from_error_reason: recovered_from_error_reason
+                .or(source.recovered_from_error_reason),
+            recovered_from_standardised_code: recovered_from_standardised_code
+                .or(source.recovered_from_standardised_code),
+            recovered_from_connector: recovered_from_connector.or(source.recovered_from_connector),
         }
     }
 }
@@ -1217,6 +1248,10 @@ pub struct PaymentAttemptUpdateInternal {
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub authorized_amount: Option<MinorUnit>,
     pub error_details: Option<Option<ErrorDetails>>,
+    pub recovered_from_error_code: Option<String>,
+    pub recovered_from_error_reason: Option<String>,
+    pub recovered_from_standardised_code: Option<String>,
+    pub recovered_from_connector: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -1425,6 +1460,10 @@ impl PaymentAttemptUpdate {
             authorized_amount,
             error_details,
             installment_data,
+            recovered_from_error_code: _,
+            recovered_from_error_reason: _,
+            recovered_from_standardised_code: _,
+            recovered_from_connector: _,
         } = PaymentAttemptUpdateInternal::from(self).populate_derived_fields(&source);
         PaymentAttempt {
             amount: amount.unwrap_or(source.amount),
@@ -1570,6 +1609,10 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     cancellation_reason: None,
                     amount_captured,
                     payment_method_data: None,
+                    recovered_from_error_code: None,
+                    recovered_from_error_reason: None,
+                    recovered_from_standardised_code: None,
+                    recovered_from_connector: None,
                 }
             }
             PaymentAttemptUpdate::ErrorUpdate {
@@ -1622,6 +1665,10 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     cancellation_reason: None,
                     amount_captured,
                     payment_method_data: None,
+                    recovered_from_error_code: None,
+                    recovered_from_error_reason: None,
+                    recovered_from_standardised_code: None,
+                    recovered_from_connector: None,
                 }
             }
             PaymentAttemptUpdate::UnresolvedResponseUpdate {
@@ -1670,6 +1717,10 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     cancellation_reason: None,
                     amount_captured: None,
                     payment_method_data: None,
+                    recovered_from_error_code: None,
+                    recovered_from_error_reason: None,
+                    recovered_from_standardised_code: None,
+                    recovered_from_connector: None,
                 }
             }
             PaymentAttemptUpdate::PreprocessingUpdate {
@@ -1716,6 +1767,10 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     cancellation_reason: None,
                     amount_captured: None,
                     payment_method_data: None,
+                    recovered_from_error_code: None,
+                    recovered_from_error_reason: None,
+                    recovered_from_standardised_code: None,
+                    recovered_from_connector: None,
                 }
             }
             PaymentAttemptUpdate::ConnectorResponse {
@@ -1758,6 +1813,10 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     cancellation_reason: None,
                     amount_captured: None,
                     payment_method_data: None,
+                    recovered_from_error_code: None,
+                    recovered_from_error_reason: None,
+                    recovered_from_standardised_code: None,
+                    recovered_from_connector: None,
                 }
             }
             PaymentAttemptUpdate::ManualUpdate {
@@ -1806,6 +1865,10 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     cancellation_reason: None,
                     amount_captured: None,
                     payment_method_data: None,
+                    recovered_from_error_code: None,
+                    recovered_from_error_reason: None,
+                    recovered_from_standardised_code: None,
+                    recovered_from_connector: None,
                 }
             }
         }
@@ -2874,6 +2937,10 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 installment_data: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
+                recovered_from_error_code: None,
+                recovered_from_error_reason: None,
+                recovered_from_standardised_code: None,
+                recovered_from_connector: None,
             },
             PaymentAttemptUpdate::AuthenticationTypeUpdate {
                 authentication_type,
@@ -2949,6 +3016,10 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 installment_data: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
+                recovered_from_error_code: None,
+                recovered_from_error_reason: None,
+                recovered_from_standardised_code: None,
+                recovered_from_connector: None,
             },
             PaymentAttemptUpdate::ConfirmUpdate {
                 amount,
@@ -3062,6 +3133,10 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 installment_data,
                 encrypted_payment_method_data: None,
                 error_details: None,
+                recovered_from_error_code: None,
+                recovered_from_error_reason: None,
+                recovered_from_standardised_code: None,
+                recovered_from_connector: None,
             },
             PaymentAttemptUpdate::VoidUpdate {
                 status,
@@ -3138,6 +3213,10 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encrypted_payment_method_data: None,
                 error_details: None,
                 installment_data: None,
+                recovered_from_error_code: None,
+                recovered_from_error_reason: None,
+                recovered_from_standardised_code: None,
+                recovered_from_connector: None,
             },
             PaymentAttemptUpdate::RejectUpdate {
                 status,
@@ -3215,6 +3294,10 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encrypted_payment_method_data: None,
                 error_details: None,
                 installment_data: None,
+                recovered_from_error_code: None,
+                recovered_from_error_reason: None,
+                recovered_from_standardised_code: None,
+                recovered_from_connector: None,
             },
             PaymentAttemptUpdate::BlocklistUpdate {
                 status,
@@ -3292,6 +3375,10 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encrypted_payment_method_data: None,
                 error_details: None,
                 installment_data: None,
+                recovered_from_error_code: None,
+                recovered_from_error_reason: None,
+                recovered_from_standardised_code: None,
+                recovered_from_connector: None,
             },
             PaymentAttemptUpdate::ConnectorMandateDetailUpdate {
                 connector_mandate_detail,
@@ -3368,6 +3455,10 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encrypted_payment_method_data: None,
                 error_details: None,
                 installment_data: None,
+                recovered_from_error_code: None,
+                recovered_from_error_reason: None,
+                recovered_from_standardised_code: None,
+                recovered_from_connector: None,
             },
             PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
                 payment_method_id,
@@ -3443,6 +3534,10 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encrypted_payment_method_data: None,
                 error_details: None,
                 installment_data: None,
+                recovered_from_error_code: None,
+                recovered_from_error_reason: None,
+                recovered_from_standardised_code: None,
+                recovered_from_connector: None,
             },
             PaymentAttemptUpdate::ResponseUpdate {
                 status,
@@ -3554,6 +3649,10 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     encrypted_payment_method_data,
                     error_details,
                     installment_data: None,
+                    recovered_from_error_code: None,
+                    recovered_from_error_reason: None,
+                    recovered_from_standardised_code: None,
+                    recovered_from_connector: None,
                 }
             }
             PaymentAttemptUpdate::ErrorUpdate {
@@ -3653,6 +3752,10 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     installment_data: None,
                     encrypted_payment_method_data,
                     error_details,
+                    recovered_from_error_code: None,
+                    recovered_from_error_reason: None,
+                    recovered_from_standardised_code: None,
+                    recovered_from_connector: None,
                 }
             }
             PaymentAttemptUpdate::StatusUpdate { status, updated_by } => Self {
@@ -3726,6 +3829,10 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 installment_data: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
+                recovered_from_error_code: None,
+                recovered_from_error_reason: None,
+                recovered_from_standardised_code: None,
+                recovered_from_connector: None,
             },
             PaymentAttemptUpdate::UpdateTrackers {
                 payment_token,
@@ -3809,6 +3916,10 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 installment_data: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
+                recovered_from_error_code: None,
+                recovered_from_error_reason: None,
+                recovered_from_standardised_code: None,
+                recovered_from_connector: None,
             },
             PaymentAttemptUpdate::UnresolvedResponseUpdate {
                 status,
@@ -3899,6 +4010,10 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     installment_data: None,
                     encrypted_payment_method_data: None,
                     error_details,
+                    recovered_from_error_code: None,
+                    recovered_from_error_reason: None,
+                    recovered_from_standardised_code: None,
+                    recovered_from_connector: None,
                 }
             }
             PaymentAttemptUpdate::PreprocessingUpdate {
@@ -3986,6 +4101,10 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     installment_data: None,
                     encrypted_payment_method_data: None,
                     error_details: None,
+                    recovered_from_error_code: None,
+                    recovered_from_error_reason: None,
+                    recovered_from_standardised_code: None,
+                    recovered_from_connector: None,
                 }
             }
             PaymentAttemptUpdate::CaptureUpdate {
@@ -4063,6 +4182,10 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 installment_data: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
+                recovered_from_error_code: None,
+                recovered_from_error_reason: None,
+                recovered_from_standardised_code: None,
+                recovered_from_connector: None,
             },
             PaymentAttemptUpdate::AmountToCaptureUpdate {
                 status,
@@ -4139,6 +4262,10 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 installment_data: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
+                recovered_from_error_code: None,
+                recovered_from_error_reason: None,
+                recovered_from_standardised_code: None,
+                recovered_from_connector: None,
             },
             PaymentAttemptUpdate::ConnectorResponse {
                 authentication_data,
@@ -4224,6 +4351,10 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     installment_data: None,
                     encrypted_payment_method_data: None,
                     error_details: None,
+                    recovered_from_error_code: None,
+                    recovered_from_error_reason: None,
+                    recovered_from_standardised_code: None,
+                    recovered_from_connector: None,
                 }
             }
             PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
@@ -4300,6 +4431,10 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 installment_data: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
+                recovered_from_error_code: None,
+                recovered_from_error_reason: None,
+                recovered_from_standardised_code: None,
+                recovered_from_connector: None,
             },
             PaymentAttemptUpdate::AuthenticationUpdate {
                 status,
@@ -4378,6 +4513,10 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 installment_data: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
+                recovered_from_error_code: None,
+                recovered_from_error_reason: None,
+                recovered_from_standardised_code: None,
+                recovered_from_connector: None,
             },
             PaymentAttemptUpdate::ManualUpdate {
                 status,
@@ -4466,6 +4605,10 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     installment_data: None,
                     encrypted_payment_method_data: None,
                     error_details: None,
+                    recovered_from_error_code: None,
+                    recovered_from_error_reason: None,
+                    recovered_from_standardised_code: None,
+                    recovered_from_connector: None,
                 }
             }
             PaymentAttemptUpdate::PostSessionTokensUpdate {
@@ -4542,6 +4685,10 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 installment_data: None,
                 encrypted_payment_method_data: None,
                 error_details: None,
+                recovered_from_error_code: None,
+                recovered_from_error_reason: None,
+                recovered_from_standardised_code: None,
+                recovered_from_connector: None,
             },
         }
     }

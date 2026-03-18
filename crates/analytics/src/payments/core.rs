@@ -184,6 +184,46 @@ pub async fn get_metrics(
                                 .failure_reasons_distribution
                                 .add_metrics_bucket(&value);
                         }
+                        PaymentMetrics::StandardisedCodeDistribution => {
+                            metrics_builder
+                                .standardised_code_distribution
+                                .add_metrics_bucket(&value);
+                        }
+                        PaymentMetrics::RetryEffectiveness => {
+                            metrics_builder
+                                .retry_effectiveness
+                                .add_metrics_bucket(&value);
+                        }
+                        PaymentMetrics::RecoveryRateByCode => {
+                            metrics_builder
+                                .recovery_rate_by_code
+                                .add_metrics_bucket(&value);
+                        }
+                        PaymentMetrics::ConnectorRecoveryMatrix => {
+                            metrics_builder
+                                .connector_recovery_matrix
+                                .add_metrics_bucket(&value);
+                        }
+                        PaymentMetrics::BestRecoveryConnectorPerError => {
+                            metrics_builder
+                                .best_recovery_connector_per_error
+                                .add_metrics_bucket(&value);
+                        }
+                        PaymentMetrics::RecoveryRateByConnector => {
+                            metrics_builder
+                                .recovery_rate_by_connector
+                                .add_metrics_bucket(&value);
+                        }
+                        PaymentMetrics::RevenueRecovered => {
+                            metrics_builder
+                                .revenue_recovered
+                                .add_metrics_bucket(&value);
+                        }
+                        PaymentMetrics::RevenueRecoveredByCode => {
+                            metrics_builder
+                                .revenue_recovered_by_code
+                                .add_metrics_bucket(&value);
+                        }
                     }
                 }
 
@@ -230,6 +270,8 @@ pub async fn get_metrics(
     let mut total_payment_processed_count_without_smart_retries = 0;
     let mut total_failure_reasons_count = 0;
     let mut total_failure_reasons_count_without_smart_retries = 0;
+    let mut total_standardised_code_count = 0;
+    let mut total_standardised_code_count_without_smart_retries = 0;
     let mut total_payment_processed_amount_in_usd = 0;
     let mut total_payment_processed_amount_without_smart_retries_usd = 0;
     let query_data: Vec<MetricsBucketResponse> = metrics_accumulator
@@ -297,6 +339,12 @@ pub async fn get_metrics(
             if let Some(count) = collected_values.failure_reason_count_without_smart_retries {
                 total_failure_reasons_count_without_smart_retries += count;
             }
+            if let Some(count) = collected_values.standardised_code_count {
+                total_standardised_code_count += count;
+            }
+            if let Some(count) = collected_values.standardised_code_count_without_smart_retries {
+                total_standardised_code_count_without_smart_retries += count;
+            }
             if let Some(savings) = collected_values.debit_routing_savings {
                 let savings_in_usd = if let Some(ex_rates) = ex_rates {
                     id.currency
@@ -354,6 +402,10 @@ pub async fn get_metrics(
             total_failure_reasons_count: Some(total_failure_reasons_count),
             total_failure_reasons_count_without_smart_retries: Some(
                 total_failure_reasons_count_without_smart_retries,
+            ),
+            total_standardised_code_count: Some(total_standardised_code_count),
+            total_standardised_code_count_without_smart_retries: Some(
+                total_standardised_code_count_without_smart_retries,
             ),
         }],
     })
@@ -440,10 +492,14 @@ pub async fn get_filters(
             PaymentDimensions::CardLast4 => fil.card_last_4,
             PaymentDimensions::CardIssuer => fil.card_issuer,
             PaymentDimensions::ErrorReason => fil.error_reason,
+            PaymentDimensions::StandardisedCode => fil.standardised_code,
             PaymentDimensions::RoutingApproach => fil.routing_approach.map(|i| i.as_ref().to_string()),
             PaymentDimensions::SignatureNetwork => fil.signature_network,
             PaymentDimensions::IsIssuerRegulated => fil.is_issuer_regulated.map(|b| b.to_string()),
-            PaymentDimensions::IsDebitRouted => fil.is_debit_routed.map(|b| b.to_string())
+            PaymentDimensions::IsDebitRouted => fil.is_debit_routed.map(|b| b.to_string()),
+            PaymentDimensions::RecoveredFromErrorCode => fil.recovered_from_error_code,
+            PaymentDimensions::RecoveredFromStandardisedCode => fil.recovered_from_standardised_code,
+            PaymentDimensions::RecoveredFromConnector => fil.recovered_from_connector,
         })
         .collect::<Vec<String>>();
         res.query_data.push(FilterValue {

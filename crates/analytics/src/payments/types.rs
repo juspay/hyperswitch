@@ -104,6 +104,14 @@ where
                 .add_filter_in_range_clause(PaymentDimensions::ErrorReason, &self.error_reason)
                 .attach_printable("Error adding error reason filter")?;
         }
+        if !self.standardised_code.is_empty() {
+            builder
+                .add_filter_in_range_clause(
+                    PaymentDimensions::StandardisedCode,
+                    &self.standardised_code,
+                )
+                .attach_printable("Error adding standardised code filter")?;
+        }
         if !self.first_attempt.is_empty() {
             builder
                 .add_filter_in_range_clause("first_attempt", &self.first_attempt)
@@ -141,6 +149,33 @@ where
             builder
                 .add_filter_in_range_clause(PaymentDimensions::IsDebitRouted, &self.is_debit_routed)
                 .attach_printable("Error adding is debit routed filter")?;
+        }
+
+        if !self.recovered_from_error_code.is_empty() {
+            builder
+                .add_filter_in_range_clause(
+                    PaymentDimensions::RecoveredFromErrorCode,
+                    &self.recovered_from_error_code,
+                )
+                .attach_printable("Error adding recovered from error code filter")?;
+        }
+
+        if !self.recovered_from_standardised_code.is_empty() {
+            builder
+                .add_filter_in_range_clause(
+                    PaymentDimensions::RecoveredFromStandardisedCode,
+                    &self.recovered_from_standardised_code,
+                )
+                .attach_printable("Error adding recovered from standardised code filter")?;
+        }
+
+        if !self.recovered_from_connector.is_empty() {
+            builder
+                .add_filter_in_range_clause(
+                    PaymentDimensions::RecoveredFromConnector,
+                    &self.recovered_from_connector,
+                )
+                .attach_printable("Error adding recovered from connector filter")?;
         }
 
         Ok(())
