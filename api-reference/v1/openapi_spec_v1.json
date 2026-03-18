@@ -13870,28 +13870,25 @@
           "issuing_country": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/CountryAlpha2"
             },
             "description": "Set of issuing countries to block using ISO 3166-1 alpha-2 codes (e.g., [\"IN\", \"US\"])",
-            "uniqueItems": true,
             "nullable": true
           },
           "card_types": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/CardType"
             },
             "description": "Set of card types to block (e.g., [\"Credit\", \"Debit\"])",
-            "uniqueItems": true,
             "nullable": true
           },
           "card_subtypes": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/CardSubtype"
             },
-            "description": "Set of card subtypes to block (e.g., [\"Business\", \"Corporate\"])",
-            "uniqueItems": true,
+            "description": "Set of card subtypes to block",
             "nullable": true
           },
           "issuers": {
@@ -14445,6 +14442,12 @@
             "description": "List of supported card networks"
           }
         }
+      },
+      "CardSubtype": {
+        "type": "string",
+        "enum": [
+          "platinum"
+        ]
       },
       "CardTestingGuardConfig": {
         "type": "object",
