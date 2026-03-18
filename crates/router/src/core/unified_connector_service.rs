@@ -71,6 +71,7 @@ use crate::{
     },
 };
 
+pub mod connector_config;
 pub mod transformers;
 /// Returns Apple Pay data from payment method token when it has decrypt data,
 /// otherwise returns the original payment data.
@@ -1671,6 +1672,21 @@ pub fn build_unified_connector_service_auth_metadata(
 
     let merchant_id = processor.get_account().get_id().get_string_repr();
 
+    // Extract connector metadata for connector-specific config
+    let connector_metadata = merchant_connector_account.get_metadata();
+    let connector_metadata_value = connector_metadata
+        .as_ref()
+        .and_then(|m| serde_json::to_value(m.clone().expose()).ok());
+    // Build connector-specific config for supported connectors
+    let connector_config = connector_config::build_connector_config_header(
+        &connector_name,
+        &auth_type,
+        connector_metadata_value.as_ref(),
+        None,
+    )
+    .ok()
+    .map(Secret::new);
+
     match &auth_type {
         ConnectorAuthType::SignatureKey {
             api_key,
@@ -1685,6 +1701,7 @@ pub fn build_unified_connector_service_auth_metadata(
             api_secret: Some(api_secret.clone()),
             auth_key_map: None,
             merchant_id: Secret::new(merchant_id.to_string()),
+            connector_config,
         }),
         ConnectorAuthType::BodyKey { api_key, key1 } => Ok(ConnectorAuthMetadata {
             connector_name,
@@ -1695,6 +1712,7 @@ pub fn build_unified_connector_service_auth_metadata(
             api_secret: None,
             auth_key_map: None,
             merchant_id: Secret::new(merchant_id.to_string()),
+            connector_config,
         }),
         ConnectorAuthType::HeaderKey { api_key } => Ok(ConnectorAuthMetadata {
             connector_name,
@@ -1705,6 +1723,7 @@ pub fn build_unified_connector_service_auth_metadata(
             api_secret: None,
             auth_key_map: None,
             merchant_id: Secret::new(merchant_id.to_string()),
+            connector_config,
         }),
         ConnectorAuthType::CurrencyAuthKey { auth_key_map } => Ok(ConnectorAuthMetadata {
             connector_name,
@@ -1715,6 +1734,7 @@ pub fn build_unified_connector_service_auth_metadata(
             api_secret: None,
             auth_key_map: Some(auth_key_map.clone()),
             merchant_id: Secret::new(merchant_id.to_string()),
+            connector_config,
         }),
         ConnectorAuthType::MultiAuthKey {
             api_key,
@@ -1730,6 +1750,7 @@ pub fn build_unified_connector_service_auth_metadata(
             api_secret: Some(api_secret.clone()),
             auth_key_map: None,
             merchant_id: Secret::new(merchant_id.to_string()),
+            connector_config,
         }),
         _ => Err(UnifiedConnectorServiceError::FailedToObtainAuthType)
             .attach_printable("Unsupported ConnectorAuthType for header injection"),

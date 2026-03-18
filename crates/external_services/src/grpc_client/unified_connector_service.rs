@@ -102,6 +102,9 @@ pub struct ConnectorAuthMetadata {
 
     /// Id of the merchant.
     pub merchant_id: Secret<String>,
+
+    /// Connector-specific configuration (JSON serialized) for UCS.
+    pub connector_config: Option<Secret<String>>,
 }
 
 /// External Vault Proxy Related Metadata
@@ -954,6 +957,14 @@ pub fn build_unified_connector_service_grpc_headers(
         metadata.append(
             consts::UCS_HEADER_AUTH_KEY_MAP,
             parse("auth_key_map", &auth_key_map_str)?,
+        );
+    }
+
+    // Add connector-specific config header if available
+    if let Some(connector_config) = meta.connector_config {
+        metadata.append(
+            consts::UCS_HEADER_CONNECTOR_CONFIG,
+            parse("connector_config", connector_config.peek())?,
         );
     }
 
