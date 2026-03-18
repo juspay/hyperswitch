@@ -3114,6 +3114,7 @@ impl transformers::ForeignTryFrom<common_enums::PaymentMethodType>
             common_enums::PaymentMethodType::InstantBankTransfer => Ok(Self::InstantBankTransfer),
             common_enums::PaymentMethodType::Paypal => Ok(Self::PayPal),
             common_enums::PaymentMethodType::RevolutPay => Ok(Self::RevolutPay),
+            common_enums::PaymentMethodType::NetworkToken => Ok(Self::NetworkToken),
             _ => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "Payment Method Type not yet supported".to_string(),
@@ -3275,6 +3276,49 @@ impl
         };
 
         Ok(card_details_for_nti)
+    }
+}
+
+impl ForeignFrom<common_types::payments::TokenSource> for payments_grpc::TokenSource {
+    fn foreign_from(token_source: common_types::payments::TokenSource) -> Self {
+        match token_source {
+            common_types::payments::TokenSource::GooglePay => Self::Googlepay,
+            common_types::payments::TokenSource::ApplePay => Self::Applepay,
+        }
+    }
+}
+
+impl
+    transformers::ForeignTryFrom<
+        hyperswitch_domain_models::payment_method_data::DecryptedWalletTokenDetailsForNetworkTransactionId,
+    > for payments_grpc::DecryptedWalletTokenDetailsForNetworkTransactionId
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        wallet_token_data: hyperswitch_domain_models::payment_method_data::DecryptedWalletTokenDetailsForNetworkTransactionId,
+    ) -> Result<Self, Self::Error> {
+        let decrypted_wallet_token_details = Self {
+            decrypted_token: Some(
+                NetworkToken::from_str(&wallet_token_data.decrypted_token.get_card_no())
+                    .change_context(
+                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                            "Failed to parse decrypted wallet token number".to_string(),
+                        ),
+                    )?,
+            ),
+            token_exp_month: Some(wallet_token_data.token_exp_month.expose().into()),
+            token_exp_year: Some(wallet_token_data.token_exp_year.expose().into()),
+            card_holder_name: wallet_token_data
+                .card_holder_name
+                .map(|name| name.expose().into()),
+            eci: wallet_token_data.eci,
+            token_source: wallet_token_data
+                .token_source
+                .map(|ts| payments_grpc::TokenSource::foreign_from(ts).into()),
+        };
+
+        Ok(decrypted_wallet_token_details)
     }
 }
 
