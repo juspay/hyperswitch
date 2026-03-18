@@ -986,18 +986,43 @@ impl webhooks::IncomingWebhook for Truelayer {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let webhook_body: truelayer::TruelayerPayoutsWebhookBody = request
+        let details: truelayer::TruelayerWebhookEventBody = request
             .body
-            .parse_struct("TruelayerPayoutsWebhookBody")
+            .parse_struct("TruelayerWebhookBody")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        if truelayer::is_payout_webhook_event(&webhook_body._type) {
-            Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
-                api_models::webhooks::PayoutIdType::ConnectorPayoutId(webhook_body.payout_id),
-            ))
-        } else {
-            Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        if details._type.clone().is_payment_webhook_event() {
+            return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(
+                    details
+                        .payment_id
+                        .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?
+                        .to_string(),
+                ),
+            ));
         }
+        if details._type.clone().is_refund_webhook_event() {
+            return Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                api_models::webhooks::RefundIdType::ConnectorRefundId(
+                    details
+                        .refund_id
+                        .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?
+                        .to_string(),
+                ),
+            ));
+        }
+        #[cfg(feature = "payouts")]
+        if details._type.clone().is_payout_webhook_event() {
+            return Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
+                api_models::webhooks::PayoutIdType::ConnectorPayoutId(
+                    details
+                        .payout_id
+                        .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?
+                        .to_string(),
+                ),
+            ));
+        }
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_event_type(
