@@ -7095,8 +7095,6 @@ label = "Private Key (Base64 encoded)"
 placeholder = "Enter your Private Key(Base64 encoded)"
 required = true
 type = "Text"
-[trustly_payout.connector_webhook_details]
-merchant_secret = "Your Public Key(Base64 encoded)"
 
 [revolv3]
 [[revolv3.credit]]

@@ -11738,6 +11738,17 @@
                 "$ref": "#/components/schemas/OpenBankingUk"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "trustly"
+            ],
+            "properties": {
+              "trustly": {
+                "$ref": "#/components/schemas/Trustly"
+              }
+            }
           }
         ]
       },
@@ -11748,6 +11759,9 @@
           },
           {
             "$ref": "#/components/schemas/InteracAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/TrustlyAdditionalData"
           }
         ],
         "description": "Masked payout method details for wallet payout method"
@@ -15073,6 +15087,7 @@
           "tesouro",
           "tokenex",
           "tokenio",
+          "trustly",
           "truelayer",
           "trustpay",
           "trustpayments",
@@ -32652,6 +32667,7 @@
           "paypal",
           "stripe",
           "truelayer",
+          "trustly",
           "wise",
           "worldpay",
           "worldpayxml",
@@ -37053,6 +37069,7 @@
           "stripebilling",
           "tesouro",
           "truelayer",
+          "trustly",
           "trustpay",
           "trustpayments",
           "tokenio",
@@ -39525,6 +39542,65 @@
           "internal",
           "external"
         ]
+      },
+      "Trustly": {
+        "type": "object",
+        "required": [
+          "iban",
+          "country_code",
+          "account_number",
+          "bank_number"
+        ],
+        "properties": {
+          "iban": {
+            "type": "string",
+            "description": "International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.",
+            "example": "token_12345"
+          },
+          "country_code": {
+            "$ref": "#/components/schemas/CountryAlpha2"
+          },
+          "account_number": {
+            "type": "string",
+            "description": "The account number, identifying the end-user's account in the bank.",
+            "example": "69706212"
+          },
+          "bank_number": {
+            "type": "string",
+            "description": "The bank number identifying the end-user's bank in the given clearing house.",
+            "example": "6112"
+          }
+        }
+      },
+      "TrustlyAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for Trustly bank redirect payout method",
+        "required": [
+          "iban",
+          "country_code",
+          "account_number",
+          "bank_number"
+        ],
+        "properties": {
+          "iban": {
+            "type": "string",
+            "description": "International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.",
+            "example": "token_12345"
+          },
+          "country_code": {
+            "$ref": "#/components/schemas/CountryAlpha2"
+          },
+          "account_number": {
+            "type": "string",
+            "description": "The account number, identifying the end-user's account in the bank.",
+            "example": "69706212"
+          },
+          "bank_number": {
+            "type": "string",
+            "description": "The bank number identifying the end-user's bank in the given clearing house.",
+            "example": "6112"
+          }
+        }
       },
       "TxnStatus": {
         "type": "string",

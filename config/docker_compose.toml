@@ -1119,7 +1119,7 @@ connector_list = "adyen,archipel,checkout,cybersource,novalnet,stripe,worldpay,w
 connector_list = "peachpayments" # Supported connectors for card only mit
 
 [connector_customer]
-payout_connector_list = "nomupay,stripe,wise"
+payout_connector_list = "nomupay,stripe,wise,trustly"
 
 
 [payment_method_auth]

@@ -826,74 +826,26 @@ impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Trustly 
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Trustly {
-    async fn verify_webhook_source(
-        &self,
-        request: &webhooks::IncomingWebhookRequestDetails<'_>,
-        merchant_id: &common_utils::id_type::MerchantId,
-        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
-        _connector_account_details: common_utils::crypto::Encryptable<
-            masking::Secret<serde_json::Value>,
-        >,
-        connector_label: &str,
-    ) -> CustomResult<bool, ConnectorError> {
-        let webhook_body: trustly::TrustlyPayoutWebhook = request
-            .body
-            .parse_struct("TrustlyWebhookBody")
-            .change_context(ConnectorError::WebhookBodyDecodingFailed)?;
-        let public_key = self
-            .get_webhook_source_verification_merchant_secret(
-                merchant_id,
-                connector_label,
-                connector_webhook_details,
-            )
-            .await?;
-
-        trustly::verify_webhook_signature(webhook_body, public_key.secret)
-    }
-
     fn get_webhook_object_reference_id(
         &self,
-        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, ConnectorError> {
-        let webhook_body: trustly::TrustlyPayoutWebhook = request
-            .body
-            .parse_struct("TrustlyWebhookBody")
-            .change_context(ConnectorError::WebhookBodyDecodingFailed)?;
-
-        #[cfg(feature = "payouts")]
-        if trustly::is_payout_webhook(webhook_body.method) {
-            return Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
-                api_models::webhooks::PayoutIdType::ConnectorPayoutId(
-                    webhook_body.params.data.orderid,
-                ),
-            ));
-        }
         Err(report!(ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_event_type(
         &self,
-        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, ConnectorError> {
-        let webhook_body: trustly::TrustlyPayoutWebhook = request
-            .body
-            .parse_struct("TrustlyWebhookBody")
-            .change_context(ConnectorError::WebhookBodyDecodingFailed)?;
-
-        Ok(trustly::get_payout_webhook_event(webhook_body.method))
+        Err(report!(ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_resource_object(
         &self,
-        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, ConnectorError> {
-        let webhook_body: trustly::TrustlyPayoutWebhook = request
-            .body
-            .parse_struct("TrustlyWebhookBody")
-            .change_context(ConnectorError::WebhookBodyDecodingFailed)?;
-
-        Ok(Box::new(webhook_body))
+        Err(report!(ConnectorError::WebhooksNotImplemented))
     }
 }
 

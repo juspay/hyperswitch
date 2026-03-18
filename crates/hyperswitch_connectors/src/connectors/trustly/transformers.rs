@@ -20,12 +20,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::errors::ConnectorError;
 use masking::{ExposeInterface, Secret};
-use openssl::{
-    hash::MessageDigest,
-    pkey::PKey,
-    rsa::Rsa,
-    sign::{Signer, Verifier},
-};
+use openssl::{hash::MessageDigest, pkey::PKey, rsa::Rsa, sign::Signer};
 use serde::{Deserialize, Serialize};
 
 use crate::types::{RefundsResponseRouterData, ResponseRouterData};
@@ -34,7 +29,7 @@ use crate::{
     types::PayoutsResponseRouterData,
     utils::{
         self, get_unimplemented_payment_method_error_message, AddressData,
-        PayoutFulfillRequestData, RouterData as _,
+        PayoutFulfillRequestData, PayoutsData, RouterData as _,
     },
 };
 
@@ -313,7 +308,7 @@ pub struct RegisterAccountRequest {
 #[serde(rename_all = "PascalCase")]
 pub struct RegisterAccountParams {
     data: RegisterAccountData,
-    signature: String,
+    signature: Secret<String>,
     #[serde(rename = "UUID")]
     uuid: String,
 }
@@ -354,18 +349,12 @@ fn trustly_serialize<T: Serialize>(data: &T) -> String {
 
 enum Algorithm {
     SHA256,
-    SHA384,
-    SHA512,
-    SHA1,
 }
 
 impl Algorithm {
     fn message_digest(&self) -> MessageDigest {
         match self {
             Self::SHA256 => MessageDigest::sha256(),
-            Self::SHA384 => MessageDigest::sha384(),
-            Self::SHA512 => MessageDigest::sha512(),
-            Self::SHA1 => MessageDigest::sha1(),
         }
     }
 
@@ -557,7 +546,7 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for RegisterAccountRe
                     method: TrustlyMethod::RegisterAccount,
                     params: RegisterAccountParams {
                         data: register_account_data,
-                        signature,
+                        signature: Secret::new(signature),
                         uuid,
                     },
                     version: "1.1".to_string(),
@@ -645,7 +634,7 @@ pub struct AccountPayoutRequest {
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "PascalCase")]
 pub struct AccountPayoutParams {
-    signature: String,
+    signature: Secret<String>,
     #[serde(rename = "UUID")]
     uuid: String,
     data: AccountPayoutData,
@@ -682,7 +671,7 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for AccountPayoutRequ
         let payout_method_data = item.router_data.get_payout_method_data()?;
         match payout_method_data {
             PayoutMethodData::BankRedirect(BankRedirect::Trustly(_trustly_data)) => {
-                // let notification_url = item.router_data.request.get_webhook_url()?;
+                let notification_url = item.router_data.request.get_webhook_url()?;
 
                 let metadata = item
                     .router_data
@@ -717,7 +706,7 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for AccountPayoutRequ
                         .payout_id
                         .get_string_repr()
                         .to_string(),
-                    notification_u_r_l: "https://707a-110-227-219-118.ngrok-free.app/webhooks/merchant_1773679870/mca_2NXm9pYASZTDvTBgm4Xj".to_string(),
+                    notification_u_r_l: notification_url,
                     password: auth_details.password.clone(),
                     username: auth_details.username.clone(),
                 };
@@ -733,7 +722,7 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for AccountPayoutRequ
                     method: TrustlyMethod::AccountPayout,
                     params: AccountPayoutParams {
                         data: account_payout_data,
-                        signature,
+                        signature: Secret::new(signature),
                         uuid,
                     },
                     version: "1.1".to_string(),
@@ -833,7 +822,7 @@ pub struct PayoutSyncRequestParams {
     #[serde(rename = "UUID")]
     uuid: String,
     data: PayoutSyncRequestData,
-    signature: String,
+    signature: Secret<String>,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
@@ -869,7 +858,7 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for TrustlyPayoutSyncRequest {
             params: PayoutSyncRequestParams {
                 uuid,
                 data,
-                signature,
+                signature: Secret::new(signature),
             },
             version: "1.1".to_string(),
         })
@@ -880,7 +869,6 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for TrustlyPayoutSyncRequest {
 #[serde(untagged)]
 pub enum TrustlyPayoutSyncResponse {
     Success(TrustlyPayoutSyncResponseSuccess),
-    Webhook(TrustlyPayoutWebhook),
     Error(TrustlyErrorResponse),
 }
 
@@ -973,25 +961,6 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, TrustlyPayoutSyncResponse>> for Pay
                     })
                 }
             }
-            TrustlyPayoutSyncResponse::Webhook(webhook_response) => {
-                let payout_status = match webhook_response.method {
-                    TrustlyWebhookEvent::PayoutConfirmation => PayoutStatus::Success,
-                    TrustlyWebhookEvent::PayoutFailed => PayoutStatus::Failed,
-                };
-
-                Ok(Self {
-                    response: Ok(PayoutsResponseData {
-                        status: Some(payout_status),
-                        connector_payout_id: Some(webhook_response.params.data.orderid.clone()),
-                        payout_eligible: None,
-                        should_add_next_step_to_process_tracker: false,
-                        error_code: webhook_response.params.data.errorcode.clone(),
-                        error_message: webhook_response.params.data.errormessage.clone(),
-                        payout_connector_metadata: None,
-                    }),
-                    ..item.data
-                })
-            }
             TrustlyPayoutSyncResponse::Error(error_response) => {
                 let response = Err(process_error_response(error_response, item.http_code));
                 Ok(Self {
@@ -1001,121 +970,4 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, TrustlyPayoutSyncResponse>> for Pay
             }
         }
     }
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum TrustlyWebhookEvent {
-    PayoutConfirmation,
-    PayoutFailed,
-}
-
-impl TrustlyWebhookEvent {
-    fn as_str(&self) -> &'static str {
-        match self {
-            Self::PayoutConfirmation => "payoutconfirmation",
-            Self::PayoutFailed => "payoutfailed",
-        }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub struct TrustlyPayoutWebhook {
-    pub method: TrustlyWebhookEvent,
-    pub params: TrustlyPayoutWebhookParams,
-    pub version: String,
-}
-
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct TrustlyPayoutWebhookParams {
-    uuid: String,
-    pub data: TrustlyPayoutWebhookData,
-    signature: String,
-}
-
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct TrustlyPayoutWebhookData {
-    notificationid: String,
-    enduserid: String,
-    pub orderid: String,
-    timestamp: String,
-    errorcode: Option<String>,
-    errormessage: Option<String>,
-}
-
-pub fn is_payout_webhook(event: TrustlyWebhookEvent) -> bool {
-    matches!(
-        event,
-        TrustlyWebhookEvent::PayoutConfirmation | TrustlyWebhookEvent::PayoutFailed
-    )
-}
-
-pub fn get_payout_webhook_event(
-    event: TrustlyWebhookEvent,
-) -> api_models::webhooks::IncomingWebhookEvent {
-    match event {
-        TrustlyWebhookEvent::PayoutConfirmation => {
-            api_models::webhooks::IncomingWebhookEvent::PayoutSuccess
-        }
-        TrustlyWebhookEvent::PayoutFailed => {
-            api_models::webhooks::IncomingWebhookEvent::PayoutFailure
-        }
-    }
-}
-
-pub fn verify_webhook_signature(
-    webhook_body: TrustlyPayoutWebhook,
-    public_key: Vec<u8>,
-) -> error_stack::Result<bool, ConnectorError> {
-    let method = webhook_body.method;
-    let uuid = webhook_body.params.uuid;
-    let data = &webhook_body.params.data;
-    let signature = &webhook_body.params.signature;
-
-    // openssl_get_publickey(file_get_contents('trustly-signature-tester-public-key.pem'))
-    let rsa = Rsa::public_key_from_pem(&public_key)
-        .change_context(ConnectorError::WebhookSourceVerificationFailed)?;
-    let public_key =
-        PKey::from_rsa(rsa).change_context(ConnectorError::WebhookSourceVerificationFailed)?;
-
-    // if(preg_match('/^alg=RS\d{3};/', $signature_from_trustly))
-    let (algorithm, signature_b64) = if signature.len() >= 10
-        && signature.starts_with("alg=RS")
-        && matches!(signature.as_bytes().get(9), Some(b';'))
-    {
-        // $prefix = substr($signature_from_trustly, 0, 10)
-        let prefix = &signature[..10];
-
-        // array_flip($algorithm2prefix)[$prefix] ?? OPENSSL_ALGO_SHA1
-        let algorithm = match prefix {
-            "alg=RS256;" => Algorithm::SHA256,
-            "alg=RS384;" => Algorithm::SHA384,
-            "alg=RS512;" => Algorithm::SHA512,
-            _ => Algorithm::SHA1,
-        };
-
-        // $signature_from_trustly = substr($signature_from_trustly, 10)
-        (algorithm, &signature[10..])
-    } else {
-        // $algorithm = OPENSSL_ALGO_SHA1
-        (Algorithm::SHA1, signature.as_str())
-    };
-
-    // $plaintext = $method . $uuid . serialize_data($data)
-    let plaintext = format!("{}{}{}", method.as_str(), uuid, trustly_serialize(data));
-
-    // base64_decode($signature_from_trustly)
-    let signature_bytes = general_purpose::STANDARD
-        .decode(signature_b64)
-        .change_context(ConnectorError::WebhookSourceVerificationFailed)?;
-
-    // openssl_verify($plaintext, $signature_bytes, $public_key, $algorithm)
-    let mut verifier = Verifier::new(algorithm.message_digest(), &public_key)
-        .change_context(ConnectorError::WebhookSourceVerificationFailed)?;
-    verifier
-        .update(plaintext.as_bytes())
-        .change_context(ConnectorError::WebhookSourceVerificationFailed)?;
-    verifier
-        .verify(&signature_bytes)
-        .change_context(ConnectorError::WebhookSourceVerificationFailed)
 }
