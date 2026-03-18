@@ -106,6 +106,7 @@ pub struct MerchantConnectorAccount {
     pub version: common_enums::ApiVersion,
     pub id: id_type::MerchantConnectorAccountId,
     pub feature_metadata: Option<MerchantConnectorAccountFeatureMetadata>,
+    #[serde(default)]
     pub connector_webhook_registration_details: Option<serde_json::Value>,
 }
 
