@@ -2,8 +2,8 @@ use external_services::superposition;
 
 use super::{
     dimension_state::{
-        DimensionsWithMerchantId, DimensionsWithOrgIdAndMerchantId,
-        DimensionsWithMerchantIdAndProfileId, DimensionsWithMerchantIdConnectorAndWebhookEvent,
+        DimensionsWithMerchantId, DimensionsWithMerchantIdAndProfileId,
+        DimensionsWithMerchantIdConnectorAndWebhookEvent, DimensionsWithOrgIdAndMerchantId,
     },
     fetch_db_config_for_dimensions, DatabaseBackedConfig,
 };

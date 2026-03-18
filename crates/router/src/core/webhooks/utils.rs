@@ -1,7 +1,4 @@
-use std::{
-    marker::PhantomData,
-    str::FromStr,
-};
+use std::{marker::PhantomData, str::FromStr};
 
 use base64::Engine;
 use common_utils::{
@@ -17,12 +14,11 @@ use router_env::tracing;
 use super::MERCHANT_ID;
 use crate::{
     core::{
+        configs::dimension_state,
         errors::{self},
         metrics,
         payments::helpers,
-        configs::dimension_state,
     },
-
     errors::RouterResult,
     routes::app::SessionStateInfo,
     services::logger,
@@ -43,26 +39,26 @@ pub async fn is_webhook_event_disabled(
     merchant_id: &common_utils::id_type::MerchantId,
     event: &api::IncomingWebhookEvent,
 ) -> bool {
-    
-    let connector = match common_enums::connector_enums::Connector::from_str(connector_id){
-            Ok(connector_enum) => connector_enum,
-            Err(_) => {
-                logger::error!("Failed to parse connector name: {}", connector_id);
-                return false;
-            }
-        };
+    let connector = match common_enums::connector_enums::Connector::from_str(connector_id) {
+        Ok(connector_enum) => connector_enum,
+        Err(_) => {
+            logger::error!("Failed to parse connector name: {}", connector_id);
+            return false;
+        }
+    };
 
     let dimensions = dimension_state::Dimensions::new()
         .with_merchant_id(merchant_id.clone())
         .with_connector(connector)
         .with_incoming_webhook_event(*event);
 
-    dimensions.get_incoming_webhook_disabled_events(
-        state.store.as_ref(),
-        state.superposition_service.as_deref(),
-        None,
-    )
-    .await
+    dimensions
+        .get_incoming_webhook_disabled_events(
+            state.store.as_ref(),
+            state.superposition_service.as_deref(),
+            None,
+        )
+        .await
 }
 
 pub async fn construct_webhook_router_data(

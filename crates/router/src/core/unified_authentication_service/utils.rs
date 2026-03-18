@@ -30,12 +30,12 @@ use super::types::{
 use crate::{
     consts::DEFAULT_SESSION_EXPIRY,
     core::{
+        configs::dimension_state,
         errors::{
             utils::{ConnectorErrorExt, StorageErrorExt},
             RouterResult,
         },
         payment_methods, payments,
-        configs::dimension_state,
     },
     db::domain,
     services::{self, execute_connector_processing_step},
@@ -710,7 +710,7 @@ pub async fn fetch_routing_region_for_uas(
     organization_id: common_utils::id_type::OrganizationId,
 ) -> RouterResult<RoutingRegion> {
     // profile id not present in call site of incoming webhook for UAS, so passing NoProfileId as type parameter
-    let dimensions= dimension_state::Dimensions::new()
+    let dimensions = dimension_state::Dimensions::new()
         .with_merchant_id(merchant_id)
         .with_organization_id(organization_id);
     let region_str = dimensions

@@ -14,10 +14,7 @@ use api_models::{
 };
 use async_trait::async_trait;
 use common_enums::TransactionType;
-use common_utils::{
-    ext_traits::BytesExt,
-    id_type,
-};
+use common_utils::{ext_traits::BytesExt, id_type};
 use diesel_models::{enums, routing_algorithm};
 use error_stack::ResultExt;
 use euclid::{
@@ -37,10 +34,7 @@ use serde::{Deserialize, Serialize};
 
 use super::RoutingResult;
 use crate::{
-    core::{
-        errors,
-        configs::dimension_state,
-    },
+    core::{configs::dimension_state, errors},
     db::domain,
     routes::{app::SessionStateInfo, SessionState},
     services::{self, logger},
