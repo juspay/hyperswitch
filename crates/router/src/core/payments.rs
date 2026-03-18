@@ -905,6 +905,7 @@ where
                     &connector_details,
                     &business_profile,
                     platform.get_processor(),
+                    platform.get_initiator(),
                     mandate_type,
                 )
                 .await?;
