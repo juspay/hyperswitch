@@ -78,7 +78,7 @@ describe("Platform Payment Flows", () => {
         globalState.get("connectorId_CM1")
       );
 
-      const data = getConnectorDetails("stripe")["card_pm"]["No3DSAutoCapture"];
+      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
 
       cy.createConfirmPaymentTest(
         fixtures.createConfirmPaymentBody,
@@ -98,7 +98,7 @@ describe("Platform Payment Flows", () => {
         globalState.get("connectorId_CM2")
       );
 
-      const data = getConnectorDetails("stripe")["card_pm"]["No3DSAutoCapture"];
+      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
 
       cy.createConfirmPaymentTest(
         fixtures.createConfirmPaymentBody,
