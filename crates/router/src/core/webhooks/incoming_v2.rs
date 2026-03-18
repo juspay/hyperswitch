@@ -236,7 +236,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         webhooks::IncomingWebhookEvent::EventNotSupported
     );
     let is_webhook_event_enabled = !utils::is_webhook_event_disabled(
-        &*state.clone().store,
+        &state,
         connector_name.as_str(),
         platform.get_processor().get_account().get_id(),
         &event_type,

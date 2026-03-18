@@ -1,7 +1,10 @@
 use external_services::superposition;
 
 use super::{
-    dimension_state::{DimensionsWithMerchantId, DimensionsWithMerchantIdAndProfileId},
+    dimension_state::{
+        DimensionsWithMerchantId, DimensionsWithMerchantIdAndProfileId,
+        DimensionsWithMerchantIdConnectorAndWebhookEvent, DimensionsWithOrgIdAndMerchantId,
+    },
     fetch_db_config_for_dimensions, DatabaseBackedConfig,
 };
 use crate::{consts::superposition as superposition_consts, db::StorageInterface, utils::id_type};
@@ -149,5 +152,58 @@ impl DatabaseBackedConfig for ImplicitCustomerUpdate {
             .map(|id| id.get_string_repr())
             .unwrap_or_default();
         Some(format!("{}_{}", merchant_id, Self::KEY))
+    }
+}
+
+config! {
+    superposition_key = ROUTING_RESULT_SOURCE,
+    output = String,
+    default = "hyperswitch_routing".to_string(),
+    requires = DimensionsWithMerchantIdAndProfileId,
+    targeting_key = id_type::ProfileId
+}
+
+impl DatabaseBackedConfig for RoutingResultSource {
+    const KEY: &'static str = "routing_result_source";
+    fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+        let profile_id = dimensions
+            .get_profile_id()
+            .map(|id| id.get_string_repr())
+            .unwrap_or_default();
+        Some(format!("{}_{}", Self::KEY, profile_id))
+    }
+}
+
+config! {
+    superposition_key = THREEDS_ROUTING_REGION_UAS,
+    output = String,
+    default = "region1".to_string(),
+    requires = DimensionsWithOrgIdAndMerchantId,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for ThreedsRoutingRegionUas {
+    const KEY: &'static str = "threeds_routing_region_uas";
+    fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+        let merchant_id = dimensions
+            .get_merchant_id()
+            .map(|id| id.get_string_repr())
+            .unwrap_or_default();
+        Some(format!("{}_{}", Self::KEY, merchant_id))
+    }
+}
+
+config! {
+    superposition_key = INCOMING_WEBHOOK_DISABLED_EVENTS,
+    output = bool,
+    default = false,
+    requires = DimensionsWithMerchantIdConnectorAndWebhookEvent,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for IncomingWebhookDisabledEvents {
+    const KEY: &'static str = "incoming_webhook_disabled_events";
+    fn db_key(_dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+        None
     }
 }
