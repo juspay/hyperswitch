@@ -247,14 +247,14 @@ pub async fn payments_check_and_apply_pm_data_core(
                     )
                 }
                 None => {
-                    match payments_check_gift_card_balance_core(
+                    match Box::pin(payments_check_gift_card_balance_core(
                         &state,
                         &platform,
                         &profile,
                         &_req_state,
                         pm.clone(),
                         &payment_id,
-                    )
+                    ))
                     .await
                     {
                         Ok((balance, currency)) => {
