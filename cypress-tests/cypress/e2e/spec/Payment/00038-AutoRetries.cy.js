@@ -16,32 +16,34 @@ describe("Auto Retry Tests", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  context("auto retries enabled with max retries = 1", () => {
-    it("Create Secondary Connector -> Update Business Profile -> Create Payment Intent -> Confirm Payment -> Retrieve Payment", () => {
-      let shouldContinue = true;
+  context("Create Secondary Connector for the same profile", () => {
+    it("Create Secondary Connector", () => {
+      const CONNECTOR_POOL = ["stripe", "adyen", "cybersource"];
+      const primaryConnector = globalState.get("connectorId");
 
-      cy.step("Create Secondary Connector", () => {
-        const CONNECTOR_POOL = ["stripe", "adyen", "cybersource"];
-        const primaryConnector = globalState.get("connectorId");
+      const secondaryConnector = CONNECTOR_POOL.find(
+        (connector) => connector !== primaryConnector
+      );
 
-        const secondaryConnector = CONNECTOR_POOL.find(
-          (connector) => connector !== primaryConnector
-        );
+      globalState.set("connectorId", secondaryConnector);
+      globalState.set("secondaryConnector", secondaryConnector);
 
-        globalState.set("connectorId", secondaryConnector);
-        globalState.set("secondaryConnector", secondaryConnector);
-
-        cy.createConnectorCallTest(
-          "payment_processor",
-          fixtures.createConnectorBody,
-          payment_methods_enabled,
-          globalState,
-          "profile",
-          "merchantConnectorSecondary"
-        ).then(() => {
-          globalState.set("connectorId", primaryConnector);
-        });
+      cy.createConnectorCallTest(
+        "payment_processor",
+        fixtures.createConnectorBody,
+        payment_methods_enabled,
+        globalState,
+        "profile",
+        "merchantConnectorSecondary"
+      ).then(() => {
+        globalState.set("connectorId", primaryConnector);
       });
+    });
+  });
+
+  context("auto retries enabled with max retries = 1", () => {
+    it("Update Business Profile -> Create Payment Intent -> Confirm Payment -> Retrieve Payment", () => {
+      let shouldContinue = true;
 
       cy.step(
         "Update Business Profile to enable auto retries with 1 max retry",
