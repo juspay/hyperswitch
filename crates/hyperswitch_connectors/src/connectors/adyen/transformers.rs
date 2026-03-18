@@ -2052,7 +2052,11 @@ fn get_recurring_processing_model(
             let store_payment_method = item.request.is_mandate_payment();
             let shopper_reference =
                 shopper_reference.ok_or_else(missing_field_err("connector_customer_id"))?;
-            Ok((None, Some(store_payment_method), Some(shopper_reference)))
+            Ok((
+                Some(AdyenRecurringModel::UnscheduledCardOnFile),
+                Some(store_payment_method),
+                Some(shopper_reference),
+            ))
         }
         // Off-session payment
         (_, Some(true)) => {
