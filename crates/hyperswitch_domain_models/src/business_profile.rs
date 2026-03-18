@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, collections::HashSet};
 
 use common_enums::enums as api_enums;
 use common_types::{domain::AcquirerConfig, primitive_wrappers};
@@ -16,16 +16,239 @@ use diesel_models::business_profile::RevenueRecoveryAlgorithmData;
 use diesel_models::business_profile::{
     self as storage_types, AuthenticationConnectorDetails, BusinessPaymentLinkConfig,
     BusinessPayoutLinkConfig, CardTestingGuardConfig, ExternalVaultConnectorDetails,
-    ProfileUpdateInternal, WebhookDetails,
+    ProfileUpdateInternal,
 };
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::logger;
+use strum::IntoEnumIterator;
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct MultipleWebhookDetail {
+    pub webhook_endpoint_id: common_utils::id_type::WebhookEndpointId,
+    pub webhook_url: Secret<String>,
+    pub events: HashSet<common_enums::EventType>,
+    pub status: common_enums::OutgoingWebhookEndpointStatus,
+    pub is_legacy_url: bool,
+}
+
+impl ForeignFrom<storage_types::MultipleWebhookDetail> for MultipleWebhookDetail {
+    fn foreign_from(item: storage_types::MultipleWebhookDetail) -> Self {
+        Self {
+            webhook_endpoint_id: item.webhook_endpoint_id,
+            webhook_url: item.webhook_url,
+            events: item.events,
+            status: item.status,
+            is_legacy_url: item.is_legacy_url,
+        }
+    }
+}
+
+impl ForeignFrom<MultipleWebhookDetail> for storage_types::MultipleWebhookDetail {
+    fn foreign_from(item: MultipleWebhookDetail) -> Self {
+        Self {
+            webhook_endpoint_id: item.webhook_endpoint_id,
+            webhook_url: item.webhook_url,
+            events: item.events,
+            status: item.status,
+            is_legacy_url: item.is_legacy_url,
+        }
+    }
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct WebhookUrls(pub Vec<MultipleWebhookDetail>);
+
+impl From<Vec<MultipleWebhookDetail>> for WebhookUrls {
+    fn from(item: Vec<MultipleWebhookDetail>) -> Self {
+        Self(item)
+    }
+}
+
+impl WebhookUrls {
+    pub fn get_legacy_url(&self) -> Option<Secret<String>> {
+        self.0
+            .iter()
+            .find(|webhook_detail| webhook_detail.is_legacy_url)
+            .map(|webhook_detail| webhook_detail.webhook_url.clone())
+    }
+
+    pub fn update_legacy_webhook_url(&mut self, new_url: Secret<String>) {
+        if let Some(legacy_webhook) = self
+            .0
+            .iter_mut()
+            .find(|webhook_detail| webhook_detail.is_legacy_url)
+        {
+            legacy_webhook.webhook_url = new_url;
+        }
+    }
+
+    pub fn get_multiple_webhook_urls(
+        legacy_url: Option<Secret<String>>,
+        multiple_urls: Option<Vec<storage_types::MultipleWebhookDetail>>,
+    ) -> Self {
+        let mut urls = Vec::new();
+        let mut processed_endpoint_ids = HashSet::new();
+        let existing_legacy_entry = multiple_urls
+            .as_ref()
+            .and_then(|list| list.iter().find(|detail| detail.is_legacy_url));
+
+        if let Some(legacy_url_value) = legacy_url {
+            let webhook_endpoint_id = existing_legacy_entry
+                .map(|entry| entry.webhook_endpoint_id.clone())
+                .unwrap_or_else(common_utils::generate_webhook_endpoint_id_of_default_length);
+
+            if processed_endpoint_ids.insert(webhook_endpoint_id.clone()) {
+                urls.push(MultipleWebhookDetail {
+                    webhook_endpoint_id,
+                    webhook_url: legacy_url_value,
+                    events: existing_legacy_entry
+                        .map(|entry| entry.events.clone())
+                        .unwrap_or_else(|| common_enums::EventType::iter().collect()),
+                    status: existing_legacy_entry
+                        .map(|entry| entry.status)
+                        .unwrap_or(common_enums::OutgoingWebhookEndpointStatus::Active),
+                    is_legacy_url: true,
+                });
+            }
+        }
+
+        if let Some(multiple_urls_list) = multiple_urls {
+            for detail in multiple_urls_list {
+                if detail.is_legacy_url {
+                    continue;
+                }
+                if processed_endpoint_ids.insert(detail.webhook_endpoint_id.clone()) {
+                    urls.push(detail.foreign_into());
+                }
+            }
+        }
+        Self(urls)
+    }
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct WebhookDetails {
+    pub webhook_version: Option<String>,
+    pub webhook_username: Option<String>,
+    pub webhook_password: Option<Secret<String>>,
+    pub payment_created_enabled: Option<bool>,
+    pub payment_succeeded_enabled: Option<bool>,
+    pub payment_failed_enabled: Option<bool>,
+    pub payment_statuses_enabled: Option<Vec<common_enums::IntentStatus>>,
+    pub refund_statuses_enabled: Option<Vec<common_enums::RefundStatus>>,
+    pub payout_statuses_enabled: Option<Vec<common_enums::PayoutStatus>>,
+    pub multiple_webhooks_list: Option<WebhookUrls>,
+}
+
+impl ForeignFrom<storage_types::WebhookDetails> for WebhookDetails {
+    fn foreign_from(item: storage_types::WebhookDetails) -> Self {
+        let webhook_urls =
+            WebhookUrls::get_multiple_webhook_urls(item.webhook_url, item.multiple_webhooks_list);
+
+        Self {
+            webhook_version: item.webhook_version,
+            webhook_username: item.webhook_username,
+            webhook_password: item.webhook_password,
+            payment_created_enabled: item.payment_created_enabled,
+            payment_succeeded_enabled: item.payment_succeeded_enabled,
+            payment_failed_enabled: item.payment_failed_enabled,
+            payment_statuses_enabled: item.payment_statuses_enabled,
+            refund_statuses_enabled: item.refund_statuses_enabled,
+            payout_statuses_enabled: item.payout_statuses_enabled,
+            multiple_webhooks_list: Some(webhook_urls),
+        }
+    }
+}
+
+impl WebhookDetails {
+    pub fn merge(self, other: Self) -> Self {
+        Self {
+            webhook_version: other.webhook_version.or(self.webhook_version),
+            webhook_username: other.webhook_username.or(self.webhook_username),
+            webhook_password: other.webhook_password.or(self.webhook_password),
+            payment_created_enabled: other
+                .payment_created_enabled
+                .or(self.payment_created_enabled),
+            payment_succeeded_enabled: other
+                .payment_succeeded_enabled
+                .or(self.payment_succeeded_enabled),
+            payment_failed_enabled: other.payment_failed_enabled.or(self.payment_failed_enabled),
+            payment_statuses_enabled: other
+                .payment_statuses_enabled
+                .or(self.payment_statuses_enabled),
+            refund_statuses_enabled: other
+                .refund_statuses_enabled
+                .or(self.refund_statuses_enabled),
+            payout_statuses_enabled: other
+                .payout_statuses_enabled
+                .or(self.payout_statuses_enabled),
+            multiple_webhooks_list: other.multiple_webhooks_list.or(self.multiple_webhooks_list),
+        }
+    }
+
+    pub fn update_from_api(
+        existing: Option<Self>,
+        api_webhook: api_models::admin::WebhookDetails,
+    ) -> Self {
+        let mut existing_webhook_urls = existing
+            .as_ref()
+            .and_then(|d| d.multiple_webhooks_list.clone())
+            .unwrap_or_else(|| WebhookUrls::get_multiple_webhook_urls(None, None));
+
+        if let Some(new_url) = api_webhook.webhook_url {
+            existing_webhook_urls.update_legacy_webhook_url(new_url);
+        }
+
+        let api_webhook_as_domain = Self {
+            webhook_version: api_webhook.webhook_version,
+            webhook_username: api_webhook.webhook_username,
+            webhook_password: api_webhook.webhook_password,
+            payment_created_enabled: api_webhook.payment_created_enabled,
+            payment_failed_enabled: api_webhook.payment_failed_enabled,
+            payment_succeeded_enabled: api_webhook.payment_succeeded_enabled,
+            payment_statuses_enabled: api_webhook.payment_statuses_enabled,
+            refund_statuses_enabled: api_webhook.refund_statuses_enabled,
+            payout_statuses_enabled: api_webhook.payout_statuses_enabled,
+            multiple_webhooks_list: Some(existing_webhook_urls),
+        };
+
+        match existing {
+            Some(existing_details) => existing_details.merge(api_webhook_as_domain),
+            None => api_webhook_as_domain,
+        }
+    }
+}
+
+impl ForeignFrom<WebhookDetails> for storage_types::WebhookDetails {
+    fn foreign_from(item: WebhookDetails) -> Self {
+        let webhook_url = item
+            .multiple_webhooks_list
+            .as_ref()
+            .and_then(|list| list.get_legacy_url());
+        Self {
+            webhook_version: item.webhook_version,
+            webhook_username: item.webhook_username,
+            webhook_password: item.webhook_password,
+            webhook_url,
+            payment_created_enabled: item.payment_created_enabled,
+            payment_succeeded_enabled: item.payment_succeeded_enabled,
+            payment_failed_enabled: item.payment_failed_enabled,
+            payment_statuses_enabled: item.payment_statuses_enabled,
+            refund_statuses_enabled: item.refund_statuses_enabled,
+            payout_statuses_enabled: item.payout_statuses_enabled,
+            multiple_webhooks_list: item
+                .multiple_webhooks_list
+                .map(|urls| urls.0.into_iter().map(ForeignFrom::foreign_from).collect()),
+        }
+    }
+}
 
 use crate::{
     behaviour::Conversion,
     errors::api_error_response,
     merchant_key_store::MerchantKeyStore,
+    transformers::{ForeignFrom, ForeignInto},
     type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
 };
 #[cfg(feature = "v1")]
@@ -494,7 +717,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     enable_payment_response_hash,
                     payment_response_hash_key,
                     redirect_to_merchant_with_http_post,
-                    webhook_details,
+                    webhook_details: webhook_details.map(ForeignFrom::foreign_from),
                     metadata,
                     routing_algorithm,
                     intent_fulfillment_time,
@@ -986,7 +1209,7 @@ impl Conversion for Profile {
             enable_payment_response_hash: self.enable_payment_response_hash,
             payment_response_hash_key: self.payment_response_hash_key,
             redirect_to_merchant_with_http_post: self.redirect_to_merchant_with_http_post,
-            webhook_details: self.webhook_details,
+            webhook_details: self.webhook_details.map(ForeignFrom::foreign_from),
             metadata: self.metadata,
             routing_algorithm: self.routing_algorithm,
             intent_fulfillment_time: self.intent_fulfillment_time,
@@ -1112,7 +1335,7 @@ impl Conversion for Profile {
             enable_payment_response_hash: item.enable_payment_response_hash,
             payment_response_hash_key: item.payment_response_hash_key,
             redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
-            webhook_details: item.webhook_details,
+            webhook_details: item.webhook_details.map(ForeignFrom::foreign_from),
             metadata: item.metadata,
             routing_algorithm: item.routing_algorithm,
             intent_fulfillment_time: item.intent_fulfillment_time,
@@ -1185,7 +1408,7 @@ impl Conversion for Profile {
             enable_payment_response_hash: self.enable_payment_response_hash,
             payment_response_hash_key: self.payment_response_hash_key,
             redirect_to_merchant_with_http_post: self.redirect_to_merchant_with_http_post,
-            webhook_details: self.webhook_details,
+            webhook_details: self.webhook_details.map(ForeignFrom::foreign_from),
             metadata: self.metadata,
             routing_algorithm: self.routing_algorithm,
             intent_fulfillment_time: self.intent_fulfillment_time,
@@ -1447,8 +1670,9 @@ impl Profile {
 
     pub fn get_webhook_url_from_profile(&self) -> CustomResult<String, ValidationError> {
         self.webhook_details
-            .clone()
-            .and_then(|details| details.webhook_url)
+            .as_ref()
+            .and_then(|details| details.multiple_webhooks_list.as_ref())
+            .and_then(|list| list.get_legacy_url())
             .get_required_value("webhook_details.webhook_url")
             .map(ExposeInterface::expose)
     }
@@ -1764,7 +1988,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     enable_payment_response_hash,
                     payment_response_hash_key,
                     redirect_to_merchant_with_http_post,
-                    webhook_details,
+                    webhook_details: webhook_details.map(ForeignFrom::foreign_from),
                     metadata,
                     is_recon_enabled: None,
                     applepay_verified_domains,
@@ -2350,7 +2574,7 @@ impl Conversion for Profile {
             enable_payment_response_hash: self.enable_payment_response_hash,
             payment_response_hash_key: self.payment_response_hash_key,
             redirect_to_merchant_with_http_post: self.redirect_to_merchant_with_http_post,
-            webhook_details: self.webhook_details,
+            webhook_details: self.webhook_details.map(ForeignFrom::foreign_from),
             metadata: self.metadata,
             is_recon_enabled: self.is_recon_enabled,
             applepay_verified_domains: self.applepay_verified_domains,
@@ -2435,7 +2659,7 @@ impl Conversion for Profile {
                 enable_payment_response_hash: item.enable_payment_response_hash,
                 payment_response_hash_key: item.payment_response_hash_key,
                 redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
-                webhook_details: item.webhook_details,
+                webhook_details: item.webhook_details.map(ForeignFrom::foreign_from),
                 metadata: item.metadata,
                 is_recon_enabled: item.is_recon_enabled,
                 applepay_verified_domains: item.applepay_verified_domains,
@@ -2528,7 +2752,7 @@ impl Conversion for Profile {
             enable_payment_response_hash: self.enable_payment_response_hash,
             payment_response_hash_key: self.payment_response_hash_key,
             redirect_to_merchant_with_http_post: self.redirect_to_merchant_with_http_post,
-            webhook_details: self.webhook_details,
+            webhook_details: self.webhook_details.map(ForeignFrom::foreign_from),
             metadata: self.metadata,
             is_recon_enabled: self.is_recon_enabled,
             applepay_verified_domains: self.applepay_verified_domains,
