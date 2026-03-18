@@ -10026,7 +10026,7 @@ where
         )
         | (
             None,
-            _,
+            _, // `false` for legacy and `true` for non modular merchants
             Some(RecurringDetails::PaymentMethodId(_)),
             Some(true),
             Some(api::MandateTransactionType::RecurringMandateTransaction),
@@ -10102,7 +10102,7 @@ where
         }
         (
             None,
-            _,
+            _, // `false` for legacy and `true` for non modular merchants
             Some(RecurringDetails::ProcessorPaymentToken(_token)),
             Some(true),
             Some(api::MandateTransactionType::RecurringMandateTransaction),
