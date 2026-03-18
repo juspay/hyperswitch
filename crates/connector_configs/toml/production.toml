@@ -43,6 +43,8 @@ payment_method_type = "mb_way"
 payment_method_type = "apple_pay"
 [[aci.wallet]]
 payment_method_type = "google_pay"
+[[aci.wallet]]
+payment_method_type = "samsung_pay"
 [[aci.bank_redirect]]
 payment_method_type = "ideal"
 [[aci.bank_redirect]]
