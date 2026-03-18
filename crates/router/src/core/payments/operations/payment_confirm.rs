@@ -652,38 +652,39 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         //fetch for repeat cit using payment token
 
-        let (token_data, payment_method_info) =
-            if pm_utils::get_organization_eligibility_config_for_pm_modular_service(
+        let is_modular_payment_method_flow =
+            pm_utils::get_organization_eligibility_config_for_pm_modular_service(
                 &*state.store,
                 &platform.get_processor().get_account().organization_id,
             )
-            .await
-            {
-                (
-                    None,
-                    payment_method_with_raw_data
-                        .clone()
-                        .map(|pm| pm.payment_method.0),
-                )
-            } else if let Some(token) = token.clone() {
-                let token_data = helpers::retrieve_payment_token_data(
-                    state,
-                    token,
-                    payment_method.or(payment_attempt.payment_method),
-                )
-                .await?;
+            .await;
 
-                let payment_method_info = helpers::retrieve_payment_method_from_db_with_token_data(
-                    state,
-                    platform.get_provider().get_key_store(),
-                    &token_data,
-                    storage_scheme,
-                )
-                .await?;
-                (Some(token_data), payment_method_info)
-            } else {
-                (None, payment_method_info)
-            };
+        let (token_data, payment_method_info) = if is_modular_payment_method_flow {
+            (
+                None,
+                payment_method_with_raw_data
+                    .clone()
+                    .map(|pm| pm.payment_method.0),
+            )
+        } else if let Some(token) = token.clone() {
+            let token_data = helpers::retrieve_payment_token_data(
+                state,
+                token,
+                payment_method.or(payment_attempt.payment_method),
+            )
+            .await?;
+
+            let payment_method_info = helpers::retrieve_payment_method_from_db_with_token_data(
+                state,
+                platform.get_provider().get_key_store(),
+                &token_data,
+                storage_scheme,
+            )
+            .await?;
+            (Some(token_data), payment_method_info)
+        } else {
+            (None, payment_method_info)
+        };
         let additional_pm_data_from_locker = if let Some(ref pm) = payment_method_info {
             let card_detail_from_locker: Option<api::CardDetailFromLocker> = pm
                 .payment_method_data
@@ -703,6 +704,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
                     _ => None,
                 });
+
             card_detail_from_locker.map(|card_details| {
                 let additional_data = card_details.into();
                 api_models::payments::AdditionalPaymentData::Card(Box::new(additional_data))
