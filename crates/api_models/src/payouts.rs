@@ -284,6 +284,7 @@ pub enum Bank {
     Bacs(BacsBankTransfer),
     Sepa(SepaBankTransfer),
     Pix(PixBankTransfer),
+    Trustly(TrustlyBankTransfer),
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -392,7 +393,6 @@ pub enum Wallet {
 pub enum BankRedirect {
     Interac(Interac),
     OpenBankingUk(OpenBankingUk),
-    Trustly(Trustly),
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -413,7 +413,7 @@ pub struct OpenBankingUk {
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
-pub struct Trustly {
+pub struct TrustlyBankTransfer {
     /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
     #[schema(value_type = String, example = "token_12345")]
     pub iban: Option<Secret<String>>,
@@ -1068,6 +1068,19 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
                     tax_id: tax_id.map(From::from),
                 },
             )),
+            Bank::Trustly(TrustlyBankTransfer {
+                iban,
+                country_code,
+                account_number,
+                bank_number,
+            }) => Self::Trustly(Box::new(
+                payout_method_utils::TrustlyBankTransferAdditionalData {
+                    iban,
+                    country_code,
+                    account_number,
+                    bank_number,
+                },
+            )),
         }
     }
 }
@@ -1119,17 +1132,6 @@ impl From<BankRedirect> for payout_method_utils::BankRedirectAdditionalData {
             }) => Self::OpenBankingUk(Box::new(payout_method_utils::OpenBankingUkAdditionalData {
                 account_holder_name,
                 iban,
-            })),
-            BankRedirect::Trustly(Trustly {
-                iban,
-                country_code,
-                account_number,
-                bank_number,
-            }) => Self::Trustly(Box::new(payout_method_utils::TrustlyAdditionalData {
-                iban,
-                country_code,
-                account_number,
-                bank_number,
             })),
         }
     }

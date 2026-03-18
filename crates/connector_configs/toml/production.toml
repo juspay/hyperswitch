@@ -7086,7 +7086,7 @@ type = "Text"
 [trustly_payout.connector_auth.BodyKey]
 api_key = "Username"
 key1 = "Password"
-[[trustly_payout.bank_redirect]]
+[[trustly_payout.bank_transfer]]
 payment_method_type = "trustly"
 
 [trustly_payout.metadata.private_key]

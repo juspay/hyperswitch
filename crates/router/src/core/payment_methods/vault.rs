@@ -694,6 +694,7 @@ pub struct TokenizedBankSensitiveValues {
     pub iban: Option<masking::Secret<String>>,
     pub pix_key: Option<masking::Secret<String>>,
     pub tax_id: Option<masking::Secret<String>>,
+    pub bank_number: Option<masking::Secret<String>>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -720,6 +721,7 @@ impl Vaultable for api::BankPayout {
                 iban: None,
                 pix_key: None,
                 tax_id: None,
+                bank_number: None,
             },
             Self::Bacs(b) => TokenizedBankSensitiveValues {
                 bank_account_number: Some(b.bank_account_number.to_owned()),
@@ -729,6 +731,7 @@ impl Vaultable for api::BankPayout {
                 iban: None,
                 pix_key: None,
                 tax_id: None,
+                bank_number: None,
             },
             Self::Sepa(b) => TokenizedBankSensitiveValues {
                 bank_account_number: None,
@@ -738,6 +741,7 @@ impl Vaultable for api::BankPayout {
                 iban: Some(b.iban.to_owned()),
                 pix_key: None,
                 tax_id: None,
+                bank_number: None,
             },
             Self::Pix(bank_details) => TokenizedBankSensitiveValues {
                 bank_account_number: Some(bank_details.bank_account_number.to_owned()),
@@ -747,6 +751,17 @@ impl Vaultable for api::BankPayout {
                 iban: None,
                 pix_key: Some(bank_details.pix_key.to_owned()),
                 tax_id: bank_details.tax_id.to_owned(),
+                bank_number: None,
+            },
+            Self::Trustly(bank_details) => TokenizedBankSensitiveValues {
+                bank_account_number: bank_details.account_number.to_owned(),
+                bank_routing_number: None,
+                bic: None,
+                bank_sort_code: None,
+                iban: bank_details.iban.to_owned(),
+                pix_key: None,
+                tax_id: None,
+                bank_number: bank_details.bank_number.to_owned(),
             },
         };
 
@@ -789,6 +804,13 @@ impl Vaultable for api::BankPayout {
                 bank_city: None,
                 bank_branch: bank_details.bank_branch.to_owned(),
             },
+            Self::Trustly(bank_details) => TokenizedBankInsensitiveValues {
+                customer_id,
+                bank_name: None,
+                bank_country_code: Some(bank_details.country_code),
+                bank_city: None,
+                bank_branch: None,
+            },
         };
 
         bank_insensitive_data
@@ -822,8 +844,10 @@ impl Vaultable for api::BankPayout {
             // PIX
             bank_sensitive_data.pix_key,
             bank_sensitive_data.tax_id,
+            // TRUSTLY
+            bank_insensitive_data.bank_country_code,
         ) {
-            (Some(ban), Some(brn), None, None, None, None, None) => {
+            (Some(ban), Some(brn), None, None, None, None, None, None) => {
                 Self::Ach(payouts::AchBankTransfer {
                     bank_account_number: ban,
                     bank_routing_number: brn,
@@ -832,7 +856,7 @@ impl Vaultable for api::BankPayout {
                     bank_city: bank_insensitive_data.bank_city,
                 })
             }
-            (Some(ban), None, Some(bsc), None, None, None, None) => {
+            (Some(ban), None, Some(bsc), None, None, None, None, None) => {
                 Self::Bacs(payouts::BacsBankTransfer {
                     bank_account_number: ban,
                     bank_sort_code: bsc,
@@ -841,7 +865,7 @@ impl Vaultable for api::BankPayout {
                     bank_city: bank_insensitive_data.bank_city,
                 })
             }
-            (None, None, None, Some(iban), bic, None, None) => {
+            (None, None, None, Some(iban), bic, None, None, None) => {
                 Self::Sepa(payouts::SepaBankTransfer {
                     iban,
                     bic,
@@ -850,13 +874,21 @@ impl Vaultable for api::BankPayout {
                     bank_city: bank_insensitive_data.bank_city,
                 })
             }
-            (Some(ban), None, None, None, None, Some(pix_key), tax_id) => {
+            (Some(ban), None, None, None, None, Some(pix_key), tax_id, None) => {
                 Self::Pix(payouts::PixBankTransfer {
                     bank_account_number: ban,
                     bank_branch: bank_insensitive_data.bank_branch,
                     bank_name: bank_insensitive_data.bank_name,
                     pix_key,
                     tax_id,
+                })
+            }
+            (account_number, None, None, iban, None, None, None, Some(country_code)) => {
+                Self::Trustly(payouts::TrustlyBankTransfer {
+                    iban,
+                    account_number,
+                    bank_number: bank_sensitive_data.bank_number,
+                    country_code,
                 })
             }
             _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
@@ -986,27 +1018,12 @@ impl Vaultable for api::BankRedirectPayout {
                 bank_redirect_type: PaymentMethodType::Interac,
                 account_holder_name: None,
                 iban: None,
-                country_code: None,
-                account_number: None,
-                bank_number: None,
             },
             Self::OpenBankingUk(open_banking_uk_data) => TokenizedBankRedirectSensitiveValues {
                 email: None,
-                country_code: None,
-                account_number: None,
-                bank_number: None,
                 iban: Some(open_banking_uk_data.iban.clone()),
                 account_holder_name: Some(open_banking_uk_data.account_holder_name.clone()),
                 bank_redirect_type: PaymentMethodType::OpenBankingUk,
-            },
-            Self::Trustly(trustly_data) => TokenizedBankRedirectSensitiveValues {
-                email: None,
-                account_holder_name: None,
-                iban: trustly_data.iban.clone(),
-                country_code: Some(trustly_data.country_code),
-                account_number: trustly_data.account_number.clone(),
-                bank_number: trustly_data.bank_number.clone(),
-                bank_redirect_type: PaymentMethodType::Trustly,
             },
         };
 
@@ -1059,16 +1076,6 @@ impl Vaultable for api::BankRedirectPayout {
                 }
                 _ => Err(errors::VaultError::ResponseDeserializationFailed)
                     .attach_printable("Failed to deserialize into OpenBankingUk")?,
-            },
-            PaymentMethodType::Trustly => match value1.country_code {
-                Some(country_code) => Self::Trustly(api_models::payouts::Trustly {
-                    iban: value1.iban.clone(),
-                    country_code,
-                    account_number: value1.account_number.clone(),
-                    bank_number: value1.bank_number.clone(),
-                }),
-                _ => Err(errors::VaultError::ResponseDeserializationFailed)
-                    .attach_printable("Failed to deserialize into Trustly")?,
             },
             _ => Err(errors::VaultError::PayoutMethodNotSupported)
                 .attach_printable("Payout method not supported")?,
@@ -1149,9 +1156,6 @@ pub struct TokenizedBankRedirectSensitiveValues {
     pub email: Option<Email>,
     pub iban: Option<masking::Secret<String>>,
     pub account_holder_name: Option<masking::Secret<String>>,
-    pub bank_number: Option<masking::Secret<String>>,
-    pub account_number: Option<masking::Secret<String>>,
-    pub country_code: Option<api::enums::CountryAlpha2>,
     pub bank_redirect_type: PaymentMethodType,
 }
 

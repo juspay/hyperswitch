@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 #[cfg(feature = "payouts")]
-use api_models::payouts::{BankRedirect, PayoutMethodData};
+use api_models::payouts::{Bank, PayoutMethodData};
 use base64::{engine::general_purpose, Engine as _};
 use common_enums::enums;
 #[cfg(feature = "payouts")]
@@ -477,7 +477,7 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for RegisterAccountRe
     fn try_from(item: &TrustlyRouterData<&PayoutsRouterData<F>>) -> Result<Self, Self::Error> {
         let payout_method_data = item.router_data.get_payout_method_data()?;
         match payout_method_data {
-            PayoutMethodData::BankRedirect(BankRedirect::Trustly(trustly_data)) => {
+            PayoutMethodData::Bank(Bank::Trustly(trustly_data)) => {
                 let (account_number, bank_number) = if let Some(iban) = trustly_data.iban {
                     (iban, Secret::new(String::new()))
                 } else {
@@ -670,7 +670,7 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for AccountPayoutRequ
     fn try_from(item: &TrustlyRouterData<&PayoutsRouterData<F>>) -> Result<Self, Self::Error> {
         let payout_method_data = item.router_data.get_payout_method_data()?;
         match payout_method_data {
-            PayoutMethodData::BankRedirect(BankRedirect::Trustly(_trustly_data)) => {
+            PayoutMethodData::Bank(Bank::Trustly(_trustly_data)) => {
                 let notification_url = item.router_data.request.get_webhook_url()?;
 
                 let metadata = item
