@@ -321,8 +321,8 @@ pub struct RegisterAccountData {
     bank_number: Secret<String>,
     clearing_house: String,
     end_user_i_d: CustomerId,
-    firstname: String,
-    lastname: String,
+    firstname: Secret<String>,
+    lastname: Secret<String>,
     username: Secret<String>,
     password: Secret<String>,
     attributes: Option<RegisterAccountAttributes>,
@@ -528,8 +528,8 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for RegisterAccountRe
                         .to_string()
                         .to_uppercase(),
                     end_user_i_d: item.router_data.get_customer_id()?,
-                    firstname: first_name,
-                    lastname: last_name,
+                    firstname: Secret::new(first_name),
+                    lastname: Secret::new(last_name),
                     username: auth_details.username,
                     password: auth_details.password,
                     attributes,
@@ -582,7 +582,7 @@ pub struct RegisterAccountResponseResult {
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct RegisterAccountResponseResultData {
-    accountid: String,
+    accountid: Secret<String>,
     clearinghouse: String,
     bank: String,
 }
@@ -643,7 +643,7 @@ pub struct AccountPayoutParams {
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "PascalCase")]
 pub struct AccountPayoutData {
-    account_i_d: String,
+    account_i_d: Secret<String>,
     amount: StringMajorUnit,
     attributes: Option<AccountPayoutAttributes>,
     currency: common_enums::Currency,
@@ -661,7 +661,7 @@ pub struct AccountPayoutAttributes {
 }
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct TrustlyAccountId {
-    account_id: String,
+    account_id: Secret<String>,
 }
 
 #[cfg(feature = "payouts")]
