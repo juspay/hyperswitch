@@ -4282,7 +4282,6 @@ macro_rules! default_imp_for_payouts {
 }
 
 default_imp_for_payouts!(
-    connectors::Trustly,
     connectors::Worldpaymodular,
     connectors::Paysafe,
     connectors::Affirm,
@@ -4391,7 +4390,6 @@ default_imp_for_payouts!(
     connectors::Threedsecureio,
     connectors::Tokenex,
     connectors::Tokenio,
-    // connectors::Truelayer,
     connectors::Trustpay,
     connectors::Trustpayments,
     connectors::Tsys,
@@ -4578,7 +4576,6 @@ macro_rules! default_imp_for_payouts_retrieve {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_retrieve!(
-    connectors::Trustly,
     connectors::Paysafe,
     connectors::Vgs,
     connectors::Aci,
@@ -4886,7 +4883,6 @@ macro_rules! default_imp_for_payouts_fulfill {
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_fulfill!(
-    connectors::Trustly,
     connectors::Worldpaymodular,
     connectors::Paysafe,
     connectors::Affirm,
@@ -5456,7 +5452,6 @@ default_imp_for_payouts_recipient!(
     connectors::Tokenex,
     connectors::Tokenio,
     connectors::Truelayer,
-    connectors::Trustly,
     connectors::Trustpay,
     connectors::Trustpayments,
     connectors::Tsys,

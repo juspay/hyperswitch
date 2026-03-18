@@ -283,6 +283,7 @@ pub enum Bank {
     Bacs(BacsBankTransfer),
     Sepa(SepaBankTransfer),
     Pix(PixBankTransfer),
+    Trustly(TrustlyBankTransfer),
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -408,6 +409,22 @@ pub struct OpenBankingUk {
     /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
     #[schema(value_type = String, example = "DE89370400440532013000")]
     pub iban: Secret<String>,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct TrustlyBankTransfer {
+    /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
+    #[schema(value_type = String, example = "token_12345")]
+    pub iban: Option<Secret<String>>,
+    /// country code of the customer's bank account.
+    #[schema(value_type = CountryAlpha2, example = "US")]
+    pub country_code: api_enums::CountryAlpha2,
+    /// The account number, identifying the end-user's account in the bank.
+    #[schema(value_type = String, example = "69706212")]
+    pub account_number: Option<Secret<String>>,
+    /// The bank number identifying the end-user's bank in the given clearing house.
+    #[schema(value_type = String, example = "6112")]
+    pub bank_number: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -1048,6 +1065,19 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
                     bank_account_number: bank_account_number.into(),
                     pix_key: pix_key.into(),
                     tax_id: tax_id.map(From::from),
+                },
+            )),
+            Bank::Trustly(TrustlyBankTransfer {
+                iban,
+                country_code,
+                account_number,
+                bank_number,
+            }) => Self::Trustly(Box::new(
+                payout_method_utils::TrustlyBankTransferAdditionalData {
+                    iban,
+                    country_code,
+                    account_number,
+                    bank_number,
                 },
             )),
         }

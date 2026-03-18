@@ -6204,6 +6204,10 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                         message: "Bank transfer via Pix is not supported".to_string(),
                         connector: "Adyen",
                     })?,
+                    payouts::Bank::Trustly(..) => Err(errors::ConnectorError::NotSupported {
+                        message: "Bank transfer via Trustly is not supported".to_string(),
+                        connector: "Adyen",
+                    })?,
                 };
                 let bank_data = PayoutBankData { bank: bank_details };
                 let address: &hyperswitch_domain_models::address::AddressDetails =

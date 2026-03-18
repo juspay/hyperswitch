@@ -7177,6 +7177,20 @@ placeholder = "Enter your Private Key(Base64 encoded)"
 required = true
 type = "Text"
 
+[trustly_payout]
+[trustly_payout.connector_auth.BodyKey]
+api_key = "Username"
+key1 = "Password"
+[[trustly_payout.bank_transfer]]
+payment_method_type = "trustly"
+
+[trustly_payout.metadata.private_key]
+name = "private_key"
+label = "Private Key (Base64 encoded)"
+placeholder = "Enter your Private Key(Base64 encoded)"
+required = true
+type = "Text"
+
 [trustly]
 [trustly.connector_auth.HeaderKey]
 api_key = "API Key"

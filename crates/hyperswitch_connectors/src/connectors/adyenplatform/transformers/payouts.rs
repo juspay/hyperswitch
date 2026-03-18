@@ -545,6 +545,10 @@ impl<F> TryFrom<RawPaymentCounterparty<'_, F>>
                         message: "Bank transfer via Pix is not supported".to_string(),
                         connector: "Adyenplatform",
                     })?,
+                    payouts::Bank::Trustly(..) => Err(ConnectorError::NotSupported {
+                        message: "Bank transfer via Trustly is not supported".to_string(),
+                        connector: "Adyenplatform",
+                    })?,
                 };
                 let counterparty = AdyenPayoutMethodDetails::BankAccount(AdyenBankAccountDetails {
                     account_holder,
