@@ -441,6 +441,7 @@ pub async fn get_filters(
             PaymentIntentDimensions::CardLast4 => fil.card_last_4,
             PaymentIntentDimensions::CardIssuer => fil.card_issuer,
             PaymentIntentDimensions::ErrorReason => fil.error_reason,
+            PaymentIntentDimensions::IsSplitPayment => fil.is_split_payment.map(|i| i.to_string()),
         })
         .collect::<Vec<String>>();
         res.query_data.push(PaymentIntentFilterValue {
