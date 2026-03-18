@@ -926,6 +926,7 @@ pub mod core {
                 processed_payload_length = processed_payload.len(),
                 "Token replacement completed"
             );
+            logger::debug!("Processedd payload: {:?}", processed_payload);
 
             // Determine content type from headers or default to form-urlencoded
             let content_type = request
@@ -1206,5 +1207,193 @@ mod tests {
             "Response should contain replaced tokens (card_number, cvv, expiry): {}",
             serde_json::to_string_pretty(&response.response).unwrap_or_default()
         );
+    }
+
+    /// End-to-end test simulating the real VGS Checkout.com injector request.
+    /// Logs all secret values (token data, interpolated payload, final connector payload)
+    /// to verify correct template interpolation without making a real HTTP call.
+    #[tokio::test]
+    async fn test_vgs_checkout_interpolation_end_to_end() {
+        use crate::injector::core::Injector;
+        use masking::ExposeInterface;
+
+        // ── Token data exactly as received from UCS ──
+        let specific_token_data = common_utils::pii::SecretSerdeValue::new(serde_json::json!({
+            "card_number": "tok_sandbox_2YDNnDoani5L3EEV5RqrMF",
+            "card_cvc": "737",
+            "card_exp_month": "12",
+            "card_exp_year": "31"
+        }));
+
+        // ── Template exactly as built by UCS for Checkout.com ──
+        let template = r#"{"source":{"type":"card","number":"{{$card_number}}","expiry_month":"{{$card_exp_month}}","expiry_year":"{{$card_exp_year}}","cvv":"{{$card_cvc}}","billing_address":{},"account_holder":{"first_name":"John","last_name":"Doe"}},"amount":100,"currency":"USD","processing_channel_id":"pc_jx5lvimg4obe7nhoqnhptm6xoq","3ds":{"enabled":false,"force_3ds":false,"eci":null,"cryptogram":null,"xid":null,"version":null,"challenge_indicator":"no_preference"},"success_url":"http://localhost:8080/v2/payments/12345_pay_019cfbbc8a057611860ef2d51243ba7c/finish-redirection/pk_dev_79f3ea3dccc44e8cbd6f5c19840d2268/pro_ePpSh8JjJSsrxmXTP51U?status=success","failure_url":"http://localhost:8080/v2/payments/12345_pay_019cfbbc8a057611860ef2d51243ba7c/finish-redirection/pk_dev_79f3ea3dccc44e8cbd6f5c19840d2268/pro_ePpSh8JjJSsrxmXTP51U?status=failure","capture":true,"reference":"12345_att_019cfbbce54e7340b089f7aca93b4f71","metadata":{},"payment_type":"Regular","merchant_initiated":false}"#.to_string();
+
+        // ── Connection config matching real VGS request ──
+        let mut headers = HashMap::new();
+        headers.insert(
+            "Content-Type".to_string(),
+            masking::Secret::new("application/json".to_string()),
+        );
+        headers.insert(
+            "via".to_string(),
+            masking::Secret::new("HyperSwitch".to_string()),
+        );
+        headers.insert(
+            "Authorization".to_string(),
+            masking::Secret::new(
+                "Bearer test".to_string(),
+            ),
+        );
+
+        let ca_cert_pem = "-----BEGIN CERTIFICATE-----\nMIID2TCCAsGgAwIBAgIHAN4Gs/LGhzANBgkqhkiG9w0BAQ0FADB5MSQwIgYDVQQD\nDBsqLnNhbmRib3gudmVyeWdvb2Rwcm94eS5jb20xITAfBgNVBAoMGFZlcnkgR29v\nZCBTZWN1cml0eSwgSW5jLjEuMCwGA1UECwwlVmVyeSBHb29kIFNlY3VyaXR5IC0g\nRW5naW5lZXJpbmcgVGVhbTAgFw0xNjAyMDkyMzUzMzZaGA8yMTE3MDExNTIzNTMz\nNloweTEkMCIGA1UEAwwbKi5zYW5kYm94LnZlcnlnb29kcHJveHkuY29tMSEwHwYD\nVQQKDBhWZXJ5IEdvb2QgU2VjdXJpdHksIEluYy4xLjAsBgNVBAsMJVZlcnkgR29v\nZCBTZWN1cml0eSAtIEVuZ2luZWVyaW5nIFRlYW0wggEiMA0GCSqGSIb3DQEBAQUA\nA4IBDwAwggEKAoIBAQDI3ukHpxIlDCvFjpqn4gAkrQVdWll/uI0Kv3wirwZ3Qrpg\nBVeXjInJ+rV9r0ouBIoY8IgRLak5Hy/tSeV6nAVHv0t41B7VyoeTAsZYSWU11deR\nDBSBXHWH9zKEvXkkPdy9tgHnvLIzui2H59OPljV7z3sCLguRIvIIw8djaV9z7FRm\nKRsfmYHKOBlSO4TlpfXQg7jQ5ds65q8FFGvTB5qAgLXS8W8pvdk8jccmuzQXFUY+\nZtHgjThg7BHWWUn+7m6hQ6iHHCj34Qu69F8nLamd+KJ//14lukdyKs3AMrYsFaby\nk+UGemM/s2q3B+39B6YKaHao0SRzSJC7qDwbWPy3AgMBAAGjZDBiMB0GA1UdDgQW\nBBRWlIRrE2p2P018VTzTb6BaeOFhAzAPBgNVHRMBAf8EBTADAQH/MAsGA1UdDwQE\nAwIBtjAjBgNVHSUEHDAaBggrBgEFBQcDAQYIKwYBBQUHAwIGBFUdJQAwDQYJKoZI\nhvcNAQENBQADggEBAGWxLFlr0b9lWkOLcZtR9IDVxDL9z+UPFEk70D3NPaqXkoE/\nTNNUkXgS6+VBA2G8nigq2Yj8qoIM+kTXPb8TzWv+lrcLm+i+4AShKVknpB15cC1C\n/NJfyYGRW66s/w7HNS20RmrdN+bWS0PA4CVLXdGzUJn0PCsfsS+6Acn7RPAE+0A8\nWB7JzXWi8x9mOJwiOhodp4j41mv+5eHM0reMh6ycuYbjquDNpiNnsLztk6MGsgAP\n5C59drQWJU47738BcfbByuSTYFog6zNYCm7ACqbtiwvFTwjneNebOhsOlaEAHjup\nd4QBqYVs7pzkhNNp9oUvv4wGf/KJcw5B9E6Tpfk=\n-----END CERTIFICATE-----";
+
+        let connection_config = ConnectionConfig {
+            endpoint: "https://api.sandbox.checkout.com/payments".to_string(),
+            http_method: HttpMethod::POST,
+            headers,
+            proxy_url: Some(masking::Secret::new(
+                "https://test1:testpwd@testcred.sandbox.verygoodproxy.com:8443/".to_string(),
+            )),
+            backup_proxy_url: None,
+            client_cert: None,
+            client_key: None,
+            ca_cert: Some(masking::Secret::new(ca_cert_pem.to_string())),
+            insecure: None,
+            cert_password: None,
+            cert_format: None,
+            max_response_size: None,
+            vault_auth_data: None,
+            vault_connector_id: Some(VaultConnectors::VGS),
+            vault_connector_type: Some(VaultConnectorType::Proxy),
+            vault_endpoint: None,
+        };
+
+        let request = InjectorRequest {
+            connector_payload: ConnectorPayload {
+                template: template.clone(),
+            },
+            token_data: TokenData {
+                specific_token_data: specific_token_data.clone(),
+            },
+            connection_config,
+        };
+
+        // ══════════════════════════════════════════════════════════════
+        // STEP 1: Log raw inputs (token data + template) with secrets exposed
+        // ══════════════════════════════════════════════════════════════
+        let vault_data = specific_token_data.clone().expose();
+        println!("\n{}", "=".repeat(80));
+        println!("=== STEP 1: RAW INPUTS ===");
+        println!(
+            "Token Data (exposed): {}",
+            serde_json::to_string_pretty(&vault_data).unwrap()
+        );
+        println!("\nTemplate (raw):\n{}", template);
+        println!(
+            "\nTemplate (pretty JSON):\n{}",
+            serde_json::to_string_pretty(
+                &serde_json::from_str::<serde_json::Value>(&template).unwrap()
+            )
+            .unwrap()
+        );
+
+        // ══════════════════════════════════════════════════════════════
+        // STEP 2: Run interpolation — replace {{$field}} with token aliases
+        // ══════════════════════════════════════════════════════════════
+        let injector = Injector::new();
+        let interpolated = injector
+            .interpolate_string_template_with_vault_data(template.clone(), &vault_data)
+            .expect("interpolation must succeed");
+
+        println!("\n=== STEP 2: AFTER INTERPOLATION (Proxy/VGS) ===");
+        println!("Interpolated payload (raw):\n{}", interpolated);
+        println!(
+            "\nInterpolated payload (pretty JSON):\n{}",
+            serde_json::to_string_pretty(
+                &serde_json::from_str::<serde_json::Value>(&interpolated).unwrap()
+            )
+            .unwrap()
+        );
+
+        // ══════════════════════════════════════════════════════════════
+        // STEP 3: Verify each field was replaced correctly
+        // ══════════════════════════════════════════════════════════════
+        let interpolated_json: serde_json::Value =
+            serde_json::from_str(&interpolated).expect("interpolated payload must be valid JSON");
+
+        let source = &interpolated_json["source"];
+        let card_number = source["number"].as_str().unwrap();
+        let exp_month = source["expiry_month"].as_str().unwrap();
+        let exp_year = source["expiry_year"].as_str().unwrap();
+        let cvv = source["cvv"].as_str().unwrap();
+
+        println!("\n=== STEP 3: FIELD-BY-FIELD VERIFICATION ===");
+        println!("source.number     = \"{}\"", card_number);
+        println!("source.expiry_month = \"{}\"", exp_month);
+        println!("source.expiry_year  = \"{}\"", exp_year);
+        println!("source.cvv          = \"{}\"", cvv);
+
+        // Assert token aliases were interpolated, not the raw placeholders
+        assert_eq!(
+            card_number, "tok_sandbox_2YDNnDoani5L3EEV5RqrMF",
+            "card_number should be VGS token alias"
+        );
+        assert_eq!(exp_month, "12", "card_exp_month should be '12'");
+        assert_eq!(exp_year, "31", "card_exp_year should be '31'");
+        assert_eq!(cvv, "737", "card_cvc should be '737'");
+
+        // Assert no leftover placeholders
+        assert!(
+            !interpolated.contains("{{$"),
+            "No {{$...}} placeholders should remain after interpolation"
+        );
+
+        // ══════════════════════════════════════════════════════════════
+        // STEP 4: Log the final connector payload that would go through VGS proxy
+        // ══════════════════════════════════════════════════════════════
+        println!("\n=== STEP 4: FINAL CONNECTOR PAYLOAD (what VGS proxy receives) ===");
+        println!("HTTP Method:  POST");
+        println!(
+            "Endpoint:     https://api.sandbox.checkout.com/payments"
+        );
+        println!(
+            "Proxy URL:    {}",
+            request
+                .connection_config
+                .proxy_url
+                .as_ref()
+                .map(|p| p.clone().expose())
+                .unwrap_or_else(|| "None".to_string())
+        );
+        println!(
+            "CA Cert:      {} bytes",
+            request
+                .connection_config
+                .ca_cert
+                .as_ref()
+                .map(|c| c.clone().expose().len())
+                .unwrap_or(0)
+        );
+        println!("Headers:");
+        for (k, v) in &request.connection_config.headers {
+            println!("  {}: {}", k, v.clone().expose());
+        }
+        println!(
+            "\nRequest Body (pretty):\n{}",
+            serde_json::to_string_pretty(&interpolated_json).unwrap()
+        );
+
+        // ══════════════════════════════════════════════════════════════
+        // STEP 5: Show what VGS should detokenize on the wire
+        // ══════════════════════════════════════════════════════════════
+        println!("\n=== STEP 5: VGS DETOKENIZATION EXPECTED ===");
+        println!(
+            "VGS should replace 'tok_sandbox_2YDNnDoani5L3EEV5RqrMF' with the real card number on the wire."
+        );
+        println!(
+            "The connector (Checkout.com) will see the real card number, NOT the token alias."
+        );
+        println!("If Checkout returns 'invalid card number', the issue is in VGS proxy config, NOT in interpolation.\n");
+        println!("{}\n", "=".repeat(80));
     }
 }
