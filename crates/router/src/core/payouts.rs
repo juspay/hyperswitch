@@ -2507,24 +2507,12 @@ pub async fn fulfill_payout(
     let dimension_with_connector = dimensions.with_connector(connector_data.connector_name);
     let router_data_resp = match helpers::should_continue_payout(&router_data) {
         true => {
-            let scheduled_time =
-                payout_sync::PayoutSyncWorkFlow::get_payout_sync_process_schedule_time(
-                    state,
-                    payout_data.payouts.payout_id.clone(),
-                    0,
-                    &dimension_with_connector,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed while getting process schedule time")?;
-
             // add payout sync task to process tracker
-
             payout_sync::PayoutSyncWorkFlow::add_payout_sync_task_to_process_tracker(
-                db,
+                state,
                 payout_data,
-                scheduled_time,
                 state.conf.application_source,
+                &dimension_with_connector,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

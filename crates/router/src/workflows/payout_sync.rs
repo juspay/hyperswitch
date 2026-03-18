@@ -16,7 +16,6 @@ use crate::{
         configs::{self, dimension_state::DimensionsWithMerchantIdAndConnector},
         payouts, webhooks,
     },
-    db::StorageInterface,
     errors as core_errors,
     routes::SessionState,
     types::{api, domain, storage},
@@ -138,12 +137,21 @@ impl ProcessTrackerWorkflow<SessionState> for PayoutSyncWorkFlow {
 
 impl PayoutSyncWorkFlow {
     pub async fn add_payout_sync_task_to_process_tracker(
-        db: &dyn StorageInterface,
+        state: &SessionState,
         payout_data: &payouts::PayoutData,
-        schedule_time: Option<time::PrimitiveDateTime>,
         application_source: common_enums::ApplicationSource,
-    ) -> common_utils::errors::CustomResult<(), core_errors::StorageError> {
-        match schedule_time {
+        dimensions: &DimensionsWithMerchantIdAndConnector,
+    ) -> common_utils::errors::CustomResult<(), core_errors::ApiErrorResponse> {
+        let db = &*state.store;
+        let scheduled_time = Self::get_payout_sync_process_schedule_time(
+            state,
+            payout_data.payouts.payout_id.clone(),
+            0,
+            dimensions,
+        )
+        .await
+        .change_context(core_errors::ApiErrorResponse::InternalServerError)?;
+        match scheduled_time {
             Some(schedule_time) => {
                 let runner = storage::ProcessTrackerRunner::PayoutSyncWorkFlow;
                 let task = "PAYOUTS_SYNC";
@@ -170,9 +178,13 @@ impl PayoutSyncWorkFlow {
                     common_types::consts::API_VERSION,
                     application_source,
                 )
-                .map_err(core_errors::StorageError::from)?;
+                .change_context(core_errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while getting process schedule time")?;
 
-                db.insert_process(process_tracker_entry).await?;
+                db.insert_process(process_tracker_entry)
+                    .await
+                    .change_context(core_errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to insert the process tracker entry")?;
                 Ok(())
             }
             None => Ok(()),
