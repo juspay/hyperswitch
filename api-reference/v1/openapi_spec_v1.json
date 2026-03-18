@@ -21061,6 +21061,42 @@
           }
         }
       },
+      "InternalNetworkTokenizationCredentials": {
+        "type": "object",
+        "required": [
+          "token_service_api_key",
+          "public_key",
+          "private_key",
+          "key_id"
+        ],
+        "properties": {
+          "token_service_api_key": {
+            "type": "string",
+            "description": "The API key to contact the network tokenization provider",
+            "example": "MDRFRDU3Mzc1Q0Q0N2893727712QzQjJEQzlENTBCOg==",
+            "maxLength": 255
+          },
+          "public_key": {
+            "type": "string",
+            "description": "The public key to encrypt the card details before sending to the network tokenization provider",
+            "example": "-----BEGIN PUBLIC KEY-----\nsom8723hj1bajhgd123==\n-----END PUBLIC KEY-----",
+            "maxLength": 255
+          },
+          "private_key": {
+            "type": "string",
+            "description": "The private key to decrypt the tokenized card details received from the network tokenization provider",
+            "example": "-----BEGIN RSA PRIVATE KEY-----\n897238huhbsdbjh12==\n-----END RSA PRIVATE KEY-----",
+            "maxLength": 255
+          },
+          "key_id": {
+            "type": "string",
+            "description": "The key_id used in encryption",
+            "example": "key_1ac9895a6d85414897213gahdac838a8",
+            "maxLength": 255
+          }
+        },
+        "additionalProperties": false
+      },
       "Invoice": {
         "type": "object",
         "required": [
@@ -21186,42 +21222,6 @@
             "nullable": true
           }
         }
-      },
-      "JuspayNetworkTokenizationCredentials": {
-        "type": "object",
-        "required": [
-          "token_service_api_key",
-          "public_key",
-          "private_key",
-          "key_id"
-        ],
-        "properties": {
-          "token_service_api_key": {
-            "type": "string",
-            "description": "The API key to contact the network tokenization provider",
-            "example": "MDRFRDU3Mzc1Q0Q0N2893727712QzQjJEQzlENTBCOg==",
-            "maxLength": 255
-          },
-          "public_key": {
-            "type": "string",
-            "description": "The public key to encrypt the card details before sending to the network tokenization provider",
-            "example": "-----BEGIN PUBLIC KEY-----\nsom8723hj1bajhgd123==\n-----END PUBLIC KEY-----",
-            "maxLength": 255
-          },
-          "private_key": {
-            "type": "string",
-            "description": "The private key to decrypt the tokenized card details received from the network tokenization provider",
-            "example": "-----BEGIN RSA PRIVATE KEY-----\n897238huhbsdbjh12==\n-----END RSA PRIVATE KEY-----",
-            "maxLength": 255
-          },
-          "key_id": {
-            "type": "string",
-            "description": "The key_id used in encryption",
-            "example": "key_1ac9895a6d85414897213gahdac838a8",
-            "maxLength": 255
-          }
-        },
-        "additionalProperties": false
       },
       "KakaoPayRedirection": {
         "type": "object"
@@ -23500,15 +23500,16 @@
           {
             "type": "object",
             "required": [
-              "juspay_token_service"
+              "internal_token_service"
             ],
             "properties": {
-              "juspay_token_service": {
-                "$ref": "#/components/schemas/JuspayNetworkTokenizationCredentials"
+              "internal_token_service": {
+                "$ref": "#/components/schemas/InternalNetworkTokenizationCredentials"
               }
             }
           }
-        ]
+        ],
+        "description": "The credentials required for calling the network tokenization provider APIs"
       },
       "NetworkTokenData": {
         "type": "object",

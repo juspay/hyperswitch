@@ -690,17 +690,18 @@ pub struct MerchantDetails {
     pub merchant_tax_registration_id: Option<Secret<String>>,
 }
 
+/// The credentials required for calling the network tokenization provider APIs
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 pub enum NetworkTokeizationProviderCredentials {
-    JuspayTokenService(JuspayNetworkTokenizationCredentials),
+    InternalTokenService(InternalNetworkTokenizationCredentials),
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
-pub struct JuspayNetworkTokenizationCredentials {
+pub struct InternalNetworkTokenizationCredentials {
     /// The API key to contact the network tokenization provider
     #[schema(value_type = String, max_length = 255, example = "MDRFRDU3Mzc1Q0Q0N2893727712QzQjJEQzlENTBCOg==")]
     pub token_service_api_key: Secret<String>,

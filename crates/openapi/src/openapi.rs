@@ -349,7 +349,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::CardTestingGuardConfig,
         api_models::admin::CardTestingGuardStatus,
         api_models::admin::NetworkTokeizationProviderCredentials,
-        api_models::admin::JuspayNetworkTokenizationCredentials,
+        api_models::admin::InternalNetworkTokenizationCredentials,
         api_models::merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
         api_models::merchant_connector_webhook_management::RegisterConnectorWebhookResponse,
         api_models::customers::CustomerRequest,
