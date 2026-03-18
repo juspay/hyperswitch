@@ -573,6 +573,32 @@ pub mod core {
                 headers_count = config.headers.len(),
                 "Making HTTP request to connector"
             );
+
+            // Log the complete ConnectionConfig for debugging
+            logger::debug!("=== INCOMING ConnectionConfig ===");
+            logger::debug!("  endpoint: {}", config.endpoint);
+            logger::debug!("  http_method: {:?}", config.http_method);
+            logger::debug!("  headers ({}):", config.headers.len());
+            for (k, v) in &config.headers {
+                logger::debug!("    {}: {}", k, v.clone().expose());
+            }
+            logger::debug!("  vault_endpoint: {:?}", config.vault_endpoint);
+            logger::debug!("  vault_connector_id: {:?}", config.vault_connector_id);
+            logger::debug!("  vault_connector_type: {:?}", config.vault_connector_type);
+            logger::debug!("  vault_auth_data present: {}", config.vault_auth_data.is_some());
+            logger::debug!("  proxy_url: {}", config.proxy_url.as_ref().map(|p| p.clone().expose()).unwrap_or_else(|| "None".to_string()));
+            logger::debug!("  backup_proxy_url: {}", config.backup_proxy_url.as_ref().map(|p| p.clone().expose()).unwrap_or_else(|| "None".to_string()));
+            logger::debug!("  client_cert present: {}", config.client_cert.is_some());
+            logger::debug!("  client_key present: {}", config.client_key.is_some());
+            logger::debug!("  ca_cert present: {}", config.ca_cert.is_some());
+            logger::debug!("  insecure: {:?}", config.insecure);
+            logger::debug!("  cert_password present: {}", config.cert_password.is_some());
+            logger::debug!("  cert_format: {:?}", config.cert_format);
+            logger::debug!("  max_response_size: {:?}", config.max_response_size);
+            logger::debug!("  payload: {}", payload);
+            logger::debug!("  content_type: {:?}", content_type);
+            logger::debug!("=== END ConnectionConfig ===");
+
             // Validate inputs first
             if config.endpoint.is_empty() {
                 logger::error!("Endpoint URL is empty");
@@ -635,9 +661,7 @@ pub mod core {
 
             // Extract vault metadata directly from headers using the input config
 
-            let (vault_proxy_url, vault_ca_cert) = if config
-                .headers
-                .contains_key(crate::consts::EXTERNAL_VAULT_METADATA_HEADER)
+            let (vault_proxy_url, vault_ca_cert) = 
             {
                 let mut temp_config = config.clone();
 
@@ -653,12 +677,6 @@ pub mod core {
                     logger::debug!("Vault metadata extraction failed, using None for proxy_url and ca_cert");
                     (None, None)
                 }
-            } else {
-                logger::debug!(
-                    "No {} header found, skipping vault metadata extraction",
-                    crate::consts::EXTERNAL_VAULT_METADATA_HEADER
-                );
-                (None, None)
             };
 
             // Build request safely with certificate configuration
@@ -703,7 +721,6 @@ pub mod core {
             );
 
             let final_proxy_url = vault_proxy_url.or_else(|| config.backup_proxy_url.clone());
-
             logger::debug!(
                 "Final Proxy URL (selected): {}",
                 final_proxy_url.as_ref().map(|p| p.clone().expose()).unwrap_or_else(|| "None".to_string())
