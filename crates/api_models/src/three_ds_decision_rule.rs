@@ -1,5 +1,5 @@
 use euclid::frontend::dir::enums::{
-    CardDiscovery, CustomerDeviceDisplaySize, CustomerDevicePlatform, CustomerDeviceType,
+    CustomerDeviceDisplaySize, CustomerDevicePlatform, CustomerDeviceType,
 };
 use utoipa::ToSchema;
 
