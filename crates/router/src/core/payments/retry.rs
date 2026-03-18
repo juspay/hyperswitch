@@ -12,6 +12,7 @@ use router_env::{
 use crate::{
     consts,
     core::{
+        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{
             self, complete_connector_service,
@@ -49,6 +50,7 @@ pub async fn do_gsm_actions<'a, F, ApiRequest, FData, D>(
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
     business_profile: &domain::Profile,
     feature_config: &core_utils::FeatureConfig,
+    dimensions: &DimensionsWithMerchantIdAndProfileId,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync + std::fmt::Debug + 'static,
@@ -66,6 +68,8 @@ where
     let mut retries = None;
 
     metrics::AUTO_RETRY_ELIGIBLE_REQUEST_COUNT.add(1, &[]);
+
+    let customer_id = customer.as_ref().map(|customer| &customer.customer_id);
 
     let card_network = payment_data.get_payment_attempt().extract_card_network();
 
@@ -92,8 +96,9 @@ where
     let should_step_up = if step_up_possible && is_no_three_ds_payment {
         is_step_up_enabled_for_merchant_connector(
             state,
-            platform.get_processor().get_account().get_id(),
             original_connector_data.connector_name,
+            dimensions,
+            customer_id,
         )
         .await
     } else {
@@ -242,25 +247,18 @@ where
 #[instrument(skip_all)]
 pub async fn is_step_up_enabled_for_merchant_connector(
     state: &app::SessionState,
-    merchant_id: &common_utils::id_type::MerchantId,
     connector_name: types::Connector,
+    dimensions: &DimensionsWithMerchantIdAndProfileId,
+    customer_id: Option<&common_utils::id_type::CustomerId>,
 ) -> bool {
-    let key = merchant_id.get_step_up_enabled_key();
-    let db = &*state.store;
-    db.find_config_by_key_unwrap_or(key.as_str(), Some("[]".to_string()))
+    let dimensions = dimensions.with_connector(connector_name);
+    dimensions
+        .get_step_up_enabled(
+            state.store.as_ref(),
+            state.superposition_service.as_deref(),
+            customer_id,
+        )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .and_then(|step_up_config| {
-            serde_json::from_str::<Vec<types::Connector>>(&step_up_config.config)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Step-up config parsing failed")
-        })
-        .map_err(|err| {
-            logger::error!(step_up_config_error=?err);
-        })
-        .ok()
-        .map(|connectors_enabled| connectors_enabled.contains(&connector_name))
-        .unwrap_or(false)
 }
 
 #[cfg(feature = "v1")]
@@ -870,32 +868,20 @@ pub fn make_new_payment_attempt(
     todo!()
 }
 
-pub async fn get_merchant_config_for_gsm(
-    db: &dyn StorageInterface,
-    merchant_id: &common_utils::id_type::MerchantId,
-) -> bool {
-    let config = db
-        .find_config_by_key_unwrap_or(
-            &merchant_id.get_should_call_gsm_key(),
-            Some("false".to_string()),
-        )
-        .await;
-    match config {
-        Ok(conf) => conf.config == "true",
-        Err(error) => {
-            logger::error!(?error);
-            false
-        }
-    }
-}
-
 #[cfg(feature = "v1")]
 pub async fn config_should_call_gsm(
-    db: &dyn StorageInterface,
-    merchant_id: &common_utils::id_type::MerchantId,
+    state: &app::SessionState,
+    dimensions: &DimensionsWithMerchantIdAndProfileId,
     profile: &domain::Profile,
+    customer_id: Option<&common_utils::id_type::CustomerId>,
 ) -> bool {
-    let merchant_config_gsm = get_merchant_config_for_gsm(db, merchant_id).await;
+    let merchant_config_gsm = dimensions
+        .get_should_call_gsm(
+            state.store.as_ref(),
+            state.superposition_service.as_deref(),
+            customer_id,
+        )
+        .await;
     let profile_config_gsm = profile.is_auto_retries_enabled;
     merchant_config_gsm || profile_config_gsm
 }

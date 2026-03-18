@@ -88,7 +88,7 @@ use crate::{
     consts::{self, BASE64_ENGINE},
     core::{
         authentication,
-        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
+        configs::{self as configs, dimension_state::DimensionsWithMerchantIdAndProfileId},
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers::MandateGenericData,
         payment_methods::{
@@ -1880,7 +1880,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     _payment_data: &mut PaymentData<F>,
     _req: Option<CustomerDetails>,
     _provider: &domain::Provider,
-    _dimensions: DimensionsWithMerchantIdAndProfileId,
+    _dimensions: &DimensionsWithMerchantIdAndProfileId,
 ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
     todo!()
 }
@@ -1895,7 +1895,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     req: Option<CustomerDetails>,
     provider: &domain::Provider,
     initiator: Option<&domain::Initiator>,
-    dimensions: DimensionsWithMerchantIdAndProfileId,
+    dimensions: &DimensionsWithMerchantIdAndProfileId,
 ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
     let merchant_id = provider.get_account().get_id();
     let storage_scheme = provider.get_account().storage_scheme;
@@ -5374,27 +5374,31 @@ mod test {
 pub async fn get_additional_payment_data(
     pm_data: &domain::PaymentMethodData,
     db: &dyn StorageInterface,
+    superposition_service: Option<&external_services::superposition::SuperpositionClient>,
+    merchant_id: &id_type::MerchantId,
     profile_id: &id_type::ProfileId,
+    customer_id: Option<&id_type::CustomerId>,
     payment_method_token: Option<&PaymentMethodToken>,
 ) -> Result<
     Option<api_models::payments::AdditionalPaymentData>,
     error_stack::Report<errors::ApiErrorResponse>,
 > {
+    let dimensions = configs::dimension_state::Dimensions::new()
+        .with_merchant_id(merchant_id.clone())
+        .with_profile_id(profile_id.clone());
+
     match pm_data {
         domain::PaymentMethodData::Card(card_data) => {
             //todo!
             let card_isin = Some(card_data.card_number.get_card_isin());
-            let enable_extended_bin =db
-            .find_config_by_key_unwrap_or(
-                format!("{}_enable_extended_card_bin", profile_id.get_string_repr()).as_str(),
-             Some("false".to_string()))
-            .await.map_err(|err| services::logger::error!(message="Failed to fetch the config", extended_card_bin_error=?err)).ok();
+            let enable_extended_bin = dimensions
+                .get_enable_extended_card_bin(db, superposition_service, customer_id)
+                .await;
 
-            let card_extended_bin = match enable_extended_bin {
-                Some(config) if config.config == "true" => {
-                    Some(card_data.card_number.get_extended_card_bin())
-                }
-                _ => None,
+            let card_extended_bin = if enable_extended_bin {
+                Some(card_data.card_number.get_extended_card_bin())
+            } else {
+                None
             };
 
             // Added an additional check for card_data.co_badged_card_data.is_some()
@@ -5760,17 +5764,14 @@ pub async fn get_additional_payment_data(
         )),
         domain::PaymentMethodData::CardDetailsForNetworkTransactionId(card_data) => {
             let card_isin = Some(card_data.card_number.get_card_isin());
-            let enable_extended_bin =db
-            .find_config_by_key_unwrap_or(
-                format!("{}_enable_extended_card_bin", profile_id.get_string_repr()).as_str(),
-             Some("false".to_string()))
-            .await.map_err(|err| services::logger::error!(message="Failed to fetch the config", extended_card_bin_error=?err)).ok();
+            let enable_extended_bin = dimensions
+                .get_enable_extended_card_bin(db, superposition_service, customer_id)
+                .await;
 
-            let card_extended_bin = match enable_extended_bin {
-                Some(config) if config.config == "true" => {
-                    Some(card_data.card_number.get_extended_card_bin())
-                }
-                _ => None,
+            let card_extended_bin = if enable_extended_bin {
+                Some(card_data.card_number.get_extended_card_bin())
+            } else {
+                None
             };
 
             let card_network = match card_data
@@ -5876,19 +5877,18 @@ pub async fn get_additional_payment_data(
         }
         domain::PaymentMethodData::CardWithLimitedDetails(card_with_limited_details) => {
             let card_isin = Some(card_with_limited_details.card_number.get_card_isin());
-            let enable_extended_bin =db
-            .find_config_by_key_unwrap_or(
-                format!("{}_enable_extended_card_bin", profile_id.get_string_repr()).as_str(),
-             Some("false".to_string()))
-            .await.map_err(|err| services::logger::error!(message="Failed to fetch the config", extended_card_bin_error=?err)).ok();
+            let enable_extended_bin = dimensions
+                .get_enable_extended_card_bin(db, superposition_service, customer_id)
+                .await;
 
-            let card_extended_bin = match enable_extended_bin {
-                Some(config) if config.config == "true" => Some(
+            let card_extended_bin = if enable_extended_bin {
+                Some(
                     card_with_limited_details
                         .card_number
                         .get_extended_card_bin(),
-                ),
-                _ => None,
+                )
+            } else {
+                None
             };
 
             let last4 = Some(card_with_limited_details.card_number.get_last4());
@@ -8492,50 +8492,16 @@ pub fn validate_platform_request_for_marketplace(
     Ok(())
 }
 
-/// Returns `true` if either the org or merchant config is set to "true"
-///
-/// Priority logic:
-/// 1. If org-level config exists (either "true" or "false"), that decision is final
-///    - Org = "true" → returns true (authentication enabled)
-///    - Org = "false" → returns false (authentication disabled, merchant config ignored)
-/// 2. If org-level config is missing or fails to fetch, fallback to merchant-level config
-///    - Merchant = "true" → returns true
-///    - Merchant = "false" or missing → returns false
-///
-/// This ensures parent (org) rules take precedence over child (merchant) configurations
 pub async fn is_merchant_eligible_authentication_service(
-    processor: &domain::Processor,
+    dimensions: &configs::dimension_state::DimensionsWithOrgIdAndMerchantId,
     state: &SessionState,
 ) -> RouterResult<bool> {
-    let db = &*state.store;
-    let org_key = processor
-        .get_account()
-        .get_org_id()
-        .get_authentication_service_eligible_key();
-    let org_eligible = db
-        .find_config_by_key(&org_key)
-        .await
-        .inspect_err(|error| {
-            logger::error!(?error, "Failed to fetch `{org_key}` config from DB");
-        })
-        .ok()
-        .map(|c| c.config.to_lowercase() == "true");
-
-    Ok(org_eligible
-        .async_unwrap_or_else(|| async {
-            let merchant_key = processor
-                .get_account()
-                .get_id()
-                .get_authentication_service_eligible_key();
-            db.find_config_by_key(&merchant_key)
-                .await
-                .inspect_err(|error| {
-                    logger::error!(?error, "Failed to fetch `{merchant_key}` config from DB");
-                })
-                .ok()
-                .map(|c| c.config.to_lowercase() == "true")
-                .unwrap_or(false)
-        })
+    Ok(dimensions
+        .get_authentication_service_eligible(
+            &*state.store,
+            state.superposition_service.as_deref(),
+            None,
+        )
         .await)
 }
 

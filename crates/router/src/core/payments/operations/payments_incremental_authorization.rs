@@ -327,7 +327,7 @@ impl<F: Clone + Send + Sync>
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
         _initiator: Option<&domain::Initiator>,
-        _dimensions: DimensionsWithMerchantIdAndProfileId,
+        _dimensions: &DimensionsWithMerchantIdAndProfileId,
     ) -> CustomResult<
         (
             BoxedOperation<

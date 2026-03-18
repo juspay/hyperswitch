@@ -410,7 +410,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         _request: Option<CustomerDetails>,
         provider: &domain::Provider,
         _initiator: Option<&domain::Initiator>,
-        _dimensions: DimensionsWithMerchantIdAndProfileId,
+        _dimensions: &DimensionsWithMerchantIdAndProfileId,
     ) -> CustomResult<
         (CompleteAuthorizeOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,

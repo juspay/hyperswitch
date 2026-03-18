@@ -207,7 +207,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsPostSessionTokensRequest, Pa
         _request: Option<payments::CustomerDetails>,
         _provider: &domain::Provider,
         _initiator: Option<&domain::Initiator>,
-        _dimensions: DimensionsWithMerchantIdAndProfileId,
+        _dimensions: &DimensionsWithMerchantIdAndProfileId,
     ) -> errors::CustomResult<
         (
             PaymentPostSessionTokensOperation<'a, F>,
