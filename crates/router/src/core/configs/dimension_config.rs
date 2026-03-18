@@ -1,4 +1,5 @@
 use external_services::superposition;
+use scheduler::consumer::types::process_data::RetryMapping;
 
 use super::{
     dimension_state::{DimensionsWithMerchantId, DimensionsWithMerchantIdAndProfileId},
@@ -158,15 +159,9 @@ impl DatabaseBackedConfig for ImplicitCustomerUpdate {
 
 config! {
     superposition_key = PAYOUT_TRACKER_MAPPING,
-    output = serde_json::Value,
-    default = serde_json::Value::default(),
+    output = RetryMapping,
+    default = RetryMapping::default(),
+    object = true,
     requires = DimensionsWithMerchantIdAndConnector,
     targeting_key = id_type::PayoutId
-}
-
-impl DatabaseBackedConfig for PayoutTrackerMapping {
-    const KEY: &'static str = "payout_tracker_mapping";
-    fn db_key(_dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
-        None
-    }
 }

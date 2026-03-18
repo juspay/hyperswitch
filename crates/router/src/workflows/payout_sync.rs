@@ -169,19 +169,7 @@ impl PayoutSyncWorkFlow {
             )
             .await;
 
-        let mapping = match value.parse_value("RetryMapping") {
-            Ok(value) => value,
-            Err(error) => {
-                router_env::logger::info!(?error, "Redis Mapping Error");
-                // default retry config for payout
-                process_data::RetryMapping {
-                    start_after: 12 * 3600,           // 12 hours
-                    frequencies: vec![(2 * 3600, 6)], // 6 retries with interval of 2 hour
-                }
-            }
-        };
-
-        let time_delta = Self::get_schedule_time(mapping, retry_count);
+        let time_delta = Self::get_schedule_time(value, retry_count);
 
         Ok(scheduler_utils::get_time_from_delta(time_delta))
     }
