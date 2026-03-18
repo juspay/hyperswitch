@@ -35,6 +35,7 @@ use crate::{
             RouterResult,
         },
         payment_methods, payments,
+        configs::dimension_state,
     },
     db::domain,
     services::{self, execute_connector_processing_step},
@@ -708,25 +709,17 @@ pub async fn fetch_routing_region_for_uas(
     merchant_id: common_utils::id_type::MerchantId,
     organization_id: common_utils::id_type::OrganizationId,
 ) -> RouterResult<RoutingRegion> {
-    let merchant_path =
-        fetch_region(state, &merchant_id.get_threeds_routing_region_uas_key()).await;
+    // profile id not present in call site of incoming webhook for UAS, so passing NoProfileId as type parameter
+    let dimensions= dimension_state::Dimensions::new()
+        .with_merchant_id(merchant_id)
+        .with_organization_id(organization_id);
+    let region_str = dimensions
+        .get_threeds_routing_region_uas(
+            state.store.as_ref(),
+            state.superposition_service.as_deref(),
+            None,
+        )
+        .await;
 
-    Ok(merchant_path
-        .async_unwrap_or_else(|| async {
-            fetch_region(state, &organization_id.get_threeds_routing_region_uas_key())
-                .await
-                .unwrap_or(RoutingRegion::Region1)
-        })
-        .await)
-}
-
-async fn fetch_region(state: &SessionState, key: &str) -> Option<RoutingRegion> {
-    let db = &*state.store;
-    db.find_config_by_key(key)
-        .await
-        .inspect_err(|err| {
-            router_env::logger::error!("Failed to fetch region for key as {err}");
-        })
-        .ok()
-        .map(|conf| RoutingRegion::from_str(&conf.config).unwrap_or(RoutingRegion::Region1))
+    Ok(RoutingRegion::from_str(&region_str).unwrap_or(RoutingRegion::Region1))
 }

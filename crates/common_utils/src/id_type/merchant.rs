@@ -170,14 +170,6 @@ impl MerchantId {
         format!("payment_method_surcharge_id_{}", self.get_string_repr())
     }
 
-    /// get_webhook_config_disabled_events_key
-    pub fn get_webhook_config_disabled_events_key(&self, connector_id: &str) -> String {
-        format!(
-            "whconf_disabled_events_{}_{connector_id}",
-            self.get_string_repr()
-        )
-    }
-
     /// get_should_call_gsm_payout_key
     pub fn get_should_call_gsm_payout_key(
         &self,

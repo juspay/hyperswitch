@@ -354,6 +354,12 @@ pub mod superposition {
     pub const REQUIRES_CVV: &str = "requires_cvv";
     /// implicit customer update configuration key
     pub const IMPLICIT_CUSTOMER_UPDATE: &str = "implicit_customer_update";
+    /// routing result source configuration key (selects between Hyperswitch and Decision Engine)
+    pub const ROUTING_RESULT_SOURCE: &str = "routing_result_source";
+    /// 3DS routing region configuration key for UAS
+    pub const THREEDS_ROUTING_REGION_UAS: &str = "threeds_routing_region_uas";
+    /// disabled webhook events configuration key per merchant and connector
+    pub const INCOMING_WEBHOOK_DISABLED_EVENTS: &str = "incoming_webhook_disabled_events";
 }
 
 #[cfg(test)]

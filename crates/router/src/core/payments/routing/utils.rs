@@ -15,7 +15,7 @@ use api_models::{
 use async_trait::async_trait;
 use common_enums::TransactionType;
 use common_utils::{
-    ext_traits::{BytesExt, StringExt},
+    ext_traits::BytesExt,
     id_type,
 };
 use diesel_models::{enums, routing_algorithm};
@@ -37,7 +37,10 @@ use serde::{Deserialize, Serialize};
 
 use super::RoutingResult;
 use crate::{
-    core::errors,
+    core::{
+        errors,
+        configs::dimension_state,
+    },
     db::domain,
     routes::{app::SessionStateInfo, SessionState},
     services::{self, logger},
@@ -1507,15 +1510,19 @@ pub async fn select_routing_result<T>(
 where
     T: Clone + IntoIterator,
 {
-    let routing_result_source: Option<api_routing::RoutingResultSource> = state
-        .store
-        .find_config_by_key(&format!(
-            "routing_result_source_{0}",
-            business_profile.get_id().get_string_repr()
-        ))
+    // No customer_id and payment_id in call sites so passing Targeting key as None
+    let dimensions = dimension_state::Dimensions::new()
+        .with_merchant_id(business_profile.merchant_id.clone())
+        .with_profile_id(business_profile.get_id().clone());
+    let routing_result_source = dimensions
+        .get_routing_result_source(
+            state.store.as_ref(),
+            state.superposition_service.as_deref(),
+            None,
+        )
         .await
-        .map(|c| c.config.parse_enum("RoutingResultSource").ok())
-        .unwrap_or(None);
+        .parse::<api_routing::RoutingResultSource>()
+        .ok();
 
     if let Some(api_routing::RoutingResultSource::DecisionEngine) = routing_result_source {
         logger::debug!(
