@@ -1,7 +1,7 @@
 #[cfg(feature = "v2")]
 use common_enums::{self, RequestIncrementalAuthorization};
 #[cfg(feature = "v2")]
-use common_types::{
+use ::common_types::{
     payments,
     primitive_wrappers::{EnablePartialAuthorizationBool, RequestExtendedAuthorizationBool},
 };
