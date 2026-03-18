@@ -274,6 +274,8 @@ pub enum BankRedirectAdditionalData {
     OpenBankingUk(Box<OpenBankingUkAdditionalData>),
     /// Additional data for interac bank redirect payout method
     Interac(Box<InteracAdditionalData>),
+    /// Additional data for Trustly bank redirect payout method
+    Trustly(Box<TrustlyAdditionalData>),
 }
 
 /// Masked payout method details for interac bank redirect payout method
@@ -299,6 +301,26 @@ pub struct OpenBankingUkAdditionalData {
     /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
     #[schema(value_type = String, example = "DE89370400440532013000")]
     pub iban: Secret<String>,
+}
+
+/// Masked payout method details for Trustly bank redirect payout method
+#[derive(
+    Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct TrustlyAdditionalData {
+    /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
+    #[schema(value_type = String, example = "token_12345")]
+    pub iban: Option<Secret<String>>,
+    /// country code of the customer's bank account.
+    #[schema(value_type = CountryAlpha2, example = "US")]
+    pub country_code: common_enums::CountryAlpha2,
+    /// The account number, identifying the end-user's account in the bank.
+    #[schema(value_type = String, example = "69706212")]
+    pub account_number: Option<Secret<String>>,
+    /// The bank number identifying the end-user's bank in the given clearing house.
+    #[schema(value_type = String, example = "6112")]
+    pub bank_number: Option<Secret<String>>,
 }
 
 /// additional payout method details for passthrough payout method

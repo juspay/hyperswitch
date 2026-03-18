@@ -1365,6 +1365,7 @@ impl ForeignFrom<&api_models::payouts::BankRedirect> for api_enums::PaymentMetho
         match value {
             api_models::payouts::BankRedirect::Interac(_) => Self::Interac,
             api_models::payouts::BankRedirect::OpenBankingUk(_) => Self::OpenBankingUk,
+            api_models::payouts::BankRedirect::Trustly(_) => Self::Trustly,
         }
     }
 }

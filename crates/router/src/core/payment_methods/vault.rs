@@ -986,12 +986,27 @@ impl Vaultable for api::BankRedirectPayout {
                 bank_redirect_type: PaymentMethodType::Interac,
                 account_holder_name: None,
                 iban: None,
+                country_code: None,
+                account_number: None,
+                bank_number: None,
             },
             Self::OpenBankingUk(open_banking_uk_data) => TokenizedBankRedirectSensitiveValues {
                 email: None,
+                country_code: None,
+                account_number: None,
+                bank_number: None,
                 iban: Some(open_banking_uk_data.iban.clone()),
                 account_holder_name: Some(open_banking_uk_data.account_holder_name.clone()),
                 bank_redirect_type: PaymentMethodType::OpenBankingUk,
+            },
+            Self::Trustly(trustly_data) => TokenizedBankRedirectSensitiveValues {
+                email: None,
+                account_holder_name: None,
+                iban: trustly_data.iban.clone(),
+                country_code: Some(trustly_data.country_code),
+                account_number: trustly_data.account_number.clone(),
+                bank_number: trustly_data.bank_number.clone(),
+                bank_redirect_type: PaymentMethodType::Trustly,
             },
         };
 
@@ -1044,6 +1059,16 @@ impl Vaultable for api::BankRedirectPayout {
                 }
                 _ => Err(errors::VaultError::ResponseDeserializationFailed)
                     .attach_printable("Failed to deserialize into OpenBankingUk")?,
+            },
+            PaymentMethodType::Trustly => match value1.country_code {
+                Some(country_code) => Self::Trustly(api_models::payouts::Trustly {
+                    iban: value1.iban.clone(),
+                    country_code,
+                    account_number: value1.account_number.clone(),
+                    bank_number: value1.bank_number.clone(),
+                }),
+                _ => Err(errors::VaultError::ResponseDeserializationFailed)
+                    .attach_printable("Failed to deserialize into Trustly")?,
             },
             _ => Err(errors::VaultError::PayoutMethodNotSupported)
                 .attach_printable("Payout method not supported")?,
@@ -1124,6 +1149,9 @@ pub struct TokenizedBankRedirectSensitiveValues {
     pub email: Option<Email>,
     pub iban: Option<masking::Secret<String>>,
     pub account_holder_name: Option<masking::Secret<String>>,
+    pub bank_number: Option<masking::Secret<String>>,
+    pub account_number: Option<masking::Secret<String>>,
+    pub country_code: Option<api::enums::CountryAlpha2>,
     pub bank_redirect_type: PaymentMethodType,
 }
 
