@@ -13,13 +13,13 @@ use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
-        AccessTokenAuth, Authorize, Capture, Execute, PSync, PaymentMethodToken, RSync, Session,
-        SetupMandate, Void,
+        AccessTokenAuth, Authorize, Capture, Execute, PSync, PaymentMethodToken, PaymentTrigger,
+        RSync, Session, SetupMandate, Void,
     },
     router_request_types::{
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, SetupMandateRequestData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSessionData,
+        PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
@@ -31,8 +31,8 @@ use hyperswitch_interfaces::{
     api::{
         ConnectorAccessToken, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration,
         ConnectorSpecifications, ConnectorValidation, MandateSetup, Payment, PaymentAuthorize,
-        PaymentCapture, PaymentSession, PaymentSync, PaymentToken, PaymentVoid, Refund,
-        RefundExecute, RefundSync,
+        PaymentCapture, PaymentSession, PaymentSync, PaymentToken, PaymentVoid,
+        PaymentsPaymentTrigger, Refund, RefundExecute, RefundSync,
     },
     configs::Connectors,
     errors::ConnectorError,
@@ -77,6 +77,7 @@ impl<const T: u8> Refund for DummyConnector<T> {}
 impl<const T: u8> RefundExecute for DummyConnector<T> {}
 impl<const T: u8> RefundSync for DummyConnector<T> {}
 impl<const T: u8> PaymentToken for DummyConnector<T> {}
+impl<const T: u8> PaymentsPaymentTrigger for DummyConnector<T> {}
 
 impl<const T: u8>
     ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
@@ -190,6 +191,12 @@ impl<const T: u8> ConnectorIntegration<Session, PaymentsSessionData, PaymentsRes
     for DummyConnector<T>
 {
     //TODO: implement sessions flow
+}
+
+impl<const T: u8>
+    ConnectorIntegration<PaymentTrigger, PaymentsPreProcessingData, PaymentsResponseData>
+    for DummyConnector<T>
+{
 }
 
 impl<const T: u8> ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>

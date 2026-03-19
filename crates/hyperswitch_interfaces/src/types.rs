@@ -12,9 +12,9 @@ use hyperswitch_domain_models::{
         payments::{
             Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
             CreateConnectorCustomer, CreateOrder, ExtendAuthorization, IncrementalAuthorization,
-            InitPayment, PSync, PaymentMethodToken, PostCaptureVoid, PostProcessing,
-            PostSessionTokens, PreProcessing, SdkSessionUpdate, Session, SettlementSplitCreate,
-            SetupMandate, UpdateMetadata, Void,
+            InitPayment, PSync, PaymentMethodToken, PaymentTrigger, PostCaptureVoid,
+            PostProcessing, PostSessionTokens, PreProcessing, SdkSessionUpdate, Session,
+            SettlementSplitCreate, SetupMandate, UpdateMetadata, Void,
         },
         refunds::{Execute, RSync},
         revenue_recovery::{BillingConnectorPaymentsSync, InvoiceRecordBack},
@@ -157,6 +157,9 @@ pub type PaymentsPostAuthenticateType =
 /// Type alias for `ConnectorIntegration<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>`
 pub type PaymentsPostProcessingType =
     dyn ConnectorIntegration<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>;
+/// Type alias for `ConnectorIntegration<PaymentTrigger, PaymentsPreProcessingData, PaymentsResponseData>`
+pub type PaymentsPaymentTriggerType =
+    dyn ConnectorIntegration<PaymentTrigger, PaymentsPreProcessingData, PaymentsResponseData>;
 /// Type alias for `ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>`
 pub type PaymentsCompleteAuthorizeType =
     dyn ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>;
