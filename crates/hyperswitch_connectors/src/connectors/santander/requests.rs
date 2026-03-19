@@ -74,6 +74,14 @@ pub struct PixMetadataObject {
     pub pix_key_type: responses::SantanderPixKeyType,
     pub merchant_name: String,
     pub merchant_city: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub automatico_agencia: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub automatico_conta: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub automatico_cnpj: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub automatico_ispb_participante: Option<Secret<String>>,
 }
 
 pub struct SantanderRouterData<T> {
@@ -208,7 +216,34 @@ pub struct SantanderRefundRequest {
 #[serde(untagged)]
 pub enum SantanderPaymentRequest {
     PixQR(Box<SantanderPixQRPaymentRequest>),
+    PixAutomaticoPush(Box<SantanderPixAutomaticoPushRequest>),
     Boleto(Box<SantanderBoletoPaymentRequest>),
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoPushRequest {
+    pub id_rec: String,
+    pub calendario: SantanderPixAutomaticoPushCalendar,
+    pub destinatario: SantanderPixAutomaticoDestinatario,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoPushCalendar {
+    pub data_expiracao_solicitacao: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoDestinatario {
+    pub agencia: Secret<String>,
+    pub conta: Secret<String>,
+    pub ispb_participante: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpf: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cnpj: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

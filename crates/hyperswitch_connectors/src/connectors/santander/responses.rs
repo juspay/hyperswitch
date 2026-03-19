@@ -94,6 +94,8 @@ pub enum SantanderVoidStatus {
 #[serde(untagged)]
 pub enum SantanderPaymentsResponse {
     PixQRCode(Box<SantanderPixQRCodePaymentsResponse>),
+    PixAutomaticoPush(Box<SantanderPixAutomaticoPushResponse>),
+    PixAutomaticoQr(Box<SantanderPixAutomaticoQrResponse>),
     Boleto(Box<SantanderBoletoPaymentsResponse>),
 }
 
@@ -321,7 +323,40 @@ pub struct SantanderCalendarResponse {
 #[serde(untagged)]
 pub enum SantanderPaymentsSyncResponse {
     PixQRCode(Box<SantanderPixQRCodeSyncResponse>),
+    PixAutomaticoQr(Box<SantanderPixAutomaticoQrResponse>),
     Boleto(Box<SantanderBoletoPSyncResponse>),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoPushResponse {
+    pub id_solic_rec: String,
+    pub id_rec: String,
+    pub status: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoQrResponse {
+    pub id_rec: String,
+    pub status: String,
+    pub loc: Option<SantanderPixAutomaticoQrLocation>,
+    pub dados_qr: Option<SantanderPixAutomaticoQrData>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoQrLocation {
+    pub id: i64,
+    pub location: String,
+    pub id_rec: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoQrData {
+    pub jornada: String,
+    pub pix_copia_e_cola: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
