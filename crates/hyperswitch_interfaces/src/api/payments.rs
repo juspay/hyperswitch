@@ -5,9 +5,9 @@ use hyperswitch_domain_models::{
         payments::{
             Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
             CreateConnectorCustomer, ExtendAuthorization, IncrementalAuthorization, PSync,
-            PaymentMethodToken, PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing,
-            Reject, SdkSessionUpdate, Session, SettlementSplitCreate, SetupMandate, UpdateMetadata,
-            Void,
+            PaymentMethodToken, PaymentTrigger, PostCaptureVoid, PostProcessing, PostSessionTokens,
+            PreProcessing, Reject, SdkSessionUpdate, Session, SettlementSplitCreate, SetupMandate,
+            UpdateMetadata, Void,
         },
         Authenticate, CreateOrder, ExternalVaultProxy, GiftCardBalanceCheck, PostAuthenticate,
         PreAuthenticate,
@@ -52,6 +52,7 @@ pub trait Payment:
     + PaymentSession
     + PaymentToken
     + PaymentsPostProcessing
+    + PaymentsPaymentTrigger
     + ConnectorCustomer
     + PaymentIncrementalAuthorization
     + PaymentExtendAuthorization
@@ -214,6 +215,12 @@ pub trait PaymentsPostAuthenticate:
 /// trait PaymentsPostProcessing
 pub trait PaymentsPostProcessing:
     api::ConnectorIntegration<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>
+{
+}
+
+/// trait PaymentsPaymentTrigger
+pub trait PaymentsPaymentTrigger:
+    api::ConnectorIntegration<PaymentTrigger, PaymentsPreProcessingData, PaymentsResponseData>
 {
 }
 

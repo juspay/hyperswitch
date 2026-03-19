@@ -15,7 +15,7 @@ use crate::{
         Authorize, AuthorizeSessionToken, BillingConnectorInvoiceSync,
         BillingConnectorPaymentsSync, CalculateTax, Capture, CompleteAuthorize,
         CreateConnectorCustomer, CreateOrder, Execute, ExtendAuthorization, ExternalVaultProxy,
-        GiftCardBalanceCheck, IncrementalAuthorization, PSync, PaymentMethodToken,
+        GiftCardBalanceCheck, IncrementalAuthorization, PSync, PaymentMethodToken, PaymentTrigger,
         PostAuthenticate, PostCaptureVoid, PostSessionTokens, PreAuthenticate, PreProcessing,
         ProcessIncomingWebhook, RSync, SdkSessionUpdate, Session, SettlementSplitCreate,
         SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
@@ -75,6 +75,8 @@ pub type PaymentsAuthorizeSessionTokenRouterData =
     RouterData<AuthorizeSessionToken, AuthorizeSessionTokenData, PaymentsResponseData>;
 pub type PaymentsPreProcessingRouterData =
     RouterData<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>;
+pub type PaymentsPaymentTriggerRouterData =
+    RouterData<PaymentTrigger, PaymentsPreProcessingData, PaymentsResponseData>;
 pub type PaymentsPreAuthenticateRouterData =
     RouterData<PreAuthenticate, PaymentsPreAuthenticateData, PaymentsResponseData>;
 pub type PaymentsAuthenticateRouterData =
