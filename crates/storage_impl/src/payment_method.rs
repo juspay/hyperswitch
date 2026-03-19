@@ -942,7 +942,9 @@ impl PaymentMethodInterface for MockDb {
     ) -> CustomResult<Vec<DomainPaymentMethod>, errors::StorageError> {
         let payment_methods = self.payment_methods.lock().await;
         let find_pm_by = |pm: &&PaymentMethod| {
-            pm.customer_id == *customer_id && pm.merchant_id == *merchant_id && pm.status == status
+            pm.customer_id.as_ref() == Some(customer_id)
+                && pm.merchant_id == *merchant_id
+                && pm.status == status
         };
         let error_message = "cannot find payment method".to_string();
         self.get_resources(key_store, payment_methods, find_pm_by, error_message)
@@ -961,7 +963,7 @@ impl PaymentMethodInterface for MockDb {
     ) -> CustomResult<Vec<DomainPaymentMethod>, errors::StorageError> {
         let payment_methods = self.payment_methods.lock().await;
         let find_pm_by = |pm: &&PaymentMethod| {
-            pm.customer_id == *customer_id
+            pm.customer_id.as_ref() == Some(customer_id)
                 && pm.merchant_id == *merchant_id
                 && statuses.contains(&pm.status)
         };

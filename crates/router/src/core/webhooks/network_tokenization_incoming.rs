@@ -246,7 +246,10 @@ pub async fn handle_metadata_update(
     is_pan_update: bool,
 ) -> RouterResult<WebhookResponseTracker> {
     let merchant_id = platform.get_processor().get_account().get_id();
-    let customer_id = &payment_method.customer_id.clone().get_required_value("customer_id")?;
+    let customer_id = &payment_method
+        .customer_id
+        .clone()
+        .get_required_value("customer_id")?;
     let payment_method_id = payment_method.get_id().clone();
     let status = payment_method.status;
 

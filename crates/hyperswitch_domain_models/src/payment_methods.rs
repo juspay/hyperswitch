@@ -9,15 +9,12 @@ use common_enums::enums::MerchantStorageScheme;
 #[cfg(feature = "v1")]
 use common_utils::crypto::OptionalEncryptableValue;
 #[cfg(feature = "v2")]
-use common_utils::{
-    crypto::Encryptable, encryption::Encryption,
-    types::keymanager::ToEncryptable,
-};
+use common_utils::{crypto::Encryptable, encryption::Encryption, types::keymanager::ToEncryptable};
 use common_utils::{
     errors::{CustomResult, ParsingError, ValidationError},
+    ext_traits::OptionExt,
     id_type, pii, type_name,
     types::{keymanager, CreatedBy},
-    ext_traits::OptionExt
 };
 pub use diesel_models::{
     enums as storage_enums, PaymentMethodUpdate as StoragePaymentMethodUpdate,
@@ -672,7 +669,7 @@ impl super::behaviour::Conversion for PaymentMethod {
     type NewDstType = diesel_models::payment_method::PaymentMethodNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(Self::DstType {
-            customer_id: self.customer_id.get_required_value("GlobalCustomerId")?,
+            customer_id: self.customer_id,
             merchant_id: self.merchant_id,
             id: self.id,
             created_at: self.created_at,
@@ -798,7 +795,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .attach_printable("Error while deserializing External Vault Token Data")?;
 
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
-                customer_id: Some(storage_model.customer_id),
+                customer_id: storage_model.customer_id,
                 merchant_id: storage_model.merchant_id,
                 id: storage_model.id,
                 created_at: storage_model.created_at,
@@ -843,7 +840,7 @@ impl super::behaviour::Conversion for PaymentMethod {
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         Ok(Self::NewDstType {
-            customer_id: self.customer_id.get_required_value("GlobalCustomerId")?,
+            customer_id: self.customer_id,
             merchant_id: self.merchant_id,
             id: self.id,
             created_at: self.created_at,

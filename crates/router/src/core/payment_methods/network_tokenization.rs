@@ -26,7 +26,6 @@ use josekit::jwe;
 use masking::{ErasedMaskSerialize, ExposeInterface, Mask, PeekInterface, Secret};
 
 use super::transformers::DeleteCardResp;
-use crate::utils::ext_traits::OptionExt;
 use crate::{
     core::{errors, payment_methods, payments::helpers},
     headers, logger,
@@ -34,6 +33,7 @@ use crate::{
     services::{self, encryption},
     settings,
     types::{api, domain, payment_methods as pm_types},
+    utils::ext_traits::OptionExt,
 };
 
 pub const NETWORK_TOKEN_SERVICE: &str = "NETWORK_TOKEN";

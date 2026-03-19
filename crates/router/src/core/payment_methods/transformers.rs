@@ -1292,10 +1292,7 @@ impl DomainPaymentMethodWrapper {
 
         Ok(Self(domain::PaymentMethod {
             //for guest checkout, where customer id, this will fail.
-            customer_id: response
-                .customer_id
-                .clone()
-                .get_required_value("CustomerId")?,
+            customer_id: response.customer_id.clone(),
             merchant_id: response.merchant_id.clone(),
             payment_method_id: response.payment_method_id.clone(),
             accepted_currency: None,
@@ -1424,10 +1421,7 @@ impl DomainPaymentMethodWrapper {
 
         Ok(Self(domain::PaymentMethod {
             //for guest checkout, where customer id, this will fail.
-            customer_id: response
-                .customer_id
-                .clone()
-                .get_required_value("CustomerId")?,
+            customer_id: response.customer_id.clone(),
             merchant_id: response.merchant_id.clone(),
             payment_method_id: response.payment_method_id.clone(),
             accepted_currency: None,
@@ -1536,7 +1530,7 @@ impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
     fn try_from(response: CreatePaymentMethodResponse) -> Result<Self, Self::Error> {
         Ok(Self(domain::PaymentMethod {
             //for guest checkout, where customer id, this will fail.
-            customer_id: response.customer_id.get_required_value("CustomerId")?,
+            customer_id: response.customer_id,
             merchant_id: response.merchant_id,
             payment_method_id: response.payment_method_id,
             accepted_currency: None,
