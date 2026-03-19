@@ -462,10 +462,9 @@ pub async fn get_token_pm_type_mandate_details(
     platform: &domain::Platform,
     payment_method_id: Option<String>,
     payment_intent_customer_id: Option<&id_type::CustomerId>,
-    pm_info: Option<domain::PaymentMethod>,
 ) -> RouterResult<MandateGenericData> {
     let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
-    let feature_config = core_utils::get_feature_config(state, platform).await;
+    let feature_config = core_utils::get_feature_set(state, platform).await;
     let (
         payment_token,
         payment_method,
@@ -541,22 +540,20 @@ pub async fn get_token_pm_type_mandate_details(
                         ))
                         .await?;
 
-                        (
-                            mandate_generic_data.token,
-                            mandate_generic_data.payment_method,
-                            mandate_generic_data
-                                .payment_method_type
-                                .or(request.payment_method_type),
-                            None,
-                            mandate_generic_data.recurring_mandate_payment_data,
-                            mandate_generic_data.mandate_connector,
-                            mandate_generic_data.payment_method_info,
-                        )
-                    }
-                    RecurringDetails::PaymentMethodId(payment_method_id) => {
-                        let payment_method_info = match pm_info {
-                            Some(pm) => pm.clone(),
-                            None => state
+                            (
+                                mandate_generic_data.token,
+                                mandate_generic_data.payment_method,
+                                mandate_generic_data
+                                    .payment_method_type
+                                    .or(request.payment_method_type),
+                                None,
+                                mandate_generic_data.recurring_mandate_payment_data,
+                                mandate_generic_data.mandate_connector,
+                                mandate_generic_data.payment_method_info,
+                            )
+                        }
+                        RecurringDetails::PaymentMethodId(payment_method_id) => {
+                            let payment_method_info = state
                                 .store
                                 .find_payment_method(
                                     platform.get_provider().get_key_store(),
@@ -566,11 +563,10 @@ pub async fn get_token_pm_type_mandate_details(
                                 .await
                                 .to_not_found_response(
                                     errors::ApiErrorResponse::PaymentMethodNotFound,
-                                )?,
-                        };
-                        let customer_id = request
-                            .get_customer_id()
-                            .get_required_value("customer_id")?;
+                                )?;
+                            let customer_id = request
+                                .get_customer_id()
+                                .get_required_value("customer_id")?;
 
                         verify_mandate_details_for_recurring_payments(
                             &payment_method_info.merchant_id,
@@ -699,26 +695,22 @@ pub async fn get_token_pm_type_mandate_details(
                             )
                         }
                     } else {
-                        let payment_method_info = match pm_info {
-                            Some(pm) => Some(pm.clone()),
-                            None => payment_method_id
-                                .async_map(|payment_method_id| async move {
-                                    state
-                                        .store
-                                        .find_payment_method(
-                                            platform.get_provider().get_key_store(),
-                                            &payment_method_id,
-                                            platform.get_provider().get_account().storage_scheme,
-                                        )
-                                        .await
-                                        .to_not_found_response(
-                                            errors::ApiErrorResponse::PaymentMethodNotFound,
-                                        )
-                                })
-                                .await
-                                .transpose()?,
-                        };
-
+                        let payment_method_info = payment_method_id
+                            .async_map(|payment_method_id| async move {
+                                state
+                                    .store
+                                    .find_payment_method(
+                                        platform.get_provider().get_key_store(),
+                                        &payment_method_id,
+                                        platform.get_provider().get_account().storage_scheme,
+                                    )
+                                    .await
+                                    .to_not_found_response(
+                                        errors::ApiErrorResponse::PaymentMethodNotFound,
+                                    )
+                            })
+                            .await
+                            .transpose()?;
                         (
                             request.payment_token.to_owned(),
                             request.payment_method,
@@ -733,24 +725,20 @@ pub async fn get_token_pm_type_mandate_details(
             }
         }
         None => {
-            let payment_method_info = if feature_config.is_payment_method_modular_allowed {
-                pm_info
-            } else {
-                payment_method_id
-                    .async_map(|payment_method_id| async move {
-                        state
-                            .store
-                            .find_payment_method(
-                                platform.get_provider().get_key_store(),
-                                &payment_method_id,
-                                platform.get_provider().get_account().storage_scheme,
-                            )
-                            .await
-                            .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
-                    })
-                    .await
-                    .transpose()?
-            };
+            let payment_method_info = payment_method_id
+                .async_map(|payment_method_id| async move {
+                    state
+                        .store
+                        .find_payment_method(
+                            platform.get_provider().get_key_store(),
+                            &payment_method_id,
+                            platform.get_provider().get_account().storage_scheme,
+                        )
+                        .await
+                        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
+                })
+                .await
+                .transpose()?;
             (
                 request.payment_token.to_owned(),
                 request.payment_method,

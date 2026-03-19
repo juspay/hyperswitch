@@ -44,7 +44,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsStartReq
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        _payment_method_wrapper: Option<operations::PaymentMethodWithRawData>,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsStartRequest, PaymentData<F>>,
     > {
@@ -127,13 +126,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsStartReq
         )
         .await?;
 
-        let feature_config = utils::get_feature_config(state, platform).await;
+        let feature_set = utils::get_feature_set(state, platform).await;
 
         // In case of modular payment method flow payment token in the request will belong to payment method modular service
         // hence populating token data is not required
         let token_data = match (
             payment_attempt.payment_token.clone(),
-            feature_config.is_payment_method_modular_allowed,
+            feature_set.is_modular_merchant,
         ) {
             (Some(token), false) => Some(
                 helpers::retrieve_payment_token_data(state, token, payment_attempt.payment_method)
@@ -199,6 +198,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsStartReq
             attempts: None,
             sessions_token: vec![],
             card_cvc: None,
+            email: None,
             creds_identifier: None,
             pm_token: None,
             connector_customer_id: None,

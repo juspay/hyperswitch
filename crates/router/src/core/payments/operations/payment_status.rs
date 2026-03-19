@@ -227,7 +227,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRetrieve
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        _payment_method_wrapper: Option<operations::PaymentMethodWithRawData>,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, PaymentData<F>>,
     > {
@@ -542,6 +541,7 @@ async fn get_tracker_for_sync<
         attempts,
         sessions_token: vec![],
         card_cvc: None,
+            email: None,
         creds_identifier,
         pm_token: None,
         connector_customer_id: None,
