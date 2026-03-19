@@ -7004,6 +7004,9 @@
           },
           {
             "$ref": "#/components/schemas/PixBankTransfer"
+          },
+          {
+            "$ref": "#/components/schemas/TrustlyBankTransfer"
           }
         ]
       },
@@ -7020,6 +7023,9 @@
           },
           {
             "$ref": "#/components/schemas/PixBankTransferAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/TrustlyBankTransferAdditionalData"
           }
         ],
         "description": "Masked payout method details for bank payout method"
@@ -8249,10 +8255,10 @@
           {
             "type": "object",
             "required": [
-              "pix"
+              "pix_qr"
             ],
             "properties": {
-              "pix": {
+              "pix_qr": {
                 "$ref": "#/components/schemas/PixBankTransferAdditionalData"
               }
             }
@@ -8577,10 +8583,10 @@
           {
             "type": "object",
             "required": [
-              "pix"
+              "pix_qr"
             ],
             "properties": {
-              "pix": {
+              "pix_qr": {
                 "type": "object",
                 "properties": {
                   "pix_key": {
@@ -8616,7 +8622,7 @@
                   },
                   "expiry_date": {
                     "type": "string",
-                    "description": "The expiration date and time for the Pix QR code in ISO 8601 format",
+                    "description": "The expiration date and time for the PixQr code in ISO 8601 format",
                     "example": "2025-09-10T10:11:12Z",
                     "nullable": true
                   }
@@ -10622,6 +10628,7 @@
           "tesouro",
           "tokenex",
           "tokenio",
+          "trustly",
           "truelayer",
           "trustpay",
           "trustpayments",
@@ -18202,7 +18209,7 @@
               },
               "raw_qr_data": {
                 "type": "string",
-                "description": "The raw QR code data (EMV copy and paste) used for Brazilian payment methods like Pix",
+                "description": "The raw QR code data (EMV copy and paste) used for Brazilian payment methods like PixQr",
                 "nullable": true
               },
               "type": {
@@ -21948,7 +21955,7 @@
           "payjustnow",
           "paypal",
           "paze",
-          "pix",
+          "pix_qr",
           "pay_safe_card",
           "przelewy24",
           "prompt_pay",
@@ -24069,6 +24076,7 @@
           "paypal",
           "stripe",
           "truelayer",
+          "trustly",
           "wise",
           "worldpay",
           "worldpayxml",
@@ -25390,7 +25398,7 @@
           },
           "expiry_date": {
             "type": "string",
-            "description": "The expiration date and time for the Pix QR code in ISO 8601 format",
+            "description": "The expiration date and time for the PixQr code in ISO 8601 format",
             "example": "2025-09-10T10:11:12Z",
             "nullable": true
           }
@@ -27733,6 +27741,7 @@
           "stripebilling",
           "tesouro",
           "truelayer",
+          "trustly",
           "trustpay",
           "trustpayments",
           "tokenio",
@@ -29965,6 +29974,65 @@
           "internal",
           "external"
         ]
+      },
+      "TrustlyBankTransfer": {
+        "type": "object",
+        "required": [
+          "iban",
+          "country_code",
+          "account_number",
+          "bank_number"
+        ],
+        "properties": {
+          "iban": {
+            "type": "string",
+            "description": "International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.",
+            "example": "token_12345"
+          },
+          "country_code": {
+            "$ref": "#/components/schemas/CountryAlpha2"
+          },
+          "account_number": {
+            "type": "string",
+            "description": "The account number, identifying the end-user's account in the bank.",
+            "example": "69706212"
+          },
+          "bank_number": {
+            "type": "string",
+            "description": "The bank number identifying the end-user's bank in the given clearing house.",
+            "example": "6112"
+          }
+        }
+      },
+      "TrustlyBankTransferAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for Trustly bank transfer payout method",
+        "required": [
+          "iban",
+          "country_code",
+          "account_number",
+          "bank_number"
+        ],
+        "properties": {
+          "iban": {
+            "type": "string",
+            "description": "International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.",
+            "example": "token_12345"
+          },
+          "country_code": {
+            "$ref": "#/components/schemas/CountryAlpha2"
+          },
+          "account_number": {
+            "type": "string",
+            "description": "The account number, identifying the end-user's account in the bank.",
+            "example": "69706212"
+          },
+          "bank_number": {
+            "type": "string",
+            "description": "The bank number identifying the end-user's bank in the given clearing house.",
+            "example": "6112"
+          }
+        }
       },
       "UIWidgetFormLayout": {
         "type": "string",

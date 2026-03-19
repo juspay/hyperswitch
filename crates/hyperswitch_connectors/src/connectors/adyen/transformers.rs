@@ -2063,7 +2063,11 @@ fn get_recurring_processing_model(
             let store_payment_method = item.request.is_mandate_payment();
             let shopper_reference =
                 shopper_reference.ok_or_else(missing_field_err("connector_customer_id"))?;
-            Ok((None, Some(store_payment_method), Some(shopper_reference)))
+            Ok((
+                Some(AdyenRecurringModel::UnscheduledCardOnFile),
+                Some(store_payment_method),
+                Some(shopper_reference),
+            ))
         }
         // Off-session payment
         (_, Some(true)) => {
@@ -6235,6 +6239,10 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                     })?,
                     payouts::Bank::PixQr(..) => Err(errors::ConnectorError::NotSupported {
                         message: "Bank transfer via PixQr is not supported".to_string(),
+                        connector: "Adyen",
+                    })?,
+                    payouts::Bank::Trustly(..) => Err(errors::ConnectorError::NotSupported {
+                        message: "Bank transfer via Trustly is not supported".to_string(),
                         connector: "Adyen",
                     })?,
                 };
