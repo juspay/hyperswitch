@@ -12,11 +12,13 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankTransferData, BoletoVoucherData, PaymentMethodData, VoucherData},
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
-    router_request_types::{PaymentsUpdateMetadataData, ResponseId},
+    router_flow_types::AuthorizeSessionToken,
+    router_request_types::{AuthorizeSessionTokenData, PaymentsUpdateMetadataData, ResponseId},
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsSyncRouterData,
-        PaymentsUpdateMetadataRouterData, RefundsRouterData,
+        PaymentsAuthorizeRouterData, PaymentsAuthorizeSessionTokenRouterData,
+        PaymentsCancelRouterData, PaymentsSyncRouterData, PaymentsUpdateMetadataRouterData,
+        RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -43,11 +45,11 @@ use crate::{
         responses::{
             Key, NsuComposite, Payer, SanatanderAccessTokenResponse, SanatanderTokenResponse,
             SantanderAdditionalInfo, SantanderBoletoDocumentKind, SantanderBoletoPaymentType,
-            SantanderBoletoStatus, SantanderDocumentKind, SantanderPaymentStatus,
-            SantanderPaymentsResponse, SantanderPaymentsSyncResponse, SantanderPixKeyType,
-            SantanderPixQRCodePaymentsResponse, SantanderPixQRCodeSyncResponse,
-            SantanderRefundResponse, SantanderRefundStatus, SantanderUpdateMetadataResponse,
-            SantanderVoidResponse, SantanderVoidStatus,
+            SantanderBoletoStatus, SantanderCreatePixPayloadLocationResponse,
+            SantanderDocumentKind, SantanderPaymentStatus, SantanderPaymentsResponse,
+            SantanderPaymentsSyncResponse, SantanderPixKeyType, SantanderPixQRCodePaymentsResponse,
+            SantanderPixQRCodeSyncResponse, SantanderRefundResponse, SantanderRefundStatus,
+            SantanderUpdateMetadataResponse, SantanderVoidResponse, SantanderVoidStatus,
         },
     },
     types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
@@ -62,6 +64,37 @@ impl<T> From<(StringMajorUnit, T)> for SantanderRouterData<T> {
             amount,
             router_data: item,
         }
+    }
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            AuthorizeSessionToken,
+            SantanderCreatePixPayloadLocationResponse,
+            AuthorizeSessionTokenData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<AuthorizeSessionToken, AuthorizeSessionTokenData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<
+            AuthorizeSessionToken,
+            SantanderCreatePixPayloadLocationResponse,
+            AuthorizeSessionTokenData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: AttemptStatus::Pending,
+            session_token: Some(item.response.location.clone()),
+            response: Ok(PaymentsResponseData::SessionTokenResponse {
+                session_token: item.response.location,
+            }),
+            ..item.data
+        })
     }
 }
 
