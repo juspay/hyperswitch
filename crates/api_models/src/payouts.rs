@@ -283,7 +283,7 @@ pub enum Bank {
     Ach(AchBankTransfer),
     Bacs(BacsBankTransfer),
     Sepa(SepaBankTransfer),
-    Pix(PixBankTransfer),
+    PixQr(PixBankTransfer),
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -1036,13 +1036,13 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
                     bic: bic.map(From::from),
                 },
             )),
-            Bank::Pix(PixBankTransfer {
+            Bank::PixQr(PixBankTransfer {
                 bank_name,
                 bank_branch,
                 bank_account_number,
                 pix_key,
                 tax_id,
-            }) => Self::Pix(Box::new(
+            }) => Self::PixQr(Box::new(
                 payout_method_utils::PixBankTransferAdditionalData {
                     bank_name,
                     bank_branch,

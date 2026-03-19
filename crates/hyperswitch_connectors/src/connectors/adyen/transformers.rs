@@ -483,7 +483,7 @@ fn get_adyen_payment_status(
         | AdyenStatus::PresentToShopper => storage_enums::AttemptStatus::AuthenticationPending,
         AdyenStatus::Error | AdyenStatus::Refused => storage_enums::AttemptStatus::Failure,
         AdyenStatus::Pending => match pmt {
-            Some(common_enums::PaymentMethodType::Pix) => {
+            Some(common_enums::PaymentMethodType::PixQr) => {
                 storage_enums::AttemptStatus::AuthenticationPending
             }
             _ => storage_enums::AttemptStatus::Pending,
@@ -884,7 +884,7 @@ pub enum AdyenPaymentMethod<'a> {
     SevenEleven(Box<JCSVoucherData>),
     #[serde(rename = "econtext_stores")]
     JapaneseConvenienceStores(Box<JCSVoucherData>),
-    Pix,
+    PixQr,
     #[serde(rename = "networkToken")]
     NetworkToken(Box<AdyenNetworkTokenData>),
 }
@@ -1701,7 +1701,7 @@ pub enum PaymentType {
     SevenEleven,
     #[serde(rename = "econtext_stores")]
     JapaneseConvenienceStores,
-    Pix,
+    PixQr,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -2954,7 +2954,7 @@ impl TryFrom<(&BankTransferData, &PaymentsAuthorizeRouterData)> for AdyenPayment
             BankTransferData::MandiriVaBankTransfer {} => Ok(AdyenPaymentMethod::MandiriVa(
                 Box::new(DokuBankData::try_from(item)?),
             )),
-            BankTransferData::Pix { .. } => Ok(AdyenPaymentMethod::Pix),
+            BankTransferData::PixQr { .. } => Ok(AdyenPaymentMethod::PixQr),
             BankTransferData::AchBankTransfer { .. }
             | BankTransferData::SepaBankTransfer { .. }
             | BankTransferData::BacsBankTransfer { .. }
@@ -3685,7 +3685,7 @@ impl
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
         let telephone_number = item.router_data.get_optional_billing_phone_number();
         let (session_validity, social_security_number) = match bank_transfer_data {
-            BankTransferData::Pix {
+            BankTransferData::PixQr {
                 cpf,
                 cnpj,
                 expiry_date,
@@ -5122,7 +5122,7 @@ pub fn get_wait_screen_metadata(
         | PaymentType::PaySafeCard
         | PaymentType::SevenEleven
         | PaymentType::JapaneseConvenienceStores
-        | PaymentType::Pix => Ok(None),
+        | PaymentType::PixQr => Ok(None),
     }
 }
 
@@ -5226,7 +5226,7 @@ pub fn get_present_to_shopper_metadata(
         | PaymentType::Swish
         | PaymentType::PaySafeCard
         | PaymentType::SevenEleven
-        | PaymentType::Pix => Ok(None),
+        | PaymentType::PixQr => Ok(None),
     }
 }
 
@@ -6233,8 +6233,8 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                         message: "Bank transfer via Bacs is not supported".to_string(),
                         connector: "Adyen",
                     })?,
-                    payouts::Bank::Pix(..) => Err(errors::ConnectorError::NotSupported {
-                        message: "Bank transfer via Pix is not supported".to_string(),
+                    payouts::Bank::PixQr(..) => Err(errors::ConnectorError::NotSupported {
+                        message: "Bank transfer via PixQr is not supported".to_string(),
                         connector: "Adyen",
                     })?,
                 };

@@ -677,7 +677,7 @@ efecty = { country = "CO", currency = "COP" }
 multibanco = { country = "PT", currency = "EUR" }
 pago_efectivo = { country = "PE", currency = "PEN" }
 pse = { country = "CO", currency = "COP" }
-pix = { country = "BR", currency = "BRL" }
+pix_qr = { country = "BR", currency = "BRL" }
 red_compra = { country = "CL", currency = "CLP" }
 red_pagos = { country = "UY", currency = "UYU" }
 
@@ -740,7 +740,7 @@ ali_pay = { country = "GB",currency = "GBP,CNY" }
 we_chat_pay = { country = "GB",currency = "GBP,CNY" }
 
 [pm_filters.itaubank]
-pix = { country = "BR", currency = "BRL" }
+pix_qr = { country = "BR", currency = "BRL" }
 
 [pm_filters.nexinets]
 credit = { country = "DE",currency = "EUR" }
@@ -803,7 +803,7 @@ sepa = {country = "FR, IT, GR, BE, BG, FI, EE, HR, IE, DE, DK, LT, LV, MT, LU, A
 sepa_guarenteed_debit = {country = "AT, CH, DE", currency="EUR"}
 
 [pm_filters.facilitapay]
-pix = { country = "BR", currency = "BRL" }
+pix_qr = { country = "BR", currency = "BRL" }
 
 [pm_filters.helcim]
 credit = { country = "US, CA", currency = "USD, CAD" }
@@ -1002,7 +1002,7 @@ crypto_currency = { country = "AL, AD, AT, BE, BA, BG, HR, CZ, DK, EE, FI, FR, D
 eft = { country = "NG, ZA, GH, KE, CI", currency = "NGN, GHS, ZAR, KES, USD" }
 
 [pm_filters.santander]
-pix = { country = "BR", currency = "BRL" }
+pix_qr = { country = "BR", currency = "BRL" }
 boleto = { country = "BR", currency = "BRL" }
 
 [pm_filters.calida]
@@ -1249,7 +1249,7 @@ merchant_name = "HyperSwitch"
 [generic_link.payment_method_collect.enabled_payment_methods]
 card = "credit,debit"
 bank_transfer = "ach,bacs,sepa"
-wallet = "paypal,pix,venmo"
+wallet = "paypal,pix_qr,venmo"
 
 [generic_link.payout_link]
 sdk_url = "http://localhost:9090/0.16.7/v0/HyperLoader.js"

@@ -190,7 +190,7 @@ merchant_name = "HyperSwitch"
 [generic_link.payment_method_collect.enabled_payment_methods]
 card = "credit,debit"
 bank_transfer = "ach,bacs,sepa"
-wallet = "paypal,pix,venmo"
+wallet = "paypal,pix_qr,venmo"
 
 [generic_link.payout_link]
 sdk_url = "http://localhost:9090/0.16.7/v0/HyperLoader.js"
