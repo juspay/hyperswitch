@@ -1311,7 +1311,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsUpdateMetadat
                                 .payment_intent
                                 .metadata
                                 .clone(),
-                            feature_metadata: payment_intent.feature_metadata.clone().map(masking::Secret::new),
                             updated_by: payment_data.payment_intent.updated_by.clone(),
                         };
 

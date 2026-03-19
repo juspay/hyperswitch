@@ -31788,8 +31788,7 @@
       "PaymentsUpdateMetadataResponse": {
         "type": "object",
         "required": [
-          "payment_id",
-          "status"
+          "payment_id"
         ],
         "properties": {
           "payment_id": {
@@ -31807,7 +31806,8 @@
                 "$ref": "#/components/schemas/IntentStatus"
               }
             ],
-            "default": "requires_confirmation"
+            "default": "requires_confirmation",
+            "nullable": true
           },
           "feature_metadata": {
             "allOf": [
