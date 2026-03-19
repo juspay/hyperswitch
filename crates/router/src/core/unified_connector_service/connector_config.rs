@@ -57,8 +57,8 @@ pub enum ConnectorSpecificConfig {
         api_key: Secret<String>,
         merchant_account: Secret<String>,
         api_secret: Secret<String>,
-        disable_avs: bool,
-        disable_cvn: bool,
+        disable_avs: Option<bool>,
+        disable_cvn: Option<bool>,
     },
     /// Braintree connector configuration
     Braintree {
@@ -793,13 +793,8 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 } => {
                     let (disable_avs, disable_cvn) = metadata
                         .and_then(|m| serde_json::from_value::<CybersourceMetadata>(m.clone()).ok())
-                        .map(|m| {
-                            (
-                                m.disable_avs.unwrap_or(false),
-                                m.disable_cvn.unwrap_or(false),
-                            )
-                        })
-                        .unwrap_or((false, false));
+                        .map(|m| (m.disable_avs, m.disable_cvn))
+                        .unwrap_or((None, None));
 
                     Ok(Self::Cybersource {
                         api_key: api_key.clone(),
