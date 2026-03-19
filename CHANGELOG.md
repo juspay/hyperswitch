@@ -4,6 +4,24 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.03.19.0
+
+### Features
+
+- **connector:** [Trustly] Implement Payouts ([#11538](https://github.com/juspay/hyperswitch/pull/11538)) ([`0ef39e8`](https://github.com/juspay/hyperswitch/commit/0ef39e8bc94964a1cb87618b246789321d76180e))
+- **superposition:** Add connector as a dimension for superposition config resolution ([#11494](https://github.com/juspay/hyperswitch/pull/11494)) ([`42e5f8e`](https://github.com/juspay/hyperswitch/commit/42e5f8e9e492e339c21ee50fb003ac9998b5ffc3))
+- **wasm:** [envoy] payouts wasm changes ([#11515](https://github.com/juspay/hyperswitch/pull/11515)) ([`277293a`](https://github.com/juspay/hyperswitch/commit/277293aa940584b2340cce09c8653e37a029d6b4))
+
+### Bug Fixes
+
+- **connector:** [ADYEN] Revert: Remove recurringProcessingModel for CIT transactions ([#11541](https://github.com/juspay/hyperswitch/pull/11541)) ([`ba83ba0`](https://github.com/juspay/hyperswitch/commit/ba83ba0616ade6348200273bda1aa3cbde7803e1))
+- **payment_response:** Set modular payment method to inactive if case of payment failure ([#11412](https://github.com/juspay/hyperswitch/pull/11412)) ([`b9d260a`](https://github.com/juspay/hyperswitch/commit/b9d260ab3ddf195001611b89aca158907821cd5d))
+- **wasm:** Upgrade `getrandom` dependency in `euclid_wasm` crate ([#11505](https://github.com/juspay/hyperswitch/pull/11505)) ([`8f89f23`](https://github.com/juspay/hyperswitch/commit/8f89f230daf5a2de4ae39693113c3683f134c7f0))
+
+**Full Changelog:** [`2026.03.18.0...2026.03.19.0`](https://github.com/juspay/hyperswitch/compare/2026.03.18.0...2026.03.19.0)
+
+- - -
+
 ## 2026.03.18.0
 
 ### Bug Fixes
