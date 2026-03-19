@@ -334,7 +334,6 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             split_txns_enabled: item.split_txns_enabled,
             revenue_recovery_retry_algorithm_type: item.revenue_recovery_retry_algorithm_type,
             billing_processor_id: item.billing_processor_id,
-            payment_method_blocking: item.payment_method_blocking.map(ForeignInto::foreign_into),
         })
     }
 }

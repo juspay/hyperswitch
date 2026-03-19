@@ -596,7 +596,6 @@ pub struct ProfileUpdateInternal {
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub is_l2_l3_enabled: Option<bool>,
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
-    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
 }
 
 #[cfg(feature = "v2")]
@@ -656,7 +655,6 @@ impl ProfileUpdateInternal {
             merchant_country_code,
             split_txns_enabled,
             is_l2_l3_enabled,
-            payment_method_blocking,
         } = self;
         Profile {
             id: source.id,
@@ -758,7 +756,7 @@ impl ProfileUpdateInternal {
             always_enable_overcapture: None,
             is_l2_l3_enabled: None,
             billing_processor_id: billing_processor_id.or(source.billing_processor_id),
-            payment_method_blocking: payment_method_blocking.or(source.payment_method_blocking),
+            payment_method_blocking: None,
         }
     }
 }
