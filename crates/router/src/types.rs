@@ -39,9 +39,9 @@ use hyperswitch_domain_models::router_flow_types::{
     payments::{
         Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture,
         CompleteAuthorize, CreateConnectorCustomer, CreateOrder, ExtendAuthorization,
-        ExternalVaultProxy, IncrementalAuthorization, InitPayment, PSync, PostCaptureVoid,
-        PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
-        SetupMandate, UpdateMetadata, Void,
+        ExternalVaultProxy, IncrementalAuthorization, InitPayment, PSync, PaymentTrigger,
+        PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing, Reject,
+        SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
     },
     refunds::{Execute, RSync},
     webhooks::VerifyWebhookSource,
@@ -116,11 +116,12 @@ pub use hyperswitch_interfaces::{
         AcceptDisputeType, ConnectorCustomerType, DefendDisputeType, FetchDisputesType,
         IncrementalAuthorizationType, MandateRevokeType, PaymentsAuthorizeType,
         PaymentsBalanceType, PaymentsCaptureType, PaymentsCompleteAuthorizeType, PaymentsInitType,
-        PaymentsPostCaptureVoidType, PaymentsPostProcessingType, PaymentsPostSessionTokensType,
-        PaymentsPreAuthorizeType, PaymentsPreProcessingType, PaymentsSessionType, PaymentsSyncType,
-        PaymentsUpdateMetadataType, PaymentsVoidType, RefreshTokenType, RefundExecuteType,
-        RefundSyncType, Response, RetrieveFileType, SdkSessionUpdateType, SetupMandateType,
-        SubmitEvidenceType, TokenizationType, UploadFileType, VerifyWebhookSourceType,
+        PaymentsPaymentTriggerType, PaymentsPostCaptureVoidType, PaymentsPostProcessingType,
+        PaymentsPostSessionTokensType, PaymentsPreAuthorizeType, PaymentsPreProcessingType,
+        PaymentsSessionType, PaymentsSyncType, PaymentsUpdateMetadataType, PaymentsVoidType,
+        RefreshTokenType, RefundExecuteType, RefundSyncType, Response, RetrieveFileType,
+        SdkSessionUpdateType, SetupMandateType, SubmitEvidenceType, TokenizationType,
+        UploadFileType, VerifyWebhookSourceType,
     },
 };
 
@@ -140,6 +141,8 @@ pub type ExternalVaultProxyPaymentsRouterData =
     RouterData<ExternalVaultProxy, ExternalVaultProxyPaymentsData, PaymentsResponseData>;
 pub type PaymentsPreProcessingRouterData =
     RouterData<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>;
+pub type PaymentsPaymentTriggerRouterData =
+    RouterData<PaymentTrigger, PaymentsPreProcessingData, PaymentsResponseData>;
 pub type PaymentsPostProcessingRouterData =
     RouterData<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>;
 pub type PaymentsAuthorizeSessionTokenRouterData =

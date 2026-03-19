@@ -35,8 +35,9 @@ use hyperswitch_domain_models::{
         payments::{
             Approve, AuthorizeSessionToken, CalculateTax, CompleteAuthorize,
             CreateConnectorCustomer, CreateOrder, ExtendAuthorization, GiftCardBalanceCheck,
-            IncrementalAuthorization, PostCaptureVoid, PostProcessing, PostSessionTokens,
-            PreProcessing, Reject, SdkSessionUpdate, SettlementSplitCreate, UpdateMetadata,
+            IncrementalAuthorization, PaymentTrigger, PostCaptureVoid, PostProcessing,
+            PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, SettlementSplitCreate,
+            UpdateMetadata,
         },
         subscriptions::{
             GetSubscriptionEstimate, GetSubscriptionItemPrices, GetSubscriptionItems,
@@ -143,8 +144,9 @@ use hyperswitch_interfaces::{
             PaymentIncrementalAuthorization, PaymentPostCaptureVoid, PaymentPostSessionTokens,
             PaymentReject, PaymentSessionUpdate, PaymentUpdateMetadata, PaymentsAuthenticate,
             PaymentsCompleteAuthorize, PaymentsCreateOrder, PaymentsGiftCardBalanceCheck,
-            PaymentsPostAuthenticate, PaymentsPostProcessing, PaymentsPreAuthenticate,
-            PaymentsPreProcessing, PaymentsSettlementSplitCreate, TaxCalculation,
+            PaymentsPaymentTrigger, PaymentsPostAuthenticate, PaymentsPostProcessing,
+            PaymentsPreAuthenticate, PaymentsPreProcessing, PaymentsSettlementSplitCreate,
+            TaxCalculation,
         },
         revenue_recovery::RevenueRecovery,
         subscriptions::{
@@ -2795,10 +2797,18 @@ macro_rules! default_imp_for_post_processing_steps{
     ($($path:ident::$connector:ident),*)=> {
         $(
             impl PaymentsPostProcessing for $path::$connector {}
+            impl PaymentsPaymentTrigger for $path::$connector {}
             impl
             ConnectorIntegration<
             PostProcessing,
             PaymentsPostProcessingData,
+            PaymentsResponseData,
+        > for $path::$connector
+        {}
+            impl
+            ConnectorIntegration<
+            PaymentTrigger,
+            PaymentsPreProcessingData,
             PaymentsResponseData,
         > for $path::$connector
         {}
