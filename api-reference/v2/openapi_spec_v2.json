@@ -7004,6 +7004,9 @@
           },
           {
             "$ref": "#/components/schemas/PixBankTransfer"
+          },
+          {
+            "$ref": "#/components/schemas/TrustlyBankTransfer"
           }
         ]
       },
@@ -7020,6 +7023,9 @@
           },
           {
             "$ref": "#/components/schemas/PixBankTransferAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/TrustlyBankTransferAdditionalData"
           }
         ],
         "description": "Masked payout method details for bank payout method"
@@ -10548,11 +10554,13 @@
           "dlocal",
           "dwolla",
           "ebanx",
+          "envoy",
           "elavon",
           "facilitapay",
           "finix",
           "fiserv",
           "fiservemea",
+          "fiservcommercehub",
           "fiuu",
           "flexiti",
           "forte",
@@ -10620,6 +10628,7 @@
           "tesouro",
           "tokenex",
           "tokenio",
+          "trustly",
           "truelayer",
           "trustpay",
           "trustpayments",
@@ -17527,6 +17536,11 @@
             "type": "string",
             "description": "The ECI(Electronic Commerce Indicator) value for this authentication.",
             "nullable": true
+          },
+          "par": {
+            "type": "string",
+            "description": "The Payment Account Reference (PAR) for this card.",
+            "nullable": true
           }
         }
       },
@@ -17591,6 +17605,11 @@
           },
           "saved_to_locker": {
             "type": "boolean"
+          },
+          "par": {
+            "type": "string",
+            "example": "522134KAVJ1JPZ8L77N0Z2LRYZS7J",
+            "nullable": true
           }
         }
       },
@@ -18186,6 +18205,11 @@
               },
               "border_color": {
                 "type": "string",
+                "nullable": true
+              },
+              "raw_qr_data": {
+                "type": "string",
+                "description": "The raw QR code data (EMV copy and paste) used for Brazilian payment methods like Pix",
                 "nullable": true
               },
               "type": {
@@ -21775,6 +21799,14 @@
           "keep_alive": {
             "type": "boolean",
             "description": "Whether the card with new status should be listed in the session"
+          },
+          "network_tokenization_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokenResponse"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -24044,9 +24076,11 @@
           "paypal",
           "stripe",
           "truelayer",
+          "trustly",
           "wise",
           "worldpay",
-          "worldpayxml"
+          "worldpayxml",
+          "envoy"
         ]
       },
       "PayoutCreatePayoutLinkConfig": {
@@ -27639,10 +27673,12 @@
           "dwolla",
           "ebanx",
           "elavon",
+          "envoy",
           "facilitapay",
           "finix",
           "fiserv",
           "fiservemea",
+          "fiservcommercehub",
           "fiuu",
           "flexiti",
           "forte",
@@ -27705,6 +27741,7 @@
           "stripebilling",
           "tesouro",
           "truelayer",
+          "trustly",
           "trustpay",
           "trustpayments",
           "tokenio",
@@ -29937,6 +29974,65 @@
           "internal",
           "external"
         ]
+      },
+      "TrustlyBankTransfer": {
+        "type": "object",
+        "required": [
+          "iban",
+          "country_code",
+          "account_number",
+          "bank_number"
+        ],
+        "properties": {
+          "iban": {
+            "type": "string",
+            "description": "International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.",
+            "example": "token_12345"
+          },
+          "country_code": {
+            "$ref": "#/components/schemas/CountryAlpha2"
+          },
+          "account_number": {
+            "type": "string",
+            "description": "The account number, identifying the end-user's account in the bank.",
+            "example": "69706212"
+          },
+          "bank_number": {
+            "type": "string",
+            "description": "The bank number identifying the end-user's bank in the given clearing house.",
+            "example": "6112"
+          }
+        }
+      },
+      "TrustlyBankTransferAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for Trustly bank transfer payout method",
+        "required": [
+          "iban",
+          "country_code",
+          "account_number",
+          "bank_number"
+        ],
+        "properties": {
+          "iban": {
+            "type": "string",
+            "description": "International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.",
+            "example": "token_12345"
+          },
+          "country_code": {
+            "$ref": "#/components/schemas/CountryAlpha2"
+          },
+          "account_number": {
+            "type": "string",
+            "description": "The account number, identifying the end-user's account in the bank.",
+            "example": "69706212"
+          },
+          "bank_number": {
+            "type": "string",
+            "description": "The bank number identifying the end-user's bank in the given clearing house.",
+            "example": "6112"
+          }
+        }
       },
       "UIWidgetFormLayout": {
         "type": "string",

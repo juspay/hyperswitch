@@ -3854,8 +3854,22 @@ pub async fn list_payment_methods(
         .as_ref()
         .map(|payment_intent| payment_intent.customer_id.is_none())
         .unwrap_or(true);
+    let connector_supports_installments = currency.is_some_and(|cur| {
+        filtered_mcas.iter().any(|mca| {
+            mca.connector_name
+                .parse::<api_enums::Connector>()
+                .ok()
+                .is_some_and(|connector| {
+                    state
+                        .conf
+                        .installment_config
+                        .is_connector_currency_supported(&connector, cur)
+                })
+        })
+    });
+
     let merchant_surcharge_configs = if let Some((payment_attempt, payment_intent)) =
-        payment_attempt.as_ref().zip(payment_intent)
+        payment_attempt.as_ref().zip(payment_intent.clone())
     {
         Box::pin(call_surcharge_decision_management(
             state,
@@ -3890,6 +3904,19 @@ pub async fn list_payment_methods(
     };
 
     let is_tax_connector_enabled = business_profile.get_is_tax_connector_enabled();
+
+    let intent_data = payment_intent
+        .clone()
+        .map(|pi| {
+            let net_amount = payment_attempt
+                .as_ref()
+                .map(|pa| pa.net_amount.get_total_amount())
+                .unwrap_or(pi.amount);
+            pi.into_payment_method_list_intent_data(net_amount, connector_supports_installments)
+        })
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to build intent data for payment method list")?;
 
     Ok(services::ApplicationResponse::Json(
         api::PaymentMethodListResponse {
@@ -3936,6 +3963,7 @@ pub async fn list_payment_methods(
             is_tax_calculation_enabled: is_tax_connector_enabled && !skip_external_tax_calculation,
             sdk_next_action,
             is_guest_customer,
+            intent_data,
         },
     ))
 }

@@ -88,7 +88,7 @@ use crate::{
     consts::{self, BASE64_ENGINE},
     core::{
         authentication,
-        configs::dimension_state::DimensionsWithMerchantId,
+        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers::MandateGenericData,
         payment_methods::{
@@ -1880,7 +1880,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     _payment_data: &mut PaymentData<F>,
     _req: Option<CustomerDetails>,
     _provider: &domain::Provider,
-    _dimensions: DimensionsWithMerchantId,
+    _dimensions: DimensionsWithMerchantIdAndProfileId,
 ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
     todo!()
 }
@@ -1895,7 +1895,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     req: Option<CustomerDetails>,
     provider: &domain::Provider,
     initiator: Option<&domain::Initiator>,
-    dimensions: DimensionsWithMerchantId,
+    dimensions: DimensionsWithMerchantIdAndProfileId,
 ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
     let merchant_id = provider.get_account().get_id();
     let storage_scheme = provider.get_account().storage_scheme;
@@ -2814,7 +2814,7 @@ pub async fn fetch_card_details_from_locker(
         domain::PaymentMethodVaultSourceDetails::ExternalVault {
             ref external_vault_source,
         } => {
-            fetch_card_details_from_external_vault(
+            Box::pin(fetch_card_details_from_external_vault(
                 state,
                 platform.get_processor().get_account().get_id(),
                 card_token_data,
@@ -2822,7 +2822,7 @@ pub async fn fetch_card_details_from_locker(
                 payment_method_info,
                 platform.get_processor().get_key_store(),
                 external_vault_source,
-            )
+            ))
             .await
         }
         domain::PaymentMethodVaultSourceDetails::InternalVault => {
@@ -2920,12 +2920,12 @@ pub async fn fetch_card_details_from_external_vault(
             id: external_vault_mca_id.get_string_repr().to_string(),
         })?;
 
-    let vault_resp = vault::retrieve_payment_method_from_vault_external_v1(
+    let vault_resp = Box::pin(vault::retrieve_payment_method_from_vault_external_v1(
         state,
         merchant_id,
         &payment_method_info,
         merchant_connector_account_details,
-    )
+    ))
     .await?;
 
     let payment_methods_data = payment_method_info.get_payment_methods_data();
@@ -3008,6 +3008,7 @@ pub async fn fetch_network_token_details_from_locker(
         card_issuing_country: None,
         bank_code: None,
         eci: None,
+        par: None,
     };
     Ok(network_token_data)
 }
@@ -8503,12 +8504,14 @@ pub fn validate_platform_request_for_marketplace(
 ///
 /// This ensures parent (org) rules take precedence over child (merchant) configurations
 pub async fn is_merchant_eligible_authentication_service(
-    merchant_id: &id_type::MerchantId,
-    org_id: &id_type::OrganizationId,
+    processor: &domain::Processor,
     state: &SessionState,
 ) -> RouterResult<bool> {
     let db = &*state.store;
-    let org_key = org_id.get_authentication_service_eligible_key();
+    let org_key = processor
+        .get_account()
+        .get_org_id()
+        .get_authentication_service_eligible_key();
     let org_eligible = db
         .find_config_by_key(&org_key)
         .await
@@ -8520,7 +8523,10 @@ pub async fn is_merchant_eligible_authentication_service(
 
     Ok(org_eligible
         .async_unwrap_or_else(|| async {
-            let merchant_key = merchant_id.get_authentication_service_eligible_key();
+            let merchant_key = processor
+                .get_account()
+                .get_id()
+                .get_authentication_service_eligible_key();
             db.find_config_by_key(&merchant_key)
                 .await
                 .inspect_err(|error| {

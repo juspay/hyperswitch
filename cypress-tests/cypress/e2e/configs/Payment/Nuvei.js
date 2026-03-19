@@ -16,6 +16,15 @@ const successfulThreeDSCardDetails = {
   card_holder_name: "CL-BRW1",
   card_cvc: "123",
 };
+
+const failedNo3DSCardDetails = {
+  card_number: "4008370896662369",
+  card_exp_month: "01",
+  card_exp_year: "35",
+  card_holder_name: "joseph Doe",
+  card_cvc: "123",
+};
+
 const singleUseMandateData = {
   customer_acceptance: customerAcceptance,
   mandate_type: {
@@ -573,6 +582,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDSCardDetails,
         },
+        amount: 11500,
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
       },
@@ -704,6 +714,24 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+        },
+      },
+    },
+    No3DSFailPayment: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: failedNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "-1",
+          error_message: "Decline",
         },
       },
     },

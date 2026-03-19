@@ -11,8 +11,9 @@ use common_utils::{
 };
 use diesel_models::{process_tracker::business_status, refund as diesel_refund};
 use error_stack::{report, ResultExt};
+use external_services::grpc_client::LineageIds;
 use hyperswitch_domain_models::{
-    router_data::ErrorResponse, router_request_types::SplitRefundsRequest,
+    payments::HeaderPayload, router_data::ErrorResponse, router_request_types::SplitRefundsRequest,
 };
 use hyperswitch_interfaces::{
     consts as interfaces_consts,
@@ -219,13 +220,41 @@ pub async fn trigger_refund_to_gateway(
     )
     .await?;
 
-    let gateway_context = gateway_context::RouterGatewayContext::direct(
-        platform.get_processor().clone(),
-        merchant_connector_account.clone(),
-        payment_intent.merchant_id.clone(),
-        profile_id.clone(),
-        creds_identifier.clone(),
+    let (execution_path, updated_state) =
+        unified_connector_service::should_call_unified_connector_service(
+            state,
+            platform.get_processor(),
+            &router_data,
+            None, // No previous gateway information required for refunds
+            payments::CallConnectorAction::Trigger,
+            None,
+        )
+        .await?;
+
+    router_env::logger::info!(
+        refund_id = refund.refund_id,
+        execution_path = ?execution_path,
+        "Executing refund via {execution_path:?}"
     );
+
+    let lineage_ids = LineageIds::new(payment_intent.merchant_id.clone(), profile_id.clone());
+
+    let execution_mode = match execution_path {
+        common_enums::ExecutionPath::UnifiedConnectorService => ExecutionMode::Primary,
+        common_enums::ExecutionPath::ShadowUnifiedConnectorService => ExecutionMode::Shadow,
+        // ExecutionMode is irrelevant for Direct path in this context
+        common_enums::ExecutionPath::Direct => ExecutionMode::NotApplicable,
+    };
+
+    let gateway_context = gateway_context::RouterGatewayContext {
+        creds_identifier: creds_identifier.clone(),
+        processor: platform.get_processor().clone(),
+        header_payload: HeaderPayload::default(),
+        lineage_ids,
+        merchant_connector_account: merchant_connector_account.clone(),
+        execution_path,
+        execution_mode,
+    };
 
     // Add access token for both UCS and direct connector paths
     let add_access_token_result = Box::pin(access_token::add_access_token(
@@ -252,22 +281,6 @@ pub async fn trigger_refund_to_gateway(
         // Access token available or not needed - proceed with execution
 
         // Check which gateway system to use for refunds
-        let (execution_path, updated_state) =
-            unified_connector_service::should_call_unified_connector_service(
-                state,
-                platform.get_processor(),
-                &router_data,
-                None, // No previous gateway information required for refunds
-                payments::CallConnectorAction::Trigger,
-                None,
-            )
-            .await?;
-
-        router_env::logger::info!(
-            refund_id = refund.refund_id,
-            execution_path = ?execution_path,
-            "Executing refund via {execution_path:?}"
-        );
 
         // Execute refund based on gateway system decision
         match execution_path {
@@ -885,13 +898,44 @@ pub async fn sync_refund_with_gateway(
     )
     .await?;
 
-    let gateway_context = gateway_context::RouterGatewayContext::direct(
-        platform.get_processor().clone(),
-        merchant_connector_account.clone(),
-        payment_intent.merchant_id.clone(),
-        profile_id.clone(),
-        creds_identifier.clone(),
+    // Access token available or not needed - proceed with execution
+
+    // Check which gateway system to use for refund sync
+    let (execution_path, updated_state) =
+        unified_connector_service::should_call_unified_connector_service(
+            state,
+            platform.get_processor(),
+            &router_data,
+            None, // No previous gateway information required for refunds
+            payments::CallConnectorAction::Trigger,
+            None,
+        )
+        .await?;
+
+    router_env::logger::info!(
+        refund_id = router_data.request.refund_id,
+        execution_path = ?execution_path,
+        "Executing refund sync via {execution_path:?}"
     );
+
+    let lineage_ids = LineageIds::new(payment_intent.merchant_id.clone(), profile_id.clone());
+
+    let execution_mode = match execution_path {
+        common_enums::ExecutionPath::UnifiedConnectorService => ExecutionMode::Primary,
+        common_enums::ExecutionPath::ShadowUnifiedConnectorService => ExecutionMode::Shadow,
+        // ExecutionMode is irrelevant for Direct path in this context
+        common_enums::ExecutionPath::Direct => ExecutionMode::NotApplicable,
+    };
+
+    let gateway_context = gateway_context::RouterGatewayContext {
+        creds_identifier: creds_identifier.clone(),
+        processor: platform.get_processor().clone(),
+        header_payload: HeaderPayload::default(),
+        lineage_ids,
+        merchant_connector_account: merchant_connector_account.clone(),
+        execution_path,
+        execution_mode,
+    };
 
     // Add access token for both UCS and direct connector paths
     let add_access_token_result = Box::pin(access_token::add_access_token(
@@ -915,26 +959,6 @@ pub async fn sync_refund_with_gateway(
     let router_data_res = if !(add_access_token_result.connector_supports_access_token
         && router_data.access_token.is_none())
     {
-        // Access token available or not needed - proceed with execution
-
-        // Check which gateway system to use for refund sync
-        let (execution_path, updated_state) =
-            unified_connector_service::should_call_unified_connector_service(
-                state,
-                platform.get_processor(),
-                &router_data,
-                None, // No previous gateway information required for refunds
-                payments::CallConnectorAction::Trigger,
-                None,
-            )
-            .await?;
-
-        router_env::logger::info!(
-            refund_id = router_data.request.refund_id,
-            execution_path = ?execution_path,
-            "Executing refund sync via {execution_path:?}"
-        );
-
         // Execute refund sync based on gateway system decision
         match execution_path {
             common_enums::ExecutionPath::UnifiedConnectorService => {
@@ -1404,6 +1428,11 @@ pub async fn validate_and_create_refund(
             .clone(),
         processor_transaction_data,
         processor_refund_data: None,
+        processor_merchant_id: Some(platform.get_processor().get_account().get_id().clone()),
+        created_by: platform
+            .get_initiator()
+            .and_then(|initiator| initiator.to_created_by())
+            .map(|created_by| created_by.to_string()),
     };
 
     let (refund, raw_connector_response) = match db

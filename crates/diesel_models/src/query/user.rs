@@ -53,6 +53,14 @@ impl User {
         .await
     }
 
+    pub async fn find_by_user_id(conn: &PgPooledConn, user_id: &str) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            users_dsl::user_id.eq(user_id.to_owned()),
+        )
+        .await
+    }
+
     pub async fn update_active_by_user_id(
         conn: &PgPooledConn,
         user_id: &str,
@@ -117,6 +125,19 @@ impl User {
             None,
             None,
         )
+        .await
+    }
+
+    pub async fn list_users_by_user_ids(
+        conn: &PgPooledConn,
+        user_ids: Vec<String>,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<
+            <Self as HasTable>::Table,
+            _,
+            <<Self as HasTable>::Table as diesel::Table>::PrimaryKey,
+            _,
+        >(conn, users_dsl::user_id.eq_any(user_ids), None, None, None)
         .await
     }
 

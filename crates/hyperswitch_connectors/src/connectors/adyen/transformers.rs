@@ -5013,6 +5013,7 @@ pub fn get_qr_metadata(
             qr_code_url,
             display_to_timestamp,
             expiry_type: None,
+            raw_qr_data: None,
         };
         Some(qr_code_info.encode_to_value())
             .transpose()
@@ -5154,6 +5155,7 @@ pub fn get_present_to_shopper_metadata(
                 qr_code_url: None,
                 barcode: None,
                 expiry_date: None,
+                raw_qr_data: None,
             };
 
             Some(voucher_data.encode_to_value())
@@ -6237,6 +6239,10 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                     })?,
                     payouts::Bank::Pix(..) => Err(errors::ConnectorError::NotSupported {
                         message: "Bank transfer via Pix is not supported".to_string(),
+                        connector: "Adyen",
+                    })?,
+                    payouts::Bank::Trustly(..) => Err(errors::ConnectorError::NotSupported {
+                        message: "Bank transfer via Trustly is not supported".to_string(),
                         connector: "Adyen",
                     })?,
                 };
