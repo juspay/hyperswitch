@@ -522,7 +522,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let santander_mca_metadata = SantanderMetadataObject::try_from(&req.connector_meta_data)?;
         let connector_req = SantanderAuthRequest::try_from((req, &santander_mca_metadata))?;
-        println!("Flow from connector: {:?}", req.flow);
+
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
 
