@@ -1863,6 +1863,8 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::OnlineBankingSlovakia => Self::BankRedirect,
             PaymentMethodType::Paze => Self::Wallet,
             PaymentMethodType::PermataBankTransfer => Self::BankTransfer,
+            PaymentMethodType::PixAutomaticoPush => Self::BankTransfer,
+            PaymentMethodType::PixAutomaticoQr => Self::BankTransfer,
             PaymentMethodType::PixQr => Self::BankTransfer,
             PaymentMethodType::Pse => Self::BankTransfer,
             PaymentMethodType::LocalBankTransfer => Self::BankTransfer,

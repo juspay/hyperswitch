@@ -12,11 +12,12 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankTransferData, BoletoVoucherData, PaymentMethodData, VoucherData},
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
-    router_request_types::{PaymentsUpdateMetadataData, ResponseId},
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_flow_types::payments::PaymentTrigger,
+    router_request_types::{PaymentsPreProcessingData, PaymentsUpdateMetadataData, ResponseId},
+    router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsSyncRouterData,
-        PaymentsUpdateMetadataRouterData, RefundsRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsPreProcessingRouterData,
+        PaymentsSyncRouterData, PaymentsUpdateMetadataRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -35,19 +36,20 @@ use crate::{
             SantanderBoletoCancelRequest, SantanderBoletoPaymentRequest,
             SantanderBoletoUpdateRequest, SantanderDebtor, SantanderGrantType,
             SantanderMetadataObject, SantanderPaymentRequest, SantanderPaymentsCancelRequest,
-            SantanderPixCancelRequest, SantanderPixDueDateCalendarRequest,
-            SantanderPixImmediateCalendarRequest, SantanderPixQRPaymentRequest,
-            SantanderPixRequestCalendar, SantanderRefundRequest, SantanderRouterData,
-            SantanderValue,
+            SantanderPixAutomaticCalendarRequest, SantanderPixAutomaticDestinationRequest,
+            SantanderPixAutomaticSolicitationRequest, SantanderPixCancelRequest,
+            SantanderPixDueDateCalendarRequest, SantanderPixImmediateCalendarRequest,
+            SantanderPixQRPaymentRequest, SantanderPixRequestCalendar, SantanderRefundRequest,
+            SantanderRouterData, SantanderValue,
         },
         responses::{
             Key, NsuComposite, Payer, SanatanderAccessTokenResponse, SanatanderTokenResponse,
             SantanderAdditionalInfo, SantanderBoletoDocumentKind, SantanderBoletoPaymentType,
             SantanderBoletoStatus, SantanderDocumentKind, SantanderPaymentStatus,
-            SantanderPaymentsResponse, SantanderPaymentsSyncResponse, SantanderPixKeyType,
-            SantanderPixQRCodePaymentsResponse, SantanderPixQRCodeSyncResponse,
-            SantanderRefundResponse, SantanderRefundStatus, SantanderUpdateMetadataResponse,
-            SantanderVoidResponse, SantanderVoidStatus,
+            SantanderPaymentTriggerResponse, SantanderPaymentsResponse,
+            SantanderPaymentsSyncResponse, SantanderPixKeyType, SantanderPixQRCodePaymentsResponse,
+            SantanderPixQRCodeSyncResponse, SantanderRefundResponse, SantanderRefundStatus,
+            SantanderUpdateMetadataResponse, SantanderVoidResponse, SantanderVoidStatus,
         },
     },
     types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
@@ -62,6 +64,125 @@ impl<T> From<(StringMajorUnit, T)> for SantanderRouterData<T> {
             amount,
             router_data: item,
         }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticMetadata {
+    pub data_expiracao_solicitacao: String,
+    pub agencia: String,
+    pub conta: String,
+    pub cpf: Option<Secret<String>>,
+    pub cnpj: Option<Secret<String>>,
+    pub ispb_participante: String,
+}
+
+impl TryFrom<&PaymentsPreProcessingData> for SantanderPixAutomaticMetadata {
+    type Error = Error;
+
+    fn try_from(value: &PaymentsPreProcessingData) -> Result<Self, Self::Error> {
+        let metadata =
+            value
+                .metadata
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "metadata",
+                })?;
+
+        metadata
+            .expose()
+            .parse_value::<Self>("SantanderPixAutomaticMetadata")
+            .change_context(errors::ConnectorError::InvalidConnectorConfig { config: "metadata" })
+    }
+}
+
+impl TryFrom<&PaymentsPreProcessingRouterData> for SantanderPixAutomaticSolicitationRequest {
+    type Error = Error;
+
+    fn try_from(item: &PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
+        let metadata = SantanderPixAutomaticMetadata::try_from(&item.request)?;
+
+        Ok(Self {
+            id_rec: item.connector_request_reference_id.clone(),
+            calendario: SantanderPixAutomaticCalendarRequest {
+                data_expiracao_solicitacao: metadata.data_expiracao_solicitacao,
+            },
+            destinatario: SantanderPixAutomaticDestinationRequest {
+                agencia: metadata.agencia,
+                conta: metadata.conta,
+                cpf: metadata.cpf,
+                cnpj: metadata.cnpj,
+                ispb_participante: metadata.ispb_participante,
+            },
+        })
+    }
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            PaymentTrigger,
+            SantanderPaymentTriggerResponse,
+            PaymentsPreProcessingData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<PaymentTrigger, PaymentsPreProcessingData, PaymentsResponseData>
+{
+    type Error = Error;
+
+    fn try_from(
+        item: ResponseRouterData<
+            PaymentTrigger,
+            SantanderPaymentTriggerResponse,
+            PaymentsPreProcessingData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let (resource_id, connector_response_reference_id, mandate_reference, connector_metadata) =
+            match item.response {
+                SantanderPaymentTriggerResponse::PixAutomaticSolicitation(response) => (
+                    ResponseId::ConnectorTransactionId(response.id_solic_rec.clone()),
+                    Some(response.id_solic_rec.clone()),
+                    Some(MandateReference {
+                        connector_mandate_id: Some(response.id_rec.clone()),
+                        payment_method_id: None,
+                        mandate_metadata: None,
+                        connector_mandate_request_reference_id: Some(response.id_solic_rec),
+                    }),
+                    None,
+                ),
+                SantanderPaymentTriggerResponse::PixAutomaticRec(response) => (
+                    ResponseId::ConnectorTransactionId(response.id_rec.clone()),
+                    Some(response.id_rec.clone()),
+                    Some(MandateReference {
+                        connector_mandate_id: Some(response.id_rec.clone()),
+                        payment_method_id: None,
+                        mandate_metadata: None,
+                        connector_mandate_request_reference_id: None,
+                    }),
+                    response
+                        .dados_qr
+                        .and_then(|dados_qr| dados_qr.pix_copia_e_cola)
+                        .map(|pix_copia_e_cola| serde_json::json!({ "pix_copia_e_cola": pix_copia_e_cola })),
+                ),
+            };
+
+        Ok(Self {
+            status: AttemptStatus::AuthenticationPending,
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(mandate_reference),
+                connector_metadata,
+                network_txn_id: None,
+                connector_response_reference_id,
+                incremental_authorization_allowed: None,
+                authentication_data: None,
+                charges: None,
+            }),
+            ..item.data
+        })
     }
 }
 
@@ -209,7 +330,9 @@ impl TryFrom<(&RefreshTokenRouterData, &SantanderMetadataObject)> for SantanderA
         item: (&RefreshTokenRouterData, &SantanderMetadataObject),
     ) -> Result<Self, Self::Error> {
         let (client_id, client_secret) = match item.0.payment_method_type {
-            Some(enums::PaymentMethodType::PixQr) => {
+            Some(enums::PaymentMethodType::PixQr)
+            | Some(enums::PaymentMethodType::PixAutomaticoPush)
+            | Some(enums::PaymentMethodType::PixAutomaticoQr) => {
                 let pix_mca_metadata = item
                     .1
                     .pix_qr
