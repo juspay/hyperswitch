@@ -175,8 +175,13 @@ impl ConnectorIntegration<AuthorizeSessionToken, AuthorizeSessionTokenData, Paym
             .parse_struct("SantanderCreatePixPayloadLocationResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        if let Some(location_header) = res.headers.get("location") {
-            response.location = location_header.clone();
+        if let Some(location_header) = res
+            .headers
+            .as_ref()
+            .and_then(|headers| headers.get("location"))
+            .and_then(|value| value.to_str().ok())
+        {
+            response.location = location_header.to_owned();
         }
 
         event_builder.map(|i| i.set_response_body(&response));

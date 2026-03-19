@@ -16,9 +16,8 @@ use hyperswitch_domain_models::{
     router_request_types::{AuthorizeSessionTokenData, PaymentsUpdateMetadataData, ResponseId},
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
-        PaymentsAuthorizeRouterData, PaymentsAuthorizeSessionTokenRouterData,
-        PaymentsCancelRouterData, PaymentsSyncRouterData, PaymentsUpdateMetadataRouterData,
-        RefundsRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsSyncRouterData,
+        PaymentsUpdateMetadataRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
