@@ -884,7 +884,7 @@ pub enum AdyenPaymentMethod<'a> {
     SevenEleven(Box<JCSVoucherData>),
     #[serde(rename = "econtext_stores")]
     JapaneseConvenienceStores(Box<JCSVoucherData>),
-    PixQr,
+    Pix,
     #[serde(rename = "networkToken")]
     NetworkToken(Box<AdyenNetworkTokenData>),
 }
@@ -1701,7 +1701,7 @@ pub enum PaymentType {
     SevenEleven,
     #[serde(rename = "econtext_stores")]
     JapaneseConvenienceStores,
-    PixQr,
+    Pix,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -2954,7 +2954,7 @@ impl TryFrom<(&BankTransferData, &PaymentsAuthorizeRouterData)> for AdyenPayment
             BankTransferData::MandiriVaBankTransfer {} => Ok(AdyenPaymentMethod::MandiriVa(
                 Box::new(DokuBankData::try_from(item)?),
             )),
-            BankTransferData::PixQr { .. } => Ok(AdyenPaymentMethod::PixQr),
+            BankTransferData::PixQr { .. } => Ok(AdyenPaymentMethod::Pix),
             BankTransferData::AchBankTransfer { .. }
             | BankTransferData::SepaBankTransfer { .. }
             | BankTransferData::BacsBankTransfer { .. }
@@ -5122,7 +5122,7 @@ pub fn get_wait_screen_metadata(
         | PaymentType::PaySafeCard
         | PaymentType::SevenEleven
         | PaymentType::JapaneseConvenienceStores
-        | PaymentType::PixQr => Ok(None),
+        | PaymentType::Pix => Ok(None),
     }
 }
 
@@ -5226,7 +5226,7 @@ pub fn get_present_to_shopper_metadata(
         | PaymentType::Swish
         | PaymentType::PaySafeCard
         | PaymentType::SevenEleven
-        | PaymentType::PixQr => Ok(None),
+        | PaymentType::Pix => Ok(None),
     }
 }
 
