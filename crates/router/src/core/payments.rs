@@ -4654,6 +4654,20 @@ where
             .ok();
     }
 
+    let (router_data, should_continue_further) = if should_continue_further {
+        router_data
+            .payment_trigger_step(state, &connector, &context)
+            .await?
+    } else {
+        (router_data, false)
+    };
+
+    let connector_request = if should_continue_further {
+        connector_request
+    } else {
+        None
+    };
+
     Ok((
         updated_customer,
         ConnectorServiceIntermediateState {
@@ -5115,6 +5129,20 @@ where
                 .await?
         }
         None => (None, false),
+    };
+
+    let (router_data, should_continue_further) = if should_continue_further {
+        router_data
+            .payment_trigger_step(state, &connector, &gateway_context)
+            .await?
+    } else {
+        (router_data, false)
+    };
+
+    let connector_request = if should_continue_further {
+        connector_request
+    } else {
+        None
     };
 
     Ok(ConnectorServiceIntermediateState {
