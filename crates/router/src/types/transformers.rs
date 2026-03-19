@@ -1344,6 +1344,7 @@ impl ForeignFrom<&api_models::payouts::Bank> for api_enums::PaymentMethodType {
             api_models::payouts::Bank::Bacs(_) => Self::Bacs,
             api_models::payouts::Bank::Sepa(_) => Self::SepaBankTransfer,
             api_models::payouts::Bank::PixQr(_) => Self::PixQr,
+            api_models::payouts::Bank::Trustly(_) => Self::Trustly,
         }
     }
 }
