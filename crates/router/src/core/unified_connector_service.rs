@@ -1083,7 +1083,7 @@ pub fn build_unified_connector_service_payment_method(
                     payments_grpc::MultibancoBankTransfer {  }
                 )),
             }),
-            hyperswitch_domain_models::payment_method_data::BankTransferData::Pix {
+        hyperswitch_domain_models::payment_method_data::BankTransferData::PixQr {
                 pix_key,
                 cpf,
                 cnpj,
@@ -1091,7 +1091,7 @@ pub fn build_unified_connector_service_payment_method(
                 destination_bank_account_id,
                 expiry_date,
             } => Ok(payments_grpc::PaymentMethod {
-                payment_method: Some(PaymentMethod::Pix(payments_grpc::PixPayment {
+                payment_method: Some(PaymentMethod::PixQr(payments_grpc::PixPayment {
                     pix_key: pix_key.map(|v| v.expose().into()),
                     cpf: cpf.map(|v| v.expose().into()),
                     cnpj: cnpj.map(|v| v.expose().into()),

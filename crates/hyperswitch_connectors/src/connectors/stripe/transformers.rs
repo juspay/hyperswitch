@@ -819,7 +819,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::OnlineBankingFpx
             | enums::PaymentMethodType::Paypal
             | enums::PaymentMethodType::BhnCardNetwork
-            | enums::PaymentMethodType::Pix
+            | enums::PaymentMethodType::PixQr
             | enums::PaymentMethodType::UpiCollect
             | enums::PaymentMethodType::UpiIntent
             | enums::PaymentMethodType::Cashapp
@@ -1450,7 +1450,7 @@ fn create_stripe_payment_method(
                 Some(StripePaymentMethodType::CustomerBalance),
                 payment_request_details.billing_address,
             )),
-            payment_method_data::BankTransferData::Pix { .. } => Err(
+            payment_method_data::BankTransferData::PixQr { .. } => Err(
                 ConnectorError::NotImplemented(get_unimplemented_payment_method_error_message(
                     "stripe",
                 ))
@@ -4609,7 +4609,7 @@ impl
                         })),
                     ))
                 }
-                payment_method_data::BankTransferData::Pix { .. }
+                payment_method_data::BankTransferData::PixQr { .. }
                 | payment_method_data::BankTransferData::Pse {}
                 | payment_method_data::BankTransferData::PermataBankTransfer { .. }
                 | payment_method_data::BankTransferData::BcaBankTransfer { .. }

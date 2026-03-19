@@ -2265,18 +2265,18 @@ mandate = []
 non_mandate = []
 
 # Payment method type: Pix
-[required_fields.bank_transfer.pix.fields.Itaubank]
+[required_fields.bank_transfer.pix_qr.fields.Itaubank]
 common = [
-    { required_field = "payment_method_data.bank_transfer.pix.pix_key", display_name = "pix_key", field_type = "user_pix_key" },
-    { required_field = "payment_method_data.bank_transfer.pix.cnpj", display_name = "cnpj", field_type = "user_cnpj" },
-    { required_field = "payment_method_data.bank_transfer.pix.cpf", display_name = "cpf", field_type = "user_cpf" },
+    { required_field = "payment_method_data.bank_transfer.pix_qr.pix_key", display_name = "pix_key", field_type = "user_pix_key" },
+    { required_field = "payment_method_data.bank_transfer.pix_qr.cnpj", display_name = "cnpj", field_type = "user_cnpj" },
+    { required_field = "payment_method_data.bank_transfer.pix_qr.cpf", display_name = "cpf", field_type = "user_cpf" },
     { required_field = "payment_method_data.billing.address.first_name", display_name = "card_holder_name", field_type = "user_full_name" },
     { required_field = "payment_method_data.billing.address.last_name", display_name = "card_holder_name", field_type = "user_full_name" }
 ]
 mandate = []
 non_mandate = []
 
-[required_fields.bank_transfer.pix.fields.Adyen]
+[required_fields.bank_transfer.pix_qr.fields.Adyen]
 common = []
 mandate = []
 non_mandate = []

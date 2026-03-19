@@ -247,7 +247,7 @@ pub enum BankTransferAdditionalData {
     #[smithy(nested_value_type)]
     MandiriVa {},
     #[smithy(value_type = "PixBankTransferAdditionalData")]
-    Pix(Box<PixBankTransferAdditionalData>),
+    PixQr(Box<PixBankTransferAdditionalData>),
     #[smithy(nested_value_type)]
     Pse {},
     #[smithy(value_type = "LocalBankTransferAdditionalData")]
@@ -296,7 +296,7 @@ pub struct PixBankTransferAdditionalData {
     #[smithy(value_type = "Option<String>")]
     pub destination_bank_account_id: Option<MaskedBankAccount>,
 
-    /// The expiration date and time for the Pix QR code in ISO 8601 format
+    /// The expiration date and time for the PixQr code in ISO 8601 format
     #[schema(value_type = Option<String>, example = "2025-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     #[smithy(value_type = "Option<String>")]

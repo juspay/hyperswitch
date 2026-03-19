@@ -222,7 +222,7 @@ pub enum BankTransferType {
     DanamonVa,
     MandiriVa,
     PermataBankTransfer,
-    Pix,
+    PixQr,
     Pse,
     LocalBankTransfer,
     InstantBankTransfer,

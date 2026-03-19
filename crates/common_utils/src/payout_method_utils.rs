@@ -88,7 +88,7 @@ pub enum BankAdditionalData {
     /// Additional data for sepa bank transfer payout method
     Sepa(Box<SepaBankTransferAdditionalData>),
     /// Additional data for pix bank transfer payout method
-    Pix(Box<PixBankTransferAdditionalData>),
+    PixQr(Box<PixBankTransferAdditionalData>),
     /// Additional data for Trustly bank transfer payout method
     Trustly(Box<TrustlyBankTransferAdditionalData>),
 }

@@ -435,7 +435,7 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectRecipientAccountCreateRe
                     connector: "stripe",
                 }
                 .into()),
-                api_models::payouts::Bank::Pix(_) => Err(errors::ConnectorError::NotSupported {
+                api_models::payouts::Bank::PixQr(_) => Err(errors::ConnectorError::NotSupported {
                     message: "PIX payouts are not supported".to_string(),
                     connector: "stripe",
                 }
