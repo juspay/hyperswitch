@@ -137,7 +137,7 @@ pub fn construct_connector_webhook_registration_details(
         map.insert(connector_webhook_id, connector_webhook_value);
 
         Ok(
-            domain::MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
+            domain::MerchantConnectorAccountUpdate::ConnectorWebhookRegistrationUpdate {
                 connector_webhook_registration_details: Some(
                     connector_webhook_registration_details,
                 ),
@@ -145,7 +145,7 @@ pub fn construct_connector_webhook_registration_details(
         )
     } else {
         Ok(
-            domain::MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
+            domain::MerchantConnectorAccountUpdate::ConnectorWebhookRegistrationUpdate {
                 connector_webhook_registration_details: None,
             },
         )

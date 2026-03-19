@@ -587,5 +587,64 @@ export const connectorDetails = {
         },
       },
     },
+    // Xendit Split Refund test configurations
+    // Test case: Refund with split_refunds when charges data is unavailable (PR #11531 fix)
+    SplitRefundWithNoChargesData: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 3000,
+        },
+      },
+      Request: {
+        payment_method: "card",
+        amount: 6000000,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+          billing: billingDetails,
+        },
+        currency: "IDR",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    SplitRefundFullWithForUserId: {
+      Request: {
+        amount: 6000000,
+        split_refunds: {
+          xendit_split_refund: {
+            for_user_id: "test-sub-merchant-123",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    SplitRefundPartialWithForUserId: {
+      Request: {
+        amount: 3000000,
+        split_refunds: {
+          xendit_split_refund: {
+            for_user_id: "test-sub-merchant-123",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
   },
 };
