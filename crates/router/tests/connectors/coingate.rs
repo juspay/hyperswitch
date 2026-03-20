@@ -1,4 +1,4 @@
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router::types::{self, api, storage::enums};
 
 use crate::utils::{self, ConnectorActions};

@@ -28,7 +28,7 @@ use hyperswitch_domain_models::{
     types::RefundsRouterData,
 };
 use hyperswitch_interfaces::{consts, disputes::DisputePayload, errors::ConnectorError};
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 pub use request::*;
 pub use response::*;
 

@@ -28,10 +28,10 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 #[cfg(feature = "v2")]
-use masking::ExposeOptionInterface;
-use masking::Secret;
+use hyperswitch_masking::ExposeOptionInterface;
+use hyperswitch_masking::Secret;
 #[cfg(feature = "payouts")]
-use masking::{ExposeInterface, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, PeekInterface};
 use maud::{html, PreEscaped};
 use regex::Regex;
 use router_env::{instrument, tracing};

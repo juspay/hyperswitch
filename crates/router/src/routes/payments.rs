@@ -1,4 +1,4 @@
-use crate::{
+suse crate::{
     core::api_locking::{self, GetLockingInput},
     services::authorization::permissions::Permission,
 };
@@ -6,7 +6,7 @@ pub mod helpers;
 use actix_web::{web, Responder};
 use error_stack::report;
 use hyperswitch_domain_models::payments::HeaderPayload;
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 use router_env::{env, instrument, logger, tracing, types, Flow};
 
 use super::app::ReqState;

@@ -24,7 +24,7 @@ use common_utils::{
 use diesel_models::{enums, types::OrderDetailsWithAmount};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
-use masking::{Deserialize, ExposeInterface, Secret};
+use hyperswitch_masking::{Deserialize, ExposeInterface, Secret};
 use regex::Regex;
 
 #[cfg(feature = "frm")]

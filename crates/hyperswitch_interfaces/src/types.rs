@@ -449,7 +449,7 @@ pub struct Proxy {
     pub bypass_proxy_hosts: Option<String>,
 
     /// The CA certificate used for man-in-the-middle (MITM) proxying, if enabled.
-    pub mitm_ca_certificate: Option<masking::Secret<String>>,
+    pub mitm_ca_certificate: Option<hyperswitch_masking::Secret<String>>,
 
     /// Whether man-in-the-middle (MITM) proxying is enabled.
     pub mitm_enabled: Option<bool>,

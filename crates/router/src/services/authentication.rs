@@ -18,9 +18,6 @@ use error_stack::{report, ResultExt};
 use jsonwebtoken::{
     decode, errors::ErrorKind::ExpiredSignature, Algorithm, DecodingKey, Validation,
 };
-#[cfg(feature = "v2")]
-use masking::ExposeInterface;
-use masking::PeekInterface;
 use router_env::logger;
 use serde::Serialize;
 
@@ -410,7 +407,7 @@ pub trait BasicAuthProvider {
     fn get_credentials<A>(
         state: &A,
         identifier: &str,
-    ) -> RouterResult<(Self::Identity, masking::Secret<String>)>
+    ) -> RouterResult<(Self::Identity, hyperswitch_masking::Secret<String>)>
     where
         A: SessionStateInfo;
 }
@@ -436,7 +433,7 @@ impl BasicAuthProvider for OidcAuthProvider {
     fn get_credentials<A>(
         state: &A,
         identifier: &str,
-    ) -> RouterResult<(Self::Identity, masking::Secret<String>)>
+    ) -> RouterResult<(Self::Identity, hyperswitch_masking::Secret<String>)>
     where
         A: SessionStateInfo,
     {
@@ -1980,7 +1977,8 @@ where
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
         let conf = state.conf();
 
-        let admin_api_key: &masking::Secret<String> = &conf.secrets.get_inner().admin_api_key;
+        let admin_api_key: &hyperswitch_masking::Secret<String> =
+            &conf.secrets.get_inner().admin_api_key;
 
         if request_api_key == admin_api_key.peek() {
             let (key_store, merchant) =
@@ -5158,7 +5156,7 @@ pub fn strip_basic_auth_token(token: &str) -> RouterResult<&str> {
 
 fn parse_basic_auth_credentials(
     headers: &HeaderMap,
-) -> RouterResult<(String, masking::Secret<String>)> {
+) -> RouterResult<(String, hyperswitch_masking::Secret<String>)> {
     let authorization_header = get_header_value_by_key(headers::AUTHORIZATION.to_string(), headers)
         .change_context(errors::ApiErrorResponse::InvalidBasicAuth)?
         .get_required_value(headers::AUTHORIZATION)?;
@@ -5185,7 +5183,7 @@ fn parse_basic_auth_credentials(
 
     Ok((
         identifier.to_string(),
-        masking::Secret::new(secret.to_string()),
+        hyperswitch_masking::Secret::new(secret.to_string()),
     ))
 }
 
