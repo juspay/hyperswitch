@@ -489,7 +489,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "Selected payment method through Redsys is not implemented",
+            message:
+              "Selected payment method through Redsys is not implemented",
             code: "IR_00",
           },
         },
@@ -505,7 +506,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "Selected payment method through Redsys is not implemented",
+            message:
+              "Selected payment method through Redsys is not implemented",
             code: "IR_00",
           },
         },
@@ -521,7 +523,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "Selected payment method through Redsys is not implemented",
+            message:
+              "Selected payment method through Redsys is not implemented",
             code: "IR_00",
           },
         },
@@ -537,7 +540,8 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "Selected payment method through Redsys is not implemented",
+            message:
+              "Selected payment method through Redsys is not implemented",
             code: "IR_00",
           },
         },
