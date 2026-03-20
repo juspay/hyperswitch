@@ -3,6 +3,7 @@ pub mod transformers;
 use std::sync::LazyLock;
 
 use base64::Engine;
+use subtle::ConstantTimeEq;
 use common_enums::enums;
 use common_utils::{
     consts::BASE64_ENGINE,
@@ -666,7 +667,7 @@ impl webhooks::IncomingWebhook for Inespay {
         let signed_message = hmac::sign(&signing_key, &message);
         let computed_signature = hex::encode(signed_message.as_ref());
         let payload_sign = BASE64_ENGINE.encode(computed_signature);
-        Ok(payload_sign.as_bytes().eq(&signature))
+        Ok(bool::from(payload_sign.as_bytes().ct_eq(&signature)))
     }
 
     fn get_webhook_object_reference_id(

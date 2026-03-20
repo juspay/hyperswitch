@@ -103,6 +103,7 @@ serde_qs = "0.12.0"
 serde_with = "3.12.0"
 sha2 = "0.10.9"
 strum = { version = "0.26", features = ["derive"] }
+subtle = "2.6.1"
 tera = "1.20.0"
 thiserror = "1.0.69"
 time = { version = "0.3.41", features = ["serde", "serde-well-known", "std", "parsing", "serde-human-readable"] }
