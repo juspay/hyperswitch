@@ -253,13 +253,13 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             let (uas_connector, _) =
                 get_connector_by_connector_name(&state, UNIFIED_AUTHENTICATION_SERVICE, None)?;
 
-            let webhook_processing_result = process_uas_incoming_webhook(
+            let webhook_processing_result = Box::pin(process_uas_incoming_webhook(
                 &state,
                 &request_details,
                 connector_name.clone(),
                 uas_connector.clone(),
                 platform.clone(),
-            )
+            ))
             .await;
 
             (uas_connector, connector_name, webhook_processing_result)
@@ -3420,11 +3420,11 @@ pub async fn process_uas_incoming_webhook<'a>(
             None,
         )?; // check of paymentId is present
 
-    let response = uas_utils::do_auth_connector_call(
+    let response = Box::pin(uas_utils::do_auth_connector_call(
         state,
         UNIFIED_AUTHENTICATION_SERVICE.to_string(),
         webhook_router_data,
-    )
+    ))
     .await?;
 
     let response_body = match response.response {

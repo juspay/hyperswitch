@@ -88,6 +88,7 @@ pub enum UserUpdate {
 pub struct ReactivateUserUpdate {
     pub new_name: Option<String>,
     pub new_password: Option<Secret<String>>,
+    pub last_password_modified_at: Option<PrimitiveDateTime>,
 }
 
 impl From<UserUpdate> for UserUpdateInternal {
@@ -182,7 +183,7 @@ impl From<ReactivateUserUpdate> for UserUpdateInternal {
             password: Some(user_update.new_password),
             is_verified: Some(false),
             last_modified_at,
-            last_password_modified_at: Some(Some(last_modified_at)),
+            last_password_modified_at: Some(user_update.last_password_modified_at),
             totp_status: Some(TotpStatus::NotSet),
             totp_secret: Some(None),
             totp_recovery_codes: Some(None),

@@ -124,8 +124,14 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         creds_identifier: Option<&str>,
         gateway_context: &payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        access_token::add_access_token(state, connector, self, creds_identifier, gateway_context)
-            .await
+        Box::pin(access_token::add_access_token(
+            state,
+            connector,
+            self,
+            creds_identifier,
+            gateway_context,
+        ))
+        .await
     }
 
     async fn add_session_token<'a>(

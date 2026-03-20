@@ -4,7 +4,9 @@ pub mod merchant_connector_webhook_management;
 pub mod revenue_recovery;
 pub mod subscriptions;
 pub mod unified_authentication_service;
-use api_models::payments::{AdditionalPaymentData, AddressDetails, RequestSurchargeDetails};
+use api_models::payments::{
+    AdditionalPaymentData, AddressDetails, ConnectorMetadata, RequestSurchargeDetails,
+};
 use common_types::payments as common_payments_types;
 use common_utils::{
     consts, errors,
@@ -105,6 +107,8 @@ pub struct PaymentsAuthorizeData {
     pub rrn: Option<String>,
     pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
     pub installment_details: Option<common_types::payments::InstallmentData>,
+    // Contains the connector specific metadata coming from payments request
+    pub connector_intent_metadata: Option<ConnectorMetadata>,
 }
 
 #[derive(Debug, Clone, Serialize)]
