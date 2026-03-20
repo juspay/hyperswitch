@@ -514,7 +514,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        mandate_data: multiUseMandateData,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
