@@ -22,8 +22,8 @@ describe("Profile Setup for Merchants", () => {
       cy.createBusinessProfileTest(
         fixtures.businessProfile.bpCreate,
         globalState,
-        "profile",
-        400
+        "profile", // profilePrefix
+        400 // expectedStatus
       );
 
       cy.then(() => {
@@ -58,7 +58,7 @@ describe("Profile Setup for Merchants", () => {
       const savedMerchantId = globalState.get("merchantId");
       globalState.set("merchantId", globalState.get("connectedMerchantId_2"));
 
-      cy.createBusinessProfileWithHeaderCallTest(
+      cy.createBusinessProfileWithHeaderCall(
         fixtures.businessProfile.bpCreate,
         globalState.get("apiKey"),
         globalState.get("connectedMerchantId_2"),
@@ -81,8 +81,8 @@ describe("Profile Setup for Merchants", () => {
       cy.createBusinessProfileTest(
         fixtures.businessProfile.bpCreate,
         globalState,
-        "profile",
-        400
+        "profile", // profilePrefix
+        400 // expectedStatus
       );
 
       cy.then(() => {

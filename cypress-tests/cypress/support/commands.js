@@ -646,10 +646,9 @@ Cypress.Commands.add(
     createBusinessProfile,
     globalState,
     profilePrefix = "profile",
-    expectedStatus = 200,
-    apiKey = null
+    expectedStatus = 200
   ) => {
-    const requestApiKey = apiKey || globalState.get("apiKey");
+    const apiKey = globalState.get("apiKey");
     const baseUrl = globalState.get("baseUrl");
     const connectorId = globalState.get("connectorId");
     const merchantId = globalState.get("merchantId");
@@ -666,7 +665,7 @@ Cypress.Commands.add(
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
-        "api-key": requestApiKey,
+        "api-key": apiKey,
       },
       body: createBusinessProfile,
       failOnStatusCode: false,
@@ -681,7 +680,7 @@ Cypress.Commands.add(
           expect(response.body.profile_id).to.not.to.be.null;
         } else if (expectedStatus === 200) {
           throw new Error(
-            `Business Profile call failed: ${JSON.stringify(response.body)}`
+            `Business Profile call failed ${response.body.error.message}`
           );
         }
       });
@@ -1005,10 +1004,9 @@ Cypress.Commands.add(
     globalState,
     profilePrefix = "profile",
     mcaPrefix = "merchantConnector",
-    expectedStatus = 200,
-    apiKey = null
+    expectedStatus = 200
   ) => {
-    const requestApiKey = apiKey || globalState.get("apiKey");
+    const apiKey = globalState.get("apiKey");
     const base_url = globalState.get("baseUrl");
     const connector_id = globalState.get("connectorId");
     const merchant_id = globalState.get("merchantId");
@@ -1053,7 +1051,7 @@ Cypress.Commands.add(
           headers: {
             Accept: "application/json",
             "Content-Type": "application/json",
-            "api-key": requestApiKey,
+            "api-key": apiKey,
           },
           body: createConnectorBody,
           failOnStatusCode: false,
@@ -5656,7 +5654,7 @@ Cypress.Commands.add("step", (stepName, fn) => {
 });
 
 Cypress.Commands.add(
-  "merchantListByOrgCallTest",
+  "merchantListByOrgCall",
   (globalState, expectedMerchants = []) => {
     const baseUrl = globalState.get("baseUrl");
     const adminApiKey = globalState.get("adminApiKey");
@@ -5697,7 +5695,7 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add(
-  "createPaymentWithHeaderCallTest",
+  "createPaymentWithHeaderCall",
   (
     paymentBody,
     apiKey,
@@ -5738,7 +5736,7 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add(
-  "createBusinessProfileWithHeaderCallTest",
+  "createBusinessProfileWithHeaderCall",
   (
     businessProfileBody,
     apiKey,
@@ -5780,7 +5778,7 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add(
-  "listPaymentsWithApiKeyCallTest",
+  "listPaymentsWithApiKeyCall",
   (apiKey, globalState, excludedPaymentIdKey) => {
     const baseUrl = globalState.get("baseUrl");
 
@@ -5819,7 +5817,7 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add(
-  "createConnectorWithHeaderCallTest",
+  "createConnectorWithHeaderCall",
   (connectorBody, apiKey, connectedMerchantId, globalState, expectedStatus) => {
     const baseUrl = globalState.get("baseUrl");
     const merchantId = globalState.get("merchantId");

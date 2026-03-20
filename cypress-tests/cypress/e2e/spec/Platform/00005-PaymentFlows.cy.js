@@ -23,7 +23,7 @@ describe("Platform Payment Flows", () => {
         customer_id: globalState.get("customerId_CM1_Created"),
       };
 
-      cy.createPaymentWithHeaderCallTest(
+      cy.createPaymentWithHeaderCall(
         paymentRequestBody,
         globalState.get("apiKey"),
         globalState.get("connectedMerchantId_1"),
@@ -40,7 +40,7 @@ describe("Platform Payment Flows", () => {
         customer_id: globalState.get("customerId_CM1_Created"),
       };
 
-      cy.createPaymentWithHeaderCallTest(
+      cy.createPaymentWithHeaderCall(
         paymentRequestBody,
         globalState.get("apiKey"),
         globalState.get("connectedMerchantId_2"),
@@ -58,7 +58,7 @@ describe("Platform Payment Flows", () => {
         profile_id: globalState.get("profileId_SM"),
       };
 
-      cy.createPaymentWithHeaderCallTest(
+      cy.createPaymentWithHeaderCall(
         paymentRequestBody,
         globalState.get("apiKey"),
         globalState.get("standardMerchantId"),
@@ -121,7 +121,7 @@ describe("Platform Payment Flows", () => {
         customer_id: globalState.get("customerId_CM1_Created"),
       };
 
-      cy.createPaymentWithHeaderCallTest(
+      cy.createPaymentWithHeaderCall(
         paymentRequestBody,
         globalState.get("apiKey_CM1"),
         globalState.get("connectedMerchantId_2"),
@@ -133,7 +133,7 @@ describe("Platform Payment Flows", () => {
 
   context("Payment List Isolation", () => {
     it("cm1-lists-only-own-payments", () => {
-      cy.listPaymentsWithApiKeyCallTest(
+      cy.listPaymentsWithApiKeyCall(
         globalState.get("apiKey_CM1"),
         globalState,
         "cm2PaymentId"
@@ -141,7 +141,7 @@ describe("Platform Payment Flows", () => {
     });
 
     it("cm2-lists-only-own-payments", () => {
-      cy.listPaymentsWithApiKeyCallTest(
+      cy.listPaymentsWithApiKeyCall(
         globalState.get("apiKey_CM2"),
         globalState,
         "cm1PaymentId"

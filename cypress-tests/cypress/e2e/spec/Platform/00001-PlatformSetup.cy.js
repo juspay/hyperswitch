@@ -189,7 +189,7 @@ describe("Platform Setup & Connected Merchant Onboarding", () => {
 
   context("Verify Merchants in Organization", () => {
     it("list-merchants-includes-all-merchants", () => {
-      cy.merchantListByOrgCallTest(globalState, [
+      cy.merchantListByOrgCall(globalState, [
         { merchantIdKey: "platformMerchantId", expectedType: "platform" },
         { merchantIdKey: "connectedMerchantId_1", expectedType: "connected" },
         { merchantIdKey: "connectedMerchantId_2", expectedType: "connected" },

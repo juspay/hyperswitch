@@ -170,7 +170,7 @@ describe("Connector Setup for Connected Merchants", () => {
 
       const connectorId = globalState.get("connectorId");
 
-      cy.createConnectorWithHeaderCallTest(
+      cy.createConnectorWithHeaderCall(
         {
           connector_type: "payment_processor",
           connector_name: connectorId,
@@ -208,7 +208,7 @@ describe("Connector Setup for Connected Merchants", () => {
 
       const connectorId = globalState.get("connectorId");
 
-      cy.createConnectorWithHeaderCallTest(
+      cy.createConnectorWithHeaderCall(
         {
           connector_type: "payment_processor",
           connector_name: connectorId,
@@ -246,13 +246,12 @@ describe("Connector Setup for Connected Merchants", () => {
           connector_label: `${connectorId}_platform_test`,
           ...fixtures.createConnectorBody,
           payment_methods_enabled,
-        },
+        }, // createConnectorBody
         payment_methods_enabled,
         globalState,
-        "profile",
-        "merchantConnector",
-        400,
-        globalState.get("apiKey")
+        "profile", // profilePrefix
+        "merchantConnector", // mcaPrefix
+        400 // expectedStatus
       );
 
       cy.then(() => {
