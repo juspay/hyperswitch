@@ -464,23 +464,3 @@ pub struct PaymentMethodUpdateHandler<'a> {
     pub payment_method: hyperswitch_domain_models::payment_methods::PaymentMethod,
     pub state: &'a crate::routes::app::SessionState,
 }
-
-/// Struct to hold Network Tokenization Data for a payment method. This struct contains optional fields for network token requestor reference ID, network token locker ID, and network token payment method data.
-/// This struct is used to store the network tokenization data associated with a payment method in the database.
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct PaymentMethodNetworkTokenData {
-    network_token_requestor_reference_id: Secret<String>,
-    network_token_locker_id: Secret<String>,
-    network_token_payment_method_data: domain::PaymentMethodsData,
-}
-
-/// The domain type for Network Tokenization Data stored in payment methods table.
-/// This structure allows for efficient retrieval of network tokenization data based on either merchant or profile context.
-/// This struct contains two maps:
-/// 1. `merchant_map`: A map where the key is the MerchantId and the value is the Network Tokenization Data specific to that merchant.
-/// 2. `profile_map`: A map where the key is the ProfileId and the value is the Network Tokenization Data specific to that profile.
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct PaymentMethodNetworkTokenizationDataDomainType {
-    pub merchant_map: Option<HashMap<id_type::MerchantId, PaymentMethodNetworkTokenData>>,
-    pub profile_map: Option<HashMap<id_type::ProfileId, PaymentMethodNetworkTokenData>>,
-}

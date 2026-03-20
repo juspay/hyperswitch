@@ -2801,6 +2801,7 @@ pub async fn create_payment_method_for_intent(
                 created_by: initiator.and_then(|initiator| initiator.to_created_by()),
                 last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
                 customer_details: None,
+                network_tokenization_data: None,
             },
             storage_scheme,
         )
@@ -2888,6 +2889,7 @@ pub async fn construct_payment_method_object(
         created_by: initiator.and_then(|initiator| initiator.to_created_by()),
         last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
         customer_details: None,
+        network_tokenization_data: None,
     })
 }
 
@@ -2949,6 +2951,7 @@ pub async fn create_payment_method_for_confirm(
                 created_by: initiator.and_then(|initiator| initiator.to_created_by()),
                 last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
                 customer_details: None,
+                network_tokenization_data: None,
             },
             storage_scheme,
         )
