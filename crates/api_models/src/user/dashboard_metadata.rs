@@ -7,7 +7,7 @@ use strum::EnumString;
 #[cfg(feature = "v1")]
 use crate::{enums, payments};
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub enum SetMetaDataRequest {
     ProductionAgreement(ProductionAgreementRequest),
     SetupProcessor(SetupProcessor),
@@ -37,7 +37,7 @@ pub enum SetMetaDataRequest {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(tag = "type", content = "data")]
 pub enum SavedViewOperation {
     Create(CreateSavedViewRequest),
@@ -45,25 +45,25 @@ pub enum SavedViewOperation {
     Delete(DeleteSavedViewRequest),
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct ProductionAgreementRequest {
     pub version: String,
     #[serde(skip_deserializing)]
     pub ip_address: Option<Secret<String, pii::IpAddress>>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct SetupProcessor {
     pub connector_id: String,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct ProcessorConnected {
     pub processor_id: id_type::MerchantConnectorAccountId,
     pub processor_name: String,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct OnboardingSurvey {
     pub designation: Option<SafeString>,
     pub about_business: Option<SafeString>,
@@ -77,12 +77,12 @@ pub struct OnboardingSurvey {
     pub miscellaneous: Option<SafeString>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct ConfiguredRouting {
     pub routing_id: String,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct TestPayment {
     pub payment_id: id_type::PaymentId,
 }
@@ -196,24 +196,17 @@ pub enum GetMetaDataResponse {
     IsChangePasswordRequired(bool),
     OnboardingSurvey(Option<OnboardingSurvey>),
     ReconStatus(Option<ReconStatus>),
+    #[cfg(feature = "v1")]
     PaymentViews(Option<Vec<SavedView>>),
 }
 
 // === Saved Views API Types ===
 
-/// Entity types that support saved views
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, EnumString)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum SavedViewEntity {
     PaymentViews,
-}
-
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum SavedViewVersion {
-    #[default]
-    V1,
 }
 
 #[cfg(feature = "v1")]
@@ -243,7 +236,7 @@ pub struct PaymentListFilterConstraintsV1 {
     pub payment_method_type: Option<Vec<enums::PaymentMethodType>>,
     pub authentication_type: Option<Vec<enums::AuthenticationType>>,
     pub merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
-    #[serde[default]]
+    #[serde(default)]
     pub order: payments::Order,
     pub card_network: Option<Vec<enums::CardNetwork>>,
     pub merchant_order_reference_id: Option<String>,
@@ -251,106 +244,45 @@ pub struct PaymentListFilterConstraintsV1 {
     pub customer_email: Option<pii::Email>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-#[serde(untagged)]
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "version", rename_all = "snake_case")]
 pub enum SavedViewFilters {
-    #[cfg(feature = "v1")]
     V1(SavedViewFiltersV1),
 }
 
 #[cfg(feature = "v1")]
-impl SavedViewFilters {
-    pub fn get_entity(&self) -> SavedViewEntity {
-        match self {
-            Self::V1(filters) => match filters {
-                SavedViewFiltersV1::PaymentViews(_) => SavedViewEntity::PaymentViews,
-            },
-        }
-    }
-}
-
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct SavedView {
-    #[serde(default)]
-    pub version: SavedViewVersion,
     pub view_name: String,
     #[serde(flatten)]
     pub data: SavedViewFilters,
     pub created_at: String,
     pub updated_at: String,
 }
-
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-#[serde(untagged)]
-pub enum ResilientSavedView {
-    Parsed(Box<SavedView>),
-    Raw(serde_json::Value),
-}
-
-impl ResilientSavedView {
-    pub fn get_view_name(&self) -> Option<String> {
-        match self {
-            Self::Parsed(v) => Some(v.view_name.clone()),
-            Self::Raw(v) => v
-                .get("view_name")
-                .and_then(|n| n.as_str())
-                .map(|n| n.to_string()),
-        }
-    }
-}
-
-/// Wrapper for the JSONB `filters` column
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, Default)]
-pub struct SavedViewsData {
-    pub views: Vec<ResilientSavedView>,
-}
-
 /// POST /user/views
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct CreateSavedViewRequest {
     pub view_name: String,
     #[serde(flatten)]
     pub data: SavedViewFilters,
 }
 
-impl CreateSavedViewRequest {
-    pub fn validate(&self) -> Result<(), common_utils::errors::ValidationError> {
-        if self.view_name.trim().is_empty() {
-            return Err(
-                common_utils::errors::ValidationError::MissingRequiredField {
-                    field_name: "view_name".to_string(),
-                },
-            );
-        }
-        Ok(())
-    }
-}
-
 /// PUT /user/views
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct UpdateSavedViewRequest {
     pub view_name: String,
     #[serde(flatten)]
     pub data: SavedViewFilters,
 }
 
-/// GET /user/views?entity=payments
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub struct ListSavedViewsRequest {
-    pub entity: SavedViewEntity,
-}
-
 /// DELETE /user/views
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct DeleteSavedViewRequest {
     pub entity: SavedViewEntity,
     pub view_name: String,
-}
-
-#[derive(Debug, serde::Serialize)]
-pub struct SavedViewResponse {
-    pub count: usize,
-    pub views: Vec<SavedView>,
 }
 
 #[cfg(feature = "v1")]

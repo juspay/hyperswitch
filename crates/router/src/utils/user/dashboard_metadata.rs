@@ -1,11 +1,17 @@
 use std::{net::IpAddr, ops::Not, str::FromStr};
 
 use actix_web::http::header::HeaderMap;
+#[cfg(feature = "v1")]
 use api_models::user::dashboard_metadata::{
-    GetMetaDataRequest, GetMultipleMetaDataPayload, ProdIntent, SetMetaDataRequest,
+    CreateSavedViewRequest, PaymentListFilterConstraintsV1, SavedViewFilters, SavedViewFiltersV1,
+    SavedViewOperation, UpdateSavedViewRequest,
+};
+use api_models::user::dashboard_metadata::{
+    DeleteSavedViewRequest, GetMetaDataRequest, GetMultipleMetaDataPayload, ProdIntent,
+    SavedViewEntity, SetMetaDataRequest,
 };
 use common_enums::EntityType;
-use common_utils::id_type;
+use common_utils::{errors::ValidationError, id_type};
 use diesel_models::{
     enums::DashboardMetadata as DBEnum,
     user::dashboard_metadata::{DashboardMetadata, DashboardMetadataNew, DashboardMetadataUpdate},
@@ -17,7 +23,7 @@ use router_env::logger;
 use crate::{
     core::errors::{UserErrors, UserResult},
     headers,
-    services::authentication::UserFromToken,
+    services::{authentication::UserFromToken, authorization::roles::RoleInfo},
     types::domain::user::dashboard_metadata as types,
     SessionState,
 };
@@ -142,7 +148,13 @@ pub async fn get_profile_user_scoped_metadata_from_db(
     for key in metadata_keys {
         if let Some(metadata) = state
             .store
-            .find_saved_view_metadata(&user_id, &merchant_id, &org_id, profile_id.clone(), key)
+            .find_profile_scoped_dashboard_metadata(
+                &user_id,
+                &merchant_id,
+                &org_id,
+                profile_id.clone(),
+                key,
+            )
             .await
             .change_context(UserErrors::InternalServerError)
             .attach_printable("DB Error Fetching DashboardMetaData")?
@@ -349,7 +361,7 @@ pub async fn get_profile_id_from_role(
         .clone()
         .unwrap_or(state.tenant.tenant_id.clone());
 
-    let role_info = crate::services::authorization::roles::RoleInfo::from_role_id_in_lineage(
+    let role_info = RoleInfo::from_role_id_in_lineage(
         state,
         &user.role_id,
         &user.merchant_id,
@@ -363,7 +375,7 @@ pub async fn get_profile_id_from_role(
 
     match role_info.get_entity_type() {
         EntityType::Profile => Ok(Some(user.profile_id.get_string_repr().to_owned())),
-        _ => Ok(None),
+        EntityType::Merchant | EntityType::Organization | EntityType::Tenant => Ok(None),
     }
 }
 
@@ -383,7 +395,7 @@ where
     let existing = {
         state
             .store
-            .find_saved_view_metadata(
+            .find_profile_scoped_dashboard_metadata(
                 &user.user_id,
                 &user.merchant_id,
                 &user.org_id,
@@ -449,123 +461,171 @@ where
 }
 
 #[cfg(feature = "v1")]
+pub fn get_saved_view_entity(filters: &SavedViewFilters) -> SavedViewEntity {
+    match filters {
+        SavedViewFilters::V1(f) => match f {
+            SavedViewFiltersV1::PaymentViews(_) => SavedViewEntity::PaymentViews,
+        },
+    }
+}
+
+#[cfg(feature = "v1")]
+pub fn validate_create_saved_view_request(
+    request: &CreateSavedViewRequest,
+) -> Result<(), ValidationError> {
+    if request.view_name.trim().is_empty() {
+        return Err(ValidationError::MissingRequiredField {
+            field_name: "view_name".to_string(),
+        });
+    }
+    Ok(())
+}
+
+#[cfg(feature = "v1")]
+fn get_payment_views_filters_v1(data: SavedViewFilters) -> PaymentListFilterConstraintsV1 {
+    match data {
+        SavedViewFilters::V1(f) => match f {
+            SavedViewFiltersV1::PaymentViews(p) => p,
+        },
+    }
+}
+
+#[cfg(feature = "v1")]
 pub async fn handle_saved_view_operations(
     state: &SessionState,
     user: UserFromToken,
     metadata_key: DBEnum,
-    operation: api_models::user::dashboard_metadata::SavedViewOperation,
+    operation: SavedViewOperation,
 ) -> UserResult<DashboardMetadata> {
     let profile_id = get_profile_id_from_role(state, &user).await?;
     match operation {
-        api_models::user::dashboard_metadata::SavedViewOperation::Create(request) => {
-            request.validate().map_err(|_| {
-                report!(UserErrors::InvalidSavedViewName)
-                    .attach_printable("Validation failed for create saved view request")
-            })?;
-
-            let now = common_utils::date_time::now();
-            let new_view_domain = types::SavedViewV1 {
-                view_name: request.view_name.clone(),
-                version: api_models::user::dashboard_metadata::SavedViewVersion::V1,
-                filters: match request.data {
-                    api_models::user::dashboard_metadata::SavedViewFilters::V1(f) => match f {
-                        api_models::user::dashboard_metadata::SavedViewFiltersV1::PaymentViews(
-                            p,
-                        ) => p,
-                    },
-                },
-                created_at: now.to_string(),
-                updated_at: now.to_string(),
-            };
-
-            modify_dashboard_metadata(
-                state,
-                user,
-                metadata_key,
-                profile_id,
-                |existing: Option<types::PaymentViewsValue>| {
-                    let mut views_data =
-                        existing.unwrap_or(types::PaymentViewsValue { views: vec![] });
-
-                    if views_data.views.len() >= MAX_SAVED_VIEWS {
-                        return Err(report!(UserErrors::MaxSavedViewsReached))
-                            .attach_printable("Maximum of 5 saved views reached");
-                    }
-
-                    let name_lower = request.view_name.to_lowercase();
-                    if views_data
-                        .views
-                        .iter()
-                        .any(|v| v.view_name.to_lowercase() == name_lower)
-                    {
-                        return Err(report!(UserErrors::SavedViewNameAlreadyExists))
-                            .attach_printable("A saved view with this name already exists");
-                    }
-
-                    views_data.views.push(new_view_domain);
-                    Ok(views_data)
-                },
-            )
-            .await
+        SavedViewOperation::Create(request) => {
+            create_saved_view(state, user, metadata_key, profile_id, request).await
         }
-        api_models::user::dashboard_metadata::SavedViewOperation::Update(request) => {
-            modify_dashboard_metadata(
-                state,
-                user,
-                metadata_key,
-                profile_id,
-                |existing: Option<types::PaymentViewsValue>| {
-                    let mut views_data = existing.ok_or(report!(UserErrors::SavedViewNotFound))?;
-
-                    let name_lower = request.view_name.to_lowercase();
-                    let view = views_data
-                        .views
-                        .iter_mut()
-                        .find(|v| v.view_name.to_lowercase() == name_lower)
-                        .ok_or(report!(UserErrors::SavedViewNotFound))
-                        .attach_printable("Saved view with this name not found")?;
-
-                    let now = common_utils::date_time::now();
-                    view.version = api_models::user::dashboard_metadata::SavedViewVersion::V1;
-                    view.view_name = request.view_name.clone();
-                    view.filters = match request.data {
-                        api_models::user::dashboard_metadata::SavedViewFilters::V1(f) => match f {
-                            api_models::user::dashboard_metadata::SavedViewFiltersV1::PaymentViews(
-                                p,
-                            ) => p,
-                        },
-                    };
-                    view.updated_at = now.to_string();
-
-                    Ok(views_data)
-                },
-            )
-            .await
+        SavedViewOperation::Update(request) => {
+            update_saved_view(state, user, metadata_key, profile_id, request).await
         }
-        api_models::user::dashboard_metadata::SavedViewOperation::Delete(request) => {
-            modify_dashboard_metadata(
-                state,
-                user,
-                metadata_key,
-                profile_id,
-                |existing: Option<types::PaymentViewsValue>| {
-                    let mut views_data = existing.ok_or(report!(UserErrors::SavedViewNotFound))?;
-
-                    let name_lower = request.view_name.to_lowercase();
-                    let initial_len = views_data.views.len();
-                    views_data
-                        .views
-                        .retain(|v| v.view_name.to_lowercase() != name_lower);
-
-                    if views_data.views.len() == initial_len {
-                        return Err(report!(UserErrors::SavedViewNotFound))
-                            .attach_printable("Saved view with this name not found");
-                    }
-
-                    Ok(views_data)
-                },
-            )
-            .await
+        SavedViewOperation::Delete(request) => {
+            delete_saved_view(state, user, metadata_key, profile_id, request).await
         }
     }
+}
+
+#[cfg(feature = "v1")]
+async fn create_saved_view(
+    state: &SessionState,
+    user: UserFromToken,
+    metadata_key: DBEnum,
+    profile_id: Option<String>,
+    request: CreateSavedViewRequest,
+) -> UserResult<DashboardMetadata> {
+    validate_create_saved_view_request(&request).map_err(|_| {
+        report!(UserErrors::InvalidSavedViewName)
+            .attach_printable("Validation failed for create saved view request")
+    })?;
+
+    let now = common_utils::date_time::now();
+    let new_view_domain = types::SavedViewV1 {
+        view_name: request.view_name.clone(),
+        filters: get_payment_views_filters_v1(request.data),
+        created_at: now.to_string(),
+        updated_at: now.to_string(),
+    };
+
+    modify_dashboard_metadata(
+        state,
+        user,
+        metadata_key,
+        profile_id,
+        |existing: Option<types::PaymentViewsValue>| {
+            let mut views_data = existing.unwrap_or(types::PaymentViewsValue { views: vec![] });
+
+            if views_data.views.len() >= MAX_SAVED_VIEWS {
+                return Err(report!(UserErrors::MaxSavedViewsReached))
+                    .attach_printable("Maximum of 5 saved views reached");
+            }
+
+            let name_lower = request.view_name.to_lowercase();
+            if views_data
+                .views
+                .iter()
+                .any(|v| v.view_name.to_lowercase() == name_lower)
+            {
+                return Err(report!(UserErrors::SavedViewNameAlreadyExists))
+                    .attach_printable("A saved view with this name already exists");
+            }
+
+            views_data.views.push(new_view_domain);
+            Ok(views_data)
+        },
+    )
+    .await
+}
+
+#[cfg(feature = "v1")]
+async fn update_saved_view(
+    state: &SessionState,
+    user: UserFromToken,
+    metadata_key: DBEnum,
+    profile_id: Option<String>,
+    request: UpdateSavedViewRequest,
+) -> UserResult<DashboardMetadata> {
+    modify_dashboard_metadata(
+        state,
+        user,
+        metadata_key,
+        profile_id,
+        |existing: Option<types::PaymentViewsValue>| {
+            let mut views_data = existing.ok_or(report!(UserErrors::SavedViewNotFound))?;
+
+            let name_lower = request.view_name.to_lowercase();
+            let view = views_data
+                .views
+                .iter_mut()
+                .find(|v| v.view_name.to_lowercase() == name_lower)
+                .ok_or(report!(UserErrors::SavedViewNotFound))
+                .attach_printable("Saved view with this name not found")?;
+
+            let now = common_utils::date_time::now();
+            view.view_name = request.view_name.clone();
+            view.filters = get_payment_views_filters_v1(request.data);
+            view.updated_at = now.to_string();
+
+            Ok(views_data)
+        },
+    )
+    .await
+}
+
+#[cfg(feature = "v1")]
+async fn delete_saved_view(
+    state: &SessionState,
+    user: UserFromToken,
+    metadata_key: DBEnum,
+    profile_id: Option<String>,
+    request: DeleteSavedViewRequest,
+) -> UserResult<DashboardMetadata> {
+    modify_dashboard_metadata(
+        state,
+        user,
+        metadata_key,
+        profile_id,
+        |existing: Option<types::PaymentViewsValue>| {
+            let mut views_data = existing.ok_or(report!(UserErrors::SavedViewNotFound))?;
+
+            let name_lower = request.view_name.to_lowercase();
+            let initial_len = views_data.views.len();
+            views_data
+                .views
+                .retain(|v| v.view_name.to_lowercase() != name_lower);
+
+            if views_data.views.len() == initial_len {
+                return Err(report!(UserErrors::SavedViewNotFound))
+                    .attach_printable("Saved view with this name not found");
+            }
+
+            Ok(views_data)
+        },
+    )
+    .await
 }

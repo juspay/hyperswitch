@@ -3612,7 +3612,7 @@ impl DashboardMetadataInterface for KafkaStore {
             .await
     }
 
-    async fn find_saved_view_metadata(
+    async fn find_profile_scoped_dashboard_metadata(
         &self,
         user_id: &str,
         merchant_id: &id_type::MerchantId,
@@ -3621,7 +3621,13 @@ impl DashboardMetadataInterface for KafkaStore {
         data_key: enums::DashboardMetadata,
     ) -> CustomResult<Option<storage::DashboardMetadata>, errors::StorageError> {
         self.diesel_store
-            .find_saved_view_metadata(user_id, merchant_id, org_id, profile_id, data_key)
+            .find_profile_scoped_dashboard_metadata(
+                user_id,
+                merchant_id,
+                org_id,
+                profile_id,
+                data_key,
+            )
             .await
     }
 

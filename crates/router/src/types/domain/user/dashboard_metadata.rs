@@ -3,7 +3,7 @@ use diesel_models::enums::DashboardMetadata as DBEnum;
 use masking::Secret;
 use time::PrimitiveDateTime;
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum MetaData {
     ProductionAgreement(ProductionAgreementValue),
     SetupProcessor(api::SetupProcessor),
@@ -66,7 +66,7 @@ impl From<&MetaData> for DBEnum {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct ProductionAgreementValue {
     pub version: String,
     pub ip_address: Secret<String, common_utils::pii::IpAddress>,
@@ -74,17 +74,16 @@ pub struct ProductionAgreementValue {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct SavedViewV1 {
     pub view_name: String,
-    pub version: api::SavedViewVersion,
     pub filters: api::PaymentListFilterConstraintsV1,
     pub created_at: String,
     pub updated_at: String,
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct PaymentViewsValue {
     pub views: Vec<SavedViewV1>,
 }

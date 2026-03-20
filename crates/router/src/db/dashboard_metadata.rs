@@ -42,7 +42,7 @@ pub trait DashboardMetadataInterface {
         data_keys: Vec<enums::DashboardMetadata>,
     ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError>;
 
-    async fn find_saved_view_metadata(
+    async fn find_profile_scoped_dashboard_metadata(
         &self,
         user_id: &str,
         merchant_id: &id_type::MerchantId,
@@ -147,7 +147,7 @@ impl DashboardMetadataInterface for Store {
     }
 
     #[instrument(skip_all)]
-    async fn find_saved_view_metadata(
+    async fn find_profile_scoped_dashboard_metadata(
         &self,
         user_id: &str,
         merchant_id: &id_type::MerchantId,
@@ -348,7 +348,7 @@ impl DashboardMetadataInterface for MockDb {
         Ok(query_result)
     }
 
-    async fn find_saved_view_metadata(
+    async fn find_profile_scoped_dashboard_metadata(
         &self,
         user_id: &str,
         merchant_id: &id_type::MerchantId,
