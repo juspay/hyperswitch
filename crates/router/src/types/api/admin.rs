@@ -538,6 +538,6 @@ pub async fn create_profile_from_merchant_account(
         .attach_printable("error while generating external_vault_details")?,
         billing_processor_id: request.billing_processor_id,
         is_l2_l3_enabled: request.is_l2_l3_enabled.unwrap_or(false),
-        network_tokenization_credentials: None, // since credentials are at merchant level, they should not be in the profile
+        network_tokenization_credentials: None, // since credentials are at merchant level, they should not be in the profile, tracked in issue #15134
     }))
 }

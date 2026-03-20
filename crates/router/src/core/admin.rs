@@ -216,7 +216,7 @@ fn create_platform_merchant_account_request(
         payout_routing_algorithm: None,
         pm_collect_link_config: None,
         product_type: Some(consts::user::DEFAULT_PRODUCT_TYPE),
-        network_tokenization_credentials: None, // should this be none?
+        network_tokenization_credentials: None,
     }
 }
 
