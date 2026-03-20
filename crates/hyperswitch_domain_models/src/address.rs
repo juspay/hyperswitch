@@ -1,4 +1,4 @@
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 
 #[derive(Default, Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct Address {
@@ -7,7 +7,7 @@ pub struct Address {
     pub email: Option<common_utils::pii::Email>,
 }
 
-impl masking::SerializableSecret for Address {}
+impl hyperswitch_masking::SerializableSecret for Address {}
 
 impl Address {
     /// Unify the address, giving priority to `self` when details are present in both

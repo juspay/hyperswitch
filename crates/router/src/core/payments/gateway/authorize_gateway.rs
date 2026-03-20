@@ -10,8 +10,8 @@ use hyperswitch_interfaces::{
     connector_integration_interface::{BoxedConnectorIntegrationInterface, RouterDataConversion},
     errors::ConnectorError,
 };
+use hyperswitch_masking::ExposeInterface as UcsMaskingExposeInterface;
 use unified_connector_service_client::payments as payments_grpc;
-use unified_connector_service_masking::ExposeInterface as UcsMaskingExposeInterface;
 
 use crate::{
     core::{

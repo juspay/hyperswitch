@@ -23,7 +23,7 @@ utoipa = { version = "4.2.3", features = ["preserve_order", "preserve_path_order
 
 # First party crates
 router_derive = { version = "0.1.0", path = "../router_derive" }
-masking = { version = "0.1.0", path = "../masking" }
+hyperswitch_masking = { version = "0.0.1", features = ["serde"] }
 smithy = { version = "0.1.0", path = "../smithy" }
 smithy-core = { version = "0.1.0", path = "../smithy-core" }
 

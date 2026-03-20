@@ -10,7 +10,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use http::HeaderValue;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -71,7 +71,8 @@ impl NetworkTokenWebhookResponse {
 
 pub fn get_network_token_resource_object(
     request_details: &api::IncomingWebhookRequestDetails<'_>,
-) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::NetworkTokenizationError> {
+) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::NetworkTokenizationError>
+{
     let response: NetworkTokenWebhookResponse = request_details
         .body
         .parse_struct("NetworkTokenWebhookResponse")

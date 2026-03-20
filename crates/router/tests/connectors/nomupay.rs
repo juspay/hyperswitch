@@ -1,5 +1,5 @@
 use api_models::payments::{Address, AddressDetails};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router::types::{self, api, storage::enums, PaymentAddress};
 use test_utils::connector_auth;
 

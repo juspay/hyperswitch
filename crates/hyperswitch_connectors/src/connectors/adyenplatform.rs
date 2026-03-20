@@ -54,7 +54,7 @@ use hyperswitch_interfaces::{
         IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails, WebhookContext,
     },
 };
-use masking::{Mask as _, Maskable, Secret};
+use hyperswitch_masking::{Mask as _, Maskable, Secret};
 #[cfg(feature = "payouts")]
 use ring::hmac;
 #[cfg(feature = "payouts")]
@@ -454,7 +454,7 @@ impl IncomingWebhook for Adyenplatform {
         &self,
         #[cfg(feature = "payouts")] request: &IncomingWebhookRequestDetails<'_>,
         #[cfg(not(feature = "payouts"))] _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, ConnectorError> {
         #[cfg(feature = "payouts")]
         {
             let webhook_body: adyenplatform::AdyenplatformIncomingWebhook = request

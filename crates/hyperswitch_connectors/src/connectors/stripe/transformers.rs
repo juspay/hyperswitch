@@ -41,7 +41,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{consts, errors::ConnectorError};
-use masking::{ExposeInterface, Mask, Maskable, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Mask, Maskable, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use time::PrimitiveDateTime;
@@ -4970,7 +4970,7 @@ where
 mod test_validate_shipping_address_against_payment_method {
     use common_enums::CountryAlpha2;
     use hyperswitch_interfaces::errors::ConnectorError;
-    use masking::Secret;
+    use hyperswitch_masking::Secret;
 
     use crate::connectors::stripe::transformers::{
         validate_shipping_address_against_payment_method, StripePaymentMethodType,

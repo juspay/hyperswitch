@@ -42,7 +42,7 @@ pub use hyperswitch_interfaces::{
         WebhookTransformationStatus,
     },
 };
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::tracing;
 use time::{Duration, OffsetDateTime};
 use unified_connector_service_cards::{CardNumber, NetworkToken};
@@ -50,7 +50,6 @@ use unified_connector_service_client::payments::{
     self as payments_grpc, session_token, ConnectorState, Identifier,
     PaymentServiceTransformRequest, PaymentServiceTransformResponse,
 };
-use unified_connector_service_masking::ExposeInterface as UcsMaskingExposeInterface;
 
 use crate::{
     core::{errors, mandate::MandateBehaviour, unified_connector_service},
@@ -85,12 +84,22 @@ pub fn build_upi_wait_screen_data(
         .attach_printable("Failed to serialize WaitScreenInstructions to JSON value")
 }
 
-impl ForeignFrom<&payments_grpc::AccessToken> for AccessToken {
-    fn foreign_from(grpc_token: &payments_grpc::AccessToken) -> Self {
-        Self {
-            token: Secret::new(grpc_token.token.clone()),
+impl transformers::ForeignTryFrom<&payments_grpc::AccessToken> for AccessToken {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(grpc_token: &payments_grpc::AccessToken) -> Result<Self, Self::Error> {
+        let token = grpc_token
+            .token
+            .clone()
+            .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
+                field_name: "token",
+            })
+            .attach_printable("Missing token in AccessToken response")?;
+
+        Ok(Self {
+            token: token.expose().into(),
             expires: grpc_token.expires_in_seconds.unwrap_or_default(),
-        }
+        })
     }
 }
 
@@ -98,7 +107,7 @@ impl ForeignFrom<&AccessToken> for ConnectorState {
     fn foreign_from(access_token: &AccessToken) -> Self {
         Self {
             access_token: Some(payments_grpc::AccessToken {
-                token: access_token.token.peek().to_string(),
+                token: Some(access_token.token.clone().expose().into()),
                 expires_in_seconds: Some(access_token.expires),
                 token_type: None,
             }),
@@ -173,6 +182,7 @@ impl
             connector_metadata: None,
             return_url: router_data.request.router_return_url.clone(),
             test_mode: router_data.test_mode,
+            connector_customer_id: router_data.connector_customer.clone(),
         })
     }
 }
@@ -328,8 +338,8 @@ impl
             payment_method_token: router_data
                 .payment_method_token
                 .as_ref()
-                .and_then(|pmt| pmt.get_payment_method_token())
-                .map(ExposeInterface::expose),
+                .and_then(|payment_method_token| payment_method_token.get_payment_method_token())
+                .map(|payment_method_token| Secret::new(payment_method_token.expose())),
             merchant_account_metadata,
             description: router_data.description.clone(),
             setup_mandate_details: router_data
@@ -539,8 +549,8 @@ impl
             payment_method_token: router_data
                 .payment_method_token
                 .as_ref()
-                .and_then(|pmt| pmt.get_payment_method_token())
-                .map(ExposeInterface::expose),
+                .and_then(|payment_method_token| payment_method_token.get_payment_method_token())
+                .map(|payment_method_token| Secret::new(payment_method_token.expose())),
             merchant_account_metadata,
             description: router_data.description.clone(),
             setup_mandate_details: router_data
@@ -618,6 +628,8 @@ impl
             connector_metadata: None,
             merchant_account_metadata: None,
             state,
+            payment_method_type: None,
+            test_mode: router_data.test_mode,
         })
     }
 }
@@ -673,6 +685,7 @@ impl
             address: Some(address),
             metadata: None,
             connector_metadata: None,
+            test_mode: router_data.test_mode,
         })
     }
 }
@@ -771,6 +784,8 @@ impl
             ),
             merchant_account_metadata: None,
             metadata: None,
+            payment_experience: None,
+            test_mode: router_data.test_mode,
         })
     }
 }
@@ -813,6 +828,7 @@ impl
             browser_info: None,
             connector_metadata: None,
             merchant_account_metadata: None,
+            test_mode: router_data.test_mode,
         })
     }
 }
@@ -1095,6 +1111,7 @@ impl
                 .transpose()?,
             connector_metadata: None,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
+            description: router_data.description.clone(),
         })
     }
 }
@@ -1179,6 +1196,8 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                 .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
                 .map(|s| s.into()),
             merchant_account_metadata,
+            merchant_order_reference_id: router_data.request.merchant_order_reference_id.clone(),
+            test_mode: router_data.test_mode,
         })
     }
 }
@@ -1730,14 +1749,11 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
-            payment_method_token: router_data.payment_method_token.as_ref().and_then(|payment_method_token|{
-                match payment_method_token {
-                    hyperswitch_domain_models::router_data::PaymentMethodToken::Token(secret_token) => Some(secret_token.peek().clone()),
-                    hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(_) |
-                    hyperswitch_domain_models::router_data::PaymentMethodToken::GooglePayDecrypt(_) |
-                    hyperswitch_domain_models::router_data::PaymentMethodToken::PazeDecrypt(_) => None
-                }
-            }),
+            payment_method_token: router_data
+                .payment_method_token
+                .as_ref()
+                .and_then(|payment_method_token| payment_method_token.get_payment_method_token())
+                .map(|payment_method_token| Secret::new(payment_method_token.expose())),
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     router_data.connector_request_reference_id.clone(),
@@ -1815,7 +1831,7 @@ impl
                 .request
                 .connector_testing_data
                 .as_ref()
-                .map(|data| unified_connector_service_masking::Secret::new(data.peek().to_string())),
+                .map(|data| Secret::new(data.peek().to_string())),
         })
     }
 }
@@ -2008,16 +2024,16 @@ impl
             authentication_data,
             connector_metadata: None,
             locale: router_data.request.locale.clone(),
-            connector_testing_data: router_data.request.connector_testing_data.as_ref().map(
-                |data| unified_connector_service_masking::Secret::new(data.peek().to_string()),
-            ),
-            merchant_account_id: router_data.request.merchant_account_id.as_ref().map(
-                |merchant_account_id| {
-                    unified_connector_service_masking::Secret::new(
-                        merchant_account_id.clone().expose(),
-                    )
-                },
-            ),
+            connector_testing_data: router_data
+                .request
+                .connector_testing_data
+                .as_ref()
+                .map(|data| Secret::new(data.peek().to_string())),
+            merchant_account_id: router_data
+                .request
+                .merchant_account_id
+                .as_ref()
+                .map(|merchant_account_id| Secret::new(merchant_account_id.clone().expose())),
             merchant_configured_currency: router_data
                 .request
                 .merchant_config_currency
@@ -2858,8 +2874,15 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateAccessToken
                 connector_metadata: None,
             })
         } else {
+            let token = response
+                .access_token
+                .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
+                    field_name: "access_token",
+                })
+                .attach_printable("Missing access_token in CreateAccessToken response")?;
+
             Ok(AccessToken {
-                token: Secret::new(response.access_token),
+                token: token.expose().into(),
                 expires: response.expires_in_seconds.unwrap_or_default(),
             })
         };
@@ -3199,7 +3222,7 @@ impl transformers::ForeignTryFrom<&common_types::payments::ApplePayPaymentData>
                         "Failed to parse card number".to_string(),
                     ),
                 )?;
-                Ok(Self::DecryptedData(payments_grpc::ApplePayPredecryptData {
+                Ok(Self::DecryptedData(payments_grpc::ApplePayDecryptedData {
                     application_primary_account_number: Some(application_primary_account_number),
                     application_expiration_month: Some(
                         decrypted_data
@@ -3242,7 +3265,7 @@ impl transformers::ForeignTryFrom<&common_types::payments::GpayTokenizationData>
     ) -> Result<Self, Self::Error> {
         match tokenization_data {
             common_types::payments::GpayTokenizationData::Encrypted(encrypted_data) => Ok(
-                Self::EncryptedData(payments_grpc::GpayEncryptedTokenizationData {
+                Self::EncryptedData(payments_grpc::GooglePayEncryptedTokenizationData {
                     token_type: encrypted_data.token_type.clone(),
                     token: encrypted_data.token.clone(),
                 }),
@@ -3258,7 +3281,7 @@ impl transformers::ForeignTryFrom<&common_types::payments::GpayTokenizationData>
                         "Failed to parse card number".to_string(),
                     ),
                 )?;
-                Ok(Self::DecryptedData(payments_grpc::GPayPredecryptData {
+                Ok(Self::DecryptedData(payments_grpc::GooglePayDecryptedData {
                     card_exp_month: Some(decrypted_data.card_exp_month.clone().expose().into()),
                     card_exp_year: Some(decrypted_data.card_exp_year.clone().expose().into()),
                     application_primary_account_number: Some(application_primary_account_number),
@@ -5579,6 +5602,8 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
                 .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
                 .map(|s| s.into()),
             merchant_account_metadata,
+            merchant_order_reference_id: router_data.request.merchant_order_reference_id.clone(),
+            test_mode: router_data.test_mode,
         })
     }
 }
@@ -5739,6 +5764,7 @@ impl
             connector: 0_i32,
             metadata: None,
             connector_metadata: None,
+            test_mode: router_data.test_mode,
         })
     }
 }

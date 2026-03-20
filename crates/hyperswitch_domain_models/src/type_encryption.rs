@@ -8,7 +8,7 @@ use common_utils::{
     types::keymanager::{Identifier, KeyManagerState},
 };
 use encrypt::TypeEncryption;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router_env::{instrument, tracing};
 use rustc_hash::FxHashMap;
 
@@ -29,7 +29,7 @@ mod encrypt {
     };
     use error_stack::ResultExt;
     use http::Method;
-    use masking::{PeekInterface, Secret};
+    use hyperswitch_masking::{PeekInterface, Secret};
     use router_env::{instrument, logger, tracing};
     use rustc_hash::FxHashMap;
 
@@ -39,7 +39,7 @@ mod encrypt {
     pub trait TypeEncryption<
         T,
         V: crypto::EncodeMessage + crypto::DecodeMessage,
-        S: masking::Strategy<T>,
+        S: hyperswitch_masking::Strategy<T>,
     >: Sized
     {
         async fn encrypt_via_api(
@@ -113,7 +113,7 @@ mod encrypt {
     #[async_trait]
     impl<
             V: crypto::DecodeMessage + crypto::EncodeMessage + Send + 'static,
-            S: masking::Strategy<String> + Send + Sync,
+            S: hyperswitch_masking::Strategy<String> + Send + Sync,
         > TypeEncryption<String, V, S> for crypto::Encryptable<Secret<String, S>>
     {
         // Do not remove the `skip_all` as the key would be logged otherwise
@@ -350,7 +350,7 @@ mod encrypt {
     #[async_trait]
     impl<
             V: crypto::DecodeMessage + crypto::EncodeMessage + Send + 'static,
-            S: masking::Strategy<serde_json::Value> + Send + Sync,
+            S: hyperswitch_masking::Strategy<serde_json::Value> + Send + Sync,
         > TypeEncryption<serde_json::Value, V, S>
         for crypto::Encryptable<Secret<serde_json::Value, S>>
     {
@@ -598,7 +598,7 @@ mod encrypt {
             bytes: Secret<Vec<u8>>,
         ) -> CustomResult<Secret<Self, S>, errors::ParsingError>
         where
-            S: masking::Strategy<Self>,
+            S: hyperswitch_masking::Strategy<Self>,
         {
             bytes
                 .peek()
@@ -613,7 +613,7 @@ mod encrypt {
     impl<
             T: std::fmt::Debug + Clone + serde::Serialize + serde::de::DeserializeOwned + Send,
             V: crypto::DecodeMessage + crypto::EncodeMessage + Send + 'static,
-            S: masking::Strategy<EncryptedJsonType<T>> + Send + Sync,
+            S: hyperswitch_masking::Strategy<EncryptedJsonType<T>> + Send + Sync,
         > TypeEncryption<EncryptedJsonType<T>, V, S>
         for crypto::Encryptable<Secret<EncryptedJsonType<T>, S>>
     {
@@ -823,7 +823,7 @@ mod encrypt {
     #[async_trait]
     impl<
             V: crypto::DecodeMessage + crypto::EncodeMessage + Send + 'static,
-            S: masking::Strategy<Vec<u8>> + Send + Sync,
+            S: hyperswitch_masking::Strategy<Vec<u8>> + Send + Sync,
         > TypeEncryption<Vec<u8>, V, S> for crypto::Encryptable<Secret<Vec<u8>, S>>
     {
         // Do not remove the `skip_all` as the key would be logged otherwise
@@ -1139,7 +1139,7 @@ async fn encrypt<E: Clone, S>(
     key: &[u8],
 ) -> CustomResult<crypto::Encryptable<Secret<E, S>>, CryptoError>
 where
-    S: masking::Strategy<E>,
+    S: hyperswitch_masking::Strategy<E>,
     crypto::Encryptable<Secret<E, S>>: TypeEncryption<E, crypto::GcmAes256, S>,
 {
     record_operation_time(
@@ -1156,7 +1156,7 @@ async fn encrypt_locally<E: Clone, S>(
     key: &[u8],
 ) -> CustomResult<crypto::Encryptable<Secret<E, S>>, CryptoError>
 where
-    S: masking::Strategy<E>,
+    S: hyperswitch_masking::Strategy<E>,
     crypto::Encryptable<Secret<E, S>>: TypeEncryption<E, crypto::GcmAes256, S>,
 {
     record_operation_time(
@@ -1175,7 +1175,7 @@ async fn batch_encrypt<E: Clone, S>(
     key: &[u8],
 ) -> CustomResult<FxHashMap<String, crypto::Encryptable<Secret<E, S>>>, CryptoError>
 where
-    S: masking::Strategy<E>,
+    S: hyperswitch_masking::Strategy<E>,
     crypto::Encryptable<Secret<E, S>>: TypeEncryption<E, crypto::GcmAes256, S>,
 {
     if !inner.is_empty() {
@@ -1205,7 +1205,7 @@ async fn encrypt_optional<E: Clone, S>(
 ) -> CustomResult<Option<crypto::Encryptable<Secret<E, S>>>, CryptoError>
 where
     Secret<E, S>: Send,
-    S: masking::Strategy<E>,
+    S: hyperswitch_masking::Strategy<E>,
     crypto::Encryptable<Secret<E, S>>: TypeEncryption<E, crypto::GcmAes256, S>,
 {
     inner
@@ -1215,7 +1215,7 @@ where
 }
 
 #[inline]
-async fn decrypt_optional<T: Clone, S: masking::Strategy<T>>(
+async fn decrypt_optional<T: Clone, S: hyperswitch_masking::Strategy<T>>(
     state: &KeyManagerState,
     inner: Option<Encryption>,
     identifier: Identifier,
@@ -1231,7 +1231,7 @@ where
 }
 
 #[inline]
-async fn decrypt<T: Clone, S: masking::Strategy<T>>(
+async fn decrypt<T: Clone, S: hyperswitch_masking::Strategy<T>>(
     state: &KeyManagerState,
     inner: Encryption,
     identifier: Identifier,
@@ -1249,7 +1249,7 @@ where
 }
 
 #[inline]
-async fn decrypt_locally<T: Clone, S: masking::Strategy<T>>(
+async fn decrypt_locally<T: Clone, S: hyperswitch_masking::Strategy<T>>(
     inner: Encryption,
     key: &[u8],
 ) -> CustomResult<crypto::Encryptable<Secret<T, S>>, CryptoError>
@@ -1272,7 +1272,7 @@ async fn batch_decrypt<E: Clone, S>(
     key: &[u8],
 ) -> CustomResult<FxHashMap<String, crypto::Encryptable<Secret<E, S>>>, CryptoError>
 where
-    S: masking::Strategy<E>,
+    S: hyperswitch_masking::Strategy<E>,
     crypto::Encryptable<Secret<E, S>>: TypeEncryption<E, crypto::GcmAes256, S>,
 {
     if !inner.is_empty() {
@@ -1293,7 +1293,7 @@ where
     }
 }
 
-pub enum CryptoOperation<T: Clone, S: masking::Strategy<T>> {
+pub enum CryptoOperation<T: Clone, S: hyperswitch_masking::Strategy<T>> {
     Encrypt(Secret<T, S>),
     EncryptOptional(Option<Secret<T, S>>),
     EncryptLocally(Secret<T, S>),
@@ -1306,7 +1306,7 @@ pub enum CryptoOperation<T: Clone, S: masking::Strategy<T>> {
 
 #[derive(router_derive::TryGetEnumVariant)]
 #[error(CryptoError::EncodingFailed)]
-pub enum CryptoOutput<T: Clone, S: masking::Strategy<T>> {
+pub enum CryptoOutput<T: Clone, S: hyperswitch_masking::Strategy<T>> {
     Operation(crypto::Encryptable<Secret<T, S>>),
     OptionalOperation(Option<crypto::Encryptable<Secret<T, S>>>),
     BatchOperation(FxHashMap<String, crypto::Encryptable<Secret<T, S>>>),
@@ -1314,7 +1314,7 @@ pub enum CryptoOutput<T: Clone, S: masking::Strategy<T>> {
 
 // Do not remove the `skip_all` as the key would be logged otherwise
 #[instrument(skip_all, fields(table = table_name))]
-pub async fn crypto_operation<T: Clone + Send, S: masking::Strategy<T>>(
+pub async fn crypto_operation<T: Clone + Send, S: hyperswitch_masking::Strategy<T>>(
     state: &KeyManagerState,
     table_name: &str,
     operation: CryptoOperation<T, S>,
@@ -1366,12 +1366,12 @@ fn obtain_data_to_decrypt_locally<S>(
     encrypted_data: Secret<Vec<u8>, S>,
 ) -> CustomResult<Secret<Vec<u8>, S>, CryptoError>
 where
-    S: masking::Strategy<Vec<u8>>,
+    S: hyperswitch_masking::Strategy<Vec<u8>>,
 {
     use base64::Engine;
     use common_utils::consts::BASE64_ENGINE;
     use error_stack::ResultExt;
-    use masking::PeekInterface;
+    use hyperswitch_masking::PeekInterface;
 
     if let Some((_version, base64_encoded_data)) = split_version_prefix(encrypted_data.peek()) {
         // Data encrypted by encryption service.

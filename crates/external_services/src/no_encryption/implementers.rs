@@ -6,7 +6,7 @@ use hyperswitch_interfaces::{
     encryption_interface::{EncryptionError, EncryptionManagementInterface},
     secrets_interface::{SecretManagementInterface, SecretsManagementError},
 };
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 
 use crate::no_encryption::core::NoEncryption;
 

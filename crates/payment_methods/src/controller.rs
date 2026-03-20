@@ -12,7 +12,7 @@ use error_stack::ResultExt;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::payment_methods::PaymentMethodVaultSourceDetails;
 use hyperswitch_domain_models::{merchant_key_store, payment_methods, type_encryption};
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 #[cfg(feature = "v1")]
 use scheduler::errors as sch_errors;
 use serde::{Deserialize, Serialize};
@@ -286,7 +286,7 @@ where
         .change_context(storage_errors::StorageError::SerializationFailed)
         .attach_printable("Unable to encode data")?;
 
-    let secret_data = Secret::<_, masking::WithType>::new(encoded_data);
+    let secret_data = Secret::<_, hyperswitch_masking::WithType>::new(encoded_data);
 
     let encrypted_data = type_encryption::crypto_operation(
         key_manager_state,

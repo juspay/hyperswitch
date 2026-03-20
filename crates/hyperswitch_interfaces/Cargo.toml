@@ -30,13 +30,12 @@ strum = { version = "0.26", features = ["derive"] }
 thiserror = "1.0.69"
 time = "0.3.41"
 url = { version = "2.5.4", features = ["serde"] }
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "23ae5acea8cfb1f1d35517dc95b7da8d101df5b9", package = "rust-grpc-client" }
-unified-connector-service-masking = { git = "https://github.com/juspay/hyperswitch", tag = "2025.11.24.0", package = "masking" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", tag = "2026.03.04.0-hotfix1", package = "rust-grpc-client" }
 tokio = { version = "1.45.1", features = ["macros", "rt-multi-thread"] }
 
 # First party crates
 hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false }
-masking = { version = "0.1.0", path = "../masking" }
+hyperswitch_masking = "0.0.1"
 api_models = { version = "0.1.0", path = "../api_models" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_types = { version = "0.1.0", path = "../common_types" }

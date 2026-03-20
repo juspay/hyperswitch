@@ -4,7 +4,7 @@ use hyperswitch_domain_models::{
     authentication, router_data_v2::ExternalAuthenticationFlowData, router_request_types,
     type_encryption::AsyncLift,
 };
-use masking::{ExposeInterface, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, PeekInterface};
 
 use crate::{
     consts,
@@ -83,7 +83,7 @@ pub async fn update_trackers<F: Clone, Req>(
                     .clone()
                     .map(|billing| {
                         common_utils::ext_traits::Encode::encode_to_value(&billing)
-                            .map(masking::Secret::<serde_json::Value>::new)
+                            .map(hyperswitch_masking::Secret::<serde_json::Value>::new)
                     })
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -94,7 +94,7 @@ pub async fn update_trackers<F: Clone, Req>(
                     .clone()
                     .map(|shipping| {
                         common_utils::ext_traits::Encode::encode_to_value(&shipping)
-                            .map(masking::Secret::<serde_json::Value>::new)
+                            .map(hyperswitch_masking::Secret::<serde_json::Value>::new)
                     })
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InternalServerError)

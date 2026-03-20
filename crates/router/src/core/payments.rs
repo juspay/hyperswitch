@@ -68,7 +68,7 @@ use hyperswitch_domain_models::{
     payments::{self, payment_intent::CustomerData, ClickToPayMetaData},
     router_data::AccessToken,
 };
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
 use operations::ValidateStatusForOperation;
 use redis_interface::errors::RedisError;
