@@ -597,6 +597,7 @@ fn get_vault_details(
                         card_issuing_country: None,
                         card_holder_name: None,
                         nick_name: None,
+                        par: None,
                     },
                 ),
             )

@@ -160,9 +160,12 @@ pub async fn perform_post_authentication(
             &authentication,
             payment_id,
         )?;
-        let router_data =
-            utils::do_auth_connector_call(state, authentication_connector.to_string(), router_data)
-                .await?;
+        let router_data = Box::pin(utils::do_auth_connector_call(
+            state,
+            authentication_connector.to_string(),
+            router_data,
+        ))
+        .await?;
 
         let authentication_info =
             hyperswitch_domain_models::router_request_types::authentication::AuthenticationInfo {
@@ -224,6 +227,7 @@ pub async fn perform_pre_authentication(
     psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
     billing_address: Option<hyperswitch_domain_models::address::Address>,
     shipping_address: Option<hyperswitch_domain_models::address::Address>,
+    initiator: Option<&domain::Initiator>,
 ) -> CustomResult<
     hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore,
     ApiErrorResponse,
@@ -245,7 +249,8 @@ pub async fn perform_pre_authentication(
         organization_id,
         force_3ds_challenge,
         psd2_sca_exemption_type,
-        processor.get_key_store(),
+        processor,
+        initiator,
     )
     .await?;
 
@@ -259,11 +264,11 @@ pub async fn perform_pre_authentication(
                 business_profile.merchant_id.clone(),
                 payment_id.clone(),
             )?;
-        let router_data = utils::do_auth_connector_call(
+        let router_data = Box::pin(utils::do_auth_connector_call(
             state,
             authentication_connector_name.clone(),
             router_data,
-        )
+        ))
         .await?;
 
         let authentication_info =
@@ -277,14 +282,14 @@ pub async fn perform_pre_authentication(
                 merchant_country_code: None,
             };
 
-        let updated_authentication = utils::update_trackers(
+        let updated_authentication = Box::pin(utils::update_trackers(
             state,
             router_data,
             authentication,
             acquirer_details.clone(),
             processor.get_key_store(),
             authentication_info,
-        )
+        ))
         .await?;
         // from version call response, we will get to know the maximum supported 3ds version.
         // If the version is not greater than or equal to 3DS 2.0, We should not do the successive pre authentication call.
@@ -308,8 +313,12 @@ pub async fn perform_pre_authentication(
             business_profile.merchant_id.clone(),
             payment_id,
         )?;
-    let router_data =
-        utils::do_auth_connector_call(state, authentication_connector_name, router_data).await?;
+    let router_data = Box::pin(utils::do_auth_connector_call(
+        state,
+        authentication_connector_name,
+        router_data,
+    ))
+    .await?;
 
     let authentication_info =
         hyperswitch_domain_models::router_request_types::authentication::AuthenticationInfo {
@@ -322,14 +331,14 @@ pub async fn perform_pre_authentication(
             merchant_country_code: None,
         };
 
-    let authentication_update = utils::update_trackers(
+    let authentication_update = Box::pin(utils::update_trackers(
         state,
         router_data,
         authentication,
         acquirer_details,
         processor.get_key_store(),
         authentication_info,
-    )
+    ))
     .await?;
 
     Ok(

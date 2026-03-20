@@ -1,9 +1,9 @@
 #[cfg(feature = "v2")]
 use std::marker::PhantomData;
 
-use api_models::customers::CustomerDocumentDetails;
 #[cfg(feature = "v2")]
-use api_models::payments::{ConnectorMetadata, SessionToken, VaultSessionDetails};
+use api_models::payments::{SessionToken, VaultSessionDetails};
+use api_models::{customers::CustomerDocumentDetails, payments::ConnectorMetadata};
 use common_types::primitive_wrappers;
 #[cfg(feature = "v1")]
 use common_types::{
@@ -426,6 +426,21 @@ impl PaymentIntent {
             .map(|opt| opt.flatten())
             .map_err(|report| (*report.current_context()).clone())
     }
+
+    #[cfg(feature = "v1")]
+    pub fn get_connector_metadata_from_intent(
+        &self,
+    ) -> CustomResult<Option<ConnectorMetadata>, common_utils::errors::ParsingError> {
+        self.connector_metadata
+            .as_ref()
+            .map(|metadata| {
+                metadata
+                    .clone()
+                    .parse_value::<ConnectorMetadata>("ConnectorMetadata")
+            })
+            .transpose()
+    }
+
     #[cfg(feature = "v1")]
     pub fn get_optional_feature_metadata(
         &self,
@@ -448,6 +463,7 @@ impl PaymentIntent {
     pub fn into_payment_method_list_intent_data(
         self,
         net_amount: MinorUnit,
+        show_installments: bool,
     ) -> CustomResult<PaymentMethodListIntentData, errors::api_error_response::ApiErrorResponse>
     {
         let billing: Option<Address> = self
@@ -466,28 +482,31 @@ impl PaymentIntent {
             .attach_printable("Failed to parse shipping address")?
             .map(|enc| enc.into_inner());
 
-        let installment_options = self
-            .installment_options
-            .map(|opts| {
-                let currency = self.currency.get_required_value("currency")?;
-                opts.into_iter()
-                    .map(|opt| {
-                        PaymentMethodListInstallmentOption::from_installment_option(
-                            opt.clone(),
-                            self.amount,
-                            net_amount,
-                            currency,
-                        )
-                        .change_context(
-                            errors::api_error_response::ApiErrorResponse::InternalServerError,
-                        )
-                        .attach_printable_lazy(|| {
-                            format!("Failed to transform installment option: {:?}", opt)
+        let installment_options = match show_installments {
+            false => None,
+            true => self
+                .installment_options
+                .map(|opts| {
+                    let currency = self.currency.get_required_value("currency")?;
+                    opts.into_iter()
+                        .map(|opt| {
+                            PaymentMethodListInstallmentOption::from_installment_option(
+                                opt.clone(),
+                                self.amount,
+                                net_amount,
+                                currency,
+                            )
+                            .change_context(
+                                errors::api_error_response::ApiErrorResponse::InternalServerError,
+                            )
+                            .attach_printable_lazy(|| {
+                                format!("Failed to transform installment option: {:?}", opt)
+                            })
                         })
-                    })
-                    .collect::<CustomResult<Vec<_>, _>>()
-            })
-            .transpose()?;
+                        .collect::<CustomResult<Vec<_>, _>>()
+                })
+                .transpose()?,
+        };
 
         Ok(PaymentMethodListIntentData {
             payment_id: self.payment_id,

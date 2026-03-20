@@ -253,13 +253,13 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             let (uas_connector, _) =
                 get_connector_by_connector_name(&state, UNIFIED_AUTHENTICATION_SERVICE, None)?;
 
-            let webhook_processing_result = process_uas_incoming_webhook(
+            let webhook_processing_result = Box::pin(process_uas_incoming_webhook(
                 &state,
                 &request_details,
                 connector_name.clone(),
                 uas_connector.clone(),
                 platform.clone(),
-            )
+            ))
             .await;
 
             (uas_connector, connector_name, webhook_processing_result)
@@ -2286,6 +2286,7 @@ pub async fn get_or_update_dispute_object(
     dispute_details: api::disputes::DisputePayload,
     merchant_id: &common_utils::id_type::MerchantId,
     organization_id: &common_utils::id_type::OrganizationId,
+    initiator: Option<&domain::Initiator>,
     payment_attempt: &PaymentAttempt,
     dispute_status: common_enums::enums::DisputeStatus,
     business_profile: &domain::Profile,
@@ -2328,6 +2329,10 @@ pub async fn get_or_update_dispute_object(
                 )?,
                 organization_id: organization_id.clone(),
                 dispute_currency: Some(dispute_details.currency),
+                processor_merchant_id: Some(payment_attempt.processor_merchant_id.clone()),
+                created_by: initiator
+                    .and_then(|initiator| initiator.to_created_by())
+                    .map(|created_by| created_by.to_string()),
             };
             state
                 .store
@@ -2813,6 +2818,7 @@ async fn disputes_incoming_webhook_flow(
             dispute_details,
             platform.get_processor().get_account().get_id(),
             &platform.get_processor().get_account().organization_id,
+            platform.get_initiator(),
             &payment_attempt,
             dispute_status,
             &business_profile,
@@ -3029,7 +3035,11 @@ async fn verify_webhook_source_verification_call(
         .map(|response| response.verify_webhook_status);
     match verification_result {
         Ok(VerifyWebhookStatus::SourceVerified) => Ok(true),
-        _ => Ok(false),
+        Ok(VerifyWebhookStatus::SourceNotVerified) => Ok(false),
+        Err(err) => {
+            tracing::error!(?err, "Webhook source verification failed");
+            Ok(false)
+        }
     }
 }
 
@@ -3406,11 +3416,11 @@ pub async fn process_uas_incoming_webhook<'a>(
             None,
         )?; // check of paymentId is present
 
-    let response = uas_utils::do_auth_connector_call(
+    let response = Box::pin(uas_utils::do_auth_connector_call(
         state,
         UNIFIED_AUTHENTICATION_SERVICE.to_string(),
         webhook_router_data,
-    )
+    ))
     .await?;
 
     let response_body = match response.response {

@@ -1442,21 +1442,17 @@ impl PaymentMethodResolver {
                     logger::debug!(
                         "No CVC found in the payment method request, trying to retrieve from redis"
                     );
-                    let existing_cvc_expiry_details =
-                        vault::retrieve_key_and_ttl_for_cvc_from_payment_method_id(
-                            state,
-                            existing_pm.id.to_owned(),
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to retrieve cvc from redis")
-                        .ok()
-                        .map(|time| {
-                            payment_methods::CardCVCTokenStorageDetails::generate_expiry_timestamp(
-                                time,
-                            )
-                        });
-                    existing_cvc_expiry_details
+                    vault::retrieve_key_and_ttl_for_cvc_from_payment_method_id(
+                        state,
+                        existing_pm.id.to_owned(),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to retrieve cvc from redis")
+                    .ok()
+                    .map(|time| {
+                        payment_methods::CardCVCTokenStorageDetails::generate_expiry_timestamp(time)
+                    })
                 };
                 let billing = billing_address
                     .clone()
@@ -1636,7 +1632,7 @@ async fn execute_payment_method_create(
                 &payment_method,
                 None,
                 None,
-                network_tokenization_resp,
+                network_tokenization_resp.clone(),
                 Some(req.payment_method_type),
                 payment_method_subtype,
                 external_vault_source,
@@ -3251,7 +3247,7 @@ pub async fn vault_payment_method_external(
     access_token::create_access_token(
         state,
         &connector_data,
-        merchant_account,
+        merchant_account.get_id(),
         &mut old_router_data,
     )
     .await?;
@@ -3402,7 +3398,7 @@ pub async fn vault_payment_method_external_v1(
     access_token::create_access_token(
         state,
         &connector_data,
-        merchant_account,
+        merchant_account.get_id(),
         &mut old_router_data,
     )
     .await?;
@@ -3517,12 +3513,12 @@ pub async fn vault_payment_method(
             let payment_method_custom_data =
                 get_payment_method_custom_data(pmd.clone(), vault_token_selector)?;
 
-            vault_payment_method_external(
+            Box::pin(vault_payment_method_external(
                 state,
                 &payment_method_custom_data,
                 platform.get_provider().get_account(),
                 merchant_connector_account,
-            )
+            ))
             .await
             .map(|value| (value, Some(external_vault_source)))
         }
@@ -4628,6 +4624,7 @@ pub async fn payment_methods_session_create(
         request.storage_type,
         None,
         None,
+        None,
     );
 
     Ok(services::ApplicationResponse::Json(response))
@@ -4696,6 +4693,7 @@ pub async fn payment_methods_session_update(
         update_state_change.storage_type,
         None,
         None,
+        None,
     );
 
     Ok(services::ApplicationResponse::Json(response))
@@ -4754,6 +4752,7 @@ pub async fn payment_methods_session_retrieve(
         expiry.map(|time| {
             payment_methods::CardCVCTokenStorageDetails::generate_expiry_timestamp(time)
         }),
+        None,
         None,
     );
 
@@ -4856,6 +4855,7 @@ pub async fn payment_methods_session_update_payment_method(
         updated_payment_method_session.storage_type,
         update_response.card_cvc_token_storage,
         update_response.payment_method_data.clone(),
+        None,
     );
 
     Ok(services::ApplicationResponse::Json(response))
@@ -5187,6 +5187,7 @@ pub async fn payment_methods_session_confirm(
         payment_method_response.storage_type,
         payment_method_response.card_cvc_token_storage,
         None,
+        payment_method_response.network_token,
     );
 
     Ok(services::ApplicationResponse::Json(

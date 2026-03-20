@@ -493,6 +493,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         rrn,
         feature_metadata: None,
         installment_details: None,
+        connector_intent_metadata: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -4834,6 +4835,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             rrn,
             feature_metadata: None,
             installment_details: None,
+            connector_intent_metadata: None,
         })
     }
 }
@@ -4886,6 +4888,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .get_optional_feature_metadata()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse feature metadata")?;
+
+        let connector_intent_metadata = payment_data
+            .get_payment_intent()
+            .get_connector_metadata_from_intent()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse connector metadata")?;
 
         let order_category = connector_metadata.as_ref().and_then(|cm| {
             cm.noon
@@ -5102,6 +5110,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             rrn,
             feature_metadata,
             installment_details: payment_data.payment_attempt.installment_data.clone(),
+            connector_intent_metadata,
         })
     }
 }
@@ -7072,6 +7081,9 @@ impl From<pm_types::TokenResponse> for domain::NetworkTokenData {
             bank_code: None,
             nick_name: None,
             eci: None,
+            par: token_response
+                .card_details
+                .map(|card_details| card_details.par),
         }
     }
 }
