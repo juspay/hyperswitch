@@ -1132,10 +1132,11 @@ pub async fn create_persistent_payment_method_core(
         .billing
         .clone()
         .async_map(|billing| {
-            cards::create_encrypted_data(
+            core_utils::create_encrypted_data(
                 key_manager_state,
                 platform.get_provider().get_key_store(),
                 billing,
+                common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
             )
         })
         .await
@@ -1216,10 +1217,11 @@ pub async fn create_volatile_payment_method_core(
         .billing
         .clone()
         .async_map(|billing| {
-            cards::create_encrypted_data(
+            core_utils::create_encrypted_data(
                 key_manager_state,
                 platform.get_provider().get_key_store(),
                 billing,
+                common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
             )
         })
         .await
@@ -1442,21 +1444,17 @@ impl PaymentMethodResolver {
                     logger::debug!(
                         "No CVC found in the payment method request, trying to retrieve from redis"
                     );
-                    let existing_cvc_expiry_details =
-                        vault::retrieve_key_and_ttl_for_cvc_from_payment_method_id(
-                            state,
-                            existing_pm.id.to_owned(),
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to retrieve cvc from redis")
-                        .ok()
-                        .map(|time| {
-                            payment_methods::CardCVCTokenStorageDetails::generate_expiry_timestamp(
-                                time,
-                            )
-                        });
-                    existing_cvc_expiry_details
+                    vault::retrieve_key_and_ttl_for_cvc_from_payment_method_id(
+                        state,
+                        existing_pm.id.to_owned(),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to retrieve cvc from redis")
+                    .ok()
+                    .map(|time| {
+                        payment_methods::CardCVCTokenStorageDetails::generate_expiry_timestamp(time)
+                    })
                 };
                 let billing = billing_address
                     .clone()
@@ -1898,10 +1896,11 @@ pub async fn create_payment_method_proxy_card_core(
 
     let encrypted_payment_method_data = additional_payment_method_data
         .async_map(|payment_method_data| {
-            cards::create_encrypted_data(
+            core_utils::create_encrypted_data(
                 key_manager_state,
                 platform.get_provider().get_key_store(),
                 payment_method_data,
+                common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
             )
         })
         .await
@@ -1919,10 +1918,11 @@ pub async fn create_payment_method_proxy_card_core(
 
     let encrypted_external_vault_token_data = external_vault_token_data
         .async_map(|external_vault_token_data| {
-            cards::create_encrypted_data(
+            core_utils::create_encrypted_data(
                 key_manager_state,
                 platform.get_provider().get_key_store(),
                 external_vault_token_data,
+                common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
             )
         })
         .await
@@ -2042,10 +2042,11 @@ pub async fn network_tokenize_and_vault_the_pmd(
         .attach_printable("Failed to vault network token")?;
 
         let key_manager_state = &(state).into();
-        let network_token_pmd = cards::create_encrypted_data(
+        let network_token_pmd = core_utils::create_encrypted_data(
             key_manager_state,
             platform.get_provider().get_key_store(),
             network_token_vaulting_data.get_payment_methods_data(),
+            common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
         )
         .await
         .change_context(errors::NetworkTokenizationError::NetworkTokenDetailsEncryptionFailed)
@@ -2345,7 +2346,12 @@ pub async fn payment_method_intent_create(
         .billing
         .clone()
         .async_map(|billing| {
-            cards::create_encrypted_data(key_manager_state, provider.get_key_store(), billing)
+            core_utils::create_encrypted_data(
+                key_manager_state,
+                provider.get_key_store(),
+                billing,
+                common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+            )
         })
         .await
         .transpose()
@@ -2839,10 +2845,15 @@ pub async fn construct_payment_method_object(
         .async_map(|payment_method_details| async {
             let key_manager_state = &(state).into();
 
-            cards::create_encrypted_data(key_manager_state, key_store, payment_method_details)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to encrypt Payment method data")
+            core_utils::create_encrypted_data(
+                key_manager_state,
+                key_store,
+                payment_method_details,
+                common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt Payment method data")
         })
         .await
         .transpose()?
@@ -3130,10 +3141,15 @@ pub async fn create_pm_additional_data_update(
         .async_map(|payment_method_details| async {
             let key_manager_state = &(state).into();
 
-            cards::create_encrypted_data(key_manager_state, key_store, payment_method_details)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to encrypt Payment method data")
+            core_utils::create_encrypted_data(
+                key_manager_state,
+                key_store,
+                payment_method_details,
+                common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt Payment method data")
         })
         .await
         .transpose()?
@@ -3555,12 +3571,16 @@ pub async fn vault_payment_method_in_volatile_storage(
     let vault_id = domain::VaultId::generate(generate_id(consts::ID_LENGTH, "vault"));
     let merchant_key_store = platform.get_provider().get_key_store();
 
-    let encrypted_payload: Encryption =
-        cards::create_encrypted_data(&(state).into(), merchant_key_store, pmd.clone())
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to encrypt Payment method vaulting data")?
-            .into();
+    let encrypted_payload: Encryption = core_utils::create_encrypted_data(
+        &(state).into(),
+        merchant_key_store,
+        pmd.clone(),
+        common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to encrypt Payment method vaulting data")?
+    .into();
 
     let redis_connection = state
         .store

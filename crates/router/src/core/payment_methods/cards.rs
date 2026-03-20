@@ -1,6 +1,5 @@
 use std::{
     collections::{HashMap, HashSet},
-    fmt::Debug,
     str::FromStr,
 };
 
@@ -93,6 +92,7 @@ use crate::{
             },
         },
         utils as core_utils,
+        utils::create_encrypted_data,
     },
     db, logger,
     pii::prelude::*,
@@ -422,7 +422,12 @@ impl PaymentMethodsController for PmCards<'_> {
                 });
                 let pm_network_token_data_encrypted = pm_token_details
                     .async_map(|pm_card| {
-                        create_encrypted_data(key_manager_state, key_store, pm_card)
+                        create_encrypted_data(
+                            key_manager_state,
+                            key_store,
+                            pm_card,
+                            common_utils::type_name!(payment_method::PaymentMethod),
+                        )
                     })
                     .await
                     .transpose()
@@ -521,7 +526,14 @@ impl PaymentMethodsController for PmCards<'_> {
         let key_manager_state = self.state.into();
         let pm_data_encrypted: crypto::OptionalEncryptableValue = pm_card_details
             .clone()
-            .async_map(|pm_card| create_encrypted_data(&key_manager_state, key_store, pm_card))
+            .async_map(|pm_card| {
+                create_encrypted_data(
+                    &key_manager_state,
+                    key_store,
+                    pm_card,
+                    type_name!(payment_method::PaymentMethod),
+                )
+            })
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1233,7 +1245,12 @@ impl PaymentMethodsController for PmCards<'_> {
             .billing
             .clone()
             .async_map(|billing| {
-                create_encrypted_data(&key_manager_state, self.provider.get_key_store(), billing)
+                create_encrypted_data(
+                    &key_manager_state,
+                    self.provider.get_key_store(),
+                    billing,
+                    type_name!(payment_method::PaymentMethod),
+                )
             })
             .await
             .transpose()
@@ -1417,6 +1434,7 @@ impl PaymentMethodsController for PmCards<'_> {
                                         &key_manager_state,
                                         self.provider.get_key_store(),
                                         updated_pmd,
+                                        type_name!(payment_method::PaymentMethod),
                                     )
                                 })
                                 .await
@@ -1509,7 +1527,12 @@ pub async fn get_client_secret_or_add_payment_method(
         .billing
         .clone()
         .async_map(|billing| {
-            create_encrypted_data(&key_manager_state, provider.get_key_store(), billing)
+            create_encrypted_data(
+                &key_manager_state,
+                provider.get_key_store(),
+                billing,
+                type_name!(payment_method::PaymentMethod),
+            )
         })
         .await
         .transpose()
@@ -1739,6 +1762,7 @@ pub async fn add_payment_method_data(
                                 &key_manager_state,
                                 provider.get_key_store(),
                                 PaymentMethodsData::Card(updated_card),
+                                type_name!(payment_method::PaymentMethod),
                             )
                             .await
                             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2009,7 +2033,12 @@ pub async fn update_customer_payment_method(
             let key_manager_state = (&state).into();
             let pm_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> = updated_pmd
                 .async_map(|updated_pmd| {
-                    create_encrypted_data(&key_manager_state, provider.get_key_store(), updated_pmd)
+                    create_encrypted_data(
+                        &key_manager_state,
+                        provider.get_key_store(),
+                        updated_pmd,
+                        type_name!(payment_method::PaymentMethod),
+                    )
                 })
                 .await
                 .transpose()
@@ -2089,11 +2118,15 @@ pub async fn update_customer_payment_method(
 
         let updated_pmd = PaymentMethodsData::WalletDetails(wallet_update);
         let key_manager_state = (&state).into();
-        let pm_data_encrypted =
-            create_encrypted_data(&key_manager_state, provider.get_key_store(), updated_pmd)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to encrypt payment method data")?;
+        let pm_data_encrypted = create_encrypted_data(
+            &key_manager_state,
+            provider.get_key_store(),
+            updated_pmd,
+            type_name!(payment_method::PaymentMethod),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to encrypt payment method data")?;
 
         let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
             payment_method_data: Some(pm_data_encrypted.into()),
@@ -5392,38 +5425,6 @@ impl TempLockerCardSupport {
         );
         Ok(card)
     }
-}
-
-pub async fn create_encrypted_data<T>(
-    key_manager_state: &KeyManagerState,
-    key_store: &domain::MerchantKeyStore,
-    data: T,
-) -> Result<Encryptable<Secret<serde_json::Value>>, error_stack::Report<errors::StorageError>>
-where
-    T: Debug + serde::Serialize,
-{
-    let key = key_store.key.get_inner().peek();
-    let identifier = Identifier::Merchant(key_store.merchant_id.clone());
-
-    let encoded_data = Encode::encode_to_value(&data)
-        .change_context(errors::StorageError::SerializationFailed)
-        .attach_printable("Unable to encode data")?;
-
-    let secret_data = Secret::<_, masking::WithType>::new(encoded_data);
-
-    let encrypted_data = domain::types::crypto_operation(
-        key_manager_state,
-        type_name!(payment_method::PaymentMethod),
-        domain::types::CryptoOperation::Encrypt(secret_data),
-        identifier.clone(),
-        key,
-    )
-    .await
-    .and_then(|val| val.try_into_operation())
-    .change_context(errors::StorageError::EncryptionError)
-    .attach_printable("Unable to encrypt data")?;
-
-    Ok(encrypted_data)
 }
 
 pub async fn list_countries_currencies_for_connector_payment_method(

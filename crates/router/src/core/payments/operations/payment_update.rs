@@ -1,8 +1,10 @@
 use std::marker::PhantomData;
 
 use api_models::{
-    customers::CustomerDocumentDetails, enums::FrmSuggestion, mandates::RecurringDetails,
-    payments::RequestSurchargeDetails,
+    customers::CustomerDocumentDetails,
+    enums::FrmSuggestion,
+    mandates::RecurringDetails,
+    payments::{MandateTransactionType, RequestSurchargeDetails},
 };
 use async_trait::async_trait;
 use common_utils::{
@@ -22,9 +24,8 @@ use crate::{
         configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
-        payment_methods::cards::create_encrypted_data,
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
-        utils as core_utils,
+        utils::{self as core_utils, create_encrypted_data},
     },
     events::audit_events::{AuditEvent, AuditEventType},
     routes::{app::ReqState, SessionState},
@@ -189,7 +190,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
         payment_attempt.payment_method_type =
             payment_method_type.or(payment_attempt.payment_method_type);
-        let customer_details = helpers::get_customer_details_from_request(request);
+        let customer_details =
+            helpers::get_customer_details_from_request_or_pm_table(request, &None, &None)?;
 
         payment_intent.customer_details = helpers::merge_request_and_intent_customer_data(
             state,
@@ -588,6 +590,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         provider: &domain::Provider,
         initiator: Option<&domain::Initiator>,
         dimensions: DimensionsWithMerchantIdAndProfileId,
+        _mandate_type: Option<MandateTransactionType>,
     ) -> CustomResult<(PaymentUpdateOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
     {
         match provider.get_account().merchant_account_type {
@@ -976,7 +979,12 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .address
             .get_payment_billing()
             .async_map(|billing_details| {
-                create_encrypted_data(&key_manager_state, key_store, billing_details)
+                create_encrypted_data(
+                    &key_manager_state,
+                    key_store,
+                    billing_details,
+                    common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+                )
             })
             .await
             .transpose()
@@ -987,7 +995,12 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .address
             .get_shipping()
             .async_map(|shipping_details| {
-                create_encrypted_data(&key_manager_state, key_store, shipping_details)
+                create_encrypted_data(
+                    &key_manager_state,
+                    key_store,
+                    shipping_details,
+                    common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+                )
             })
             .await
             .transpose()
