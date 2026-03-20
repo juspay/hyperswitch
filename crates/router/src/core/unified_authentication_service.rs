@@ -203,11 +203,11 @@ impl UnifiedAuthenticationService for ClickToPay {
                 payment_id.cloned(),
             )?;
 
-        utils::do_auth_connector_call(
+        Box::pin(utils::do_auth_connector_call(
             state,
             UNIFIED_AUTHENTICATION_SERVICE.to_string(),
             post_auth_router_data,
-        )
+        ))
         .await
     }
 
@@ -275,11 +275,11 @@ impl UnifiedAuthenticationService for ClickToPay {
             payment_id.cloned(),
         )?;
 
-        utils::do_auth_connector_call(
+        Box::pin(utils::do_auth_connector_call(
             state,
             UNIFIED_AUTHENTICATION_SERVICE.to_string(),
             authentication_confirmation_router_data,
-        )
+        ))
         .await
         .ok(); // marking this as .ok() since this is not a required step at our end for completing the transaction
 
@@ -556,11 +556,11 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
             payment_id.cloned(),
         )?;
 
-        utils::do_auth_connector_call(
+        Box::pin(utils::do_auth_connector_call(
             state,
             UNIFIED_AUTHENTICATION_SERVICE.to_string(),
             auth_router_data,
-        )
+        ))
         .await
     }
 }
