@@ -198,7 +198,7 @@ export const connectorDetails = {
           error_code: "2",
           error_message: "Refused",
           unified_code: "UE_3000",
-          unified_message: "echnical issue with PSP",
+          unified_message: "Technical issue with PSP",
         },
       },
     },
