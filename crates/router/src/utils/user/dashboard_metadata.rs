@@ -8,7 +8,7 @@ use api_models::user::dashboard_metadata::{
 };
 use api_models::user::dashboard_metadata::{
     DeleteSavedViewRequest, GetMetaDataRequest, GetMultipleMetaDataPayload, ProdIntent,
-    SavedViewEntity, SetMetaDataRequest,
+    SetMetaDataRequest,
 };
 use common_enums::EntityType;
 use common_utils::{errors::ValidationError, id_type};
@@ -461,15 +461,6 @@ where
 }
 
 #[cfg(feature = "v1")]
-pub fn get_saved_view_entity(filters: &SavedViewFilters) -> SavedViewEntity {
-    match filters {
-        SavedViewFilters::V1(f) => match f {
-            SavedViewFiltersV1::PaymentViews(_) => SavedViewEntity::PaymentViews,
-        },
-    }
-}
-
-#[cfg(feature = "v1")]
 pub fn validate_create_saved_view_request(
     request: &CreateSavedViewRequest,
 ) -> Result<(), ValidationError> {
@@ -545,11 +536,10 @@ async fn create_saved_view(
                     .attach_printable("Maximum of 5 saved views reached");
             }
 
-            let name_lower = request.view_name.to_lowercase();
             if views_data
                 .views
                 .iter()
-                .any(|v| v.view_name.to_lowercase() == name_lower)
+                .any(|v| v.view_name == request.view_name)
             {
                 return Err(report!(UserErrors::SavedViewNameAlreadyExists))
                     .attach_printable("A saved view with this name already exists");
@@ -578,11 +568,10 @@ async fn update_saved_view(
         |existing: Option<types::PaymentViewsValue>| {
             let mut views_data = existing.ok_or(report!(UserErrors::SavedViewNotFound))?;
 
-            let name_lower = request.view_name.to_lowercase();
             let view = views_data
                 .views
                 .iter_mut()
-                .find(|v| v.view_name.to_lowercase() == name_lower)
+                .find(|v| v.view_name == request.view_name)
                 .ok_or(report!(UserErrors::SavedViewNotFound))
                 .attach_printable("Saved view with this name not found")?;
 
@@ -613,11 +602,8 @@ async fn delete_saved_view(
         |existing: Option<types::PaymentViewsValue>| {
             let mut views_data = existing.ok_or(report!(UserErrors::SavedViewNotFound))?;
 
-            let name_lower = request.view_name.to_lowercase();
             let initial_len = views_data.views.len();
-            views_data
-                .views
-                .retain(|v| v.view_name.to_lowercase() != name_lower);
+            views_data.views.retain(|v| v.view_name != request.view_name);
 
             if views_data.views.len() == initial_len {
                 return Err(report!(UserErrors::SavedViewNotFound))
