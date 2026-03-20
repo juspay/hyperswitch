@@ -1154,16 +1154,17 @@ impl PaymentMethodsController for PmCards<'_> {
                 )
                 .await?;
 
-            if let Some(network_token_ref_id) = key.network_token_requestor_reference_id {
+            if let Some(network_token_ref_id) = key.network_token_requestor_reference_id.clone() {
                 let resp =
                     network_tokenization::delete_network_token_from_locker_and_token_service(
                         self.state,
                         &key.customer_id,
                         &key.merchant_id,
                         key.payment_method_id.clone(),
-                        key.network_token_locker_id,
+                        key.network_token_locker_id.clone(),
                         network_token_ref_id,
                         self.provider,
+                        &key,
                     )
                     .await?;
 

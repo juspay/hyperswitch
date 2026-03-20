@@ -4,7 +4,7 @@ use std::fmt::Debug;
 use std::str::FromStr;
 
 use ::payment_methods::controller::PaymentMethodsController;
-use api_models::payment_methods as api_payment_methods;
+use api_models::{admin as admin_types, payment_methods as api_payment_methods};
 #[cfg(feature = "v2")]
 use cards::{CardNumber, NetworkToken};
 use common_utils::{
@@ -38,6 +38,61 @@ use crate::{
 };
 
 pub const NETWORK_TOKEN_SERVICE: &str = "NETWORK_TOKEN";
+
+/// Resolves network tokenization credentials from merchant_account first, then business_profile.
+/// Returns the decrypted `InternalNetworkTokenizationCredentials`.
+#[cfg(feature = "v1")]
+pub fn resolve_network_tokenization_credentials(
+    merchant_account: &domain::MerchantAccount,
+) -> CustomResult<
+    admin_types::InternalNetworkTokenizationCredentials,
+    errors::NetworkTokenizationError,
+> {
+    // Try merchant_account first
+    if let Some(ref creds) = merchant_account.network_tokenization_credentials {
+        let decrypted_val = creds.get_inner().peek().clone();
+        let provider_creds: admin_types::NetworkTokeizationProviderCredentials =
+            serde_json::from_value(decrypted_val)
+                .map_err(|_| {
+                    errors::NetworkTokenizationError::NetworkTokenizationServiceNotConfigured
+                })
+                .attach_printable(
+                    "Failed to deserialize network tokenization credentials from merchant_account",
+                )?;
+        match provider_creds {
+            admin_types::NetworkTokeizationProviderCredentials::InternalNetworkTokenService(
+                juspay_creds,
+            ) => {
+                return Ok(juspay_creds);
+            }
+        }
+    }
+
+    Err(errors::NetworkTokenizationError::NetworkTokenizationServiceNotConfigured).attach_printable(
+        "Network tokenization credentials not found in merchant_account or business_profile",
+    )
+}
+
+/// Helper to build a `NetworkTokenizationService` by combining resolved DB credentials
+/// with URLs from ENV config.
+#[cfg(feature = "v1")]
+pub fn build_tokenization_service(
+    creds: &admin_types::InternalNetworkTokenizationCredentials,
+    config_service: &settings::NetworkTokenizationService,
+) -> settings::NetworkTokenizationService {
+    settings::NetworkTokenizationService {
+        generate_token_url: config_service.generate_token_url.clone(),
+        fetch_token_url: config_service.fetch_token_url.clone(),
+        check_tokenize_eligibility_url: config_service.check_tokenize_eligibility_url.clone(),
+        token_service_api_key: creds.token_service_api_key.clone(),
+        public_key: creds.public_key.clone(),
+        private_key: creds.private_key.clone(),
+        key_id: creds.key_id.peek().to_string(),
+        delete_token_url: config_service.delete_token_url.clone(),
+        check_token_status_url: config_service.check_token_status_url.clone(),
+        webhook_source_verification_key: config_service.webhook_source_verification_key.clone(),
+    }
+}
 
 #[cfg(feature = "v1")]
 pub async fn mk_tokenization_req(
@@ -349,6 +404,7 @@ pub async fn make_card_network_tokenization_request(
     card: &domain::CardDetail,
     optional_cvc: Option<Secret<String>>,
     customer_id: &id_type::CustomerId,
+    merchant_account: &domain::MerchantAccount,
 ) -> CustomResult<
     (pm_types::CardNetworkTokenResponsePayload, Option<String>),
     errors::NetworkTokenizationError,
@@ -366,14 +422,18 @@ pub async fn make_card_network_tokenization_request(
         .change_context(errors::NetworkTokenizationError::RequestEncodingFailed)?;
 
     let payload_bytes = payload.as_bytes();
-    if let Some(network_tokenization_service) = &state.conf.network_tokenization_service {
+    if let Some(config_service) = &state.conf.network_tokenization_service {
+        let resolved_creds = resolve_network_tokenization_credentials(merchant_account)?;
+        let tokenization_service =
+            build_tokenization_service(&resolved_creds, config_service.get_inner());
+
         record_operation_time(
             async {
                 mk_tokenization_req(
                     state,
                     payload_bytes,
                     customer_id.clone(),
-                    network_tokenization_service.get_inner(),
+                    &tokenization_service,
                 )
                 .await
                 .inspect_err(
@@ -456,8 +516,21 @@ pub async fn get_network_token(
     state: &routes::SessionState,
     customer_id: id_type::CustomerId,
     network_token_requestor_ref_id: String,
-    tokenization_service: &settings::NetworkTokenizationService,
+    merchant_account: &domain::MerchantAccount,
 ) -> CustomResult<pm_types::TokenResponse, errors::NetworkTokenizationError> {
+    let tokenization_service =
+        if let Some(config_service) = &state.conf.network_tokenization_service {
+            let resolved_creds = resolve_network_tokenization_credentials(merchant_account)?;
+
+            Ok(build_tokenization_service(
+                &resolved_creds,
+                config_service.get_inner(),
+            ))
+        } else {
+            Err(error_stack::report!(
+                errors::NetworkTokenizationError::NetworkTokenizationServiceNotConfigured
+            ))
+        }?;
     let mut request = services::Request::new(
         services::Method::Post,
         tokenization_service.fetch_token_url.as_str(),
@@ -604,35 +677,30 @@ pub async fn get_token_from_tokenization_service(
     state: &routes::SessionState,
     network_token_requestor_ref_id: String,
     pm_data: &domain::PaymentMethod,
+    merchant_account: &domain::MerchantAccount,
+    business_profile: &domain::Profile,
 ) -> errors::RouterResult<domain::NetworkTokenData> {
     let token_response =
-        if let Some(network_tokenization_service) = &state.conf.network_tokenization_service {
-            record_operation_time(
-                async {
-                    get_network_token(
-                state,
-                pm_data.customer_id.clone(),
-                network_token_requestor_ref_id,
-                network_tokenization_service.get_inner(),
-            )
-            .await
-            .inspect_err(
-                |e| logger::error!(error=?e, "Error while fetching token from tokenization service")
-            )
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Fetch network token failed")
-                },
-                &metrics::FETCH_NETWORK_TOKEN_TIME,
-                &[],
-            )
-            .await
-        } else {
-            Err(errors::NetworkTokenizationError::NetworkTokenizationServiceNotConfigured)
-                .inspect_err(|err| {
-                    logger::error!(error=? err);
-                })
+        record_operation_time(
+            async {
+                get_network_token(
+                    state,
+                    pm_data.customer_id.clone(),
+                    network_token_requestor_ref_id,
+                    merchant_account,
+        
+                )
+                .await
+                .inspect_err(
+                    |e| logger::error!(error=?e, "Error while fetching token from tokenization service")
+                )
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-        }?;
+                .attach_printable("Fetch network token failed")
+            },
+            &metrics::FETCH_NETWORK_TOKEN_TIME,
+            &[],
+        )
+        .await?;
 
     let token_decrypted = pm_data
         .network_token_payment_method_data
@@ -754,6 +822,7 @@ pub async fn get_token_from_tokenization_service(
 pub async fn do_status_check_for_network_token(
     state: &routes::SessionState,
     payment_method_info: &domain::PaymentMethod,
+    merchant_account: &domain::MerchantAccount,
 ) -> CustomResult<(Option<Secret<String>>, Option<Secret<String>>), errors::ApiErrorResponse> {
     let network_token_data_decrypted = payment_method_info
         .network_token_payment_method_data
@@ -775,14 +844,20 @@ pub async fn do_status_check_for_network_token(
         .is_none()
     {
         if let Some(ref_id) = network_token_requestor_reference_id {
-            if let Some(network_tokenization_service) = &state.conf.network_tokenization_service {
+            if let Some(config_service) = &state.conf.network_tokenization_service {
+                let resolved_creds = resolve_network_tokenization_credentials(merchant_account)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to resolve network tokenization credentials")?;
+                let tokenization_service =
+                    build_tokenization_service(&resolved_creds, config_service.get_inner());
+
                 let (token_exp_month, token_exp_year) = record_operation_time(
                     async {
                         check_token_status_with_tokenization_service(
                             state,
                             &payment_method_info.customer_id.clone(),
                             ref_id,
-                            network_tokenization_service.get_inner(),
+                            &tokenization_service,
                         )
                         .await
                         .inspect_err(
@@ -1030,6 +1105,7 @@ pub async fn delete_network_token_from_locker_and_token_service(
     network_token_locker_id: Option<String>,
     network_token_requestor_reference_id: String,
     provider: &domain::Provider,
+    payment_method: &domain::PaymentMethod,
 ) -> errors::RouterResult<DeleteCardResp> {
     //deleting network token from locker
     let resp = payment_methods::cards::PmCards { state, provider }
@@ -1041,27 +1117,63 @@ pub async fn delete_network_token_from_locker_and_token_service(
                 .unwrap_or(&payment_method_id),
         )
         .await?;
-    if let Some(tokenization_service) = &state.conf.network_tokenization_service {
-        let delete_token_resp = record_operation_time(
-            async {
-                delete_network_token_from_tokenization_service(
-                    state,
-                    network_token_requestor_reference_id,
-                    customer_id,
-                    tokenization_service.get_inner(),
+
+    let config_service = &state.conf.network_tokenization_service;
+
+    if let Some(_config) = config_service {
+        let merchant_map_opt = payment_method
+            .network_tokenization_data
+            .clone()
+            .map(|val| val.into_inner().expose())
+            .and_then(|data| {
+                serde_json::from_value::<domain::PaymentMethodNetworkTokenizationDataDomainType>(
+                    data,
                 )
-                .await
-            },
-            &metrics::DELETE_NETWORK_TOKEN_TIME,
-            &[],
-        )
-        .await;
-        match delete_token_resp {
-            Ok(_) => logger::info!("Token From Tokenization Service deleted Successfully!"),
-            Err(e) => {
-                logger::error!(error=?e, "Error while deleting Token From Tokenization Service!")
+                .ok()
+            })
+            .and_then(|domain_data| domain_data.merchant_map);
+
+        if let Some(merchant_map) = merchant_map_opt {
+            let db = &*state.store;
+            for (m_id, pm_nt_data) in merchant_map {
+                match db.find_merchant_account_by_merchant_id(&m_id, provider.get_key_store()).await {
+                    Ok(merchant_account) => {
+                        let delete_token_resp = record_operation_time(
+                            async {
+                                delete_network_token_from_tokenization_service(
+                                    state,
+                                    pm_nt_data.network_token_requestor_reference_id
+                                    .peek()
+                                    .clone(),
+                                    customer_id,
+                                    &merchant_account,
+                                )
+                                .await
+                            },
+                            &metrics::DELETE_NETWORK_TOKEN_TIME,
+                            &[],
+                        )
+                        .await;
+
+                        match delete_token_resp {
+                            Ok(_) => logger::info!(merchant_id=?m_id, "Token From Tokenization Service deleted Successfully!"),
+                            Err(e) => {
+                                logger::error!(error=?e, merchant_id=?m_id, "Error while deleting Token From Tokenization Service!")
+                            }
+                        };
+                    }
+                    Err(e) => {
+                        logger::error!(error=?e, merchant_id=?m_id, "Failed to fetch merchant account for token deletion");
+                    }
+                }
             }
-        };
+        } else {
+             logger::warn!("No valid network_tokenization_data or merchant_map found for payment method, skipping token deletion from service");
+        }
+    } else {
+        logger::warn!(
+            "Skipping network token deletion from tokenization service: config not available"
+        );
     };
 
     Ok(resp)
@@ -1072,8 +1184,21 @@ pub async fn delete_network_token_from_tokenization_service(
     state: &routes::SessionState,
     network_token_requestor_reference_id: String,
     customer_id: &id_type::CustomerId,
-    tokenization_service: &settings::NetworkTokenizationService,
+    merchant_account: &domain::MerchantAccount,
 ) -> CustomResult<bool, errors::NetworkTokenizationError> {
+    let tokenization_service =
+        if let Some(config_service) = &state.conf.network_tokenization_service {
+            let resolved_creds = resolve_network_tokenization_credentials(merchant_account)?;
+
+            Ok(build_tokenization_service(
+                &resolved_creds,
+                config_service.get_inner(),
+            ))
+        } else {
+            Err(error_stack::report!(
+                errors::NetworkTokenizationError::NetworkTokenizationServiceNotConfigured
+            ))
+        }?;
     let mut request = services::Request::new(
         services::Method::Post,
         tokenization_service.delete_token_url.as_str(),

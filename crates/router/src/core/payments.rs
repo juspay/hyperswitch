@@ -4798,9 +4798,14 @@ where
         if let (Some(domain::PaymentMethodData::Card(card_data)), Some(customer_id)) =
             (payment_method_data, customer_id)
         {
-            let vault_operation =
-                get_vault_operation_for_pre_network_tokenization(state, customer_id, card_data)
-                    .await;
+            let vault_operation = get_vault_operation_for_pre_network_tokenization(
+                state,
+                customer_id,
+                card_data,
+                platform.get_processor().get_account(),
+                business_profile,
+            )
+            .await;
             match vault_operation {
                 payments::VaultOperation::SaveCardAndNetworkTokenData(
                     card_and_network_token_data,
@@ -9224,11 +9229,19 @@ pub async fn get_vault_operation_for_pre_network_tokenization(
     state: &SessionState,
     customer_id: id_type::CustomerId,
     card_data: &hyperswitch_domain_models::payment_method_data::Card,
+    merchant_account: &domain::MerchantAccount,
+    business_profile: &domain::Profile,
 ) -> payments::VaultOperation {
     let pre_tokenization_response =
-        tokenization::pre_payment_tokenization(state, customer_id, card_data)
-            .await
-            .ok();
+        tokenization::pre_payment_tokenization(
+            state,
+            customer_id,
+            card_data,
+            merchant_account,
+            business_profile,
+        )
+        .await
+        .ok();
     match pre_tokenization_response {
         Some((Some(token_response), Some(token_ref))) => {
             let token_data = domain::NetworkTokenData::from(token_response);
@@ -9977,6 +9990,8 @@ where
         mandate_type,
         business_profile.is_connector_agnostic_mit_enabled,
         business_profile.is_network_tokenization_enabled,
+        processor.get_account(),
+        business_profile,
     )
     .await
 }
@@ -9991,6 +10006,8 @@ pub async fn plan_payment_execution_after_routing<F: Clone, D>(
     mandate_type: Option<api::MandateTransactionType>,
     is_connector_agnostic_mit_enabled: Option<bool>,
     is_network_tokenization_enabled: bool,
+    merchant_account: &domain::MerchantAccount,
+    business_profile: &domain::Profile,
 ) -> RouterResult<ConnectorCallType>
 where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -10034,6 +10051,8 @@ where
                             is_network_tokenization_enabled,
                             &payment_method.clone(),
                             connector_routing_data.connector_data.clone(),
+                            merchant_account,
+                            business_profile,
                         )
                         .await;
 
@@ -10412,6 +10431,8 @@ impl ActionTypesBuilder {
         is_network_token_with_ntid_flow: IsNtWithNtiFlow,
         is_nt_with_ntid_supported_connector: bool,
         payment_method_info: &domain::PaymentMethod,
+        merchant_account: &domain::MerchantAccount,
+        business_profile: &domain::Profile,
     ) -> Self {
         match is_network_token_with_ntid_flow {
             IsNtWithNtiFlow::NtWithNtiSupported(network_transaction_id)
@@ -10421,6 +10442,8 @@ impl ActionTypesBuilder {
                     network_tokenization::do_status_check_for_network_token(
                         state,
                         payment_method_info,
+                        merchant_account,
+                        business_profile,
                     )
                     .await
                     .inspect_err(|e| {
@@ -10469,6 +10492,8 @@ pub async fn get_all_action_types(
     is_network_tokenization_enabled: bool,
     payment_method_info: &domain::PaymentMethod,
     connector: api::ConnectorData,
+    merchant_account: &domain::MerchantAccount,
+    business_profile: &domain::Profile,
 ) -> Vec<ActionType> {
     let merchant_connector_id = connector.merchant_connector_id.as_ref();
 
@@ -10521,6 +10546,8 @@ pub async fn get_all_action_types(
             is_network_token_with_ntid_flow,
             is_nt_with_ntid_supported_connector,
             payment_method_info,
+            merchant_account,
+            business_profile,
         )
         .await
         .with_card_network_transaction_id(is_card_with_ntid_flow, payment_method_info)
