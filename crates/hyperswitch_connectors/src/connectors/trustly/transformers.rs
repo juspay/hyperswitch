@@ -19,7 +19,7 @@ use hyperswitch_domain_models::{
     types::{PaymentsAuthorizeRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::errors::ConnectorError;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use openssl::{hash::MessageDigest, pkey::PKey, rsa::Rsa, sign::Signer};
 use serde::{Deserialize, Serialize};
 

@@ -4,7 +4,7 @@ use common_utils::{errors::CustomResult, pii, types::user::EmailThemeConfig};
 use diesel_models::organization::OrganizationBridge;
 use error_stack::ResultExt;
 use external_services::email::{EmailContents, EmailData, EmailError};
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
 use crate::{configs, consts, routes::SessionState};
 #[cfg(feature = "olap")]

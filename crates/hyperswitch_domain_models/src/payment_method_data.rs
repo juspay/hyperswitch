@@ -18,7 +18,7 @@ use common_utils::{
     payout_method_utils,
     pii::{self, Email},
 };
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::Date;
 

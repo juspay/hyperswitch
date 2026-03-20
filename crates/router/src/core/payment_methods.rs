@@ -56,8 +56,8 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::connector_integration_interface::RouterDataConversion;
 #[cfg(feature = "v2")]
-use masking::ExposeInterface;
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::{PeekInterface, Secret};
 use router_env::{instrument, tracing};
 use time::Duration;
 
@@ -1451,9 +1451,7 @@ impl PaymentMethodResolver {
                     .attach_printable("Failed to retrieve cvc from redis")
                     .ok()
                     .map(|time| {
-                        payment_methods::CardCVCTokenStorageDetails::generate_expiry_timestamp(
-                            time,
-                        )
+                        payment_methods::CardCVCTokenStorageDetails::generate_expiry_timestamp(time)
                     })
                 };
                 let billing = billing_address
@@ -3515,12 +3513,12 @@ pub async fn vault_payment_method(
             let payment_method_custom_data =
                 get_payment_method_custom_data(pmd.clone(), vault_token_selector)?;
 
-            vault_payment_method_external(
+            Box::pin(vault_payment_method_external(
                 state,
                 &payment_method_custom_data,
                 platform.get_provider().get_account(),
                 merchant_connector_account,
-            )
+            ))
             .await
             .map(|value| (value, Some(external_vault_source)))
         }

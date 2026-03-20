@@ -5,17 +5,17 @@ pub struct VerifyWebhookSource;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ConnectorMandateDetails {
-    pub connector_mandate_id: masking::Secret<String>,
+    pub connector_mandate_id: hyperswitch_masking::Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct ConnectorNetworkTxnId(masking::Secret<String>);
+pub struct ConnectorNetworkTxnId(hyperswitch_masking::Secret<String>);
 
 impl ConnectorNetworkTxnId {
-    pub fn new(txn_id: masking::Secret<String>) -> Self {
+    pub fn new(txn_id: hyperswitch_masking::Secret<String>) -> Self {
         Self(txn_id)
     }
-    pub fn get_id(&self) -> &masking::Secret<String> {
+    pub fn get_id(&self) -> &hyperswitch_masking::Secret<String> {
         &self.0
     }
 }
