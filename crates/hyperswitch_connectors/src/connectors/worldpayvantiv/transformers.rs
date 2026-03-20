@@ -301,7 +301,6 @@ pub struct Sale {
     pub allow_partial_auth: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fraud_filter_override: Option<bool>,
-
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -973,7 +972,8 @@ impl From<(PaymentMethodData, Option<common_enums::PaymentChannel>)> for OrderSo
         {
             return Self::AndroidPay;
         }
-        if let PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_) = payment_method_data
+        if let PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_) =
+            payment_method_data
         {
             return Self::Ecommerce;
         }
