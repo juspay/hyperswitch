@@ -182,7 +182,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,  //payload doesnt support failed cards
+          card: successfulNo3DSCardDetails, //payload doesnt support failed cards
         },
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -289,7 +289,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: DUPLICATION_TIMEOUT ,
+          TIMEOUT: DUPLICATION_TIMEOUT,
         },
       },
       Request: {
@@ -359,7 +359,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: DUPLICATION_TIMEOUT ,
+          TIMEOUT: DUPLICATION_TIMEOUT,
         },
       },
       Request: {
