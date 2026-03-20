@@ -1,7 +1,7 @@
 use std::sync::atomic;
 
 use error_stack::ResultExt;
-use redis_interface::{errors as redis_errors, EventInterface, PubsubInterface, RedisValue};
+use redis_interface::{errors as redis_errors, RedisValue};
 use router_env::{logger, tracing::Instrument};
 
 use crate::redis::cache::{
@@ -28,13 +28,7 @@ pub trait PubSubInterface {
 impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
     #[inline]
     async fn subscribe(&self, channel: &str) -> error_stack::Result<(), redis_errors::RedisError> {
-        // Spawns a task that will automatically re-subscribe to any channels or channel patterns used by the client.
-        self.subscriber.manage_subscriptions();
-
-        self.subscriber
-            .subscribe::<_>(channel)
-            .await
-            .change_context(redis_errors::RedisError::SubscribeError)?;
+        self.subscriber.subscribe(channel).await?;
 
         // Spawn only one thread handling all the published messages to different channels
         if self
@@ -79,7 +73,6 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
                 RedisValue::try_from(key).change_context(redis_errors::RedisError::PublishError)?,
             )
             .await
-            .change_context(redis_errors::RedisError::SubscribeError)
     }
 
     #[inline]
@@ -87,7 +80,7 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
         logger::debug!("Started on message");
         let mut rx = self.subscriber.message_rx();
         while let Ok(message) = rx.recv().await {
-            let channel_name = message.channel.to_string();
+            let channel_name = message.channel.clone();
             logger::debug!("Received message on channel: {channel_name}");
 
             match channel_name.as_str() {
