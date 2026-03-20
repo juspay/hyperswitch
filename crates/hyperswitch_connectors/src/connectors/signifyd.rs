@@ -61,11 +61,9 @@ use hyperswitch_interfaces::{
     types::Response,
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
-#[cfg(feature = "frm")]
-use hyperswitch_masking::Mask;
 use hyperswitch_masking::Maskable;
 #[cfg(feature = "frm")]
-use hyperswitch_masking::{PeekInterface, Secret};
+use hyperswitch_masking::{Mask, PeekInterface, Secret};
 #[cfg(feature = "frm")]
 use ring::hmac;
 #[cfg(feature = "frm")]

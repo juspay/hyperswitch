@@ -219,7 +219,7 @@ pub struct KafkaPaymentAttemptEvent<'a> {
     pub authentication_applied: Option<common_enums::AuthenticationType>,
     pub external_reference_id: Option<String>,
     pub tax_on_surcharge: Option<MinorUnit>,
-    pub payment_method_billing_address: Option<hyperswitch_masking::Secret<&'a address::Address>>, // adjusted from Encryption
+    pub payment_method_billing_address: Option<hyperswitch_masking::Secret<&'a address::Address>>,
     pub redirection_data: Option<&'a RedirectForm>,
     pub connector_payment_data: Option<String>,
     pub connector_token_details: Option<&'a payment_attempt::ConnectorTokenDetails>,

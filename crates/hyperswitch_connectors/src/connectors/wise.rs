@@ -84,8 +84,6 @@ where
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
-        use hyperswitch_masking::Mask as _;
-
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
             PayoutQuoteType::get_content_type(self).to_string().into(),
