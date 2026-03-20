@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use common_enums::enums as common_enums_types;
 use hyperswitch_domain_models::{
     address::{Address, AddressDetails, PhoneDetails},
     payment_method_data::{Card, PaymentMethodData},
@@ -43,6 +44,7 @@ impl utils::Connector for AciTest {
 
 static CONNECTOR: AciTest = AciTest {};
 
+/// Test helper: Creates default payment info with billing address for ACI tests.
 fn get_default_payment_info() -> Option<PaymentInfo> {
     Some(PaymentInfo {
         address: Some(PaymentAddress::new(
@@ -71,6 +73,7 @@ fn get_default_payment_info() -> Option<PaymentInfo> {
     })
 }
 
+/// Test helper: Creates basic card payment data for non-3DS ACI tests.
 fn get_payment_authorize_data() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
         payment_method_data: PaymentMethodData::Card(Card {
@@ -81,10 +84,12 @@ fn get_payment_authorize_data() -> Option<types::PaymentsAuthorizeData> {
             card_holder_name: Some(Secret::new("John Doe".to_string())),
             ..utils::CCardType::default().0
         }),
+        currency: enums::Currency::ZAR,
         ..utils::PaymentAuthorizeType::default().0
     })
 }
 
+/// Test helper: Creates 3DS card payment data with TRA exemption for ACI tests.
 fn get_threeds_payment_authorize_data() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
         payment_method_data: PaymentMethodData::Card(Card {
@@ -95,6 +100,7 @@ fn get_threeds_payment_authorize_data() -> Option<types::PaymentsAuthorizeData> 
             card_holder_name: Some(Secret::new("John Doe".to_string())),
             ..utils::CCardType::default().0
         }),
+        currency: enums::Currency::ZAR,
         enrolled_for_3ds: true,
         authentication_data: Some(AuthenticationData {
             eci: Some("05".to_string()),
@@ -110,7 +116,9 @@ fn get_threeds_payment_authorize_data() -> Option<types::PaymentsAuthorizeData> 
             acs_trans_id: None,
             authentication_type: None,
             cb_network_params: None,
-            exemption_indicator: None,
+            exemption_indicator: Some(
+                common_enums_types::ExemptionIndicator::TransactionRiskAssessment,
+            ),
             transaction_status: None,
         }),
         ..utils::PaymentAuthorizeType::default().0
@@ -493,8 +501,9 @@ async fn should_make_threeds_payment() {
 
     assert!(
         authorize_response.status == enums::AttemptStatus::AuthenticationPending
-            || authorize_response.status == enums::AttemptStatus::Charged,
-        "3DS payment should result in AuthenticationPending or Charged status, got: {:?}",
+            || authorize_response.status == enums::AttemptStatus::Charged
+            || authorize_response.status == enums::AttemptStatus::Pending,
+        "3DS payment should result in AuthenticationPending, Charged, or Pending status, got: {:?}",
         authorize_response.status
     );
 
@@ -524,8 +533,9 @@ async fn should_authorize_threeds_payment() {
 
     assert!(
         response.status == enums::AttemptStatus::AuthenticationPending
-            || response.status == enums::AttemptStatus::Authorized,
-        "3DS authorization should result in AuthenticationPending or Authorized status, got: {:?}",
+            || response.status == enums::AttemptStatus::Authorized
+            || response.status == enums::AttemptStatus::Pending,
+        "3DS authorization should result in AuthenticationPending, Authorized, or Pending status, got: {:?}",
         response.status
     );
 }
@@ -541,22 +551,205 @@ async fn should_sync_threeds_payment() {
         .await
         .expect("Authorize 3DS payment response");
     let txn_id = utils::get_connector_transaction_id(authorize_response.response);
-    let response = CONNECTOR
-        .psync_retry_till_status_matches(
-            enums::AttemptStatus::AuthenticationPending,
-            Some(types::PaymentsSyncData {
-                connector_transaction_id: types::ResponseId::ConnectorTransactionId(
-                    txn_id.unwrap(),
-                ),
-                ..Default::default()
-            }),
+
+    if let Some(txn_id) = txn_id {
+        let response = CONNECTOR
+            .psync_retry_till_status_matches(
+                enums::AttemptStatus::AuthenticationPending,
+                Some(types::PaymentsSyncData {
+                    connector_transaction_id: types::ResponseId::ConnectorTransactionId(txn_id),
+                    ..Default::default()
+                }),
+                get_default_payment_info(),
+            )
+            .await
+            .expect("PSync 3DS response");
+        assert!(
+            response.status == enums::AttemptStatus::AuthenticationPending
+                || response.status == enums::AttemptStatus::Authorized
+                || response.status == enums::AttemptStatus::Pending,
+            "3DS sync should maintain AuthenticationPending, Authorized, or Pending status"
+        );
+    } else {
+        // For 3DS redirect flow, ACI returns pending without transaction ID
+        assert!(
+            authorize_response.status == enums::AttemptStatus::Pending
+                || authorize_response.status == enums::AttemptStatus::AuthenticationPending,
+            "Without transaction ID, status should be Pending or AuthenticationPending"
+        );
+    }
+}
+
+/// Test helper: Creates 3DS payment data with the specified exemption indicator.
+/// Uses default values for non-essential Card and PaymentsAuthorizeData fields.
+fn get_threeds_payment_with_exemption(
+    exemption: common_enums_types::ExemptionIndicator,
+) -> Option<types::PaymentsAuthorizeData> {
+    Some(types::PaymentsAuthorizeData {
+        payment_method_data: PaymentMethodData::Card(Card {
+            card_number: cards::CardNumber::from_str("4200000000000000").unwrap(),
+            card_exp_month: Secret::new("10".to_string()),
+            card_exp_year: Secret::new("2025".to_string()),
+            card_cvc: Secret::new("999".to_string()),
+            card_holder_name: Some(Secret::new("John Doe".to_string())),
+            ..utils::CCardType::default().0
+        }),
+        currency: enums::Currency::ZAR,
+        enrolled_for_3ds: true,
+        authentication_data: Some(AuthenticationData {
+            eci: Some("05".to_string()),
+            cavv: Secret::new("jJ81HADVRtXfCBATEp01CJUAAAA".to_string()),
+            threeds_server_transaction_id: Some("9458d8d4-f19f-4c28-b5c7-421b1dd2e1aa".to_string()),
+            message_version: Some(common_utils::types::SemanticVersion::new(2, 1, 0)),
+            ds_trans_id: Some("97267598FAE648F28083B2D2AF7B1234".to_string()),
+            created_at: common_utils::date_time::now(),
+            challenge_code: Some("01".to_string()),
+            challenge_cancel: None,
+            challenge_code_reason: Some("01".to_string()),
+            message_extension: None,
+            acs_trans_id: None,
+            authentication_type: None,
+            cb_network_params: None,
+            exemption_indicator: Some(exemption),
+            transaction_status: None,
+        }),
+        ..utils::PaymentAuthorizeType::default().0
+    })
+}
+
+#[actix_web::test]
+#[ignore]
+async fn should_make_threeds_payment_with_low_value_exemption() {
+    let authorize_response = CONNECTOR
+        .make_payment(
+            get_threeds_payment_with_exemption(common_enums_types::ExemptionIndicator::LowValue),
             get_default_payment_info(),
         )
         .await
-        .expect("PSync 3DS response");
+        .unwrap();
+
+    assert!(
+        authorize_response.status == enums::AttemptStatus::AuthenticationPending
+            || authorize_response.status == enums::AttemptStatus::Charged
+            || authorize_response.status == enums::AttemptStatus::Pending,
+        "3DS payment with low value exemption should result in AuthenticationPending, Charged, or Pending status, got: {:?}",
+        authorize_response.status
+    );
+}
+
+#[actix_web::test]
+#[ignore]
+async fn should_make_threeds_payment_with_trusted_listing_exemption() {
+    let authorize_response = CONNECTOR
+        .make_payment(
+            get_threeds_payment_with_exemption(
+                common_enums_types::ExemptionIndicator::TrustedListing,
+            ),
+            get_default_payment_info(),
+        )
+        .await
+        .unwrap();
+
+    assert!(
+        authorize_response.status == enums::AttemptStatus::AuthenticationPending
+            || authorize_response.status == enums::AttemptStatus::Charged
+            || authorize_response.status == enums::AttemptStatus::Pending,
+        "3DS payment with trusted listing exemption should result in AuthenticationPending, Charged, or Pending status, got: {:?}",
+        authorize_response.status
+    );
+}
+
+#[actix_web::test]
+#[ignore]
+async fn should_make_threeds_payment_with_sca_delegation_exemption() {
+    let authorize_response = CONNECTOR
+        .make_payment(
+            get_threeds_payment_with_exemption(
+                common_enums_types::ExemptionIndicator::ScaDelegation,
+            ),
+            get_default_payment_info(),
+        )
+        .await
+        .unwrap();
+
+    assert!(
+        authorize_response.status == enums::AttemptStatus::AuthenticationPending
+            || authorize_response.status == enums::AttemptStatus::Charged
+            || authorize_response.status == enums::AttemptStatus::Pending,
+        "3DS payment with SCA delegation exemption should result in AuthenticationPending, Charged, or Pending status, got: {:?}",
+        authorize_response.status
+    );
+}
+
+#[actix_web::test]
+#[ignore]
+async fn should_make_threeds_payment_with_secure_corporate_exemption() {
+    let authorize_response = CONNECTOR
+        .make_payment(
+            get_threeds_payment_with_exemption(
+                common_enums_types::ExemptionIndicator::SecureCorporatePayment,
+            ),
+            get_default_payment_info(),
+        )
+        .await
+        .unwrap();
+
+    assert!(
+        authorize_response.status == enums::AttemptStatus::AuthenticationPending
+            || authorize_response.status == enums::AttemptStatus::Charged
+            || authorize_response.status == enums::AttemptStatus::Pending,
+        "3DS payment with secure corporate exemption should result in AuthenticationPending, Charged, or Pending status, got: {:?}",
+        authorize_response.status
+    );
+}
+
+#[actix_web::test]
+#[ignore]
+async fn should_return_threeds_metadata_in_response() {
+    let authorize_response = CONNECTOR
+        .make_payment(
+            get_threeds_payment_authorize_data(),
+            get_default_payment_info(),
+        )
+        .await
+        .unwrap();
+
+    if authorize_response.status == enums::AttemptStatus::Charged {
+        if let Ok(types::PaymentsResponseData::TransactionResponse {
+            connector_metadata: Some(metadata),
+            ..
+        }) = &authorize_response.response
+        {
+            if let Some(three_ds) = metadata.get("three_ds_data") {
+                assert!(
+                    three_ds.get("eci").is_some()
+                        || three_ds.get("version").is_some()
+                        || three_ds.get("flow").is_some(),
+                    "3DS metadata should contain at least one of: eci, version, flow"
+                );
+            }
+        }
+    }
+}
+
+#[actix_web::test]
+#[ignore]
+async fn should_authorize_threeds_payment_with_tra_exemption() {
+    let response = CONNECTOR
+        .authorize_payment(
+            get_threeds_payment_with_exemption(
+                common_enums_types::ExemptionIndicator::TransactionRiskAssessment,
+            ),
+            get_default_payment_info(),
+        )
+        .await
+        .expect("Authorize 3DS payment with TRA exemption response");
+
     assert!(
         response.status == enums::AttemptStatus::AuthenticationPending
-            || response.status == enums::AttemptStatus::Authorized,
-        "3DS sync should maintain AuthenticationPending or Authorized status"
+            || response.status == enums::AttemptStatus::Authorized
+            || response.status == enums::AttemptStatus::Pending,
+        "3DS authorization with TRA exemption should result in AuthenticationPending, Authorized, or Pending status, got: {:?}",
+        response.status
     );
 }

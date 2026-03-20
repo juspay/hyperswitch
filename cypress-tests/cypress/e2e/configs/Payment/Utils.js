@@ -468,6 +468,7 @@ export const CONNECTOR_LISTS = {
     ],
     PAYMENTS_WEBHOOK: ["noon", "stripe", "authorizedotnet"],
     CARD_INSTALLMENTS: ["adyen"],
+    THREEDS_EXEMPTIONS: ["aci"],
     // Add more inclusion lists
   },
 };
@@ -478,7 +479,7 @@ export const shouldExcludeConnector = (connectorId, list) => {
 };
 
 export const shouldIncludeConnector = (connectorId, list) => {
-  return !list.includes(connectorId);
+  return list.includes(connectorId);
 };
 
 export function setNormalizedValue(
