@@ -2063,7 +2063,11 @@ fn get_recurring_processing_model(
             let store_payment_method = item.request.is_mandate_payment();
             let shopper_reference =
                 shopper_reference.ok_or_else(missing_field_err("connector_customer_id"))?;
-            Ok((None, Some(store_payment_method), Some(shopper_reference)))
+            Ok((
+                Some(AdyenRecurringModel::UnscheduledCardOnFile),
+                Some(store_payment_method),
+                Some(shopper_reference),
+            ))
         }
         // Off-session payment
         (_, Some(true)) => {
@@ -5284,10 +5288,10 @@ impl<F, Req>
         Ok(Self {
             status: adyen_payments_response_data.status,
             amount_captured: minor_amount_captured.map(|amount| amount.get_amount_as_i64()),
-            response: adyen_payments_response_data.error.map_or_else(
-                || Ok(adyen_payments_response_data.payments_response_data),
-                Err,
-            ),
+            response: match adyen_payments_response_data.error {
+                Some(err) => Err(err),
+                None => Ok(adyen_payments_response_data.payments_response_data),
+            },
             connector_response: adyen_payments_response_data.connector_response,
             minor_amount_captured,
             ..item.data
@@ -6235,6 +6239,10 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                     })?,
                     payouts::Bank::Pix(..) => Err(errors::ConnectorError::NotSupported {
                         message: "Bank transfer via Pix is not supported".to_string(),
+                        connector: "Adyen",
+                    })?,
+                    payouts::Bank::Trustly(..) => Err(errors::ConnectorError::NotSupported {
+                        message: "Bank transfer via Trustly is not supported".to_string(),
                         connector: "Adyen",
                     })?,
                 };
