@@ -56,8 +56,7 @@ impl VaultId {
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug)]
 pub struct PaymentMethod {
-    /// The customer id against which the payment method is saved
-    /// It is made optional to support guest checkout tokenization
+    /// Customer_id is made optional to support guest checkout flow when modular pm is enabled
     pub customer_id: Option<id_type::CustomerId>,
     pub merchant_id: id_type::MerchantId,
     pub payment_method_id: String,
@@ -414,8 +413,7 @@ impl super::behaviour::Conversion for PaymentMethod {
     type NewDstType = diesel_models::payment_method::PaymentMethodNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         let (vault_type, external_vault_source) = self.vault_source_details.into();
-        // Note: caller must ensure customer_id is Some when converting to storage
-        // Storage requires customer_id, but domain allows None for guest checkout
+        // Note: caller must ensure customer_id is not null before calling convert as storage model requires it.
         Ok(Self::DstType {
             customer_id: self.customer_id.get_required_value("customer_id")?,
             merchant_id: self.merchant_id,
@@ -610,7 +608,7 @@ impl super::behaviour::Conversion for PaymentMethod {
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         let (vault_type, external_vault_source) = self.vault_source_details.into();
-        // Note: caller must ensure customer_id is Some when converting to storage
+        // Note: caller must ensure customer_id is not null before calling convert as storage model requires it.
         Ok(Self::NewDstType {
             customer_id: self.customer_id.get_required_value("customer_id")?,
             merchant_id: self.merchant_id,

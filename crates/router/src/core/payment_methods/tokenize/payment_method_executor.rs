@@ -318,13 +318,13 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
                 field_name: "customer",
             })?;
 
-        let pm_customer_id = payment_method
+        let customer_id = payment_method
             .customer_id
             .clone()
             .get_required_value("customer_id")
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-        when(pm_customer_id != customer_id_in_req, || {
+        when(customer_id != customer_id_in_req, || {
             Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Payment method does not belong to the customer".to_string()
             }))
@@ -364,7 +364,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
         let db = &*self.state.store;
         let customer = db
             .find_customer_by_customer_id_merchant_id(
-                &pm_customer_id,
+                &customer_id,
                 self.merchant_account.get_id(),
                 self.key_store,
                 self.merchant_account.storage_scheme,

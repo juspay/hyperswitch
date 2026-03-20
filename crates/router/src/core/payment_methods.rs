@@ -2855,7 +2855,6 @@ pub async fn construct_payment_method_object(
 
     Ok(domain::PaymentMethod {
         customer_id: customer_id.clone(),
-        //for guest checkout flow where customer id is not present, generated a temporary customer id to handle to conversion to diesel model.
         merchant_id: merchant_id.to_owned(),
         id: payment_method_id,
         locker_id,
