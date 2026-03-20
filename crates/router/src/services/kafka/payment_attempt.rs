@@ -73,6 +73,7 @@ pub struct KafkaPaymentAttempt<'a> {
     pub debit_routing_savings: Option<MinorUnit>,
     pub signature_network: Option<common_enums::CardNetwork>,
     pub is_issuer_regulated: Option<bool>,
+    pub processor_merchant_id: &'a id_type::MerchantId,
 }
 
 #[cfg(feature = "v1")]
@@ -143,6 +144,7 @@ impl<'a> KafkaPaymentAttempt<'a> {
                 .as_ref()
                 .and_then(|data| data.signature_network.clone()),
             is_issuer_regulated: card_payment_method_data.and_then(|data| data.is_regulated),
+            processor_merchant_id: &attempt.processor_merchant_id,
         }
     }
 }
@@ -153,7 +155,7 @@ pub struct KafkaPaymentAttempt<'a> {
     pub payment_id: &'a id_type::GlobalPaymentId,
     pub merchant_id: &'a id_type::MerchantId,
     pub attempt_id: &'a id_type::GlobalAttemptId,
-    pub attempts_group_id: Option<&'a String>,
+    pub attempts_group_id: Option<&'a id_type::GlobalAttemptGroupId>,
     pub status: storage_enums::AttemptStatus,
     pub amount: MinorUnit,
     pub connector: Option<&'a String>,

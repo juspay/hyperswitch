@@ -3,7 +3,7 @@ import { getCustomExchange } from "./Modifiers";
 const ThreeDSChallengeTestCardDetails = {
   card_number: "4548817212493017",
   card_exp_month: "12",
-  card_exp_year: "25",
+  card_exp_year: "30",
   card_holder_name: "Joseph",
   card_cvc: "123",
 };
@@ -11,7 +11,7 @@ const ThreeDSChallengeTestCardDetails = {
 const threeDSFrictionlessTestCardDetails = {
   card_number: "4548814479727229",
   card_exp_month: "12",
-  card_exp_year: "25",
+  card_exp_year: "30",
   card_holder_name: "Joseph",
   card_cvc: "123",
 };
@@ -287,6 +287,9 @@ export const connectorDetails = {
       },
     },
     ZeroAuthPaymentIntent: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 0,
         setup_future_usage: "off_session",
@@ -314,7 +317,7 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "Setup Mandate flow for redsys is not implemented",
+            message: "Setup Mandate flow for Redsys is not implemented",
             code: "IR_00",
           },
         },
@@ -422,6 +425,30 @@ export const connectorDetails = {
         },
       },
     },
+    SaveCardUse3DSAutoCaptureOffSession: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: ThreeDSChallengeTestCardDetails,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
     PaymentMethodIdMandateNo3DSAutoCapture: {
       Configs: {
         TRIGGER_SKIP: true,
@@ -467,5 +494,18 @@ export const connectorDetails = {
         amount: 6000,
       },
     }),
+    PaymentWithBilling: {
+      Request: {
+        currency: "USD",
+        setup_future_usage: "on_session",
+        billing: Address,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
   },
 };

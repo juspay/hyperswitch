@@ -6,7 +6,7 @@ use common_utils::{
     date_time,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
-    ext_traits::ValueExt,
+    ext_traits::{StringExt, ValueExt},
     id_type, pii, type_name,
     types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
 };
@@ -65,6 +65,7 @@ pub struct MerchantConnectorAccount {
     #[encrypt]
     pub additional_merchant_data: Option<Encryptable<Secret<Value>>>,
     pub version: common_enums::ApiVersion,
+    pub connector_webhook_registration_details: Option<Value>,
 }
 
 #[cfg(feature = "v1")]
@@ -96,6 +97,34 @@ impl MerchantConnectorAccount {
 
     pub fn get_metadata(&self) -> Option<Secret<Value>> {
         self.metadata.clone()
+    }
+
+    pub fn get_ctp_service_provider(
+        &self,
+    ) -> error_stack::Result<
+        Option<common_enums::CtpServiceProvider>,
+        common_utils::errors::ParsingError,
+    > {
+        let provider = self
+            .connector_name
+            .clone()
+            .parse_enum("CtpServiceProvider")
+            .attach_printable_lazy(|| {
+                format!(
+                    "Failed to parse ctp service provider from connector_name: {}",
+                    self.connector_name
+                )
+            })?;
+
+        Ok(Some(provider))
+    }
+
+    pub fn should_construct_webhook_setup_capability(&self) -> bool {
+        matches!(self.connector_type, enums::ConnectorType::PaymentProcessor)
+    }
+
+    pub fn get_connector_webhook_registration_details(&self) -> Option<Value> {
+        self.connector_webhook_registration_details.clone()
     }
 }
 
@@ -166,13 +195,13 @@ impl MerchantConnectorAccountTypeDetails {
         }
     }
 
-    pub fn get_connector_name(&self) -> Option<common_enums::connector_enums::Connector> {
+    pub fn get_connector_name(&self) -> common_enums::connector_enums::Connector {
         match self {
             Self::MerchantConnectorAccount(merchant_connector_account) => {
-                Some(merchant_connector_account.connector_name)
+                merchant_connector_account.connector_name
             }
             Self::MerchantConnectorDetails(merchant_connector_details) => {
-                Some(merchant_connector_details.connector_name)
+                merchant_connector_details.connector_name
             }
         }
     }
@@ -467,6 +496,9 @@ pub enum MerchantConnectorAccountUpdate {
     ConnectorWalletDetailsUpdate {
         connector_wallets_details: Encryptable<pii::SecretSerdeValue>,
     },
+    ConnectorWebhookRegisterationUpdate {
+        connector_webhook_registration_details: Option<Value>,
+    },
 }
 
 #[cfg(feature = "v2")]
@@ -527,6 +559,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             connector_wallets_details: self.connector_wallets_details.map(Encryption::from),
             additional_merchant_data: self.additional_merchant_data.map(|data| data.into()),
             version: self.version,
+            connector_webhook_registration_details: self.connector_webhook_registration_details,
         })
     }
 
@@ -591,6 +624,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             connector_wallets_details: decrypted_data.connector_wallets_details,
             additional_merchant_data: decrypted_data.additional_merchant_data,
             version: other.version,
+            connector_webhook_registration_details: other.connector_webhook_registration_details,
         })
     }
 
@@ -656,6 +690,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             additional_merchant_data: self.additional_merchant_data.map(|data| data.into()),
             version: self.version,
             feature_metadata: self.feature_metadata.map(From::from),
+            connector_webhook_registration_details: None,
         })
     }
 
@@ -785,6 +820,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 status,
                 connector_wallets_details: connector_wallets_details.map(Encryption::from),
                 additional_merchant_data: additional_merchant_data.map(Encryption::from),
+                connector_webhook_registration_details: None,
             },
             MerchantConnectorAccountUpdate::ConnectorWalletDetailsUpdate {
                 connector_wallets_details,
@@ -807,6 +843,30 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 pm_auth_config: None,
                 status: None,
                 additional_merchant_data: None,
+                connector_webhook_registration_details: None,
+            },
+            MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
+                connector_webhook_registration_details,
+            } => Self {
+                connector_type: None,
+                connector_name: None,
+                connector_account_details: None,
+                connector_label: None,
+                test_mode: None,
+                disabled: None,
+                merchant_connector_id: None,
+                payment_methods_enabled: None,
+                frm_configs: None,
+                metadata: None,
+                modified_at: None,
+                connector_webhook_details: None,
+                frm_config: None,
+                applepay_verified_domains: None,
+                pm_auth_config: None,
+                status: None,
+                connector_wallets_details: None,
+                additional_merchant_data: None,
+                connector_webhook_registration_details,
             },
         }
     }
@@ -1011,7 +1071,6 @@ where
     #[cfg(feature = "v1")]
     async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
-        state: &KeyManagerState,
         merchant_id: &id_type::MerchantId,
         connector_label: &str,
         key_store: &MerchantKeyStore,
@@ -1020,7 +1079,6 @@ where
     #[cfg(feature = "v1")]
     async fn find_merchant_connector_account_by_profile_id_connector_name(
         &self,
-        state: &KeyManagerState,
         profile_id: &id_type::ProfileId,
         connector_name: &str,
         key_store: &MerchantKeyStore,
@@ -1029,7 +1087,6 @@ where
     #[cfg(feature = "v1")]
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
         &self,
-        state: &KeyManagerState,
         merchant_id: &id_type::MerchantId,
         connector_name: &str,
         key_store: &MerchantKeyStore,
@@ -1037,7 +1094,6 @@ where
 
     async fn insert_merchant_connector_account(
         &self,
-        state: &KeyManagerState,
         t: MerchantConnectorAccount,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<MerchantConnectorAccount, Self::Error>;
@@ -1045,7 +1101,6 @@ where
     #[cfg(feature = "v1")]
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
         &self,
-        state: &KeyManagerState,
         merchant_id: &id_type::MerchantId,
         merchant_connector_id: &id_type::MerchantConnectorAccountId,
         key_store: &MerchantKeyStore,
@@ -1054,14 +1109,12 @@ where
     #[cfg(feature = "v2")]
     async fn find_merchant_connector_account_by_id(
         &self,
-        state: &KeyManagerState,
         id: &id_type::MerchantConnectorAccountId,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<MerchantConnectorAccount, Self::Error>;
 
     async fn find_merchant_connector_account_by_merchant_id_and_disabled_list(
         &self,
-        state: &KeyManagerState,
         merchant_id: &id_type::MerchantId,
         get_disabled: bool,
         key_store: &MerchantKeyStore,
@@ -1070,14 +1123,12 @@ where
     #[cfg(all(feature = "olap", feature = "v2"))]
     async fn list_connector_account_by_profile_id(
         &self,
-        state: &KeyManagerState,
         profile_id: &id_type::ProfileId,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<MerchantConnectorAccount>, Self::Error>;
 
     async fn list_enabled_connector_accounts_by_profile_id(
         &self,
-        state: &KeyManagerState,
         profile_id: &id_type::ProfileId,
         key_store: &MerchantKeyStore,
         connector_type: common_enums::ConnectorType,
@@ -1085,7 +1136,6 @@ where
 
     async fn update_merchant_connector_account(
         &self,
-        state: &KeyManagerState,
         this: MerchantConnectorAccount,
         merchant_connector_account: MerchantConnectorAccountUpdateInternal,
         key_store: &MerchantKeyStore,

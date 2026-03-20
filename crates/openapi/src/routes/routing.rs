@@ -281,6 +281,33 @@ pub async fn routing_update_default_config_for_profile() {}
 pub async fn toggle_success_based_routing() {}
 
 #[cfg(feature = "v1")]
+/// Routing - Auth Rate Based
+///
+/// Create a success based dynamic routing algorithm
+#[utoipa::path(
+    post,
+    path = "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/success_based/create",
+    request_body = SuccessBasedRoutingConfig,
+    params(
+        ("account_id" = String, Path, description = "Merchant id"),
+        ("profile_id" = String, Path, description = "Profile id under which Dynamic routing needs to be created"),
+        ("enable" = DynamicRoutingFeatures, Query, description = "Feature to enable for success based routing"),
+    ),
+    responses(
+        (status = 200, description = "Routing Algorithm created", body = RoutingDictionaryRecord),
+        (status = 400, description = "Request body is malformed"),
+        (status = 500, description = "Internal server error"),
+        (status = 404, description = "Resource missing"),
+        (status = 422, description = "Unprocessable request"),
+        (status = 403, description = "Forbidden"),
+    ),
+   tag = "Routing",
+   operation_id = "Create success based dynamic routing algorithm",
+   security(("api_key" = []), ("jwt_key" = []))
+)]
+pub async fn create_success_based_routing() {}
+
+#[cfg(feature = "v1")]
 /// Routing - Update success based dynamic routing config for profile
 ///
 /// Update success based dynamic routing algorithm
@@ -332,6 +359,33 @@ pub async fn success_based_routing_update_configs() {}
    security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn toggle_elimination_routing() {}
+
+#[cfg(feature = "v1")]
+/// Routing - Elimination
+///
+/// Create a elimination based dynamic routing algorithm
+#[utoipa::path(
+    post,
+    path = "/account/{account_id}/business_profile/{profile_id}/dynamic_routing/elimination/create",
+    request_body = EliminationRoutingConfig,
+    params(
+        ("account_id" = String, Path, description = "Merchant id"),
+        ("profile_id" = String, Path, description = "Profile id under which Dynamic routing needs to be created"),
+        ("enable" = DynamicRoutingFeatures, Query, description = "Feature to enable for elimination based routing"),
+    ),
+    responses(
+        (status = 200, description = "Routing Algorithm created", body = RoutingDictionaryRecord),
+        (status = 400, description = "Request body is malformed"),
+        (status = 500, description = "Internal server error"),
+        (status = 404, description = "Resource missing"),
+        (status = 422, description = "Unprocessable request"),
+        (status = 403, description = "Forbidden"),
+    ),
+   tag = "Routing",
+   operation_id = "Create elimination routing algorithm",
+   security(("api_key" = []), ("jwt_key" = []))
+)]
+pub async fn create_elimination_routing() {}
 
 #[cfg(feature = "v1")]
 /// Routing - Toggle Contract routing for profile

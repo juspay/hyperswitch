@@ -45,7 +45,7 @@ use hyperswitch_interfaces::{
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 use masking::{Mask, PeekInterface};
 use router_env::logger;
@@ -131,6 +131,7 @@ impl ConnectorCommon for Klarna {
             reason,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -640,6 +641,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::InstantBankTransfer
                         | common_enums::PaymentMethodType::InstantBankTransferFinland
                         | common_enums::PaymentMethodType::InstantBankTransferPoland
+                        | common_enums::PaymentMethodType::Qris
                         | common_enums::PaymentMethodType::MiniStop
                         | common_enums::PaymentMethodType::FamilyMart
                         | common_enums::PaymentMethodType::Seicomart
@@ -653,7 +655,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::OpenBankingPIS
                         | common_enums::PaymentMethodType::RevolutPay
                         | common_enums::PaymentMethodType::IndonesianBankTransfer
-                        | common_enums::PaymentMethodType::Breadpay,
+                        | common_enums::PaymentMethodType::Breadpay
+                        | common_enums::PaymentMethodType::Payjustnow
+                        | common_enums::PaymentMethodType::OpenBanking
+                        | common_enums::PaymentMethodType::NetworkToken,
                     ) => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                         message: payment_method_type.to_string(),
                         connector: "klarna",
@@ -742,6 +747,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::PaySafeCard
                         | common_enums::PaymentMethodType::Przelewy24
                         | common_enums::PaymentMethodType::Pse
+                        | common_enums::PaymentMethodType::Qris
                         | common_enums::PaymentMethodType::RedCompra
                         | common_enums::PaymentMethodType::RedPagos
                         | common_enums::PaymentMethodType::SamsungPay
@@ -780,7 +786,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Skrill
                         | common_enums::PaymentMethodType::IndonesianBankTransfer
                         | common_enums::PaymentMethodType::RevolutPay
-                        | common_enums::PaymentMethodType::Breadpay,
+                        | common_enums::PaymentMethodType::Breadpay
+                        | common_enums::PaymentMethodType::Payjustnow
+                        | common_enums::PaymentMethodType::OpenBanking
+                        | common_enums::PaymentMethodType::NetworkToken,
                     ) => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                         message: payment_method_type.to_string(),
                         connector: "klarna",
@@ -912,8 +921,12 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Flexiti
                         | common_enums::PaymentMethodType::OpenBankingPIS
                         | common_enums::PaymentMethodType::IndonesianBankTransfer
+                        | common_enums::PaymentMethodType::Qris
                         | common_enums::PaymentMethodType::RevolutPay
-                        | common_enums::PaymentMethodType::Breadpay,
+                        | common_enums::PaymentMethodType::Breadpay
+                        | common_enums::PaymentMethodType::Payjustnow
+                        | common_enums::PaymentMethodType::OpenBanking
+                        | common_enums::PaymentMethodType::NetworkToken,
                     ) => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                         message: payment_method_type.to_string(),
                         connector: "klarna",
@@ -1002,6 +1015,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::PaySafeCard
                         | common_enums::PaymentMethodType::Przelewy24
                         | common_enums::PaymentMethodType::Pse
+                        | common_enums::PaymentMethodType::Qris
                         | common_enums::PaymentMethodType::RedCompra
                         | common_enums::PaymentMethodType::RedPagos
                         | common_enums::PaymentMethodType::SamsungPay
@@ -1040,7 +1054,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::RevolutPay
                         | common_enums::PaymentMethodType::Breadpay
                         | common_enums::PaymentMethodType::IndonesianBankTransfer
-                        | common_enums::PaymentMethodType::Skrill,
+                        | common_enums::PaymentMethodType::Skrill
+                        | common_enums::PaymentMethodType::Payjustnow
+                        | common_enums::PaymentMethodType::OpenBanking
+                        | common_enums::PaymentMethodType::NetworkToken,
                     ) => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                         message: payment_method_type.to_string(),
                         connector: "klarna",
@@ -1066,7 +1083,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(report!(errors::ConnectorError::NotImplemented(
                     get_unimplemented_payment_method_error_message(req.connector.as_str(),),
                 )))
@@ -1396,6 +1416,7 @@ impl IncomingWebhook for Klarna {
     fn get_webhook_event_type(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         Ok(IncomingWebhookEvent::EventNotSupported)
     }

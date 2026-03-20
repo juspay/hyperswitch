@@ -5,10 +5,11 @@ use crate::{
     router_data_v2::{self, RouterDataV2},
     router_flow_types::{
         mandate_revoke::MandateRevoke,
+        merchant_connector_webhook_management::ConnectorWebhookRegister,
         revenue_recovery::InvoiceRecordBack,
         subscriptions::{
-            GetSubscriptionEstimate, GetSubscriptionPlanPrices, GetSubscriptionPlans,
-            SubscriptionCreate,
+            GetSubscriptionEstimate, GetSubscriptionItemPrices, GetSubscriptionItems,
+            SubscriptionCancel, SubscriptionCreate, SubscriptionPause, SubscriptionResume,
         },
         AccessTokenAuth, AccessTokenAuthentication, Authenticate, AuthenticationConfirmation,
         Authorize, AuthorizeSessionToken, BillingConnectorInvoiceSync,
@@ -16,21 +17,24 @@ use crate::{
         CreateConnectorCustomer, CreateOrder, Execute, ExtendAuthorization, ExternalVaultProxy,
         GiftCardBalanceCheck, IncrementalAuthorization, PSync, PaymentMethodToken,
         PostAuthenticate, PostCaptureVoid, PostSessionTokens, PreAuthenticate, PreProcessing,
-        RSync, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
+        ProcessIncomingWebhook, RSync, SdkSessionUpdate, Session, SettlementSplitCreate,
+        SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
     },
     router_request_types::{
+        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
         revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             InvoiceRecordBackRequest,
         },
         subscriptions::{
-            GetSubscriptionEstimateRequest, GetSubscriptionPlanPricesRequest,
-            GetSubscriptionPlansRequest, SubscriptionCreateRequest,
+            GetSubscriptionEstimateRequest, GetSubscriptionItemPricesRequest,
+            GetSubscriptionItemsRequest, SubscriptionCancelRequest, SubscriptionCreateRequest,
+            SubscriptionPauseRequest, SubscriptionResumeRequest,
         },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData,
+            UasPreAuthenticationRequestData, UasWebhookRequestData,
         },
         AccessTokenAuthenticationRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
         CompleteAuthorizeData, ConnectorCustomerData, CreateOrderRequestData,
@@ -41,17 +45,19 @@ use crate::{
         PaymentsPostAuthenticateData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
         PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
         PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
-        SdkPaymentsSessionUpdateData, SetupMandateRequestData, VaultRequestData,
-        VerifyWebhookSourceRequestData,
+        SdkPaymentsSessionUpdateData, SettlementSplitRequestData, SetupMandateRequestData,
+        VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
+        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
         revenue_recovery::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             InvoiceRecordBackResponse,
         },
         subscriptions::{
-            GetSubscriptionEstimateResponse, GetSubscriptionPlanPricesResponse,
-            GetSubscriptionPlansResponse, SubscriptionCreateResponse,
+            GetSubscriptionEstimateResponse, GetSubscriptionItemPricesResponse,
+            GetSubscriptionItemsResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
+            SubscriptionPauseResponse, SubscriptionResumeResponse,
         },
         GiftCardBalanceCheckResponseData, MandateRevokeResponseData, PaymentsResponseData,
         RefundsResponseData, TaxCalculationResponseData, VaultResponseData,
@@ -98,6 +104,8 @@ pub type AccessTokenAuthenticationRouterData = RouterData<
     AccessTokenAuthenticationRequestData,
     AccessTokenAuthenticationResponse,
 >;
+pub type PaymentsSettlementSplitCreateRouterData =
+    RouterData<SettlementSplitCreate, SettlementSplitRequestData, PaymentsResponseData>;
 pub type PaymentsGiftCardBalanceCheckRouterData = RouterData<
     GiftCardBalanceCheck,
     GiftCardBalanceCheckRequestData,
@@ -123,6 +131,9 @@ pub type UasAuthenticationConfirmationRouterData = RouterData<
     UasAuthenticationResponseData,
 >;
 
+pub type UasProcessWebhookRouterData =
+    RouterData<ProcessIncomingWebhook, UasWebhookRequestData, UasAuthenticationResponseData>;
+
 pub type MandateRevokeRouterData =
     RouterData<MandateRevoke, MandateRevokeRequestData, MandateRevokeResponseData>;
 pub type PaymentsIncrementalAuthorizationRouterData = RouterData<
@@ -147,14 +158,23 @@ pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;
 pub type InvoiceRecordBackRouterData =
     RouterData<InvoiceRecordBack, InvoiceRecordBackRequest, InvoiceRecordBackResponse>;
 
-pub type GetSubscriptionPlansRouterData =
-    RouterData<GetSubscriptionPlans, GetSubscriptionPlansRequest, GetSubscriptionPlansResponse>;
+pub type GetSubscriptionItemsRouterData =
+    RouterData<GetSubscriptionItems, GetSubscriptionItemsRequest, GetSubscriptionItemsResponse>;
 
 pub type GetSubscriptionEstimateRouterData = RouterData<
     GetSubscriptionEstimate,
     GetSubscriptionEstimateRequest,
     GetSubscriptionEstimateResponse,
 >;
+
+pub type SubscriptionPauseRouterData =
+    RouterData<SubscriptionPause, SubscriptionPauseRequest, SubscriptionPauseResponse>;
+
+pub type SubscriptionResumeRouterData =
+    RouterData<SubscriptionResume, SubscriptionResumeRequest, SubscriptionResumeResponse>;
+
+pub type SubscriptionCancelRouterData =
+    RouterData<SubscriptionCancel, SubscriptionCancelRequest, SubscriptionCancelResponse>;
 
 pub type UasAuthenticationRouterData =
     RouterData<Authenticate, UasAuthenticationRequestData, UasAuthenticationResponseData>;
@@ -193,9 +213,9 @@ pub type InvoiceRecordBackRouterDataV2 = RouterDataV2<
 >;
 
 pub type GetSubscriptionPlanPricesRouterData = RouterData<
-    GetSubscriptionPlanPrices,
-    GetSubscriptionPlanPricesRequest,
-    GetSubscriptionPlanPricesResponse,
+    GetSubscriptionItemPrices,
+    GetSubscriptionItemPricesRequest,
+    GetSubscriptionItemPricesResponse,
 >;
 
 pub type VaultRouterData<F> = RouterData<F, VaultRequestData, VaultResponseData>;
@@ -216,3 +236,9 @@ pub type ExternalVaultProxyPaymentsRouterDataV2 = RouterDataV2<
 
 pub type SubscriptionCreateRouterData =
     RouterData<SubscriptionCreate, SubscriptionCreateRequest, SubscriptionCreateResponse>;
+
+pub type ConnectorWebhookRegisterRouterData = RouterData<
+    ConnectorWebhookRegister,
+    ConnectorWebhookRegisterRequest,
+    ConnectorWebhookRegisterResponse,
+>;

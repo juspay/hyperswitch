@@ -13,8 +13,8 @@ use std::{
     borrow::Cow,
     fmt::Display,
     iter::Sum,
-    num::NonZeroI64,
-    ops::{Add, Mul, Sub},
+    num::{NonZeroI64, NonZeroU8},
+    ops::{Add, Div, Mul, Sub},
     primitive::i64,
     str::FromStr,
 };
@@ -382,6 +382,7 @@ impl AmountConvertor for MinorUnitForConnector {
     Hash,
     ToSchema,
     PartialOrd,
+    Ord,
 )]
 #[diesel(sql_type = sql_types::BigInt)]
 pub struct MinorUnit(i64);
@@ -426,7 +427,7 @@ impl MinorUnit {
     }
 
     /// Convert the amount to its major denomination based on Currency and return f64
-    fn to_major_unit_as_f64(
+    pub fn to_major_unit_as_f64(
         self,
         currency: enums::Currency,
     ) -> Result<FloatMajorUnit, error_stack::Report<ParsingError>> {
@@ -516,6 +517,14 @@ impl Mul<u16> for MinorUnit {
 
     fn mul(self, a2: u16) -> Self::Output {
         Self(self.0 * i64::from(a2))
+    }
+}
+
+impl Div<NonZeroU8> for MinorUnit {
+    type Output = Self;
+
+    fn div(self, a2: NonZeroU8) -> Self::Output {
+        Self(self.0 / i64::from(a2.get()))
     }
 }
 
@@ -681,6 +690,10 @@ impl StringMajorUnit {
     pub fn get_amount_as_string(&self) -> String {
         self.0.clone()
     }
+    /// forms a new default 2-decimal major unit
+    pub fn zero_decimal() -> Self {
+        Self("0.00".to_string())
+    }
 }
 
 #[derive(
@@ -767,7 +780,6 @@ pub struct TimeRange {
 
 #[cfg(test)]
 mod amount_conversion_tests {
-    #![allow(clippy::unwrap_used)]
     use super::*;
     const TWO_DECIMAL_CURRENCY: enums::Currency = enums::Currency::USD;
     const THREE_DECIMAL_CURRENCY: enums::Currency = enums::Currency::BHD;
@@ -1439,8 +1451,20 @@ impl_enum_str!(
             /// user id of creator.
             user_id: String,
         },
+        /// EmbeddedToken variant
+        EmbeddedToken {
+            /// merchant id of creator.
+            merchant_id: String,
+        },
     }
 );
+
+/// Trait for enums created with `impl_enum_str!` macro that have an `Invalid` variant.
+/// This trait allows generic functions to check if a parsed enum value is invalid.
+pub trait HasInvalidVariant {
+    /// Returns true if this instance is the `Invalid` variant
+    fn is_invalid(&self) -> bool;
+}
 
 #[allow(missing_docs)]
 pub trait TenantConfig: Send + Sync {

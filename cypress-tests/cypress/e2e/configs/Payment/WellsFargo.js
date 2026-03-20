@@ -36,6 +36,12 @@ const multiUseMandateData = {
   },
 };
 
+const threeDsValidationData = {
+  type: "invalid_request",
+  message: "3DS not supported for WellsFargo",
+  code: "IR_00",
+};
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -115,9 +121,9 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
+          error: threeDsValidationData,
         },
       },
     },
@@ -135,9 +141,9 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
+          error: threeDsValidationData,
         },
       },
     },
@@ -255,9 +261,9 @@ export const connectorDetails = {
         mandate_data: singleUseMandateData,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
+          error: threeDsValidationData,
         },
       },
     },
@@ -422,6 +428,8 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         payment_type: "setup_mandate",
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -526,9 +534,9 @@ export const connectorDetails = {
         customer_acceptance: customerAcceptance,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
+          error: threeDsValidationData,
         },
       },
     },
@@ -631,9 +639,9 @@ export const connectorDetails = {
         customer_acceptance: customerAcceptance,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
+          error: threeDsValidationData,
         },
       },
     },

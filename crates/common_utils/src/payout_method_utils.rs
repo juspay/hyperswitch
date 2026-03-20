@@ -1,14 +1,13 @@
 //! This module has common utilities for payout method data in HyperSwitch
 
-use common_enums;
 use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::new_type::{
-    MaskedBankAccount, MaskedBic, MaskedEmail, MaskedIban, MaskedPhoneNumber, MaskedRoutingNumber,
-    MaskedSortCode,
+    MaskedBankAccount, MaskedBic, MaskedEmail, MaskedIban, MaskedPhoneNumber, MaskedPspToken,
+    MaskedRoutingNumber, MaskedSortCode,
 };
 
 /// Masked payout method details for storing in db
@@ -25,6 +24,8 @@ pub enum AdditionalPayoutMethodData {
     Wallet(Box<WalletAdditionalData>),
     /// Additional data for Bank Redirect payout method
     BankRedirect(Box<BankRedirectAdditionalData>),
+    /// Additional data for Passthrough payout method
+    Passthrough(Box<PassthroughAdditionalData>),
 }
 
 crate::impl_to_sql_from_sql_json!(AdditionalPayoutMethodData);
@@ -88,6 +89,8 @@ pub enum BankAdditionalData {
     Sepa(Box<SepaBankTransferAdditionalData>),
     /// Additional data for pix bank transfer payout method
     Pix(Box<PixBankTransferAdditionalData>),
+    /// Additional data for Trustly bank transfer payout method
+    Trustly(Box<TrustlyBankTransferAdditionalData>),
 }
 
 /// Masked payout method details for ach bank transfer payout method
@@ -198,6 +201,26 @@ pub struct PixBankTransferAdditionalData {
     pub bank_branch: Option<String>,
 }
 
+/// Masked payout method details for Trustly bank transfer payout method
+#[derive(
+    Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct TrustlyBankTransferAdditionalData {
+    /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
+    #[schema(value_type = String, example = "token_12345")]
+    pub iban: Option<Secret<String>>,
+    /// country code of the customer's bank account.
+    #[schema(value_type = CountryAlpha2, example = "US")]
+    pub country_code: common_enums::CountryAlpha2,
+    /// The account number, identifying the end-user's account in the bank.
+    #[schema(value_type = String, example = "69706212")]
+    pub account_number: Option<Secret<String>>,
+    /// The bank number identifying the end-user's bank in the given clearing house.
+    #[schema(value_type = String, example = "6112")]
+    pub bank_number: Option<Secret<String>>,
+}
+
 /// Masked payout method details for wallet payout method
 #[derive(
     Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
@@ -269,6 +292,8 @@ pub struct ApplePayDecryptAdditionalData {
 #[diesel(sql_type = Jsonb)]
 #[serde(untagged)]
 pub enum BankRedirectAdditionalData {
+    /// Additional data for OpenBankingUK bank redirect payout method
+    OpenBankingUk(Box<OpenBankingUkAdditionalData>),
     /// Additional data for interac bank redirect payout method
     Interac(Box<InteracAdditionalData>),
 }
@@ -282,4 +307,32 @@ pub struct InteracAdditionalData {
     /// Email linked with interac account
     #[schema(value_type = Option<String>, example = "john.doe@example.com")]
     pub email: Option<MaskedEmail>,
+}
+
+/// Masked payout method details for OpenBankingUK bank redirect payout method
+#[derive(
+    Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct OpenBankingUkAdditionalData {
+    /// Account holder name
+    #[schema(value_type = String, example = "John Doe")]
+    pub account_holder_name: Secret<String>,
+    /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
+    #[schema(value_type = String, example = "DE89370400440532013000")]
+    pub iban: Secret<String>,
+}
+
+/// additional payout method details for passthrough payout method
+#[derive(
+    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct PassthroughAdditionalData {
+    /// Psp_token of the passthrough flow
+    #[schema(value_type = String, example = "token_12345")]
+    pub psp_token: MaskedPspToken,
+    /// token_type of the passthrough flow
+    #[schema(value_type = PaymentMethodType, example = "paypal")]
+    pub token_type: common_enums::PaymentMethodType,
 }

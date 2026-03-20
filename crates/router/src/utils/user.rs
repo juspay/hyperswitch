@@ -52,11 +52,9 @@ impl UserFromToken {
         &self,
         state: SessionState,
     ) -> UserResult<MerchantAccount> {
-        let key_manager_state = &(&state).into();
         let key_store = state
             .store
             .get_merchant_key_store_by_merchant_id(
-                key_manager_state,
                 &self.merchant_id,
                 &state.store.get_master_key().to_vec().into(),
             )
@@ -70,7 +68,7 @@ impl UserFromToken {
             })?;
         let merchant_account = state
             .store
-            .find_merchant_account_by_merchant_id(key_manager_state, &self.merchant_id, &key_store)
+            .find_merchant_account_by_merchant_id(&self.merchant_id, &key_store)
             .await
             .map_err(|e| {
                 if e.current_context().is_db_not_found() {
@@ -82,10 +80,13 @@ impl UserFromToken {
         Ok(merchant_account)
     }
 
-    pub async fn get_user_from_db(&self, state: &SessionState) -> UserResult<UserFromStorage> {
+    pub async fn get_active_user_from_db(
+        &self,
+        state: &SessionState,
+    ) -> UserResult<UserFromStorage> {
         let user = state
             .global_store
-            .find_user_by_id(&self.user_id)
+            .find_active_user_by_user_id(&self.user_id)
             .await
             .change_context(UserErrors::InternalServerError)?;
         Ok(user.into())
@@ -136,13 +137,13 @@ pub fn get_verification_days_left(
     return Ok(None);
 }
 
-pub async fn get_user_from_db_by_email(
+pub async fn get_active_user_from_db_by_email(
     state: &SessionState,
     email: domain::UserEmail,
 ) -> CustomResult<UserFromStorage, StorageError> {
     state
         .global_store
-        .find_user_by_email(&email)
+        .find_active_user_by_user_email(&email)
         .await
         .map(UserFromStorage::from)
 }
@@ -365,7 +366,7 @@ pub fn spawn_async_lineage_context_update_to_db(
     tokio::spawn(async move {
         match state
             .global_store
-            .update_user_by_user_id(
+            .update_active_user_by_user_id(
                 &user_id,
                 diesel_models::user::UserUpdate::LineageContextUpdate { lineage_context },
             )

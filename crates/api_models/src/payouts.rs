@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use cards::CardNumber;
+use common_enums::CardNetwork;
 #[cfg(feature = "v2")]
 use common_utils::types::BrowserInformation;
 use common_utils::{
@@ -18,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::{enums as api_enums, payment_methods::RequiredFieldInfo, payments};
+use crate::{admin, enums as api_enums, payment_methods::RequiredFieldInfo, payments};
 
 #[derive(Debug, Serialize, Clone, ToSchema)]
 pub enum PayoutRequest {
@@ -203,9 +204,10 @@ pub struct PayoutCreateRequest {
 
 impl PayoutCreateRequest {
     pub fn get_customer_id(&self) -> Option<&id_type::CustomerId> {
-        self.customer_id
+        self.customer_id.as_ref().or(self
+            .customer
             .as_ref()
-            .or(self.customer.as_ref().map(|customer| &customer.id))
+            .and_then(|customer| customer.id.as_ref()))
     }
 }
 
@@ -243,6 +245,7 @@ pub enum PayoutMethodData {
     Bank(Bank),
     Wallet(Wallet),
     BankRedirect(BankRedirect),
+    Passthrough(Passthrough),
 }
 
 impl Default for PayoutMethodData {
@@ -268,6 +271,10 @@ pub struct CardPayout {
     /// The card holder's name
     #[schema(value_type = String, example = "John Doe")]
     pub card_holder_name: Option<Secret<String>>,
+
+    /// The card's network
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    pub card_network: Option<CardNetwork>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -277,6 +284,7 @@ pub enum Bank {
     Bacs(BacsBankTransfer),
     Sepa(SepaBankTransfer),
     Pix(PixBankTransfer),
+    Trustly(TrustlyBankTransfer),
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -384,6 +392,7 @@ pub enum Wallet {
 #[serde(rename_all = "snake_case")]
 pub enum BankRedirect {
     Interac(Interac),
+    OpenBankingUk(OpenBankingUk),
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -391,6 +400,44 @@ pub struct Interac {
     /// Customer email linked with interac account
     #[schema(value_type = String, example = "john.doe@example.com")]
     pub email: Email,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct OpenBankingUk {
+    /// Account holder name
+    #[schema(value_type = String, example = "John Doe")]
+    pub account_holder_name: Secret<String>,
+    /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
+    #[schema(value_type = String, example = "DE89370400440532013000")]
+    pub iban: Secret<String>,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct TrustlyBankTransfer {
+    /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
+    #[schema(value_type = String, example = "token_12345")]
+    pub iban: Option<Secret<String>>,
+    /// country code of the customer's bank account.
+    #[schema(value_type = CountryAlpha2, example = "US")]
+    pub country_code: api_enums::CountryAlpha2,
+    /// The account number, identifying the end-user's account in the bank.
+    #[schema(value_type = String, example = "69706212")]
+    pub account_number: Option<Secret<String>>,
+    /// The bank number identifying the end-user's bank in the given clearing house.
+    #[schema(value_type = String, example = "6112")]
+    pub bank_number: Option<Secret<String>>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct Passthrough {
+    /// PSP token generated for the payout method
+    #[schema(value_type = String, example = "token_12345")]
+    pub psp_token: Secret<String>,
+
+    /// Payout method type of the token
+    #[schema(value_type = PaymentMethodType, example = "paypal")]
+    pub token_type: api_enums::PaymentMethodType,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -432,6 +479,10 @@ pub struct ApplePayDecrypt {
     /// The card holder's name
     #[schema(value_type = String, example = "John Doe")]
     pub card_holder_name: Option<Secret<String>>,
+
+    /// The card's network
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    pub card_network: Option<CardNetwork>,
 }
 
 #[derive(Debug, ToSchema, Clone, Serialize, router_derive::PolymorphicSchema)]
@@ -638,6 +689,8 @@ pub enum PayoutMethodDataResponse {
     Wallet(Box<payout_method_utils::WalletAdditionalData>),
     #[schema(value_type = BankRedirectAdditionalData)]
     BankRedirect(Box<payout_method_utils::BankRedirectAdditionalData>),
+    #[schema(value_type = PassthroughAdditionalData)]
+    Passthrough(Box<payout_method_utils::PassthroughAdditionalData>),
 }
 
 #[derive(
@@ -868,6 +921,22 @@ pub struct PayoutListFilters {
 }
 
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]
+pub struct PayoutListFiltersV2 {
+    /// The list of available connector filters
+    #[schema(value_type = Vec<PayoutConnectors>)]
+    pub connector: HashMap<String, Vec<admin::MerchantConnectorInfo>>,
+    /// The list of available currency filters
+    #[schema(value_type = Vec<Currency>)]
+    pub currency: Vec<common_enums::Currency>,
+    /// The list of available payout status filters
+    #[schema(value_type = Vec<PayoutStatus>)]
+    pub status: Vec<common_enums::PayoutStatus>,
+    /// The list of available payout method filters
+    #[schema(value_type = Vec<PayoutType>)]
+    pub payout_method: Vec<common_enums::PayoutType>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct PayoutLinkResponse {
     pub payout_link_id: String,
     #[schema(value_type = String)]
@@ -999,6 +1068,19 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
                     tax_id: tax_id.map(From::from),
                 },
             )),
+            Bank::Trustly(TrustlyBankTransfer {
+                iban,
+                country_code,
+                account_number,
+                bank_number,
+            }) => Self::Trustly(Box::new(
+                payout_method_utils::TrustlyBankTransferAdditionalData {
+                    iban,
+                    country_code,
+                    account_number,
+                    bank_number,
+                },
+            )),
         }
     }
 }
@@ -1044,6 +1126,22 @@ impl From<BankRedirect> for payout_method_utils::BankRedirectAdditionalData {
                     email: Some(ForeignFrom::foreign_from(email)),
                 }))
             }
+            BankRedirect::OpenBankingUk(OpenBankingUk {
+                account_holder_name,
+                iban,
+            }) => Self::OpenBankingUk(Box::new(payout_method_utils::OpenBankingUkAdditionalData {
+                account_holder_name,
+                iban,
+            })),
+        }
+    }
+}
+
+impl From<Passthrough> for payout_method_utils::PassthroughAdditionalData {
+    fn from(passthrough_data: Passthrough) -> Self {
+        Self {
+            psp_token: passthrough_data.psp_token.into(),
+            token_type: passthrough_data.token_type,
         }
     }
 }
@@ -1063,6 +1161,66 @@ impl From<payout_method_utils::AdditionalPayoutMethodData> for PayoutMethodDataR
             payout_method_utils::AdditionalPayoutMethodData::BankRedirect(bank_redirect) => {
                 Self::BankRedirect(bank_redirect)
             }
+            payout_method_utils::AdditionalPayoutMethodData::Passthrough(passthrough) => {
+                Self::Passthrough(passthrough)
+            }
         }
     }
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PayoutsAggregateResponse {
+    /// The list of intent status with their count
+    pub status_with_count: HashMap<common_enums::PayoutStatus, i64>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct PayoutsManualUpdateRequest {
+    /// The identifier for the payout
+    #[schema(value_type = String)]
+    pub payout_id: id_type::PayoutId,
+    /// The identifier for the payout attempt
+    pub payout_attempt_id: String,
+    /// Merchant ID
+    #[schema(value_type = String)]
+    pub merchant_id: id_type::MerchantId,
+    /// The status of the payout attempt
+    #[schema(value_type = Option<PayoutStatus>)]
+    pub status: Option<api_enums::PayoutStatus>,
+    /// Error code of the connector
+    pub error_code: Option<String>,
+    /// Error message of the connector
+    pub error_message: Option<String>,
+    /// A unique identifier for a payout provided by the connector
+    pub connector_payout_id: Option<String>,
+}
+
+impl PayoutsManualUpdateRequest {
+    pub fn is_update_parameter_present(&self) -> bool {
+        self.status.is_some()
+            || self.error_code.is_some()
+            || self.error_message.is_some()
+            || self.connector_payout_id.is_some()
+    }
+}
+
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct PayoutsManualUpdateResponse {
+    /// The identifier for the payout
+    #[schema(value_type = String)]
+    pub payout_id: id_type::PayoutId,
+    /// The identifier for the payout attempt
+    pub payout_attempt_id: String,
+    /// Merchant ID
+    #[schema(value_type = String)]
+    pub merchant_id: id_type::MerchantId,
+    /// The status of the payout attempt
+    #[schema(value_type = PayoutStatus)]
+    pub attempt_status: api_enums::PayoutStatus,
+    /// Error code of the connector
+    pub error_code: Option<String>,
+    /// Error message of the connector
+    pub error_message: Option<String>,
+    /// A unique identifier for a payout provided by the connector
+    pub connector_payout_id: Option<String>,
 }

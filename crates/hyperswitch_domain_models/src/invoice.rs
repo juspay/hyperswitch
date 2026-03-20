@@ -145,21 +145,18 @@ pub trait InvoiceInterface {
     type Error;
     async fn insert_invoice_entry(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         invoice_new: Invoice,
     ) -> CustomResult<Invoice, Self::Error>;
 
     async fn find_invoice_by_invoice_id(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         invoice_id: String,
     ) -> CustomResult<Invoice, Self::Error>;
 
     async fn update_invoice_entry(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         invoice_id: String,
         data: InvoiceUpdate,
@@ -167,14 +164,12 @@ pub trait InvoiceInterface {
 
     async fn get_latest_invoice_for_subscription(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         subscription_id: String,
     ) -> CustomResult<Invoice, Self::Error>;
 
     async fn find_invoice_by_subscription_id_connector_invoice_id(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         subscription_id: String,
         connector_invoice_id: common_utils::id_type::InvoiceId,

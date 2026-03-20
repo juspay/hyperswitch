@@ -1,8 +1,8 @@
 import {
-  customerAcceptance,
   connectorDetails as commonConnectorDetails,
-  singleUseMandateData,
+  customerAcceptance,
   multiUseMandateData,
+  singleUseMandateData,
 } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
@@ -11,7 +11,7 @@ const DUPLICATION_TIMEOUT = 30000; // 30 seconds
 const successfulNo3DSCardDetails = {
   card_number: "4242424242424242",
   card_exp_month: "12",
-  card_exp_year: "25",
+  card_exp_year: "30",
   card_holder_name: "John Doe",
   card_cvc: "123",
 };
@@ -23,7 +23,7 @@ const successfulThreeDSTestCardDetails = {
 const failedNo3DSCardDetails = {
   card_number: "4111111111119903",
   card_exp_month: "01",
-  card_exp_year: "25",
+  card_exp_year: "30",
   card_holder_name: "John Doe",
   card_cvc: "123",
 };
@@ -633,6 +633,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         setup_future_usage: "off_session",
+        mandate_data: null,
         customer_acceptance: customerAcceptance,
       },
       Response: {

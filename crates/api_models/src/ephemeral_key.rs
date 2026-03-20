@@ -1,7 +1,7 @@
 use common_utils::id_type;
 #[cfg(feature = "v2")]
 use masking::Secret;
-use serde;
+use smithy::SmithyModel;
 use utoipa::ToSchema;
 
 #[cfg(feature = "v1")]
@@ -83,15 +83,22 @@ impl common_utils::events::ApiEventMetric for ClientSecretResponse {
 
 #[cfg(feature = "v1")]
 /// ephemeral_key for the customer_id mentioned
-#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, Eq, PartialEq, ToSchema)]
+#[derive(
+    Debug, serde::Serialize, serde::Deserialize, Clone, Eq, PartialEq, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct EphemeralKeyCreateResponse {
     /// customer_id to which this ephemeral key belongs to
     #[schema(value_type = String, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    #[smithy(value_type = "String")]
     pub customer_id: id_type::CustomerId,
     /// time at which this ephemeral key was created
+    #[smithy(value_type = "i64")]
     pub created_at: i64,
     /// time at which this ephemeral key would expire
+    #[smithy(value_type = "i64")]
     pub expires: i64,
     /// ephemeral key
+    #[smithy(value_type = "String")]
     pub secret: String,
 }

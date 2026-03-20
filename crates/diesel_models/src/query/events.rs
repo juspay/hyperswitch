@@ -3,9 +3,11 @@ use std::collections::HashSet;
 use diesel::{
     associations::HasTable, BoolExpressionMethods, ExpressionMethods, NullableExpressionMethods,
 };
+use error_stack::ResultExt;
 
 use super::generics;
 use crate::{
+    errors::DatabaseError,
     events::{Event, EventNew, EventUpdateInternal},
     schema::events::dsl,
     PgPooledConn, StorageResult,
@@ -63,6 +65,27 @@ impl Event {
             Some(dsl::created_at.desc()),
         )
         .await
+    }
+
+    pub async fn find_initial_attempt_by_merchant_id_initial_attempt_id(
+        conn: &PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
+        initial_attempt_id: &str,
+    ) -> StorageResult<Option<Self>> {
+        let predicate = dsl::merchant_id
+            .eq(merchant_id.to_owned())
+            .and(dsl::event_id.eq(initial_attempt_id.to_owned()));
+
+        let result =
+            generics::generic_find_one::<<Self as HasTable>::Table, _, _>(conn, predicate).await;
+
+        match result {
+            Ok(event) => Ok(Some(event)),
+            Err(err) => match err.current_context() {
+                DatabaseError::NotFound => Ok(None),
+                _ => Err(err).attach_printable("Error finding event by initial_attempt_id"),
+            },
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -146,6 +169,27 @@ impl Event {
             Some(dsl::created_at.desc()),
         )
         .await
+    }
+
+    pub async fn find_initial_attempt_by_profile_id_initial_attempt_id(
+        conn: &PgPooledConn,
+        profile_id: &common_utils::id_type::ProfileId,
+        initial_attempt_id: &str,
+    ) -> StorageResult<Option<Self>> {
+        let predicate = dsl::business_profile_id
+            .eq(profile_id.to_owned())
+            .and(dsl::event_id.eq(initial_attempt_id.to_owned()));
+
+        let result =
+            generics::generic_find_one::<<Self as HasTable>::Table, _, _>(conn, predicate).await;
+
+        match result {
+            Ok(event) => Ok(Some(event)),
+            Err(err) => match err.current_context() {
+                DatabaseError::NotFound => Ok(None),
+                _ => Err(err).attach_printable("Error finding event by initial_attempt_id"),
+            },
+        }
     }
 
     #[allow(clippy::too_many_arguments)]

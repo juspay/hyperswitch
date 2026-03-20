@@ -1,5 +1,6 @@
 pub mod consts;
 pub mod injector;
+pub mod metrics;
 pub mod types;
 pub mod vault_metadata;
 

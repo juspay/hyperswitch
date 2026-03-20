@@ -81,14 +81,13 @@ impl WorldlineTest {
                 card_network: None,
                 card_type: None,
                 card_issuing_country: None,
+                card_issuing_country_code: None,
                 bank_code: None,
                 nick_name: Some(Secret::new("nick_name".into())),
                 card_holder_name: Some(Secret::new("card holder name".into())),
                 co_badged_card_data: None,
             }),
             confirm: true,
-            statement_descriptor_suffix: None,
-            statement_descriptor: None,
             setup_future_usage: None,
             mandate_id: None,
             off_session: None,
@@ -113,6 +112,7 @@ impl WorldlineTest {
             metadata: None,
             authentication_data: None,
             customer_acceptance: None,
+            billing_descriptor: None,
             ..utils::PaymentAuthorizeType::default().0
         })
     }

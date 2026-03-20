@@ -1,4 +1,4 @@
-use common_utils::{errors::CustomResult, types::keymanager::KeyManagerState};
+use common_utils::errors::CustomResult;
 pub use diesel_models::invoice::Invoice;
 use error_stack::{report, ResultExt};
 pub use hyperswitch_domain_models::{
@@ -20,7 +20,6 @@ impl<T: DatabaseStore> InvoiceInterface for RouterStore<T> {
     #[instrument(skip_all)]
     async fn insert_invoice_entry(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         invoice_new: DomainInvoice,
     ) -> CustomResult<DomainInvoice, StorageError> {
@@ -29,20 +28,17 @@ impl<T: DatabaseStore> InvoiceInterface for RouterStore<T> {
             .await
             .change_context(StorageError::DecryptionError)?;
         let conn = connection::pg_connection_write(self).await?;
-        self.call_database(state, key_store, inv_new.insert(&conn))
-            .await
+        self.call_database(key_store, inv_new.insert(&conn)).await
     }
 
     #[instrument(skip_all)]
     async fn find_invoice_by_invoice_id(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         invoice_id: String,
     ) -> CustomResult<DomainInvoice, StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         self.call_database(
-            state,
             key_store,
             Invoice::find_invoice_by_id_invoice_id(&conn, invoice_id),
         )
@@ -52,7 +48,6 @@ impl<T: DatabaseStore> InvoiceInterface for RouterStore<T> {
     #[instrument(skip_all)]
     async fn update_invoice_entry(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         invoice_id: String,
         data: DomainInvoiceUpdate,
@@ -63,7 +58,6 @@ impl<T: DatabaseStore> InvoiceInterface for RouterStore<T> {
             .change_context(StorageError::DecryptionError)?;
         let conn = connection::pg_connection_write(self).await?;
         self.call_database(
-            state,
             key_store,
             Invoice::update_invoice_entry(&conn, invoice_id, inv_new),
         )
@@ -73,14 +67,12 @@ impl<T: DatabaseStore> InvoiceInterface for RouterStore<T> {
     #[instrument(skip_all)]
     async fn get_latest_invoice_for_subscription(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         subscription_id: String,
     ) -> CustomResult<DomainInvoice, StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         let invoices: Vec<DomainInvoice> = self
             .find_resources(
-                state,
                 key_store,
                 Invoice::list_invoices_by_subscription_id(
                     &conn,
@@ -104,14 +96,12 @@ impl<T: DatabaseStore> InvoiceInterface for RouterStore<T> {
     #[instrument(skip_all)]
     async fn find_invoice_by_subscription_id_connector_invoice_id(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         subscription_id: String,
         connector_invoice_id: common_utils::id_type::InvoiceId,
     ) -> CustomResult<Option<DomainInvoice>, StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         self.find_optional_resource(
-            state,
             key_store,
             Invoice::get_invoice_by_subscription_id_connector_invoice_id(
                 &conn,
@@ -130,63 +120,57 @@ impl<T: DatabaseStore> InvoiceInterface for KVRouterStore<T> {
     #[instrument(skip_all)]
     async fn insert_invoice_entry(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         invoice_new: DomainInvoice,
     ) -> CustomResult<DomainInvoice, StorageError> {
         self.router_store
-            .insert_invoice_entry(state, key_store, invoice_new)
+            .insert_invoice_entry(key_store, invoice_new)
             .await
     }
 
     #[instrument(skip_all)]
     async fn find_invoice_by_invoice_id(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         invoice_id: String,
     ) -> CustomResult<DomainInvoice, StorageError> {
         self.router_store
-            .find_invoice_by_invoice_id(state, key_store, invoice_id)
+            .find_invoice_by_invoice_id(key_store, invoice_id)
             .await
     }
 
     #[instrument(skip_all)]
     async fn update_invoice_entry(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         invoice_id: String,
         data: DomainInvoiceUpdate,
     ) -> CustomResult<DomainInvoice, StorageError> {
         self.router_store
-            .update_invoice_entry(state, key_store, invoice_id, data)
+            .update_invoice_entry(key_store, invoice_id, data)
             .await
     }
 
     #[instrument(skip_all)]
     async fn get_latest_invoice_for_subscription(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         subscription_id: String,
     ) -> CustomResult<DomainInvoice, StorageError> {
         self.router_store
-            .get_latest_invoice_for_subscription(state, key_store, subscription_id)
+            .get_latest_invoice_for_subscription(key_store, subscription_id)
             .await
     }
 
     #[instrument(skip_all)]
     async fn find_invoice_by_subscription_id_connector_invoice_id(
         &self,
-        state: &KeyManagerState,
         key_store: &MerchantKeyStore,
         subscription_id: String,
         connector_invoice_id: common_utils::id_type::InvoiceId,
     ) -> CustomResult<Option<DomainInvoice>, StorageError> {
         self.router_store
             .find_invoice_by_subscription_id_connector_invoice_id(
-                state,
                 key_store,
                 subscription_id,
                 connector_invoice_id,
@@ -202,7 +186,6 @@ impl InvoiceInterface for MockDb {
     #[instrument(skip_all)]
     async fn insert_invoice_entry(
         &self,
-        _state: &KeyManagerState,
         _key_store: &MerchantKeyStore,
         _invoice_new: DomainInvoice,
     ) -> CustomResult<DomainInvoice, StorageError> {
@@ -211,7 +194,6 @@ impl InvoiceInterface for MockDb {
 
     async fn find_invoice_by_invoice_id(
         &self,
-        _state: &KeyManagerState,
         _key_store: &MerchantKeyStore,
         _invoice_id: String,
     ) -> CustomResult<DomainInvoice, StorageError> {
@@ -220,7 +202,6 @@ impl InvoiceInterface for MockDb {
 
     async fn update_invoice_entry(
         &self,
-        _state: &KeyManagerState,
         _key_store: &MerchantKeyStore,
         _invoice_id: String,
         _data: DomainInvoiceUpdate,
@@ -230,7 +211,6 @@ impl InvoiceInterface for MockDb {
 
     async fn get_latest_invoice_for_subscription(
         &self,
-        _state: &KeyManagerState,
         _key_store: &MerchantKeyStore,
         _subscription_id: String,
     ) -> CustomResult<DomainInvoice, StorageError> {
@@ -239,7 +219,6 @@ impl InvoiceInterface for MockDb {
 
     async fn find_invoice_by_subscription_id_connector_invoice_id(
         &self,
-        _state: &KeyManagerState,
         _key_store: &MerchantKeyStore,
         _subscription_id: String,
         _connector_invoice_id: common_utils::id_type::InvoiceId,

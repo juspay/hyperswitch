@@ -293,7 +293,6 @@ impl VaultMetadataExtractorExt for ConnectionConfig {
 }
 
 #[cfg(test)]
-#[allow(clippy::expect_used)]
 mod tests {
     use std::collections::HashMap;
 

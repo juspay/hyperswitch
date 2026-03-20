@@ -1,5 +1,6 @@
 pub use bool_wrappers::*;
 pub use safe_string::*;
+pub use u16_wrappers::*;
 pub use u32_wrappers::*;
 mod bool_wrappers {
     use std::ops::Deref;
@@ -431,6 +432,64 @@ mod u32_wrappers {
         /// Default for `DisputePollingIntervalInHours` is `24`
         fn default() -> Self {
             Self(DEFAULT_DISPUTE_POLLING_INTERVAL_IN_HOURS)
+        }
+    }
+}
+
+mod u16_wrappers {
+    use std::ops::Deref;
+
+    use serde::{de::Error, Deserialize, Serialize};
+
+    use crate::consts::{
+        CUSTOMER_LIST_DEFAULT_LIMIT, CUSTOMER_LIST_LOWER_LIMIT, CUSTOMER_LIST_UPPER_LIMIT,
+    };
+
+    /// Customer list limit wrapper with automatic validation
+    #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+    pub struct CustomerListLimit(u16);
+
+    impl Deref for CustomerListLimit {
+        type Target = u16;
+
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
+    }
+
+    impl<'de> Deserialize<'de> for CustomerListLimit {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            let val = u16::deserialize(deserializer)?;
+            Self::new(val).map_err(D::Error::custom)
+        }
+    }
+
+    impl Default for CustomerListLimit {
+        /// Default for `CustomerListLimit` is `20`
+        fn default() -> Self {
+            Self(CUSTOMER_LIST_DEFAULT_LIMIT)
+        }
+    }
+
+    impl CustomerListLimit {
+        /// Creates a new CustomerListLimit with validation
+        pub fn new(value: u16) -> Result<Self, String> {
+            if value < CUSTOMER_LIST_LOWER_LIMIT {
+                Err(format!(
+                    "CustomerListLimit cannot be less than {}",
+                    CUSTOMER_LIST_LOWER_LIMIT
+                ))
+            } else if value > CUSTOMER_LIST_UPPER_LIMIT {
+                Err(format!(
+                    "CustomerListLimit exceeds the maximum allowed value of {}",
+                    CUSTOMER_LIST_UPPER_LIMIT
+                ))
+            } else {
+                Ok(Self(value))
+            }
         }
     }
 }

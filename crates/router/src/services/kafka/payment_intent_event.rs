@@ -58,6 +58,7 @@ pub struct KafkaPaymentIntentEvent<'a> {
     pub feature_metadata: Option<&'a Value>,
     pub merchant_order_reference_id: Option<&'a String>,
     pub organization_id: &'a id_type::OrganizationId,
+    pub processor_merchant_id: &'a id_type::MerchantId,
     #[serde(flatten)]
     pub infra_values: Option<Value>,
 }
@@ -87,7 +88,7 @@ pub struct KafkaPaymentIntentEvent<'a> {
     pub off_session: bool,
     pub active_attempt_id: Option<&'a id_type::GlobalAttemptId>,
     pub active_attempt_id_type: common_enums::ActiveAttemptIDType,
-    pub active_attempts_group_id: Option<&'a String>,
+    pub active_attempts_group_id: Option<&'a id_type::GlobalAttemptGroupId>,
     pub attempt_count: i16,
     pub profile_id: &'a id_type::ProfileId,
     pub customer_email: Option<HashedString<pii::EmailStrategy>>,
@@ -194,6 +195,7 @@ impl<'a> KafkaPaymentIntentEvent<'a> {
             feature_metadata: intent.feature_metadata.as_ref(),
             merchant_order_reference_id: intent.merchant_order_reference_id.as_ref(),
             organization_id: &intent.organization_id,
+            processor_merchant_id: &intent.processor_merchant_id,
             infra_values: infra_values.clone(),
         }
     }
@@ -331,7 +333,7 @@ impl<'a> KafkaPaymentIntentEvent<'a> {
             routing_algorithm_id: routing_algorithm_id.as_ref(),
             payment_link_config: payment_link_config.as_ref(),
             infra_values,
-            enable_partial_authorization: *enable_partial_authorization,
+            enable_partial_authorization: Some(*enable_partial_authorization),
         }
     }
 }

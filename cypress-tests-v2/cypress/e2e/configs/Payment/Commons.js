@@ -536,7 +536,7 @@ export const connectorDetails = {
         },
       },
     }),
-    
+
     PaymentIntentOffSession: getCustomExchange({
       Request: {
         currency: "USD",
@@ -578,7 +578,6 @@ export const connectorDetails = {
         payment_method_type: "card",
         payment_method_subtype: "credit",
         customer_acceptance: null,
-      
       },
       Response: {
         status: 200,

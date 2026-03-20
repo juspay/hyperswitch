@@ -4,10 +4,7 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
-    router_request_types::{
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsSyncData, RefundsData, ResponseId,
-        SetupMandateRequestData,
-    },
+    router_request_types::{RefundsData, ResponseId, SetupMandateRequestData},
     router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
     types,
 };
@@ -19,7 +16,10 @@ use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    types::ResponseRouterData,
+    types::{
+        PaymentsCaptureResponseRouterData, PaymentsResponseRouterData,
+        PaymentsSyncResponseRouterData, ResponseRouterData,
+    },
     utils::{self, CardData as _, PaymentsAuthorizeRequestData, RouterData as _},
 };
 
@@ -105,6 +105,12 @@ fn get_transaction_body(
 fn get_card_data(req: &types::PaymentsAuthorizeRouterData) -> Result<String, Error> {
     let card_data = match &req.request.payment_method_data {
         PaymentMethodData::Card(card) => {
+            if req.is_three_ds() {
+                Err(errors::ConnectorError::NotSupported {
+                    message: "Cards 3DS".to_string(),
+                    connector: "Bamboraapac",
+                })?
+            }
             let card_holder_name = req.get_billing_full_name()?;
 
             if req.request.setup_future_usage == Some(enums::FutureUsage::OffSession) {
@@ -246,24 +252,12 @@ fn get_attempt_status(
     }
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            BamboraapacPaymentsResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
+impl TryFrom<PaymentsResponseRouterData<BamboraapacPaymentsResponse>>
+    for types::PaymentsAuthorizeRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            BamboraapacPaymentsResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsResponseRouterData<BamboraapacPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         let response_code = item
             .response
@@ -312,6 +306,7 @@ impl<F>
                     network_txn_id: None,
                     connector_response_reference_id: Some(connector_transaction_id),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -345,6 +340,7 @@ impl<F>
                     reason: Some(declined_message),
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -488,6 +484,7 @@ impl<F>
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -504,6 +501,7 @@ impl<F>
                     reason: None,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -586,24 +584,12 @@ pub struct CaptureResponse {
     declined_message: Option<String>,
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            BamboraapacCaptureResponse,
-            PaymentsCaptureData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsCaptureData, PaymentsResponseData>
+impl TryFrom<PaymentsCaptureResponseRouterData<BamboraapacCaptureResponse>>
+    for types::PaymentsCaptureRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            BamboraapacCaptureResponse,
-            PaymentsCaptureData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsCaptureResponseRouterData<BamboraapacCaptureResponse>,
     ) -> Result<Self, Self::Error> {
         let response_code = item
             .response
@@ -638,6 +624,7 @@ impl<F>
                     network_txn_id: None,
                     connector_response_reference_id: Some(connector_transaction_id),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -670,6 +657,7 @@ impl<F>
                     reason: Some(declined_message),
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -878,18 +866,12 @@ pub struct SyncResponse {
     declined_message: Option<String>,
 }
 
-impl<F>
-    TryFrom<ResponseRouterData<F, BamboraapacSyncResponse, PaymentsSyncData, PaymentsResponseData>>
-    for RouterData<F, PaymentsSyncData, PaymentsResponseData>
+impl TryFrom<PaymentsSyncResponseRouterData<BamboraapacSyncResponse>>
+    for types::PaymentsSyncRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            BamboraapacSyncResponse,
-            PaymentsSyncData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsSyncResponseRouterData<BamboraapacSyncResponse>,
     ) -> Result<Self, Self::Error> {
         let response_code = item
             .response
@@ -921,6 +903,7 @@ impl<F>
                     network_txn_id: None,
                     connector_response_reference_id: Some(connector_transaction_id),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -955,6 +938,7 @@ impl<F>
                     reason: Some(declined_message),
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,

@@ -6,7 +6,6 @@ mod utils;
 
 #[tokio::test]
 #[should_panic]
-#[allow(clippy::unwrap_used)]
 async fn get_redis_conn_failure() {
     // Arrange
     utils::setup().await;
@@ -38,7 +37,6 @@ async fn get_redis_conn_failure() {
 }
 
 #[tokio::test]
-#[allow(clippy::unwrap_used)]
 async fn get_redis_conn_success() {
     // Arrange
     Box::pin(utils::setup()).await;

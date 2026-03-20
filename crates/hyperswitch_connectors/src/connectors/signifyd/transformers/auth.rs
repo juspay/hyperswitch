@@ -1,4 +1,3 @@
-use error_stack;
 use hyperswitch_domain_models::router_data::ConnectorAuthType;
 use hyperswitch_interfaces::errors::ConnectorError;
 use masking::Secret;

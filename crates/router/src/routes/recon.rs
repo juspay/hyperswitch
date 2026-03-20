@@ -22,7 +22,9 @@ pub async fn update_merchant(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req, _| recon::recon_merchant_account_update(state, auth, req),
+        |state, auth: authentication::AuthenticationData, req, _| {
+            recon::recon_merchant_account_update(state, auth.platform.get_processor().clone(), req)
+        },
         &authentication::AdminApiAuthWithMerchantIdFromRoute(merchant_id),
         api_locking::LockAction::NotApplicable,
     ))
@@ -39,6 +41,8 @@ pub async fn request_for_recon(state: web::Data<AppState>, http_req: HttpRequest
         |state, user, _, _| recon::send_recon_request(state, user),
         &authentication::JWTAuth {
             permission: Permission::MerchantAccountWrite,
+            allow_connected: true,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -55,6 +59,8 @@ pub async fn get_recon_token(state: web::Data<AppState>, req: HttpRequest) -> Ht
         |state, user, _, _| recon::generate_recon_token(state, user),
         &authentication::JWTAuth {
             permission: Permission::MerchantReconTokenRead,
+            allow_connected: true,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -72,6 +78,8 @@ pub async fn verify_recon_token(state: web::Data<AppState>, http_req: HttpReques
         |state, user, _req, _| recon::verify_recon_token(state, user),
         &authentication::JWTAuth {
             permission: Permission::MerchantReconTokenRead,
+            allow_connected: true,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))

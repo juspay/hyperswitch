@@ -18,7 +18,9 @@
             "groups": [
               {
                 "group": "Get Started",
-                "pages": ["introduction"]
+                "pages": [
+                  "introduction"
+                ]
               },
               {
                 "group": "Essentials",
@@ -58,25 +60,39 @@
                   {
                     "group": "Payment Methods",
                     "pages": [
-                      "v1/payment-methods/paymentmethods--create",
-                      "v1/payment-methods/payment-method--retrieve",
-                      "v1/payment-methods/payment-method--update",
-                      "v1/payment-methods/payment-method--delete",
-                      "v1/payment-methods/payment-method--set-default-payment-method-for-customer",
-                      "v1/payment-methods/list-payment-methods-for-a-merchant",
-                      "v1/payment-methods/list-customer-saved-payment-methods-for-a-payment",
-                      "v1/payment-methods/list-payment-methods-for-a-customer",
-                      "v1/customer-set-default-payment-method/customers--set-default-payment-method"
+                      "v2/payment-methods/payment-method--create-v1",
+                      "v2/payment-methods/payment-method--retrieve-v1",
+                      "v2/payment-methods/payment-method--update-v1",
+                      "v2/payment-methods/payment-method--delete-v1",
+                      "v2/payment-methods/payment-method--list-customer-saved-payment-methods-v1",
+                      "v2/payment-methods/payment-method--payment-method-token-to-payment-method-id-v1"
                     ]
                   },
                   {
                     "group": "Customers",
                     "pages": [
-                      "v1/customers/customers--create",
-                      "v1/customers/customers--retrieve",
-                      "v1/customers/customers--update",
-                      "v1/customers/customers--delete",
-                      "v1/customers/customers--list"
+                      "v2/customers/customers--create-v1",
+                      "v2/customers/customers--retrieve-v1",
+                      "v2/customers/customers--update-v1",
+                      "v2/customers/customers--delete-v1",
+                      "v2/customers/customers--list-v1"
+                    ]
+                  },
+                  {
+                    "group": "Proxy",
+                    "pages": [
+                      "v2/proxy/proxy-v1"
+                    ]
+                  },
+                  {
+                    "group": "Payment Method Session",
+                    "pages": [
+                      "v2/payment-method-session/payment-method-session--create-v1",
+                      "v2/payment-method-session/payment-method-session--retrieve-v1",
+                      "v2/payment-method-session/payment-method-session--list-payment-methods-v1",
+                      "v2/payment-method-session/payment-method-session--update-a-saved-payment-method-v1",
+                      "v2/payment-method-session/payment-method-session--confirm-a-payment-method-session-v1",
+                      "v2/payment-method-session/payment-method-session--delete-a-saved-payment-method-v1"
                     ]
                   },
                   {
@@ -104,6 +120,14 @@
                     ]
                   },
                   {
+                    "group": "Authentication",
+                    "pages": [
+                      "v1/authentication/authentication--create",
+                      "v1/authentication/authentication--post-eligibility-check",
+                      "v1/authentication/authentication--get-eligibility-check"
+                    ]
+                  },
+                  {
                     "group": "Payouts",
                     "pages": [
                       "v1/payouts/payouts--create",
@@ -115,6 +139,35 @@
                       "v1/payouts/payouts--list",
                       "v1/payouts/payouts--list-filters",
                       "v1/payouts/payouts--filter"
+                    ]
+                  }
+                ]
+              },
+              {
+                "group": "Deprecated APIs",
+                "pages": [
+                  {
+                    "group": "Customers",
+                    "pages": [
+                      "v1/customers/customers--create",
+                      "v1/customers/customers--retrieve",
+                      "v1/customers/customers--update",
+                      "v1/customers/customers--delete",
+                      "v1/customers/customers--list"
+                    ]
+                  },
+                  {
+                    "group": "Payment Methods",
+                    "pages": [
+                      "v1/payment-methods/paymentmethods--create",
+                      "v1/payment-methods/payment-method--retrieve",
+                      "v1/payment-methods/payment-method--update",
+                      "v1/payment-methods/payment-method--delete",
+                      "v1/payment-methods/payment-method--set-default-payment-method-for-customer",
+                      "v1/payment-methods/list-payment-methods-for-a-merchant",
+                      "v1/payment-methods/list-customer-saved-payment-methods-for-a-payment",
+                      "v1/payment-methods/list-payment-methods-for-a-customer",
+                      "v1/customer-set-default-payment-method/customers--set-default-payment-method"
                     ]
                   }
                 ]
@@ -152,7 +205,9 @@
                   },
                   {
                     "group": "Platform Account",
-                    "pages": ["v1/platform/platform--create"]
+                    "pages": [
+                      "v1/platform/platform--create"
+                    ]
                   },
                   {
                     "group": "API Key",
@@ -198,7 +253,9 @@
                   },
                   {
                     "group": "Poll",
-                    "pages": ["v1/poll/poll--retrieve-poll-status"]
+                    "pages": [
+                      "v1/poll/poll--retrieve-poll-status"
+                    ]
                   },
                   {
                     "group": "Blocklist",
@@ -214,6 +271,8 @@
                     "pages": [
                       "v1/routing/routing--list",
                       "v1/routing/routing--create",
+                      "v1/routing/routing--success-based",
+                      "v1/routing/routing--elimination",
                       "v1/routing/routing--retrieve-config",
                       "v1/routing/routing--deactivate",
                       "v1/routing/routing--retrieve-default-config",
@@ -229,11 +288,31 @@
                   },
                   {
                     "group": "Relay",
-                    "pages": ["v1/relay/relay", "v1/relay/relay--retrieve"]
+                    "pages": [
+                      "v1/relay/relay",
+                      "v1/relay/relay--retrieve"
+                    ]
                   },
                   {
                     "group": "Schemas",
-                    "pages": ["v1/schemas/outgoing--webhook"]
+                    "pages": [
+                      "v1/schemas/outgoing--webhook"
+                    ]
+                  },
+                  {
+                    "group": "Subscriptions",
+                    "pages": [
+                      "v1/subscriptions/create",
+                      "v1/subscriptions/confirm",
+                      "v1/subscriptions/create-and-confirm",
+                      "v1/subscriptions/update",
+                      "v1/subscriptions/get",
+                      "v1/subscriptions/get-plans",
+                      "v1/subscriptions/estimate",
+                      "v1/subscriptions/pause",
+                      "v1/subscriptions/resume",
+                      "v1/subscriptions/cancel"
+                    ]
                   }
                 ]
               }
@@ -244,7 +323,9 @@
             "groups": [
               {
                 "group": "Get Started [BETA]",
-                "pages": ["introduction"]
+                "pages": [
+                  "introduction"
+                ]
               },
               {
                 "group": "Essentials [BETA]",
@@ -269,7 +350,7 @@
                       "v2/payments/payments--get",
                       "v2/payments/payments--create-and-confirm-intent",
                       "v2/payments/payments--list",
-                      "v2/payments/payments--gift-card-balance-check"
+                      "v2/payments/payments--check-balance-and-apply-pm-data"
                     ]
                   },
                   {
@@ -390,15 +471,21 @@
                 "pages": [
                   {
                     "group": "Proxy",
-                    "pages": ["v2/proxy/proxy"]
+                    "pages": [
+                      "v2/proxy/proxy"
+                    ]
                   },
                   {
                     "group": "Tokenization",
-                    "pages": ["v2/tokenization/tokenization--create"]
+                    "pages": [
+                      "v2/tokenization/tokenization--create"
+                    ]
                   },
                   {
                     "group": "Revenue Recovery",
-                    "pages": ["v2/revenue-recovery/revenue-recovery--retrieve"]
+                    "pages": [
+                      "v2/revenue-recovery/revenue-recovery--retrieve"
+                    ]
                   }
                 ]
               }
@@ -411,14 +498,18 @@
         "groups": [
           {
             "group": "Hyperswitch Card Vault",
-            "pages": ["locker-api-reference/overview"]
+            "pages": [
+              "locker-api-reference/overview"
+            ]
           },
           {
             "group": "API Reference",
             "pages": [
               {
                 "group": "Locker - Health",
-                "pages": ["locker-api-reference/locker-health/get-health"]
+                "pages": [
+                  "locker-api-reference/locker-health/get-health"
+                ]
               },
               {
                 "group": "Locker - Key Custodian",
@@ -436,6 +527,15 @@
                   "locker-api-reference/cards/retrieve-data-from-locker",
                   "locker-api-reference/cards/get-or-insert-the-card-fingerprint"
                 ]
+              },
+              {
+                "group": "Locker - General Purpose Storage",
+                "pages": [
+                  "locker-api-reference/locker-general-purpose-storage/add-data-in-locker",
+                  "locker-api-reference/locker-general-purpose-storage/retrieve-data-from-locker",
+                  "locker-api-reference/locker-general-purpose-storage/delete-data-from-locker",
+                  "locker-api-reference/locker-general-purpose-storage/get-or-insert-the-card-fingerprint"
+                ]
               }
             ]
           }
@@ -446,7 +546,9 @@
         "groups": [
           {
             "group": "Hyperswitch Intelligent Router",
-            "pages": ["intelligent-router-api-reference/overview"]
+            "pages": [
+              "intelligent-router-api-reference/overview"
+            ]
           },
           {
             "group": "API Reference",
@@ -538,6 +640,11 @@
     }
   },
   "contextual": {
-    "options": ["copy", "claude", "chatgpt", "view"]
+    "options": [
+      "copy",
+      "claude",
+      "chatgpt",
+      "view"
+    ]
   }
 }

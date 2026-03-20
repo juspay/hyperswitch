@@ -7,7 +7,7 @@ use api_models::user_role::role as role_api;
 use common_enums::{EntityType, ParentGroup, PermissionGroup};
 use common_utils::id_type;
 use diesel_models::{
-    enums::{UserRoleVersion, UserStatus},
+    enums::UserRoleVersion,
     role::ListRolesByEntityPayload,
     user_role::{UserRole, UserRoleUpdate},
 };
@@ -30,6 +30,11 @@ use crate::{
         permissions, roles,
     },
     types::domain,
+};
+#[cfg(feature = "email")]
+use crate::{
+    services::{authentication as auth, email::types as email_types},
+    utils::user::{self as user_utils, theme as theme_utils},
 };
 
 pub fn validate_role_groups(groups: &[PermissionGroup]) -> UserResult<()> {
@@ -222,7 +227,7 @@ pub async fn get_single_org_id(
     match entity_type {
         EntityType::Tenant => Ok(state
             .store
-            .list_merchant_and_org_ids(&state.into(), 1, None)
+            .list_merchant_and_org_ids(1, None)
             .await
             .change_context(UserErrors::InternalServerError)
             .attach_printable("Failed to get merchants list for org")?
@@ -249,7 +254,7 @@ pub async fn get_single_merchant_id(
     match entity_type {
         EntityType::Tenant | EntityType::Organization => Ok(state
             .store
-            .list_merchant_accounts_by_organization_id(&state.into(), org_id)
+            .list_merchant_accounts_by_organization_id(org_id)
             .await
             .to_not_found_response(UserErrors::InvalidRoleOperationWithMessage(
                 "Invalid Org Id".to_string(),
@@ -280,7 +285,6 @@ pub async fn get_single_profile_id(
             let key_store = state
                 .store
                 .get_merchant_key_store_by_merchant_id(
-                    &state.into(),
                     merchant_id,
                     &state.store.get_master_key().to_vec().into(),
                 )
@@ -289,7 +293,7 @@ pub async fn get_single_profile_id(
 
             Ok(state
                 .store
-                .list_profile_by_merchant_id(&state.into(), &key_store, merchant_id)
+                .list_profile_by_merchant_id(&key_store, merchant_id)
                 .await
                 .change_context(UserErrors::InternalServerError)?
                 .pop()
@@ -340,7 +344,7 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
                     profile_id: None,
                     entity_id: None,
                     version: None,
-                    status: Some(UserStatus::InvitationSent),
+                    status: None,
                     limit: None,
                 })
                 .await
@@ -385,7 +389,7 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
                     profile_id: None,
                     entity_id: None,
                     version: None,
-                    status: Some(UserStatus::InvitationSent),
+                    status: None,
                     limit: None,
                 })
                 .await
@@ -431,7 +435,7 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
                     profile_id: Some(&profile_id),
                     entity_id: None,
                     version: None,
-                    status: Some(UserStatus::InvitationSent),
+                    status: None,
                     limit: None,
                 })
                 .await
@@ -597,4 +601,74 @@ pub fn resources_to_description(
         .join(", ");
 
     Some(description)
+}
+
+#[cfg(feature = "email")]
+pub async fn send_role_deletion_email_using_db(
+    state: &SessionState,
+    user_from_db: &domain::UserFromStorage,
+    role_info: &roles::RoleInfo,
+    user_from_token: &auth::UserFromToken,
+) -> UserResult<()> {
+    let theme = theme_utils::get_most_specific_theme_using_token_and_min_entity(
+        state,
+        user_from_token,
+        role_info.get_entity_type(),
+    )
+    .await?;
+
+    let theme_config = theme
+        .as_ref()
+        .map(|theme| theme.email_config())
+        .unwrap_or(state.conf.theme.email_config.clone());
+
+    let org = state
+        .accounts_store
+        .find_organization_by_org_id(&user_from_token.org_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let merchant_key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            &user_from_token.merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let merchant = state
+        .store
+        .find_merchant_account_by_merchant_id(&user_from_token.merchant_id, &merchant_key_store)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let profile = state
+        .store
+        .find_business_profile_by_profile_id(&merchant_key_store, &user_from_token.profile_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let email_contents = email_types::RoleDeleted {
+        recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
+        user_name: domain::UserName::new(user_from_db.get_name())?,
+        role_name: role_info.get_role_name().to_string(),
+        entity_type: role_info.get_entity_type(),
+        org,
+        merchant,
+        profile,
+        theme_config,
+    };
+
+    state
+        .email_client
+        .compose_and_send_email(
+            user_utils::get_base_url(state),
+            Box::new(email_contents),
+            state.conf.proxy.https_url.as_ref(),
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    Ok(())
 }

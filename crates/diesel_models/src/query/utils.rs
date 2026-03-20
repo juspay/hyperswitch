@@ -1,5 +1,3 @@
-use diesel;
-
 use crate::{schema, schema_v2};
 
 /// This trait will return a single column as primary key even in case of composite primary key.
@@ -104,6 +102,7 @@ impl_get_primary_key!(
     schema::merchant_account::table,
     schema::process_tracker::table,
     schema::invoice::table,
+    schema::subscription::table,
     // v2 tables
     schema_v2::dashboard_metadata::table,
     schema_v2::merchant_connector_account::table,

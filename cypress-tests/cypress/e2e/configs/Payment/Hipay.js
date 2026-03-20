@@ -55,15 +55,16 @@ const multiUseMandateData = {
 const paymentMethodDataNo3DSResponse = {
   card: {
     authentication_data: null,
+    auth_code: null,
     card_exp_month: "06",
     card_exp_year: "50",
     card_extended_bin: null,
     card_holder_name: "Joseph Doe",
     card_isin: "411111",
-    card_issuer: "JP Morgan",
-    card_issuing_country: "INDIA",
+    card_issuer: "Conotoxia Sp Z Oo",
+    card_issuing_country: "POLAND",
     card_network: "Visa",
-    card_type: "CREDIT",
+    card_type: "DEBIT",
     last4: "1111",
     payment_checks: null,
   },
@@ -77,13 +78,14 @@ const paymentMethodDataNo3DSResponse = {
 const paymentMethodData3DSResponse = {
   card: {
     authentication_data: null,
+    auth_code: null,
     card_exp_month: "06",
     card_exp_year: "50",
     card_extended_bin: null,
     card_holder_name: "Joseph Doe",
     card_isin: "400000",
-    card_issuer: "INTL HDQTRS-CENTER OWNED",
-    card_issuing_country: "UNITEDSTATES",
+    card_issuer: "Intl Hdqtrs Center Owned",
+    card_issuing_country: "UNITED STATES OF AMERICA",
     card_network: "Visa",
     card_type: "CREDIT",
     last4: "0002",
@@ -607,6 +609,8 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,

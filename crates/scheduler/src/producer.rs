@@ -39,7 +39,6 @@ where
 
     // TODO: this can be removed once rand-0.9 is released
     // reference - https://github.com/rust-random/rand/issues/1326#issuecomment-1635331942
-    #[allow(unknown_lints)]
     #[allow(clippy::unnecessary_fallible_conversions)]
     let timeout = Uniform::try_from(0..=scheduler_settings.loop_interval)
         .change_context(errors::ProcessTrackerError::ConfigurationError)?;
@@ -111,12 +110,25 @@ where
         debug!("Producer count of tasks {}", tasks.len());
 
         // [#268]: Allow task based segregation of tasks
+        let (cug_tasks, main_tasks): (Vec<storage::ProcessTracker>, Vec<storage::ProcessTracker>) =
+            tasks.into_iter().partition(|task| {
+                task.application_source == Some(diesel_models::enums::ApplicationSource::Cug)
+            });
 
         divide_and_append_tasks(
             state.get_db().as_scheduler(),
             SchedulerFlow::Producer,
-            tasks,
+            main_tasks,
             settings,
+            diesel_models::enums::ApplicationSource::Main,
+        )
+        .await?;
+        divide_and_append_tasks(
+            state.get_db().as_scheduler(),
+            SchedulerFlow::Producer,
+            cug_tasks,
+            settings,
+            diesel_models::enums::ApplicationSource::Cug,
         )
         .await?;
 

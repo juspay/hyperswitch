@@ -1,11 +1,12 @@
 use common_enums::PaymentMethodType;
 #[cfg(feature = "v2")]
-use common_utils::request;
+use common_utils::encryption::Encryption;
 use common_utils::{
     crypto::{DecodeMessage, EncodeMessage, GcmAes256},
     ext_traits::{BytesExt, Encode},
     generate_id_with_default_len, id_type,
     pii::Email,
+    request,
 };
 use error_stack::{report, ResultExt};
 #[cfg(feature = "v2")]
@@ -25,27 +26,27 @@ use crate::{
     consts,
     core::{
         errors::{self, ConnectorErrorExt, CustomResult, RouterResult},
+        payment_methods::{access_token, transformers as pm_transforms},
         payments, utils as core_utils,
     },
-    db, logger,
+    db, headers, logger,
     routes::{self, metrics},
     services::{self, connector_integration_interface::RouterDataConversion},
+    settings,
     types::{
-        self, api, domain,
+        self, api, domain, payment_methods as pm_types,
         storage::{self, enums},
     },
-    utils::StringExt,
+    utils::{ConnectorResponseExt, StringExt},
 };
 #[cfg(feature = "v2")]
 use crate::{
     core::{
         errors::StorageErrorExt,
-        payment_methods::{transformers as pm_transforms, utils},
+        payment_methods::{cards as pm_cards, utils},
         payments::{self as payments_core, helpers as payment_helpers},
     },
-    headers, settings,
-    types::payment_methods as pm_types,
-    utils::{ext_traits::OptionExt, ConnectorResponseExt},
+    utils::ext_traits::OptionExt,
 };
 
 const VAULT_SERVICE_NAME: &str = "CARD";
@@ -136,6 +137,7 @@ impl Vaultable for domain::Card {
             card_network: None,
             bank_code: None,
             card_issuing_country: None,
+            card_issuing_country_code: None,
             card_type: None,
             nick_name: value1.nickname.map(masking::Secret::new),
             card_holder_name: value1.card_holder_name,
@@ -486,6 +488,7 @@ impl Vaultable for api::CardPayout {
             nickname: None,
             card_last_four: None,
             card_token: None,
+            card_network: self.card_network.clone(),
         };
 
         value1
@@ -534,6 +537,7 @@ impl Vaultable for api::CardPayout {
             expiry_month: value1.exp_month.into(),
             expiry_year: value1.exp_year.into(),
             card_holder_name: value1.name_on_card.map(masking::Secret::new),
+            card_network: value1.card_network,
         };
 
         let supp_data = SupplementaryVaultData {
@@ -560,6 +564,7 @@ pub struct TokenizedWalletSensitiveValues {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedWalletInsensitiveValues {
     pub customer_id: Option<id_type::CustomerId>,
+    pub card_network: Option<common_enums::CardNetwork>,
 }
 
 #[cfg(feature = "payouts")]
@@ -611,7 +616,20 @@ impl Vaultable for api::WalletPayout {
         &self,
         customer_id: Option<id_type::CustomerId>,
     ) -> CustomResult<String, errors::VaultError> {
-        let value2 = TokenizedWalletInsensitiveValues { customer_id };
+        let value2 = match self {
+            Self::Paypal(_paypal_data) => TokenizedWalletInsensitiveValues {
+                customer_id,
+                card_network: None,
+            },
+            Self::Venmo(_venmo_data) => TokenizedWalletInsensitiveValues {
+                customer_id,
+                card_network: None,
+            },
+            Self::ApplePayDecrypt(apple_pay_decrypt_data) => TokenizedWalletInsensitiveValues {
+                customer_id,
+                card_network: apple_pay_decrypt_data.card_network.clone(),
+            },
+        };
 
         value2
             .encode_to_string_of_json()
@@ -650,6 +668,7 @@ impl Vaultable for api::WalletPayout {
                             expiry_month,
                             expiry_year,
                             card_holder_name: value1.card_holder_name,
+                            card_network: value2.card_network,
                         })
                     }
                     _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
@@ -675,6 +694,7 @@ pub struct TokenizedBankSensitiveValues {
     pub iban: Option<masking::Secret<String>>,
     pub pix_key: Option<masking::Secret<String>>,
     pub tax_id: Option<masking::Secret<String>>,
+    pub bank_number: Option<masking::Secret<String>>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -701,6 +721,7 @@ impl Vaultable for api::BankPayout {
                 iban: None,
                 pix_key: None,
                 tax_id: None,
+                bank_number: None,
             },
             Self::Bacs(b) => TokenizedBankSensitiveValues {
                 bank_account_number: Some(b.bank_account_number.to_owned()),
@@ -710,6 +731,7 @@ impl Vaultable for api::BankPayout {
                 iban: None,
                 pix_key: None,
                 tax_id: None,
+                bank_number: None,
             },
             Self::Sepa(b) => TokenizedBankSensitiveValues {
                 bank_account_number: None,
@@ -719,6 +741,7 @@ impl Vaultable for api::BankPayout {
                 iban: Some(b.iban.to_owned()),
                 pix_key: None,
                 tax_id: None,
+                bank_number: None,
             },
             Self::Pix(bank_details) => TokenizedBankSensitiveValues {
                 bank_account_number: Some(bank_details.bank_account_number.to_owned()),
@@ -728,6 +751,17 @@ impl Vaultable for api::BankPayout {
                 iban: None,
                 pix_key: Some(bank_details.pix_key.to_owned()),
                 tax_id: bank_details.tax_id.to_owned(),
+                bank_number: None,
+            },
+            Self::Trustly(bank_details) => TokenizedBankSensitiveValues {
+                bank_account_number: bank_details.account_number.to_owned(),
+                bank_routing_number: None,
+                bic: None,
+                bank_sort_code: None,
+                iban: bank_details.iban.to_owned(),
+                pix_key: None,
+                tax_id: None,
+                bank_number: bank_details.bank_number.to_owned(),
             },
         };
 
@@ -770,6 +804,13 @@ impl Vaultable for api::BankPayout {
                 bank_city: None,
                 bank_branch: bank_details.bank_branch.to_owned(),
             },
+            Self::Trustly(bank_details) => TokenizedBankInsensitiveValues {
+                customer_id,
+                bank_name: None,
+                bank_country_code: Some(bank_details.country_code),
+                bank_city: None,
+                bank_branch: None,
+            },
         };
 
         bank_insensitive_data
@@ -803,8 +844,10 @@ impl Vaultable for api::BankPayout {
             // PIX
             bank_sensitive_data.pix_key,
             bank_sensitive_data.tax_id,
+            // TRUSTLY
+            bank_insensitive_data.bank_country_code,
         ) {
-            (Some(ban), Some(brn), None, None, None, None, None) => {
+            (Some(ban), Some(brn), None, None, None, None, None, None) => {
                 Self::Ach(payouts::AchBankTransfer {
                     bank_account_number: ban,
                     bank_routing_number: brn,
@@ -813,7 +856,7 @@ impl Vaultable for api::BankPayout {
                     bank_city: bank_insensitive_data.bank_city,
                 })
             }
-            (Some(ban), None, Some(bsc), None, None, None, None) => {
+            (Some(ban), None, Some(bsc), None, None, None, None, None) => {
                 Self::Bacs(payouts::BacsBankTransfer {
                     bank_account_number: ban,
                     bank_sort_code: bsc,
@@ -822,7 +865,7 @@ impl Vaultable for api::BankPayout {
                     bank_city: bank_insensitive_data.bank_city,
                 })
             }
-            (None, None, None, Some(iban), bic, None, None) => {
+            (None, None, None, Some(iban), bic, None, None, None) => {
                 Self::Sepa(payouts::SepaBankTransfer {
                     iban,
                     bic,
@@ -831,13 +874,21 @@ impl Vaultable for api::BankPayout {
                     bank_city: bank_insensitive_data.bank_city,
                 })
             }
-            (Some(ban), None, None, None, None, Some(pix_key), tax_id) => {
+            (Some(ban), None, None, None, None, Some(pix_key), tax_id, None) => {
                 Self::Pix(payouts::PixBankTransfer {
                     bank_account_number: ban,
                     bank_branch: bank_insensitive_data.bank_branch,
                     bank_name: bank_insensitive_data.bank_name,
                     pix_key,
                     tax_id,
+                })
+            }
+            (account_number, None, None, iban, None, None, None, Some(country_code)) => {
+                Self::Trustly(payouts::TrustlyBankTransfer {
+                    iban,
+                    account_number,
+                    bank_number: bank_sensitive_data.bank_number,
+                    country_code,
                 })
             }
             _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
@@ -860,6 +911,7 @@ pub enum VaultPayoutMethod {
     Bank(String),
     Wallet(String),
     BankRedirect(String),
+    Passthrough(String),
 }
 
 #[cfg(feature = "payouts")]
@@ -874,6 +926,9 @@ impl Vaultable for api::PayoutMethodData {
             Self::Wallet(wallet) => VaultPayoutMethod::Wallet(wallet.get_value1(customer_id)?),
             Self::BankRedirect(bank_redirect) => {
                 VaultPayoutMethod::BankRedirect(bank_redirect.get_value1(customer_id)?)
+            }
+            Self::Passthrough(passthrough) => {
+                VaultPayoutMethod::Passthrough(passthrough.get_value1(customer_id)?)
             }
         };
 
@@ -893,6 +948,9 @@ impl Vaultable for api::PayoutMethodData {
             Self::Wallet(wallet) => VaultPayoutMethod::Wallet(wallet.get_value2(customer_id)?),
             Self::BankRedirect(bank_redirect) => {
                 VaultPayoutMethod::BankRedirect(bank_redirect.get_value2(customer_id)?)
+            }
+            Self::Passthrough(passthrough) => {
+                VaultPayoutMethod::Passthrough(passthrough.get_value2(customer_id)?)
             }
         };
 
@@ -937,6 +995,11 @@ impl Vaultable for api::PayoutMethodData {
                     api::BankRedirectPayout::from_values(mvalue1, mvalue2)?;
                 Ok((Self::BankRedirect(bank_redirect), supp_data))
             }
+            (VaultPayoutMethod::Passthrough(mvalue1), VaultPayoutMethod::Passthrough(mvalue2)) => {
+                let (passthrough, supp_data) =
+                    api::PassthroughPayout::from_values(mvalue1, mvalue2)?;
+                Ok((Self::Passthrough(passthrough), supp_data))
+            }
             _ => Err(errors::VaultError::PayoutMethodNotSupported)
                 .attach_printable("Payout method not supported"),
         }
@@ -951,8 +1014,16 @@ impl Vaultable for api::BankRedirectPayout {
     ) -> CustomResult<String, errors::VaultError> {
         let value1 = match self {
             Self::Interac(interac_data) => TokenizedBankRedirectSensitiveValues {
-                email: interac_data.email.clone(),
+                email: Some(interac_data.email.clone()),
                 bank_redirect_type: PaymentMethodType::Interac,
+                account_holder_name: None,
+                iban: None,
+            },
+            Self::OpenBankingUk(open_banking_uk_data) => TokenizedBankRedirectSensitiveValues {
+                email: None,
+                iban: Some(open_banking_uk_data.iban.clone()),
+                account_holder_name: Some(open_banking_uk_data.account_holder_name.clone()),
+                bank_redirect_type: PaymentMethodType::OpenBankingUk,
             },
         };
 
@@ -991,9 +1062,21 @@ impl Vaultable for api::BankRedirectPayout {
             .attach_printable("Could not deserialize into wallet data value2")?;
 
         let bank_redirect = match value1.bank_redirect_type {
-            PaymentMethodType::Interac => Self::Interac(api_models::payouts::Interac {
-                email: value1.email,
-            }),
+            PaymentMethodType::Interac => match value1.email {
+                Some(email) => Self::Interac(api_models::payouts::Interac { email }),
+                _ => Err(errors::VaultError::ResponseDeserializationFailed)
+                    .attach_printable("Failed to deserialize into Interac")?,
+            },
+            PaymentMethodType::OpenBankingUk => match (value1.account_holder_name, value1.iban) {
+                (Some(account_holder_name), Some(iban)) => {
+                    Self::OpenBankingUk(api_models::payouts::OpenBankingUk {
+                        account_holder_name,
+                        iban,
+                    })
+                }
+                _ => Err(errors::VaultError::ResponseDeserializationFailed)
+                    .attach_printable("Failed to deserialize into OpenBankingUk")?,
+            },
             _ => Err(errors::VaultError::PayoutMethodNotSupported)
                 .attach_printable("Payout method not supported")?,
         };
@@ -1007,15 +1090,89 @@ impl Vaultable for api::BankRedirectPayout {
     }
 }
 
+#[cfg(feature = "payouts")]
+impl Vaultable for api::PassthroughPayout {
+    fn get_value1(
+        &self,
+        _customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let value1 = TokenizedPassthroughSensitiveValues {
+            psp_token: self.psp_token.clone(),
+        };
+
+        value1
+            .encode_to_string_of_json()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable(
+                "Failed to encode passthrough data - TokenizedPassthroughSensitiveValues",
+            )
+    }
+
+    fn get_value2(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let value2 = TokenizedPassthroughInsensitiveValues {
+            customer_id,
+            token_type: self.token_type,
+        };
+
+        value2
+            .encode_to_string_of_json()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode passthrough data value2")
+    }
+
+    fn from_values(
+        value1: String,
+        value2: String,
+    ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError> {
+        let value1: TokenizedPassthroughSensitiveValues = value1
+            .parse_struct("TokenizedPassthroughSensitiveValues")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Could not deserialize into connector token data value1")?;
+
+        let value2: TokenizedPassthroughInsensitiveValues = value2
+            .parse_struct("TokenizedPassthroughInsensitiveValues")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Could not deserialize into connector token data value2")?;
+
+        let passthrough = Self {
+            psp_token: value1.psp_token,
+            token_type: value2.token_type,
+        };
+
+        let supp_data = SupplementaryVaultData {
+            customer_id: value2.customer_id,
+            payment_method_id: None,
+        };
+
+        Ok((passthrough, supp_data))
+    }
+}
+
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedBankRedirectSensitiveValues {
-    pub email: Email,
+    pub email: Option<Email>,
+    pub iban: Option<masking::Secret<String>>,
+    pub account_holder_name: Option<masking::Secret<String>>,
     pub bank_redirect_type: PaymentMethodType,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedBankRedirectInsensitiveValues {
     pub customer_id: Option<id_type::CustomerId>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedPassthroughSensitiveValues {
+    pub psp_token: masking::Secret<String>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedPassthroughInsensitiveValues {
+    pub customer_id: Option<id_type::CustomerId>,
+    pub token_type: PaymentMethodType,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -1064,7 +1221,7 @@ impl Vault {
 
         let lookup_key = token_id.unwrap_or_else(|| generate_id_with_default_len("token"));
 
-        let lookup_key = create_tokenize(
+        let lookup_key = create_tokenize_without_configurable_expiry(
             state,
             value1,
             Some(value2),
@@ -1072,7 +1229,13 @@ impl Vault {
             merchant_key_store.key.get_inner(),
         )
         .await?;
-        add_delete_tokenized_data_task(&*state.store, &lookup_key, pm).await?;
+        add_delete_tokenized_data_task(
+            &*state.store,
+            &lookup_key,
+            pm,
+            state.conf.application_source,
+        )
+        .await?;
         metrics::TOKENIZED_DATA_COUNT.add(1, &[]);
         Ok(lookup_key)
     }
@@ -1102,6 +1265,7 @@ impl Vault {
         payout_method: &api::PayoutMethodData,
         customer_id: Option<id_type::CustomerId>,
         merchant_key_store: &domain::MerchantKeyStore,
+        intent_fulfillment_time: Option<i64>,
     ) -> RouterResult<String> {
         let value1 = payout_method
             .get_value1(customer_id.clone())
@@ -1116,12 +1280,13 @@ impl Vault {
         let lookup_key =
             token_id.unwrap_or_else(|| generate_id_with_default_len("temporary_token"));
 
-        let lookup_key = create_tokenize(
+        let lookup_key = create_tokenize_with_configurable_expiry(
             state,
             value1,
             Some(value2),
             lookup_key,
             merchant_key_store.key.get_inner(),
+            intent_fulfillment_time,
         )
         .await?;
         // add_delete_tokenized_data_task(&*state.store, &lookup_key, pm).await?;
@@ -1152,12 +1317,44 @@ fn get_redis_locker_key(lookup_key: &str) -> String {
 }
 
 #[instrument(skip(state, value1, value2))]
-pub async fn create_tokenize(
+pub async fn create_tokenize_without_configurable_expiry(
     state: &routes::SessionState,
     value1: String,
     value2: Option<String>,
     lookup_key: String,
     encryption_key: &masking::Secret<Vec<u8>>,
+) -> RouterResult<String> {
+    create_tokenize(state, value1, value2, lookup_key, encryption_key, None).await
+}
+
+#[instrument(skip(state, value1, value2))]
+pub async fn create_tokenize_with_configurable_expiry(
+    state: &routes::SessionState,
+    value1: String,
+    value2: Option<String>,
+    lookup_key: String,
+    encryption_key: &masking::Secret<Vec<u8>>,
+    expiry_time: Option<i64>,
+) -> RouterResult<String> {
+    create_tokenize(
+        state,
+        value1,
+        value2,
+        lookup_key,
+        encryption_key,
+        expiry_time,
+    )
+    .await
+}
+
+#[instrument(skip(state, value1, value2))]
+async fn create_tokenize(
+    state: &routes::SessionState,
+    value1: String,
+    value2: Option<String>,
+    lookup_key: String,
+    encryption_key: &masking::Secret<Vec<u8>>,
+    expiry_time: Option<i64>,
 ) -> RouterResult<String> {
     let redis_key = get_redis_locker_key(lookup_key.as_str());
     let func = || async {
@@ -1189,7 +1386,7 @@ pub async fn create_tokenize(
             .set_key_if_not_exists_with_expiry(
                 &redis_key.as_str().into(),
                 bytes::Bytes::from(encrypted_payload),
-                Some(i64::from(consts::LOCKER_REDIS_EXPIRY_SECONDS)),
+                expiry_time.or(Some(i64::from(consts::LOCKER_REDIS_EXPIRY_SECONDS))),
             )
             .await
             .map(|_| lookup_key.clone())
@@ -1327,7 +1524,6 @@ pub async fn delete_tokenized_data(
     }
 }
 
-#[cfg(feature = "v2")]
 async fn create_vault_request<R: pm_types::VaultingInterface>(
     jwekey: &settings::Jwekey,
     locker: &settings::Locker,
@@ -1351,7 +1547,7 @@ async fn create_vault_request<R: pm_types::VaultingInterface>(
     let mut request = request::Request::new(services::Method::Post, &url);
     request.add_header(
         headers::CONTENT_TYPE,
-        consts::VAULT_HEADER_CONTENT_TYPE.into(),
+        consts::V2_VAULT_HEADER_CONTENT_TYPE.into(),
     );
     request.add_header(
         headers::X_TENANT_ID,
@@ -1361,7 +1557,6 @@ async fn create_vault_request<R: pm_types::VaultingInterface>(
     Ok(request)
 }
 
-#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn call_to_vault<V: pm_types::VaultingInterface>(
     state: &routes::SessionState,
@@ -1395,8 +1590,19 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
 }
 
 #[cfg(feature = "v2")]
+pub async fn get_fingerprint_id_for_payment_method(
+    state: &routes::SessionState,
+    payment_method_data: &domain::PaymentMethodVaultingData,
+    customer_id: String,
+) -> CustomResult<String, errors::VaultError> {
+    let fingerprint_data = payment_method_data.to_fingerprint_data();
+
+    get_fingerprint_id_from_vault(state, &fingerprint_data, customer_id).await
+}
+
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
-pub async fn get_fingerprint_id_from_vault<D: domain::VaultingDataInterface + serde::Serialize>(
+async fn get_fingerprint_id_from_vault<D: domain::VaultingDataInterface + serde::Serialize>(
     state: &routes::SessionState,
     data: &D,
     key: String,
@@ -1427,7 +1633,7 @@ pub async fn get_fingerprint_id_from_vault<D: domain::VaultingDataInterface + se
 #[instrument(skip_all)]
 pub async fn add_payment_method_to_vault(
     state: &routes::SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     pmd: &domain::PaymentMethodVaultingData,
     existing_vault_id: Option<domain::VaultId>,
     customer_id: &id_type::GlobalCustomerId,
@@ -1460,7 +1666,7 @@ pub async fn add_payment_method_to_vault(
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method_from_vault_internal(
     state: &routes::SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     vault_id: &domain::VaultId,
     customer_id: &id_type::GlobalCustomerId,
 ) -> CustomResult<pm_types::VaultRetrieveResponse, errors::VaultError> {
@@ -1539,6 +1745,7 @@ pub async fn retrieve_payment_method_from_vault_external(
         None,
         connector_vault_id,
         None,
+        None,
     )
     .await?;
 
@@ -1606,17 +1813,13 @@ pub fn get_vault_response_for_retrieve_payment_method_data<F>(
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method_from_vault_using_payment_token(
     state: &routes::SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     profile: &domain::Profile,
     payment_token: &String,
     payment_method_type: &common_enums::PaymentMethod,
 ) -> RouterResult<(domain::PaymentMethod, domain::PaymentMethodVaultingData)> {
-    let pm_token_data = utils::retrieve_payment_token_data(
-        state,
-        payment_token.to_string(),
-        Some(payment_method_type),
-    )
-    .await?;
+    let pm_token_data =
+        utils::retrieve_payment_token_data(state, payment_token.to_string()).await?;
 
     let payment_method_id = match pm_token_data {
         storage::PaymentTokenData::PermanentCard(card_token_data) => {
@@ -1638,26 +1841,23 @@ pub async fn retrieve_payment_method_from_vault_using_payment_token(
         }
     };
     let db = &*state.store;
-    let key_manager_state = &state.into();
 
-    let storage_scheme = merchant_context.get_merchant_account().storage_scheme;
+    let storage_scheme = platform.get_processor().get_account().storage_scheme;
 
     let payment_method = db
         .find_payment_method(
-            key_manager_state,
-            merchant_context.get_merchant_key_store(),
+            platform.get_processor().get_key_store(),
             &payment_method_id,
             storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-    let vault_data =
-        retrieve_payment_method_from_vault(state, merchant_context, profile, &payment_method)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to retrieve payment method from vault")?
-            .data;
+    let vault_data = retrieve_payment_method_from_vault(state, platform, profile, &payment_method)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to retrieve payment method from vault")?
+        .data;
 
     Ok((payment_method, vault_data))
 }
@@ -1671,59 +1871,60 @@ pub struct TemporaryVaultCvc {
 #[instrument(skip_all)]
 pub async fn insert_cvc_using_payment_token(
     state: &routes::SessionState,
-    payment_token: &String,
-    payment_method_data: api_models::payment_methods::PaymentMethodCreateData,
-    payment_method: common_enums::PaymentMethod,
+    payment_method_id: &id_type::GlobalPaymentMethodId,
+    card_cvc: masking::Secret<String>,
     fulfillment_time: i64,
-    encryption_key: &masking::Secret<Vec<u8>>,
-) -> RouterResult<()> {
-    let card_cvc = domain::PaymentMethodVaultingData::try_from(payment_method_data)?
-        .get_card()
-        .and_then(|card| card.card_cvc.clone());
+    key_store: &domain::MerchantKeyStore,
+) -> RouterResult<api_models::payment_methods::CardCVCTokenStorageDetails> {
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
 
-    if let Some(card_cvc) = card_cvc {
-        let redis_conn = state
-            .store
-            .get_redis_conn()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to get redis connection")?;
+    let key = format!(
+        "pm_token_{}_hyperswitch_cvc",
+        payment_method_id.get_string_repr()
+    );
 
-        let key = format!("pm_token_{payment_token}_{payment_method}_hyperswitch_cvc");
+    let payload_to_be_encrypted = TemporaryVaultCvc { card_cvc };
 
-        let payload_to_be_encrypted = TemporaryVaultCvc { card_cvc };
+    // Encrypt the CVC and store it in Redis
+    let encrypted_payload: Encryption = pm_cards::create_encrypted_data(
+        &(state.into()),
+        key_store,
+        payload_to_be_encrypted.clone(),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to encrypt TemporaryVaultCvc for vault")?
+    .into();
 
-        let payload = payload_to_be_encrypted
-            .encode_to_string_of_json()
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    redis_conn
+        .serialize_and_set_key_with_expiry(
+            &key.as_str().into(),
+            encrypted_payload,
+            fulfillment_time,
+        )
+        .await
+        .map_err(Into::<errors::StorageError>::into)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to add encrypted cvc to redis")?;
 
-        // Encrypt the CVC and store it in Redis
-        let encrypted_payload = GcmAes256
-            .encode_message(encryption_key.peek().as_ref(), payload.as_bytes())
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to encode TemporaryVaultCvc for vault")?;
+    let card_token_cvc_storage =
+        api_models::payment_methods::CardCVCTokenStorageDetails::generate_expiry_timestamp(
+            fulfillment_time,
+        );
 
-        redis_conn
-            .set_key_if_not_exists_with_expiry(
-                &key.as_str().into(),
-                bytes::Bytes::from(encrypted_payload),
-                Some(fulfillment_time),
-            )
-            .await
-            .change_context(errors::StorageError::KVError)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to add token in redis")?;
-    };
-
-    Ok(())
+    Ok(card_token_cvc_storage)
 }
 
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn retrieve_and_delete_cvc_from_payment_token(
     state: &routes::SessionState,
-    payment_token: &String,
-    payment_method: common_enums::PaymentMethod,
-    encryption_key: &masking::Secret<Vec<u8>>,
+    payment_method_id: &String,
+    key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<masking::Secret<String>> {
     let redis_conn = state
         .store
@@ -1731,27 +1932,25 @@ pub async fn retrieve_and_delete_cvc_from_payment_token(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get redis connection")?;
 
-    let key = format!("pm_token_{payment_token}_{payment_method}_hyperswitch_cvc",);
+    let key = format!("pm_token_{payment_method_id}_hyperswitch_cvc");
 
-    let data = redis_conn
-        .get_key::<bytes::Bytes>(&key.clone().into())
+    let resp: Encryption = redis_conn
+        .get_and_deserialize_key::<Encryption>(&key.clone().into(), "Vec<u8>")
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    let cvc_data: TemporaryVaultCvc = pm_cards::decrypt_generic_data(state, Some(resp), key_store)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to fetch the token from redis")?;
-
-    // decrypt the cvc data
-    let decrypted_payload = GcmAes256
-        .decode_message(
-            encryption_key.peek().as_ref(),
-            masking::Secret::new(data.into()),
-        )
+        .attach_printable("Failed to decrypt volatile payment method vault data")?
+        .get_required_value("PaymentMethodVaultingData")
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to decode TemporaryVaultCvc from vault")?;
+        .attach_printable("Failed to get required decrypted volatile payment method vault data")?;
 
-    let cvc_data: TemporaryVaultCvc = bytes::Bytes::from(decrypted_payload)
-        .parse_struct("TemporaryVaultCvc")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to deserialize TemporaryVaultCvc")?;
+    logger::info!(
+        "CVC retrieved successfully from redis for payment method id: {}",
+        payment_method_id
+    );
 
     // delete key after retrieving the cvc
     redis_conn.delete_key(&key.into()).await.map_err(|err| {
@@ -1759,6 +1958,39 @@ pub async fn retrieve_and_delete_cvc_from_payment_token(
     });
 
     Ok(cvc_data.card_cvc)
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn retrieve_key_and_ttl_for_cvc_from_payment_method_id(
+    state: &routes::SessionState,
+    payment_method_id: id_type::GlobalPaymentMethodId,
+) -> RouterResult<i64> {
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
+
+    let key = format!(
+        "pm_token_{}_hyperswitch_cvc",
+        payment_method_id.get_string_repr()
+    );
+
+    // check if key exists and get ttl
+    redis_conn
+        .get_key::<bytes::Bytes>(&key.clone().into())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch the payment_method_token from redis")?;
+
+    let ttl = redis_conn
+        .get_ttl(&key.clone().into())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch the payment_method_token ttl from redis")?;
+
+    Ok(ttl)
 }
 
 #[cfg(feature = "v2")]
@@ -1783,10 +2015,100 @@ pub async fn delete_payment_token(
 }
 
 #[cfg(feature = "v2")]
+pub async fn retrieve_payment_method_data_from_storage(
+    state: &routes::SessionState,
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    pm: &domain::PaymentMethod,
+    storage_type: enums::StorageType,
+) -> RouterResult<pm_types::VaultRetrieveResponse> {
+    let mut payment_method_data = match storage_type {
+        enums::StorageType::Persistent => {
+            retrieve_payment_method_from_vault(state, platform, profile, pm).await?
+        }
+        enums::StorageType::Volatile => {
+            retrieve_volatile_payment_method_from_redis(
+                state,
+                platform.get_provider().get_key_store(),
+                pm,
+            )
+            .await?
+        }
+    };
+
+    let card_cvc = retrieve_and_delete_cvc_from_payment_token(
+        state,
+        &pm.id.get_string_repr().to_string(),
+        platform.get_provider().get_key_store(),
+    )
+    .await
+    .inspect_err(|err| {
+        logger::warn!(
+            "Failed to retrieve CVC for payment method {}",
+            pm.id.get_string_repr()
+        );
+    });
+
+    if let Ok(card_cvc) = card_cvc {
+        payment_method_data.data.set_card_cvc(card_cvc);
+    }
+
+    Ok(payment_method_data)
+}
+
+#[cfg(feature = "v2")]
+pub async fn retrieve_volatile_payment_method_from_redis(
+    state: &routes::SessionState,
+    key_store: &domain::MerchantKeyStore,
+    pm: &domain::PaymentMethod,
+) -> RouterResult<pm_types::VaultRetrieveResponse> {
+    let vault_id = pm
+        .locker_id
+        .clone()
+        .ok_or(errors::VaultError::MissingRequiredField {
+            field_name: "locker_id",
+        })
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Missing locker_id for VaultRetrieveRequest")?;
+
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
+
+    let response = redis_conn
+        .get_and_deserialize_key::<Encryption>(&vault_id.get_string_repr().into(), "Vec<u8>")
+        .await;
+
+    match response {
+        Ok(resp) => {
+            let decrypted_payload: domain::PaymentMethodVaultingData =
+                pm_cards::decrypt_generic_data(state, Some(resp), key_store)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to decrypt volatile payment method vault data")?
+                    .get_required_value("PaymentMethodVaultingData")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to get required decrypted volatile payment method vault data",
+                    )?;
+
+            Ok(pm_types::VaultRetrieveResponse {
+                data: decrypted_payload,
+            })
+        }
+        Err(err) => Err(err).change_context(errors::ApiErrorResponse::UnprocessableEntity {
+            message: "Token is invalid or expired".into(),
+        }),
+    }
+}
+
+#[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method_from_vault(
     state: &routes::SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     profile: &domain::Profile,
     pm: &domain::PaymentMethod,
 ) -> RouterResult<pm_types::VaultRetrieveResponse> {
@@ -1800,7 +2122,7 @@ pub async fn retrieve_payment_method_from_vault(
                 domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
                     payments_core::helpers::get_merchant_connector_account_v2(
                         state,
-                        merchant_context.get_merchant_key_store(),
+                        platform.get_processor(),
                         external_vault_source,
                     )
                     .await
@@ -1811,7 +2133,7 @@ pub async fn retrieve_payment_method_from_vault(
 
             retrieve_payment_method_from_vault_external(
                 state,
-                merchant_context.get_merchant_account(),
+                platform.get_provider().get_account(),
                 pm,
                 merchant_connector_account,
             )
@@ -1826,15 +2148,14 @@ pub async fn retrieve_payment_method_from_vault(
                 })
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Missing locker_id for VaultRetrieveRequest")?;
-            retrieve_payment_method_from_vault_internal(
-                state,
-                merchant_context,
-                &vault_id,
-                &pm.customer_id,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to retrieve payment method from vault")
+            let customer_id = pm
+                .customer_id
+                .clone()
+                .get_required_value("GlobalCustomerId")?;
+            retrieve_payment_method_from_vault_internal(state, platform, &vault_id, &customer_id)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to retrieve payment method from vault")
         }
     }
 }
@@ -1842,7 +2163,7 @@ pub async fn retrieve_payment_method_from_vault(
 #[cfg(feature = "v2")]
 pub async fn delete_payment_method_data_from_vault_internal(
     state: &routes::SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     vault_id: domain::VaultId,
     customer_id: &id_type::GlobalCustomerId,
 ) -> CustomResult<pm_types::VaultDeleteResponse, errors::VaultError> {
@@ -1894,6 +2215,7 @@ pub async fn delete_payment_method_data_from_vault_external(
         merchant_connector_account,
         None,
         Some(connector_vault_id),
+        None,
         None,
     )
     .await?;
@@ -1966,7 +2288,7 @@ pub fn get_vault_response_for_delete_payment_method_data<F>(
 #[cfg(feature = "v2")]
 pub async fn delete_payment_method_data_from_vault(
     state: &routes::SessionState,
-    merchant_context: &domain::MerchantContext,
+    platform: &domain::Platform,
     profile: &domain::Profile,
     pm: &domain::PaymentMethod,
 ) -> RouterResult<pm_types::VaultDeleteResponse> {
@@ -1977,6 +2299,10 @@ pub async fn delete_payment_method_data_from_vault(
         .clone()
         .get_required_value("locker_id")
         .attach_printable("Missing locker_id in PaymentMethod")?;
+    let customer_id = &pm
+        .customer_id
+        .clone()
+        .get_required_value("GlobalCustomerId")?;
 
     match is_external_vault_enabled {
         true => {
@@ -1986,7 +2312,7 @@ pub async fn delete_payment_method_data_from_vault(
                 domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
                     payments_core::helpers::get_merchant_connector_account_v2(
                         state,
-                        merchant_context.get_merchant_key_store(),
+                        platform.get_processor(),
                         external_vault_source,
                     )
                     .await
@@ -1997,22 +2323,19 @@ pub async fn delete_payment_method_data_from_vault(
 
             delete_payment_method_data_from_vault_external(
                 state,
-                merchant_context.get_merchant_account(),
+                platform.get_provider().get_account(),
                 merchant_connector_account,
                 vault_id.clone(),
-                &pm.customer_id,
+                customer_id,
             )
             .await
         }
-        false => delete_payment_method_data_from_vault_internal(
-            state,
-            merchant_context,
-            vault_id,
-            &pm.customer_id,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to delete payment method from vault"),
+        false => {
+            delete_payment_method_data_from_vault_internal(state, platform, vault_id, customer_id)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to delete payment method from vault")
+        }
     }
 }
 
@@ -2033,10 +2356,11 @@ pub async fn retrieve_payment_method_from_vault_external_v1(
         None,
         connector_vault_id,
         None,
+        None,
     )
     .await?;
 
-    let old_router_data = VaultConnectorFlowData::to_old_router_data(router_data)
+    let mut old_router_data = VaultConnectorFlowData::to_old_router_data(router_data)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable(
             "Cannot construct router data for making the external vault retrieve api call",
@@ -2053,24 +2377,35 @@ pub async fn retrieve_payment_method_from_vault_external_v1(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to get the connector data")?;
 
-    let connector_integration: services::BoxedVaultConnectorIntegrationInterface<
-        hyperswitch_domain_models::router_flow_types::ExternalVaultRetrieveFlow,
-        types::VaultRequestData,
-        types::VaultResponseData,
-    > = connector_data.connector.get_connector_integration();
+    access_token::create_access_token(state, &connector_data, merchant_id, &mut old_router_data)
+        .await?;
 
-    let router_data_resp = services::execute_connector_processing_step(
-        state,
-        connector_integration,
-        &old_router_data,
-        payments::CallConnectorAction::Trigger,
-        None,
-        None,
-    )
-    .await
-    .to_vault_failed_response()?;
+    if old_router_data.response.is_ok() {
+        let connector_integration: services::BoxedVaultConnectorIntegrationInterface<
+            hyperswitch_domain_models::router_flow_types::ExternalVaultRetrieveFlow,
+            types::VaultRequestData,
+            types::VaultResponseData,
+        > = connector_data.connector.get_connector_integration();
 
-    get_vault_response_for_retrieve_payment_method_data_v1(router_data_resp)
+        let router_data_resp = services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            &old_router_data,
+            payments::CallConnectorAction::Trigger,
+            None,
+            None,
+        )
+        .await
+        .to_vault_failed_response()?;
+        get_vault_response_for_retrieve_payment_method_data_v1(router_data_resp)
+    } else {
+        logger::error!(
+            "Error vaulting payment method: {:?}",
+            old_router_data.response
+        );
+        Err(report!(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to create access token for external vault"))
+    }
 }
 
 pub fn get_vault_response_for_retrieve_payment_method_data_v1<F>(
@@ -2105,6 +2440,7 @@ pub async fn add_delete_tokenized_data_task(
     db: &dyn db::StorageInterface,
     lookup_key: &str,
     pm: enums::PaymentMethod,
+    application_source: common_enums::ApplicationSource,
 ) -> RouterResult<()> {
     let runner = storage::ProcessTrackerRunner::DeleteTokenizeDataWorkflow;
     let process_tracker_id = format!("{runner}_{lookup_key}");
@@ -2128,6 +2464,7 @@ pub async fn add_delete_tokenized_data_task(
         None,
         schedule_time,
         common_types::consts::API_VERSION,
+        application_source,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct delete tokenized data process tracker task")?;

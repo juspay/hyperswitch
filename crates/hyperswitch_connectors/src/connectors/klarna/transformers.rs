@@ -9,7 +9,7 @@ use hyperswitch_domain_models::{
         KlarnaSdkResponse, RouterData,
     },
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{PaymentsCaptureData, ResponseId},
+    router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types,
 };
@@ -19,8 +19,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{
-        PaymentsResponseRouterData, PaymentsSessionResponseRouterData, RefundsResponseRouterData,
-        ResponseRouterData,
+        PaymentsCaptureResponseRouterData, PaymentsResponseRouterData,
+        PaymentsSessionResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
     },
     utils::{self, AddressData, AddressDetailsData, PaymentsAuthorizeRequestData, RouterData as _},
 };
@@ -393,6 +393,7 @@ impl TryFrom<PaymentsResponseRouterData<KlarnaAuthResponse>>
                         network_txn_id: None,
                         connector_response_reference_id: Some(response.order_id.clone()),
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     }),
                     status: get_fraud_status(
@@ -414,6 +415,7 @@ impl TryFrom<PaymentsResponseRouterData<KlarnaAuthResponse>>
                     network_txn_id: None,
                     connector_response_reference_id: Some(response.order_id.clone()),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 status: get_checkout_status(
@@ -576,6 +578,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, KlarnaPsyncResponse, T, PaymentsRespons
                         .klarna_reference
                         .or(Some(response.order_id.clone())),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -590,6 +593,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, KlarnaPsyncResponse, T, PaymentsRespons
                     network_txn_id: None,
                     connector_response_reference_id: Some(response.order_id.clone()),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -627,23 +631,16 @@ pub struct KlarnaCaptureResponse {
     pub capture_id: Option<String>,
 }
 
-impl<F>
-    TryFrom<ResponseRouterData<F, KlarnaCaptureResponse, PaymentsCaptureData, PaymentsResponseData>>
-    for RouterData<F, PaymentsCaptureData, PaymentsResponseData>
+impl TryFrom<PaymentsCaptureResponseRouterData<KlarnaCaptureResponse>>
+    for types::PaymentsCaptureRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            KlarnaCaptureResponse,
-            PaymentsCaptureData,
-            PaymentsResponseData,
-        >,
+        item: PaymentsCaptureResponseRouterData<KlarnaCaptureResponse>,
     ) -> Result<Self, Self::Error> {
         let connector_meta = serde_json::json!(KlarnaMeta {
             capture_id: item.response.capture_id,
         });
-
         // https://docs.klarna.com/api/ordermanagement/#operation/captureOrder
         // If 201 status code, then order is captured, other status codes are handled by the error handler
         let status = if item.http_code == 201 {
@@ -662,6 +659,7 @@ impl<F>
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             status,

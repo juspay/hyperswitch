@@ -9,6 +9,7 @@ pub enum ApiIdentifier {
     Organization,
     MerchantAccount,
     MerchantConnector,
+    MerchantConnectorWebhookManagement,
     Configs,
     Customers,
     Ephemeral,
@@ -63,9 +64,10 @@ impl From<Flow> for ApiIdentifier {
             | Flow::MerchantTransferKey
             | Flow::MerchantAccountList
             | Flow::EnablePlatformAccount => Self::MerchantAccount,
-            Flow::OrganizationCreate | Flow::OrganizationRetrieve | Flow::OrganizationUpdate => {
-                Self::Organization
-            }
+            Flow::OrganizationCreate
+            | Flow::OrganizationRetrieve
+            | Flow::OrganizationUpdate
+            | Flow::ConvertOrganizationToPlatform => Self::Organization,
             Flow::RoutingCreateConfig
             | Flow::RoutingLinkConfig
             | Flow::RoutingUnlinkConfig
@@ -93,7 +95,10 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GetSubscription
             | Flow::UpdateSubscription
             | Flow::GetSubscriptionEstimate
-            | Flow::GetPlansForSubscription => Self::Subscription,
+            | Flow::GetSubscriptionItemsForSubscription
+            | Flow::PauseSubscription
+            | Flow::ResumeSubscription
+            | Flow::CancelSubscription => Self::Subscription,
             Flow::RetrieveForexFlow => Self::Forex,
             Flow::AddToBlocklist => Self::Blocklist,
             Flow::DeleteFromBlocklist => Self::Blocklist,
@@ -122,6 +127,7 @@ impl From<Flow> for ApiIdentifier {
             Flow::PaymentMethodsCreate
             | Flow::PaymentMethodsMigrate
             | Flow::PaymentMethodsBatchUpdate
+            | Flow::PaymentMethodsBatchRetrieve
             | Flow::PaymentMethodsList
             | Flow::CustomerPaymentMethodsList
             | Flow::GetPaymentMethodTokenData
@@ -134,7 +140,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ListCountriesCurrencies
             | Flow::DefaultPaymentMethodsSet
             | Flow::PaymentMethodSave
-            | Flow::TotalPaymentMethodCount => Self::PaymentMethods,
+            | Flow::TotalPaymentMethodCount
+            | Flow::PaymentMethodGetTokenDetails => Self::PaymentMethods,
             Flow::PmAuthLinkTokenCreate | Flow::PmAuthExchangeToken => Self::PaymentMethodAuth,
             Flow::PaymentsCreate
             | Flow::PaymentsRetrieve
@@ -163,7 +170,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsConfirmIntent
             | Flow::PaymentsCreateIntent
             | Flow::PaymentsGetIntent
-            | Flow::GiftCardBalanceCheck
+            | Flow::PaymentMethodBalanceCheck
+            | Flow::ApplyPaymentMethodData
             | Flow::PaymentsPostSessionTokens
             | Flow::PaymentsUpdateMetadata
             | Flow::PaymentsUpdateIntent
@@ -183,7 +191,9 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PayoutsFilter
             | Flow::PayoutsAccounts
             | Flow::PayoutsConfirm
-            | Flow::PayoutLinkInitiate => Self::Payouts,
+            | Flow::PayoutsManualUpdate
+            | Flow::PayoutLinkInitiate
+            | Flow::PayoutsAggregate => Self::Payouts,
             Flow::RefundsCreate
             | Flow::RefundsRetrieve
             | Flow::RefundsRetrieveForceSync
@@ -283,6 +293,10 @@ impl From<Flow> for ApiIdentifier {
             | Flow::UserTransferKey
             | Flow::GetSsoAuthUrl
             | Flow::SignInWithSso
+            | Flow::OidcDiscovery
+            | Flow::OidcJwks
+            | Flow::OidcAuthorize
+            | Flow::OidcToken
             | Flow::ListOrgForUser
             | Flow::ListMerchantsForUserInOrg
             | Flow::ListProfileForUserInOrgAndMerchant
@@ -298,10 +312,15 @@ impl From<Flow> for ApiIdentifier {
             | Flow::UpdateUserTheme
             | Flow::DeleteUserTheme
             | Flow::GetUserThemeUsingThemeId
+            | Flow::GetUserThemeConfigVersion
             | Flow::UploadFileToUserThemeStorage
             | Flow::GetUserThemeUsingLineage
             | Flow::ListAllThemesInLineage
-            | Flow::CloneConnector => Self::User,
+            | Flow::CloneConnector
+            | Flow::EmbeddedTokenInfo
+            | Flow::GetEmbeddedToken
+            | Flow::GetUserDetailsInternal
+            | Flow::ListUsersInternal => Self::User,
 
             Flow::GetDataFromHyperswitchAiFlow | Flow::ListAllChatInteractions => Self::AiWorkflow,
 
@@ -351,15 +370,22 @@ impl From<Flow> for ApiIdentifier {
             | Flow::AuthenticationEligibility
             | Flow::AuthenticationSync
             | Flow::AuthenticationSyncPostUpdate
-            | Flow::AuthenticationAuthenticate => Self::Authentication,
+            | Flow::AuthenticationAuthenticate
+            | Flow::AuthenticationSessionToken
+            | Flow::AuthenticationEligibilityCheck
+            | Flow::AuthenticationRetrieveEligibilityCheck => Self::Authentication,
             Flow::Proxy => Self::Proxy,
             Flow::ProfileAcquirerCreate | Flow::ProfileAcquirerUpdate => Self::ProfileAcquirer,
             Flow::ThreeDsDecisionRuleExecute => Self::ThreeDsDecisionRule,
-            Flow::TokenizationCreate | Flow::TokenizationRetrieve | Flow::TokenizationDelete => {
-                Self::GenericTokenization
-            }
+            Flow::TokenizationCreate
+            | Flow::TokenizationRetrieve
+            | Flow::TokenizationDelete
+            | Flow::NetworkTokenEligibilityCheck => Self::GenericTokenization,
 
             Flow::RecoveryDataBackfill | Flow::RevenueRecoveryRedis => Self::RecoveryRecovery,
+            Flow::MerchantConnectorWebhookRegister | Flow::MerchantConnectorWebhookList => {
+                Self::MerchantConnectorWebhookManagement
+            }
         }
     }
 }

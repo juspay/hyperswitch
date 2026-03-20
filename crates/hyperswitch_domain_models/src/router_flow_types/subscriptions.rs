@@ -2,10 +2,16 @@ use common_enums::connector_enums::InvoiceStatus;
 #[derive(Debug, Clone)]
 pub struct SubscriptionCreate;
 #[derive(Debug, Clone)]
-pub struct GetSubscriptionPlans;
+pub struct SubscriptionPause;
+#[derive(Debug, Clone)]
+pub struct SubscriptionResume;
+#[derive(Debug, Clone)]
+pub struct SubscriptionCancel;
+#[derive(Debug, Clone)]
+pub struct GetSubscriptionItems;
 
 #[derive(Debug, Clone)]
-pub struct GetSubscriptionPlanPrices;
+pub struct GetSubscriptionItemPrices;
 
 #[derive(Debug, Clone)]
 pub struct GetSubscriptionEstimate;

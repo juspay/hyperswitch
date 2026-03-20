@@ -16,6 +16,7 @@ sources:
       - hyperswitch-payment-intent-events
       - hyperswitch-refund-events
       - hyperswitch-dispute-events
+      - hyperswitch-payout-events
     decoding:
       codec: json
   

@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod flat_struct_test {
-    #![allow(clippy::unwrap_used)]
     use std::collections::HashMap;
 
     use router_derive::FlatStruct;
@@ -43,8 +42,6 @@ mod flat_struct_test {
 
 #[cfg(test)]
 mod validate_schema_test {
-    #![allow(clippy::unwrap_used)]
-
     use router_derive::ValidateSchema;
     use url::Url;
 

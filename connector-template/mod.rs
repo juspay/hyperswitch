@@ -153,9 +153,11 @@ impl ConnectorCommon for {{project-name | downcase | pascal_case}} {
             reason: response.reason,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            connector_metadata: None,
         })
     }
 }
@@ -580,6 +582,7 @@ impl webhooks::IncomingWebhook for {{project-name | downcase | pascal_case}} {
     fn get_webhook_event_type(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookResourceData>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
@@ -599,6 +602,7 @@ static {{project-name | upcase}}_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "{{project-name | downcase | pascal_case}}",
     description: "{{project-name | downcase | pascal_case}} connector",
     connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
+    integration_status: enums::ConnectorIntegrationStatus::Live,
 };
 
 static {{project-name | upcase}}_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

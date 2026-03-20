@@ -314,6 +314,7 @@ impl ConnectorCommon for Tokenio {
             reason: Some(response.get_message()),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
@@ -614,6 +615,7 @@ impl webhooks::IncomingWebhook for Tokenio {
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         // Check token-event header first
         let event_type = if let Some(header_value) = request.headers.get("token-event") {

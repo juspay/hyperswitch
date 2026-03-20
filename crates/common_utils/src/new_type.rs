@@ -114,6 +114,13 @@ impl From<String> for MaskedBankAccount {
         Self(Secret::from(masked_value))
     }
 }
+
+impl MaskedBankAccount {
+    /// Expose the inner secret
+    pub fn expose_inner(self) -> String {
+        self.0.expose()
+    }
+}
 impl From<Secret<String>> for MaskedBankAccount {
     fn from(secret: Secret<String>) -> Self {
         Self::from(secret.expose())
@@ -231,6 +238,21 @@ impl From<String> for MaskedPhoneNumber {
     }
 }
 impl From<Secret<String>> for MaskedPhoneNumber {
+    fn from(secret: Secret<String>) -> Self {
+        Self::from(secret.expose())
+    }
+}
+
+/// Masked Psp token
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct MaskedPspToken(Secret<String>);
+impl From<String> for MaskedPspToken {
+    fn from(src: String) -> Self {
+        let masked_value = apply_mask(src.as_ref(), 3, 3);
+        Self(Secret::from(masked_value))
+    }
+}
+impl From<Secret<String>> for MaskedPspToken {
     fn from(secret: Secret<String>) -> Self {
         Self::from(secret.expose())
     }

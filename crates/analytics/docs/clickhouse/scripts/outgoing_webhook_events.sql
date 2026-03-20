@@ -5,6 +5,7 @@ CREATE TABLE outgoing_webhook_events_queue (
     `outgoing_webhook_event_type` LowCardinality(String),
     `payment_id` Nullable(String),
     `refund_id` Nullable(String),
+    `payout_id` Nullable(String),
     `attempt_id` Nullable(String),
     `dispute_id` Nullable(String),
     `payment_method_id` Nullable(String),
@@ -29,6 +30,7 @@ CREATE TABLE outgoing_webhook_events (
     `outgoing_webhook_event_type` LowCardinality(String),
     `payment_id` Nullable(String),
     `refund_id` Nullable(String),
+    `payout_id` Nullable(String),
     `attempt_id` Nullable(String),
     `dispute_id` Nullable(String),
     `payment_method_id` Nullable(String),
@@ -76,6 +78,27 @@ CREATE TABLE outgoing_webhook_events_audit (
 ORDER BY
     (merchant_id, payment_id) TTL inserted_at + toIntervalMonth(18) SETTINGS index_granularity = 8192;
 
+CREATE TABLE outgoing_webhook_events_payout_audit (
+    `merchant_id` LowCardinality(String),
+    `event_id` String,
+    `event_type` LowCardinality(String),
+    `outgoing_webhook_event_type` LowCardinality(String),
+    `payout_id` String,
+    `attempt_id` Nullable(String),
+    `payment_method_id` Nullable(String),
+    `mandate_id` Nullable(String),
+    `content` Nullable(String),
+    `is_error` Bool,
+    `error` Nullable(String),
+    `initial_attempt_id` Nullable(String),
+    `status_code` Nullable(UInt16),
+    `delivery_attempt` LowCardinality(String),
+    `created_at` DateTime64(3),
+    `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4)
+) ENGINE = MergeTree PARTITION BY merchant_id
+ORDER BY
+    (merchant_id, payout_id) TTL inserted_at + toIntervalMonth(18) SETTINGS index_granularity = 8192;
+
 CREATE MATERIALIZED VIEW outgoing_webhook_events_mv TO outgoing_webhook_events (
     `merchant_id` String,
     `event_id` String,
@@ -83,6 +106,7 @@ CREATE MATERIALIZED VIEW outgoing_webhook_events_mv TO outgoing_webhook_events (
     `outgoing_webhook_event_type` LowCardinality(String),
     `payment_id` Nullable(String),
     `refund_id` Nullable(String),
+    `payout_id` Nullable(String),
     `attempt_id` Nullable(String),
     `dispute_id` Nullable(String),
     `payment_method_id` Nullable(String),
@@ -103,6 +127,7 @@ SELECT
     outgoing_webhook_event_type,
     payment_id,
     refund_id,
+    payout_id,
     attempt_id,
     dispute_id,
     payment_method_id,
@@ -164,6 +189,47 @@ FROM
 WHERE
     (length(_error) = 0)
     AND (payment_id IS NOT NULL);
+
+CREATE MATERIALIZED VIEW outgoing_webhook_events_payout_audit_mv TO outgoing_webhook_events_payout_audit (
+    `merchant_id` String,
+    `event_id` String,
+    `event_type` LowCardinality(String),
+    `outgoing_webhook_event_type` LowCardinality(String),
+    `payout_id` String,
+    `attempt_id` Nullable(String),
+    `payment_method_id` Nullable(String),
+    `mandate_id` Nullable(String),
+    `content` Nullable(String),
+    `is_error` Bool,
+    `error` Nullable(String),
+    `initial_attempt_id` Nullable(String),
+    `status_code` Nullable(UInt16),
+    `delivery_attempt` LowCardinality(String),
+    `created_at` DateTime64(3),
+    `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4)
+) AS
+SELECT
+    merchant_id,
+    event_id,
+    event_type,
+    outgoing_webhook_event_type,
+    payout_id,
+    attempt_id,
+    payment_method_id,
+    mandate_id,
+    content,
+    is_error,
+    error,
+    initial_attempt_id,
+    status_code,
+    delivery_attempt,
+    created_at_timestamp AS created_at,
+    now() AS inserted_at
+FROM
+    outgoing_webhook_events_queue
+WHERE
+    (length(_error) = 0)
+    AND (payout_id IS NOT NULL);
 
 CREATE MATERIALIZED VIEW outgoing_webhook_parse_errors (
     `topic` String,

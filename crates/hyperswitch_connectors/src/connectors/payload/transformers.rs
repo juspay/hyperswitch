@@ -6,21 +6,26 @@ use common_utils::{ext_traits::ValueExt, types::StringMajorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     address::AddressDetails,
-    payment_method_data::PaymentMethodData,
-    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
+    payment_method_data::{BankDebitData, PaymentMethodData},
+    router_data::{
+        AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
+        ErrorResponse, RouterData,
+    },
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
-    router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorCustomerResponseData, MandateReference, PaymentsResponseData, RefundsResponseData,
+    },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, RefundsRouterData,
-        SetupMandateRouterData,
+        ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
+        RefundsRouterData, SetupMandateRouterData,
     },
 };
 use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
-use masking::{ExposeOptionInterface, Secret};
+use masking::{ExposeOptionInterface, PeekInterface, Secret};
 use serde::Deserialize;
 
 use super::{requests, responses};
@@ -28,14 +33,24 @@ use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
         get_unimplemented_payment_method_error_message, is_manual_capture, AddressDetailsData,
-        CardData, PaymentsAuthorizeRequestData, PaymentsSetupMandateRequestData,
+        CardData, CustomerData, PaymentsAuthorizeRequestData, PaymentsSetupMandateRequestData,
         RouterData as OtherRouterData,
     },
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
 
-fn build_payload_cards_request_data(
+fn get_processing_account_id_from_metadata(
+    metadata: Option<&serde_json::Value>,
+) -> Option<Secret<String>> {
+    metadata
+        .and_then(|m| m.get("processing_account_id"))
+        .and_then(|v| v.as_str())
+        .map(|s| Secret::new(s.to_string()))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn build_payload_payment_request_data(
     payment_method_data: &PaymentMethodData,
     connector_auth_type: &ConnectorAuthType,
     currency: enums::Currency,
@@ -43,57 +58,107 @@ fn build_payload_cards_request_data(
     billing_address: &AddressDetails,
     capture_method: Option<enums::CaptureMethod>,
     is_mandate: bool,
-) -> Result<requests::PayloadCardsRequestData, Error> {
-    if let PaymentMethodData::Card(req_card) = payment_method_data {
-        let payload_auth = PayloadAuth::try_from((connector_auth_type, currency))?;
-
-        let card = requests::PayloadCard {
-            number: req_card.clone().card_number,
-            expiry: req_card
-                .clone()
-                .get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned())?,
-            cvc: req_card.card_cvc.clone(),
-        };
-
-        let city = billing_address.get_city()?.to_owned();
-        let country = billing_address.get_country()?.to_owned();
-        let postal_code = billing_address.get_zip()?.to_owned();
-        let state_province = billing_address.get_state()?.to_owned();
-        let street_address = billing_address.get_line1()?.to_owned();
-
-        let billing_address = requests::BillingAddress {
-            city,
-            country,
-            postal_code,
-            state_province,
-            street_address,
-        };
-
-        // For manual capture, set status to "authorized"
-        let status = if is_manual_capture(capture_method) {
-            Some(responses::PayloadPaymentStatus::Authorized)
-        } else {
-            None
-        };
-
-        Ok(requests::PayloadCardsRequestData {
-            amount,
-            card,
-            transaction_types: requests::TransactionTypes::Payment,
-            payment_method_type: "card".to_string(),
-            status,
-            billing_address,
-            processing_id: payload_auth.processing_account_id,
-            keep_active: is_mandate,
-        })
-    } else {
-        Err(
-            errors::ConnectorError::NotImplemented(get_unimplemented_payment_method_error_message(
-                "Payload",
-            ))
-            .into(),
+    customer_id: Option<String>,
+    is_three_ds: bool,
+    metadata: Option<&serde_json::Value>,
+) -> Result<requests::PayloadPaymentRequestData, Error> {
+    let payment_method: Result<requests::PayloadPaymentMethods, Error> = match payment_method_data {
+        PaymentMethodData::Card(req_card) => {
+            if is_three_ds {
+                Err(errors::ConnectorError::NotSupported {
+                    message: "Cards 3DS".to_string(),
+                    connector: "Payload",
+                })?
+            }
+            let card = requests::PayloadCard {
+                card: requests::PayloadCardData {
+                    card_number: req_card.clone().card_number,
+                    expiry: req_card
+                        .clone()
+                        .get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned())?,
+                    card_code: req_card.card_cvc.clone(),
+                },
+            };
+            Ok(requests::PayloadPaymentMethods::Card(card))
+        }
+        PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
+            account_number,
+            routing_number,
+            bank_type,
+            bank_holder_type,
+            bank_account_holder_name,
+            ..
+        }) => {
+            let account_class = bank_holder_type.map(|holder_type| match holder_type {
+                enums::BankHolderType::Business => requests::PayloadAccClass::Business,
+                enums::BankHolderType::Personal => requests::PayloadAccClass::Personal,
+            });
+            let account_type = bank_type
+                .map(|b_type| match b_type {
+                    enums::BankType::Checking => requests::PayloadAccAccountType::Checking,
+                    enums::BankType::Savings => requests::PayloadAccAccountType::Savings,
+                })
+                .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                    field_name: "bank_type",
+                })?;
+            let account_holder = bank_account_holder_name.clone().ok_or_else(|| {
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "bank_account_holder_name",
+                }
+            })?;
+            let bank = requests::PayloadBank {
+                bank_account: requests::PayloadBankAccountInner {
+                    account_class,
+                    account_currency: currency.to_string(),
+                    account_number: account_number.clone(),
+                    account_type,
+                    routing_number: routing_number.clone(),
+                },
+                account_holder,
+            };
+            Ok(requests::PayloadPaymentMethods::BankAccount(bank))
+        }
+        _ => Err(errors::ConnectorError::NotImplemented(
+            get_unimplemented_payment_method_error_message("Payload"),
         )
-    }
+        .into()),
+    };
+
+    let city = billing_address.get_optional_city().to_owned();
+    let country = billing_address.get_optional_country().to_owned();
+    let postal_code = billing_address.get_zip()?.to_owned();
+    let state_province = billing_address.get_optional_state().to_owned();
+    let street_address = billing_address.get_optional_line1().to_owned();
+    // For manual capture, set status to "authorized"
+    let status = if is_manual_capture(capture_method) {
+        Some(responses::PayloadPaymentStatus::Authorized)
+    } else {
+        None
+    };
+
+    let billing_address = Some(requests::BillingAddress {
+        city,
+        country_code: country,
+        postal_code,
+        state_province,
+        street_address,
+    });
+
+    let payload_auth = PayloadAuth::try_from((connector_auth_type, currency))?;
+    // Metadata processing_account_id takes precedence over connector auth config
+    Ok(requests::PayloadPaymentRequestData {
+        amount,
+        payment_method: requests::PayloadPaymentMethod {
+            method: payment_method?,
+            billing_address,
+            keep_active: is_mandate,
+        },
+        transaction_types: requests::TransactionTypes::Payment,
+        status,
+        processing_id: get_processing_account_id_from_metadata(metadata)
+            .or(payload_auth.processing_account_id),
+        customer_id,
+    })
 }
 
 pub struct PayloadRouterData<T> {
@@ -107,6 +172,43 @@ impl<T> From<(StringMajorUnit, T)> for PayloadRouterData<T> {
             amount,
             router_data: item,
         }
+    }
+}
+impl TryFrom<&ConnectorCustomerRouterData> for requests::CustomerRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
+        let currency =
+            item.request
+                .currency
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                })?;
+        let payload_auth = PayloadAuth::try_from((&item.connector_auth_type, currency))?;
+        let primary_processing_id = get_processing_account_id_from_metadata(
+            item.request.metadata.as_ref().map(|m| m.peek()),
+        )
+        .or(payload_auth.processing_account_id);
+        Ok(Self {
+            keep_active: item.request.is_mandate_payment(),
+            email: item.request.get_email()?,
+            name: item.request.get_name()?,
+            primary_processing_id,
+        })
+    }
+}
+impl<F, T> TryFrom<ResponseRouterData<F, responses::CustomerResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, responses::CustomerResponse, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(PaymentsResponseData::ConnectorCustomerResponse(
+                ConnectorCustomerResponseData::new_with_customer_id(item.response.id),
+            )),
+            ..item.data
+        })
     }
 }
 
@@ -169,29 +271,87 @@ impl TryFrom<&ConnectorAuthType> for PayloadAuthType {
     }
 }
 
-impl TryFrom<&SetupMandateRouterData> for requests::PayloadCardsRequestData {
+impl TryFrom<&SetupMandateRouterData> for requests::PayloadPaymentRequestData {
     type Error = Error;
     fn try_from(item: &SetupMandateRouterData) -> Result<Self, Self::Error> {
-        match item.request.amount {
-            Some(amount) if amount > 0 => Err(errors::ConnectorError::FlowNotSupported {
+        if item.request.amount > 0 {
+            Err(errors::ConnectorError::FlowNotSupported {
                 flow: "Setup mandate with non zero amount".to_string(),
                 connector: "Payload".to_string(),
             }
-            .into()),
-            _ => {
-                let billing_address = item.get_billing_address()?;
-                let is_mandate = item.request.is_customer_initiated_mandate_payment();
+            .into())
+        } else {
+            let billing_address = item.get_billing_address()?;
+            let is_mandate = item.request.is_customer_initiated_mandate_payment();
 
-                build_payload_cards_request_data(
-                    &item.request.payment_method_data,
-                    &item.connector_auth_type,
-                    item.request.currency,
-                    StringMajorUnit::zero(),
-                    billing_address,
-                    item.request.capture_method,
-                    is_mandate,
-                )
+            build_payload_payment_request_data(
+                &item.request.payment_method_data,
+                &item.connector_auth_type,
+                item.request.currency,
+                StringMajorUnit::zero(),
+                billing_address,
+                item.request.capture_method,
+                is_mandate,
+                item.get_connector_customer_id()?.into(),
+                item.is_three_ds(),
+                item.request.metadata.as_ref().map(|m| m.peek()),
+            )
+        }
+    }
+}
+
+// ACH-specific transformer for SetupMandate using /payment_methods API
+impl TryFrom<&SetupMandateRouterData> for requests::PayloadPaymentMethodRequest {
+    type Error = Error;
+    fn try_from(item: &SetupMandateRouterData) -> Result<Self, Self::Error> {
+        if item.request.amount > 0 {
+            return Err(errors::ConnectorError::FlowNotSupported {
+                flow: "Setup mandate with non zero amount".to_string(),
+                connector: "Payload".to_string(),
             }
+            .into());
+        }
+
+        match &item.request.payment_method_data {
+            PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
+                account_number,
+                routing_number,
+                bank_type,
+                bank_account_holder_name,
+                ..
+            }) => {
+                let account_type = bank_type
+                    .map(|b_type| match b_type {
+                        enums::BankType::Checking => requests::PayloadAccAccountType::Checking,
+                        enums::BankType::Savings => requests::PayloadAccAccountType::Savings,
+                    })
+                    .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                        field_name: "bank_type",
+                    })?;
+
+                let account_holder = bank_account_holder_name.clone().ok_or_else(|| {
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "bank_account_holder_name",
+                    }
+                })?;
+
+                let customer_id = item.get_connector_customer_id()?;
+
+                Ok(Self {
+                    account_id: Secret::new(customer_id),
+                    bank_account: requests::PayloadBankAccountData {
+                        account_number: account_number.clone(),
+                        routing_number: routing_number.clone(),
+                        account_type,
+                    },
+                    account_holder,
+                    payment_method_type: requests::PayloadPaymentMethodType::BankAccount,
+                })
+            }
+            _ => Err(errors::ConnectorError::NotImplemented(
+                get_unimplemented_payment_method_error_message("Payload"),
+            )
+            .into()),
         }
     }
 }
@@ -203,19 +363,13 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
     fn try_from(
         item: &PayloadRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        if item.router_data.is_three_ds() {
-            Err(errors::ConnectorError::NotSupported {
-                message: "Cards 3DS".to_string(),
-                connector: "Payload",
-            })?
-        }
-
         match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(_) => {
-                let billing_address = item.router_data.get_billing_address()?;
+            PaymentMethodData::BankDebit(BankDebitData::AchBankDebit { .. })
+            | PaymentMethodData::Card(_) => {
+                let billing_address: &AddressDetails = item.router_data.get_billing_address()?;
                 let is_mandate = item.router_data.request.is_mandate_payment();
 
-                let cards_data = build_payload_cards_request_data(
+                let payment_request = build_payload_payment_request_data(
                     &item.router_data.request.payment_method_data,
                     &item.router_data.connector_auth_type,
                     item.router_data.request.currency,
@@ -223,10 +377,14 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                     billing_address,
                     item.router_data.request.capture_method,
                     is_mandate,
+                    item.router_data.connector_customer.clone(),
+                    item.router_data.is_three_ds(),
+                    item.router_data.request.metadata.as_ref(),
                 )?;
 
-                Ok(Self::PayloadCardsRequest(Box::new(cards_data)))
+                Ok(Self::PaymentRequest(Box::new(payment_request)))
             }
+            // PaymentMethodData::BankDebit()
             PaymentMethodData::MandatePayment => {
                 // For manual capture, set status to "authorized"
                 let status = if is_manual_capture(item.router_data.request.capture_method) {
@@ -276,32 +434,59 @@ where
     ) -> Result<Self, Self::Error> {
         match item.response.clone() {
             responses::PayloadPaymentsResponse::PayloadCardsResponse(response) => {
-                let status = enums::AttemptStatus::from(response.status);
-
                 let router_data: &dyn std::any::Any = &item.data;
                 let is_mandate_payment = router_data
                     .downcast_ref::<PaymentsAuthorizeRouterData>()
-                    .is_some_and(|router_data| router_data.request.is_mandate_payment())
+                    .is_some_and(|rd| rd.request.is_mandate_payment())
                     || router_data
                         .downcast_ref::<SetupMandateRouterData>()
                         .is_some();
 
-                let mandate_reference = if is_mandate_payment {
-                    let connector_payment_method_id =
-                        response.connector_payment_method_id.clone().expose_option();
-                    if connector_payment_method_id.is_some() {
-                        Some(MandateReference {
-                            connector_mandate_id: connector_payment_method_id,
-                            payment_method_id: None,
-                            mandate_metadata: None,
-                            connector_mandate_request_reference_id: None,
-                        })
-                    } else {
-                        None
+                let is_ach_payment =
+                    is_mandate_payment
+                        && router_data
+                            .downcast_ref::<PaymentsAuthorizeRouterData>()
+                            .is_some_and(|rd| {
+                                matches!(
+                                    rd.request.additional_payment_method_data,
+                                    Some(api_models::payments::AdditionalPaymentData::BankDebit {
+                                        details: Some(api_models::payments::additional_info::BankDebitAdditionalData::Ach(_))
+                                    })
+                                )
+                            });
+
+                let status = match (is_ach_payment, response.status) {
+                    (true, responses::PayloadPaymentStatus::Authorized) => {
+                        enums::AttemptStatus::Pending
                     }
-                } else {
-                    None
+                    _ => enums::AttemptStatus::from(response.status),
                 };
+
+                let mandate_reference = is_mandate_payment
+                    .then(|| response.connector_payment_method_id.clone().expose_option())
+                    .flatten()
+                    .map(|id| MandateReference {
+                        connector_mandate_id: Some(id),
+                        payment_method_id: None,
+                        mandate_metadata: None,
+                        connector_mandate_request_reference_id: None,
+                    });
+
+                let connector_response = {
+                    response.avs.map(|avs_response| {
+                        let payment_checks = serde_json::json!({
+                            "avs_result": avs_response
+                        });
+                        AdditionalPaymentMethodConnectorResponse::Card {
+                            authentication_data: None,
+                            payment_checks: Some(payment_checks),
+                            card_network: None,
+                            auth_code: None,
+                            domestic_network: None,
+                        }
+                    })
+                }
+                .map(ConnectorResponseData::with_additional_payment_method_data);
 
                 let response_result = if status == enums::AttemptStatus::Failure {
                     Err(ErrorResponse {
@@ -317,6 +502,7 @@ where
                         reason: response.status_message,
                         status_code: item.http_code,
                         connector_transaction_id: Some(response.transaction_id.clone()),
+                        connector_response_reference_id: None,
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
@@ -331,16 +517,60 @@ where
                         network_txn_id: None,
                         connector_response_reference_id: response.ref_number,
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     })
                 };
                 Ok(Self {
                     status,
                     response: response_result,
+                    connector_response,
                     ..item.data
                 })
             }
         }
+    }
+}
+
+// Response transformer for ACH SetupMandate using /payment_methods API
+impl<F, T>
+    TryFrom<ResponseRouterData<F, responses::PayloadPaymentMethodResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = Error;
+    fn try_from(
+        item: ResponseRouterData<
+            F,
+            responses::PayloadPaymentMethodResponse,
+            T,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        let mandate_reference = Some(MandateReference {
+            connector_mandate_id: Some(response.id.clone()),
+            payment_method_id: None,
+            mandate_metadata: None,
+            connector_mandate_request_reference_id: None,
+        });
+
+        Ok(Self {
+            status: enums::AttemptStatus::Charged, // SetupMandate succeeded
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(response.id),
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(mandate_reference),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                authentication_data: None,
+                charges: None,
+            }),
+            connector_response: None,
+            ..item.data
+        })
     }
 }
 
@@ -372,7 +602,9 @@ impl<F> TryFrom<&PayloadRouterData<&RefundsRouterData<F>>> for requests::Payload
         Ok(Self {
             transaction_type: requests::TransactionTypes::Refund,
             amount: item.amount.to_owned(),
-            ledger_assoc_transaction_id: connector_transaction_id,
+            ledger: vec![requests::PayloadRefundLedgerEntry {
+                assoc_transaction_id: connector_transaction_id,
+            }],
         })
     }
 }
@@ -439,14 +671,13 @@ impl From<responses::PayloadWebhooksTrigger> for IncomingWebhookEvent {
             | responses::PayloadWebhooksTrigger::BankAccountReject => Self::PaymentIntentFailure,
             responses::PayloadWebhooksTrigger::Void
             | responses::PayloadWebhooksTrigger::Reversal => Self::PaymentIntentCancelled,
-            // Refund Events
-            responses::PayloadWebhooksTrigger::Refund => Self::RefundSuccess,
             // Dispute Events
             responses::PayloadWebhooksTrigger::Chargeback => Self::DisputeOpened,
             responses::PayloadWebhooksTrigger::ChargebackReversal => Self::DisputeWon,
             // Other payment-related events
             // Events not supported by our standard flows
             responses::PayloadWebhooksTrigger::PaymentActivationStatus
+            | responses::PayloadWebhooksTrigger::Refund
             | responses::PayloadWebhooksTrigger::Credit
             | responses::PayloadWebhooksTrigger::Deposit
             | responses::PayloadWebhooksTrigger::PaymentLinkStatus
@@ -456,5 +687,69 @@ impl From<responses::PayloadWebhooksTrigger> for IncomingWebhookEvent {
                 Self::EventNotSupported
             }
         }
+    }
+}
+
+impl TryFrom<responses::PayloadWebhooksTrigger> for responses::PayloadPaymentStatus {
+    type Error = Error;
+    fn try_from(trigger: responses::PayloadWebhooksTrigger) -> Result<Self, Self::Error> {
+        match trigger {
+            // Payment Success Events
+            responses::PayloadWebhooksTrigger::Processed => Ok(Self::Processed),
+            responses::PayloadWebhooksTrigger::Authorized => Ok(Self::Authorized),
+            // Payment Processing Events
+            responses::PayloadWebhooksTrigger::Payment
+            | responses::PayloadWebhooksTrigger::AutomaticPayment
+            | responses::PayloadWebhooksTrigger::Reversal => Ok(Self::Processing),
+            // Payment Failure Events
+            responses::PayloadWebhooksTrigger::Decline
+            | responses::PayloadWebhooksTrigger::Reject
+            | responses::PayloadWebhooksTrigger::BankAccountReject => Ok(Self::Declined),
+            responses::PayloadWebhooksTrigger::Void => Ok(Self::Voided),
+            responses::PayloadWebhooksTrigger::Refund => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: "Refund Webhook".to_string(),
+                    connector: "Payload",
+                }
+                .into())
+            }
+            responses::PayloadWebhooksTrigger::Chargeback
+            | responses::PayloadWebhooksTrigger::ChargebackReversal
+            | responses::PayloadWebhooksTrigger::PaymentActivationStatus
+            | responses::PayloadWebhooksTrigger::Credit
+            | responses::PayloadWebhooksTrigger::Deposit
+            | responses::PayloadWebhooksTrigger::PaymentLinkStatus
+            | responses::PayloadWebhooksTrigger::ProcessingStatus
+            | responses::PayloadWebhooksTrigger::TransactionOperation
+            | responses::PayloadWebhooksTrigger::TransactionOperationClear => {
+                Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
+            }
+        }
+    }
+}
+
+impl TryFrom<responses::PayloadWebhookEvent> for responses::PayloadPaymentsResponse {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(webhook_body: responses::PayloadWebhookEvent) -> Result<Self, Self::Error> {
+        let status = responses::PayloadPaymentStatus::try_from(webhook_body.trigger.clone())?;
+        Ok(Self::PayloadCardsResponse(
+            responses::PayloadCardsResponseData {
+                amount: None,
+                avs: None,
+                customer_id: None,
+                transaction_id: webhook_body
+                    .triggered_on
+                    .transaction_id
+                    .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
+                connector_payment_method_id: None,
+                processing_id: None,
+                processing_method_id: None,
+                ref_number: None,
+                status,
+                status_code: None,
+                status_message: None,
+                response_type: None,
+            },
+        ))
     }
 }

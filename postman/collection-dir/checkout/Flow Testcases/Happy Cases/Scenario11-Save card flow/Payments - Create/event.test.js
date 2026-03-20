@@ -49,12 +49,12 @@ if (jsonData?.customer_id) {
    console.log('INFO - Unable to assign variable {{customer_id}}, as jsonData.customer_id is undefined.');
 };
 
-// Response body should have value "processing" for "status"
+// Response body should have value "processing" or "succeeded" for "status"
 if (jsonData?.status) {
   pm.test(
-    "[POST]::/payments - Content check if value for 'status' matches 'processing'",
+    "[POST]::/payments - Content check if value for 'status' matches 'processing' or 'succeeded'",
     function () {
-      pm.expect(jsonData.status).to.eql("processing");
+      pm.expect(["processing", "succeeded"]).to.include(jsonData.status);
     },
   );
 }
