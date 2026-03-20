@@ -83,8 +83,7 @@ where
     if matches!(
         payment_data.payment_attempt.payment_method,
         Some(enums::PaymentMethod::Card)
-    ) && resp.status.should_update_payment_method()
-    {
+    ) {
         //#1 - Check if Payment method id is present in the payment data
         match payment_data
             .payment_method_info
@@ -92,13 +91,18 @@ where
             .map(|pm_info| pm_info.get_id().clone())
         {
             Some(payment_method_id) => {
-                logger::info!("Payment method is card and eligible for modular update");
+                let should_update = resp.status.should_update_payment_method();
+                logger::info!(
+                    "Payment method is card; is eligible for modular update: {}",
+                    should_update
+                );
 
                 // #2 - Derive network transaction ID from the connector response.
-                let (network_transaction_id, connector_token_details) = if matches!(
-                    payment_data.payment_attempt.setup_future_usage_applied,
-                    Some(common_enums::FutureUsage::OffSession)
-                ) {
+                let (network_transaction_id, connector_token_details) = if should_update
+                    && matches!(
+                        payment_data.payment_attempt.setup_future_usage_applied,
+                        Some(common_enums::FutureUsage::OffSession)
+                    ) {
                     let network_transaction_id = resp
                     .response
                     .as_ref()
@@ -178,11 +182,9 @@ where
                         }
                         _ => None,
                     });
-                let acknowledgement_status = if resp.status.should_update_payment_method() {
-                    Some(common_enums::AcknowledgementStatus::Authenticated)
-                } else {
-                    None
-                };
+                let acknowledgement_status = should_update
+                    .then_some(common_enums::AcknowledgementStatus::Authenticated)
+                    .or(Some(common_enums::AcknowledgementStatus::Failed));
 
                 let payload = UpdatePaymentMethodV1Payload {
                     payment_method_data,
@@ -794,6 +796,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
                                 net_amount: hyperswitch_domain_models::payments::payment_attempt::NetAmount::new(
                                     // Internally, `NetAmount` is computed as (order_amount + additional_amount), so we subtract here to avoid double-counting.
                                     incremental_authorization_details.total_amount - payment_data.payment_attempt.net_amount.get_additional_amount(),
+                                    None,
                                     None,
                                     None,
                                     None,

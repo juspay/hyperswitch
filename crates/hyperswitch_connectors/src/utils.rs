@@ -7563,6 +7563,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
             .clone(),
         rrn: None,
         feature_metadata: None,
+        installment_details: None,
     }
 }
 
