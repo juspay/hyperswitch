@@ -603,7 +603,9 @@ async fn delete_saved_view(
             let mut views_data = existing.ok_or(report!(UserErrors::SavedViewNotFound))?;
 
             let initial_len = views_data.views.len();
-            views_data.views.retain(|v| v.view_name != request.view_name);
+            views_data
+                .views
+                .retain(|v| v.view_name != request.view_name);
 
             if views_data.views.len() == initial_len {
                 return Err(report!(UserErrors::SavedViewNotFound))
