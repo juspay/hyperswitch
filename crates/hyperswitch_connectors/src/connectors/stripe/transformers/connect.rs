@@ -440,6 +440,13 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectRecipientAccountCreateRe
                     connector: "stripe",
                 }
                 .into()),
+                api_models::payouts::Bank::Trustly(_) => {
+                    Err(errors::ConnectorError::NotSupported {
+                        message: "Trustly payouts are not supported".to_string(),
+                        connector: "stripe",
+                    }
+                    .into())
+                }
             },
             api_models::payouts::PayoutMethodData::Wallet(_) => {
                 Err(errors::ConnectorError::NotSupported {

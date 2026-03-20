@@ -536,6 +536,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 truelayer::transformers::TruelayerAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Trustly => {
+                trustly::transformers::TrustlyAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Trustpay => {
                 trustpay::transformers::TrustpayAuthType::try_from(self.auth_type)?;
                 Ok(())
