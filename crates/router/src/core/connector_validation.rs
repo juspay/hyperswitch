@@ -255,6 +255,12 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 fiservemea::transformers::FiservemeaAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Fiservcommercehub => {
+                fiservcommercehub::transformers::FiservcommercehubAuthType::try_from(
+                    self.auth_type,
+                )?;
+                Ok(())
+            }
             api_enums::Connector::Fiuu => {
                 fiuu::transformers::FiuuAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -528,6 +534,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Truelayer => {
                 truelayer::transformers::TruelayerAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Trustly => {
+                trustly::transformers::TrustlyAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Trustpay => {
