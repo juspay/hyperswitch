@@ -22,24 +22,26 @@ pub struct InterestPercentage {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Discount {
     #[serde(rename = "type")]
-    pub discount_type: DiscountType,
+    pub discount_type: SantanderDiscountType,
     pub discount_one: Option<DiscountObject>,
     pub discount_two: Option<DiscountObject>,
     pub discount_three: Option<DiscountObject>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DiscountObject {
-    pub value: f64,
-    pub limit_date: String, // YYYY-MM-DD
+    pub value: Option<StringMajorUnit>,
+    #[serde(default, with = "common_utils::custom_serde::date_only_optional")]
+    pub limit_date: Option<time::PrimitiveDateTime>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum DiscountType {
+pub enum SantanderDiscountType {
     // No discount
     Isento,
     // If the payer pays before a certain date, they get a fixed discount amount
@@ -102,7 +104,7 @@ pub struct SantanderAuthRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum ProtestType {
+pub enum SantanderProtestType {
     // No protest
     SemProtesto,
     // Protest after X calendar days
@@ -272,18 +274,18 @@ pub struct SantanderBoletoPaymentRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub discount: Option<Discount>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub fine_percentage: Option<String>,
+    pub fine_percentage: Option<StringMajorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fine_quantity_days: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub interest_percentage: Option<String>,
+    pub interest_percentage: Option<StringMajorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub deduction_value: Option<FloatMajorUnit>,
     // Protest is a formal step a bank or notary office takes to claim unpaid boletos after the due date
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub protest_type: Option<ProtestType>,
+    pub protest_type: Option<SantanderProtestType>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub protest_quantity_days: Option<i64>,
+    pub protest_quantity_days: Option<String>,
     // This field tells the bank after how many days past the due date the boleto should be automatically “written off”
     #[serde(skip_serializing_if = "Option::is_none")]
     pub write_off_quantity_days: Option<String>,
@@ -292,18 +294,18 @@ pub struct SantanderBoletoPaymentRequest {
     pub payment_type: Option<responses::SantanderBoletoPaymentType>,
     // This becomes a required field if payment_type is Parcial. This field indicates the number of payments allowed for the same payment slip, with a maximum of 99.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub parcels_quantity: Option<i64>,
+    pub parcels_quantity: Option<u32>,
     // The valueType field defines how the min/max limits are expressed for boletos that allow flexible payments. Only used if paymentType is DIVERGENTE or PARCIAL.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub value_type: Option<ValueType>,
+    pub value_type: Option<SantanderValueType>,
     // This field defines the minimum amount or minimum percentage the payer can pay for a boleto that allows DIVERGENTE or PARCIAL payments.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub min_value_or_percentage: Option<f64>,
+    pub min_value_or_percentage: Option<StringMajorUnit>,
     // This field defines the max amount or max percentage the payer can pay for a boleto that allows DIVERGENTE or PARCIAL payments.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub max_value_or_percentage: Option<f64>,
+    pub max_value_or_percentage: Option<StringMajorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub iof_percentage: Option<f64>,
+    pub iof_percentage: Option<StringMajorUnit>,
     // This feature allows the merchant (beneficiário) to split the funds received from a boleto into up to four Santander accounts that they own.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sharing: Option<Vec<responses::Sharing>>,
@@ -321,7 +323,7 @@ pub struct SantanderBoletoPaymentRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
-pub enum ValueType {
+pub enum SantanderValueType {
     // Percentage
     Percentual,
     // Value terms
@@ -336,3 +338,25 @@ pub enum Environment {
     // Production
     Producao,
 }
+
+pub type BoletoAdditionalFields = (
+    (
+        Option<responses::Beneficiary>,
+        Option<Discount>,
+        Option<responses::SantanderBoletoDocumentKind>,
+    ),
+    (
+        Option<StringMajorUnit>,
+        Option<String>,
+        Option<StringMajorUnit>,
+        Option<StringMajorUnit>,
+    ),
+    (Option<SantanderProtestType>, Option<String>, Option<String>),
+    (
+        Option<responses::SantanderBoletoPaymentType>,
+        Option<SantanderValueType>,
+        Option<u32>,
+        Option<StringMajorUnit>,
+        Option<StringMajorUnit>,
+    ),
+);
