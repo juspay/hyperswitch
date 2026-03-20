@@ -685,10 +685,17 @@ impl ConnectorSpecifications for ConnectorEnum {
     }
 
     /// Check if the connector needs authorize session token call
-    fn is_authorize_session_token_call_required(&self) -> bool {
+    fn is_authorize_session_token_call_required(
+        &self,
+        current_flow: Option<api::CurrentFlowInfo<'_>>,
+    ) -> bool {
         match self {
-            Self::Old(connector) => connector.is_authorize_session_token_call_required(),
-            Self::New(connector) => connector.is_authorize_session_token_call_required(),
+            Self::Old(connector) => {
+                connector.is_authorize_session_token_call_required(current_flow)
+            }
+            Self::New(connector) => {
+                connector.is_authorize_session_token_call_required(current_flow)
+            }
         }
     }
 

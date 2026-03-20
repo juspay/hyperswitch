@@ -130,7 +130,8 @@ impl ConnectorIntegration<AuthorizeSessionToken, AuthorizeSessionTokenData, Paym
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         match req.payment_method_type {
-            Some(enums::PaymentMethodType::Pix) => {
+            Some(enums::PaymentMethodType::PixAutomaticoPush)
+            | Some(enums::PaymentMethodType::PixAutomaticoQr) => {
                 Ok(format!("{}api/v1/locrec", self.base_url(connectors)))
             }
             _ => Err(errors::ConnectorError::NotSupported {
@@ -170,19 +171,10 @@ impl ConnectorIntegration<AuthorizeSessionToken, AuthorizeSessionTokenData, Paym
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeSessionTokenRouterData, errors::ConnectorError> {
-        let mut response: SantanderCreatePixPayloadLocationResponse = res
+        let response: SantanderCreatePixPayloadLocationResponse = res
             .response
             .parse_struct("SantanderCreatePixPayloadLocationResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        if let Some(location_header) = res
-            .headers
-            .as_ref()
-            .and_then(|headers| headers.get("location"))
-            .and_then(|value| value.to_str().ok())
-        {
-            response.location = location_header.to_owned();
-        }
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -1675,6 +1667,19 @@ impl ConnectorSpecifications for Santander {
                 }
             }
             _ => payment_attempt.payment_id.get_string_repr().to_owned(),
+        }
+    }
+
+    fn is_authorize_session_token_call_required(
+        &self,
+        current_flow: Option<api::CurrentFlowInfo<'_>>,
+    ) -> bool {
+        match current_flow {
+            Some(api::CurrentFlowInfo::Authorize { request_data, .. }) => {
+                request_data.is_mandate_payment()
+            }
+            Some(api::CurrentFlowInfo::SetupMandate { .. }) => true,
+            Some(api::CurrentFlowInfo::CompleteAuthorize { .. }) | None => false,
         }
     }
 }

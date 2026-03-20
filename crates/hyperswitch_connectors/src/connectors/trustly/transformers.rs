@@ -368,14 +368,14 @@ fn serialize_value(value: &serde_json::Value) -> String {
     match value {
         serde_json::Value::Object(map) => {
             let sorted: BTreeMap<_, _> = map.iter().collect();
-            sorted
-                .iter()
-                .filter(|(_, v)| !v.is_null())
-                .fold(String::new(), |mut output, (key, value)| {
+            sorted.iter().filter(|(_, v)| !v.is_null()).fold(
+                String::new(),
+                |mut output, (key, value)| {
                     output.push_str(key);
                     output.push_str(&serialize_data(value));
                     output
-                })
+                },
+            )
         }
         serde_json::Value::Array(arr) => arr.iter().map(serialize_data).collect(),
         serde_json::Value::String(s) => s.clone(),

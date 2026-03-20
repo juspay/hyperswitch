@@ -46,11 +46,12 @@ use crate::{
         responses::{
             Beneficiary, Key, NsuComposite, Payer, SanatanderAccessTokenResponse,
             SanatanderTokenResponse, SantanderAdditionalInfo, SantanderBoletoDocumentKind,
-            SantanderBoletoPaymentType, SantanderBoletoStatus, SantanderDocumentKind,
+            SantanderBoletoPaymentType, SantanderBoletoStatus,
+            SantanderCreatePixPayloadLocationResponse, SantanderDocumentKind,
             SantanderPaymentStatus, SantanderPaymentsResponse, SantanderPaymentsSyncResponse,
             SantanderPixKeyType, SantanderPixQRCodePaymentsResponse,
             SantanderPixQRCodeSyncResponse, SantanderRefundResponse, SantanderRefundStatus,
-            SantanderUpdateMetadataResponse, SantanderVoidResponse, SantanderVoidStatus, SantanderCreatePixPayloadLocationResponse,
+            SantanderUpdateMetadataResponse, SantanderVoidResponse, SantanderVoidStatus,
         },
     },
     types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
@@ -89,10 +90,9 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: AttemptStatus::Pending,
-            session_token: Some(item.response.location.clone()),
+            session_token: Some(item.response.id.to_string()),
             response: Ok(PaymentsResponseData::SessionTokenResponse {
-                session_token: item.response.location,
+                session_token: item.response.id.to_string(),
             }),
             ..item.data
         })
