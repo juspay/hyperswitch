@@ -283,6 +283,8 @@ pub async fn modify_trackers(
             .additional_payout_method_data
             .to_owned(),
         payout_connector_metadata: None,
+        processor_merchant_id: payout_data.payout_attempt.processor_merchant_id.clone(),
+        created_by: payout_data.payout_attempt.created_by.clone(),
     };
     payout_data.payout_attempt = db
         .insert_payout_attempt(

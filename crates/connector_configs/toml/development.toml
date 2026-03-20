@@ -2527,6 +2527,55 @@ options=["Connector", "Hyperswitch"]
 api_key="API Key"
 key1="Secret Key"
 
+[fiservcommercehub]
+[[fiservcommercehub.credit]]
+  payment_method_type = "Mastercard"
+[[fiservcommercehub.credit]]
+  payment_method_type = "Visa"
+[[fiservcommercehub.credit]]
+  payment_method_type = "Interac"
+[[fiservcommercehub.credit]]
+  payment_method_type = "AmericanExpress"
+[[fiservcommercehub.credit]]
+  payment_method_type = "JCB"
+[[fiservcommercehub.credit]]
+  payment_method_type = "DinersClub"
+[[fiservcommercehub.credit]]
+  payment_method_type = "Discover"
+[[fiservcommercehub.credit]]
+  payment_method_type = "CartesBancaires"
+[[fiservcommercehub.credit]]
+  payment_method_type = "UnionPay"
+[[fiservcommercehub.debit]]
+  payment_method_type = "Mastercard"
+[[fiservcommercehub.debit]]
+  payment_method_type = "Visa"
+[[fiservcommercehub.debit]]
+  payment_method_type = "Interac"
+[[fiservcommercehub.debit]]
+  payment_method_type = "AmericanExpress"
+[[fiservcommercehub.debit]]
+  payment_method_type = "JCB"
+[[fiservcommercehub.debit]]
+  payment_method_type = "DinersClub"
+[[fiservcommercehub.debit]]
+  payment_method_type = "Discover"
+[[fiservcommercehub.debit]]
+  payment_method_type = "CartesBancaires"
+[[fiservcommercehub.debit]]
+  payment_method_type = "UnionPay"
+[[fiservcommercehub.wallet]]
+  payment_method_type = "google_pay"
+[[fiservcommercehub.wallet]]
+  payment_method_type = "paypal"
+[[fiservcommercehub.wallet]]
+  payment_method_type = "apple_pay"
+[fiservcommercehub.connector_auth.MultiAuthKey]
+api_key="API Key"
+key1="Merchant ID"
+api_secret="API Secret"
+key2="Terminal ID"
+
 [forte]
 [[forte.credit]]
   payment_method_type = "Mastercard"
@@ -7827,6 +7876,20 @@ placeholder = "Enter your Private Key(Base64 encoded)"
 required = true
 type = "Text"
 
+[trustly_payout]
+[trustly_payout.connector_auth.BodyKey]
+api_key = "Username"
+key1 = "Password"
+[[trustly_payout.bank_transfer]]
+payment_method_type = "trustly"
+
+[trustly_payout.metadata.private_key]
+name = "private_key"
+label = "Private Key (Base64 encoded)"
+placeholder = "Enter your Private Key(Base64 encoded)"
+required = true
+type = "Text"
+
 [tesouro]
 [[tesouro.credit]]
 payment_method_type = "Mastercard"
@@ -8034,9 +8097,12 @@ key1 = "Merchant Account Id"
 [[payjustnow.pay_later]]
   payment_method_type = "payjustnow"
 
-[envoy]
-[envoy.connector_auth.HeaderKey]
-api_key = "API Key"
+[envoy_payout]
+[[envoy_payout.bank_transfer]]
+  payment_method_type = "sepa_bank_transfer"
+[envoy_payout.connector_auth.BodyKey]
+api_key = "Password"
+key1 = "Username"
 
 [vgs]
 [vgs.connector_auth.SignatureKey]
@@ -8235,3 +8301,8 @@ payment_method_type = "CartesBancaires"
 payment_method_type = "UnionPay"
 [revolv3.connector_auth.HeaderKey]
 api_key = "Static Tokens"
+
+[trustly]
+[trustly.connector_auth.HeaderKey]
+api_key = "API Key"
+

@@ -5409,24 +5409,7 @@ impl
 
         Ok(Self {
             method: 1, // POST method for webhooks
-            uri: Some({
-                let uri_result = request_details
-                    .headers
-                    .get("x-forwarded-path")
-                    .and_then(|h| h.to_str().map_err(|e| {
-                        tracing::warn!(
-                            header_conversion_error=?e,
-                            header_value=?h,
-                            "Failed to convert x-forwarded-path header to string for webhook processing"
-                        );
-                        e
-                    }).ok());
-
-                uri_result.unwrap_or_else(|| {
-                    tracing::debug!("x-forwarded-path header not found or invalid, using default '/Unknown'");
-                    "/Unknown"
-                }).to_string()
-            }),
+            uri: Some(request_details.uri.to_string()),
             body: request_details.body.to_vec(),
             headers: headers_map,
             query_params: Some(request_details.query_params.clone()),
