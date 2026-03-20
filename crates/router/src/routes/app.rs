@@ -1572,7 +1572,7 @@ impl Payouts {
                         .service(web::resource("/filter").route(web::get().to(get_payout_filters)))
                         .service(
                             web::resource("/profile/filter")
-                                .route(web::post().to(get_payout_filters_profile)),
+                                .route(web::get().to(get_payout_filters_profile)),
                         ),
                 )
                 .service(
