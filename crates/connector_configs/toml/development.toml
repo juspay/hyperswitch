@@ -2564,12 +2564,6 @@ key1="Secret Key"
   payment_method_type = "CartesBancaires"
 [[fiservcommercehub.debit]]
   payment_method_type = "UnionPay"
-[[fiservcommercehub.wallet]]
-  payment_method_type = "google_pay"
-[[fiservcommercehub.wallet]]
-  payment_method_type = "paypal"
-[[fiservcommercehub.wallet]]
-  payment_method_type = "apple_pay"
 [fiservcommercehub.connector_auth.MultiAuthKey]
 api_key="API Key"
 key1="Merchant ID"
@@ -7870,6 +7864,20 @@ placeholder = "Enter your Account Holder Name"
 required = true
 type = "Text"
 [truelayer_payout.metadata.private_key]
+name = "private_key"
+label = "Private Key (Base64 encoded)"
+placeholder = "Enter your Private Key(Base64 encoded)"
+required = true
+type = "Text"
+
+[trustly_payout]
+[trustly_payout.connector_auth.BodyKey]
+api_key = "Username"
+key1 = "Password"
+[[trustly_payout.bank_transfer]]
+payment_method_type = "trustly"
+
+[trustly_payout.metadata.private_key]
 name = "private_key"
 label = "Private Key (Base64 encoded)"
 placeholder = "Enter your Private Key(Base64 encoded)"
