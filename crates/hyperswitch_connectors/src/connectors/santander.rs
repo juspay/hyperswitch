@@ -1537,10 +1537,6 @@ impl ConnectorSpecifications for Santander {
         Some(&SANTANDER_SUPPORTED_WEBHOOK_FLOWS)
     }
 
-    fn is_authorize_session_token_call_required(&self) -> bool {
-        true
-    }
-
     #[cfg(feature = "v1")]
     fn generate_connector_request_reference_id(
         &self,
