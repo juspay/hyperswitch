@@ -1,6 +1,11 @@
+use crate::types::PaymentsSessionResponseRouterData;
 #[cfg(feature = "payouts")]
 use api_models::payouts::{PayoutMethodData, Wallet as WalletPayout};
-use api_models::{enums, webhooks::IncomingWebhookEvent};
+use api_models::{
+    enums,
+    payments::{NextActionCall, PaypalSessionTokenResponse, SdkNextAction, SessionToken},
+    webhooks::IncomingWebhookEvent,
+};
 use base64::Engine;
 use common_enums::enums as storage_enums;
 #[cfg(feature = "payouts")]
@@ -33,9 +38,9 @@ use hyperswitch_domain_models::{
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
         PaymentsExtendAuthorizationRouterData, PaymentsIncrementalAuthorizationRouterData,
-        PaymentsPostSessionTokensRouterData, PaymentsSyncRouterData, RefreshTokenRouterData,
-        RefundsRouterData, SdkSessionUpdateRouterData, SetupMandateRouterData,
-        VerifyWebhookSourceRouterData,
+        PaymentsPostSessionTokensRouterData, PaymentsSessionRouterData, PaymentsSyncRouterData,
+        RefreshTokenRouterData, RefundsRouterData, SdkSessionUpdateRouterData,
+        SetupMandateRouterData, VerifyWebhookSourceRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -1488,9 +1493,55 @@ impl TryFrom<&RefreshTokenRouterData> for PaypalAuthUpdateRequest {
     }
 }
 
+impl TryFrom<&PaymentsSessionRouterData> for PaypalAuthUpdateRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &PaymentsSessionRouterData) -> Result<Self, Self::Error> {
+        let auth = PaypalAuthType::try_from(&item.connector_auth_type)?;
+        let credentials = auth.get_credentials()?;
+
+        Ok(Self {
+            grant_type: "client_credentials".to_string(),
+            client_id: credentials.get_client_id().clone(),
+            client_secret: credentials.get_client_secret().clone(),
+        })
+    }
+}
+impl
+    ForeignTryFrom<(
+        PaymentsSessionResponseRouterData<PaypalAuthUpdateResponse>,
+        Self,
+    )> for PaymentsSessionRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(
+        (item, data): (
+            PaymentsSessionResponseRouterData<PaypalAuthUpdateResponse>,
+            Self,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let response = &item.response;
+        let auth = PaypalAuthType::try_from(&data.connector_auth_type)?;
+        let credentials = auth.get_credentials()?;
+        let session_token = SessionToken::Paypal(Box::new(PaypalSessionTokenResponse {
+            connector: "paypal".to_string(),
+            session_token: response.access_token.clone().expose(),
+            sdk_next_action: SdkNextAction {
+                next_action: NextActionCall::Confirm,
+            },
+            client_token: Some(response.id_token.clone().expose()),
+            transaction_info: None,
+        }));
+        Ok(Self {
+            response: Ok(PaymentsResponseData::SessionResponse { session_token }),
+            ..data
+        })
+    }
+}
+
 #[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct PaypalAuthUpdateResponse {
     pub access_token: Secret<String>,
+    pub id_token: Secret<String>,
     pub token_type: String,
     pub expires_in: i64,
 }
