@@ -856,6 +856,16 @@ pub fn make_new_auto_retry_payment_attempt(
         error_details: Default::default(),
         retry_type: Some(storage_enums::RetryType::AutoRetry),
         installment_data: Default::default(),
+        // Populate recovered_from_* fields from the previous failed attempt
+        recovered_from_error_code: old_payment_attempt.error_code.clone(),
+        recovered_from_error_reason: old_payment_attempt.error_reason.clone(),
+        recovered_from_standardised_code: old_payment_attempt
+            .error_details
+            .as_ref()
+            .and_then(|ed| ed.unified_details.as_ref())
+            .and_then(|ud| ud.standardised_code.as_ref())
+            .map(|sc| sc.to_string()),
+        recovered_from_connector: old_payment_attempt.connector.clone(),
     }
 }
 

@@ -322,6 +322,10 @@ impl PaymentAttemptBatchNew {
             error_details: None,
             retry_type: None,
             installment_data: None,
+            recovered_from_error_code: None,
+            recovered_from_error_reason: None,
+            recovered_from_standardised_code: None,
+            recovered_from_connector: None,
         }
     }
 }

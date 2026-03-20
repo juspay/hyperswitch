@@ -18,7 +18,15 @@ pub struct PaymentMetricsAccumulator {
     pub connector_success_rate: SuccessRateAccumulator,
     pub payments_distribution: PaymentsDistributionAccumulator,
     pub failure_reasons_distribution: FailureReasonsDistributionAccumulator,
+    pub standardised_code_distribution: StandardisedCodeDistributionAccumulator,
     pub debit_routing: DebitRoutingAccumulator,
+    pub retry_effectiveness: CountAccumulator,
+    pub recovery_rate_by_code: CountAccumulator,
+    pub connector_recovery_matrix: CountAccumulator,
+    pub best_recovery_connector_per_error: CountAccumulator,
+    pub recovery_rate_by_connector: CountAccumulator,
+    pub revenue_recovered: RetriesAmountAccumulator,
+    pub revenue_recovered_by_code: RetriesAmountAccumulator,
 }
 
 #[derive(Debug, Default)]
@@ -35,6 +43,12 @@ pub struct ErrorDistributionAccumulator {
 
 #[derive(Debug, Default)]
 pub struct FailureReasonsDistributionAccumulator {
+    pub count: u64,
+    pub count_without_retries: u64,
+}
+
+#[derive(Debug, Default)]
+pub struct StandardisedCodeDistributionAccumulator {
     pub count: u64,
     pub count_without_retries: u64,
 }
@@ -144,6 +158,29 @@ impl PaymentDistributionAccumulator for ErrorDistributionAccumulator {
 }
 
 impl PaymentMetricAccumulator for FailureReasonsDistributionAccumulator {
+    type MetricOutput = (Option<u64>, Option<u64>);
+
+    fn add_metrics_bucket(&mut self, metrics: &PaymentMetricRow) {
+        if let Some(count) = metrics.count {
+            if let Ok(count_u64) = u64::try_from(count) {
+                self.count += count_u64;
+            }
+        }
+        if metrics.first_attempt.unwrap_or(false) {
+            if let Some(count) = metrics.count {
+                if let Ok(count_u64) = u64::try_from(count) {
+                    self.count_without_retries += count_u64;
+                }
+            }
+        }
+    }
+
+    fn collect(self) -> Self::MetricOutput {
+        (Some(self.count), Some(self.count_without_retries))
+    }
+}
+
+impl PaymentMetricAccumulator for StandardisedCodeDistributionAccumulator {
     type MetricOutput = (Option<u64>, Option<u64>);
 
     fn add_metrics_bucket(&mut self, metrics: &PaymentMetricRow) {
@@ -468,6 +505,8 @@ impl PaymentMetricsAccumulator {
         ) = self.payments_distribution.collect();
         let (failure_reason_count, failure_reason_count_without_smart_retries) =
             self.failure_reasons_distribution.collect();
+        let (standardised_code_count, standardised_code_count_without_smart_retries) =
+            self.standardised_code_distribution.collect();
         let (debit_routed_transaction_count, debit_routing_savings, debit_routing_savings_in_usd) =
             self.debit_routing.collect();
 
@@ -492,11 +531,22 @@ impl PaymentMetricsAccumulator {
             payments_failure_rate_distribution_with_only_retries,
             failure_reason_count,
             failure_reason_count_without_smart_retries,
+            standardised_code_count,
+            standardised_code_count_without_smart_retries,
             payment_processed_amount_in_usd,
             payment_processed_amount_without_smart_retries_usd,
             debit_routed_transaction_count,
             debit_routing_savings,
             debit_routing_savings_in_usd,
+            retry_effectiveness_count: self.retry_effectiveness.collect(),
+            recovery_rate_by_code_count: self.recovery_rate_by_code.collect(),
+            connector_recovery_matrix_count: self.connector_recovery_matrix.collect(),
+            best_recovery_connector_per_error_count: self
+                .best_recovery_connector_per_error
+                .collect(),
+            recovery_rate_by_connector_count: self.recovery_rate_by_connector.collect(),
+            revenue_recovered_amount: self.revenue_recovered.collect(),
+            revenue_recovered_by_code_amount: self.revenue_recovered_by_code.collect(),
         }
     }
 }

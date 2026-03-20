@@ -42,6 +42,8 @@ pub struct PaymentFilters {
     #[serde(default)]
     pub error_reason: Vec<String>,
     #[serde(default)]
+    pub standardised_code: Vec<String>,
+    #[serde(default)]
     pub first_attempt: Vec<bool>,
     #[serde(default)]
     pub routing_approach: Vec<RoutingApproach>,
@@ -51,6 +53,12 @@ pub struct PaymentFilters {
     pub is_issuer_regulated: Vec<bool>,
     #[serde(default)]
     pub is_debit_routed: Vec<bool>,
+    #[serde(default)]
+    pub recovered_from_error_code: Vec<String>,
+    #[serde(default)]
+    pub recovered_from_standardised_code: Vec<String>,
+    #[serde(default)]
+    pub recovered_from_connector: Vec<String>,
 }
 
 #[derive(
@@ -92,10 +100,14 @@ pub enum PaymentDimensions {
     CardLast4,
     CardIssuer,
     ErrorReason,
+    StandardisedCode,
     RoutingApproach,
     SignatureNetwork,
     IsIssuerRegulated,
     IsDebitRouted,
+    RecoveredFromErrorCode,
+    RecoveredFromStandardisedCode,
+    RecoveredFromConnector,
 }
 
 #[derive(
@@ -131,6 +143,14 @@ pub enum PaymentMetrics {
     SessionizedDebitRouting,
     PaymentsDistribution,
     FailureReasons,
+    StandardisedCodeDistribution,
+    RetryEffectiveness,
+    RecoveryRateByCode,
+    ConnectorRecoveryMatrix,
+    BestRecoveryConnectorPerError,
+    RecoveryRateByConnector,
+    RevenueRecovered,
+    RevenueRecoveredByCode,
 }
 
 impl ForexMetric for PaymentMetrics {
@@ -216,10 +236,14 @@ pub struct PaymentMetricsBucketIdentifier {
     pub card_last_4: Option<String>,
     pub card_issuer: Option<String>,
     pub error_reason: Option<String>,
+    pub standardised_code: Option<String>,
     pub routing_approach: Option<RoutingApproach>,
     pub signature_network: Option<String>,
     pub is_issuer_regulated: Option<bool>,
     pub is_debit_routed: Option<bool>,
+    pub recovered_from_error_code: Option<String>,
+    pub recovered_from_standardised_code: Option<String>,
+    pub recovered_from_connector: Option<String>,
     #[serde(rename = "time_range")]
     pub time_bucket: TimeRange,
     // Coz FE sucks
@@ -245,10 +269,14 @@ impl PaymentMetricsBucketIdentifier {
         card_last_4: Option<String>,
         card_issuer: Option<String>,
         error_reason: Option<String>,
+        standardised_code: Option<String>,
         routing_approach: Option<RoutingApproach>,
         signature_network: Option<String>,
         is_issuer_regulated: Option<bool>,
         is_debit_routed: Option<bool>,
+        recovered_from_error_code: Option<String>,
+        recovered_from_standardised_code: Option<String>,
+        recovered_from_connector: Option<String>,
         normalized_time_range: TimeRange,
     ) -> Self {
         Self {
@@ -266,10 +294,14 @@ impl PaymentMetricsBucketIdentifier {
             card_last_4,
             card_issuer,
             error_reason,
+            standardised_code,
             routing_approach,
             signature_network,
             is_issuer_regulated,
             is_debit_routed,
+            recovered_from_error_code,
+            recovered_from_standardised_code,
+            recovered_from_connector,
             time_bucket: normalized_time_range,
             start_time: normalized_time_range.start_time,
         }
@@ -292,6 +324,7 @@ impl Hash for PaymentMetricsBucketIdentifier {
         self.card_last_4.hash(state);
         self.card_issuer.hash(state);
         self.error_reason.hash(state);
+        self.standardised_code.hash(state);
         self.routing_approach
             .clone()
             .map(|i| i.to_string())
@@ -299,6 +332,9 @@ impl Hash for PaymentMetricsBucketIdentifier {
         self.signature_network.hash(state);
         self.is_issuer_regulated.hash(state);
         self.is_debit_routed.hash(state);
+        self.recovered_from_error_code.hash(state);
+        self.recovered_from_standardised_code.hash(state);
+        self.recovered_from_connector.hash(state);
         self.time_bucket.hash(state);
     }
 }
@@ -337,9 +373,18 @@ pub struct PaymentMetricsBucketValue {
     pub payments_failure_rate_distribution_with_only_retries: Option<f64>,
     pub failure_reason_count: Option<u64>,
     pub failure_reason_count_without_smart_retries: Option<u64>,
+    pub standardised_code_count: Option<u64>,
+    pub standardised_code_count_without_smart_retries: Option<u64>,
     pub debit_routed_transaction_count: Option<u64>,
     pub debit_routing_savings: Option<u64>,
     pub debit_routing_savings_in_usd: Option<u64>,
+    pub retry_effectiveness_count: Option<u64>,
+    pub recovery_rate_by_code_count: Option<u64>,
+    pub connector_recovery_matrix_count: Option<u64>,
+    pub best_recovery_connector_per_error_count: Option<u64>,
+    pub recovery_rate_by_connector_count: Option<u64>,
+    pub revenue_recovered_amount: Option<u64>,
+    pub revenue_recovered_by_code_amount: Option<u64>,
 }
 
 #[derive(Debug, serde::Serialize)]

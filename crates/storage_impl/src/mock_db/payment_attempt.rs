@@ -250,6 +250,10 @@ impl PaymentAttemptInterface for MockDb {
             error_details: payment_attempt.error_details,
             retry_type: payment_attempt.retry_type,
             installment_data: payment_attempt.installment_data,
+            recovered_from_error_code: payment_attempt.recovered_from_error_code,
+            recovered_from_error_reason: payment_attempt.recovered_from_error_reason,
+            recovered_from_standardised_code: payment_attempt.recovered_from_standardised_code,
+            recovered_from_connector: payment_attempt.recovered_from_connector,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)

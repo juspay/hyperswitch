@@ -1429,6 +1429,14 @@ pub struct PaymentAttempt {
     pub retry_type: Option<storage_enums::RetryType>,
     /// Installment data selected by the customer (number of installments and billing frequency)
     pub installment_data: Option<common_types::payments::InstallmentData>,
+    /// Error code from the previous failed attempt that this retry recovered from
+    pub recovered_from_error_code: Option<String>,
+    /// Error reason from the previous failed attempt that this retry recovered from
+    pub recovered_from_error_reason: Option<String>,
+    /// Standardised error code from the previous failed attempt that this retry recovered from
+    pub recovered_from_standardised_code: Option<String>,
+    /// Connector name from the previous failed attempt that this retry recovered from
+    pub recovered_from_connector: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -2914,6 +2922,10 @@ impl behaviour::Conversion for PaymentAttempt {
             authorized_amount: self.authorized_amount,
             encrypted_payment_method_data: self.encrypted_payment_method_data.map(Encryption::from),
             retry_type: self.retry_type,
+            recovered_from_error_code: self.recovered_from_error_code,
+            recovered_from_error_reason: self.recovered_from_error_reason,
+            recovered_from_standardised_code: self.recovered_from_standardised_code,
+            recovered_from_connector: self.recovered_from_connector,
         })
     }
 
@@ -3047,6 +3059,10 @@ impl behaviour::Conversion for PaymentAttempt {
                 error_details: storage_model.error_details.map(Into::into),
                 retry_type: storage_model.retry_type,
                 installment_data: storage_model.installment_data,
+                recovered_from_error_code: storage_model.recovered_from_error_code,
+                recovered_from_error_reason: storage_model.recovered_from_error_reason,
+                recovered_from_standardised_code: storage_model.recovered_from_standardised_code,
+                recovered_from_connector: storage_model.recovered_from_connector,
             })
         }
         .await
@@ -3147,6 +3163,10 @@ impl behaviour::Conversion for PaymentAttempt {
             error_details: self.error_details.map(Into::into),
             retry_type: self.retry_type,
             installment_data: self.installment_data,
+            recovered_from_error_code: self.recovered_from_error_code,
+            recovered_from_error_reason: self.recovered_from_error_reason,
+            recovered_from_standardised_code: self.recovered_from_standardised_code,
+            recovered_from_connector: self.recovered_from_connector,
         })
     }
 }
@@ -3331,6 +3351,10 @@ impl behaviour::Conversion for PaymentAttempt {
             error_details: None,
             retry_type: None,
             installment_data: None,
+            recovered_from_error_code: None,
+            recovered_from_error_reason: None,
+            recovered_from_standardised_code: None,
+            recovered_from_connector: None,
         })
     }
 
@@ -3623,6 +3647,10 @@ impl behaviour::Conversion for PaymentAttempt {
             encrypted_payment_method_data: None,
             error_details: None,
             retry_type: None,
+            recovered_from_error_code: None,
+            recovered_from_error_reason: None,
+            recovered_from_standardised_code: None,
+            recovered_from_connector: None,
         })
     }
 }
@@ -3669,6 +3697,10 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 cancellation_reason: None,
                 amount_captured: None,
                 payment_method_data: None,
+                recovered_from_error_code: None,
+                recovered_from_error_reason: None,
+                recovered_from_standardised_code: None,
+                recovered_from_connector: None,
             },
             PaymentAttemptUpdate::ErrorUpdate {
                 status,
@@ -3715,6 +3747,10 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                     cancellation_reason: None,
                     amount_captured: None,
                     payment_method_data,
+                    recovered_from_error_code: None,
+                    recovered_from_error_reason: None,
+                    recovered_from_standardised_code: None,
+                    recovered_from_connector: None,
                 }
             }
             PaymentAttemptUpdate::ConfirmIntentResponse(confirm_intent_response_update) => {
@@ -3767,6 +3803,10 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                     cancellation_reason: None,
                     amount_captured: None,
                     payment_method_data,
+                    recovered_from_error_code: None,
+                    recovered_from_error_reason: None,
+                    recovered_from_standardised_code: None,
+                    recovered_from_connector: None,
                 }
             }
             PaymentAttemptUpdate::SyncUpdate {
@@ -3805,6 +3845,10 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 cancellation_reason: None,
                 amount_captured,
                 payment_method_data: payment_method_data.map(pii::SecretSerdeValue::new),
+                recovered_from_error_code: None,
+                recovered_from_error_reason: None,
+                recovered_from_standardised_code: None,
+                recovered_from_connector: None,
             },
             PaymentAttemptUpdate::CaptureUpdate {
                 status,
@@ -3840,6 +3884,10 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 cancellation_reason: None,
                 amount_captured: None,
                 payment_method_data: None,
+                recovered_from_error_code: None,
+                recovered_from_error_reason: None,
+                recovered_from_standardised_code: None,
+                recovered_from_connector: None,
             },
             PaymentAttemptUpdate::PreCaptureUpdate {
                 amount_to_capture,
@@ -3874,6 +3922,10 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 cancellation_reason: None,
                 amount_captured: None,
                 payment_method_data: None,
+                recovered_from_error_code: None,
+                recovered_from_error_reason: None,
+                recovered_from_standardised_code: None,
+                recovered_from_connector: None,
             },
             PaymentAttemptUpdate::ConfirmIntentTokenized {
                 status,
@@ -3913,6 +3965,10 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 cancellation_reason: None,
                 amount_captured: None,
                 payment_method_data: None,
+                recovered_from_error_code: None,
+                recovered_from_error_reason: None,
+                recovered_from_standardised_code: None,
+                recovered_from_connector: None,
             },
             PaymentAttemptUpdate::VoidUpdate {
                 status,
@@ -3948,6 +4004,10 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 payment_method_id: None,
                 amount_captured: None,
                 payment_method_data: None,
+                recovered_from_error_code: None,
+                recovered_from_error_reason: None,
+                recovered_from_standardised_code: None,
+                recovered_from_connector: None,
             },
         }
     }

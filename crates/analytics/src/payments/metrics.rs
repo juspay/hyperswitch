@@ -49,6 +49,7 @@ pub struct PaymentMetricRow {
     pub card_last_4: Option<String>,
     pub card_issuer: Option<String>,
     pub error_reason: Option<String>,
+    pub standardised_code: Option<String>,
     pub first_attempt: Option<bool>,
     pub total: Option<bigdecimal::BigDecimal>,
     pub count: Option<i64>,
@@ -56,6 +57,9 @@ pub struct PaymentMetricRow {
     pub signature_network: Option<String>,
     pub is_issuer_regulated: Option<bool>,
     pub is_debit_routed: Option<bool>,
+    pub recovered_from_error_code: Option<String>,
+    pub recovered_from_standardised_code: Option<String>,
+    pub recovered_from_connector: Option<String>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub start_bucket: Option<PrimitiveDateTime>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
@@ -185,8 +189,48 @@ where
                     .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }
+            Self::StandardisedCodeDistribution => {
+                sessionized_metrics::StandardisedCodeDistribution
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
             Self::SessionizedDebitRouting => {
                 sessionized_metrics::DebitRouting
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::RetryEffectiveness => {
+                sessionized_metrics::RetryEffectiveness
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::RecoveryRateByCode => {
+                sessionized_metrics::RecoveryRateByCode
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::ConnectorRecoveryMatrix => {
+                sessionized_metrics::ConnectorRecoveryMatrix
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::BestRecoveryConnectorPerError => {
+                sessionized_metrics::BestRecoveryConnectorPerError
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::RecoveryRateByConnector => {
+                sessionized_metrics::RecoveryRateByConnector
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::RevenueRecovered => {
+                sessionized_metrics::RevenueRecovered
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::RevenueRecoveredByCode => {
+                sessionized_metrics::RevenueRecoveredByCode
                     .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }
