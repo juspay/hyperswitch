@@ -8,6 +8,7 @@ pub mod blocklist_lookup;
 pub mod business_profile;
 pub mod callback_mapper;
 pub mod capture;
+pub mod card_issuer;
 pub mod configs;
 pub mod customers;
 pub mod dashboard_metadata;
@@ -117,6 +118,7 @@ pub trait StorageInterface:
     + PaymentMethodInterface<Error = StorageError>
     + blocklist::BlocklistInterface
     + blocklist_fingerprint::BlocklistFingerprintInterface
+    + card_issuer::CardIssuersInterface
     + dynamic_routing_stats::DynamicRoutingStatsInterface
     + scheduler::SchedulerInterface
     + PayoutAttemptInterface<Error = StorageError>

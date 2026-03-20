@@ -269,6 +269,32 @@ pub struct CardTestingGuardConfig {
     pub card_testing_guard_expiry: i32,
 }
 
+/// Configuration for payment method blocking based on card attributes
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct PaymentMethodBlockingConfig {
+    /// Card-specific blocking configuration
+    pub card: Option<CardBlockingConfig>,
+}
+
+/// Card-specific blocking configuration
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct CardBlockingConfig {
+    /// Set of issuing countries to block using ISO 3166-1 alpha-2 codes (e.g., ["IN", "US"])
+    #[schema(value_type = Option<Vec<CountryAlpha2>>)]
+    pub issuing_country: Option<HashSet<common_enums::CountryAlpha2>>,
+    /// Set of card types to block (e.g., ["Credit", "Debit"])
+    #[schema(value_type = Option<Vec<CardType>>)]
+    pub card_types: Option<HashSet<common_enums::CardType>>,
+    /// Set of card subtypes to block
+    #[schema(value_type = Option<Vec<CardSubtype>>)]
+    pub card_subtypes: Option<HashSet<common_enums::CardSubtype>>,
+    /// Set of card issuer IDs to block
+    pub issuers: Option<HashSet<String>>,
+    /// Whether to block if BIN is provided but no matching record found in cards_info table.
+    /// Defaults to false (allow payment if BIN not found in database).
+    pub block_if_bin_info_unavailable: Option<bool>,
+}
+
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum CardTestingGuardStatus {

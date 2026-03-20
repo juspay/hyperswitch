@@ -1,6 +1,7 @@
 use actix_web::http::header::HeaderMap;
 use api_models::{
-    cards_info as card_info_types, enums as api_enums, gsm as gsm_api_types, payment_methods,
+    card_issuer as card_issuer_types, cards_info as card_info_types, enums as api_enums,
+    gsm as gsm_api_types, payment_methods,
     payments::{self, CustomerDetails},
     routing::ConnectorSelection,
 };
@@ -2510,6 +2511,15 @@ impl ForeignFrom<&revenue_recovery_redis_operation::PaymentProcessorTokenStatus>
             is_regulated: None,
             signature_network: None,
             auth_code: None,
+        }
+    }
+}
+
+impl ForeignFrom<storage::CardIssuer> for card_issuer_types::CardIssuerResponse {
+    fn foreign_from(from: storage::CardIssuer) -> Self {
+        Self {
+            id: from.id,
+            issuer_name: from.issuer_name,
         }
     }
 }

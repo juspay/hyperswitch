@@ -229,3 +229,6 @@ pub const DEFAULT_LIST_LIMIT: i64 = 100;
 
 /// Default offset for list operations (can be used across different entities)
 pub const DEFAULT_LIST_OFFSET: i64 = 0;
+
+/// Default number of card issuers returned in a list request
+pub const DEFAULT_CARD_ISSUER_LIST_LIMIT: u8 = 30;
