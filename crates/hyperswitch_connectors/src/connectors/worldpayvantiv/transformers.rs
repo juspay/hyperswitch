@@ -290,6 +290,8 @@ pub struct Sale {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub token: Option<TokenizationData>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub cardholder_authentication: Option<CardholderAuthentication>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub enhanced_data: Option<EnhancedData>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub processing_type: Option<VantivProcessingType>,
@@ -299,8 +301,7 @@ pub struct Sale {
     pub allow_partial_auth: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fraud_filter_override: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cardholder_authentication: Option<CardholderAuthentication>,
+
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -971,6 +972,10 @@ impl From<(PaymentMethodData, Option<common_enums::PaymentChannel>)> for OrderSo
         ) = &payment_method_data
         {
             return Self::AndroidPay;
+        }
+        if let PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_) = payment_method_data
+        {
+            return Self::Ecommerce;
         }
 
         match payment_channel {
@@ -4505,6 +4510,24 @@ fn get_vantiv_card_data(
                 Some(WorldpayvantivCardData {
                     card_type,
                     number: card_data.card_number.clone(),
+                    exp_date,
+                    card_validation_num: None,
+                }),
+                None,
+            ))
+        }
+        PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(dw_token) => {
+            let card_type = match dw_token.card_network.clone() {
+                Some(card_type) => WorldpayvativCardType::try_from(card_type)?,
+                None => WorldpayvativCardType::try_from(&dw_token.get_card_issuer()?)?,
+            };
+
+            let exp_date = dw_token.get_expiry_date_as_mmyy()?;
+
+            Ok((
+                Some(WorldpayvantivCardData {
+                    card_type,
+                    number: cards::CardNumber::from(dw_token.decrypted_token.clone()),
                     exp_date,
                     card_validation_num: None,
                 }),
