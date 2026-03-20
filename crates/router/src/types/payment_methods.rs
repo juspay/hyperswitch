@@ -469,9 +469,9 @@ pub struct PaymentMethodUpdateHandler<'a> {
 /// This struct is used to store the network tokenization data associated with a payment method in the database.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PaymentMethodNetworkTokenData {
-    network_token_requestor_reference_id: Option<Secret<String>>,
-    network_token_locker_id: Option<Secret<String>>,
-    network_token_payment_method_data: Option<domain::PaymentMethodsData>,
+    network_token_requestor_reference_id: Secret<String>,
+    network_token_locker_id: Secret<String>,
+    network_token_payment_method_data: domain::PaymentMethodsData,
 }
 
 /// The domain type for Network Tokenization Data stored in payment methods table.

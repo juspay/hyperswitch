@@ -695,7 +695,7 @@ pub struct MerchantDetails {
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 pub enum NetworkTokeizationProviderCredentials {
-    InternalTokenService(InternalNetworkTokenizationCredentials),
+    InternalNetworkTokenService(InternalNetworkTokenizationCredentials),
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
