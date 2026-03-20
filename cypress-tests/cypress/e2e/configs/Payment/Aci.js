@@ -200,25 +200,25 @@ export const connectorDetails = {
       },
     },
     VoidAfterConfirm: {
-  Request: {
-    payment_method: "card",
-    payment_method_data: {
-      card: successfulNo3DSCardDetails,
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "EUR",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+      Configs: {
+        shouldContinue: true, //For controlling whether to proceed with the step
+      },
     },
-    currency: "EUR",
-    customer_acceptance: null,
-    setup_future_usage: "on_session",
-  },
-  Response: {
-    status: 200,
-    body: {
-      status: "succeeded", 
-    },
-  },
-  Configs: {
-    shouldContinue: true,  //For controlling whether to proceed with the step
-  },
-},
     Refund: {
       Request: {
         amount: 6000,
@@ -716,7 +716,7 @@ export const connectorDetails = {
   bank_redirect_pm: {
     Interac: {
       Configs: {
-        TRIGGER_SKIP: true,  // Skip Interac
+        TRIGGER_SKIP: true, // Skip Interac
       },
       Request: {
         payment_method: "bank_redirect",
@@ -733,7 +733,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-          status: "not_implemented",  // Customize to indicate not supported
+          status: "not_implemented", // Customize to indicate not supported
         },
       },
     },
@@ -757,7 +757,7 @@ export const connectorDetails = {
         },
       },
     },
-    
+
     Przelewy24: {
       Request: {
         payment_method: "bank_redirect",
