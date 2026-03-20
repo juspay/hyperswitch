@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Debug};
+use std::fmt::Debug;
 
 use api_models::enums as api_enums;
 use cards::{CardNumber, NetworkToken};
