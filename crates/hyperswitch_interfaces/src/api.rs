@@ -81,7 +81,7 @@ use hyperswitch_domain_models::{
         VerifyWebhookSourceResponseData,
     },
 };
-use masking::Maskable;
+use hyperswitch_masking::Maskable;
 use serde_json::json;
 
 #[cfg(feature = "frm")]

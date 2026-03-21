@@ -2,7 +2,7 @@ use common_utils::types::MinorUnit;
 use error_stack::Report;
 use hyperswitch_domain_models::router_data::ConnectorAuthType;
 use hyperswitch_interfaces::errors::ConnectorError;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::Serialize;
 
 #[cfg(feature = "payouts")]

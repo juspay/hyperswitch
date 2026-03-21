@@ -1,6 +1,6 @@
 use common_enums::enums;
 use common_utils::events::ApiEventMetric;
-use masking::StrongSecret;
+use hyperswitch_masking::StrongSecret;
 use utoipa::ToSchema;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
