@@ -27,7 +27,7 @@ where
 {
     if connector
         .connector
-        .is_authorize_session_token_call_required()
+        .is_authorize_session_token_call_required(current_flow)
     {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api_types::AuthorizeSessionToken,
