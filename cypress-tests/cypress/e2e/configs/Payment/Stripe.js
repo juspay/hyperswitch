@@ -1078,41 +1078,18 @@ export const connectorDetails = {
   },
   // Modular Payment Method Service configuration
   modular_pm: {
-    payment_methods_enabled: [
-      {
-        payment_method: "card",
-        payment_method_types: [
-          {
-            payment_method_type: "credit",
-            card_networks: ["Visa", "Mastercard", "AmericanExpress"],
-            minimum_amount: 0,
-            maximum_amount: 68607706,
-            recurring_enabled: true,
-            installment_payment_enabled: true,
-          },
-          {
-            payment_method_type: "debit",
-            card_networks: ["Visa", "Mastercard", "AmericanExpress"],
-            minimum_amount: 0,
-            maximum_amount: 68607706,
-            recurring_enabled: true,
-            installment_payment_enabled: true,
-          },
-        ],
-      },
-    ],
     PaymentMethodCreate: {
       Request: {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        payment_method_subtype: "debit",
+        payment_method_subtype: "credit",
       },
       Response: {
         status: 200,
         body: {
           payment_method: "card",
-          payment_method_subtype: "debit",
+          payment_method_subtype: "credit",
           status: "active",
         },
       },
