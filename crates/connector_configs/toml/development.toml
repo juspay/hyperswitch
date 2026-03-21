@@ -2564,12 +2564,6 @@ key1="Secret Key"
   payment_method_type = "CartesBancaires"
 [[fiservcommercehub.debit]]
   payment_method_type = "UnionPay"
-[[fiservcommercehub.wallet]]
-  payment_method_type = "google_pay"
-[[fiservcommercehub.wallet]]
-  payment_method_type = "paypal"
-[[fiservcommercehub.wallet]]
-  payment_method_type = "apple_pay"
 [fiservcommercehub.connector_auth.MultiAuthKey]
 api_key="API Key"
 key1="Merchant ID"

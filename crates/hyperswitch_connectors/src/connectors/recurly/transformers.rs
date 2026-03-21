@@ -21,7 +21,7 @@ use hyperswitch_domain_models::{
     types as recovery_router_data_types,
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 

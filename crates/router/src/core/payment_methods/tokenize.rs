@@ -8,7 +8,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::router_request_types as domain_request_types;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use router_env::logger;
 
 use crate::{
