@@ -1676,8 +1676,10 @@ impl ConnectorSpecifications for Santander {
     ) -> bool {
         match current_flow {
             Some(api::CurrentFlowInfo::Authorize { request_data, .. }) => {
+                // Required for Journey 3 & 4 CITs but one-off payments should not have this call as per Santander's requirements
                 request_data.is_cit_mandate_payment()
             }
+            // Required for Journey 1 & 2 CITs
             Some(api::CurrentFlowInfo::SetupMandate { .. }) => true,
             Some(api::CurrentFlowInfo::CompleteAuthorize { .. }) | None => false,
         }
