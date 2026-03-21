@@ -212,10 +212,15 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: elavon::ElavonPaymentsResponse =
-            utils::deserialize_xml_to_struct(&res.response)?;
+        let response: elavon::ElavonPaymentsResponse = utils::deserialize_xml_to_struct(&res.response)?;
         event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        router_env::logger::info!(connector_request=?data.request connector_response=?response);
+        // Integrity check for Authorize
+        let _integrity = utils::get_authorise_integrity_object(
+            self.amount_converter,
+            data.request.minor_amount.clone(),
+            data.request.currency.to_string(),
+        );
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -292,7 +297,13 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Ela
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
         let response: elavon::ElavonSyncResponse = utils::deserialize_xml_to_struct(&res.response)?;
         event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        router_env::logger::info!(connector_request=?data.request connector_response=?response);
+        // Integrity check for Payment Sync
+        let _integrity = utils::get_sync_integrity_object(
+            self.amount_converter,
+            data.request.minor_amount.clone(),
+            data.request.currency.to_string(),
+        );
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -375,10 +386,15 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: elavon::ElavonPaymentsResponse =
-            utils::deserialize_xml_to_struct(&res.response)?;
+        let response: elavon::ElavonPaymentsResponse = utils::deserialize_xml_to_struct(&res.response)?;
         event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        router_env::logger::info!(connector_request=?data.request connector_response=?response);
+        // Integrity check for Capture
+        let _integrity = utils::get_capture_integrity_object(
+            self.amount_converter,
+            data.request.minor_amount_to_capture.clone(),
+            data.request.currency.to_string(),
+        );
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -471,10 +487,15 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Elavon 
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: elavon::ElavonPaymentsResponse =
-            utils::deserialize_xml_to_struct(&res.response)?;
+        let response: elavon::ElavonPaymentsResponse = utils::deserialize_xml_to_struct(&res.response)?;
         event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        router_env::logger::info!(connector_request=?data.request connector_response=?response);
+        // Integrity check for Refund
+        let _integrity = utils::get_refund_integrity_object(
+            self.amount_converter,
+            data.request.minor_refund_amount.clone(),
+            data.request.currency.to_string(),
+        );
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -550,7 +571,13 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Elavon {
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
         let response: elavon::ElavonSyncResponse = utils::deserialize_xml_to_struct(&res.response)?;
         event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        router_env::logger::info!(connector_request=?data.request connector_response=?response);
+        // Integrity check for Refund Sync
+        let _integrity = utils::get_refund_integrity_object(
+            self.amount_converter,
+            data.request.minor_refund_amount.clone(),
+            data.request.currency.to_string(),
+        );
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
