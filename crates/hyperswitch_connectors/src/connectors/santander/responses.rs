@@ -744,3 +744,33 @@ pub enum SantanderBoletoStatus {
     /// A partial payment was made
     LiquidadoParcialmente,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticSolicitationResponse {
+    pub id_solic_rec: String,
+    pub id_rec: String,
+    pub status: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticRecResponse {
+    pub id_rec: String,
+    pub status: String,
+    pub dados_qr: Option<SantanderPixAutomaticQrData>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticQrData {
+    pub jornada: Option<String>,
+    pub pix_copia_e_cola: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum SantanderPaymentTriggerResponse {
+    PixAutomaticSolicitation(Box<SantanderPixAutomaticSolicitationResponse>),
+    PixAutomaticRec(Box<SantanderPixAutomaticRecResponse>),
+}
