@@ -64,7 +64,7 @@ use crate::{
     },
     constants::headers,
     types::{RefreshTokenRouterData, ResponseRouterData},
-    utils::{self as connector_utils, convert_amount},
+    utils::{self as connector_utils, convert_amount, PaymentsAuthorizeRequestData},
 };
 
 #[derive(Clone)]
@@ -1676,7 +1676,7 @@ impl ConnectorSpecifications for Santander {
     ) -> bool {
         match current_flow {
             Some(api::CurrentFlowInfo::Authorize { request_data, .. }) => {
-                request_data.is_mandate_payment()
+                request_data.is_cit_mandate_payment()
             }
             Some(api::CurrentFlowInfo::SetupMandate { .. }) => true,
             Some(api::CurrentFlowInfo::CompleteAuthorize { .. }) | None => false,
