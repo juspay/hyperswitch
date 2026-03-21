@@ -124,6 +124,8 @@ pub async fn add_access_token<
     router_data: &types::RouterData<F, Req, Res>,
     creds_identifier: Option<&str>,
     gateway_context: &gateway_context::RouterGatewayContext,
+    current_flow: Option<hyperswitch_domain_models::router_request_types::CurrentFlowInfo>,
+    mandate_id: Option<api_models::payments::MandateIds>,
 ) -> RouterResult<types::AddAccessTokenResult> {
     if connector
         .connector_name
@@ -145,14 +147,11 @@ pub async fn add_access_token<
             .or(creds_identifier.map(|id| id.to_string()))
             .unwrap_or(connector.connector_name.to_string());
 
-        let key = connector
-            .connector
-            .get_access_token_key(router_data, merchant_connector_id_or_connector_name.clone())
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(format!(
-                "Failed to get access token key for connector: {:?}",
-                connector.connector_name
-            ))?;
+        let key = connector.connector.get_access_token_key(
+            current_flow.clone(),
+            merchant_id,
+            &merchant_connector_id_or_connector_name,
+        );
 
         router_env::logger::debug!("Fetching access token from Redis using key: {key}");
 
@@ -197,6 +196,8 @@ pub async fn add_access_token<
                 let refresh_token_request_data = types::AccessTokenRequestData::try_from((
                     router_data.connector_auth_type.clone(),
                     authentication_token,
+                    current_flow,
+                    mandate_id,
                 ))
                 .attach_printable(
                     "Could not create access token request, invalid connector account credentials",

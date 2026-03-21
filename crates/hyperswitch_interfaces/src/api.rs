@@ -43,6 +43,7 @@ use common_utils::{
     request::{Method, Request, RequestContent},
 };
 use error_stack::ResultExt;
+pub use hyperswitch_domain_models::router_request_types::CurrentFlowInfo;
 use hyperswitch_domain_models::{
     connector_endpoints::Connectors,
     errors::api_error_response::ApiErrorResponse,
@@ -123,7 +124,6 @@ pub trait Connector:
     + revenue_recovery::RevenueRecovery
     + ExternalVault
     + Subscriptions
-    + ConnectorAccessTokenSuffix
     + WebhookRegister
 {
 }
@@ -149,8 +149,7 @@ impl<
             + UnifiedAuthenticationService
             + revenue_recovery::RevenueRecovery
             + ExternalVault
-            + Subscriptions
-            + ConnectorAccessTokenSuffix,
+            + Subscriptions,
     > Connector for T
 {
 }
@@ -400,49 +399,6 @@ pub trait ConnectorCommon {
     }
 }
 
-impl ConnectorAccessTokenSuffix for BoxedConnector {
-    fn get_access_token_key(
-        &self,
-        router_data: &dyn AccessTokenData,
-        merchant_connector_id_or_connector_name: String,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        // 'self' is the BoxedConnector (the Box)
-        // We dereference it to get the 'dyn Connector' and call the method
-        self.as_ref()
-            .get_access_token_key(router_data, merchant_connector_id_or_connector_name)
-    }
-}
-
-/// Current flow information passed to the connector specifications trait
-///
-/// In order to make some desicion about the preprocessing or alternate flow
-#[derive(Clone, Debug)]
-pub enum CurrentFlowInfo<'a> {
-    /// Authorize flow information
-    Authorize {
-        /// The authentication type being used
-        auth_type: &'a enums::AuthenticationType,
-        /// The payment authorize request data
-        request_data: &'a router_request_types::PaymentsAuthorizeData,
-    },
-    /// CompleteAuthorize flow information
-    CompleteAuthorize {
-        /// The authentication type being used
-        auth_type: &'a enums::AuthenticationType,
-        /// The payment authorize request data
-        request_data: &'a router_request_types::CompleteAuthorizeData,
-        /// The payment method that is used
-        payment_method: Option<PaymentMethod>,
-    },
-    /// SetupMandate flow information
-    SetupMandate {
-        /// The authentication type being used
-        auth_type: &'a enums::AuthenticationType,
-        /// The payment setup mandate request data
-        request_data: &'a router_request_types::SetupMandateRequestData,
-    },
-}
-
 /// Alternate API flow that must be made instead of the current flow.
 /// For example, PreAuthenticate flow must be made instead of Authorize flow.
 #[derive(Debug, Clone, Copy)]
@@ -475,40 +431,40 @@ pub struct PreProcessingFlowResponse<'a> {
 /// The trait that provides specifications about the connector
 pub trait ConnectorSpecifications {
     /// Check if pre-authentication flow is required
-    fn is_balance_check_flow_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
+    fn is_balance_check_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
     }
     /// Check if pre-authentication flow is required
-    fn is_order_create_flow_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
+    fn is_order_create_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
     }
     /// Check if pre-authentication flow is required
-    fn is_pre_authentication_flow_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
+    fn is_pre_authentication_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
     }
     /// Check if authentication flow is required
-    fn is_authentication_flow_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
+    fn is_authentication_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
     }
     /// Check if post-authentication flow is required
-    fn is_post_authentication_flow_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
+    fn is_post_authentication_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
     }
     /// Check if pre-authentication flow is required
-    fn is_settlement_split_call_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
+    fn is_settlement_split_call_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
     }
     /// Preprocessing flow name if any, that must be made before the current flow.
     fn get_preprocessing_flow_if_needed(
         &self,
-        _current_flow: CurrentFlowInfo<'_>,
+        _current_flow: CurrentFlowInfo,
     ) -> Option<PreProcessingFlowName> {
         None
     }
     /// If Some is returned, the returned api flow must be made instead of the current flow.
     fn get_alternate_flow_if_needed(
         &self,
-        _current_flow: CurrentFlowInfo<'_>,
+        _current_flow: CurrentFlowInfo,
     ) -> Option<AlternateFlow> {
         None
     }
@@ -596,7 +552,10 @@ pub trait ConnectorSpecifications {
     }
 
     /// Is Authorize session token required before authorize
-    fn is_authorize_session_token_call_required(&self) -> bool {
+    fn is_authorize_session_token_call_required(
+        &self,
+        _current_flow: Option<CurrentFlowInfo>,
+    ) -> bool {
         false
     }
 
@@ -630,6 +589,19 @@ pub trait ConnectorSpecifications {
         &self,
     ) -> &'static common_types::connector_webhook_configuration::WebhookSetupCapabilities {
         &consts::DEFAULT_WEBHOOK_SETUP_CAPABILITIES
+    }
+
+    /// Get the access token key for storing and retrieving access tokens
+    fn get_access_token_key(
+        &self,
+        _current_flow: Option<CurrentFlowInfo>,
+        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_connector_id_or_connector_name: &str,
+    ) -> String {
+        common_utils::access_token::get_default_access_token_key(
+            merchant_id,
+            merchant_connector_id_or_connector_name,
+        )
     }
 }
 
@@ -1015,20 +987,5 @@ impl<F, Req, Res> AccessTokenData for RouterData<F, Req, Res> {
     }
     fn get_merchant_id(&self) -> common_utils::id_type::MerchantId {
         self.merchant_id.clone()
-    }
-}
-
-/// Trait ConnectorAccessTokenSuffix
-pub trait ConnectorAccessTokenSuffix {
-    /// Function to get dynamic access token key suffix from Connector
-    fn get_access_token_key(
-        &self,
-        router_data: &dyn AccessTokenData,
-        merchant_connector_id_or_connector_name: String,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(common_utils::access_token::get_default_access_token_key(
-            &router_data.get_merchant_id(),
-            merchant_connector_id_or_connector_name,
-        ))
     }
 }

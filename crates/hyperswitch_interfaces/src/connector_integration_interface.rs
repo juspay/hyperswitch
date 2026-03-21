@@ -14,8 +14,8 @@ use hyperswitch_domain_models::{
 use crate::{
     api,
     api::{
-        BoxedConnectorIntegration, CaptureSyncMethod, Connector, ConnectorAccessTokenSuffix,
-        ConnectorCommon, ConnectorIntegration, ConnectorRedirectResponse, ConnectorSpecifications,
+        BoxedConnectorIntegration, CaptureSyncMethod, Connector, ConnectorCommon,
+        ConnectorIntegration, ConnectorRedirectResponse, ConnectorSpecifications,
         ConnectorValidation, CurrencyUnit,
     },
     authentication::ExternalAuthenticationPayload,
@@ -141,30 +141,6 @@ impl ConnectorEnum {
             Self::Old(connector) => connector.validate_file_upload(purpose, file_size, file_type),
             Self::New(connector) => {
                 connector.validate_file_upload_v2(purpose, file_size, file_type)
-            }
-        }
-    }
-    /// This keeps the generics <F, Req, Res> so existing callers don't break
-    pub fn get_access_token_key<F, Req, Res>(
-        &self,
-        router_data: &RouterData<F, Req, Res>,
-        merchant_connector_id_or_connector_name: String,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        match self {
-            Self::Old(connector) => {
-                // router_data is automatically coerced to &dyn AccessTokenData
-                connector.get_access_token_key(
-                    // router_data as &dyn AccessTokenData,
-                    router_data,
-                    merchant_connector_id_or_connector_name,
-                )
-            }
-            Self::New(connector) => {
-                connector.get_access_token_key(
-                    // router_data as &dyn AccessTokenData,
-                    router_data,
-                    merchant_connector_id_or_connector_name,
-                )
             }
         }
     }
@@ -561,39 +537,57 @@ impl ConnectorValidation for ConnectorEnum {
         }
     }
 }
-
 impl ConnectorSpecifications for ConnectorEnum {
-    fn is_balance_check_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn is_balance_check_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match self {
             Self::Old(connector) => connector.is_balance_check_flow_required(current_flow),
             Self::New(connector) => connector.is_balance_check_flow_required(current_flow),
         }
     }
-    fn is_order_create_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn is_order_create_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match self {
             Self::Old(connector) => connector.is_order_create_flow_required(current_flow),
             Self::New(connector) => connector.is_order_create_flow_required(current_flow),
         }
     }
-    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn get_access_token_key(
+        &self,
+        current_flow: Option<api::CurrentFlowInfo>,
+        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_connector_id_or_connector_name: &str,
+    ) -> String {
+        match self {
+            Self::Old(connector) => connector.get_access_token_key(
+                current_flow,
+                merchant_id,
+                merchant_connector_id_or_connector_name,
+            ),
+            Self::New(connector) => connector.get_access_token_key(
+                current_flow,
+                merchant_id,
+                merchant_connector_id_or_connector_name,
+            ),
+        }
+    }
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match self {
             Self::Old(connector) => connector.is_pre_authentication_flow_required(current_flow),
             Self::New(connector) => connector.is_pre_authentication_flow_required(current_flow),
         }
     }
-    fn is_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn is_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match self {
             Self::Old(connector) => connector.is_authentication_flow_required(current_flow),
             Self::New(connector) => connector.is_authentication_flow_required(current_flow),
         }
     }
-    fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match self {
             Self::Old(connector) => connector.is_post_authentication_flow_required(current_flow),
             Self::New(connector) => connector.is_post_authentication_flow_required(current_flow),
         }
     }
-    fn is_settlement_split_call_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn is_settlement_split_call_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match self {
             Self::Old(connector) => connector.is_settlement_split_call_required(current_flow),
             Self::New(connector) => connector.is_settlement_split_call_required(current_flow),
@@ -601,7 +595,7 @@ impl ConnectorSpecifications for ConnectorEnum {
     }
     fn get_preprocessing_flow_if_needed(
         &self,
-        current_flow_info: api::CurrentFlowInfo<'_>,
+        current_flow_info: api::CurrentFlowInfo,
     ) -> Option<api::PreProcessingFlowName> {
         match self {
             Self::Old(connector) => connector.get_preprocessing_flow_if_needed(current_flow_info),
@@ -610,7 +604,7 @@ impl ConnectorSpecifications for ConnectorEnum {
     }
     fn get_alternate_flow_if_needed(
         &self,
-        current_flow: api::CurrentFlowInfo<'_>,
+        current_flow: api::CurrentFlowInfo,
     ) -> Option<api::AlternateFlow> {
         match self {
             Self::Old(connector) => connector.get_alternate_flow_if_needed(current_flow),
@@ -685,7 +679,10 @@ impl ConnectorSpecifications for ConnectorEnum {
     }
 
     /// Check if the connector needs authorize session token call
-    fn is_authorize_session_token_call_required(&self) -> bool {
+    fn is_authorize_session_token_call_required(
+        &self,
+        current_flow: Option<api::CurrentFlowInfo>,
+    ) -> bool {
         match self {
             Self::Old(connector) => connector.is_authorize_session_token_call_required(),
             Self::New(connector) => connector.is_authorize_session_token_call_required(),

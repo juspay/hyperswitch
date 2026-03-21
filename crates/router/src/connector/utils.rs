@@ -957,6 +957,11 @@ impl PaymentsSetupMandateRequestData for types::SetupMandateRequestData {
         matches!(self.payment_method_data, domain::PaymentMethodData::Card(_))
     }
 }
+
+pub trait PaymentsAccessTokenRequestData {
+    fn is_mit_payment(&self) -> bool;
+}
+
 pub trait PaymentsAuthorizeRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_email(&self) -> Result<Email, Error>;
@@ -995,6 +1000,12 @@ impl PaymentMethodTokenizationRequestData for types::PaymentMethodTokenizationDa
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
+    }
+}
+
+impl PaymentsAccessTokenRequestData for types::AccessTokenRequestData {
+    fn is_mit_payment(&self) -> bool {
+        self.mandate_id.is_some()
     }
 }
 

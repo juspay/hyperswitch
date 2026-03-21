@@ -135,6 +135,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         _processor: &domain::Processor,
         creds_identifier: Option<&str>,
         gateway_context: &gateway_context::RouterGatewayContext,
+        mandate_id: Option<api_models::payments::MandateIds>,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(
             state,
@@ -142,6 +143,8 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
             self,
             creds_identifier,
             gateway_context,
+            None,
+            mandate_id,
         ))
         .await
     }

@@ -4486,6 +4486,7 @@ where
             processor,
             payment_data.get_creds_identifier(),
             &context,
+            payment_data.get_mandate_id().cloned(),
         )
         .await?;
 
@@ -5057,6 +5058,7 @@ where
             processor,
             payment_data.get_creds_identifier(),
             &gateway_context,
+            payment_data.get_mandate_id().cloned(),
         )
         .await?;
 
@@ -5860,6 +5862,7 @@ where
             platform.get_processor(),
             payment_data.get_creds_identifier(),
             &gateway_context,
+            payment_data.get_mandate_id().cloned(),
         )
         .await?;
 
@@ -6027,6 +6030,7 @@ where
             platform.get_processor(),
             payment_data.get_creds_identifier(),
             &default_gateway_context,
+            payment_data.get_mandate_id().cloned(),
         )
         .await?;
 
