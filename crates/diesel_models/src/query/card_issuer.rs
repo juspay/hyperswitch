@@ -1,10 +1,9 @@
+use common_utils::id_type;
 use diesel::{associations::HasTable, ExpressionMethods, PgTextExpressionMethods};
-use error_stack;
 
 use super::generics;
 use crate::{
     card_issuer::{CardIssuer, NewCardIssuer, UpdateCardIssuer},
-    errors,
     schema::card_issuers::dsl,
     PgPooledConn, StorageResult,
 };
@@ -15,7 +14,7 @@ impl CardIssuer {
         query: Option<String>,
         limit: Option<i64>,
     ) -> StorageResult<Vec<Self>> {
-        let pattern = query.map_or("%".to_string(), |q| format!("%{}%", q));
+        let pattern = query.map_or("%".to_string(), |q| format!("{}%", q));
         generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
             conn,
             dsl::issuer_name.ilike(pattern),
@@ -26,7 +25,10 @@ impl CardIssuer {
         .await
     }
 
-    pub async fn find_by_ids(conn: &PgPooledConn, ids: Vec<String>) -> StorageResult<Vec<Self>> {
+    pub async fn find_by_ids(
+        conn: &PgPooledConn,
+        ids: Vec<id_type::CardIssuerId>,
+    ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<
             <Self as HasTable>::Table,
             _,
@@ -38,21 +40,10 @@ impl CardIssuer {
 
     pub async fn update(
         conn: &PgPooledConn,
-        id: String,
+        id: id_type::CardIssuerId,
         data: UpdateCardIssuer,
     ) -> StorageResult<Self> {
-        generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, Self>(
-            conn,
-            dsl::id.eq(id),
-            data,
-        )
-        .await?
-        .first()
-        .cloned()
-        .ok_or_else(|| {
-            error_stack::report!(errors::DatabaseError::NotFound)
-                .attach_printable("Card issuer not found for the given id")
-        })
+        generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(conn, id, data).await
     }
 }
 

@@ -10,6 +10,7 @@ use common_utils::{
     crypto::Encryptable,
     ext_traits::{Encode, StringExt, ValueExt},
     fp_utils::when,
+    new_type::CardIssuerName,
     pii,
     types::ConnectorTransactionIdTrait,
 };
@@ -2563,11 +2564,18 @@ impl ForeignFrom<&revenue_recovery_redis_operation::PaymentProcessorTokenStatus>
     }
 }
 
-impl ForeignFrom<storage::CardIssuer> for card_issuer_types::CardIssuerResponse {
-    fn foreign_from(from: storage::CardIssuer) -> Self {
-        Self {
+impl ForeignTryFrom<storage::CardIssuer> for card_issuer_types::CardIssuerResponse {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn foreign_try_from(from: storage::CardIssuer) -> Result<Self, Self::Error> {
+        let issuer_name = CardIssuerName::try_new(from.issuer_name).change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "issuer_name",
+            },
+        )?;
+        Ok(Self {
             id: from.id,
-            issuer_name: from.issuer_name,
-        }
+            issuer_name,
+        })
     }
 }
