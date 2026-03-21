@@ -67,7 +67,8 @@ Never share your secret api keys. Keep them guarded and secure.
         (name = "Routing", description = "Create and manage routing configurations"),
         (name = "Event", description = "Manage events"),
         (name = "Authentication", description = "Create and manage authentication"),
-        (name = "Subscriptions", description = "Subscription management and billing endpoints")
+        (name = "Subscriptions", description = "Subscription management and billing endpoints"),
+        (name = "Card Issuer", description = "Create and manage card issuers")
     ),
     // The paths will be displayed in the same order as they are registered here
     paths(
@@ -247,6 +248,11 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::subscriptions::pause_subscription,
         routes::subscriptions::resume_subscription,
         routes::subscriptions::cancel_subscription,
+
+        // Routes for card issuers
+        routes::card_issuer::add_card_issuer,
+        routes::card_issuer::update_card_issuer,
+        routes::card_issuer::list_card_issuers,
     ),
     components(schemas(
         common_utils::types::MinorUnit,

@@ -1,5 +1,6 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::card_issuer as api_types;
+use common_utils::id_type;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
@@ -32,7 +33,7 @@ pub async fn add_card_issuer(
 pub async fn update_card_issuer(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<id_type::CardIssuerId>,
     json_payload: web::Json<api_types::CardIssuerUpdateRequest>,
 ) -> HttpResponse {
     let flow = Flow::UpdateCardIssuer;

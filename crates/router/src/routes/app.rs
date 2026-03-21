@@ -1882,6 +1882,7 @@ impl Blocklist {
 
 pub struct CardIssuers;
 
+#[cfg(feature = "v1")]
 impl CardIssuers {
     pub fn server(state: AppState) -> Scope {
         web::scope("/card_issuers")

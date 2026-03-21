@@ -1,3 +1,4 @@
+use common_utils::id_type;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
 
@@ -8,7 +9,7 @@ use crate::schema::card_issuers;
 )]
 #[diesel(table_name = card_issuers, check_for_backend(diesel::pg::Pg))]
 pub struct CardIssuer {
-    pub id: String,
+    pub id: id_type::CardIssuerId,
     pub issuer_name: String,
     pub created_at: PrimitiveDateTime,
     pub last_modified_at: PrimitiveDateTime,
@@ -24,7 +25,7 @@ pub struct UpdateCardIssuer {
 #[derive(Clone, Debug, Insertable, serde::Serialize, serde::Deserialize)]
 #[diesel(table_name = card_issuers)]
 pub struct NewCardIssuer {
-    pub id: String,
+    pub id: id_type::CardIssuerId,
     pub issuer_name: String,
     pub created_at: PrimitiveDateTime,
     pub last_modified_at: PrimitiveDateTime,

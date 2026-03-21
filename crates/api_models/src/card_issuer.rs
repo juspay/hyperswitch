@@ -1,17 +1,19 @@
-use common_utils::events::ApiEventMetric;
+use common_utils::{events::ApiEventMetric, id_type::CardIssuerId, new_type::CardIssuerName};
 use utoipa::ToSchema;
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct CardIssuerRequest {
     /// The name of the card issuer to add
-    #[schema(example = "STATE BANK OF INDIA")]
-    pub issuer_name: String,
+    #[schema(example = "STATE BANK OF INDIA", value_type = String)]
+    pub issuer_name: CardIssuerName,
 }
 
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct CardIssuerResponse {
-    pub id: String,
-    pub issuer_name: String,
+    #[schema(value_type = String)]
+    pub id: CardIssuerId,
+    #[schema(value_type = String)]
+    pub issuer_name: CardIssuerName,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -37,8 +39,8 @@ pub struct CardIssuerListResponse {
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct CardIssuerUpdateRequest {
     /// The new name for the card issuer
-    #[schema(example = "STATE BANK OF INDIA - UPDATED")]
-    pub issuer_name: String,
+    #[schema(example = "STATE BANK OF INDIA UPDATED", value_type = String)]
+    pub issuer_name: CardIssuerName,
 }
 
 impl ApiEventMetric for CardIssuerUpdateRequest {

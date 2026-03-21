@@ -1,3 +1,4 @@
+use common_utils::id_type;
 use error_stack::report;
 use router_env::{instrument, tracing};
 use storage_impl::MockDb;
@@ -19,7 +20,7 @@ pub trait CardIssuersInterface {
 
     async fn update_card_issuer(
         &self,
-        id: String,
+        id: id_type::CardIssuerId,
         update: storage::UpdateCardIssuer,
     ) -> CustomResult<storage::CardIssuer, errors::StorageError>;
 
@@ -31,7 +32,7 @@ pub trait CardIssuersInterface {
 
     async fn get_card_issuers_by_ids(
         &self,
-        ids: Vec<String>,
+        ids: Vec<id_type::CardIssuerId>,
     ) -> CustomResult<Vec<storage::CardIssuer>, errors::StorageError>;
 }
 
@@ -51,7 +52,7 @@ impl CardIssuersInterface for Store {
     #[instrument(skip_all)]
     async fn update_card_issuer(
         &self,
-        id: String,
+        id: id_type::CardIssuerId,
         update: storage::UpdateCardIssuer,
     ) -> CustomResult<storage::CardIssuer, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
@@ -75,7 +76,7 @@ impl CardIssuersInterface for Store {
     #[instrument(skip_all)]
     async fn get_card_issuers_by_ids(
         &self,
-        ids: Vec<String>,
+        ids: Vec<id_type::CardIssuerId>,
     ) -> CustomResult<Vec<storage::CardIssuer>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::CardIssuer::find_by_ids(&conn, ids)
@@ -95,7 +96,7 @@ impl CardIssuersInterface for MockDb {
 
     async fn update_card_issuer(
         &self,
-        _id: String,
+        _id: id_type::CardIssuerId,
         _update: storage::UpdateCardIssuer,
     ) -> CustomResult<storage::CardIssuer, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
@@ -111,7 +112,7 @@ impl CardIssuersInterface for MockDb {
 
     async fn get_card_issuers_by_ids(
         &self,
-        _ids: Vec<String>,
+        _ids: Vec<id_type::CardIssuerId>,
     ) -> CustomResult<Vec<storage::CardIssuer>, errors::StorageError> {
         Ok(vec![])
     }
@@ -130,7 +131,7 @@ impl CardIssuersInterface for KafkaStore {
     #[instrument(skip_all)]
     async fn update_card_issuer(
         &self,
-        id: String,
+        id: id_type::CardIssuerId,
         update: storage::UpdateCardIssuer,
     ) -> CustomResult<storage::CardIssuer, errors::StorageError> {
         self.diesel_store.update_card_issuer(id, update).await
@@ -148,7 +149,7 @@ impl CardIssuersInterface for KafkaStore {
     #[instrument(skip_all)]
     async fn get_card_issuers_by_ids(
         &self,
-        ids: Vec<String>,
+        ids: Vec<id_type::CardIssuerId>,
     ) -> CustomResult<Vec<storage::CardIssuer>, errors::StorageError> {
         self.diesel_store.get_card_issuers_by_ids(ids).await
     }
