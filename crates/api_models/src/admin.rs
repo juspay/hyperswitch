@@ -11,8 +11,8 @@ use common_utils::{
 #[cfg(feature = "v1")]
 use common_utils::{crypto::OptionalEncryptableName, ext_traits::ValueExt};
 #[cfg(feature = "v2")]
-use masking::ExposeInterface;
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use smithy::SmithyModel;
 use utoipa::ToSchema;

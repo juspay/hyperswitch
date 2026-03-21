@@ -4,7 +4,7 @@ use hyperswitch_domain_models::{
     merchant_key_store as domain,
     merchant_key_store::MerchantKeyStoreInterface,
 };
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router_env::{instrument, tracing};
 
 #[cfg(feature = "accounts_cache")]

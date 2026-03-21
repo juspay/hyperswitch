@@ -5,7 +5,7 @@ use common_utils::{
     request::{Method, Request, RequestBuilder, RequestContent},
 };
 use hyperswitch_domain_models::{router_data::ErrorResponse, router_data_v2::RouterDataV2};
-use masking::Maskable;
+use hyperswitch_masking::Maskable;
 use serde_json::json;
 
 use crate::{
@@ -236,7 +236,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
     fn get_certificate(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
-    ) -> CustomResult<Option<masking::Secret<String>>, errors::ConnectorError> {
+    ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, errors::ConnectorError> {
         Ok(None)
     }
 
@@ -244,7 +244,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
     fn get_certificate_key(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
-    ) -> CustomResult<Option<masking::Secret<String>>, errors::ConnectorError> {
+    ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, errors::ConnectorError> {
         Ok(None)
     }
 }

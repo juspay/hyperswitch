@@ -7,7 +7,7 @@ use common_utils::{
     request::{Method, RequestContent},
 };
 use hyperswitch_interfaces::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
