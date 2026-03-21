@@ -684,8 +684,8 @@ impl ConnectorSpecifications for ConnectorEnum {
         current_flow: Option<api::CurrentFlowInfo>,
     ) -> bool {
         match self {
-            Self::Old(connector) => connector.is_authorize_session_token_call_required(),
-            Self::New(connector) => connector.is_authorize_session_token_call_required(),
+            Self::Old(connector) => connector.is_authorize_session_token_call_required(current_flow),
+            Self::New(connector) => connector.is_authorize_session_token_call_required(current_flow),
         }
     }
 
