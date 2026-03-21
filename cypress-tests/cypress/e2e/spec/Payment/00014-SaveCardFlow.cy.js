@@ -2,6 +2,7 @@ import * as fixtures from "../../../fixtures/imports";
 import { generateRandomName } from "../../../utils/RequestBodyUtils";
 import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
+import reportErrors from "../../../utils/reportErrors";
 
 let globalState;
 
@@ -20,13 +21,14 @@ describe("Card - SaveCard payment flow test", () => {
     "Save card for NoThreeDS automatic capture payment- Create+Confirm [on_session]",
     () => {
       it("Create Customer -> Create and Confirm Payment -> Retrieve Payment after Confirm -> List Customer Payment Methods -> Create Payment Intent -> Save Card Confirm Call", () => {
+        const errorStack = [];
         let shouldContinue = true;
 
-        cy.step("Create Customer", () => {
+        cy.step("Create Customer", errorStack, () => {
           cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
         });
 
-        cy.step("Create and Confirm Payment", () => {
+        cy.step("Create and Confirm Payment", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Create and Confirm Payment");
             return;
@@ -46,7 +48,7 @@ describe("Card - SaveCard payment flow test", () => {
           }
         });
 
-        cy.step("Retrieve Payment after Confirm", () => {
+        cy.step("Retrieve Payment after Confirm", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Retrieve Payment after Confirm");
             return;
@@ -60,7 +62,7 @@ describe("Card - SaveCard payment flow test", () => {
           }
         });
 
-        cy.step("List Customer Payment Methods", () => {
+        cy.step("List Customer Payment Methods", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: List Customer Payment Methods");
             return;
@@ -68,7 +70,7 @@ describe("Card - SaveCard payment flow test", () => {
           cy.listCustomerPMCallTest(globalState);
         });
 
-        cy.step("Create Payment Intent", () => {
+        cy.step("Create Payment Intent", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Create Payment Intent");
             return;
@@ -88,7 +90,7 @@ describe("Card - SaveCard payment flow test", () => {
           }
         });
 
-        cy.step("Save Card Confirm Call", () => {
+        cy.step("Save Card Confirm Call", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Save Card Confirm Call");
             return;
@@ -105,6 +107,12 @@ describe("Card - SaveCard payment flow test", () => {
             globalState
           );
         });
+
+        cy.then(() => {
+          if (errorStack.length > 0) {
+            reportErrors(errorStack);
+          }
+        });
       });
     }
   );
@@ -113,13 +121,14 @@ describe("Card - SaveCard payment flow test", () => {
     "Save card for NoThreeDS manual full capture payment- Create+Confirm [on_session]",
     () => {
       it("Create Customer -> Create and Confirm Payment -> Retrieve Payment after Confirm -> List Customer Payment Methods -> Create Payment Intent -> Save Card Confirm Call -> Retrieve Payment after Save Card Confirm -> Capture Payment -> Retrieve Payment after Capture", () => {
+        const errorStack = [];
         let shouldContinue = true;
 
-        cy.step("Create Customer", () => {
+        cy.step("Create Customer", errorStack, () => {
           cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
         });
 
-        cy.step("Create and Confirm Payment", () => {
+        cy.step("Create and Confirm Payment", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Create and Confirm Payment");
             return;
@@ -139,7 +148,7 @@ describe("Card - SaveCard payment flow test", () => {
           }
         });
 
-        cy.step("Retrieve Payment after Confirm", () => {
+        cy.step("Retrieve Payment after Confirm", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Retrieve Payment after Confirm");
             return;
@@ -153,7 +162,7 @@ describe("Card - SaveCard payment flow test", () => {
           }
         });
 
-        cy.step("List Customer Payment Methods", () => {
+        cy.step("List Customer Payment Methods", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: List Customer Payment Methods");
             return;
@@ -161,7 +170,7 @@ describe("Card - SaveCard payment flow test", () => {
           cy.listCustomerPMCallTest(globalState);
         });
 
-        cy.step("Create Payment Intent", () => {
+        cy.step("Create Payment Intent", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Create Payment Intent");
             return;
@@ -181,7 +190,7 @@ describe("Card - SaveCard payment flow test", () => {
           }
         });
 
-        cy.step("Save Card Confirm Call", () => {
+        cy.step("Save Card Confirm Call", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Save Card Confirm Call");
             return;
@@ -202,7 +211,7 @@ describe("Card - SaveCard payment flow test", () => {
           }
         });
 
-        cy.step("Retrieve Payment after Save Card Confirm", () => {
+        cy.step("Retrieve Payment after Save Card Confirm", errorStack, () => {
           if (!shouldContinue) {
             cy.task(
               "cli_log",
@@ -222,7 +231,7 @@ describe("Card - SaveCard payment flow test", () => {
           }
         });
 
-        cy.step("Capture Payment", () => {
+        cy.step("Capture Payment", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Capture Payment");
             return;
@@ -236,7 +245,7 @@ describe("Card - SaveCard payment flow test", () => {
           }
         });
 
-        cy.step("Retrieve Payment after Capture", () => {
+        cy.step("Retrieve Payment after Capture", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Retrieve Payment after Capture");
             return;
@@ -246,6 +255,12 @@ describe("Card - SaveCard payment flow test", () => {
           )["card_pm"]["Capture"];
           cy.retrievePaymentCallTest({ globalState, data: captureData });
         });
+
+        cy.then(() => {
+          if (errorStack.length > 0) {
+            reportErrors(errorStack);
+          }
+        });
       });
     }
   );
@@ -254,13 +269,14 @@ describe("Card - SaveCard payment flow test", () => {
     "Save card for NoThreeDS manual partial capture payment- Create + Confirm [on_session]",
     () => {
       it("Create Customer -> Create and Confirm Payment -> Retrieve Payment after Confirm -> List Customer Payment Methods -> Create Payment Intent -> Save Card Confirm Call -> Retrieve Payment after Save Card Confirm -> Partial Capture Payment -> Retrieve Payment after Partial Capture", () => {
+        const errorStack = [];
         let shouldContinue = true;
 
-        cy.step("Create Customer", () => {
+        cy.step("Create Customer", errorStack, () => {
           cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
         });
 
-        cy.step("Create and Confirm Payment", () => {
+        cy.step("Create and Confirm Payment", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Create and Confirm Payment");
             return;
@@ -280,7 +296,7 @@ describe("Card - SaveCard payment flow test", () => {
           }
         });
 
-        cy.step("Retrieve Payment after Confirm", () => {
+        cy.step("Retrieve Payment after Confirm", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Retrieve Payment after Confirm");
             return;
@@ -294,7 +310,7 @@ describe("Card - SaveCard payment flow test", () => {
           }
         });
 
-        cy.step("List Customer Payment Methods", () => {
+        cy.step("List Customer Payment Methods", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: List Customer Payment Methods");
             return;
@@ -302,7 +318,7 @@ describe("Card - SaveCard payment flow test", () => {
           cy.listCustomerPMCallTest(globalState);
         });
 
-        cy.step("Create Payment Intent", () => {
+        cy.step("Create Payment Intent", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Create Payment Intent");
             return;
@@ -322,7 +338,7 @@ describe("Card - SaveCard payment flow test", () => {
           }
         });
 
-        cy.step("Save Card Confirm Call", () => {
+        cy.step("Save Card Confirm Call", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Save Card Confirm Call");
             return;
@@ -343,7 +359,7 @@ describe("Card - SaveCard payment flow test", () => {
           }
         });
 
-        cy.step("Retrieve Payment after Save Card Confirm", () => {
+        cy.step("Retrieve Payment after Save Card Confirm", errorStack, () => {
           if (!shouldContinue) {
             cy.task(
               "cli_log",
@@ -363,7 +379,7 @@ describe("Card - SaveCard payment flow test", () => {
           }
         });
 
-        cy.step("Partial Capture Payment", () => {
+        cy.step("Partial Capture Payment", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Partial Capture Payment");
             return;
@@ -381,7 +397,7 @@ describe("Card - SaveCard payment flow test", () => {
           }
         });
 
-        cy.step("Retrieve Payment after Partial Capture", () => {
+        cy.step("Retrieve Payment after Partial Capture", errorStack, () => {
           if (!shouldContinue) {
             cy.task(
               "cli_log",
@@ -397,6 +413,12 @@ describe("Card - SaveCard payment flow test", () => {
             data: partialCaptureData,
           });
         });
+
+        cy.then(() => {
+          if (errorStack.length > 0) {
+            reportErrors(errorStack);
+          }
+        });
       });
     }
   );
@@ -405,13 +427,14 @@ describe("Card - SaveCard payment flow test", () => {
     "Save card for NoThreeDS automatic capture payment [off_session]",
     () => {
       it("Create Customer -> Create and Confirm Payment -> Retrieve Payment after Confirm -> List Customer Payment Methods -> Create Payment Intent -> Save Card Confirm Call", () => {
+        const errorStack = [];
         let shouldContinue = true;
 
-        cy.step("Create Customer", () => {
+        cy.step("Create Customer", errorStack, () => {
           cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
         });
 
-        cy.step("Create and Confirm Payment", () => {
+        cy.step("Create and Confirm Payment", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Create and Confirm Payment");
             return;
@@ -431,7 +454,7 @@ describe("Card - SaveCard payment flow test", () => {
           }
         });
 
-        cy.step("Retrieve Payment after Confirm", () => {
+        cy.step("Retrieve Payment after Confirm", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Retrieve Payment after Confirm");
             return;
@@ -445,7 +468,7 @@ describe("Card - SaveCard payment flow test", () => {
           }
         });
 
-        cy.step("List Customer Payment Methods", () => {
+        cy.step("List Customer Payment Methods", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: List Customer Payment Methods");
             return;
@@ -453,7 +476,7 @@ describe("Card - SaveCard payment flow test", () => {
           cy.listCustomerPMCallTest(globalState);
         });
 
-        cy.step("Create Payment Intent", () => {
+        cy.step("Create Payment Intent", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Create Payment Intent");
             return;
@@ -473,7 +496,7 @@ describe("Card - SaveCard payment flow test", () => {
           }
         });
 
-        cy.step("Save Card Confirm Call", () => {
+        cy.step("Save Card Confirm Call", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Save Card Confirm Call");
             return;
@@ -490,6 +513,12 @@ describe("Card - SaveCard payment flow test", () => {
             globalState
           );
         });
+
+        cy.then(() => {
+          if (errorStack.length > 0) {
+            reportErrors(errorStack);
+          }
+        });
       });
     }
   );
@@ -498,13 +527,14 @@ describe("Card - SaveCard payment flow test", () => {
     "Save card for NoThreeDS manual capture payment- Create+Confirm [off_session]",
     () => {
       it("Create Customer -> Create and Confirm Payment -> Retrieve Payment after Confirm -> Capture Payment -> Retrieve Payment after Capture -> List Customer Payment Methods -> Create Payment Intent -> Save Card Confirm Call -> Retrieve Payment after Save Card Confirm -> Capture Payment -> Retrieve Payment after Capture", () => {
+        const errorStack = [];
         let shouldContinue = true;
 
-        cy.step("Create Customer", () => {
+        cy.step("Create Customer", errorStack, () => {
           cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
         });
 
-        cy.step("Create and Confirm Payment", () => {
+        cy.step("Create and Confirm Payment", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Create and Confirm Payment");
             return;
@@ -524,7 +554,7 @@ describe("Card - SaveCard payment flow test", () => {
           }
         });
 
-        cy.step("Retrieve Payment after Confirm", () => {
+        cy.step("Retrieve Payment after Confirm", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Retrieve Payment after Confirm");
             return;
@@ -538,7 +568,7 @@ describe("Card - SaveCard payment flow test", () => {
           }
         });
 
-        cy.step("Capture Payment", () => {
+        cy.step("Capture Payment", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Capture Payment");
             return;
@@ -552,7 +582,7 @@ describe("Card - SaveCard payment flow test", () => {
           }
         });
 
-        cy.step("Retrieve Payment after Capture", () => {
+        cy.step("Retrieve Payment after Capture", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Retrieve Payment after Capture");
             return;
@@ -566,7 +596,7 @@ describe("Card - SaveCard payment flow test", () => {
           }
         });
 
-        cy.step("List Customer Payment Methods", () => {
+        cy.step("List Customer Payment Methods", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: List Customer Payment Methods");
             return;
@@ -574,7 +604,7 @@ describe("Card - SaveCard payment flow test", () => {
           cy.listCustomerPMCallTest(globalState);
         });
 
-        cy.step("Create Payment Intent", () => {
+        cy.step("Create Payment Intent", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Create Payment Intent");
             return;
@@ -594,7 +624,7 @@ describe("Card - SaveCard payment flow test", () => {
           }
         });
 
-        cy.step("Save Card Confirm Call", () => {
+        cy.step("Save Card Confirm Call", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Save Card Confirm Call");
             return;
@@ -615,7 +645,7 @@ describe("Card - SaveCard payment flow test", () => {
           }
         });
 
-        cy.step("Retrieve Payment after Save Card Confirm", () => {
+        cy.step("Retrieve Payment after Save Card Confirm", errorStack, () => {
           if (!shouldContinue) {
             cy.task(
               "cli_log",
@@ -635,7 +665,7 @@ describe("Card - SaveCard payment flow test", () => {
           }
         });
 
-        cy.step("Capture Payment", () => {
+        cy.step("Capture Payment", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Capture Payment");
             return;
@@ -649,7 +679,7 @@ describe("Card - SaveCard payment flow test", () => {
           }
         });
 
-        cy.step("Retrieve Payment after Capture", () => {
+        cy.step("Retrieve Payment after Capture", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Retrieve Payment after Capture");
             return;
@@ -659,6 +689,12 @@ describe("Card - SaveCard payment flow test", () => {
           )["card_pm"]["Capture"];
           cy.retrievePaymentCallTest({ globalState, data: captureData });
         });
+
+        cy.then(() => {
+          if (errorStack.length > 0) {
+            reportErrors(errorStack);
+          }
+        });
       });
     }
   );
@@ -667,13 +703,14 @@ describe("Card - SaveCard payment flow test", () => {
     "Save card for NoThreeDS automatic capture payment - create and confirm [off_session]",
     () => {
       it("Create Customer -> Create Payment Intent -> Confirm Payment -> Retrieve Payment after Confirm -> List Customer Payment Methods -> Create Payment Intent for Subsequent Payment -> Save Card Confirm Call for Subsequent Payment", () => {
+        const errorStack = [];
         let shouldContinue = true;
 
-        cy.step("Create Customer", () => {
+        cy.step("Create Customer", errorStack, () => {
           cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
         });
 
-        cy.step("Create Payment Intent", () => {
+        cy.step("Create Payment Intent", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Create Payment Intent");
             return;
@@ -693,7 +730,7 @@ describe("Card - SaveCard payment flow test", () => {
           }
         });
 
-        cy.step("Confirm Payment", () => {
+        cy.step("Confirm Payment", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Confirm Payment");
             return;
@@ -712,7 +749,7 @@ describe("Card - SaveCard payment flow test", () => {
           }
         });
 
-        cy.step("Retrieve Payment after Confirm", () => {
+        cy.step("Retrieve Payment after Confirm", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Retrieve Payment after Confirm");
             return;
@@ -726,7 +763,7 @@ describe("Card - SaveCard payment flow test", () => {
           }
         });
 
-        cy.step("List Customer Payment Methods", () => {
+        cy.step("List Customer Payment Methods", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: List Customer Payment Methods");
             return;
@@ -734,48 +771,62 @@ describe("Card - SaveCard payment flow test", () => {
           cy.listCustomerPMCallTest(globalState);
         });
 
-        cy.step("Create Payment Intent for Subsequent Payment", () => {
-          if (!shouldContinue) {
-            cy.task(
-              "cli_log",
-              "Skipping step: Create Payment Intent for Subsequent Payment"
+        cy.step(
+          "Create Payment Intent for Subsequent Payment",
+          errorStack,
+          () => {
+            if (!shouldContinue) {
+              cy.task(
+                "cli_log",
+                "Skipping step: Create Payment Intent for Subsequent Payment"
+              );
+              return;
+            }
+            const paymentIntentData = getConnectorDetails(
+              globalState.get("connectorId")
+            )["card_pm"]["PaymentIntentOffSession"];
+            cy.createPaymentIntentTest(
+              fixtures.createPaymentBody,
+              paymentIntentData,
+              "no_three_ds",
+              "automatic",
+              globalState
             );
-            return;
+            if (!utils.should_continue_further(paymentIntentData)) {
+              shouldContinue = false;
+            }
           }
-          const paymentIntentData = getConnectorDetails(
-            globalState.get("connectorId")
-          )["card_pm"]["PaymentIntentOffSession"];
-          cy.createPaymentIntentTest(
-            fixtures.createPaymentBody,
-            paymentIntentData,
-            "no_three_ds",
-            "automatic",
-            globalState
-          );
-          if (!utils.should_continue_further(paymentIntentData)) {
-            shouldContinue = false;
-          }
-        });
+        );
 
-        cy.step("Save Card Confirm Call for Subsequent Payment", () => {
-          if (!shouldContinue) {
-            cy.task(
-              "cli_log",
-              "Skipping step: Save Card Confirm Call for Subsequent Payment"
+        cy.step(
+          "Save Card Confirm Call for Subsequent Payment",
+          errorStack,
+          () => {
+            if (!shouldContinue) {
+              cy.task(
+                "cli_log",
+                "Skipping step: Save Card Confirm Call for Subsequent Payment"
+              );
+              return;
+            }
+            const saveCardBody = Cypress._.cloneDeep(
+              fixtures.saveCardConfirmBody
             );
-            return;
+            const saveCardConfirmData = getConnectorDetails(
+              globalState.get("connectorId")
+            )["card_pm"]["SaveCardConfirmAutoCaptureOffSession"];
+            cy.saveCardConfirmCallTest(
+              saveCardBody,
+              saveCardConfirmData,
+              globalState
+            );
           }
-          const saveCardBody = Cypress._.cloneDeep(
-            fixtures.saveCardConfirmBody
-          );
-          const saveCardConfirmData = getConnectorDetails(
-            globalState.get("connectorId")
-          )["card_pm"]["SaveCardConfirmAutoCaptureOffSession"];
-          cy.saveCardConfirmCallTest(
-            saveCardBody,
-            saveCardConfirmData,
-            globalState
-          );
+        );
+
+        cy.then(() => {
+          if (errorStack.length > 0) {
+            reportErrors(errorStack);
+          }
         });
       });
     }
@@ -785,13 +836,14 @@ describe("Card - SaveCard payment flow test", () => {
     "Use billing address from payment method during subsequent payment [off_session]",
     () => {
       it("Create Customer -> Create Payment Intent -> Confirm Payment -> list Customer Payment Methods -> Create Payment Intent for Subsequent Payment -> Save Card Confirm Call for Subsequent Payment without Billing Address", () => {
+        const errorStack = [];
         let shouldContinue = true;
 
-        cy.step("Create Customer", () => {
+        cy.step("Create Customer", errorStack, () => {
           cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
         });
 
-        cy.step("Create Payment Intent", () => {
+        cy.step("Create Payment Intent", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Create Payment Intent");
             return;
@@ -811,7 +863,7 @@ describe("Card - SaveCard payment flow test", () => {
           }
         });
 
-        cy.step("Confirm Payment", () => {
+        cy.step("Confirm Payment", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Confirm Payment");
             return;
@@ -830,7 +882,7 @@ describe("Card - SaveCard payment flow test", () => {
           }
         });
 
-        cy.step("list Customer Payment Methods", () => {
+        cy.step("list Customer Payment Methods", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: list Customer Payment Methods");
             return;
@@ -838,31 +890,36 @@ describe("Card - SaveCard payment flow test", () => {
           cy.listCustomerPMCallTest(globalState);
         });
 
-        cy.step("Create Payment Intent for Subsequent Payment", () => {
-          if (!shouldContinue) {
-            cy.task(
-              "cli_log",
-              "Skipping step: Create Payment Intent for Subsequent Payment"
+        cy.step(
+          "Create Payment Intent for Subsequent Payment",
+          errorStack,
+          () => {
+            if (!shouldContinue) {
+              cy.task(
+                "cli_log",
+                "Skipping step: Create Payment Intent for Subsequent Payment"
+              );
+              return;
+            }
+            const paymentIntentData = getConnectorDetails(
+              globalState.get("connectorId")
+            )["card_pm"]["PaymentIntentOffSession"];
+            cy.createPaymentIntentTest(
+              fixtures.createPaymentBody,
+              paymentIntentData,
+              "no_three_ds",
+              "automatic",
+              globalState
             );
-            return;
+            if (!utils.should_continue_further(paymentIntentData)) {
+              shouldContinue = false;
+            }
           }
-          const paymentIntentData = getConnectorDetails(
-            globalState.get("connectorId")
-          )["card_pm"]["PaymentIntentOffSession"];
-          cy.createPaymentIntentTest(
-            fixtures.createPaymentBody,
-            paymentIntentData,
-            "no_three_ds",
-            "automatic",
-            globalState
-          );
-          if (!utils.should_continue_further(paymentIntentData)) {
-            shouldContinue = false;
-          }
-        });
+        );
 
         cy.step(
           "Save Card Confirm Call for Subsequent Payment without Billing Address",
+          errorStack,
           () => {
             if (!shouldContinue) {
               cy.task(
@@ -884,6 +941,12 @@ describe("Card - SaveCard payment flow test", () => {
             );
           }
         );
+
+        cy.then(() => {
+          if (errorStack.length > 0) {
+            reportErrors(errorStack);
+          }
+        });
       });
     }
   );
@@ -892,13 +955,14 @@ describe("Card - SaveCard payment flow test", () => {
     "Check if card fields are populated when saving card again after a metadata update",
     () => {
       it("Create Customer -> Create and Confirm Payment -> Retrieve Payment after Confirm -> Create and Confirm Payment again with updated card holder name in metadata -> Retrieve Customer Payment Methods", () => {
+        const errorStack = [];
         let shouldContinue = true;
 
-        cy.step("Create Customer", () => {
+        cy.step("Create Customer", errorStack, () => {
           cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
         });
 
-        cy.step("Create and Confirm Payment", () => {
+        cy.step("Create and Confirm Payment", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Create and Confirm Payment");
             return;
@@ -918,7 +982,7 @@ describe("Card - SaveCard payment flow test", () => {
           }
         });
 
-        cy.step("Retrieve Payment after Confirm", () => {
+        cy.step("Retrieve Payment after Confirm", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Retrieve Payment after Confirm");
             return;
@@ -928,6 +992,7 @@ describe("Card - SaveCard payment flow test", () => {
 
         cy.step(
           "Create and Confirm Payment again with updated card holder name in metadata",
+          errorStack,
           () => {
             if (!shouldContinue) {
               cy.task(
@@ -965,7 +1030,7 @@ describe("Card - SaveCard payment flow test", () => {
           }
         );
 
-        cy.step("Retrieve Customer Payment Methods", () => {
+        cy.step("Retrieve Customer Payment Methods", errorStack, () => {
           if (!shouldContinue) {
             cy.task(
               "cli_log",
@@ -974,6 +1039,12 @@ describe("Card - SaveCard payment flow test", () => {
             return;
           }
           cy.listCustomerPMCallTest(globalState);
+        });
+
+        cy.then(() => {
+          if (errorStack.length > 0) {
+            reportErrors(errorStack);
+          }
         });
       });
     }

@@ -5590,7 +5590,37 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add("step", (stepName, fn) => {
+const ANSI_GREEN = "\x1b[32m";
+const ANSI_RED = "\x1b[31m";
+const ANSI_RESET = "\x1b[0m";
+
+function buildDiff(actual, expected) {
+  const actualLines = actual.trim().split("\n");
+  const expectedLines = expected.trim().split("\n");
+
+  const diffLines = [];
+  const maxLen = Math.max(actualLines.length, expectedLines.length);
+
+  for (let i = 0; i < maxLen; i++) {
+    const aLine = actualLines[i];
+    const eLine = expectedLines[i];
+
+    if (aLine !== eLine) {
+      if (aLine !== undefined)
+        diffLines.push(`${ANSI_RED}  -   ${aLine.trim()}${ANSI_RESET}`);
+      if (eLine !== undefined)
+        diffLines.push(`${ANSI_GREEN}  +   ${eLine.trim()}${ANSI_RESET}`);
+    }
+  }
+
+  return [
+    `      ${ANSI_GREEN}+ expected${ANSI_RESET} - actual`,
+    "",
+    ...diffLines,
+  ].join("\n");
+}
+
+Cypress.Commands.add("step", (stepName, errorStack, fn) => {
   cy.task("cli_log", `\nSTEP: ${stepName}`);
 
   const log = Cypress.log({
@@ -5601,22 +5631,57 @@ Cypress.Commands.add("step", (stepName, fn) => {
     consoleProps: () => ({ Step: stepName }),
   });
 
-  let failed = false;
-
-  try {
-    fn();
-  } catch (err) {
-    failed = true;
-    Cypress.log({ groupEnd: true, emitOnly: true });
-    throw err;
-  }
-
   cy.then(() => {
-    if (failed) {
-      log.set({ displayName: "✗ STEP", message: stepName });
-    } else {
-      log.set({ displayName: "✓ STEP", message: stepName, collapsed: true });
-    }
-    Cypress.log({ groupEnd: true, emitOnly: true });
+    const originalAssert = chai.Assertion.prototype.assert;
+
+    // If a Cypress command fails (timeout, network error, etc.) the cleanup
+    // cy.then() below will never run because the queue is cleared. Register a
+    // fail handler that restores chai in that case. It does NOT return false,
+    // so command failures still propagate and fail the test hard.
+    const restoreOnCommandFail = () => {
+      chai.Assertion.prototype.assert = originalAssert;
+    };
+    cy.on("fail", restoreOnCommandFail);
+
+    // Patch chai's core assert so assertion failures inside .then() callbacks
+    // are caught softly — the callback never throws, Cypress never sees a
+    // failure, and the queue continues to the next step.
+    // Only soft-assert when the current command is 'then' (runs once, never
+    // retried). For everything else — 'assert', 'should', 'and', or any
+    // retryable command — re-throw so Cypress retries until timeout as normal.
+    chai.Assertion.prototype.assert = function (...args) {
+      try {
+        return originalAssert.apply(this, args);
+      } catch (err) {
+        const currentCmd = cy.state("current");
+        const cmdName = currentCmd && currentCmd.get("name");
+        if (cmdName !== "then") {
+          throw err; // re-throw for retryable commands
+        }
+        errorStack.push({ step: stepName, error: err });
+        let logMsg = `${ANSI_RED}[SOFT ASSERT FAIL]${ANSI_RESET} ${stepName}: ${err.message}`;
+        if (err.actual !== undefined && err.expected !== undefined) {
+          logMsg += `\n${buildDiff(String(err.actual), String(err.expected))}`;
+        }
+        cy.task("cli_log", logMsg);
+        // No re-throw — queue keeps running
+      }
+    };
+
+    fn();
+
+    cy.then(() => {
+      cy.off("fail", restoreOnCommandFail);
+      chai.Assertion.prototype.assert = originalAssert;
+      const stepFailures = errorStack.filter((e) => e.step === stepName);
+      if (stepFailures.length > 0) {
+        cy.task("cli_log", `${ANSI_RED}[FAILED]${ANSI_RESET} ${stepName}`);
+        log.set({ displayName: "✗ STEP", message: stepName });
+      } else {
+        cy.task("cli_log", `${ANSI_GREEN}[SUCCEEDED]${ANSI_RESET} ${stepName}`);
+        log.set({ displayName: "✓ STEP", message: stepName, collapsed: true });
+      }
+      Cypress.log({ groupEnd: true, emitOnly: true });
+    });
   });
 });

@@ -1,6 +1,7 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
+import reportErrors from "../../../utils/reportErrors";
 
 let globalState;
 
@@ -19,13 +20,14 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
     "Card - NoThreeDS Create and Confirm Automatic CIT and MIT payment flow test",
     () => {
       it("customer-create-call-test -> Create No 3DS Payment Intent -> Confirm No 3DS CIT -> retrieve-payment-call-test -> Confirm No 3DS MIT -> retrieve-payment-call-test", () => {
+        const errorStack = [];
         let shouldContinue = true;
 
-        cy.step("customer-create-call-test", () => {
+        cy.step("customer-create-call-test", errorStack, () => {
           cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
         });
 
-        cy.step("Create No 3DS Payment Intent", () => {
+        cy.step("Create No 3DS Payment Intent", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Create No 3DS Payment Intent");
             return;
@@ -47,7 +49,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           }
         });
 
-        cy.step("Confirm No 3DS CIT", () => {
+        cy.step("Confirm No 3DS CIT", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Confirm No 3DS CIT");
             return;
@@ -71,7 +73,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           }
         });
 
-        cy.step("retrieve-payment-call-test", () => {
+        cy.step("retrieve-payment-call-test", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: retrieve-payment-call-test");
             return;
@@ -87,7 +89,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           }
         });
 
-        cy.step("Confirm No 3DS MIT", () => {
+        cy.step("Confirm No 3DS MIT", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Confirm No 3DS MIT");
             return;
@@ -110,7 +112,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           }
         });
 
-        cy.step("retrieve-payment-call-test", () => {
+        cy.step("retrieve-payment-call-test", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: retrieve-payment-call-test");
             return;
@@ -121,6 +123,12 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
 
           cy.retrievePaymentCallTest({ globalState, data });
         });
+
+        cy.then(() => {
+          if (errorStack.length > 0) {
+            reportErrors(errorStack);
+          }
+        });
       });
     }
   );
@@ -129,9 +137,10 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
     "Card - NoThreeDS Create and Confirm Manual CIT and MIT payment flow test",
     () => {
       it("Create No 3DS Payment Intent -> Confirm No 3DS CIT -> cit-capture-call-test -> retrieve-payment-call-test -> Confirm No 3DS MIT -> retrieve-payment-call-test", () => {
+        const errorStack = [];
         let shouldContinue = true;
 
-        cy.step("Create No 3DS Payment Intent", () => {
+        cy.step("Create No 3DS Payment Intent", errorStack, () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["PaymentIntentOffSession"];
@@ -149,7 +158,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           }
         });
 
-        cy.step("Confirm No 3DS CIT", () => {
+        cy.step("Confirm No 3DS CIT", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Confirm No 3DS CIT");
             return;
@@ -173,7 +182,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           }
         });
 
-        cy.step("cit-capture-call-test", () => {
+        cy.step("cit-capture-call-test", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: cit-capture-call-test");
             return;
@@ -189,7 +198,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           }
         });
 
-        cy.step("retrieve-payment-call-test", () => {
+        cy.step("retrieve-payment-call-test", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: retrieve-payment-call-test");
             return;
@@ -205,7 +214,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           }
         });
 
-        cy.step("Confirm No 3DS MIT", () => {
+        cy.step("Confirm No 3DS MIT", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Confirm No 3DS MIT");
             return;
@@ -228,7 +237,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           }
         });
 
-        cy.step("retrieve-payment-call-test", () => {
+        cy.step("retrieve-payment-call-test", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: retrieve-payment-call-test");
             return;
@@ -239,6 +248,12 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
 
           cy.retrievePaymentCallTest({ globalState, data });
         });
+
+        cy.then(() => {
+          if (errorStack.length > 0) {
+            reportErrors(errorStack);
+          }
+        });
       });
     }
   );
@@ -247,9 +262,10 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
     "Card - NoThreeDS Create + Confirm Automatic CIT and MIT payment flow test",
     () => {
       it("Confirm No 3DS CIT -> retrieve-payment-call-test -> Confirm No 3DS MIT -> retrieve-payment-call-test -> Confirm No 3DS MIT -> retrieve-payment-call-test", () => {
+        const errorStack = [];
         let shouldContinue = true;
 
-        cy.step("Confirm No 3DS CIT", () => {
+        cy.step("Confirm No 3DS CIT", errorStack, () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["PaymentMethodIdMandateNo3DSAutoCapture"];
@@ -269,7 +285,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           }
         });
 
-        cy.step("retrieve-payment-call-test", () => {
+        cy.step("retrieve-payment-call-test", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: retrieve-payment-call-test");
             return;
@@ -285,7 +301,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           }
         });
 
-        cy.step("Confirm No 3DS MIT", () => {
+        cy.step("Confirm No 3DS MIT", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Confirm No 3DS MIT");
             return;
@@ -308,7 +324,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           }
         });
 
-        cy.step("retrieve-payment-call-test", () => {
+        cy.step("retrieve-payment-call-test", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: retrieve-payment-call-test");
             return;
@@ -324,7 +340,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           }
         });
 
-        cy.step("Confirm No 3DS MIT", () => {
+        cy.step("Confirm No 3DS MIT", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Confirm No 3DS MIT");
             return;
@@ -347,7 +363,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           }
         });
 
-        cy.step("retrieve-payment-call-test", () => {
+        cy.step("retrieve-payment-call-test", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: retrieve-payment-call-test");
             return;
@@ -357,6 +373,12 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           ]["MITAutoCapture"];
 
           cy.retrievePaymentCallTest({ globalState, data });
+        });
+
+        cy.then(() => {
+          if (errorStack.length > 0) {
+            reportErrors(errorStack);
+          }
         });
       });
     }
@@ -366,9 +388,10 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
     "Card - NoThreeDS Create + Confirm Manual CIT and MIT payment flow test",
     () => {
       it("Confirm No 3DS CIT -> cit-capture-call-test -> retrieve-payment-call-test -> Confirm No 3DS MIT 1 -> mit-capture-call-test -> retrieve-payment-call-test -> Confirm No 3DS MIT 2 -> mit-capture-call-test -> retrieve-payment-call-test", () => {
+        const errorStack = [];
         let shouldContinue = true;
 
-        cy.step("Confirm No 3DS CIT", () => {
+        cy.step("Confirm No 3DS CIT", errorStack, () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["PaymentMethodIdMandateNo3DSManualCapture"];
@@ -388,7 +411,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           }
         });
 
-        cy.step("cit-capture-call-test", () => {
+        cy.step("cit-capture-call-test", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: cit-capture-call-test");
             return;
@@ -404,7 +427,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           }
         });
 
-        cy.step("retrieve-payment-call-test", () => {
+        cy.step("retrieve-payment-call-test", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: retrieve-payment-call-test");
             return;
@@ -420,7 +443,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           }
         });
 
-        cy.step("Confirm No 3DS MIT 1", () => {
+        cy.step("Confirm No 3DS MIT 1", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Confirm No 3DS MIT 1");
             return;
@@ -443,7 +466,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           }
         });
 
-        cy.step("mit-capture-call-test", () => {
+        cy.step("mit-capture-call-test", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: mit-capture-call-test");
             return;
@@ -459,7 +482,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           }
         });
 
-        cy.step("retrieve-payment-call-test", () => {
+        cy.step("retrieve-payment-call-test", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: retrieve-payment-call-test");
             return;
@@ -475,7 +498,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           }
         });
 
-        cy.step("Confirm No 3DS MIT 2", () => {
+        cy.step("Confirm No 3DS MIT 2", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Confirm No 3DS MIT 2");
             return;
@@ -498,7 +521,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           }
         });
 
-        cy.step("mit-capture-call-test", () => {
+        cy.step("mit-capture-call-test", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: mit-capture-call-test");
             return;
@@ -514,7 +537,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           }
         });
 
-        cy.step("retrieve-payment-call-test", () => {
+        cy.step("retrieve-payment-call-test", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: retrieve-payment-call-test");
             return;
@@ -525,15 +548,22 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
 
           cy.retrievePaymentCallTest({ globalState, data });
         });
+
+        cy.then(() => {
+          if (errorStack.length > 0) {
+            reportErrors(errorStack);
+          }
+        });
       });
     }
   );
 
   context("Card - MIT without billing address", () => {
     it("Create No 3DS Payment Intent -> Confirm No 3DS CIT -> Confirm No 3DS MIT", () => {
+      const errorStack = [];
       let shouldContinue = true;
 
-      cy.step("Create No 3DS Payment Intent", () => {
+      cy.step("Create No 3DS Payment Intent", errorStack, () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntentOffSession"];
@@ -551,7 +581,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         }
       });
 
-      cy.step("Confirm No 3DS CIT", () => {
+      cy.step("Confirm No 3DS CIT", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Confirm No 3DS CIT");
           return;
@@ -575,7 +605,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         }
       });
 
-      cy.step("Confirm No 3DS MIT", () => {
+      cy.step("Confirm No 3DS MIT", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Confirm No 3DS MIT");
           return;
@@ -593,6 +623,12 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           globalState
         );
       });
+
+      cy.then(() => {
+        if (errorStack.length > 0) {
+          reportErrors(errorStack);
+        }
+      });
     });
   });
 
@@ -600,9 +636,10 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
     "Card - ThreeDS Create + Confirm Automatic CIT and MIT payment flow test",
     () => {
       it("Confirm 3DS CIT -> Handle redirection -> retrieve-payment-call-test -> Confirm No 3DS MIT -> Confirm No 3DS MIT", () => {
+        const errorStack = [];
         let shouldContinue = true;
 
-        cy.step("Confirm 3DS CIT", () => {
+        cy.step("Confirm 3DS CIT", errorStack, () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["PaymentMethodIdMandate3DSAutoCapture"];
@@ -622,7 +659,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           }
         });
 
-        cy.step("Handle redirection", () => {
+        cy.step("Handle redirection", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Handle redirection");
             return;
@@ -631,7 +668,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           cy.handleRedirection(globalState, expected_redirection);
         });
 
-        cy.step("retrieve-payment-call-test", () => {
+        cy.step("retrieve-payment-call-test", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: retrieve-payment-call-test");
             return;
@@ -647,7 +684,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           }
         });
 
-        cy.step("Confirm No 3DS MIT", () => {
+        cy.step("Confirm No 3DS MIT", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Confirm No 3DS MIT");
             return;
@@ -670,7 +707,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           }
         });
 
-        cy.step("Confirm No 3DS MIT", () => {
+        cy.step("Confirm No 3DS MIT", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Confirm No 3DS MIT");
             return;
@@ -688,6 +725,12 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
             globalState
           );
         });
+
+        cy.then(() => {
+          if (errorStack.length > 0) {
+            reportErrors(errorStack);
+          }
+        });
       });
     }
   );
@@ -696,9 +739,10 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
     "Card - ThreeDS Create + Confirm Manual CIT and MIT payment flow",
     () => {
       it("Confirm 3DS CIT -> Handle redirection -> cit-capture-call-test -> retrieve-payment-call-test -> Confirm No 3DS MIT", () => {
+        const errorStack = [];
         let shouldContinue = true;
 
-        cy.step("Confirm 3DS CIT", () => {
+        cy.step("Confirm 3DS CIT", errorStack, () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["PaymentMethodIdMandate3DSManualCapture"];
@@ -718,7 +762,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           }
         });
 
-        cy.step("Handle redirection", () => {
+        cy.step("Handle redirection", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Handle redirection");
             return;
@@ -727,7 +771,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           cy.handleRedirection(globalState, expected_redirection);
         });
 
-        cy.step("cit-capture-call-test", () => {
+        cy.step("cit-capture-call-test", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: cit-capture-call-test");
             return;
@@ -743,7 +787,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           }
         });
 
-        cy.step("retrieve-payment-call-test", () => {
+        cy.step("retrieve-payment-call-test", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: retrieve-payment-call-test");
             return;
@@ -759,7 +803,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           }
         });
 
-        cy.step("Confirm No 3DS MIT", () => {
+        cy.step("Confirm No 3DS MIT", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Confirm No 3DS MIT");
             return;
@@ -776,6 +820,12 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
             "automatic",
             globalState
           );
+        });
+
+        cy.then(() => {
+          if (errorStack.length > 0) {
+            reportErrors(errorStack);
+          }
         });
       });
     }
