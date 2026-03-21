@@ -5,7 +5,7 @@ use hyperswitch_domain_models::router_request_types::{
     authentication::MessageCategory, BrowserInformation,
 };
 use hyperswitch_interfaces::errors::ConnectorError;
-use masking::ExposeInterface;
+use hyperswitch_masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
 use unidecode::unidecode;
 
@@ -398,7 +398,7 @@ pub struct CardholderAccount {
     /// The field has 4 characters in a format YYMM.
     ///
     /// The requirements of the presence of this field are DS specific.
-    pub card_expiry_date: Option<masking::Secret<String>>,
+    pub card_expiry_date: Option<hyperswitch_masking::Secret<String>>,
     /// This field contains additional information about the Cardholder’s account provided by the 3DS Requestor.
     ///
     /// The field is optional but recommended to include.
@@ -443,7 +443,7 @@ pub struct CardholderAccount {
     ///
     /// This field is required depending on the rules provided by the Directory Server.
     /// Available for supporting EMV 3DS 2.3.1 and later versions.
-    pub card_security_code: Option<masking::Secret<String>>,
+    pub card_security_code: Option<hyperswitch_masking::Secret<String>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -625,7 +625,7 @@ pub struct Cardholder {
     /// This field is limited to a maximum of 50 characters.
     ///
     /// This field is required unless market or regional mandate restricts sending this information.
-    bill_addr_line1: Option<masking::Secret<String>>,
+    bill_addr_line1: Option<hyperswitch_masking::Secret<String>>,
 
     /// Second line of the street address or equivalent local portion of the Cardholder billing address associated with
     /// the card use for this purchase.
@@ -633,7 +633,7 @@ pub struct Cardholder {
     /// This field is limited to a maximum of 50 characters.
     ///
     /// This field is required unless market or regional mandate restricts sending this information.
-    bill_addr_line2: Option<masking::Secret<String>>,
+    bill_addr_line2: Option<hyperswitch_masking::Secret<String>>,
 
     /// Third line of the street address or equivalent local portion of the Cardholder billing address associated with
     /// the card use for this purchase.
@@ -641,14 +641,14 @@ pub struct Cardholder {
     /// This field is limited to a maximum of 50 characters.
     ///
     /// This field is required unless market or regional mandate restricts sending this information.
-    bill_addr_line3: Option<masking::Secret<String>>,
+    bill_addr_line3: Option<hyperswitch_masking::Secret<String>>,
 
     /// ZIP or other postal code of the Cardholder billing address associated with the card used for this purchase.
     ///
     /// This field is limited to a maximum of 16 characters.
     ///
     /// This field is required unless market or regional mandate restricts sending this information.
-    bill_addr_post_code: Option<masking::Secret<String>>,
+    bill_addr_post_code: Option<hyperswitch_masking::Secret<String>>,
 
     /// The state or province of the Cardholder billing address associated with the card used for this purchase.
     ///
@@ -656,7 +656,7 @@ pub struct Cardholder {
     ///
     /// This field is required unless State is not applicable for this country and unless market or regional mandate
     /// restricts sending this information.
-    bill_addr_state: Option<masking::Secret<String>>,
+    bill_addr_state: Option<hyperswitch_masking::Secret<String>>,
 
     /// The email address associated with the account that is either entered by the Cardholder, or is on file with
     /// the 3DS Requestor.
@@ -696,7 +696,7 @@ pub struct Cardholder {
     ///
     /// Starting from EMV 3DS 2.3.1:
     /// This field is limited to 1-45 characters.
-    cardholder_name: Option<masking::Secret<String>>,
+    cardholder_name: Option<hyperswitch_masking::Secret<String>>,
 
     /// City portion of the shipping address requested by the Cardholder.
     ///
@@ -720,7 +720,7 @@ pub struct Cardholder {
     ///
     /// This field is required unless shipping information is the same as billing information, or market or regional
     /// mandate restricts sending this information.
-    ship_addr_line1: Option<masking::Secret<String>>,
+    ship_addr_line1: Option<hyperswitch_masking::Secret<String>>,
 
     /// Second line of the street address or equivalent local portion of the shipping address associated with
     /// the card use for this purchase.
@@ -729,7 +729,7 @@ pub struct Cardholder {
     ///
     /// This field is required unless shipping information is the same as billing information, or market or regional
     /// mandate restricts sending this information.
-    ship_addr_line2: Option<masking::Secret<String>>,
+    ship_addr_line2: Option<hyperswitch_masking::Secret<String>>,
 
     /// Third line of the street address or equivalent local portion of the shipping address associated with
     /// the card use for this purchase.
@@ -738,7 +738,7 @@ pub struct Cardholder {
     ///
     /// This field is required unless shipping information is the same as billing information, or market or regional
     /// mandate restricts sending this information.
-    ship_addr_line3: Option<masking::Secret<String>>,
+    ship_addr_line3: Option<hyperswitch_masking::Secret<String>>,
 
     /// ZIP or other postal code of the shipping address associated with the card used for this purchase.
     ///
@@ -746,7 +746,7 @@ pub struct Cardholder {
     ///
     /// This field is required unless shipping information is the same as billing information, or market or regional
     /// mandate restricts sending this information.
-    ship_addr_post_code: Option<masking::Secret<String>>,
+    ship_addr_post_code: Option<hyperswitch_masking::Secret<String>>,
 
     /// The state or province of the shipping address associated with the card used for this purchase.
     ///
@@ -754,7 +754,7 @@ pub struct Cardholder {
     ///
     /// This field is required unless shipping information is the same as billing information, or State is not applicable
     /// for this country, or market or regional mandate restricts sending this information.
-    ship_addr_state: Option<masking::Secret<String>>,
+    ship_addr_state: Option<hyperswitch_masking::Secret<String>>,
 
     /// Tax ID is the Cardholder's tax identification.
     ///
@@ -831,7 +831,7 @@ impl
             cardholder_name: billing_address.address.and_then(|address| {
                 address
                     .get_optional_full_name()
-                    .map(|name| masking::Secret::new(unidecode(&name.expose())))
+                    .map(|name| hyperswitch_masking::Secret::new(unidecode(&name.expose())))
             }),
             ship_addr_city: shipping_address
                 .as_ref()
@@ -879,7 +879,7 @@ pub struct PhoneNumber {
     /// Country Code of the phone, limited to 1-3 characters
     #[serde(rename = "cc")]
     country_code: Option<String>,
-    subscriber: Option<masking::Secret<String>>,
+    subscriber: Option<hyperswitch_masking::Secret<String>>,
 }
 
 impl TryFrom<hyperswitch_domain_models::address::PhoneDetails> for PhoneNumber {
@@ -1353,7 +1353,7 @@ pub struct Browser {
     ///
     /// This field is required for requests when deviceChannel = 02 (BRW) where regionally acceptable.
     #[serde(rename = "browserIP")]
-    browser_ip: Option<masking::Secret<String, common_utils::pii::IpAddress>>,
+    browser_ip: Option<hyperswitch_masking::Secret<String, common_utils::pii::IpAddress>>,
 
     /// Boolean that represents the ability of the cardholder browser to execute Java. Value is returned from the
     /// navigator.javaEnabled property.
@@ -1478,7 +1478,7 @@ impl From<BrowserInformation> for Browser {
             browser_accept_header: value.accept_header,
             browser_ip: value
                 .ip_address
-                .map(|ip| masking::Secret::new(ip.to_string())),
+                .map(|ip| hyperswitch_masking::Secret::new(ip.to_string())),
             browser_java_enabled: value.java_enabled,
             browser_language: value.language,
             browser_color_depth: value.color_depth.map(|cd| cd.to_string()),

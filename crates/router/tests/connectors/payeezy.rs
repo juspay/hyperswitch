@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use cards::CardNumber;
 use hyperswitch_domain_models::address::{Address, AddressDetails};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router::{
     core::errors,
     types::{self, storage::enums, PaymentsAuthorizeData},

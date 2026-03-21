@@ -1,5 +1,5 @@
 use common_utils::custom_serde;
-use masking::StrongSecret;
+use hyperswitch_masking::StrongSecret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
