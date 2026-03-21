@@ -18,7 +18,7 @@ use diesel::{
     serialize::{Output, ToSql},
     sql_types::Text,
 };
-use masking::Secret;
+use hyperswitch_masking::Secret;
 pub use payments::ProductType;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use smithy::SmithyModel;
@@ -2528,7 +2528,7 @@ impl PaymentMethodType {
     }
 }
 
-impl masking::SerializableSecret for PaymentMethodType {}
+impl hyperswitch_masking::SerializableSecret for PaymentMethodType {}
 
 /// Indicates the type of payment method. Eg: 'card', 'wallet', etc.
 #[derive(

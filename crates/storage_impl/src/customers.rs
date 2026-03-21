@@ -7,7 +7,7 @@ use hyperswitch_domain_models::{
     customer as domain,
     merchant_key_store::MerchantKeyStore,
 };
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 use router_env::{instrument, tracing};
 
 use crate::{

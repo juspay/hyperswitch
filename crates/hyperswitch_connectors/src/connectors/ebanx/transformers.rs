@@ -14,8 +14,8 @@ use hyperswitch_domain_models::router_flow_types::PoCreate;
 use hyperswitch_domain_models::types::{PayoutsResponseData, PayoutsRouterData};
 use hyperswitch_interfaces::errors::ConnectorError;
 #[cfg(feature = "payouts")]
-use masking::ExposeInterface;
-use masking::Secret;
+use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "payouts")]
