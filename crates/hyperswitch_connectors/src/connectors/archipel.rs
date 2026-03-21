@@ -292,10 +292,22 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder.map(|event| event.set_response_body(&response));
         info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let (amount, currency) = response.get_amount_currency()?;
+        let response_integrity_object = crate::utils::get_authorise_integrity_object(
+            self.amount_converter,
+            amount,
+            currency.to_string(),
+        )?;
+
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        });
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -494,10 +506,22 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Arc
         event_builder.map(|event| event.set_response_body(&response));
         info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let (amount, currency) = response.get_amount_currency()?;
+        let response_integrity_object = crate::utils::get_sync_integrity_object(
+            self.amount_converter,
+            amount,
+            currency.to_string(),
+        )?;
+
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        });
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -599,10 +623,22 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder.map(|event| event.set_response_body(&response));
         info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let (amount, currency) = response.get_amount_currency()?;
+        let response_integrity_object = crate::utils::get_capture_integrity_object(
+            self.amount_converter,
+            Some(amount),
+            currency.to_string(),
+        )?;
+
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        });
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -803,10 +839,26 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Archipe
         event_builder.map(|event| event.set_response_body(&response));
         info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let refund_amount = crate::utils::convert_amount(
+            self.amount_converter,
+            data.request.minor_refund_amount,
+            data.request.currency,
+        )?;
+        let response_integrity_object = crate::utils::get_refund_integrity_object(
+            self.amount_converter,
+            refund_amount,
+            data.request.currency.to_string(),
+        )?;
+
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        });
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
@@ -894,10 +946,26 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Archipel 
         event_builder.map(|event| event.set_response_body(&response));
         info!(connector_response=?response);
 
-        RouterData::try_from(ResponseRouterData {
+        let refund_amount = crate::utils::convert_amount(
+            self.amount_converter,
+            data.request.minor_refund_amount,
+            data.request.currency,
+        )?;
+        let response_integrity_object = crate::utils::get_refund_integrity_object(
+            self.amount_converter,
+            refund_amount,
+            data.request.currency.to_string(),
+        )?;
+
+        let new_router_data = RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        });
+
+        new_router_data.map(|mut router_data| {
+            router_data.request.integrity_object = Some(response_integrity_object);
+            router_data
         })
     }
 
