@@ -2302,6 +2302,10 @@ pub struct ProfileCreate {
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
     pub is_l2_l3_enabled: Option<bool>,
+
+    /// Payment method blocking configuration for the profile
+    #[schema(value_type = Option<PaymentMethodBlockingConfig>)]
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
 }
 
 #[nutype::nutype(
@@ -2675,6 +2679,10 @@ pub struct ProfileResponse {
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
     pub is_l2_l3_enabled: Option<bool>,
+
+    /// Payment method blocking configuration for the profile
+    #[schema(value_type = Option<PaymentMethodBlockingConfig>)]
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
 }
 
 #[cfg(feature = "v2")]
@@ -3051,6 +3059,10 @@ pub struct ProfileUpdate {
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
     pub is_l2_l3_enabled: Option<bool>,
+
+    /// Payment method blocking configuration for the profile
+    #[schema(value_type = Option<PaymentMethodBlockingConfig>)]
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
 }
 
 #[cfg(feature = "v2")]
