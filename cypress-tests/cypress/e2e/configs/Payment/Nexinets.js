@@ -1011,8 +1011,9 @@ export const connectorDetails = {
     },
     PaymentsWithPmId: {
       Request: {
-        currency: "USD",
+        currency: "EUR",
         payment_method: "card",
+        billing: germanBillingAddress,
       },
       Response: {
         status: 200,
@@ -1024,7 +1025,7 @@ export const connectorDetails = {
     },
     PaymentsWithPmToken: {
       Request: {
-        currency: "USD",
+        currency: "EUR",
         payment_method: "card",
       },
       Response: {
@@ -1037,7 +1038,8 @@ export const connectorDetails = {
     },
     PaymentMethodSessionCreate: {
       Request: {
-        currency: "USD",
+        currency: "EUR",
+        billing: germanBillingAddress,
       },
       Response: {
         status: 200,

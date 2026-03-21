@@ -979,34 +979,37 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        payment_method_subtype: "debit",
+        payment_method_subtype: "credit",
       },
       Response: {
         status: 200,
         body: {
           payment_method: "card",
-          payment_method_subtype: "debit",
+          payment_method_subtype: "credit",
           status: "active",
         },
       },
     },
     PaymentsWithPmId: {
       Request: {
-        currency: "USD",
+        currency: "MYR",
         payment_method: "card",
+        billing: billingAddress,
       },
       Response: {
         status: 200,
         body: {
           status: "succeeded",
           amount: 200,
+          currency: "MYR",
         },
       },
     },
     PaymentsWithPmToken: {
       Request: {
-        currency: "USD",
+        currency: "MYR",
         payment_method: "card",
+        billing: billingAddress,
       },
       Response: {
         status: 200,
@@ -1018,7 +1021,7 @@ export const connectorDetails = {
     },
     PaymentMethodSessionCreate: {
       Request: {
-        currency: "USD",
+        currency: "MYR",
       },
       Response: {
         status: 200,

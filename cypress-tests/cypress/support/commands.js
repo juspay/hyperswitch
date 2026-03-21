@@ -5602,7 +5602,7 @@ Cypress.Commands.add(
         expect(response.body).to.have.property("payment_id");
         expect(response.body).to.have.property("status");
         expect(response.body.amount).to.equal(paymentData.amount);
-        expect(response.body.currency).to.equal(paymentData.currency);
+        expect(response.body.currency).to.equal(requestBody.currency);
       } else {
         throw new Error(
           `Payment with saved PM failed with status ${response.status}: ${JSON.stringify(response.body)}`

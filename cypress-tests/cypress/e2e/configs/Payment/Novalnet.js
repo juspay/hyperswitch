@@ -762,13 +762,13 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        payment_method_subtype: "debit",
+        payment_method_subtype: "credit",
       },
       Response: {
         status: 200,
         body: {
           payment_method: "card",
-          payment_method_subtype: "debit",
+          payment_method_subtype: "credit",
           status: "active",
         },
       },

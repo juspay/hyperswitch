@@ -2354,6 +2354,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        payment_method_subtype: "debit",
       },
     }),
     PaymentsWithPmId: getCustomExchange({
