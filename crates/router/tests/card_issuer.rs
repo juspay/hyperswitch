@@ -32,7 +32,11 @@ async fn card_issuer_success() {
     println!("card-issuer-create: {response:?} : {response_body:?}");
     assert_eq!(response.status(), awc::http::StatusCode::OK);
 
-    let issuer_id = response_body["id"].as_str().unwrap().to_string();
+    let issuer_id = response_body
+        .get("id")
+        .and_then(|v| v.as_str())
+        .unwrap()
+        .to_string();
 
     // update card issuer
     response = client
@@ -44,7 +48,10 @@ async fn card_issuer_success() {
     response_body = response.json::<serde_json::Value>().await.unwrap();
     println!("card-issuer-update: {response:?} : {response_body:?}");
     assert_eq!(response.status(), awc::http::StatusCode::OK);
-    assert_eq!(response_body["issuer_name"], updated_name);
+    assert_eq!(
+        response_body.get("issuer_name").and_then(|v| v.as_str()),
+        Some(updated_name)
+    );
 
     // list card issuers
     response = client
@@ -67,7 +74,11 @@ async fn card_issuer_success() {
     response_body = response.json::<serde_json::Value>().await.unwrap();
     println!("card-issuer-list-filtered: {response:?} : {response_body:?}");
     assert_eq!(response.status(), awc::http::StatusCode::OK);
-    assert!(response_body["issuers"].as_array().unwrap().len() >= 1);
+    assert!(!response_body
+        .get("issuers")
+        .and_then(|v| v.as_array())
+        .unwrap()
+        .is_empty());
 }
 
 #[actix_web::test]
