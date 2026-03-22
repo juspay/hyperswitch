@@ -813,6 +813,7 @@ impl webhooks::IncomingWebhook for Worldline {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _error_kind: Option<IncomingWebhookFlowError>,
+        _connector_account_details: Option<crypto::Encryptable<masking::Secret<serde_json::Value>>>,
     ) -> CustomResult<
         hyperswitch_domain_models::api::ApplicationResponse<serde_json::Value>,
         errors::ConnectorError,

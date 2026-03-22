@@ -5,7 +5,7 @@ use std::sync::LazyLock;
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
-    ext_traits::ByteSliceExt,
+    ext_traits::{ByteSliceExt, ValueExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
@@ -51,6 +51,7 @@ use hyperswitch_interfaces::{
     errors::ConnectorError,
     types::{PayoutFulfillType, PayoutSyncType},
 };
+use masking::ExposeInterface;
 use transformers as trustly;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
@@ -828,9 +829,22 @@ impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Trustly 
 impl webhooks::IncomingWebhook for Trustly {
     fn get_webhook_object_reference_id(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, ConnectorError> {
-        Err(report!(ConnectorError::WebhooksNotImplemented))
+        let webhook_body: trustly::TrustlyWebhookBody = request
+            .body
+            .parse_struct("TrustlyWebhookBody")
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+
+        if trustly::is_payment_webhook_event(webhook_body.method) {
+            return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(
+                    webhook_body.params.data.orderid,
+                ),
+            ));
+        } else {
+            Err(report!(ConnectorError::WebhooksNotImplemented))
+        }
     }
 
     fn get_webhook_event_type(
@@ -846,6 +860,57 @@ impl webhooks::IncomingWebhook for Trustly {
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, ConnectorError> {
         Err(report!(ConnectorError::WebhooksNotImplemented))
+    }
+
+    fn get_webhook_api_response(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _error_kind: Option<webhooks::IncomingWebhookFlowError>,
+        connector_account_details: Option<
+            common_utils::crypto::Encryptable<masking::Secret<serde_json::Value>>,
+        >,
+    ) -> CustomResult<
+        hyperswitch_domain_models::api::ApplicationResponse<serde_json::Value>,
+        ConnectorError,
+    > {
+        let request_body: trustly::TrustlyWebhookBody = request
+            .body
+            .parse_struct("TrustlyWebhookBody")
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+
+        let data = trustly::TrustlyWebhookResponseResultData {
+            status: "OK".to_string(),
+        };
+
+        let connector_auth_type: ConnectorAuthType = connector_account_details
+            .ok_or(ConnectorError::FailedToObtainAuthType)?
+            .parse_value("ConnectorAuthType")
+            .change_context(ConnectorError::FailedToObtainAuthType)?;
+        let auth = trustly::TrustlyAuthType::try_from(&connector_auth_type)
+            .change_context(ConnectorError::FailedToObtainAuthType)?;
+
+        let signature = trustly::generate_trustly_signature(
+            request_body.method.as_str(),
+            &request_body.params.uuid,
+            &data,
+            &auth.private_key.expose(),
+        )?;
+
+        let response = trustly::TrustlyWebhookResponse {
+            result: trustly::TrustlyWebhookResponseResult {
+                signature: signature.into(),
+                uuid: request_body.params.uuid,
+                method: request_body.method.as_str().to_string(),
+                data,
+            },
+            version: request_body.version,
+        };
+
+        let response_value = serde_json::to_value(response)
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+            response_value,
+        ))
     }
 }
 

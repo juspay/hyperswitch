@@ -282,9 +282,9 @@ pub struct CardPayout {
 pub enum Bank {
     Ach(AchBankTransfer),
     Bacs(BacsBankTransfer),
+    Trustly(TrustlyBankTransfer),
     Sepa(SepaBankTransfer),
     Pix(PixBankTransfer),
-    Trustly(TrustlyBankTransfer),
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
