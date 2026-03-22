@@ -54,6 +54,7 @@ use hyperswitch_domain_models::payouts::{
     payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface,
 };
 use hyperswitch_domain_models::{
+    card_issuer::CardIssuersInterface,
     cards_info::CardsInfoInterface,
     master_key::MasterKeyInterface,
     payment_methods::PaymentMethodInterface,
@@ -118,7 +119,7 @@ pub trait StorageInterface:
     + PaymentMethodInterface<Error = StorageError>
     + blocklist::BlocklistInterface
     + blocklist_fingerprint::BlocklistFingerprintInterface
-    + card_issuer::CardIssuersInterface
+    + CardIssuersInterface<Error = StorageError>
     + dynamic_routing_stats::DynamicRoutingStatsInterface
     + scheduler::SchedulerInterface
     + PayoutAttemptInterface<Error = StorageError>
