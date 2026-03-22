@@ -101,6 +101,7 @@ impl Payouts {
         currency: Option<Vec<enums::Currency>>,
         status: Option<Vec<enums::PayoutStatus>>,
         payout_type: Option<Vec<enums::PayoutType>>,
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     ) -> StorageResult<i64> {
         let mut filter = <Self as HasTable>::table()
             .inner_join(payout_attempt::table.on(payout_attempt::dsl::payout_id.eq(dsl::payout_id)))
@@ -120,6 +121,9 @@ impl Payouts {
         }
         if let Some(payout_type) = payout_type {
             filter = filter.filter(dsl::payout_type.eq_any(payout_type));
+        }
+        if let Some(profile_id_list) = profile_id_list {
+            filter = filter.filter(dsl::profile_id.eq_any(profile_id_list));
         }
         router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
 
