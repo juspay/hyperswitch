@@ -6761,8 +6761,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
             PaymentMethodData::CardWithOptionalCVC(_)
             | PaymentMethodData::CardWithNetworkTokenDetails(
                 payment_method_data::CardWithNetworkTokenDetails {
-                    card_details: _,
-                    ..
+                    card_details: _, ..
                 },
             ) => Self::Card,
             PaymentMethodData::NetworkToken(_) => Self::NetworkToken,

@@ -10472,13 +10472,15 @@ impl ActionTypesBuilder {
                                 logger::error!("Status check for network token failed: {:?}", e)
                             })
                             .ok()
-                            .map(|(token_exp_month, token_exp_year)| {
-                                ActionType::NetworkTokenWithNetworkTransactionId(NTWithNTIRef {
-                                    token_exp_month,
-                                    token_exp_year,
-                                    network_transaction_id,
-                                })
-                            }),
+                            .map(
+                                |(token_exp_month, token_exp_year)| {
+                                    ActionType::NetworkTokenWithNetworkTransactionId(NTWithNTIRef {
+                                        token_exp_month,
+                                        token_exp_year,
+                                        network_transaction_id,
+                                    })
+                                },
+                            ),
                         );
                     }
                 }

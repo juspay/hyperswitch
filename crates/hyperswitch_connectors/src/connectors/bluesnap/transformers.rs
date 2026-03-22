@@ -247,8 +247,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>>
             | PaymentMethodData::CardWithOptionalCVC(_)
             | PaymentMethodData::CardWithNetworkTokenDetails(
                 payment_method_data::CardWithNetworkTokenDetails {
-                    card_details: _,
-                    ..
+                    card_details: _, ..
                 },
             )
             | PaymentMethodData::CardWithLimitedDetails(_)
@@ -435,8 +434,7 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
             | PaymentMethodData::CardWithOptionalCVC(_)
             | PaymentMethodData::CardWithNetworkTokenDetails(
                 payment_method_data::CardWithNetworkTokenDetails {
-                    card_details: _,
-                    ..
+                    card_details: _, ..
                 },
             )
             | PaymentMethodData::CardWithLimitedDetails(_)

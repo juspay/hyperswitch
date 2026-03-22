@@ -1535,8 +1535,7 @@ fn create_stripe_payment_method(
         | PaymentMethodData::CardWithOptionalCVC(_)
         | PaymentMethodData::CardWithNetworkTokenDetails(
             payment_method_data::CardWithNetworkTokenDetails {
-                card_details: _,
-                ..
+                card_details: _, ..
             },
         )
         | PaymentMethodData::CardWithLimitedDetails(_)
@@ -4659,8 +4658,7 @@ impl
             | PaymentMethodData::CardWithOptionalCVC(_)
             | PaymentMethodData::CardWithNetworkTokenDetails(
                 payment_method_data::CardWithNetworkTokenDetails {
-                    card_details: _,
-                    ..
+                    card_details: _, ..
                 },
             )
             | PaymentMethodData::CardWithLimitedDetails(_)
