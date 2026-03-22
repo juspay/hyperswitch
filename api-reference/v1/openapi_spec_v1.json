@@ -12585,10 +12585,10 @@
           {
             "type": "object",
             "required": [
-              "pix_qr"
+              "pix"
             ],
             "properties": {
-              "pix_qr": {
+              "pix": {
                 "$ref": "#/components/schemas/PixBankTransferAdditionalData"
               }
             }
@@ -12935,10 +12935,10 @@
           {
             "type": "object",
             "required": [
-              "pix_qr"
+              "pix"
             ],
             "properties": {
-              "pix_qr": {
+              "pix": {
                 "type": "object",
                 "properties": {
                   "pix_key": {
@@ -12974,7 +12974,7 @@
                   },
                   "expiry_date": {
                     "type": "string",
-                    "description": "The expiration date and time for the PixQr code in ISO 8601 format",
+                    "description": "The expiration date and time for the Pix QR code in ISO 8601 format",
                     "example": "2025-09-10T10:11:12Z",
                     "nullable": true
                   }
@@ -19742,6 +19742,14 @@
               }
             ],
             "nullable": true
+          },
+          "pix_automatico_additional_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixAutomaticoAdditionalDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -24881,7 +24889,7 @@
               },
               "raw_qr_data": {
                 "type": "string",
-                "description": "The raw QR code data (EMV copy and paste) used for Brazilian payment methods like PixQr",
+                "description": "The raw QR code data (EMV copy and paste) used for Brazilian payment methods like Pix",
                 "nullable": true
               },
               "type": {
@@ -35096,6 +35104,55 @@
           }
         ]
       },
+      "PixAutomaticoAdditionalDetails": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixAutomaticoPushDetails"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "pix_automatico_push"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixAutomaticoQrDetails"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "pix_automatico_qr"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
       "PixAutomaticoPushAdditionalData": {
         "type": "object",
         "properties": {
@@ -35116,6 +35173,36 @@
             "description": "Partially masked bank identifier for Pix Automatico Push payment method",
             "example": "91193552",
             "nullable": true
+          }
+        }
+      },
+      "PixAutomaticoPushDetails": {
+        "type": "object",
+        "required": [
+          "time"
+        ],
+        "properties": {
+          "time": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Time in seconds until which the push notification is valid",
+            "example": 3600,
+            "minimum": 0
+          }
+        }
+      },
+      "PixAutomaticoQrDetails": {
+        "type": "object",
+        "required": [
+          "time"
+        ],
+        "properties": {
+          "time": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Time in seconds until which the QR code is valid",
+            "example": 3600,
+            "minimum": 0
           }
         }
       },
@@ -35192,7 +35279,7 @@
           },
           "expiry_date": {
             "type": "string",
-            "description": "The expiration date and time for the PixQr code in ISO 8601 format",
+            "description": "The expiration date and time for the Pix QR code in ISO 8601 format",
             "example": "2025-09-10T10:11:12Z",
             "nullable": true
           }
