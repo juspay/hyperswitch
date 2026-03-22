@@ -54,7 +54,7 @@ use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::{Duration, OffsetDateTime, PrimitiveDateTime};
 use url::Url;
@@ -2057,27 +2057,52 @@ fn get_recurring_processing_model(
 ) -> Result<RecurringDetails, Error> {
     let shopper_reference = item.get_connector_customer_id().ok();
 
-    match (item.request.setup_future_usage, item.request.off_session) {
-        // Setup for future off-session usage
-        (Some(storage_enums::FutureUsage::OffSession), _) => {
-            let store_payment_method = item.request.is_mandate_payment();
-            let shopper_reference =
-                shopper_reference.ok_or_else(missing_field_err("connector_customer_id"))?;
-            Ok((None, Some(store_payment_method), Some(shopper_reference)))
-        }
-        // Off-session payment
-        (_, Some(true)) => {
-            let shopper_reference =
-                shopper_reference.ok_or_else(missing_field_err("connector_customer_id"))?;
-            Ok((
-                Some(AdyenRecurringModel::UnscheduledCardOnFile),
-                None,
-                Some(shopper_reference),
-            ))
-        }
-        // On-session payment
-        _ => Ok((None, None, shopper_reference)),
+    let has_existing_mandate = item
+        .request
+        .mandate_id
+        .as_ref()
+        .and_then(|mandate| mandate.mandate_reference_id.as_ref())
+        .is_some();
+
+    let is_off_session_setup = matches!(
+        item.request.setup_future_usage,
+        Some(storage_enums::FutureUsage::OffSession)
+    );
+
+    let is_off_session_payment = item.request.off_session == Some(true);
+
+    // Case 1: Customer initiated mandate payment
+    if is_off_session_setup && has_existing_mandate {
+        let shopper_reference =
+            shopper_reference.ok_or_else(missing_field_err("connector_customer_id"))?;
+        return Ok((
+            Some(AdyenRecurringModel::UnscheduledCardOnFile),
+            None,
+            Some(shopper_reference),
+        ));
     }
+
+    // Case 2: Setup for future off-session usage
+    if is_off_session_setup {
+        let store_payment_method = item.request.is_mandate_payment();
+        let shopper_reference =
+            shopper_reference.ok_or_else(missing_field_err("connector_customer_id"))?;
+        return Ok((None, Some(store_payment_method), Some(shopper_reference)));
+    }
+
+    // Case 3: Off-session payment
+    if is_off_session_payment {
+        let shopper_reference =
+            shopper_reference.ok_or_else(missing_field_err("connector_customer_id"))?;
+        return Ok((
+            Some(AdyenRecurringModel::UnscheduledCardOnFile),
+            None,
+            Some(shopper_reference),
+        ));
+    }
+
+    // Case 4: On-session payment
+    Ok((None, None, shopper_reference))
 }
 
 fn get_browser_info(item: &PaymentsAuthorizeRouterData) -> Result<Option<AdyenBrowserInfo>, Error> {
@@ -5284,10 +5309,10 @@ impl<F, Req>
         Ok(Self {
             status: adyen_payments_response_data.status,
             amount_captured: minor_amount_captured.map(|amount| amount.get_amount_as_i64()),
-            response: adyen_payments_response_data.error.map_or_else(
-                || Ok(adyen_payments_response_data.payments_response_data),
-                Err,
-            ),
+            response: match adyen_payments_response_data.error {
+                Some(err) => Err(err),
+                None => Ok(adyen_payments_response_data.payments_response_data),
+            },
             connector_response: adyen_payments_response_data.connector_response,
             minor_amount_captured,
             ..item.data
@@ -6235,6 +6260,10 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                     })?,
                     payouts::Bank::Pix(..) => Err(errors::ConnectorError::NotSupported {
                         message: "Bank transfer via Pix is not supported".to_string(),
+                        connector: "Adyen",
+                    })?,
+                    payouts::Bank::Trustly(..) => Err(errors::ConnectorError::NotSupported {
+                        message: "Bank transfer via Trustly is not supported".to_string(),
                         connector: "Adyen",
                     })?,
                 };
