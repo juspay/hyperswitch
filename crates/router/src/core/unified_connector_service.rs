@@ -1676,13 +1676,16 @@ pub fn build_unified_connector_service_auth_metadata(
         .as_ref()
         .and_then(|m| serde_json::to_value(m.clone().expose()).ok());
     // Build connector-specific config for supported connectors
+    // Errors are propagated since connector credentials are important
+    // Unsupported connectors return None (no config needed)
     let connector_config = connector_config::build_connector_config_header(
         &connector_name,
         &auth_type,
         connector_metadata_value.as_ref(),
         None,
     )
-    .ok()
+    .change_context(UnifiedConnectorServiceError::FailedToObtainAuthType)
+    .attach_printable("Failed to build connector config header")?
     .map(Secret::new);
 
     match &auth_type {

@@ -214,21 +214,32 @@ pub fn build_connector_config_header(
     auth_type: &ConnectorAuthType,
     connector_metadata: Option<&serde_json::Value>,
     _base_url: Option<String>,
-) -> RouterResult<String> {
+) -> RouterResult<Option<String>> {
     let connector = Connector::from_str(connector_name)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| format!("Invalid connector name: {}", connector_name))?;
 
     let config =
-        ConnectorSpecificConfig::foreign_try_from((connector, auth_type, connector_metadata))?;
+        match ConnectorSpecificConfig::foreign_try_from((connector, auth_type, connector_metadata))
+        {
+            Ok(config) => config,
+            Err(_) => {
+                // Connector is not supported for specific config - this is not an error,
+                // just means no connector-specific config is needed
+                return Ok(None);
+            }
+        };
 
     let config_json = serde_json::to_value(&config)
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to serialize connector config to JSON value")?;
 
     let mut outer_map = serde_json::Map::new();
     outer_map.insert("config".to_string(), config_json);
 
-    serde_json::to_string(&outer_map)
+    let config_string = serde_json::to_string(&outer_map)
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to serialize ConnectorSpecificConfig")
+        .attach_printable("Failed to serialize ConnectorSpecificConfig")?;
+
+    Ok(Some(config_string))
 }
