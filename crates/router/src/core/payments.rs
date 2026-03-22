@@ -10040,15 +10040,19 @@ where
                 .get_payment_method_info()
                 .get_required_value("payment_method_info")?
                 .clone();
+            let payment_method_data = payment_data.get_payment_method_data().cloned();
             let retryable_connectors =
                 join_all(connectors.into_iter().map(|connector_routing_data| {
                     let payment_method = payment_method_info.clone();
+                    let payment_method_data = payment_method_data.clone();
                     async move {
                         let action_types = get_all_action_types(
                             state,
+                            is_payment_method_modular_allowed,
                             is_connector_agnostic_mit_enabled,
                             is_network_tokenization_enabled,
                             &payment_method.clone(),
+                            payment_method_data.as_ref(),
                             connector_routing_data.connector_data.clone(),
                         )
                         .await;
@@ -10428,29 +10432,56 @@ impl ActionTypesBuilder {
         is_network_token_with_ntid_flow: IsNtWithNtiFlow,
         is_nt_with_ntid_supported_connector: bool,
         payment_method_info: &domain::PaymentMethod,
+        payment_method_data: Option<&domain::PaymentMethodData>,
     ) -> Self {
         match is_network_token_with_ntid_flow {
             IsNtWithNtiFlow::NtWithNtiSupported(network_transaction_id)
                 if is_nt_with_ntid_supported_connector =>
             {
-                self.action_types.extend(
-                    network_tokenization::do_status_check_for_network_token(
-                        state,
-                        payment_method_info,
-                    )
-                    .await
-                    .inspect_err(|e| {
-                        logger::error!("Status check for network token failed: {:?}", e)
-                    })
-                    .ok()
-                    .map(|(token_exp_month, token_exp_year)| {
-                        ActionType::NetworkTokenWithNetworkTransactionId(NTWithNTIRef {
-                            token_exp_month,
-                            token_exp_year,
-                            network_transaction_id,
-                        })
-                    }),
-                );
+                match payment_method_data {
+                    Some(domain::PaymentMethodData::CardWithNetworkTokenDetails(
+                        card_with_network_token_details,
+                    )) => {
+                        self.action_types
+                            .push(ActionType::NetworkTokenWithNetworkTransactionId(
+                                NTWithNTIRef {
+                                    token_exp_month: Some(
+                                        card_with_network_token_details
+                                            .network_token_details
+                                            .token_exp_month
+                                            .clone(),
+                                    ),
+                                    token_exp_year: Some(
+                                        card_with_network_token_details
+                                            .network_token_details
+                                            .token_exp_year
+                                            .clone(),
+                                    ),
+                                    network_transaction_id,
+                                },
+                            ));
+                    }
+                    _ => {
+                        self.action_types.extend(
+                            network_tokenization::do_status_check_for_network_token(
+                                state,
+                                payment_method_info,
+                            )
+                            .await
+                            .inspect_err(|e| {
+                                logger::error!("Status check for network token failed: {:?}", e)
+                            })
+                            .ok()
+                            .map(|(token_exp_month, token_exp_year)| {
+                                ActionType::NetworkTokenWithNetworkTransactionId(NTWithNTIRef {
+                                    token_exp_month,
+                                    token_exp_year,
+                                    network_transaction_id,
+                                })
+                            }),
+                        );
+                    }
+                }
             }
             _ => (),
         }
@@ -10481,9 +10512,11 @@ impl ActionTypesBuilder {
 #[cfg(feature = "v1")]
 pub async fn get_all_action_types(
     state: &SessionState,
+    is_payment_method_modular_allowed: bool,
     is_connector_agnostic_mit_enabled: Option<bool>,
     is_network_tokenization_enabled: bool,
     payment_method_info: &domain::PaymentMethod,
+    payment_method_data: Option<&domain::PaymentMethodData>,
     connector: api::ConnectorData,
 ) -> Vec<ActionType> {
     let merchant_connector_id = connector.merchant_connector_id.as_ref();
@@ -10501,9 +10534,11 @@ pub async fn get_all_action_types(
         .connector_list;
 
     let is_network_token_with_ntid_flow = is_network_token_with_network_transaction_id_flow(
+        is_payment_method_modular_allowed,
         is_connector_agnostic_mit_enabled,
         is_network_tokenization_enabled,
         payment_method_info,
+        payment_method_data,
     );
     let is_card_with_ntid_flow = is_network_transaction_id_flow(
         state,
@@ -10537,6 +10572,7 @@ pub async fn get_all_action_types(
             is_network_token_with_ntid_flow,
             is_nt_with_ntid_supported_connector,
             payment_method_info,
+            payment_method_data,
         )
         .await
         .with_card_network_transaction_id(is_card_with_ntid_flow, payment_method_info)
@@ -10567,9 +10603,11 @@ pub enum IsNtWithNtiFlow {
 }
 
 pub fn is_network_token_with_network_transaction_id_flow(
+    is_payment_method_modular_allowed: bool,
     is_connector_agnostic_mit_enabled: Option<bool>,
     is_network_tokenization_enabled: bool,
     payment_method_info: &domain::PaymentMethod,
+    payment_method_data: Option<&domain::PaymentMethodData>,
 ) -> IsNtWithNtiFlow {
     match (
         is_connector_agnostic_mit_enabled,
@@ -10580,6 +10618,8 @@ pub fn is_network_token_with_network_transaction_id_flow(
         payment_method_info
             .network_token_requestor_reference_id
             .is_some(),
+        is_payment_method_modular_allowed,
+        payment_method_data,
     ) {
         (
             Some(true),
@@ -10588,6 +10628,18 @@ pub fn is_network_token_with_network_transaction_id_flow(
             Some(network_transaction_id),
             true,
             true,
+            _,
+            _,
+        ) => IsNtWithNtiFlow::NtWithNtiSupported(network_transaction_id),
+        (
+            Some(true),
+            true,
+            Some(storage_enums::PaymentMethod::Card),
+            Some(network_transaction_id),
+            _,
+            _,
+            true,
+            Some(domain::PaymentMethodData::CardWithNetworkTokenDetails(_)),
         ) => IsNtWithNtiFlow::NtWithNtiSupported(network_transaction_id),
         _ => IsNtWithNtiFlow::NTWithNTINotSupported,
     }

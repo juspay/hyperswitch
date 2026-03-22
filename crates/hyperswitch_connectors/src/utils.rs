@@ -6760,7 +6760,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
             PaymentMethodData::Card(_) => Self::Card,
             PaymentMethodData::CardWithOptionalCVC(_)
             | PaymentMethodData::CardWithNetworkTokenDetails(
-                hyperswitch_domain_models::payment_method_data::CardWithNetworkTokenDetails {
+                payment_method_data::CardWithNetworkTokenDetails {
                     card_details: _,
                     ..
                 },

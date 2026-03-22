@@ -1534,7 +1534,7 @@ fn create_stripe_payment_method(
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
         | PaymentMethodData::CardWithOptionalCVC(_)
         | PaymentMethodData::CardWithNetworkTokenDetails(
-            hyperswitch_domain_models::payment_method_data::CardWithNetworkTokenDetails {
+            payment_method_data::CardWithNetworkTokenDetails {
                 card_details: _,
                 ..
             },
@@ -2011,7 +2011,13 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                         | PaymentMethodData::CardToken(_)
                         | PaymentMethodData::NetworkToken(_)
                         | PaymentMethodData::Card(_)
-                        | PaymentMethodData::CardWithOptionalCVC(_) | PaymentMethodData::CardWithNetworkTokenDetails(hyperswitch_domain_models::payment_method_data::CardWithNetworkTokenDetails { card_details: _, .. })
+                        | PaymentMethodData::CardWithOptionalCVC(_)
+                        | PaymentMethodData::CardWithNetworkTokenDetails(
+                            payment_method_data::CardWithNetworkTokenDetails {
+                                card_details: _,
+                                ..
+                            },
+                        )
                         | PaymentMethodData::CardWithLimitedDetails(_)
                         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(
                             _,
@@ -4652,7 +4658,7 @@ impl
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithOptionalCVC(_)
             | PaymentMethodData::CardWithNetworkTokenDetails(
-                hyperswitch_domain_models::payment_method_data::CardWithNetworkTokenDetails {
+                payment_method_data::CardWithNetworkTokenDetails {
                     card_details: _,
                     ..
                 },

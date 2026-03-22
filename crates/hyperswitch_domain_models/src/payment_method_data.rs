@@ -27,6 +27,7 @@ use crate::router_data::PaymentMethodToken;
 // We need to derive Serialize and Deserialize because some parts of payment method data are being
 // stored in the database as serde_json::Value
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[allow(clippy::large_enum_variant)]
 pub enum PaymentMethodData {
     Card(Card),
     CardWithOptionalCVC(CardWithOptionalCVC),

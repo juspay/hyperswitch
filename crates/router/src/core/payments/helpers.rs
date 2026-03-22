@@ -3231,13 +3231,12 @@ where
             Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_))
         ) =>
         {
-            Some(
-                domain::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(
-                    card_with_network_token_details
-                        .network_token_details
-                        .clone(),
-                ),
-            )
+            Some(domain::PaymentMethodData::NetworkToken(
+                card_with_network_token_details
+                    .network_token_details
+                    .clone()
+                    .into(),
+            ))
         }
         Some(domain::PaymentMethodData::CardWithNetworkTokenDetails(
             card_with_network_token_details,
