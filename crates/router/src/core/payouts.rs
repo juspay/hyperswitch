@@ -952,6 +952,7 @@ pub async fn payouts_filtered_list_core(
         .get_total_count_of_filtered_payouts(
             platform.get_processor().get_account().get_id(),
             &active_payout_ids,
+            profile_id_list,
             filters.connector.clone(),
             filters.currency.clone(),
             filters.status.clone(),
