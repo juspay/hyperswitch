@@ -3630,6 +3630,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                 apple_pay_recurring_details: None,
                 pix_additional_details: None,
                 boleto_additional_details: None,
+                pix_automatico_additional_details: None,
             }),
             ..Default::default()
         };
@@ -4139,6 +4140,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     apple_pay_recurring_details: None,
                     pix_additional_details: None,
                     boleto_additional_details: None,
+                    pix_automatico_additional_details: None,
                 }),
                 ..Default::default()
             };

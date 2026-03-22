@@ -76,16 +76,16 @@ pub use hyperswitch_domain_models::{
         CreateOrderRequestData, DefendDisputeRequestData, DestinationChargeRefund,
         DirectChargeRefund, DisputeSyncData, ExternalVaultProxyPaymentsData,
         FetchDisputesRequestData, MandateRevokeRequestData, MultipleCaptureRequestData,
-        PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthenticateData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
-        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
-        PaymentsUpdateMetadataData, RefundsData, ResponseId, RetrieveFileRequestData,
-        SdkPaymentsSessionUpdateData, SetupMandateRequestData, SplitRefundsRequest,
-        SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData, VaultRequestData,
-        VerifyWebhookSourceRequestData,
+        PaymentMethodTokenizationData, PaymentTriggerData, PaymentsApproveData,
+        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsExtendAuthorizationData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
+        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData, PaymentsSyncData,
+        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData, ResponseId,
+        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
+        SplitRefundsRequest, SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData,
+        VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
@@ -141,8 +141,8 @@ pub type ExternalVaultProxyPaymentsRouterData =
     RouterData<ExternalVaultProxy, ExternalVaultProxyPaymentsData, PaymentsResponseData>;
 pub type PaymentsPreProcessingRouterData =
     RouterData<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>;
-pub type PaymentsPaymentTriggerRouterData =
-    RouterData<PaymentTrigger, PaymentsPreProcessingData, PaymentsResponseData>;
+pub type PaymentsTriggerRouterData =
+    RouterData<PaymentTrigger, PaymentTriggerData, PaymentsResponseData>;
 pub type PaymentsPostProcessingRouterData =
     RouterData<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>;
 pub type PaymentsAuthorizeSessionTokenRouterData =

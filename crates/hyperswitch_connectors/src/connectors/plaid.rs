@@ -13,14 +13,13 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
-        AccessTokenAuth, Authorize, Capture, Execute, PSync, PaymentMethodToken, PaymentTrigger,
-        PostProcessing, RSync, Session, SetupMandate, Void,
+        AccessTokenAuth, Authorize, Capture, Execute, PSync, PaymentMethodToken, PostProcessing,
+        RSync, Session, SetupMandate, Void,
     },
     router_request_types::{
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsPostProcessingData,
-        PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData, RefundsData,
-        SetupMandateRequestData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsPostProcessingData, PaymentsSessionData,
+        PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
@@ -33,7 +32,7 @@ use hyperswitch_interfaces::{
         ConnectorAccessToken, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration,
         ConnectorSpecifications, ConnectorValidation, CurrencyUnit, MandateSetup, Payment,
         PaymentAuthorize, PaymentCapture, PaymentSession, PaymentSync, PaymentToken, PaymentVoid,
-        PaymentsPaymentTrigger, PaymentsPostProcessing, Refund, RefundExecute, RefundSync,
+        PaymentsPostProcessing, Refund, RefundExecute, RefundSync,
     },
     configs::Connectors,
     consts::NO_ERROR_CODE,
@@ -76,18 +75,12 @@ impl Refund for Plaid {}
 impl RefundExecute for Plaid {}
 impl RefundSync for Plaid {}
 impl PaymentToken for Plaid {}
-impl PaymentsPaymentTrigger for Plaid {}
 impl PaymentsPostProcessing for Plaid {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Plaid
 {
     // Not Implemented (R)
-}
-
-impl ConnectorIntegration<PaymentTrigger, PaymentsPreProcessingData, PaymentsResponseData>
-    for Plaid
-{
 }
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Plaid

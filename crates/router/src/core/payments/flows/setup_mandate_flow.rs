@@ -454,7 +454,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             );
             let setup_mandate_request_data = self.request.clone();
             let payment_trigger_request_data =
-                types::PaymentsPreProcessingData::try_from(self.request.to_owned())?;
+                types::PaymentTriggerData::try_from(self.request.to_owned())?;
             let payment_trigger_response_data: Result<
                 types::PaymentsResponseData,
                 types::ErrorResponse,
@@ -467,7 +467,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 );
             let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
                 api::PaymentTrigger,
-                types::PaymentsPreProcessingData,
+                types::PaymentTriggerData,
                 types::PaymentsResponseData,
             > = connector.connector.get_connector_integration();
             let payment_trigger_router_data = services::execute_connector_processing_step(

@@ -15,14 +15,14 @@ use hyperswitch_domain_models::{
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
         CreateOrderRequestData, ExternalVaultProxyPaymentsData, GiftCardBalanceCheckRequestData,
-        PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthenticateData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
-        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
-        PaymentsUpdateMetadataData, SdkPaymentsSessionUpdateData, SettlementSplitRequestData,
-        SetupMandateRequestData,
+        PaymentMethodTokenizationData, PaymentTriggerData, PaymentsApproveData,
+        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsExtendAuthorizationData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
+        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData, PaymentsSyncData,
+        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, SdkPaymentsSessionUpdateData,
+        SettlementSplitRequestData, SetupMandateRequestData,
     },
     router_response_types::{
         GiftCardBalanceCheckResponseData, PaymentsResponseData, TaxCalculationResponseData,
@@ -52,7 +52,7 @@ pub trait Payment:
     + PaymentSession
     + PaymentToken
     + PaymentsPostProcessing
-    + PaymentsPaymentTrigger
+    + PaymentsTrigger
     + ConnectorCustomer
     + PaymentIncrementalAuthorization
     + PaymentExtendAuthorization
@@ -218,9 +218,9 @@ pub trait PaymentsPostProcessing:
 {
 }
 
-/// trait PaymentsPaymentTrigger
-pub trait PaymentsPaymentTrigger:
-    api::ConnectorIntegration<PaymentTrigger, PaymentsPreProcessingData, PaymentsResponseData>
+/// trait PaymentsTrigger
+pub trait PaymentsTrigger:
+    api::ConnectorIntegration<PaymentTrigger, PaymentTriggerData, PaymentsResponseData>
 {
 }
 

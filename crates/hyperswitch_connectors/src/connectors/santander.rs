@@ -26,7 +26,7 @@ use hyperswitch_domain_models::{
     router_request_types::{
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        PaymentsUpdateMetadataData, RefundsData, SetupMandateRequestData, AuthorizeSessionTokenData, CurrentFlowInfo, ResponseId, 
+        PaymentsUpdateMetadataData, RefundsData, SetupMandateRequestData, AuthorizeSessionTokenData, CurrentFlowInfo, ResponseId, PaymentTriggerData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
@@ -35,13 +35,13 @@ use hyperswitch_domain_models::{
     types::{
         PaymentsAuthorizeRouterData, PaymentsAuthorizeSessionTokenRouterData,
         PaymentsCancelRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        PaymentsUpdateMetadataRouterData, RefundSyncRouterData, RefundsRouterData, PaymentsPreProcessingRouterData
+        PaymentsUpdateMetadataRouterData, RefundSyncRouterData, RefundsRouterData, PaymentsPreProcessingRouterData, PaymentsTriggerRouterData,
     },
 };
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorAccessTokenSuffix, ConnectorCommon, ConnectorCommonExt,
-        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
+        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation, CurrentFlowInfo,
     },
     configs::Connectors,
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
@@ -56,7 +56,8 @@ use crate::{
     connectors::santander::{
         requests::{
             SantanderAuthRequest, SantanderAuthType, SantanderMetadataObject,
-            SantanderPaymentRequest, SantanderRefundRequest, SantanderRouterData,
+            SantanderPaymentRequest, SantanderPostProcessingStepRequest, SantanderRefundRequest,
+            SantanderRouterData,
         },
         responses::{
             SanatanderAccessTokenResponse, SantanderCreatePixPayloadLocationResponse,
@@ -106,7 +107,7 @@ impl api::RefundExecute for Santander {}
 impl api::RefundSync for Santander {}
 impl api::PaymentToken for Santander {}
 impl api::PaymentUpdateMetadata for Santander {}
-impl api::PaymentsPaymentTrigger for Santander {}
+impl api::PaymentsTrigger for Santander {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Santander
@@ -703,12 +704,10 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
     }
 }
 
-impl ConnectorIntegration<PaymentTrigger, PaymentsPreProcessingData, PaymentsResponseData>
-    for Santander
-{
+impl ConnectorIntegration<PaymentTrigger, PaymentTriggerData, PaymentsResponseData> for Santander {
     fn get_headers(
         &self,
-        req: &PaymentsPreProcessingRouterData,
+        req: &PaymentsTriggerRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
@@ -720,7 +719,7 @@ impl ConnectorIntegration<PaymentTrigger, PaymentsPreProcessingData, PaymentsRes
 
     fn get_url(
         &self,
-        req: &PaymentsPreProcessingRouterData,
+        req: &PaymentsTriggerRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         match req.payment_method_type {
@@ -730,10 +729,7 @@ impl ConnectorIntegration<PaymentTrigger, PaymentsPreProcessingData, PaymentsRes
             Some(enums::PaymentMethodType::PixAutomaticoQr) => Ok(format!(
                 "{}api/v1/rec/{}?txid={}",
                 self.base_url(connectors),
-                connector_utils::PaymentsPreProcessingData::get_connector_mandate_id(&req.request)
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "connector_mandate_id",
-                    })?,
+                String::from("12"), // hardcoded as of now, change after SetupMandate flow is implemented
                 req.connector_request_reference_id
             )),
             _ => Err(errors::ConnectorError::NotSupported {
@@ -746,27 +742,16 @@ impl ConnectorIntegration<PaymentTrigger, PaymentsPreProcessingData, PaymentsRes
 
     fn get_request_body(
         &self,
-        req: &PaymentsPreProcessingRouterData,
+        req: &PaymentsTriggerRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        match req.payment_method_type {
-            Some(enums::PaymentMethodType::PixAutomaticoPush) => Ok(RequestContent::Json(
-                Box::new(transformers::SantanderPixAutomaticSolicitationRequest::try_from(req)?),
-            )),
-            Some(enums::PaymentMethodType::PixAutomaticoQr) => {
-                Ok(RequestContent::Json(Box::new(serde_json::Value::Null)))
-            }
-            _ => Err(errors::ConnectorError::NotSupported {
-                message: req.payment_method.to_string(),
-                connector: "Santander",
-            }
-            .into()),
-        }
+        let connector_req = SantanderPostProcessingStepRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
         &self,
-        req: &PaymentsPreProcessingRouterData,
+        req: &PaymentsTriggerRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         let auth_details = SantanderAuthType::try_from(&req.connector_auth_type)?;
@@ -805,10 +790,10 @@ impl ConnectorIntegration<PaymentTrigger, PaymentsPreProcessingData, PaymentsRes
 
     fn handle_response(
         &self,
-        data: &PaymentsPreProcessingRouterData,
+        data: &PaymentsTriggerRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<PaymentsPreProcessingRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsTriggerRouterData, errors::ConnectorError> {
         let response: SantanderPaymentTriggerResponse = res
             .response
             .parse_struct("Santander PaymentTriggerResponse")
@@ -1831,6 +1816,18 @@ impl ConnectorSpecifications for Santander {
             Some(CurrentFlowInfo::CompleteAuthorize { .. })
             | Some(CurrentFlowInfo::Authorize { .. })
             | None => false,
+        }
+    }
+    fn is_payment_trigger_flow_required(&self, current_flow: CurrentFlowInfo<'_>) -> bool {
+        match current_flow {
+            CurrentFlowInfo::SetupMandate { .. } => true,
+            CurrentFlowInfo::Authorize { request_data, .. } => {
+                match request_data.payment_method_type {
+                    Some(enums::PaymentMethodType::Pix) => false,
+                    _ => true,
+                }
+            }
+            CurrentFlowInfo::CompleteAuthorize { .. } => false,
         }
     }
 }

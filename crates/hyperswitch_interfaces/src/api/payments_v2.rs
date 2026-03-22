@@ -15,14 +15,14 @@ use hyperswitch_domain_models::{
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
         CreateOrderRequestData, ExternalVaultProxyPaymentsData, GiftCardBalanceCheckRequestData,
-        PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthenticateData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
-        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
-        PaymentsUpdateMetadataData, SdkPaymentsSessionUpdateData, SettlementSplitRequestData,
-        SetupMandateRequestData,
+        PaymentMethodTokenizationData, PaymentTriggerData, PaymentsApproveData,
+        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsExtendAuthorizationData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
+        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData, PaymentsSyncData,
+        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, SdkPaymentsSessionUpdateData,
+        SettlementSplitRequestData, SetupMandateRequestData,
     },
     router_response_types::{
         GiftCardBalanceCheckResponseData, PaymentsResponseData, TaxCalculationResponseData,
@@ -286,12 +286,7 @@ pub trait PaymentsPostProcessingV2:
 
 /// trait PaymentsPaymentTriggerV2
 pub trait PaymentsPaymentTriggerV2:
-    ConnectorIntegrationV2<
-    PaymentTrigger,
-    PaymentFlowData,
-    PaymentsPreProcessingData,
-    PaymentsResponseData,
->
+    ConnectorIntegrationV2<PaymentTrigger, PaymentFlowData, PaymentTriggerData, PaymentsResponseData>
 {
 }
 

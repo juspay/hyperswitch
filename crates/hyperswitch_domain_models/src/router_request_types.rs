@@ -410,6 +410,18 @@ impl TryFrom<SetupMandateRequestData> for PaymentsPreProcessingData {
         })
     }
 }
+
+impl TryFrom<SetupMandateRequestData> for PaymentTriggerData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: SetupMandateRequestData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: data.payment_method_data,
+            feature_metadata: data.feature_metadata,
+        })
+    }
+}
+
 impl
     TryFrom<
         &RouterData<flows::Authorize, PaymentsAuthorizeData, response_types::PaymentsResponseData>,
@@ -682,6 +694,12 @@ pub struct PaymentsPreProcessingData {
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
     pub is_stored_credential: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PaymentTriggerData {
+    pub payment_method_data: PaymentMethodData,
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1723,6 +1741,7 @@ pub struct SetupMandateRequestData {
     pub setup_mandate_details: Option<mandates::MandateData>,
     pub router_return_url: Option<String>,
     pub webhook_url: Option<String>,
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
     pub browser_info: Option<BrowserInformation>,
     pub email: Option<pii::Email>,
     pub customer_name: Option<Secret<String>>,
