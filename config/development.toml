@@ -1121,7 +1121,7 @@ nexixpay = { payment_method = "card" }
 redsys = { payment_method = "card" }
 
 [connector_customer]
-payout_connector_list = "nomupay,stripe,wise"
+payout_connector_list = "nomupay,stripe,wise,trustly"
 
 [dummy_connector]
 enabled = true

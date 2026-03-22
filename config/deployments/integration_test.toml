@@ -218,7 +218,7 @@ force_cookies = false
 enabled = true
 
 [connector_customer]
-payout_connector_list = "nomupay,stripe,wise"
+payout_connector_list = "nomupay,stripe,wise,trustly"
 
 [delayed_session_response]
 connectors_with_delayed_session_response = "trustpay,payme"     # List of connectors which have delayed session response
