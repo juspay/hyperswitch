@@ -1578,7 +1578,14 @@ impl ConnectorSpecifications for Santander {
         &self,
         payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
     ) -> Option<bool> {
-        Some(payment_intent.setup_future_usage == Some(common_enums::FutureUsage::OffSession))
+        #[cfg(feature = "v1")]
+        {
+            Some(payment_intent.setup_future_usage == Some(common_enums::FutureUsage::OffSession))
+        }
+        #[cfg(feature = "v2")]
+        {
+            Some(payment_intent.setup_future_usage == common_enums::FutureUsage::OffSession)
+        }
     }
 }
 

@@ -15,6 +15,8 @@ use super::app::ReqState;
 use crate::core::payment_method_balance;
 #[cfg(feature = "v2")]
 use crate::core::revenue_recovery::api as recovery;
+#[cfg(feature = "v1")]
+use crate::routes::payments::payments::operations::payment_recurrence::PaymentRecurrence;
 use crate::{
     self as app,
     core::{
@@ -22,7 +24,7 @@ use crate::{
         errors::{self, http_not_implemented},
         payments::{self, transformers::ToResponse, OperationSessionGetters, PaymentRedirectFlow},
     },
-    routes::{lock_utils, payments::payments::operations::payment_recurrence::PaymentRecurrence},
+    routes::lock_utils,
     services::{api, authentication as auth},
     types::{
         api::{
@@ -90,8 +92,6 @@ pub async fn payments_create(
             .map(|id| id.get_string_repr())
             .unwrap_or_default(),
     );
-
-    println!(">>> payment_id:\n{:?}", payload.payment_id.clone());
 
     let locking_action = payload.get_locking_input(flow.clone());
 
@@ -2380,7 +2380,7 @@ where
             | api_models::enums::PaymentType::NewMandate
             | api_models::enums::PaymentType::Installment => {
                 let (payment_data, _req, connector_http_status_code, external_latency) =
-                    payments::payments_operation_core::<
+                    Box::pin(payments::payments_operation_core::<
                         api_types::Authorize,
                         _,
                         _,
@@ -2399,7 +2399,7 @@ where
                         eligible_routable_connectors.clone(),
                         header_payload.clone(),
                         dimensions.clone(),
-                    )
+                    ))
                     .await?;
 
                 let connector = payment_data.get_payment_attempt_connector();
@@ -2416,7 +2416,7 @@ where
                         .should_continue_further(&payment_data.payment_intent.clone())
                         .unwrap_or(false)
                     {
-                        payments::payments_operation_core::<
+                        Box::pin(payments::payments_operation_core::<
                             api_types::SetupMandate,
                             _,
                             _,
@@ -2435,7 +2435,7 @@ where
                             eligible_routable_connectors,
                             header_payload.clone(),
                             dimensions,
-                        )
+                        ))
                         .await?;
                     }
                 }

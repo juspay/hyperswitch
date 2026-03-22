@@ -16,7 +16,7 @@ use hyperswitch_domain_models::payment_method_data::RecurringDetails as domain_r
 use hyperswitch_domain_models::payments::{
     self as domain_payments, payment_intent::PaymentIntentUpdateFields,
 };
-use masking::ExposeInterface;
+use hyperswitch_masking::ExposeInterface;
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
 use tracing_futures::Instrument;
@@ -395,7 +395,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while encoding customer_acceptance to value")?
-            .map(masking::Secret::new)
+            .map(hyperswitch_masking::Secret::new)
             .or(payment_attempt.customer_acceptance);
 
         currency = payment_attempt.currency.get_required_value("currency")?;
@@ -1698,7 +1698,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .payment_intent
                             .feature_metadata
                             .clone()
-                            .map(masking::Secret::new),
+                            .map(hyperswitch_masking::Secret::new),
                         tax_status: payment_data.payment_intent.tax_status,
                         discount_amount: payment_data.payment_intent.discount_amount,
                         order_date: payment_data.payment_intent.order_date,
