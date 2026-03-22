@@ -33,7 +33,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{consts::NO_ERROR_CODE, errors};
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use strum::Display;

@@ -18,7 +18,7 @@ use diesel::{
     serialize::{Output, ToSql},
     sql_types::Text,
 };
-use masking::Secret;
+use hyperswitch_masking::Secret;
 pub use payments::ProductType;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use smithy::SmithyModel;
@@ -2354,6 +2354,8 @@ pub enum PaymentMethodType {
     PixAutomaticoPush,
     PixAutomaticoQr,
     Pix,
+    PixAutomaticoQr,
+    PixAutomaticoPush,
     PaySafeCard,
     Przelewy24,
     PromptPay,
@@ -2489,6 +2491,8 @@ impl PaymentMethodType {
             Self::PixAutomaticoPush => "PixAutomaticoPush",
             Self::PixAutomaticoQr => "PixAutomaticoQr",
             Self::Pix => "Pix",
+            Self::PixAutomaticoQr => "Pix Automático QR",
+            Self::PixAutomaticoPush => "Pix Automático Push",
             Self::PaySafeCard => "PaySafeCard",
             Self::Przelewy24 => "Przelewy24",
             Self::PromptPay => "PromptPay",
@@ -2532,7 +2536,7 @@ impl PaymentMethodType {
     }
 }
 
-impl masking::SerializableSecret for PaymentMethodType {}
+impl hyperswitch_masking::SerializableSecret for PaymentMethodType {}
 
 /// Indicates the type of payment method. Eg: 'card', 'wallet', etc.
 #[derive(

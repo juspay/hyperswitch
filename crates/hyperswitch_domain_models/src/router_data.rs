@@ -10,7 +10,7 @@ use common_utils::{
     types::MinorUnit,
 };
 use error_stack::ResultExt;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{

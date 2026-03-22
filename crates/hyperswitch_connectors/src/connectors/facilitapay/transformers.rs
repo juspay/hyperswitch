@@ -21,7 +21,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{
     consts, errors, events::connector_api_logs::ConnectorEvent, types::Response,
 };
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
@@ -178,6 +178,8 @@ impl TryFrom<&FacilitapayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | BankTransferData::InstantBankTransferFinland {}
                 | BankTransferData::InstantBankTransferPoland {}
                 | BankTransferData::IndonesianBankTransfer { .. }
+                | BankTransferData::PixAutomaticoPush { .. }
+                | BankTransferData::PixAutomaticoQr {}
                 | BankTransferData::LocalBankTransfer { .. } => {
                     Err(errors::ConnectorError::NotImplemented(
                         "Selected payment method through Facilitapay".to_string(),

@@ -18,7 +18,7 @@ common_utils = { version = "0.1.0", path = "../common_utils" }
 common_types = {version = "0.1.0", path = "../common_types" }
 euclid = { version = "0.1.0", path = "../euclid" }
 hyperswitch_constraint_graph = { version = "0.1.0", path = "../hyperswitch_constraint_graph", features = ["viz"] }
-masking = { version = "0.1.0", path = "../masking/" }
+hyperswitch_masking = { version = "0.0.1" }
 
 # Third party crates
 serde = "1.0.219"

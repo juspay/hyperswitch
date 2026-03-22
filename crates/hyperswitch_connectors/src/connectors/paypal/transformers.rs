@@ -47,7 +47,7 @@ use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
@@ -1270,6 +1270,8 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::OpenBankingUk
                     | enums::PaymentMethodType::PayBright
                     | enums::PaymentMethodType::Pix
+                    | enums::PaymentMethodType::PixAutomaticoPush
+                    | enums::PaymentMethodType::PixAutomaticoQr
                     | enums::PaymentMethodType::PaySafeCard
                     | enums::PaymentMethodType::Przelewy24
                     | enums::PaymentMethodType::PromptPay
@@ -1417,6 +1419,8 @@ impl TryFrom<&BankTransferData> for PaypalPaymentsRequest {
             | BankTransferData::DanamonVaBankTransfer { .. }
             | BankTransferData::MandiriVaBankTransfer { .. }
             | BankTransferData::Pix { .. }
+            | BankTransferData::PixAutomaticoPush { .. }
+            | BankTransferData::PixAutomaticoQr {}
             | BankTransferData::Pse {}
             | BankTransferData::InstantBankTransfer {}
             | BankTransferData::InstantBankTransferFinland {}

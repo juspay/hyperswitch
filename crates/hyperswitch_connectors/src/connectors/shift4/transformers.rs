@@ -24,7 +24,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -519,6 +519,8 @@ impl TryFrom<&BankTransferData> for Shift4PaymentMethod {
             | BankTransferData::DanamonVaBankTransfer { .. }
             | BankTransferData::MandiriVaBankTransfer { .. }
             | BankTransferData::Pix { .. }
+            | BankTransferData::PixAutomaticoPush { .. }
+            | BankTransferData::PixAutomaticoQr {}
             | BankTransferData::Pse {}
             | BankTransferData::InstantBankTransfer {}
             | BankTransferData::InstantBankTransferFinland { .. }

@@ -42,7 +42,7 @@ use hyperswitch_interfaces::{
     types::{PaymentsAuthorizeType, PaymentsSyncType, Response},
     webhooks,
 };
-use masking::{Mask, PeekInterface};
+use hyperswitch_masking::{Mask, PeekInterface};
 use transformers as bitpay;
 
 use self::bitpay::BitpayWebhookDetails;
@@ -88,7 +88,8 @@ where
         &self,
         _req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let header = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
@@ -125,7 +126,8 @@ impl ConnectorCommon for Bitpay {
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let auth = bitpay::BitpayAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
@@ -189,7 +191,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -273,7 +276,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Bit
         &self,
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -418,7 +422,8 @@ impl webhooks::IncomingWebhook for Bitpay {
     fn get_webhook_resource_object(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         let notif: BitpayWebhookDetails = request
             .body
             .parse_struct("BitpayWebhookDetails")
