@@ -829,11 +829,32 @@ pub async fn payouts_list_core(
         .map(ForeignFrom::foreign_from)
         .collect();
 
+    let constraints = constraints.clone().into();
+    let active_payout_ids = db
+        .filter_active_payout_ids_by_constraints(merchant_id, &constraints)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to filter active payout ids based on the constraints")?;
+
+    let total_count = db
+        .get_total_count_of_filtered_payouts(
+            merchant_id,
+            &active_payout_ids,
+            profile_id_list,
+            None,
+            None,
+            None,
+            None,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get total count of filtered payouts")?;
+
     Ok(services::ApplicationResponse::Json(
         api::PayoutListResponse {
             size: data.len(),
             data,
-            total_count: None,
+            total_count: Some(total_count),
         },
     ))
 }
