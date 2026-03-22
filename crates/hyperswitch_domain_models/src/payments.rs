@@ -1517,6 +1517,9 @@ where
             boleto_additional_details: payment_intent_feature_metadata
                 .as_ref()
                 .and_then(|data| data.boleto_additional_details.clone()),
+            pix_automatico_additional_details: payment_intent_feature_metadata
+                .as_ref()
+                .and_then(|data| data.pix_automatico_additional_details.clone()),
         }))
     }
 }

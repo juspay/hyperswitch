@@ -704,6 +704,18 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         authorize_postprocessing_steps(state, &self, true, connector).await
     }
 
+    async fn payment_trigger_step<'a>(
+        self,
+        _state: &SessionState,
+        _connector: &api::ConnectorData,
+        _gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<(Self, bool)>
+    where
+        Self: Sized,
+    {
+        todo!()
+    }
+
     async fn create_connector_customer<'a>(
         &self,
         state: &SessionState,

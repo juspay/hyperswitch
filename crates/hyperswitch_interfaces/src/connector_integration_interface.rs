@@ -599,6 +599,12 @@ impl ConnectorSpecifications for ConnectorEnum {
             Self::New(connector) => connector.is_settlement_split_call_required(current_flow),
         }
     }
+    fn is_payment_trigger_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_payment_trigger_flow_required(current_flow),
+            Self::New(connector) => connector.is_payment_trigger_flow_required(current_flow),
+        }
+    }
     fn get_preprocessing_flow_if_needed(
         &self,
         current_flow_info: api::CurrentFlowInfo<'_>,

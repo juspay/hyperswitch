@@ -524,6 +524,18 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
             Ok((self, true))
         }
     }
+
+    async fn payment_trigger_step<'a>(
+        self,
+        _state: &SessionState,
+        _connector: &api::ConnectorData,
+        _gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<(Self, bool)>
+    where
+        Self: Sized,
+    {
+        todo!()
+    }
 }
 
 fn transform_redirection_response_for_authenticate_flow(
