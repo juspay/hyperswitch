@@ -1225,10 +1225,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     logger::info!("Payment method fetched from PM Modular Service.");
 
                     utils::when(
-                        pm_info.payment_method.0.customer_id.is_some()
-                            && req.get_customer_id().is_some()
-                            && pm_info.payment_method.0.customer_id.as_ref()
-                                != req.get_customer_id(),
+                        pm_info.payment_method.0.customer_id.as_ref() != req.get_customer_id(),
                         || {
                             logger::info!("Payment method id does not belong to the customer id provided in the request.");
                             Err(errors::ApiErrorResponse::PaymentMethodNotFound)
