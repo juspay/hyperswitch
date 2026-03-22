@@ -1533,11 +1533,7 @@ fn create_stripe_payment_method(
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
         | PaymentMethodData::CardWithOptionalCVC(_)
-        | PaymentMethodData::CardWithNetworkTokenDetails(
-            payment_method_data::CardWithNetworkTokenDetails {
-                card_details: _, ..
-            },
-        )
+        | PaymentMethodData::CardWithNetworkTokenDetails(_)
         | PaymentMethodData::CardWithLimitedDetails(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => Err(
@@ -2011,12 +2007,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                         | PaymentMethodData::NetworkToken(_)
                         | PaymentMethodData::Card(_)
                         | PaymentMethodData::CardWithOptionalCVC(_)
-                        | PaymentMethodData::CardWithNetworkTokenDetails(
-                            payment_method_data::CardWithNetworkTokenDetails {
-                                card_details: _,
-                                ..
-                            },
-                        )
+                        | PaymentMethodData::CardWithNetworkTokenDetails(_)
                         | PaymentMethodData::CardWithLimitedDetails(_)
                         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(
                             _,
@@ -4656,11 +4647,7 @@ impl
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithOptionalCVC(_)
-            | PaymentMethodData::CardWithNetworkTokenDetails(
-                payment_method_data::CardWithNetworkTokenDetails {
-                    card_details: _, ..
-                },
-            )
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {

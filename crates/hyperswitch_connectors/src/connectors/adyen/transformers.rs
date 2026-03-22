@@ -1949,12 +1949,7 @@ impl TryFrom<&AdyenRouterData<&PaymentsAuthorizeRouterData>> for AdyenPaymentReq
                 | PaymentMethodData::OpenBanking(_)
                 | PaymentMethodData::CardToken(_)
                 | PaymentMethodData::CardWithOptionalCVC(_)
-                | PaymentMethodData::CardWithNetworkTokenDetails(
-                    hyperswitch_domain_models::payment_method_data::CardWithNetworkTokenDetails {
-                        card_details: _,
-                        ..
-                    },
-                )
+                | PaymentMethodData::CardWithNetworkTokenDetails(_)
                 | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::CardWithLimitedDetails(_)
                 | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
@@ -3208,7 +3203,8 @@ impl
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::NetworkToken(_)
                     | PaymentMethodData::Card(_)
-                    | PaymentMethodData::CardWithOptionalCVC(_) | PaymentMethodData::CardWithNetworkTokenDetails(hyperswitch_domain_models::payment_method_data::CardWithNetworkTokenDetails { card_details: _, .. })
+                    | PaymentMethodData::CardWithOptionalCVC(_)
+                    | PaymentMethodData::CardWithNetworkTokenDetails(_)
                     | PaymentMethodData::CardWithLimitedDetails(_)
                     | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                     | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -3241,7 +3237,8 @@ impl
                     }
 
                     PaymentMethodData::Card(_)
-                    | PaymentMethodData::CardWithOptionalCVC(_) | PaymentMethodData::CardWithNetworkTokenDetails(hyperswitch_domain_models::payment_method_data::CardWithNetworkTokenDetails { card_details: _, .. })
+                    | PaymentMethodData::CardWithOptionalCVC(_)
+                    | PaymentMethodData::CardWithNetworkTokenDetails(_)
                     | PaymentMethodData::CardRedirect(_)
                     | PaymentMethodData::Wallet(_)
                     | PaymentMethodData::PayLater(_)

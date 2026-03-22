@@ -5782,13 +5782,7 @@ pub async fn get_additional_payment_data(
                 })))
             }
         }
-        domain::PaymentMethodData::CardWithOptionalCVC(card_data)
-        | domain::PaymentMethodData::CardWithNetworkTokenDetails(
-            domain::CardWithNetworkTokenDetails {
-                card_details: card_data,
-                ..
-            },
-        ) => {
+        domain::PaymentMethodData::CardWithOptionalCVC(card_data) => {
             let card_isin = Some(card_data.card_number.get_card_isin());
             let enable_extended_bin =db
             .find_config_by_key_unwrap_or(
@@ -5931,6 +5925,17 @@ pub async fn get_additional_payment_data(
                     ))
                 })))
             }
+        }
+        domain::PaymentMethodData::CardWithNetworkTokenDetails(card_with_network_token_details) => {
+            get_additional_payment_data(
+                &domain::PaymentMethodData::CardWithOptionalCVC(
+                    card_with_network_token_details.card_details.clone(),
+                ),
+                db,
+                profile_id,
+                payment_method_token,
+            )
+            .await
         }
         domain::PaymentMethodData::BankRedirect(bank_redirect_data) => match bank_redirect_data {
             domain::BankRedirectData::Eps { bank_name, .. } => Ok(Some(
@@ -7595,15 +7600,20 @@ pub fn get_key_params_for_surcharge_details(
                 card.card_network.clone(),
             ))
         }
-        domain::PaymentMethodData::CardWithOptionalCVC(card)
-        | domain::PaymentMethodData::CardWithNetworkTokenDetails(
-            domain::CardWithNetworkTokenDetails {
-                card_details: card, ..
-            },
-        ) => Some((
+        domain::PaymentMethodData::CardWithOptionalCVC(_)
+        | domain::PaymentMethodData::CardWithNetworkTokenDetails(_) => Some((
             common_enums::PaymentMethod::Card,
             common_enums::PaymentMethodType::Credit,
-            card.card_network.clone(),
+            match payment_method_data {
+                domain::PaymentMethodData::CardWithOptionalCVC(card) => card.card_network.clone(),
+                domain::PaymentMethodData::CardWithNetworkTokenDetails(
+                    card_with_network_token_details,
+                ) => card_with_network_token_details
+                    .card_details
+                    .card_network
+                    .clone(),
+                _ => None,
+            },
         )),
         domain::PaymentMethodData::CardRedirect(card_redirect_data) => Some((
             common_enums::PaymentMethod::CardRedirect,

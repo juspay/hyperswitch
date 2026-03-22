@@ -27,11 +27,10 @@ use crate::router_data::PaymentMethodToken;
 // We need to derive Serialize and Deserialize because some parts of payment method data are being
 // stored in the database as serde_json::Value
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
-#[allow(clippy::large_enum_variant)]
 pub enum PaymentMethodData {
     Card(Card),
     CardWithOptionalCVC(CardWithOptionalCVC),
-    CardWithNetworkTokenDetails(CardWithNetworkTokenDetails),
+    CardWithNetworkTokenDetails(Box<CardWithNetworkTokenDetails>),
     CardDetailsForNetworkTransactionId(CardDetailsForNetworkTransactionId),
     CardWithLimitedDetails(CardWithLimitedDetails),
     NetworkTokenDetailsForNetworkTransactionId(NetworkTokenDetailsForNetworkTransactionId),
@@ -213,10 +212,10 @@ impl PaymentMethodData {
                     card_with_optional_cvc.apply_additional_card_info(*additional_card_info),
                 ),
                 Self::CardWithNetworkTokenDetails(card_with_network_token_details) => {
-                    Self::CardWithNetworkTokenDetails(
+                    Self::CardWithNetworkTokenDetails(Box::new(
                         card_with_network_token_details
                             .apply_additional_card_info(*additional_card_info),
-                    )
+                    ))
                 }
                 Self::CardWithLimitedDetails(card_with_limited_details) => {
                     Self::CardWithLimitedDetails(

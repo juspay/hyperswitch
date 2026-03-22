@@ -6759,11 +6759,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
         match pm_data {
             PaymentMethodData::Card(_) => Self::Card,
             PaymentMethodData::CardWithOptionalCVC(_)
-            | PaymentMethodData::CardWithNetworkTokenDetails(
-                payment_method_data::CardWithNetworkTokenDetails {
-                    card_details: _, ..
-                },
-            ) => Self::Card,
+            | PaymentMethodData::CardWithNetworkTokenDetails(_) => Self::Card,
             PaymentMethodData::NetworkToken(_) => Self::NetworkToken,
             PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Self::NetworkTransactionIdAndCardDetails

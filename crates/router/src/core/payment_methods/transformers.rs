@@ -1523,7 +1523,7 @@ impl
                     .or(card_with_nt.card_details.card_holder_name.clone());
 
                 Ok(Self(domain::PaymentMethodData::CardWithNetworkTokenDetails(
-                    domain::CardWithNetworkTokenDetails {
+                    Box::new(domain::CardWithNetworkTokenDetails {
                         card_details:
                             hyperswitch_domain_models::payment_method_data::CardWithOptionalCVC {
                                 card_number: card_with_nt.card_details.card_number,
@@ -1564,7 +1564,7 @@ impl
                                     .card_holder_name,
                                 eci: None,
                             },
-                    },
+                    }),
                 )))
             }
         }
