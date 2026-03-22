@@ -527,64 +527,14 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
 
     async fn payment_trigger_step<'a>(
         self,
-        state: &SessionState,
-        connector: &api::ConnectorData,
+        _state: &SessionState,
+        _connector: &api::ConnectorData,
         _gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<(Self, bool)>
     where
         Self: Sized,
     {
-        if connector.connector.is_payment_trigger_flow_required(
-            api_interface::CurrentFlowInfo::CompleteAuthorize {
-                auth_type: &self.auth_type,
-                request_data: &self.request,
-                payment_method: Some(self.payment_method),
-            },
-        ) {
-            logger::info!(
-                "Payment trigger flow is required for connector: {}",
-                connector.connector_name
-            );
-            let complete_authorize_request_data = self.request.clone();
-            let payment_trigger_request_data =
-                types::PaymentsPreProcessingData::try_from(self.request.to_owned())?;
-            let payment_trigger_response_data: Result<
-                types::PaymentsResponseData,
-                types::ErrorResponse,
-            > = Err(types::ErrorResponse::default());
-            let payment_trigger_router_data =
-                helpers::router_data_type_conversion::<_, api::PaymentTrigger, _, _, _, _>(
-                    self.clone(),
-                    payment_trigger_request_data,
-                    payment_trigger_response_data,
-                );
-            let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-                api::PaymentTrigger,
-                types::PaymentsPreProcessingData,
-                types::PaymentsResponseData,
-            > = connector.connector.get_connector_integration();
-            let payment_trigger_router_data = services::execute_connector_processing_step(
-                state,
-                connector_integration,
-                &payment_trigger_router_data,
-                payments::CallConnectorAction::Trigger,
-                None,
-                None,
-            )
-            .await
-            .to_payment_failed_response()?;
-            let payment_trigger_response = payment_trigger_router_data.response.clone();
-            let complete_authorize_router_data =
-                helpers::router_data_type_conversion::<_, api::CompleteAuthorize, _, _, _, _>(
-                    payment_trigger_router_data,
-                    complete_authorize_request_data,
-                    payment_trigger_response,
-                );
-            let should_continue_payment = complete_authorize_router_data.response.is_ok();
-            Ok((complete_authorize_router_data, should_continue_payment))
-        } else {
-            Ok((self, true))
-        }
+        todo!()
     }
 }
 

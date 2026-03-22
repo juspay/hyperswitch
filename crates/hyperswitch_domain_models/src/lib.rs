@@ -120,6 +120,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             apple_pay_recurring_details,
             pix_additional_details,
             boleto_additional_details,
+            pix_automatico_additional_details,
             ..
         } = from;
 
@@ -133,6 +134,8 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
                 .map(diesel_models::types::PixAdditionalDetails::convert_from),
             boleto_additional_details: boleto_additional_details
                 .map(diesel_models::types::BoletoAdditionalDetails::convert_from),
+            pix_automatico_additional_details: pix_automatico_additional_details
+                .map(diesel_models::types::PixAutomaticoAdditionalDetails::convert_from),
         }
     }
 
@@ -143,6 +146,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             apple_pay_recurring_details,
             pix_additional_details,
             boleto_additional_details,
+            pix_automatico_additional_details,
             ..
         } = self;
 
@@ -152,6 +156,8 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             apple_pay_recurring_details: apple_pay_recurring_details.map(|v| v.convert_back()),
             pix_additional_details: pix_additional_details.map(|v| v.convert_back()),
             boleto_additional_details: boleto_additional_details.map(|v| v.convert_back()),
+            pix_automatico_additional_details: pix_automatico_additional_details
+                .map(|v| v.convert_back()),
         }
     }
 }
@@ -220,6 +226,38 @@ impl ApiModelToDieselModelConvertor<api_models::payments::PixAdditionalDetails>
     }
 }
 
+impl ApiModelToDieselModelConvertor<api_models::payments::PixAutomaticoAdditionalDetails>
+    for diesel_models::types::PixAutomaticoAdditionalDetails
+{
+    fn convert_from(from: api_models::payments::PixAutomaticoAdditionalDetails) -> Self {
+        match from {
+            api_models::payments::PixAutomaticoAdditionalDetails::PixAutomaticoPush(v) => {
+                Self::PixAutomaticoPush(diesel_models::types::PixAutomaticoPushDetails {
+                    time: v.time,
+                })
+            }
+            api_models::payments::PixAutomaticoAdditionalDetails::PixAutomaticoQr(v) => {
+                Self::PixAutomaticoQr(diesel_models::types::PixAutomaticoQrDetails { time: v.time })
+            }
+        }
+    }
+
+    fn convert_back(self) -> api_models::payments::PixAutomaticoAdditionalDetails {
+        match self {
+            Self::PixAutomaticoPush(v) => {
+                api_models::payments::PixAutomaticoAdditionalDetails::PixAutomaticoPush(
+                    api_models::payments::PixAutomaticoPushDetails { time: v.time },
+                )
+            }
+            Self::PixAutomaticoQr(v) => {
+                api_models::payments::PixAutomaticoAdditionalDetails::PixAutomaticoQr(
+                    api_models::payments::PixAutomaticoQrDetails { time: v.time },
+                )
+            }
+        }
+    }
+}
+
 #[cfg(feature = "v2")]
 impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
     fn convert_from(from: ApiFeatureMetadata) -> Self {
@@ -230,6 +268,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             revenue_recovery: payment_revenue_recovery_metadata,
             pix_additional_details,
             boleto_additional_details,
+            pix_automatico_additional_details,
         } = from;
 
         Self {
@@ -243,6 +282,8 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
                 .map(diesel_models::types::PixAdditionalDetails::convert_from),
             boleto_additional_details: boleto_additional_details
                 .map(diesel_models::types::BoletoAdditionalDetails::convert_from),
+            pix_automatico_additional_details: pix_automatico_additional_details
+                .map(diesel_models::types::PixAutomaticoAdditionalDetails::convert_from),
         }
     }
 
@@ -254,6 +295,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             payment_revenue_recovery_metadata,
             pix_additional_details,
             boleto_additional_details,
+            pix_automatico_additional_details,
         } = self;
 
         ApiFeatureMetadata {
@@ -265,6 +307,8 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             revenue_recovery: payment_revenue_recovery_metadata.map(|value| value.convert_back()),
             pix_additional_details: pix_additional_details.map(|v| v.convert_back()),
             boleto_additional_details: boleto_additional_details.map(|v| v.convert_back()),
+            pix_automatico_additional_details: pix_automatico_additional_details
+                .map(|v| v.convert_back()),
         }
     }
 }

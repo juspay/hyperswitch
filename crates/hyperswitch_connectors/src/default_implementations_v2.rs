@@ -46,8 +46,8 @@ use hyperswitch_domain_models::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
         CreateOrderRequestData, DefendDisputeRequestData, DisputeSyncData,
         ExternalVaultProxyPaymentsData, FetchDisputesRequestData, GiftCardBalanceCheckRequestData,
-        MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
-        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData,
+        MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentTriggerData,
+        PaymentsApproveData, PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData,
         PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsExtendAuthorizationData,
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
@@ -268,7 +268,7 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             impl ConnectorIntegrationV2<
             PaymentTrigger,
             PaymentFlowData,
-                PaymentsPreProcessingData,
+                PaymentTriggerData,
                 PaymentsResponseData,
             > for $path::$connector{}
             impl

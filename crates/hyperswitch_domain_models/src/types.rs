@@ -39,9 +39,9 @@ use crate::{
         AccessTokenAuthenticationRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
         CompleteAuthorizeData, ConnectorCustomerData, CreateOrderRequestData,
         ExternalVaultProxyPaymentsData, GiftCardBalanceCheckRequestData, MandateRevokeRequestData,
-        PaymentMethodTokenizationData, PaymentsAuthenticateData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
+        PaymentMethodTokenizationData, PaymentTriggerData, PaymentsAuthenticateData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
         PaymentsPostAuthenticateData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
         PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
         PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
@@ -75,8 +75,8 @@ pub type PaymentsAuthorizeSessionTokenRouterData =
     RouterData<AuthorizeSessionToken, AuthorizeSessionTokenData, PaymentsResponseData>;
 pub type PaymentsPreProcessingRouterData =
     RouterData<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>;
-pub type PaymentsPaymentTriggerRouterData =
-    RouterData<PaymentTrigger, PaymentsPreProcessingData, PaymentsResponseData>;
+pub type PaymentsTriggerRouterData =
+    RouterData<PaymentTrigger, PaymentTriggerData, PaymentsResponseData>;
 pub type PaymentsPreAuthenticateRouterData =
     RouterData<PreAuthenticate, PaymentsPreAuthenticateData, PaymentsResponseData>;
 pub type PaymentsAuthenticateRouterData =

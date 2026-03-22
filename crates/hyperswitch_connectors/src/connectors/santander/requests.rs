@@ -194,6 +194,13 @@ pub struct SantanderPixAutomaticSolicitationRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum SantanderPostProcessingStepRequest {
+    PixAutomaticoPush(SantanderPixAutomaticSolicitationRequest),
+    PixAutomaticoQr(),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderPixCancelRequest {
     pub status: Option<responses::SantanderVoidStatus>,

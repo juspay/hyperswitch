@@ -49,8 +49,8 @@ pub use hyperswitch_interfaces::api::payments::{
     PaymentAuthorizeSessionToken, PaymentCapture, PaymentIncrementalAuthorization,
     PaymentPostCaptureVoid, PaymentPostSessionTokens, PaymentReject, PaymentSession,
     PaymentSessionUpdate, PaymentSync, PaymentToken, PaymentUpdateMetadata, PaymentVoid,
-    PaymentsCompleteAuthorize, PaymentsCreateOrder, PaymentsPaymentTrigger, PaymentsPostProcessing,
-    PaymentsPreProcessing, TaxCalculation,
+    PaymentsCompleteAuthorize, PaymentsCreateOrder, PaymentsPostProcessing, PaymentsPreProcessing,
+    PaymentsTrigger, TaxCalculation,
 };
 
 pub use super::payments_v2::{
