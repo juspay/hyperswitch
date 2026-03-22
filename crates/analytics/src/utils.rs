@@ -42,6 +42,7 @@ pub fn get_payment_intent_dimensions() -> Vec<NameDescription> {
         PaymentIntentDimensions::PaymentMethodType,
         PaymentIntentDimensions::CardNetwork,
         PaymentIntentDimensions::MerchantId,
+        PaymentIntentDimensions::IsSplitPayment,
     ]
     .into_iter()
     .map(Into::into)

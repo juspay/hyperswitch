@@ -59,6 +59,7 @@ pub struct KafkaPaymentIntentEvent<'a> {
     pub merchant_order_reference_id: Option<&'a String>,
     pub organization_id: &'a id_type::OrganizationId,
     pub processor_merchant_id: &'a id_type::MerchantId,
+    pub is_split_payment: bool,
     #[serde(flatten)]
     pub infra_values: Option<Value>,
 }
@@ -136,6 +137,7 @@ pub struct KafkaPaymentIntentEvent<'a> {
     pub routing_algorithm_id: Option<&'a id_type::RoutingId>,
     pub payment_link_config: Option<&'a PaymentLinkConfigRequestForPayments>,
     pub enable_partial_authorization: Option<EnablePartialAuthorizationBool>,
+    pub is_split_payment: bool,
 
     #[serde(flatten)]
     infra_values: Option<Value>,
@@ -196,6 +198,7 @@ impl<'a> KafkaPaymentIntentEvent<'a> {
             merchant_order_reference_id: intent.merchant_order_reference_id.as_ref(),
             organization_id: &intent.organization_id,
             processor_merchant_id: &intent.processor_merchant_id,
+            is_split_payment: intent.split_payments.is_some(),
             infra_values: infra_values.clone(),
         }
     }
@@ -332,6 +335,7 @@ impl<'a> KafkaPaymentIntentEvent<'a> {
             customer_present: *customer_present,
             routing_algorithm_id: routing_algorithm_id.as_ref(),
             payment_link_config: payment_link_config.as_ref(),
+            is_split_payment: split_payments.is_some(),
             infra_values,
             enable_partial_authorization: Some(*enable_partial_authorization),
         }

@@ -64,4 +64,5 @@ pub struct PaymentIntentFilterRow {
     pub card_issuer: Option<String>,
     pub error_reason: Option<String>,
     pub customer_id: Option<String>,
+    pub is_split_payment: Option<bool>,
 }

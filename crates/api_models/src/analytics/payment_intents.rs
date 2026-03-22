@@ -38,6 +38,8 @@ pub struct PaymentIntentFilters {
     pub error_reason: Vec<String>,
     #[serde(default)]
     pub customer_id: Vec<id_type::CustomerId>,
+    #[serde(default)]
+    pub is_split_payment: Vec<bool>,
 }
 
 #[derive(
@@ -75,6 +77,7 @@ pub enum PaymentIntentDimensions {
     CardLast4,
     CardIssuer,
     ErrorReason,
+    IsSplitPayment,
 }
 
 #[derive(
@@ -165,6 +168,7 @@ pub struct PaymentIntentMetricsBucketIdentifier {
     pub card_last_4: Option<String>,
     pub card_issuer: Option<String>,
     pub error_reason: Option<String>,
+    pub is_split_payment: Option<bool>,
     #[serde(rename = "time_range")]
     pub time_bucket: TimeRange,
     #[serde(rename = "time_bucket")]
@@ -187,6 +191,7 @@ impl PaymentIntentMetricsBucketIdentifier {
         card_last_4: Option<String>,
         card_issuer: Option<String>,
         error_reason: Option<String>,
+        is_split_payment: Option<bool>,
         normalized_time_range: TimeRange,
     ) -> Self {
         Self {
@@ -202,6 +207,7 @@ impl PaymentIntentMetricsBucketIdentifier {
             card_last_4,
             card_issuer,
             error_reason,
+            is_split_payment,
             time_bucket: normalized_time_range,
             start_time: normalized_time_range.start_time,
         }
@@ -222,6 +228,7 @@ impl Hash for PaymentIntentMetricsBucketIdentifier {
         self.card_last_4.hash(state);
         self.card_issuer.hash(state);
         self.error_reason.hash(state);
+        self.is_split_payment.hash(state);
         self.time_bucket.hash(state);
     }
 }

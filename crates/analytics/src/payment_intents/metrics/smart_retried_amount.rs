@@ -127,6 +127,7 @@ where
                         i.card_last_4.clone(),
                         i.card_issuer.clone(),
                         i.error_reason.clone(),
+                        i.is_split_payment,
                         TimeRange {
                             start_time: match (granularity, i.start_bucket) {
                                 (Some(g), Some(st)) => g.clip_to_start(st)?,

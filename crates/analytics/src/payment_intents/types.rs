@@ -92,6 +92,14 @@ where
                 .add_filter_in_range_clause("customer_id", &self.customer_id)
                 .attach_printable("Error adding customer id filter")?;
         }
+        if !self.is_split_payment.is_empty() {
+            builder
+                .add_filter_in_range_clause(
+                    PaymentIntentDimensions::IsSplitPayment,
+                    &self.is_split_payment,
+                )
+                .attach_printable("Error adding is_split_payment filter")?;
+        }
         Ok(())
     }
 }

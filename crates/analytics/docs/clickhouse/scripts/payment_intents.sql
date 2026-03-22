@@ -24,6 +24,7 @@ CREATE TABLE payment_intents_queue
     `created_at` DateTime CODEC(T64, LZ4),
     `last_synced` Nullable(DateTime) CODEC(T64, LZ4),
     `organization_id` String,
+    `is_split_payment` Bool DEFAULT false,
     `processor_merchant_id` Nullable(String),
     `sign_flag` Int8
 ) ENGINE = Kafka SETTINGS kafka_broker_list = 'kafka0:29092',
@@ -59,6 +60,7 @@ CREATE TABLE payment_intents
     `last_synced` Nullable(DateTime) CODEC(T64, LZ4),
     `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
     `organization_id` String,
+    `is_split_payment` Bool DEFAULT false,
     `processor_merchant_id` Nullable(String),
     `sign_flag` Int8,
     INDEX connectorIndex connector_id TYPE bloom_filter GRANULARITY 1,
@@ -98,6 +100,7 @@ CREATE MATERIALIZED VIEW payment_intents_mv TO payment_intents
     `last_synced` Nullable(DateTime64(3)),
     `inserted_at` DateTime64(3),
     `organization_id` String,
+    `is_split_payment` Bool,
     `processor_merchant_id` Nullable(String),
     `sign_flag` Int8
 ) AS
@@ -127,6 +130,7 @@ SELECT
     last_synced,
     now() AS inserted_at,
     organization_id,
+    is_split_payment,
     processor_merchant_id,
     sign_flag
 FROM payment_intents_queue;

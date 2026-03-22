@@ -1110,6 +1110,11 @@ impl<'a> FromRow<'a, PgRow> for super::payment_intents::metrics::PaymentIntentMe
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
+        let is_split_payment: Option<bool> =
+            row.try_get("is_split_payment").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
         // Removing millisecond precision to get accurate diffs against clickhouse
         let start_bucket: Option<PrimitiveDateTime> = row
             .try_get::<Option<PrimitiveDateTime>, _>("start_bucket")?
@@ -1130,6 +1135,7 @@ impl<'a> FromRow<'a, PgRow> for super::payment_intents::metrics::PaymentIntentMe
             card_last_4,
             card_issuer,
             error_reason,
+            is_split_payment,
             first_attempt,
             total,
             count,
@@ -1198,6 +1204,11 @@ impl<'a> FromRow<'a, PgRow> for super::payment_intents::filters::PaymentIntentFi
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
+        let is_split_payment: Option<bool> =
+            row.try_get("is_split_payment").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
         Ok(Self {
             status,
             currency,
@@ -1212,6 +1223,7 @@ impl<'a> FromRow<'a, PgRow> for super::payment_intents::filters::PaymentIntentFi
             card_issuer,
             error_reason,
             customer_id,
+            is_split_payment,
         })
     }
 }
