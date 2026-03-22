@@ -648,7 +648,8 @@ export const connectorDetails = {
         status: 400,
         body: {
           type: "invalid_request",
-          message: "You cannot confirm this payment because it has status processing",
+          message:
+            "You cannot confirm this payment because it has status processing",
           code: "IR_16",
         },
       },
@@ -670,7 +671,8 @@ export const connectorDetails = {
         status: 400,
         body: {
           type: "invalid_request",
-          message: "You cannot confirm this payment because it has status processing",
+          message:
+            "You cannot confirm this payment because it has status processing",
           code: "IR_16",
         },
       },
@@ -692,7 +694,8 @@ export const connectorDetails = {
         status: 400,
         body: {
           type: "invalid_request",
-          message: "You cannot confirm this payment because it has status processing",
+          message:
+            "You cannot confirm this payment because it has status processing",
           code: "IR_16",
         },
       },
