@@ -673,15 +673,17 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
-        expect(response.status).to.equal(expectedStatus);
-
-        if (response.status === 200) {
-          globalState.set(`${profilePrefix}Id`, response.body.profile_id);
-          expect(response.body.profile_id).to.not.to.be.null;
-        } else if (expectedStatus === 200) {
-          throw new Error(
-            `Business Profile call failed ${response.body.error.message}`
-          );
+        if (expectedStatus === 200) {
+          if (response.status === 200) {
+            globalState.set(`${profilePrefix}Id`, response.body.profile_id);
+            expect(response.body.profile_id).to.not.to.be.null;
+          } else {
+            throw new Error(
+              `Business Profile call failed ${response.body.error.message}`
+            );
+          }
+        } else {
+          expect(response.status).to.equal(expectedStatus);
         }
       });
     });
@@ -1059,25 +1061,27 @@ Cypress.Commands.add(
           logRequestId(response.headers["x-request-id"]);
 
           cy.wrap(response).then(() => {
-            expect(response.status).to.equal(expectedStatus);
+            if (expectedStatus === 200) {
+              if (response.status === 200) {
+                expect(globalState.get("connectorId")).to.equal(
+                  response.body.connector_name
+                );
+                globalState.set(
+                  `${mcaPrefix}Id`,
+                  response.body.merchant_connector_id
+                );
+              } else {
+                cy.task(
+                  "cli_log",
+                  "response status -> " + JSON.stringify(response.status)
+                );
 
-            if (response.status === 200) {
-              expect(globalState.get("connectorId")).to.equal(
-                response.body.connector_name
-              );
-              globalState.set(
-                `${mcaPrefix}Id`,
-                response.body.merchant_connector_id
-              );
-            } else if (expectedStatus === 200) {
-              cy.task(
-                "cli_log",
-                "response status -> " + JSON.stringify(response.status)
-              );
-
-              throw new Error(
-                `Connector Create Call Failed ${response.body.error.message}`
-              );
+                throw new Error(
+                  `Connector Create Call Failed ${response.body.error.message}`
+                );
+              }
+            } else {
+              expect(response.status).to.equal(expectedStatus);
             }
           });
         });
@@ -5659,11 +5663,12 @@ Cypress.Commands.add(
     const baseUrl = globalState.get("baseUrl");
     const adminApiKey = globalState.get("adminApiKey");
     const organizationId = globalState.get("organizationId");
+    const url = `${baseUrl}/accounts/list?organization_id=${organizationId}`;
 
     return cy
       .request({
         method: "GET",
-        url: `${baseUrl}/accounts/list?organization_id=${organizationId}`,
+        url,
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
@@ -5705,11 +5710,12 @@ Cypress.Commands.add(
     stateKey
   ) => {
     const baseUrl = globalState.get("baseUrl");
+    const url = `${baseUrl}/payments`;
 
     return cy
       .request({
         method: "POST",
-        url: `${baseUrl}/payments`,
+        url,
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
@@ -5747,11 +5753,12 @@ Cypress.Commands.add(
   ) => {
     const baseUrl = globalState.get("baseUrl");
     const merchantId = globalState.get("merchantId");
+    const url = `${baseUrl}/account/${merchantId}/business_profile`;
 
     return cy
       .request({
         method: "POST",
-        url: `${baseUrl}/account/${merchantId}/business_profile`,
+        url,
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
@@ -5781,11 +5788,12 @@ Cypress.Commands.add(
   "listPaymentsWithApiKeyCall",
   (apiKey, globalState, excludedPaymentIdKey) => {
     const baseUrl = globalState.get("baseUrl");
+    const url = `${baseUrl}/payments/list`;
 
     return cy
       .request({
         method: "GET",
-        url: `${baseUrl}/payments/list`,
+        url,
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
@@ -5821,11 +5829,12 @@ Cypress.Commands.add(
   (connectorBody, apiKey, connectedMerchantId, globalState, expectedStatus) => {
     const baseUrl = globalState.get("baseUrl");
     const merchantId = globalState.get("merchantId");
+    const url = `${baseUrl}/account/${merchantId}/connectors`;
 
     return cy
       .request({
         method: "POST",
-        url: `${baseUrl}/account/${merchantId}/connectors`,
+        url,
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",

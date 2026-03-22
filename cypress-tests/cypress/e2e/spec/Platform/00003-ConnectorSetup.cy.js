@@ -21,9 +21,9 @@ describe("Connector Setup for Connected Merchants", () => {
       const savedApiKey = globalState.get("apiKey");
       const savedProfileId = globalState.get("profileId");
 
-      globalState.set("merchantId", globalState.get("connectedMerchantId_1"));
-      globalState.set("apiKey", globalState.get("apiKey_CM1"));
-      globalState.set("profileId", globalState.get("profileId_CM1"));
+      globalState.set("merchantId", globalState.get("connectedMerchantId1"));
+      globalState.set("apiKey", globalState.get("apiKeyCm1"));
+      globalState.set("profileId", globalState.get("profileIdCm1"));
 
       cy.createConnectorCallTest(
         "payment_processor",
@@ -34,7 +34,7 @@ describe("Connector Setup for Connected Merchants", () => {
 
       cy.then(() => {
         globalState.set(
-          "connectorId_CM1",
+          "connectorIdCm1",
           globalState.get("merchantConnectorId")
         );
         globalState.set("merchantId", savedMerchantId);
@@ -48,12 +48,9 @@ describe("Connector Setup for Connected Merchants", () => {
       const savedApiKey = globalState.get("apiKey");
       const savedMerchantConnectorId = globalState.get("merchantConnectorId");
 
-      globalState.set("merchantId", globalState.get("connectedMerchantId_1"));
-      globalState.set("apiKey", globalState.get("apiKey_CM1"));
-      globalState.set(
-        "merchantConnectorId",
-        globalState.get("connectorId_CM1")
-      );
+      globalState.set("merchantId", globalState.get("connectedMerchantId1"));
+      globalState.set("apiKey", globalState.get("apiKeyCm1"));
+      globalState.set("merchantConnectorId", globalState.get("connectorIdCm1"));
 
       cy.connectorRetrieveCall(globalState);
 
@@ -71,9 +68,9 @@ describe("Connector Setup for Connected Merchants", () => {
       const savedApiKey = globalState.get("apiKey");
       const savedProfileId = globalState.get("profileId");
 
-      globalState.set("merchantId", globalState.get("connectedMerchantId_2"));
-      globalState.set("apiKey", globalState.get("apiKey_CM2"));
-      globalState.set("profileId", globalState.get("profileId_CM2"));
+      globalState.set("merchantId", globalState.get("connectedMerchantId2"));
+      globalState.set("apiKey", globalState.get("apiKeyCm2"));
+      globalState.set("profileId", globalState.get("profileIdCm2"));
 
       cy.createConnectorCallTest(
         "payment_processor",
@@ -84,7 +81,7 @@ describe("Connector Setup for Connected Merchants", () => {
 
       cy.then(() => {
         globalState.set(
-          "connectorId_CM2",
+          "connectorIdCm2",
           globalState.get("merchantConnectorId")
         );
         globalState.set("merchantId", savedMerchantId);
@@ -98,12 +95,9 @@ describe("Connector Setup for Connected Merchants", () => {
       const savedApiKey = globalState.get("apiKey");
       const savedMerchantConnectorId = globalState.get("merchantConnectorId");
 
-      globalState.set("merchantId", globalState.get("connectedMerchantId_2"));
-      globalState.set("apiKey", globalState.get("apiKey_CM2"));
-      globalState.set(
-        "merchantConnectorId",
-        globalState.get("connectorId_CM2")
-      );
+      globalState.set("merchantId", globalState.get("connectedMerchantId2"));
+      globalState.set("apiKey", globalState.get("apiKeyCm2"));
+      globalState.set("merchantConnectorId", globalState.get("connectorIdCm2"));
 
       cy.connectorRetrieveCall(globalState);
 
@@ -122,8 +116,8 @@ describe("Connector Setup for Connected Merchants", () => {
       const savedProfileId = globalState.get("profileId");
 
       globalState.set("merchantId", globalState.get("standardMerchantId"));
-      globalState.set("apiKey", globalState.get("apiKey_SM"));
-      globalState.set("profileId", globalState.get("profileId_SM"));
+      globalState.set("apiKey", globalState.get("apiKeySm"));
+      globalState.set("profileId", globalState.get("profileIdSm"));
 
       cy.createConnectorCallTest(
         "payment_processor",
@@ -134,7 +128,7 @@ describe("Connector Setup for Connected Merchants", () => {
 
       cy.then(() => {
         globalState.set(
-          "connectorId_SM",
+          "connectorIdSm",
           globalState.get("merchantConnectorId")
         );
         globalState.set("merchantId", savedMerchantId);
@@ -149,8 +143,8 @@ describe("Connector Setup for Connected Merchants", () => {
       const savedMerchantConnectorId = globalState.get("merchantConnectorId");
 
       globalState.set("merchantId", globalState.get("standardMerchantId"));
-      globalState.set("apiKey", globalState.get("apiKey_SM"));
-      globalState.set("merchantConnectorId", globalState.get("connectorId_SM"));
+      globalState.set("apiKey", globalState.get("apiKeySm"));
+      globalState.set("merchantConnectorId", globalState.get("connectorIdSm"));
 
       cy.connectorRetrieveCall(globalState);
 
@@ -166,7 +160,7 @@ describe("Connector Setup for Connected Merchants", () => {
     it("platform-create-connector-for-cm1", () => {
       const savedMerchantId = globalState.get("merchantId");
 
-      globalState.set("merchantId", globalState.get("connectedMerchantId_1"));
+      globalState.set("merchantId", globalState.get("connectedMerchantId1"));
 
       const connectorId = globalState.get("connectorId");
 
@@ -177,10 +171,10 @@ describe("Connector Setup for Connected Merchants", () => {
           connector_label: `${connectorId}_platform_for_cm1`,
           ...fixtures.createConnectorBody,
           payment_methods_enabled,
-          profile_id: globalState.get("profileId_CM1"),
+          profile_id: globalState.get("profileIdCm1"),
         },
         globalState.get("apiKey"),
-        globalState.get("connectedMerchantId_1"),
+        globalState.get("connectedMerchantId1"),
         globalState,
         200
       );
@@ -193,10 +187,10 @@ describe("Connector Setup for Connected Merchants", () => {
 
   context("Verify Connectors Are Separate", () => {
     it("verify-cm1-and-cm2-have-different-connectors", () => {
-      const connectorIdCM1 = globalState.get("connectorId_CM1");
-      const connectorIdCM2 = globalState.get("connectorId_CM2");
+      const connectorIdCm1 = globalState.get("connectorIdCm1");
+      const connectorIdCm2 = globalState.get("connectorIdCm2");
 
-      expect(connectorIdCM1).to.not.equal(connectorIdCM2);
+      expect(connectorIdCm1).to.not.equal(connectorIdCm2);
     });
   });
 
@@ -215,7 +209,7 @@ describe("Connector Setup for Connected Merchants", () => {
           connector_label: `${connectorId}_platform_for_sm`,
           ...fixtures.createConnectorBody,
           payment_methods_enabled,
-          profile_id: globalState.get("profileId_SM"),
+          profile_id: globalState.get("profileIdSm"),
         },
         globalState.get("apiKey"),
         globalState.get("standardMerchantId"),

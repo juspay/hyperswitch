@@ -19,34 +19,34 @@ describe("Platform Payment Flows", () => {
     it("platform-creates-payment-for-cm1-using-header", () => {
       const paymentRequestBody = {
         ...fixtures.createConfirmPaymentBody,
-        profile_id: globalState.get("profileId_CM1"),
-        customer_id: globalState.get("customerId_CM1_Created"),
+        profile_id: globalState.get("profileIdCm1"),
+        customer_id: globalState.get("customerIdCm1Created"),
       };
 
       cy.createPaymentWithHeaderCall(
         paymentRequestBody,
         globalState.get("apiKey"),
-        globalState.get("connectedMerchantId_1"),
+        globalState.get("connectedMerchantId1"),
         globalState,
         200,
-        "platformPaymentId_CM1"
+        "platformPaymentIdCm1"
       );
     });
 
     it("platform-creates-payment-for-cm2-using-header", () => {
       const paymentRequestBody = {
         ...fixtures.createConfirmPaymentBody,
-        profile_id: globalState.get("profileId_CM2"),
-        customer_id: globalState.get("customerId_CM1_Created"),
+        profile_id: globalState.get("profileIdCm2"),
+        customer_id: globalState.get("customerIdCm1Created"),
       };
 
       cy.createPaymentWithHeaderCall(
         paymentRequestBody,
         globalState.get("apiKey"),
-        globalState.get("connectedMerchantId_2"),
+        globalState.get("connectedMerchantId2"),
         globalState,
         200,
-        "platformPaymentId_CM2"
+        "platformPaymentIdCm2"
       );
     });
   });
@@ -55,7 +55,7 @@ describe("Platform Payment Flows", () => {
     it("platform-cannot-create-payment-for-standard-merchant", () => {
       const paymentRequestBody = {
         ...fixtures.createConfirmPaymentBody,
-        profile_id: globalState.get("profileId_SM"),
+        profile_id: globalState.get("profileIdSm"),
       };
 
       cy.createPaymentWithHeaderCall(
@@ -70,13 +70,10 @@ describe("Platform Payment Flows", () => {
 
   context("Connected Merchants Create Own Payments", () => {
     it("cm1-creates-payment-for-shared-customer", () => {
-      globalState.set("apiKey", globalState.get("apiKey_CM1"));
-      globalState.set("customerId", globalState.get("customerId_CM1_Created"));
-      globalState.set("profileId", globalState.get("profileId_CM1"));
-      globalState.set(
-        "merchantConnectorId",
-        globalState.get("connectorId_CM1")
-      );
+      globalState.set("apiKey", globalState.get("apiKeyCm1"));
+      globalState.set("customerId", globalState.get("customerIdCm1Created"));
+      globalState.set("profileId", globalState.get("profileIdCm1"));
+      globalState.set("merchantConnectorId", globalState.get("connectorIdCm1"));
 
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
@@ -92,13 +89,10 @@ describe("Platform Payment Flows", () => {
     });
 
     it("cm2-creates-payment-for-same-shared-customer", () => {
-      globalState.set("apiKey", globalState.get("apiKey_CM2"));
-      globalState.set("customerId", globalState.get("customerId_CM1_Created"));
-      globalState.set("profileId", globalState.get("profileId_CM2"));
-      globalState.set(
-        "merchantConnectorId",
-        globalState.get("connectorId_CM2")
-      );
+      globalState.set("apiKey", globalState.get("apiKeyCm2"));
+      globalState.set("customerId", globalState.get("customerIdCm1Created"));
+      globalState.set("profileId", globalState.get("profileIdCm2"));
+      globalState.set("merchantConnectorId", globalState.get("connectorIdCm2"));
 
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
@@ -118,13 +112,13 @@ describe("Platform Payment Flows", () => {
     it("connected-merchant-cannot-act-on-behalf-of-another-merchant", () => {
       const paymentRequestBody = {
         ...fixtures.createConfirmPaymentBody,
-        customer_id: globalState.get("customerId_CM1_Created"),
+        customer_id: globalState.get("customerIdCm1Created"),
       };
 
       cy.createPaymentWithHeaderCall(
         paymentRequestBody,
-        globalState.get("apiKey_CM1"),
-        globalState.get("connectedMerchantId_2"),
+        globalState.get("apiKeyCm1"),
+        globalState.get("connectedMerchantId2"),
         globalState,
         401
       );
@@ -134,7 +128,7 @@ describe("Platform Payment Flows", () => {
   context("Payment List Isolation", () => {
     it("cm1-lists-only-own-payments", () => {
       cy.listPaymentsWithApiKeyCall(
-        globalState.get("apiKey_CM1"),
+        globalState.get("apiKeyCm1"),
         globalState,
         "cm2PaymentId"
       );
@@ -142,7 +136,7 @@ describe("Platform Payment Flows", () => {
 
     it("cm2-lists-only-own-payments", () => {
       cy.listPaymentsWithApiKeyCall(
-        globalState.get("apiKey_CM2"),
+        globalState.get("apiKeyCm2"),
         globalState,
         "cm1PaymentId"
       );

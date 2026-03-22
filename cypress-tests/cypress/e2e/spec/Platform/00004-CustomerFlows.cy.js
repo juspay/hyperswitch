@@ -11,7 +11,7 @@ describe("Platform Customer Flows", () => {
   });
 
   after("flush global state", () => {
-    globalState.set("customerId", globalState.get("customerId_CM1_Created"));
+    globalState.set("customerId", globalState.get("customerIdCm1Created"));
     cy.task("setGlobalState", globalState.data);
   });
 
@@ -22,7 +22,7 @@ describe("Platform Customer Flows", () => {
 
     it("verify-connected-merchant-1-can-access-shared-customer", () => {
       const savedApiKey = globalState.get("apiKey");
-      globalState.set("apiKey", globalState.get("apiKey_CM1"));
+      globalState.set("apiKey", globalState.get("apiKeyCm1"));
 
       cy.customerRetrieveCall(globalState);
 
@@ -33,7 +33,7 @@ describe("Platform Customer Flows", () => {
 
     it("verify-connected-merchant-2-can-access-shared-customer", () => {
       const savedApiKey = globalState.get("apiKey");
-      globalState.set("apiKey", globalState.get("apiKey_CM2"));
+      globalState.set("apiKey", globalState.get("apiKeyCm2"));
 
       cy.customerRetrieveCall(globalState);
 
@@ -47,16 +47,13 @@ describe("Platform Customer Flows", () => {
     it("cm1-creates-customer", () => {
       const savedApiKey = globalState.get("apiKey");
       const savedMerchantId = globalState.get("merchantId");
-      globalState.set("apiKey", globalState.get("apiKey_CM1"));
-      globalState.set("merchantId", globalState.get("connectedMerchantId_1"));
+      globalState.set("apiKey", globalState.get("apiKeyCm1"));
+      globalState.set("merchantId", globalState.get("connectedMerchantId1"));
 
       cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
 
       cy.then(() => {
-        globalState.set(
-          "customerId_CM1_Created",
-          globalState.get("customerId")
-        );
+        globalState.set("customerIdCm1Created", globalState.get("customerId"));
         globalState.set("apiKey", savedApiKey);
         globalState.set("merchantId", savedMerchantId);
       });
@@ -65,8 +62,8 @@ describe("Platform Customer Flows", () => {
     it("verify-connected-merchant-2-can-access-cm1-customer", () => {
       const savedApiKey = globalState.get("apiKey");
       const savedCustomerId = globalState.get("customerId");
-      globalState.set("apiKey", globalState.get("apiKey_CM2"));
-      globalState.set("customerId", globalState.get("customerId_CM1_Created"));
+      globalState.set("apiKey", globalState.get("apiKeyCm2"));
+      globalState.set("customerId", globalState.get("customerIdCm1Created"));
 
       cy.customerRetrieveCall(globalState);
 
@@ -79,7 +76,7 @@ describe("Platform Customer Flows", () => {
     it("verify-platform-merchant-can-access-cm1-customer", () => {
       const savedApiKey = globalState.get("apiKey");
       const savedCustomerId = globalState.get("customerId");
-      globalState.set("customerId", globalState.get("customerId_CM1_Created"));
+      globalState.set("customerId", globalState.get("customerIdCm1Created"));
 
       cy.customerRetrieveCall(globalState);
 
@@ -93,7 +90,7 @@ describe("Platform Customer Flows", () => {
   context("Standard Merchant Cannot Access Shared Customer", () => {
     it("standard-merchant-cannot-retrieve-shared-customer", () => {
       const savedApiKey = globalState.get("apiKey");
-      globalState.set("apiKey", globalState.get("apiKey_SM"));
+      globalState.set("apiKey", globalState.get("apiKeySm"));
 
       cy.customerRetrieveCall(globalState, 404);
 
@@ -109,16 +106,13 @@ describe("Platform Customer Flows", () => {
       it("standard-merchant-creates-customer", () => {
         const savedApiKey = globalState.get("apiKey");
         const savedMerchantId = globalState.get("merchantId");
-        globalState.set("apiKey", globalState.get("apiKey_SM"));
+        globalState.set("apiKey", globalState.get("apiKeySm"));
         globalState.set("merchantId", globalState.get("standardMerchantId"));
 
         cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
 
         cy.then(() => {
-          globalState.set(
-            "customerId_SM_Created",
-            globalState.get("customerId")
-          );
+          globalState.set("customerIdSmCreated", globalState.get("customerId"));
           globalState.set("apiKey", savedApiKey);
           globalState.set("merchantId", savedMerchantId);
         });
@@ -127,7 +121,7 @@ describe("Platform Customer Flows", () => {
       it("verify-platform-merchant-cannot-access-standard-customer", () => {
         const savedApiKey = globalState.get("apiKey");
         const savedCustomerId = globalState.get("customerId");
-        globalState.set("customerId", globalState.get("customerId_SM_Created"));
+        globalState.set("customerId", globalState.get("customerIdSmCreated"));
 
         cy.customerRetrieveCall(globalState, 404);
 
@@ -140,8 +134,8 @@ describe("Platform Customer Flows", () => {
       it("verify-connected-merchant-1-cannot-access-standard-customer", () => {
         const savedApiKey = globalState.get("apiKey");
         const savedCustomerId = globalState.get("customerId");
-        globalState.set("apiKey", globalState.get("apiKey_CM1"));
-        globalState.set("customerId", globalState.get("customerId_SM_Created"));
+        globalState.set("apiKey", globalState.get("apiKeyCm1"));
+        globalState.set("customerId", globalState.get("customerIdSmCreated"));
 
         cy.customerRetrieveCall(globalState, 404);
 
@@ -154,8 +148,8 @@ describe("Platform Customer Flows", () => {
       it("verify-connected-merchant-2-cannot-access-standard-customer", () => {
         const savedApiKey = globalState.get("apiKey");
         const savedCustomerId = globalState.get("customerId");
-        globalState.set("apiKey", globalState.get("apiKey_CM2"));
-        globalState.set("customerId", globalState.get("customerId_SM_Created"));
+        globalState.set("apiKey", globalState.get("apiKeyCm2"));
+        globalState.set("customerId", globalState.get("customerIdSmCreated"));
 
         cy.customerRetrieveCall(globalState, 404);
 
@@ -168,8 +162,8 @@ describe("Platform Customer Flows", () => {
       it("verify-standard-merchant-can-access-its-own-customer", () => {
         const savedApiKey = globalState.get("apiKey");
         const savedCustomerId = globalState.get("customerId");
-        globalState.set("apiKey", globalState.get("apiKey_SM"));
-        globalState.set("customerId", globalState.get("customerId_SM_Created"));
+        globalState.set("apiKey", globalState.get("apiKeySm"));
+        globalState.set("customerId", globalState.get("customerIdSmCreated"));
 
         cy.customerRetrieveCall(globalState);
 

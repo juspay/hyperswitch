@@ -37,8 +37,8 @@ describe("Profile Setup for Merchants", () => {
       const savedMerchantId = globalState.get("merchantId");
       const savedApiKey = globalState.get("apiKey");
 
-      globalState.set("merchantId", globalState.get("connectedMerchantId_1"));
-      globalState.set("apiKey", globalState.get("apiKey_CM1"));
+      globalState.set("merchantId", globalState.get("connectedMerchantId1"));
+      globalState.set("apiKey", globalState.get("apiKeyCm1"));
 
       cy.createBusinessProfileTest(
         fixtures.businessProfile.bpCreate,
@@ -46,7 +46,7 @@ describe("Profile Setup for Merchants", () => {
       );
 
       cy.then(() => {
-        globalState.set("profileId_CM1_New", globalState.get("profileId"));
+        globalState.set("profileIdCm1New", globalState.get("profileId"));
         globalState.set("merchantId", savedMerchantId);
         globalState.set("apiKey", savedApiKey);
       });
@@ -56,15 +56,15 @@ describe("Profile Setup for Merchants", () => {
   context("Platform Creates Profile For Connected Merchant 2", () => {
     it("platform-creates-profile-for-cm2", () => {
       const savedMerchantId = globalState.get("merchantId");
-      globalState.set("merchantId", globalState.get("connectedMerchantId_2"));
+      globalState.set("merchantId", globalState.get("connectedMerchantId2"));
 
       cy.createBusinessProfileWithHeaderCall(
         fixtures.businessProfile.bpCreate,
         globalState.get("apiKey"),
-        globalState.get("connectedMerchantId_2"),
+        globalState.get("connectedMerchantId2"),
         globalState,
         200,
-        "profileId_CM2_New"
+        "profileIdCm2New"
       );
 
       cy.then(() => {
@@ -97,7 +97,7 @@ describe("Profile Setup for Merchants", () => {
       const savedApiKey = globalState.get("apiKey");
 
       globalState.set("merchantId", globalState.get("standardMerchantId"));
-      globalState.set("apiKey", globalState.get("apiKey_SM"));
+      globalState.set("apiKey", globalState.get("apiKeySm"));
 
       cy.createBusinessProfileTest(
         fixtures.businessProfile.bpCreate,
@@ -105,7 +105,7 @@ describe("Profile Setup for Merchants", () => {
       );
 
       cy.then(() => {
-        globalState.set("profileId_SM_New", globalState.get("profileId"));
+        globalState.set("profileIdSmNew", globalState.get("profileId"));
         globalState.set("merchantId", savedMerchantId);
         globalState.set("apiKey", savedApiKey);
       });
