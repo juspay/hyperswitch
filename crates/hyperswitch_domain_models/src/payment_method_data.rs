@@ -1338,7 +1338,7 @@ pub enum BankTransferData {
     CimbVaBankTransfer {},
     DanamonVaBankTransfer {},
     MandiriVaBankTransfer {},
-    Pix {
+    PixQr {
         /// Unique key for pix transfer
         pix_key: Option<Secret<String>>,
         /// CPF is a Brazilian tax identification number
@@ -1349,7 +1349,7 @@ pub enum BankTransferData {
         source_bank_account_id: Option<MaskedBankAccount>,
         /// Destination bank account UUID.
         destination_bank_account_id: Option<MaskedBankAccount>,
-        /// The expiration date and time for the Pix QR code
+        /// The expiration date and time for the PixQr code
         expiry_date: Option<time::PrimitiveDateTime>,
     },
     Pse {},
@@ -2429,14 +2429,14 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
             api_models::payments::BankTransferData::MandiriVaBankTransfer { .. } => {
                 Self::MandiriVaBankTransfer {}
             }
-            api_models::payments::BankTransferData::Pix {
+            api_models::payments::BankTransferData::PixQr {
                 pix_key,
                 cpf,
                 cnpj,
                 source_bank_account_id,
                 destination_bank_account_id,
                 expiry_date,
-            } => Self::Pix {
+            } => Self::PixQr {
                 pix_key,
                 cpf,
                 cnpj,
@@ -2486,14 +2486,14 @@ impl From<BankTransferData> for api_models::payments::additional_info::BankTrans
             BankTransferData::CimbVaBankTransfer {} => Self::CimbVa {},
             BankTransferData::DanamonVaBankTransfer {} => Self::DanamonVa {},
             BankTransferData::MandiriVaBankTransfer {} => Self::MandiriVa {},
-            BankTransferData::Pix {
+            BankTransferData::PixQr {
                 pix_key,
                 cpf,
                 cnpj,
                 source_bank_account_id,
                 destination_bank_account_id,
                 expiry_date,
-            } => Self::Pix(Box::new(
+            } => Self::PixQr(Box::new(
                 api_models::payments::additional_info::PixBankTransferAdditionalData {
                     pix_key: pix_key.map(MaskedBankAccount::from),
                     cpf: cpf.map(MaskedBankAccount::from),
@@ -2821,7 +2821,7 @@ impl GetPaymentMethodType for BankTransferData {
             Self::CimbVaBankTransfer { .. } => api_enums::PaymentMethodType::CimbVa,
             Self::DanamonVaBankTransfer { .. } => api_enums::PaymentMethodType::DanamonVa,
             Self::MandiriVaBankTransfer { .. } => api_enums::PaymentMethodType::MandiriVa,
-            Self::Pix { .. } => api_enums::PaymentMethodType::Pix,
+            Self::PixQr { .. } => api_enums::PaymentMethodType::PixQr,
             Self::Pse {} => api_enums::PaymentMethodType::Pse,
             Self::LocalBankTransfer { .. } => api_enums::PaymentMethodType::LocalBankTransfer,
             Self::InstantBankTransfer {} => api_enums::PaymentMethodType::InstantBankTransfer,

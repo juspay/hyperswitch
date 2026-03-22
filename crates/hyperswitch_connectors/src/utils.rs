@@ -6712,7 +6712,7 @@ pub enum PaymentMethodDataType {
     CimbVaBankTransfer,
     DanamonVaBankTransfer,
     MandiriVaBankTransfer,
-    Pix,
+    PixQr,
     Pse,
     Crypto,
     MandatePayment,
@@ -6913,7 +6913,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::BankTransferData::MandiriVaBankTransfer { .. } => {
                     Self::MandiriVaBankTransfer
                 }
-                payment_method_data::BankTransferData::Pix { .. } => Self::Pix,
+                payment_method_data::BankTransferData::PixQr { .. } => Self::PixQr,
                 payment_method_data::BankTransferData::Pse {} => Self::Pse,
                 payment_method_data::BankTransferData::LocalBankTransfer { .. } => {
                     Self::LocalBankTransfer

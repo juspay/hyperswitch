@@ -743,7 +743,7 @@ impl Vaultable for api::BankPayout {
                 tax_id: None,
                 bank_number: None,
             },
-            Self::Pix(bank_details) => TokenizedBankSensitiveValues {
+            Self::PixQr(bank_details) => TokenizedBankSensitiveValues {
                 bank_account_number: Some(bank_details.bank_account_number.to_owned()),
                 bank_routing_number: None,
                 bic: None,
@@ -797,7 +797,7 @@ impl Vaultable for api::BankPayout {
                 bank_city: bank_details.bank_city.to_owned(),
                 bank_branch: None,
             },
-            Self::Pix(bank_details) => TokenizedBankInsensitiveValues {
+            Self::PixQr(bank_details) => TokenizedBankInsensitiveValues {
                 customer_id,
                 bank_name: bank_details.bank_name.to_owned(),
                 bank_country_code: None,
@@ -875,7 +875,7 @@ impl Vaultable for api::BankPayout {
                 })
             }
             (Some(ban), None, None, None, None, Some(pix_key), tax_id, None) => {
-                Self::Pix(payouts::PixBankTransfer {
+                Self::PixQr(payouts::PixBankTransfer {
                     bank_account_number: ban,
                     bank_branch: bank_insensitive_data.bank_branch,
                     bank_name: bank_insensitive_data.bank_name,

@@ -102,7 +102,7 @@ impl TryFrom<&EbanxRouterData<&PayoutsRouterData<PoCreate>>> for EbanxPayoutCrea
     fn try_from(item: &EbanxRouterData<&PayoutsRouterData<PoCreate>>) -> Result<Self, Self::Error> {
         let ebanx_auth_type = EbanxAuthType::try_from(&item.router_data.connector_auth_type)?;
         match item.router_data.get_payout_method_data()? {
-            PayoutMethodData::Bank(Bank::Pix(pix_data)) => {
+            PayoutMethodData::Bank(Bank::PixQr(pix_data)) => {
                 let bank_info = EbanxBankDetails {
                     bank_account: Some(pix_data.bank_account_number),
                     bank_branch: pix_data.bank_branch,
