@@ -14,7 +14,7 @@ pub mod domain;
 pub mod fraud_check;
 pub mod payment_methods;
 pub mod pm_auth;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 pub mod storage;
 pub mod transformers;
 use std::marker::PhantomData;
