@@ -5927,14 +5927,14 @@ pub async fn get_additional_payment_data(
             }
         }
         domain::PaymentMethodData::CardWithNetworkTokenDetails(card_with_network_token_details) => {
-            get_additional_payment_data(
+            Box::pin(get_additional_payment_data(
                 &domain::PaymentMethodData::CardWithOptionalCVC(
                     card_with_network_token_details.card_details.clone(),
                 ),
                 db,
                 profile_id,
                 payment_method_token,
-            )
+            ))
             .await
         }
         domain::PaymentMethodData::BankRedirect(bank_redirect_data) => match bank_redirect_data {
