@@ -49,16 +49,28 @@ pub struct BraintreeMetadata {
     merchant_config_currency: Option<String>,
 }
 
+#[derive(Debug, serde::Deserialize)]
+pub struct AdyenMetadata {
+    endpoint_prefix: Option<Secret<String>>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct TruelayerMetadata {
+    merchant_account_id: Option<Secret<String>>,
+    account_holder_name: Option<Secret<String>>,
+    private_key: Option<Secret<String>>,
+    kid: Option<Secret<String>>,
+}
+
 /// Connector-specific configuration enum for all supported connectors
 #[derive(Debug, Clone, serde::Serialize)]
 pub enum ConnectorSpecificConfig {
-    /// Cybersource connector configuration
-    Cybersource {
+    /// Adyen connector configuration
+    Adyen {
         api_key: Secret<String>,
         merchant_account: Secret<String>,
-        api_secret: Secret<String>,
-        disable_avs: Option<bool>,
-        disable_cvn: Option<bool>,
+        review_key: Option<Secret<String>>,
+        endpoint_prefix: Option<Secret<String>>,
     },
     /// Braintree connector configuration
     Braintree {
@@ -67,14 +79,16 @@ pub enum ConnectorSpecificConfig {
         merchant_account_id: Secret<String>,
         merchant_config_currency: Option<String>,
     },
-    /// Stripe connector configuration
-    Stripe { api_key: Secret<String> },
-    /// Adyen connector configuration
-    Adyen {
+    /// Cybersource connector configuration
+    Cybersource {
         api_key: Secret<String>,
         merchant_account: Secret<String>,
-        review_key: Option<Secret<String>>,
+        api_secret: Secret<String>,
+        disable_avs: Option<bool>,
+        disable_cvn: Option<bool>,
     },
+    /// Stripe connector configuration
+    Stripe { api_key: Secret<String> },
     /// PayPal connector configuration
     Paypal {
         client_id: Secret<String>,
@@ -85,6 +99,19 @@ pub enum ConnectorSpecificConfig {
     Truelayer {
         client_id: Secret<String>,
         client_secret: Secret<String>,
+        merchant_account_id: Option<Secret<String>>,
+        account_holder_name: Option<Secret<String>>,
+        private_key: Option<Secret<String>>,
+        kid: Option<Secret<String>>,
+    },
+    /// Revolv3 connector configuration
+    Revolv3 { api_key: Secret<String> },
+    /// Fiservcommercehub connector configuration
+    Fiservcommercehub {
+        api_key: Secret<String>,
+        secret: Secret<String>,
+        merchant_id: Secret<String>,
+        terminal_id: Secret<String>,
     },
 }
 
@@ -107,16 +134,30 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     api_key,
                     key1,
                     api_secret,
-                } => Ok(Self::Adyen {
-                    api_key: api_key.clone(),
-                    merchant_account: key1.clone(),
-                    review_key: Some(api_secret.clone()),
-                }),
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Adyen {
-                    api_key: api_key.clone(),
-                    merchant_account: key1.clone(),
-                    review_key: None,
-                }),
+                } => {
+                    let endpoint_prefix = metadata
+                        .and_then(|m| serde_json::from_value::<AdyenMetadata>(m.clone()).ok())
+                        .and_then(|m| m.endpoint_prefix);
+
+                    Ok(Self::Adyen {
+                        api_key: api_key.clone(),
+                        merchant_account: key1.clone(),
+                        review_key: Some(api_secret.clone()),
+                        endpoint_prefix,
+                    })
+                }
+                ConnectorAuthType::BodyKey { api_key, key1 } => {
+                    let endpoint_prefix = metadata
+                        .and_then(|m| serde_json::from_value::<AdyenMetadata>(m.clone()).ok())
+                        .and_then(|m| m.endpoint_prefix);
+
+                    Ok(Self::Adyen {
+                        api_key: api_key.clone(),
+                        merchant_account: key1.clone(),
+                        review_key: None,
+                        endpoint_prefix,
+                    })
+                }
                 _ => Err(err("Adyen requires SignatureKey or BodyKey auth type")),
             },
             Connector::Cybersource => match auth {
@@ -173,10 +214,23 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 _ => Err(err("Stripe requires HeaderKey auth type")),
             },
             Connector::Truelayer => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Truelayer {
-                    client_id: api_key.clone(),
-                    client_secret: key1.clone(),
-                }),
+                ConnectorAuthType::BodyKey { api_key, key1 } => {
+                    let metadata_parsed = metadata
+                        .and_then(|m| serde_json::from_value::<TruelayerMetadata>(m.clone()).ok());
+
+                    Ok(Self::Truelayer {
+                        client_id: api_key.clone(),
+                        client_secret: key1.clone(),
+                        merchant_account_id: metadata_parsed
+                            .as_ref()
+                            .and_then(|m| m.merchant_account_id.clone()),
+                        account_holder_name: metadata_parsed
+                            .as_ref()
+                            .and_then(|m| m.account_holder_name.clone()),
+                        private_key: metadata_parsed.as_ref().and_then(|m| m.private_key.clone()),
+                        kid: metadata_parsed.as_ref().and_then(|m| m.kid.clone()),
+                    })
+                }
                 _ => Err(err("Truelayer requires BodyKey auth type")),
             },
             Connector::Paypal => match auth {
@@ -196,6 +250,26 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Paypal requires BodyKey or SignatureKey auth type")),
             },
+            Connector::Revolv3 => match auth {
+                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Revolv3 {
+                    api_key: api_key.clone(),
+                }),
+                _ => Err(err("Revolv3 requires HeaderKey auth type")),
+            },
+            Connector::Fiservcommercehub => match auth {
+                ConnectorAuthType::MultiAuthKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                    key2,
+                } => Ok(Self::Fiservcommercehub {
+                    api_key: api_key.clone(),
+                    secret: api_secret.clone(),
+                    merchant_id: key1.clone(),
+                    terminal_id: key2.clone(),
+                }),
+                _ => Err(err("Fiservcommercehub requires MultiAuthKey auth type")),
+            },
             // --- Unsupported connectors ---
             _ => Err(
                 error_stack::report!(errors::ApiErrorResponse::InternalServerError)
@@ -213,7 +287,6 @@ pub fn build_connector_config_header(
     connector_name: &str,
     auth_type: &ConnectorAuthType,
     connector_metadata: Option<&serde_json::Value>,
-    _base_url: Option<String>,
 ) -> RouterResult<Option<String>> {
     let connector = Connector::from_str(connector_name)
         .change_context(errors::ApiErrorResponse::InternalServerError)

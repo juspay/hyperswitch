@@ -1682,7 +1682,6 @@ pub fn build_unified_connector_service_auth_metadata(
         &connector_name,
         &auth_type,
         connector_metadata_value.as_ref(),
-        None,
     )
     .change_context(UnifiedConnectorServiceError::FailedToObtainAuthType)
     .attach_printable("Failed to build connector config header")?
