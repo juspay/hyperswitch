@@ -1380,7 +1380,10 @@ impl
         };
         Ok(Self {
             status,
-            response: error_response.map_or_else(|| Ok(payments_response_data), Err),
+            response: match error_response {
+                Some(error) => Err(error),
+                None => Ok(payments_response_data),
+            },
             ..item.data
         })
     }
@@ -1458,7 +1461,10 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaymentsResponse>> for PaymentsSyncR
         };
         Ok(Self {
             status,
-            response: error_response.map_or_else(|| Ok(payments_response_data), Err),
+            response: match error_response {
+                Some(error) => Err(error),
+                None => Ok(payments_response_data),
+            },
             connector_response: additional_information,
             ..item.data
         })
