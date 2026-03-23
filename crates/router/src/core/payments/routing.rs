@@ -1512,6 +1512,13 @@ impl RoutingStage for HybridRoutingStage {
                 )
                 .await?;
 
+                // Keep legacy diff/selection logs for dashboard compatibility.
+                // Routing behavior remains hybrid-first; this is logging-only parity.
+                utils::compare_and_log_result(
+                    hybrid_outcome.connectors.clone(),
+                    input.static_connectors.to_vec(),
+                    "evaluate_routing".to_string(),
+                );
                 RoutingConnectorOutcomeWithApproach {
                     connectors: hybrid_outcome.connectors,
                     routing_approach: hybrid_outcome.routing_approach.into(),
@@ -1551,17 +1558,30 @@ pub async fn perform_hybrid_routing_if_enabled(
         static_approach: static_approach.clone(),
     };
 
-    stage
-        .route(input)
-        .await
-        .inspect_err(|error| {
-            logger::error!(
-                error=?error,
-                "euclid: hybrid routing failed"
-            );
-        })
-        .unwrap_or_else(|_| RoutingConnectorOutcomeWithApproach::empty())
-        .resolve_or_fallback("hybrid-routing", static_connectors, static_approach)
+    let is_decision_engine_cutover_enabled = matches!(
+        utils::get_routing_result_source(state, business_profile).await,
+        Some(api_routing::RoutingResultSource::DecisionEngine)
+    );
+
+    if is_decision_engine_cutover_enabled {
+        stage
+            .route(input)
+            .await
+            .inspect_err(|error| {
+                logger::error!(
+                    error=?error,
+                    "euclid: hybrid routing failed"
+                );
+            })
+            .unwrap_or_else(|_| RoutingConnectorOutcomeWithApproach::empty())
+            .resolve_or_fallback("hybrid-routing", static_connectors, static_approach)
+    } else {
+        logger::debug!(
+            business_profile_id=?business_profile.get_id(),
+            "decision_engine_euclid: cutover not enabled, using static routing result"
+        );
+        (static_connectors.to_vec(), static_approach)
+    }
 }
 
 pub async fn static_routing_v1(

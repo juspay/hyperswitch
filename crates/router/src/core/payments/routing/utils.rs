@@ -1782,6 +1782,21 @@ fn stringify_choice(c: RoutableConnectorChoice) -> ConnectorInfo {
     )
 }
 
+pub async fn get_routing_result_source(
+    state: &SessionState,
+    business_profile: &business_profile::Profile,
+) -> Option<api_routing::RoutingResultSource> {
+    state
+        .store
+        .find_config_by_key(&format!(
+            "routing_result_source_{0}",
+            business_profile.get_id().get_string_repr()
+        ))
+        .await
+        .map(|c| c.config.parse_enum("RoutingResultSource").ok())
+        .unwrap_or(None)
+}
+
 pub async fn select_routing_result<T>(
     state: &SessionState,
     business_profile: &business_profile::Profile,
@@ -1791,15 +1806,7 @@ pub async fn select_routing_result<T>(
 where
     T: Clone + IntoIterator,
 {
-    let routing_result_source: Option<api_routing::RoutingResultSource> = state
-        .store
-        .find_config_by_key(&format!(
-            "routing_result_source_{0}",
-            business_profile.get_id().get_string_repr()
-        ))
-        .await
-        .map(|c| c.config.parse_enum("RoutingResultSource").ok())
-        .unwrap_or(None);
+    let routing_result_source = get_routing_result_source(state, business_profile).await;
 
     if let Some(api_routing::RoutingResultSource::DecisionEngine) = routing_result_source {
         logger::debug!(
