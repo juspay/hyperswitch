@@ -67,6 +67,25 @@ pub struct ConfigApiClient;
 
 pub struct SRApiClient;
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct HybridRoutingRequest {
+    pub static_routing_request: Option<RoutingEvaluateRequest>,
+    pub dynamic_routing_request: Option<or_types::OpenRouterDecideGatewayRequest>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct HybridRoutingResponse {
+    pub static_routing: Option<RoutingEvaluateResponse>,
+    pub dynamic_routing: Option<or_types::DecideGatewayResponse>,
+    pub evaluated_connectors: Option<Vec<DeRoutableConnectorChoice>>,
+}
+
+#[derive(Clone, Debug)]
+pub struct HybridRoutingOutcome {
+    pub connectors: Vec<RoutableConnectorChoice>,
+    pub routing_approach: RoutingApproach,
+}
+
 pub async fn build_and_send_decision_engine_http_request<Req, Res, ErrRes>(
     state: &SessionState,
     http_method: services::Method,
@@ -304,6 +323,252 @@ impl DecisionEngineApiHandler for SRApiClient {
 
 const EUCLID_API_TIMEOUT: u64 = 5;
 
+fn convert_fallback_to_de_choices(
+    fallback_output: Vec<RoutableConnectorChoice>,
+) -> Vec<DeRoutableConnectorChoice> {
+    fallback_output
+        .into_iter()
+        .map(|connector| DeRoutableConnectorChoice {
+            gateway_name: connector.connector,
+            gateway_id: connector.merchant_connector_id,
+        })
+        .collect()
+}
+
+pub fn build_static_routing_request_for_hybrid(
+    created_by: String,
+    input: BackendInput,
+    fallback_output: Vec<RoutableConnectorChoice>,
+) -> RoutingResult<RoutingEvaluateRequest> {
+    convert_backend_input_to_routing_eval(
+        created_by,
+        input,
+        convert_fallback_to_de_choices(fallback_output),
+    )
+}
+
+fn parse_decided_gateway_connector(
+    decided_gateway: &str,
+    fallback_connectors: &[RoutableConnectorChoice],
+) -> RoutingResult<RoutableConnectorChoice> {
+    let (connector_name, mca_id) = match decided_gateway.split_once(':') {
+        Some((connector, merchant_connector_id)) => {
+            let normalized =
+                (!merchant_connector_id.is_empty()).then(|| merchant_connector_id.to_string());
+            (connector, normalized)
+        }
+        None => (decided_gateway, None),
+    };
+
+    let connector = RoutableConnectors::from_str(connector_name).map_err(|_| {
+        errors::RoutingError::GenericConversionError {
+            from: "String".to_string(),
+            to: "RoutableConnectors".to_string(),
+        }
+    })?;
+
+    let merchant_connector_id = mca_id
+        .map(id_type::MerchantConnectorAccountId::wrap)
+        .transpose()
+        .change_context(errors::RoutingError::GenericConversionError {
+            from: "String".to_string(),
+            to: "MerchantConnectorAccountId".to_string(),
+        })?;
+
+    let connector_choice = if merchant_connector_id.is_none() {
+        fallback_connectors
+            .iter()
+            .find(|choice| choice.connector == connector)
+            .cloned()
+            .unwrap_or(RoutableConnectorChoice {
+                choice_kind: api_routing::RoutableChoiceKind::FullStruct,
+                connector,
+                merchant_connector_id: None,
+            })
+    } else {
+        RoutableConnectorChoice {
+            choice_kind: api_routing::RoutableChoiceKind::FullStruct,
+            connector,
+            merchant_connector_id,
+        }
+    };
+
+    Ok(connector_choice)
+}
+
+fn infer_hybrid_routing_approach(response: &HybridRoutingResponse) -> RoutingApproach {
+    response
+        .dynamic_routing
+        .as_ref()
+        .and_then(|dynamic_routing| dynamic_routing.routing_approach.as_deref())
+        .map(RoutingApproach::from_decision_engine_approach)
+        .unwrap_or_else(|| {
+            if response.static_routing.is_some() {
+                RoutingApproach::StaticRouting
+            } else {
+                RoutingApproach::Default
+            }
+        })
+}
+
+pub fn normalize_hybrid_routing_response(
+    response: &HybridRoutingResponse,
+    fallback_connectors: &[RoutableConnectorChoice],
+) -> RoutingResult<HybridRoutingOutcome> {
+    let outcome = if let Some(evaluated_connectors) = response
+        .evaluated_connectors
+        .as_ref()
+        .filter(|connectors| !connectors.is_empty())
+    {
+        let connectors = evaluated_connectors
+            .iter()
+            .cloned()
+            .map(RoutableConnectorChoice::from)
+            .collect();
+
+        HybridRoutingOutcome {
+            connectors,
+            routing_approach: infer_hybrid_routing_approach(response),
+        }
+    } else if let Some(decided_gateway) = response
+        .dynamic_routing
+        .as_ref()
+        .and_then(|routing| routing.decided_gateway.as_deref())
+    {
+        let decided_connector = parse_decided_gateway_connector(decided_gateway, fallback_connectors)?;
+        let mut connectors = vec![decided_connector];
+
+        for fallback_connector in fallback_connectors {
+            if !connectors.contains(fallback_connector) {
+                connectors.push(fallback_connector.clone());
+            }
+        }
+
+        HybridRoutingOutcome {
+            connectors,
+            routing_approach: infer_hybrid_routing_approach(response),
+        }
+    } else if let Some(static_routing_response) = response.static_routing.as_ref() {
+        let static_output_connectors = extract_de_output_connectors(
+            static_routing_response.output.clone(),
+        )
+        .map_err(|error| {
+            logger::error!(
+                error=?error,
+                "decision_engine_hybrid_error: Failed to extract connector from static output"
+            );
+            error
+        })?;
+
+        let static_connectors = transform_de_output_for_router(
+            static_output_connectors,
+            static_routing_response.evaluated_output.clone(),
+        )
+        .map_err(|error| {
+            logger::error!(
+                error=?error,
+                "decision_engine_hybrid_error: failed to transform static connectors"
+            );
+            error
+        })?;
+
+        HybridRoutingOutcome {
+            connectors: static_connectors,
+            routing_approach: RoutingApproach::StaticRouting,
+        }
+    } else {
+        HybridRoutingOutcome {
+        connectors: Vec::new(),
+        routing_approach: RoutingApproach::Default,
+        }
+    };
+
+    Ok(outcome)
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(untagged)]
+enum HybridErrorResponse {
+    Static(DeErrorResponse),
+    Dynamic(or_types::ErrorResponse),
+}
+
+impl DecisionEngineErrorsInterface for HybridErrorResponse {
+    fn get_error_message(&self) -> String {
+        match self {
+            Self::Static(error) => error.get_error_message(),
+            Self::Dynamic(error) => error.get_error_message(),
+        }
+    }
+
+    fn get_error_code(&self) -> String {
+        match self {
+            Self::Static(error) => error.get_error_code(),
+            Self::Dynamic(error) => error.get_error_code(),
+        }
+    }
+
+    fn get_error_data(&self) -> Option<String> {
+        match self {
+            Self::Static(error) => error.get_error_data(),
+            Self::Dynamic(error) => error.get_error_data(),
+        }
+    }
+}
+
+pub async fn decision_engine_hybrid_routing(
+    state: &SessionState,
+    business_profile: &domain::Profile,
+    payment_id: String,
+    hybrid_request: HybridRoutingRequest,
+    fallback_connectors: Vec<RoutableConnectorChoice>,
+) -> RoutingResult<HybridRoutingOutcome> {
+    let routing_events_wrapper = RoutingEventsWrapper::new(
+        state.tenant.tenant_id.clone(),
+        state.request_id.clone(),
+        payment_id,
+        business_profile.get_id().to_owned(),
+        business_profile.merchant_id.to_owned(),
+        "DecisionEngine: Hybrid Routing".to_string(),
+        Some(hybrid_request.clone()),
+        true,
+        false,
+    );
+
+    let event_response = build_and_send_decision_engine_http_request::<_, _, HybridErrorResponse>(
+        state,
+        services::Method::Post,
+        "routing/hybrid",
+        Some(hybrid_request),
+        Some(EUCLID_API_TIMEOUT),
+        "parsing response",
+        Some(routing_events_wrapper),
+    )
+    .await?;
+
+    let hybrid_response: HybridRoutingResponse =
+        event_response
+            .response
+            .ok_or(errors::RoutingError::OpenRouterError(
+                "Response from decision engine hybrid API is empty".to_string(),
+            ))?;
+
+    let outcome = normalize_hybrid_routing_response(&hybrid_response, &fallback_connectors)?;
+    let mut routing_event =
+        event_response
+            .event
+            .ok_or(errors::RoutingError::RoutingEventsError {
+                message: "Routing event not found in hybrid events response".to_string(),
+                status_code: 500,
+            })?;
+
+    routing_event.set_routing_approach(outcome.routing_approach.to_string());
+    routing_event.set_routable_connectors(outcome.connectors.clone());
+    state.event_handler().log_event(&routing_event);
+
+    Ok(outcome)
+}
+
 pub async fn perform_decision_euclid_routing(
     state: &SessionState,
     input: BackendInput,
@@ -314,13 +579,7 @@ pub async fn perform_decision_euclid_routing(
     logger::debug!("decision_engine_euclid: evaluate api call for euclid routing evaluation");
 
     let mut events_wrapper = events_wrapper;
-    let fallback_output = fallback_output
-        .into_iter()
-        .map(|c| DeRoutableConnectorChoice {
-            gateway_name: c.connector,
-            gateway_id: c.merchant_connector_id,
-        })
-        .collect::<Vec<_>>();
+    let fallback_output = convert_fallback_to_de_choices(fallback_output);
 
     let routing_request =
         convert_backend_input_to_routing_eval(created_by, input, fallback_output)?;
