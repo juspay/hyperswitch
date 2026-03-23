@@ -1041,7 +1041,7 @@ impl PaymentIntentStateMetadata {
     }
 
     /// Check if post capture void is pending for the payment intent
-    pub fn is_post_capture(&self) -> bool {
+    pub fn is_post_capture_void_pending(&self) -> bool {
         matches!(
             self.post_capture_void
                 .as_ref()
@@ -1077,6 +1077,13 @@ impl PaymentIntentStateMetadata {
             updated_at: date_time::now(),
         });
         self
+    }
+
+    /// Get the connector reference ID for post capture void transaction if it exists
+    pub fn get_connector_post_capture_void_transaction_id(&self) -> Option<String> {
+        self.post_capture_void
+            .as_ref()
+            .and_then(|post_capture_void| post_capture_void.connector_reference_id.clone())
     }
 }
 

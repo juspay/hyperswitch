@@ -89,10 +89,10 @@ use strum::IntoEnumIterator;
 
 #[cfg(feature = "v1")]
 pub use self::operations::{
-    PaymentApprove, PaymentCancel, PaymentCancelPostCapture, PaymentCapture, PaymentConfirm,
-    PaymentCreate, PaymentExtendAuthorization, PaymentIncrementalAuthorization,
-    PaymentPostSessionTokens, PaymentReject, PaymentSession, PaymentSessionUpdate, PaymentStatus,
-    PaymentUpdate, PaymentUpdateMetadata,
+    PaymentApprove, PaymentCancel, PaymentCancelPostCapture, PaymentCancelPostCaptureSync,
+    PaymentCapture, PaymentConfirm, PaymentCreate, PaymentExtendAuthorization,
+    PaymentIncrementalAuthorization, PaymentPostSessionTokens, PaymentReject, PaymentSession,
+    PaymentSessionUpdate, PaymentStatus, PaymentUpdate, PaymentUpdateMetadata,
 };
 use self::{
     conditional_configs::perform_decision_management,
@@ -954,6 +954,7 @@ where
                     )
                     .map_err(|e| logger::error!(routable_connector_error=?e))
                     .unwrap_or_default();
+
                     let schedule_time = if should_add_task_to_process_tracker {
                         payment_sync::get_sync_process_schedule_time(
                             &*state.store,
@@ -8545,6 +8546,9 @@ where
                 | storage_enums::IntentStatus::PartiallyCaptured
                 | storage_enums::IntentStatus::PartiallyCapturedAndCapturable
         ),
+        "PaymentCancelPostCaptureSync" => payment_data
+            .get_payment_intent()
+            .is_post_capture_void_pending(),
         "PaymentCapture" => {
             matches!(
                 payment_data.get_payment_intent().status,
@@ -9155,6 +9159,43 @@ pub async fn add_process_sync_task(
     Ok(())
 }
 
+#[cfg(feature = "v1")]
+pub async fn add_process_post_capture_void_sync_task(
+    db: &dyn StorageInterface,
+    payment_attempt: &storage::PaymentAttempt,
+    schedule_time: time::PrimitiveDateTime,
+    application_source: enums::ApplicationSource,
+) -> CustomResult<(), errors::StorageError> {
+    let tracking_data = api::PaymentsCancelPostCaptureSyncBody {
+        payment_id: payment_attempt.payment_id.clone(),
+        merchant_id: Some(payment_attempt.merchant_id.clone()),
+    };
+    let runner = storage::ProcessTrackerRunner::PaymentsPostCaptureVoidSyncWorkflow;
+    let task = "PAYMENTS_POST_CAPTURE_VOID_SYNC";
+    let tag = ["POST_CAPTURE_VOID_SYNC", "PAYMENT"];
+    let process_tracker_id = pt_utils::get_process_tracker_id(
+        runner,
+        task,
+        payment_attempt.get_id(),
+        &payment_attempt.merchant_id,
+    );
+    let process_tracker_entry = storage::ProcessTrackerNew::new(
+        process_tracker_id,
+        task,
+        runner,
+        tag,
+        tracking_data,
+        None,
+        schedule_time,
+        common_types::consts::API_VERSION,
+        application_source,
+    )
+    .map_err(errors::StorageError::from)?;
+
+    db.insert_process(process_tracker_entry).await?;
+    Ok(())
+}
+
 #[cfg(feature = "v2")]
 pub async fn reset_process_sync_task(
     db: &dyn StorageInterface,
@@ -9169,9 +9210,9 @@ pub async fn reset_process_sync_task(
     db: &dyn StorageInterface,
     payment_attempt: &storage::PaymentAttempt,
     schedule_time: time::PrimitiveDateTime,
+    task: &str,
+    runner: storage::ProcessTrackerRunner,
 ) -> Result<(), errors::ProcessTrackerError> {
-    let runner = storage::ProcessTrackerRunner::PaymentsSyncWorkflow;
-    let task = "PAYMENTS_SYNC";
     let process_tracker_id = pt_utils::get_process_tracker_id(
         runner,
         task,
@@ -14053,6 +14094,43 @@ impl PaymentIntentStateMetadataExt {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to update payment_intent.state metadata")?;
         }
+        Ok(())
+    }
+    pub async fn update_intent_state_metadata_for_post_capture_void(
+        self,
+        state: &SessionState,
+        processor: &domain::Processor,
+        payment_intent: &payments::PaymentIntent,
+        post_capture_void_data: common_types::domain::PostCaptureVoidData,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        let db = state.store.clone();
+        let key_store = processor.get_key_store().clone();
+        let merchant_account = db
+            .find_merchant_account_by_merchant_id(&key_store.merchant_id, &key_store)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+        let current_state = payment_intent
+            .state_metadata
+            .clone()
+            .unwrap_or_default()
+            .set_post_capture_void_data(post_capture_void_data);
+
+        let domain_update = payments::payment_intent::PaymentIntentUpdate::StateMetadataUpdate {
+            state_metadata: current_state.clone(),
+            updated_by: merchant_account.storage_scheme.to_string(),
+        };
+
+        db.update_payment_intent(
+            payment_intent.clone(),
+            domain_update,
+            &key_store,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update payment intent with total_refunded_amount")?;
+
         Ok(())
     }
 }
