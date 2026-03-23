@@ -764,15 +764,7 @@ where
 }
 
 #[derive(
-    Debug,
-    serde::Deserialize,
-    serde::Serialize,
-    Clone,
-    PartialEq,
-    Eq,
-    Hash,
-    ToSchema,
-    PartialOrd,
+    Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, Hash, ToSchema, PartialOrd,
 )]
 /// This domain type is specifically for merchant webhook URLs with validation
 pub struct MerchantWebhookUrl(url::Url);
