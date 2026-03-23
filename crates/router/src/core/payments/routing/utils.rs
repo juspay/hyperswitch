@@ -435,7 +435,8 @@ pub fn normalize_hybrid_routing_response(
         .as_ref()
         .and_then(|routing| routing.decided_gateway.as_deref())
     {
-        let decided_connector = parse_decided_gateway_connector(decided_gateway, fallback_connectors)?;
+        let decided_connector =
+            parse_decided_gateway_connector(decided_gateway, fallback_connectors)?;
         let mut connectors = vec![decided_connector];
 
         for fallback_connector in fallback_connectors {
@@ -478,8 +479,8 @@ pub fn normalize_hybrid_routing_response(
         }
     } else {
         HybridRoutingOutcome {
-        connectors: Vec::new(),
-        routing_approach: RoutingApproach::Default,
+            connectors: Vec::new(),
+            routing_approach: RoutingApproach::Default,
         }
     };
 

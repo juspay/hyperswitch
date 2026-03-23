@@ -1360,16 +1360,16 @@ impl HybridRoutingStage {
         } else if let Some(dynamic_routing_algo) =
             input.business_profile.dynamic_routing_algorithm.clone()
         {
-            match dynamic_routing_algo
-                .parse_value::<api_routing::DynamicRoutingAlgorithmRef>("DynamicRoutingAlgorithmRef")
-            {
+            match dynamic_routing_algo.parse_value::<api_routing::DynamicRoutingAlgorithmRef>(
+                "DynamicRoutingAlgorithmRef",
+            ) {
                 Ok(dynamic_routing_config) => {
                     let dynamic_routing_volume_split = dynamic_routing_config
                         .dynamic_routing_volume_split
                         .unwrap_or_default();
-                    let is_dynamic_feature_enabled =
-                        dynamic_routing_config.is_success_rate_routing_enabled()
-                            || dynamic_routing_config.is_elimination_enabled();
+                    let is_dynamic_feature_enabled = dynamic_routing_config
+                        .is_success_rate_routing_enabled()
+                        || dynamic_routing_config.is_elimination_enabled();
 
                     if !is_dynamic_feature_enabled {
                         logger::debug!(
@@ -1391,15 +1391,19 @@ impl HybridRoutingStage {
                             ],
                             None,
                         ) {
-                            Ok(routing_choice) if routing_choice.routing_type.is_dynamic_routing() => (
-                                Some(OpenRouterDecideGatewayRequest::construct_sr_request(
-                                    input.payment_dsl_input.payment_attempt,
-                                    input.static_connectors.to_vec(),
-                                    Some(or_types::RankingAlgorithm::SrBasedRouting),
-                                    dynamic_routing_config.is_elimination_enabled(),
-                                )),
-                                Some(dynamic_routing_volume_split),
-                            ),
+                            Ok(routing_choice)
+                                if routing_choice.routing_type.is_dynamic_routing() =>
+                            {
+                                (
+                                    Some(OpenRouterDecideGatewayRequest::construct_sr_request(
+                                        input.payment_dsl_input.payment_attempt,
+                                        input.static_connectors.to_vec(),
+                                        Some(or_types::RankingAlgorithm::SrBasedRouting),
+                                        dynamic_routing_config.is_elimination_enabled(),
+                                    )),
+                                    Some(dynamic_routing_volume_split),
+                                )
+                            }
                             Ok(_) => (None, Some(dynamic_routing_volume_split)),
                             Err(error) => {
                                 logger::error!(
@@ -1458,8 +1462,7 @@ impl RoutingStage for HybridRoutingStage {
                 None
             };
 
-            let outcome = if static_routing_request.is_none() && dynamic_routing_request.is_none()
-            {
+            let outcome = if static_routing_request.is_none() && dynamic_routing_request.is_none() {
                 logger::debug!(
                     "euclid: hybrid routing skipped since both static and dynamic DE flags are disabled"
                 );
