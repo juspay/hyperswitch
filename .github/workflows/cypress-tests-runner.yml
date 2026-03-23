@@ -169,6 +169,9 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: actions/checkout@v5
 
+      - name: Collect Workflow Telemetry
+        uses: catchpoint/workflow-telemetry-action@v2
+
       - name: Install mold linker
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: rui314/setup-mold@v1
