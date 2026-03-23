@@ -34,8 +34,8 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{consts, errors};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use josekit;
-use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 

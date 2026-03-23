@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use common_utils::types::MinorUnit;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router::types::{self, domain, storage::enums, AccessToken, ConnectorAuthType};
 
 use crate::{
