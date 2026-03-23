@@ -3268,9 +3268,9 @@ async fn update_additional_payment_method_data(
 
     let pm = db
         .find_payment_method(
-            platform.get_processor().get_key_store(),
+            platform.get_provider().get_key_store(),
             payment_method_id.as_str(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_provider().get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
@@ -3327,9 +3327,9 @@ async fn update_connector_mandate_details(
             let payment_method_info = state
                 .store
                 .find_payment_method(
-                    platform.get_processor().get_key_store(),
+                    platform.get_provider().get_key_store(),
                     payment_method_id,
-                    platform.get_processor().get_account().storage_scheme,
+                    platform.get_provider().get_account().storage_scheme,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
