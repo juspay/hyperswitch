@@ -1,5 +1,5 @@
 //! Contains new types with restrictions
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
 use crate::{
     consts::{MAX_ALLOWED_CARD_ISSUER_NAME_LENGTH, MAX_ALLOWED_MERCHANT_NAME_LENGTH},
@@ -13,7 +13,7 @@ use crate::{
 )]
 pub struct MerchantName(String);
 
-impl masking::SerializableSecret for MerchantName {}
+impl hyperswitch_masking::SerializableSecret for MerchantName {}
 
 #[nutype::nutype(
     derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, Hash),
@@ -21,7 +21,7 @@ impl masking::SerializableSecret for MerchantName {}
 )]
 pub struct CardIssuerName(String);
 
-impl masking::SerializableSecret for CardIssuerName {}
+impl hyperswitch_masking::SerializableSecret for CardIssuerName {}
 
 /// Function for masking alphanumeric characters in a string.
 ///
@@ -268,7 +268,7 @@ impl From<Secret<String>> for MaskedPspToken {
 
 #[cfg(test)]
 mod apply_mask_fn_test {
-    use masking::PeekInterface;
+    use hyperswitch_masking::PeekInterface;
 
     use crate::new_type::{
         apply_mask, MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode,

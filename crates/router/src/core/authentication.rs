@@ -8,7 +8,7 @@ use common_enums::Currency;
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::authentication;
-use masking::ExposeInterface;
+use hyperswitch_masking::ExposeInterface;
 
 use super::errors::StorageErrorExt;
 use crate::{
@@ -206,7 +206,7 @@ pub async fn perform_post_authentication(
 
     let authentication_store =
         hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
-            cavv: tokenized_data.map(|data| masking::Secret::new(data.value1)),
+            cavv: tokenized_data.map(|data| hyperswitch_masking::Secret::new(data.value1)),
             authentication: authentication_update,
         };
 

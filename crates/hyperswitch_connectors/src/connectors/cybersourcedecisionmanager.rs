@@ -47,7 +47,7 @@ use hyperswitch_interfaces::{
     types::Response,
     webhooks,
 };
-use masking::{ExposeInterface, Mask, Maskable, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, Mask, Maskable, PeekInterface};
 use ring::{digest, hmac};
 use time::OffsetDateTime;
 use transformers as cybersourcedecisionmanager;
@@ -649,7 +649,7 @@ impl webhooks::IncomingWebhook for Cybersourcedecisionmanager {
     fn get_webhook_resource_object(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, ConnectorError> {
         Err(report!(ConnectorError::WebhooksNotImplemented))
     }
 }

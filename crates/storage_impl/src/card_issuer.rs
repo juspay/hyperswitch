@@ -119,31 +119,65 @@ impl CardIssuersInterface for MockDb {
 
     async fn insert_card_issuer(
         &self,
-        _new: NewCardIssuer,
+        new: NewCardIssuer,
     ) -> CustomResult<CardIssuer, StorageError> {
-        Err(StorageError::MockDbError)?
+        let card_issuer = CardIssuer {
+            id: new.id,
+            issuer_name: new.issuer_name,
+            created_at: new.created_at,
+            last_modified_at: new.last_modified_at,
+        };
+        self.card_issuers.lock().await.push(card_issuer.clone());
+        Ok(card_issuer)
     }
 
     async fn update_card_issuer(
         &self,
-        _id: id_type::CardIssuerId,
-        _update: UpdateCardIssuer,
+        id: id_type::CardIssuerId,
+        update: UpdateCardIssuer,
     ) -> CustomResult<CardIssuer, StorageError> {
-        Err(StorageError::MockDbError)?
+        let mut card_issuers = self.card_issuers.lock().await;
+        let card_issuer =
+            card_issuers
+                .iter_mut()
+                .find(|ci| ci.id == id)
+                .ok_or(StorageError::ValueNotFound(format!(
+                    "No card issuer found for id = {id:?}"
+                )))?;
+        card_issuer.issuer_name = update.issuer_name;
+        card_issuer.last_modified_at = update.last_modified_at;
+        Ok(card_issuer.clone())
     }
 
     async fn list_card_issuers(
         &self,
-        _query: Option<String>,
-        _limit: Option<u8>,
+        query: Option<String>,
+        limit: Option<u8>,
     ) -> CustomResult<Vec<CardIssuer>, StorageError> {
-        Ok(vec![])
+        let card_issuers = self.card_issuers.lock().await;
+        let filtered: Vec<CardIssuer> = card_issuers
+            .iter()
+            .filter(|ci| {
+                query
+                    .as_ref()
+                    .map_or(true, |q| ci.issuer_name.contains(q.as_str()))
+            })
+            .take(limit.map_or(usize::MAX, usize::from))
+            .cloned()
+            .collect();
+        Ok(filtered)
     }
 
     async fn get_card_issuers_by_ids(
         &self,
-        _ids: Vec<id_type::CardIssuerId>,
+        ids: Vec<id_type::CardIssuerId>,
     ) -> CustomResult<Vec<CardIssuer>, StorageError> {
-        Ok(vec![])
+        let card_issuers = self.card_issuers.lock().await;
+        let filtered = card_issuers
+            .iter()
+            .filter(|ci| ids.contains(&ci.id))
+            .cloned()
+            .collect();
+        Ok(filtered)
     }
 }

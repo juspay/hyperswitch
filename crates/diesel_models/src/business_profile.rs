@@ -4,7 +4,7 @@ use common_enums::{AuthenticationConnectors, UIWidgetFormLayout, VaultSdk};
 use common_types::primitive_wrappers;
 use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use time::Duration;
 
 #[cfg(feature = "v1")]

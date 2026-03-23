@@ -237,4 +237,4 @@ pub const DEFAULT_LIST_OFFSET: i64 = 0;
 pub const DEFAULT_CARD_ISSUER_LIST_LIMIT: u8 = 30;
 
 /// Length of a generated card issuer ID
-pub const CARD_ISSUER_ID_LENGTH: usize = 5;
+pub const CARD_ISSUER_ID_LENGTH: u8 = 5;
