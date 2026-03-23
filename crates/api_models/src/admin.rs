@@ -3221,6 +3221,21 @@ pub struct ProfileUpdate {
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 }
 
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct RevenueRecoveryFeaturesUpdateRequest {
+    pub smart_features: RevenueRecoveryFeaturesPatch,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct RevenueRecoveryFeaturesPatch {
+    /// Enable/disable account updater for revenue recovery
+    pub account_update: Option<bool>,
+}
+
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct BusinessCollectLinkConfig {
     #[serde(flatten)]

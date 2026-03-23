@@ -4364,6 +4364,13 @@ impl ProfileWrapper {
             .attach_printable("Failed to update routing algorithm ref in business profile")?;
         Ok(())
     }
+    /// Updates revenue recovery algorithm type and monitoring timestamp on the profile.
+    ///
+    /// - Always refreshes `monitoring_configured_timestamp` (e.g. monitoring window / transition).
+    /// - **`smart_features` is left unchanged** when `smart_features` is `None`, so dashboard /
+    ///   feature-config toggles are not cleared when webhooks or billing flows only move
+    ///   algorithm state (same idea as the feature-config PATCH only touching flags).
+    /// - Pass `Some(...)` only when intentionally replacing the full enablement struct.
     pub async fn update_revenue_recovery_algorithm_under_profile(
         self,
         db: &dyn StorageInterface,
@@ -4372,17 +4379,21 @@ impl ProfileWrapper {
         revenue_recovery_retry_algorithm_type: common_enums::RevenueRecoveryAlgorithmType,
         smart_features: Option<diesel_models::business_profile::RevenueRecoveryFeaturesEnablement>,
     ) -> RouterResult<()> {
-        let existing_smart_features = self
+        let mut recovery_algorithm_data = self
             .profile
             .revenue_recovery_retry_algorithm_data
-            .as_ref()
-            .and_then(|data| data.smart_features.clone());
-
-        let recovery_algorithm_data =
-            diesel_models::business_profile::RevenueRecoveryAlgorithmData {
+            .clone()
+            .unwrap_or(diesel_models::business_profile::RevenueRecoveryAlgorithmData {
                 monitoring_configured_timestamp: date_time::now(),
-                smart_features: smart_features.or(existing_smart_features),
-            };
+                smart_features: None,
+            });
+
+        recovery_algorithm_data.monitoring_configured_timestamp = date_time::now();
+
+        if let Some(features) = smart_features {
+            recovery_algorithm_data.smart_features = Some(features);
+        }
+
         let profile_update = domain::ProfileUpdate::RevenueRecoveryAlgorithmUpdate {
             revenue_recovery_retry_algorithm_type,
             revenue_recovery_retry_algorithm_data: Some(recovery_algorithm_data),
@@ -4396,6 +4407,97 @@ impl ProfileWrapper {
             )?;
         Ok(())
     }
+
+    pub async fn update_revenue_recovery_features_under_profile(
+        self,
+        db: &dyn StorageInterface,
+        merchant_key_store: &domain::MerchantKeyStore,
+        feature_patch: admin_types::RevenueRecoveryFeaturesPatch,
+    ) -> RouterResult<diesel_models::business_profile::RevenueRecoveryFeaturesEnablement> {
+        let mut smart_features = self
+            .profile
+            .revenue_recovery_retry_algorithm_data
+            .as_ref()
+            .and_then(|data| data.smart_features.clone())
+            .unwrap_or_default();
+
+        feature_patch
+            .account_update
+            .map(|account_update| smart_features.account_update = account_update);
+
+        let existing_algorithm_data = self
+            .profile
+            .revenue_recovery_retry_algorithm_data
+            .clone()
+            .unwrap_or(diesel_models::business_profile::RevenueRecoveryAlgorithmData {
+                monitoring_configured_timestamp: date_time::now(),
+                smart_features: None,
+            });
+
+        let recovery_algorithm_data = diesel_models::business_profile::RevenueRecoveryAlgorithmData {
+            monitoring_configured_timestamp: existing_algorithm_data.monitoring_configured_timestamp,
+            smart_features: Some(smart_features.clone()),
+        };
+
+        let profile_update = domain::ProfileUpdate::RevenueRecoveryAlgorithmUpdate {
+            revenue_recovery_retry_algorithm_type: self
+                .profile
+                .revenue_recovery_retry_algorithm_type
+                .unwrap_or_default(),
+            revenue_recovery_retry_algorithm_data: Some(recovery_algorithm_data),
+        };
+
+        db.update_profile_by_profile_id(merchant_key_store, self.profile, profile_update)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Failed to update revenue recovery feature flags in business profile",
+            )?;
+
+        Ok(smart_features)
+    }
+}
+
+#[cfg(feature = "v2")]
+pub async fn update_revenue_recovery_features(
+    state: SessionState,
+    merchant_id: id_type::MerchantId,
+    profile_id: id_type::ProfileId,
+    feature_update: admin_types::RevenueRecoveryFeaturesUpdateRequest,
+) -> RouterResponse<diesel_models::business_profile::RevenueRecoveryFeaturesEnablement> {
+    let db = state.store.as_ref();
+    let key_store = db
+        .get_merchant_key_store_by_merchant_id(
+            &merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+        .attach_printable("Error while fetching the key store by merchant_id")?;
+
+    let business_profile = db
+        .find_business_profile_by_profile_id(&key_store, &profile_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+            id: profile_id.get_string_repr().to_owned(),
+        })?;
+
+    if business_profile.merchant_id != merchant_id {
+        Err(errors::ApiErrorResponse::AccessForbidden {
+            resource: profile_id.get_string_repr().to_owned(),
+        })?
+    }
+
+    let profile_wrapper = ProfileWrapper::new(business_profile);
+    let updated_features = profile_wrapper
+        .update_revenue_recovery_features_under_profile(
+            db,
+            &key_store,
+            feature_update.smart_features,
+        )
+        .await?;
+
+    Ok(service_api::ApplicationResponse::Json(updated_features))
 }
 
 pub async fn extended_card_info_toggle(
