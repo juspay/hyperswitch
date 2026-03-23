@@ -140,7 +140,7 @@ impl
             currency: item.router_data.request.currency,
             payment_provider: "bluecode_payment".to_string(),
             shop_name: value.1.shop_name.clone(),
-            reference: item.router_data.payment_id.clone(),
+            reference: item.router_data.connector_request_reference_id.clone(),
             ip_address: item.router_data.request.get_ip_address_as_optional(),
             first_name: item.router_data.get_billing_first_name()?,
             last_name: item.router_data.get_billing_last_name()?,
