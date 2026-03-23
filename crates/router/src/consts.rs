@@ -356,6 +356,8 @@ pub mod superposition {
     pub const IMPLICIT_CUSTOMER_UPDATE: &str = "implicit_customer_update";
     /// dynamic fields configuration key for sdk config
     pub const DYNAMIC_FIELDS: &str = "dynamic_fields";
+    /// payout sync tracker configuration key
+    pub const PAYOUT_TRACKER_MAPPING: &str = "payout_tracker_mapping";
 }
 
 #[cfg(test)]
