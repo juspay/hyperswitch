@@ -66,10 +66,10 @@ use hyperswitch_domain_models::{
         RouterData as ConnectorRouterData,
     },
     router_request_types::{
-        AuthenticationData, AuthoriseIntegrityObject, BrowserInformation, CaptureIntegrityObject,
-        CompleteAuthorizeData, ConnectorCustomerData, ExternalVaultProxyPaymentsData,
-        MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthenticateData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        AccessTokenRequestData, AuthenticationData, AuthoriseIntegrityObject, BrowserInformation,
+        CaptureIntegrityObject, CompleteAuthorizeData, ConnectorCustomerData,
+        ExternalVaultProxyPaymentsData, MandateRevokeRequestData, PaymentMethodTokenizationData,
+        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
         PaymentsPostAuthenticateData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
         PaymentsPreProcessingData, PaymentsSyncData, RefundIntegrityObject, RefundsData,
         ResponseId, SetupMandateRequestData, SyncIntegrityObject,
@@ -2260,6 +2260,16 @@ impl PaymentsPostAuthenticateRequestData for PaymentsPostAuthenticateData {
                 Err(errors::ConnectorError::CaptureMethodNotSupported.into())
             }
         }
+    }
+}
+
+pub trait PaymentsAccessTokenRequestData {
+    fn is_mit_payment(&self) -> bool;
+}
+
+impl PaymentsAccessTokenRequestData for AccessTokenRequestData {
+    fn is_mit_payment(&self) -> bool {
+        self.mandate_id.is_some()
     }
 }
 
@@ -6713,6 +6723,8 @@ pub enum PaymentMethodDataType {
     DanamonVaBankTransfer,
     MandiriVaBankTransfer,
     Pix,
+    PixAutomaticoPush,
+    PixAutomaticoQr,
     Pse,
     Crypto,
     MandatePayment,
@@ -6914,6 +6926,10 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                     Self::MandiriVaBankTransfer
                 }
                 payment_method_data::BankTransferData::Pix { .. } => Self::Pix,
+                payment_method_data::BankTransferData::PixAutomaticoPush { .. } => {
+                    Self::PixAutomaticoPush
+                }
+                payment_method_data::BankTransferData::PixAutomaticoQr {} => Self::PixAutomaticoQr,
                 payment_method_data::BankTransferData::Pse {} => Self::Pse,
                 payment_method_data::BankTransferData::LocalBankTransfer { .. } => {
                     Self::LocalBankTransfer

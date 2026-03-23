@@ -2283,7 +2283,7 @@ impl ConnectorSpecifications for Cybersource {
     }
     fn get_preprocessing_flow_if_needed(
         &self,
-        current_flow_info: api::CurrentFlowInfo<'_>,
+        current_flow_info: api::CurrentFlowInfo,
     ) -> Option<api::PreProcessingFlowName> {
         match current_flow_info {
             api::CurrentFlowInfo::Authorize { .. } => {
@@ -2309,14 +2309,14 @@ impl ConnectorSpecifications for Cybersource {
     }
     fn get_alternate_flow_if_needed(
         &self,
-        current_flow: api::CurrentFlowInfo<'_>,
+        current_flow: api::CurrentFlowInfo,
     ) -> Option<api::AlternateFlow> {
         match current_flow {
             api::CurrentFlowInfo::Authorize {
                 request_data,
                 auth_type,
             } => {
-                if self.is_3ds_setup_required(request_data, *auth_type) {
+                if self.is_3ds_setup_required(&request_data, auth_type) {
                     Some(api::AlternateFlow::PreAuthenticate)
                 } else {
                     None
@@ -2327,19 +2327,19 @@ impl ConnectorSpecifications for Cybersource {
             api::CurrentFlowInfo::SetupMandate { .. } => None,
         }
     }
-    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize {
                 request_data,
                 auth_type,
-            } => self.is_3ds_setup_required(request_data, *auth_type),
+            } => self.is_3ds_setup_required(&request_data, auth_type),
             // No alternate flow for complete authorize
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
             api::CurrentFlowInfo::SetupMandate { .. } => false,
         }
     }
     /// Check if authentication flow is required
-    fn is_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn is_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize { .. } => {
                 // during authorize flow, there is no post_authentication call needed
@@ -2364,7 +2364,7 @@ impl ConnectorSpecifications for Cybersource {
         }
     }
     /// Check if post-authentication flow is required
-    fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize { .. } => {
                 // during authorize flow, there is no post_authentication call needed

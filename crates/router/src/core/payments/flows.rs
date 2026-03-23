@@ -134,6 +134,7 @@ pub trait Feature<F, T> {
         processor: &domain::Processor,
         creds_identifier: Option<&str>,
         gateway_context: &gateway_context::RouterGatewayContext,
+        mandate_id: Option<api_models::payments::MandateIds>,
     ) -> RouterResult<types::AddAccessTokenResult>
     where
         F: Clone,
