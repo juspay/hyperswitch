@@ -2,6 +2,7 @@ use std::vec::IntoIter;
 
 use common_enums::PayoutRetryType;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::payments::HeaderPayload;
 use router_env::{
     logger,
     tracing::{self, instrument},
@@ -28,6 +29,7 @@ pub async fn do_gsm_multiple_connector_actions(
     original_connector_data: api::ConnectorData,
     payout_data: &mut PayoutData,
     platform: &domain::Platform,
+    header_payload: HeaderPayload,
 ) -> RouterResult<()> {
     let mut retries = None;
 
@@ -66,6 +68,7 @@ pub async fn do_gsm_multiple_connector_actions(
                     &state.clone(),
                     connector.to_owned(),
                     platform,
+                    header_payload.clone(),
                     payout_data,
                 ))
                 .await?;
@@ -85,6 +88,7 @@ pub async fn do_gsm_single_connector_actions(
     original_connector_data: api::ConnectorData,
     payout_data: &mut PayoutData,
     platform: &domain::Platform,
+    header_payload: HeaderPayload,
 ) -> RouterResult<()> {
     let mut retries = None;
 
@@ -121,6 +125,7 @@ pub async fn do_gsm_single_connector_actions(
                     &state.clone(),
                     original_connector_data.to_owned(),
                     platform,
+                    header_payload.clone(),
                     payout_data,
                 ))
                 .await?;
@@ -203,6 +208,7 @@ pub async fn do_retry(
     state: &routes::SessionState,
     connector: api::ConnectorData,
     platform: &domain::Platform,
+    header_payload: HeaderPayload,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
     metrics::AUTO_RETRY_PAYOUT_COUNT.add(1, &[]);
@@ -212,6 +218,7 @@ pub async fn do_retry(
     Box::pin(call_connector_payout(
         state,
         platform,
+        header_payload,
         &connector,
         payout_data,
     ))

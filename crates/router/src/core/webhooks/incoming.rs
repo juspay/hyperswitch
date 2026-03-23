@@ -1943,6 +1943,7 @@ async fn payout_incoming_webhook_retrieve_status(
     Box::pin(payouts::create_payout_retrieve(
         &state,
         &platform,
+        HeaderPayload::default(),
         &connector_data,
         payout_data,
     ))

@@ -4947,6 +4947,7 @@ where
         previous_gateway,
         call_connector_action.clone(),
         shadow_ucs_call_connector_action.clone(),
+        common_enums::TransactionType::Payment,
     )
     .await?;
 
@@ -5503,6 +5504,7 @@ where
         previous_gateway,
         call_connector_action.clone(),
         None,
+        common_enums::TransactionType::Payment,
     )
     .await?;
 
@@ -5629,6 +5631,7 @@ where
             previous_gateway,
             call_connector_action.clone(),
             None,
+            common_enums::TransactionType::Payment,
         )
         .await?;
         let lineage_ids = grpc_client::LineageIds::new(
@@ -5825,6 +5828,7 @@ where
         None,
         call_connector_action.clone(),
         None,
+        common_enums::TransactionType::Payment,
     )
     .await?;
 
@@ -6980,6 +6984,7 @@ where
         None, // No previous gateway information required for session flow
         call_connector_action.clone(),
         None,
+        common_enums::TransactionType::Payment,
     )
     .await?;
 

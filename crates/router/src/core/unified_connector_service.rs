@@ -1,6 +1,6 @@
 use std::{borrow::Cow, str::FromStr, time::Instant};
 
-use api_models::admin;
+use api_models::{admin, payouts::PayoutMethodData};
 #[cfg(feature = "v2")]
 use base64::Engine;
 use common_enums::{
@@ -304,6 +304,7 @@ pub async fn should_call_unified_connector_service<F: Clone, T, R>(
     previous_gateway: Option<GatewaySystem>,
     call_connector_action: CallConnectorAction,
     shadow_ucs_call_connector_action: Option<CallConnectorAction>,
+    transaction_type: common_enums::TransactionType,
 ) -> RouterResult<(ExecutionPath, SessionState)>
 where
     R: Send + Sync + Clone,
@@ -321,13 +322,22 @@ where
     // Check UCS availability using idiomatic helper
     let ucs_availability = check_ucs_availability(state).await;
 
-    let rollout_key = build_rollout_keys(
-        merchant_id,
-        connector_name,
-        &flow_name,
-        router_data.payment_method,
-        router_data.payment_method_type,
-    );
+    let rollout_key = match transaction_type {
+        common_enums::TransactionType::Payment
+        | common_enums::TransactionType::ThreeDsAuthentication => build_rollout_keys(
+            merchant_id,
+            connector_name,
+            &flow_name,
+            router_data.payment_method,
+            router_data.payment_method_type,
+        ),
+        common_enums::TransactionType::Payout => build_rollout_keys_for_payouts(
+            merchant_id,
+            connector_name,
+            &flow_name,
+            router_data.payout_method_data.as_ref(),
+        ),
+    };
 
     // Determine connector integration type
     let connector_integration_type =
@@ -586,6 +596,27 @@ fn build_rollout_keys(
     };
 
     rollout_key
+}
+
+/// Build rollout keys based on flow type - include payment method type for payouts
+fn build_rollout_keys_for_payouts(
+    merchant_id: &str,
+    connector_name: &str,
+    flow_name: &str,
+    payout_method_data: Option<&PayoutMethodData>,
+) -> String {
+    let payment_method_type =
+        PaymentMethodType::from(payout_method_data.unwrap_or(&PayoutMethodData::default()));
+
+    let payment_method_type_str = payment_method_type.to_string();
+    format!(
+        "{}_{}_{}_{}_{}",
+        consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
+        merchant_id,
+        connector_name,
+        payment_method_type_str,
+        flow_name
+    )
 }
 
 /// Extracts the gateway system from the payment intent's feature metadata

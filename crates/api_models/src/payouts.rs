@@ -1194,3 +1194,36 @@ pub struct PayoutsManualUpdateResponse {
     /// A unique identifier for a payout provided by the connector
     pub connector_payout_id: Option<String>,
 }
+
+impl From<&PayoutMethodData> for api_enums::PaymentMethodType {
+    fn from(data: &PayoutMethodData) -> Self {
+        match data {
+            PayoutMethodData::Card(_) => {
+                #[cfg(feature = "v2")]
+                {
+                    Self::Card
+                }
+                #[cfg(not(feature = "v2"))]
+                {
+                    Self::Debit
+                }
+            }
+            PayoutMethodData::Bank(bank) => match bank {
+                Bank::Ach(_) => Self::Ach,
+                Bank::Bacs(_) => Self::Bacs,
+                Bank::Sepa(_) => Self::SepaBankTransfer,
+                Bank::Pix(_) => Self::Pix,
+            },
+            PayoutMethodData::Wallet(wallet) => match wallet {
+                Wallet::ApplePayDecrypt(_) => Self::ApplePay,
+                Wallet::Paypal(_) => Self::Paypal,
+                Wallet::Venmo(_) => Self::Venmo,
+            },
+            PayoutMethodData::BankRedirect(bank_redirect) => match bank_redirect {
+                BankRedirect::Interac(_) => Self::Interac,
+                BankRedirect::OpenBankingUk(_) => Self::OpenBankingUk,
+            },
+            PayoutMethodData::Passthrough(passthrough) => passthrough.token_type,
+        }
+    }
+}
