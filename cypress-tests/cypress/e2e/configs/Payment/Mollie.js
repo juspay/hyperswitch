@@ -299,6 +299,9 @@ export const connectorDetails = {
       },
     },
     Refund: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 6000,
       },
@@ -324,6 +327,9 @@ export const connectorDetails = {
       },
     },
     manualPaymentRefund: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 6000,
       },
@@ -824,7 +830,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "failed",
+          error_code: "Unprocessable Entity",
+          error_message: "method",
         },
       },
     },
