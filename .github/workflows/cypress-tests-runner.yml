@@ -152,7 +152,7 @@ jobs:
   build-hyperswitch-runners:
     name: Build hyperswitch server(hyperswitch-runners)
     if: |
-      false && (github.event_name == 'merge_group' ||
+      (github.event_name == 'merge_group' ||
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready')))
     runs-on: hyperswitch-runners
     env:
@@ -635,7 +635,7 @@ jobs:
 
   runner-optional-connectors:
     name: Run Optional Connectors Cypress tests
-    needs: [ build-hyperswitch, prepare-matrix ]
+    needs: [ build-hyperswitch-runners, prepare-matrix ]
     runs-on: hyperswitch-runners
     strategy:
       fail-fast: false
