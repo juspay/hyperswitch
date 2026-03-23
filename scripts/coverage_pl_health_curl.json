@@ -1,0 +1,19 @@
+{
+  "_readme": "No Cypress binary needed: GET /health via curl. Use when router listens on 8080. Change argv URL if your port differs.",
+  "items": [
+    {
+      "id": "curl-health",
+      "kind": "subprocess",
+      "argv": [
+        "curl",
+        "-sS",
+        "-o",
+        "/dev/null",
+        "-w",
+        "http_code=%{http_code}\\n",
+        "http://127.0.0.1:8080/health"
+      ],
+      "timeout": 30
+    }
+  ]
+}

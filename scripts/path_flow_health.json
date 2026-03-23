@@ -1,0 +1,38 @@
+{
+  "_readme": "Leaf is sync `health()` so LLVM/grcov line coverage maps to this body. v2 API: GET /v2/health. Use with coverage_feedback_loop --chain-artifact scripts/path_flow_health.json",
+  "function": "health",
+  "file": "crates/router/src/routes/health.rs",
+  "def_line": 17,
+  "endpoint_count": 1,
+  "flow_count": 1,
+  "endpoints": [
+    {
+      "method": "GET",
+      "path": "/health",
+      "handler": "health",
+      "chain": ["health"]
+    }
+  ],
+  "flows": [
+    {
+      "flow_id": 1,
+      "description": "Shallow health — matches Cypress Misc/00000-HealthCheck.cy.js",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/health",
+          "handler": "health"
+        }
+      ],
+      "chain": [
+        {
+          "function": "health",
+          "file": "crates/router/src/routes/health.rs",
+          "def_line": 17,
+          "role": "target",
+          "source": "pub fn health() -> actix_web::HttpResponse {\n    metrics::HEALTH_METRIC.add(1, &[]);\n    logger::info!(\"Health was called\");\n\n    actix_web::HttpResponse::Ok().body(\"health is good\")\n}\n"
+        }
+      ]
+    }
+  ]
+}

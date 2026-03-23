@@ -1,0 +1,21 @@
+{
+  "_readme": "Simplest Cypress smoke: one GET /health. Pair with scripts/path_flow_health.json. From repo root: just coverage_feedback_loop -- --chain-artifact scripts/path_flow_health.json --pl-json scripts/coverage_pl_cypress.health.json --allow-exec",
+  "items": [
+    {
+      "id": "cypress-health-check-only",
+      "kind": "subprocess",
+      "cwd": "cypress-tests",
+      "argv": [
+        "npx",
+        "cypress",
+        "run",
+        "--headless",
+        "--spec",
+        "cypress/e2e/spec/Misc/00000-HealthCheck.cy.js",
+        "--env",
+        "BASEURL=http://127.0.0.1:8080,CONNECTOR=stripe"
+      ],
+      "timeout": 120
+    }
+  ]
+}

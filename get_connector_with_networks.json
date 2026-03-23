@@ -1,0 +1,812 @@
+{
+  "function": "get_connector_with_networks",
+  "file": "crates/router/src/core/payments.rs",
+  "def_line": 2306,
+  "endpoint_count": 19,
+  "flow_count": 2,
+  "endpoints": [
+    {
+      "method": "GET",
+      "path": "/payments/",
+      "handler": "payments_retrieve",
+      "chain": [
+        "payments_retrieve",
+        "payments_core",
+        "payments_operation_core",
+        "get_connector_data_with_routing_decision",
+        "get_connector_with_networks"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/payments/",
+      "handler": "payments_start",
+      "chain": [
+        "payments_start",
+        "payments_core",
+        "payments_operation_core",
+        "get_connector_data_with_routing_decision",
+        "get_connector_with_networks"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/payments/",
+      "handler": "payments_update_metadata",
+      "chain": [
+        "payments_update_metadata",
+        "payments_core",
+        "payments_operation_core",
+        "get_connector_data_with_routing_decision",
+        "get_connector_with_networks"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/payments/",
+      "handler": "payments_reject",
+      "chain": [
+        "payments_reject",
+        "payments_core",
+        "payments_operation_core",
+        "get_connector_data_with_routing_decision",
+        "get_connector_with_networks"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/payments/",
+      "handler": "payments_dynamic_tax_calculation",
+      "chain": [
+        "payments_dynamic_tax_calculation",
+        "payments_core",
+        "payments_operation_core",
+        "get_connector_data_with_routing_decision",
+        "get_connector_with_networks"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/payments/",
+      "handler": "payments_complete_authorize",
+      "chain": [
+        "payments_complete_authorize",
+        "payments_core",
+        "payments_operation_core",
+        "get_connector_data_with_routing_decision",
+        "get_connector_with_networks"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/payments/",
+      "handler": "payments_approve",
+      "chain": [
+        "payments_approve",
+        "payments_core",
+        "payments_operation_core",
+        "get_connector_data_with_routing_decision",
+        "get_connector_with_networks"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/payments/",
+      "handler": "payments_update",
+      "chain": [
+        "payments_update",
+        "authorize_verify_select",
+        "proxy_for_payments_core",
+        "payments_operation_core",
+        "get_connector_data_with_routing_decision",
+        "get_connector_with_networks"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/payments/",
+      "handler": "payments_create",
+      "chain": [
+        "payments_create",
+        "authorize_verify_select",
+        "proxy_for_payments_core",
+        "payments_operation_core",
+        "get_connector_data_with_routing_decision",
+        "get_connector_with_networks"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/payments/profile/aggregate",
+      "handler": "get_payments_aggregates_profile",
+      "chain": [
+        "get_payments_aggregates_profile",
+        "payments_core",
+        "payments_operation_core",
+        "get_connector_data_with_routing_decision",
+        "get_connector_with_networks"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/payments/session_tokens",
+      "handler": "payments_connector_session",
+      "chain": [
+        "payments_connector_session",
+        "payments_core",
+        "payments_operation_core",
+        "get_connector_data_with_routing_decision",
+        "get_connector_with_networks"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/payments/sync",
+      "handler": "payments_retrieve_with_gateway_creds",
+      "chain": [
+        "payments_retrieve_with_gateway_creds",
+        "payments_core",
+        "payments_operation_core",
+        "get_connector_data_with_routing_decision",
+        "get_connector_with_networks"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/payments/{payment_id}/cancel",
+      "handler": "payments_cancel",
+      "chain": [
+        "payments_cancel",
+        "payments_core",
+        "payments_operation_core",
+        "get_connector_data_with_routing_decision",
+        "get_connector_with_networks"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/payments/{payment_id}/cancel_post_capture",
+      "handler": "payments_cancel_post_capture",
+      "chain": [
+        "payments_cancel_post_capture",
+        "payments_core",
+        "payments_operation_core",
+        "get_connector_data_with_routing_decision",
+        "get_connector_with_networks"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/payments/{payment_id}/capture",
+      "handler": "payments_capture",
+      "chain": [
+        "payments_capture",
+        "payments_core",
+        "payments_operation_core",
+        "get_connector_data_with_routing_decision",
+        "get_connector_with_networks"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/payments/{payment_id}/confirm",
+      "handler": "payments_confirm",
+      "chain": [
+        "payments_confirm",
+        "authorize_verify_select",
+        "proxy_for_payments_core",
+        "payments_operation_core",
+        "get_connector_data_with_routing_decision",
+        "get_connector_with_networks"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/payments/{payment_id}/extend_authorization",
+      "handler": "payments_extend_authorization",
+      "chain": [
+        "payments_extend_authorization",
+        "payments_core",
+        "payments_operation_core",
+        "get_connector_data_with_routing_decision",
+        "get_connector_with_networks"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/payments/{payment_id}/incremental_authorization",
+      "handler": "payments_incremental_authorization",
+      "chain": [
+        "payments_incremental_authorization",
+        "payments_core",
+        "payments_operation_core",
+        "get_connector_data_with_routing_decision",
+        "get_connector_with_networks"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/payments/{payment_id}/post_session_tokens",
+      "handler": "payments_post_session_tokens",
+      "chain": [
+        "payments_post_session_tokens",
+        "payments_core",
+        "payments_operation_core",
+        "get_connector_data_with_routing_decision",
+        "get_connector_with_networks"
+      ]
+    }
+  ],
+  "flows": [
+    {
+      "flow_id": 1,
+      "description": "let Some((data, card_network)) = get_connector_with_networks(connectors) {",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/payments/",
+          "handler": "payments_retrieve"
+        },
+        {
+          "method": "GET",
+          "path": "/payments/",
+          "handler": "payments_start"
+        },
+        {
+          "method": "POST",
+          "path": "/payments/",
+          "handler": "payments_update_metadata"
+        },
+        {
+          "method": "POST",
+          "path": "/payments/",
+          "handler": "payments_reject"
+        },
+        {
+          "method": "POST",
+          "path": "/payments/",
+          "handler": "payments_dynamic_tax_calculation"
+        },
+        {
+          "method": "POST",
+          "path": "/payments/",
+          "handler": "payments_complete_authorize"
+        },
+        {
+          "method": "POST",
+          "path": "/payments/",
+          "handler": "payments_approve"
+        },
+        {
+          "method": "GET",
+          "path": "/payments/profile/aggregate",
+          "handler": "get_payments_aggregates_profile"
+        },
+        {
+          "method": "POST",
+          "path": "/payments/session_tokens",
+          "handler": "payments_connector_session"
+        },
+        {
+          "method": "POST",
+          "path": "/payments/sync",
+          "handler": "payments_retrieve_with_gateway_creds"
+        },
+        {
+          "method": "POST",
+          "path": "/payments/{payment_id}/cancel",
+          "handler": "payments_cancel"
+        },
+        {
+          "method": "POST",
+          "path": "/payments/{payment_id}/cancel_post_capture",
+          "handler": "payments_cancel_post_capture"
+        },
+        {
+          "method": "POST",
+          "path": "/payments/{payment_id}/capture",
+          "handler": "payments_capture"
+        },
+        {
+          "method": "POST",
+          "path": "/payments/{payment_id}/extend_authorization",
+          "handler": "payments_extend_authorization"
+        },
+        {
+          "method": "POST",
+          "path": "/payments/{payment_id}/incremental_authorization",
+          "handler": "payments_incremental_authorization"
+        },
+        {
+          "method": "POST",
+          "path": "/payments/{payment_id}/post_session_tokens",
+          "handler": "payments_post_session_tokens"
+        }
+      ],
+      "chain": [
+        {
+          "function": "payments_cancel_post_capture",
+          "file": "crates/router/src/routes/payments.rs",
+          "def_line": 1775,
+          "role": "intermediate",
+          "condition": {
+            "type": "unconditional",
+            "text": "unconditional (entry point handler)",
+            "condition_line": null,
+            "conditions": [],
+            "confidence": "high",
+            "snippet": "        flow,\n        state,\n        &req,\n        payload,\n        |state, auth: auth::AuthenticationData, req, req_state| {\n            payments::payments_core::<\n                api_types::PostCaptureVoid,\n                payment_types::PaymentsResponse,\n                _,\n                _,\n"
+          }
+        },
+        {
+          "function": "payments_core",
+          "file": "crates/router/src/core/payments.rs",
+          "def_line": 37,
+          "role": "intermediate",
+          "condition": {
+            "type": "unconditional",
+            "text": "unconditional",
+            "condition_line": null,
+            "conditions": [],
+            "confidence": "high",
+            "snippet": "            .collect()\n    });\n    let dimensions = configs::dimension_state::Dimensions::new()\n        .with_merchant_id(platform.get_processor().get_account().get_id().clone());\n    let (payment_data, _req, connector_http_status_code, external_latency) =\n        payments_operation_core::<_, _, _, _, _>(\n            &state,\n            req_state,\n            &platform,\n            profile_id,\n"
+          }
+        },
+        {
+          "function": "payments_operation_core",
+          "file": "crates/router/src/core/payments.rs",
+          "def_line": 45,
+          "role": "intermediate",
+          "condition": {
+            "type": "unconditional",
+            "text": "unconditional",
+            "condition_line": null,
+            "conditions": [],
+            "confidence": "high",
+            "snippet": "                        get_connector_data_with_routing_decision(\n                            &mut connectors,\n                            &business_profile,\n                            debit_routing_output,\n                        )?;\n"
+          }
+        },
+        {
+          "function": "get_connector_data_with_routing_decision",
+          "file": "crates/router/src/core/payments.rs",
+          "def_line": 323,
+          "role": "direct_caller",
+          "condition": {
+            "type": "if_let",
+            "text": "if let Some((data, card_network)) = get_connector_with_networks(connectors) {",
+            "condition_line": 2327,
+            "conditions": [
+              {
+                "type": "if",
+                "text": "if business_profile.is_debit_routing_enabled && debit_routing_output_optional.is_some() {",
+                "line_no": 2326,
+                "indent": 4,
+                "snippet": "    if business_profile.is_debit_routing_enabled && debit_routing_output_optional.is_some() {"
+              },
+              {
+                "type": "if_let",
+                "text": "if let Some((data, card_network)) = get_connector_with_networks(connectors) {",
+                "line_no": 2327,
+                "indent": 8,
+                "snippet": "        if let Some((data, card_network)) = get_connector_with_networks(connectors) {"
+              }
+            ],
+            "confidence": "high",
+            "snippet": "    if business_profile.is_debit_routing_enabled && debit_routing_output_optional.is_some() {\n        if let Some((data, card_network)) = get_connector_with_networks(connectors) {\n            let debit_routing_output =\n"
+          },
+          "full_source": "fn get_connector_data_with_routing_decision(\n    connectors: &mut IntoIter<api::ConnectorRoutingData>,\n    business_profile: &domain::Profile,\n    debit_routing_output_optional: Option<api_models::open_router::DebitRoutingOutput>,\n) -> RouterResult<(\n    api::ConnectorData,\n    Option<routing_helpers::RoutingDecisionData>,\n)> {\n    if business_profile.is_debit_routing_enabled && debit_routing_output_optional.is_some() {\n        if let Some((data, card_network)) = get_connector_with_networks(connectors) {\n            let debit_routing_output =\n                debit_routing_output_optional.get_required_value(\"debit routing output\")?;\n            let routing_decision =\n                routing_helpers::RoutingDecisionData::get_debit_routing_decision_data(\n                    card_network,\n                    Some(debit_routing_output),\n                );\n            return Ok((data, Some(routing_decision)));\n        }\n    }\n\n    Ok((get_connector_data(connectors)?.connector_data, None))\n}\n\n#[cfg(feature = \"v2\")]\n#[instrument(skip_all)]\npub async fn call_surcharge_decision_management_for_session_flow(\n    _state: &SessionState,\n    _processor: &domain::Processor,\n    _payment_attempt: &storage::PaymentAttempt,\n    _payment_intent: &storage::PaymentIntent,\n    _billing_address: Option<hyperswitch_domain_models::address::Address>,\n    _session_connector_data: &[api::SessionConnectorData],\n) -> RouterResult<Option<api::SessionSurchargeDetails>> {\n    todo!()\n}\n\n#[cfg(feature = \"v1\")]\n#[instrument(skip_all)]\npub async fn call_surcharge_decision_management_for_session_flow(\n    state: &SessionState,\n    processor: &domain::Processor,\n    _business_profile: &domain::Profile,\n    payment_attempt: &storage::PaymentAttempt,\n    payment_intent: &storage::PaymentIntent,\n    billing_address: Option<hyperswitch_domain_models::address::Address>,\n    session_connector_data: &api::SessionConnectorDatas,\n) -> RouterResult<Option<api::SessionSurchargeDetails>> {\n    if let Some(surcharge_amount) = payment_attempt.net_amount.get_surcharge_amount() {\n        Ok(Some(api::SessionSurchargeDetails::PreDetermined(\n            types::SurchargeDetails {\n                original_amount: payment_attempt.net_amount.get_order_amount(),\n                surcharge: Surcharge::Fixed(surcharge_amount),\n                tax_on_surcharge: None,\n                surcharge_amount,\n                tax_on_surcharge_amount: payment_attempt\n                    .net_amount\n                    .get_tax_on_surcharge()\n                    .unwrap_or_default(),\n            },\n        )))\n    } else {\n        let payment_method_type_list = session_connector_data\n            .iter()\n            .map(|session_connector_data| session_connector_data.payment_method_sub_type)\n            .collect();\n\n        #[cfg(feature = \"v1\")]\n        let algorithm_ref: api::routing::RoutingAlgorithmRef = processor\n            .get_account()\n            .routing_algorithm\n            .clone()\n            .map(|val| val.parse_value(\"routing algorithm\"))\n            .transpose()\n            .change_context(errors::ApiErrorResponse::InternalServerError)\n            .attach_printable(\"Could not decode the routing algorithm\")?\n            .unwrap_or_default();\n\n        // TODO: Move to business profile surcharge column\n        #[cfg(feature = \"v2\")]\n        let algorithm_ref: api::routing::RoutingAlgorithmRef = todo!();\n\n        let surcharge_results =\n            surcharge_decision_configs::perform_surcharge_decision_management_for_session_flow(\n                state,\n                algorithm_ref,\n                payment_attempt,\n                payment_intent,\n                billing_address,\n                &payment_method_type_list,\n            )\n            .await\n            .change_context(errors::ApiErrorResponse::InternalServerError)\n            .attach_printable(\"error performing surcharge decision operation\")?;\n\n        Ok(if surcharge_results.is_empty_result() {\n            None\n        } else {\n            Some(api::SessionSurchargeDetails::Calculated(surcharge_results))\n        })\n    }\n}\n\n#[cfg(feature = \"v1\")]\n#[allow(clippy::too_many_arguments)]\nasync fn handle_pm_and_mandate_post_update<F, R, Op, D>(\n    state: &SessionState,\n    operation: &Op,\n    router_data: &RouterData<F, R, router_types::PaymentsResponseData>,\n    platform: &domain::Platform,\n    payment_data: &mut D,\n    business_profile: &domain::Profile,\n    request_payment_method_data: Option<api_models::payments::PaymentMethodData>,\n    feature_config: &core_utils::FeatureConfig,\n) -> CustomResult<(), errors::ApiErrorResponse>\nwhere\n    F: Clone + Send + Sync,\n    R: Send,\n    D: OperationSessionGetters<F> + Send + Sync,\n    Op: Operation<F, R, Data = D> + Send + Sync,\n{\n    if feature_config.is_payment_method_modular_allowed {\n        logger::debug!(\n            payment_id = ?payment_data.get_payment_attempt().payment_id,\n            \"Modular merchant detected; calling update_modular_pm_and_mandate\"\n        );\n\n        let domain_payment_method_data =\n            request_payment_method_data.map(domain::PaymentMethodData::from);\n\n        operation\n            .to_post_update_tracker()?\n            .update_modular_pm_and_mandate(\n                state,\n                router_data,\n                platform,\n                payment_data,\n                business_profile,\n                domain_payment_method_data.as_ref(),\n            )\n            .await?;\n    } else {\n        logger::debug!(\n            payment_id = ?payment_data.get_payment_attempt().payment_id,\n            \"Non-modular merchant; calling save_pm_and_mandate\"\n        );\n        operation\n            .to_post_update_tracker()?\n            .save_pm_and_mandate(state, router_data, platform, payment_data, business_profile)\n            .await?;\n"
+        },
+        {
+          "function": "get_connector_with_networks",
+          "file": "crates/router/src/core/payments.rs",
+          "def_line": 2306,
+          "role": "target",
+          "source": "pub fn get_connector_with_networks(\n    connectors: &mut IntoIter<api::ConnectorRoutingData>,\n) -> Option<(api::ConnectorData, enums::CardNetwork)> {\n    connectors.find_map(|connector| {\n        connector\n            .network\n            .map(|network| (connector.connector_data, network))\n    })\n}\n\n#[cfg(feature = \"v1\")]\nfn get_connector_data_with_routing_decision(\n    connectors: &mut IntoIter<api::ConnectorRoutingData>,\n    business_profile: &domain::Profile,\n    debit_routing_output_optional: Option<api_models::open_router::DebitRoutingOutput>,\n) -> RouterResult<(\n    api::ConnectorData,\n    Option<routing_helpers::RoutingDecisionData>,\n)> {\n    if business_profile.is_debit_routing_enabled && debit_routing_output_optional.is_some() {\n        if let Some((data, card_network)) = get_connector_with_networks(connectors) {\n            let debit_routing_output =\n                debit_routing_output_optional.get_required_value(\"debit routing output\")?;\n            let routing_decision =\n                routing_helpers::RoutingDecisionData::get_debit_routing_decision_data(\n                    card_network,\n                    Some(debit_routing_output),\n                );\n            return Ok((data, Some(routing_decision)));\n        }\n    }\n\n    Ok((get_connector_data(connectors)?.connector_data, None))\n}\n\n#[cfg(feature = \"v2\")]\n#[instrument(skip_all)]\npub async fn call_surcharge_decision_management_for_session_flow(\n    _state: &SessionState,\n    _processor: &domain::Processor,\n    _payment_attempt: &storage::PaymentAttempt,\n    _payment_intent: &storage::PaymentIntent,\n    _billing_address: Option<hyperswitch_domain_models::address::Address>,\n    _session_connector_data: &[api::SessionConnectorData],\n) -> RouterResult<Option<api::SessionSurchargeDetails>> {\n    todo!()\n}\n\n#[cfg(feature = \"v1\")]\n#[instrument(skip_all)]\npub async fn call_surcharge_decision_management_for_session_flow(\n    state: &SessionState,\n    processor: &domain::Processor,\n    _business_profile: &domain::Profile,\n    payment_attempt: &storage::PaymentAttempt,\n    payment_intent: &storage::PaymentIntent,\n    billing_address: Option<hyperswitch_domain_models::address::Address>,\n    session_connector_data: &api::SessionConnectorDatas,\n) -> RouterResult<Option<api::SessionSurchargeDetails>> {\n    if let Some(surcharge_amount) = payment_attempt.net_amount.get_surcharge_amount() {\n        Ok(Some(api::SessionSurchargeDetails::PreDetermined(\n            types::SurchargeDetails {\n                original_amount: payment_attempt.net_amount.get_order_amount(),\n                surcharge: Surcharge::Fixed(surcharge_amount),\n                tax_on_surcharge: None,\n                surcharge_amount,\n                tax_on_surcharge_amount: payment_attempt\n                    .net_amount\n                    .get_tax_on_surcharge()\n                    .unwrap_or_default(),\n            },\n        )))\n    } else {\n        let payment_method_type_list = session_connector_data\n            .iter()\n            .map(|session_connector_data| session_connector_data.payment_method_sub_type)\n            .collect();\n\n        #[cfg(feature = \"v1\")]\n        let algorithm_ref: api::routing::RoutingAlgorithmRef = processor\n            .get_account()\n            .routing_algorithm\n            .clone()\n            .map(|val| val.parse_value(\"routing algorithm\"))\n            .transpose()\n            .change_context(errors::ApiErrorResponse::InternalServerError)\n            .attach_printable(\"Could not decode the routing algorithm\")?\n            .unwrap_or_default();\n\n        // TODO: Move to business profile surcharge column\n        #[cfg(feature = \"v2\")]\n        let algorithm_ref: api::routing::RoutingAlgorithmRef = todo!();\n\n        let surcharge_results =\n            surcharge_decision_configs::perform_surcharge_decision_management_for_session_flow(\n                state,\n                algorithm_ref,\n                payment_attempt,\n                payment_intent,\n                billing_address,\n"
+        }
+      ],
+      "connectors": [
+        "aci",
+        "adyen",
+        "adyenplatform",
+        "affirm",
+        "airwallex",
+        "amazonpay",
+        "archipel",
+        "authipay",
+        "authorizedotnet",
+        "bambora",
+        "bamboraapac",
+        "bankofamerica",
+        "barclaycard",
+        "billwerk",
+        "bitpay",
+        "blackhawknetwork",
+        "bluesnap",
+        "boku",
+        "braintree",
+        "breadpay",
+        "calida",
+        "cashtocode",
+        "celero",
+        "chargebee",
+        "checkbook",
+        "checkout",
+        "coinbase",
+        "coingate",
+        "cryptopay",
+        "custombilling",
+        "cybersource",
+        "cybersourcedecisionmanager",
+        "datatrans",
+        "deutschebank",
+        "digitalvirgo",
+        "dlocal",
+        "dwolla",
+        "ebanx",
+        "elavon",
+        "envoy",
+        "facilitapay",
+        "finix",
+        "fiserv",
+        "fiservcommercehub",
+        "fiservemea",
+        "fiuu",
+        "flexiti",
+        "forte",
+        "getnet",
+        "gigadat",
+        "globalpay",
+        "globepay",
+        "gocardless",
+        "gpayments",
+        "helcim",
+        "hipay",
+        "hyperpg",
+        "hyperswitch_vault",
+        "hyperwallet",
+        "iatapay",
+        "inespay",
+        "itaubank",
+        "jpmorgan",
+        "juspaythreedsserver",
+        "katapult",
+        "klarna",
+        "loonio",
+        "mifinity",
+        "mollie",
+        "moneris",
+        "mpgs",
+        "multisafepay",
+        "nexinets",
+        "nexixpay",
+        "nmi",
+        "nomupay",
+        "noon",
+        "nordea",
+        "novalnet",
+        "nuvei",
+        "opayo",
+        "opennode",
+        "paybox",
+        "payeezy",
+        "payjustnow",
+        "payjustnowinstore",
+        "payload",
+        "payme",
+        "paypal",
+        "paysafe",
+        "paystack",
+        "paytm",
+        "payu",
+        "peachpayments",
+        "phonepe",
+        "placetopay",
+        "powertranz",
+        "prophetpay",
+        "rapyd",
+        "razorpay",
+        "redsys",
+        "revolv3",
+        "santander",
+        "shift4",
+        "sift",
+        "silverflow",
+        "square",
+        "stax",
+        "stripe",
+        "stripebilling",
+        "taxjar",
+        "tesouro",
+        "thunes",
+        "tokenex",
+        "tokenio",
+        "truelayer",
+        "trustly",
+        "trustpay",
+        "trustpayments",
+        "tsys",
+        "unified_authentication_service",
+        "vgs",
+        "volt",
+        "wellsfargo",
+        "wellsfargopayout",
+        "wise",
+        "worldpay",
+        "worldpayvantiv",
+        "worldpayxml",
+        "xendit",
+        "zen",
+        "zift",
+        "zsl"
+      ],
+      "connector_count": 133,
+      "conditions_high": 4,
+      "conditions_inferred": 0,
+      "conditions_missing": 0
+    },
+    {
+      "flow_id": 2,
+      "description": "let Some((data, card_network)) = get_connector_with_networks(connectors) {",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/payments/",
+          "handler": "payments_update"
+        },
+        {
+          "method": "POST",
+          "path": "/payments/",
+          "handler": "payments_create"
+        },
+        {
+          "method": "POST",
+          "path": "/payments/{payment_id}/confirm",
+          "handler": "payments_confirm"
+        }
+      ],
+      "chain": [
+        {
+          "function": "payments_confirm",
+          "file": "crates/router/src/routes/payments.rs",
+          "def_line": 989,
+          "role": "intermediate",
+          "condition": {
+            "type": "unconditional",
+            "text": "unconditional (entry point handler)",
+            "condition_line": null,
+            "conditions": [],
+            "confidence": "high",
+            "snippet": "            // If client_secret is provided via SDK authorization header, use it\n            if let Some(client_secret) = auth.client_secret {\n                req.client_secret = Some(client_secret);\n            }\n\n            authorize_verify_select::<_>(\n                payments::PaymentConfirm,\n                state,\n                req_state,\n                auth.platform,\n"
+          }
+        },
+        {
+          "function": "authorize_verify_select",
+          "file": "crates/router/src/routes/payments.rs",
+          "def_line": 36,
+          "role": "intermediate",
+          "condition": {
+            "type": "if",
+            "text": "if should_call_proxy_for_payments_core {",
+            "condition_line": 2340,
+            "conditions": [
+              {
+                "type": "if",
+                "text": "if should_call_proxy_for_payments_core {",
+                "line_no": 2340,
+                "indent": 4,
+                "snippet": "    if should_call_proxy_for_payments_core {"
+              }
+            ],
+            "confidence": "high",
+            "snippet": "    if should_call_proxy_for_payments_core {\n        // no list of eligible connectors will be passed in the confirm call\n        logger::debug!(\"Authorize call for NTI and Card Details flow\");\n        payments::proxy_for_payments_core::<\n            api_types::Authorize,\n"
+          }
+        },
+        {
+          "function": "proxy_for_payments_core",
+          "file": "crates/router/src/core/payments.rs",
+          "def_line": 2234,
+          "role": "intermediate",
+          "condition": {
+            "type": "unconditional",
+            "text": "unconditional",
+            "condition_line": null,
+            "conditions": [],
+            "confidence": "high",
+            "snippet": "            .collect()\n    });\n    let dimensions = configs::dimension_state::Dimensions::new()\n        .with_merchant_id(platform.get_processor().get_account().get_id().clone());\n    let (payment_data, _req, connector_http_status_code, external_latency) =\n        payments_operation_core::<_, _, _, _, _>(\n            &state,\n            req_state,\n            &platform,\n            profile_id,\n"
+          }
+        },
+        {
+          "function": "payments_operation_core",
+          "file": "crates/router/src/core/payments.rs",
+          "def_line": 45,
+          "role": "intermediate",
+          "condition": {
+            "type": "unconditional",
+            "text": "unconditional",
+            "condition_line": null,
+            "conditions": [],
+            "confidence": "high",
+            "snippet": "                        get_connector_data_with_routing_decision(\n                            &mut connectors,\n                            &business_profile,\n                            debit_routing_output,\n                        )?;\n"
+          }
+        },
+        {
+          "function": "get_connector_data_with_routing_decision",
+          "file": "crates/router/src/core/payments.rs",
+          "def_line": 323,
+          "role": "direct_caller",
+          "condition": {
+            "type": "if_let",
+            "text": "if let Some((data, card_network)) = get_connector_with_networks(connectors) {",
+            "condition_line": 2327,
+            "conditions": [
+              {
+                "type": "if",
+                "text": "if business_profile.is_debit_routing_enabled && debit_routing_output_optional.is_some() {",
+                "line_no": 2326,
+                "indent": 4,
+                "snippet": "    if business_profile.is_debit_routing_enabled && debit_routing_output_optional.is_some() {"
+              },
+              {
+                "type": "if_let",
+                "text": "if let Some((data, card_network)) = get_connector_with_networks(connectors) {",
+                "line_no": 2327,
+                "indent": 8,
+                "snippet": "        if let Some((data, card_network)) = get_connector_with_networks(connectors) {"
+              }
+            ],
+            "confidence": "high",
+            "snippet": "    if business_profile.is_debit_routing_enabled && debit_routing_output_optional.is_some() {\n        if let Some((data, card_network)) = get_connector_with_networks(connectors) {\n            let debit_routing_output =\n"
+          },
+          "full_source": "fn get_connector_data_with_routing_decision(\n    connectors: &mut IntoIter<api::ConnectorRoutingData>,\n    business_profile: &domain::Profile,\n    debit_routing_output_optional: Option<api_models::open_router::DebitRoutingOutput>,\n) -> RouterResult<(\n    api::ConnectorData,\n    Option<routing_helpers::RoutingDecisionData>,\n)> {\n    if business_profile.is_debit_routing_enabled && debit_routing_output_optional.is_some() {\n        if let Some((data, card_network)) = get_connector_with_networks(connectors) {\n            let debit_routing_output =\n                debit_routing_output_optional.get_required_value(\"debit routing output\")?;\n            let routing_decision =\n                routing_helpers::RoutingDecisionData::get_debit_routing_decision_data(\n                    card_network,\n                    Some(debit_routing_output),\n                );\n            return Ok((data, Some(routing_decision)));\n        }\n    }\n\n    Ok((get_connector_data(connectors)?.connector_data, None))\n}\n\n#[cfg(feature = \"v2\")]\n#[instrument(skip_all)]\npub async fn call_surcharge_decision_management_for_session_flow(\n    _state: &SessionState,\n    _processor: &domain::Processor,\n    _payment_attempt: &storage::PaymentAttempt,\n    _payment_intent: &storage::PaymentIntent,\n    _billing_address: Option<hyperswitch_domain_models::address::Address>,\n    _session_connector_data: &[api::SessionConnectorData],\n) -> RouterResult<Option<api::SessionSurchargeDetails>> {\n    todo!()\n}\n\n#[cfg(feature = \"v1\")]\n#[instrument(skip_all)]\npub async fn call_surcharge_decision_management_for_session_flow(\n    state: &SessionState,\n    processor: &domain::Processor,\n    _business_profile: &domain::Profile,\n    payment_attempt: &storage::PaymentAttempt,\n    payment_intent: &storage::PaymentIntent,\n    billing_address: Option<hyperswitch_domain_models::address::Address>,\n    session_connector_data: &api::SessionConnectorDatas,\n) -> RouterResult<Option<api::SessionSurchargeDetails>> {\n    if let Some(surcharge_amount) = payment_attempt.net_amount.get_surcharge_amount() {\n        Ok(Some(api::SessionSurchargeDetails::PreDetermined(\n            types::SurchargeDetails {\n                original_amount: payment_attempt.net_amount.get_order_amount(),\n                surcharge: Surcharge::Fixed(surcharge_amount),\n                tax_on_surcharge: None,\n                surcharge_amount,\n                tax_on_surcharge_amount: payment_attempt\n                    .net_amount\n                    .get_tax_on_surcharge()\n                    .unwrap_or_default(),\n            },\n        )))\n    } else {\n        let payment_method_type_list = session_connector_data\n            .iter()\n            .map(|session_connector_data| session_connector_data.payment_method_sub_type)\n            .collect();\n\n        #[cfg(feature = \"v1\")]\n        let algorithm_ref: api::routing::RoutingAlgorithmRef = processor\n            .get_account()\n            .routing_algorithm\n            .clone()\n            .map(|val| val.parse_value(\"routing algorithm\"))\n            .transpose()\n            .change_context(errors::ApiErrorResponse::InternalServerError)\n            .attach_printable(\"Could not decode the routing algorithm\")?\n            .unwrap_or_default();\n\n        // TODO: Move to business profile surcharge column\n        #[cfg(feature = \"v2\")]\n        let algorithm_ref: api::routing::RoutingAlgorithmRef = todo!();\n\n        let surcharge_results =\n            surcharge_decision_configs::perform_surcharge_decision_management_for_session_flow(\n                state,\n                algorithm_ref,\n                payment_attempt,\n                payment_intent,\n                billing_address,\n                &payment_method_type_list,\n            )\n            .await\n            .change_context(errors::ApiErrorResponse::InternalServerError)\n            .attach_printable(\"error performing surcharge decision operation\")?;\n\n        Ok(if surcharge_results.is_empty_result() {\n            None\n        } else {\n            Some(api::SessionSurchargeDetails::Calculated(surcharge_results))\n        })\n    }\n}\n\n#[cfg(feature = \"v1\")]\n#[allow(clippy::too_many_arguments)]\nasync fn handle_pm_and_mandate_post_update<F, R, Op, D>(\n    state: &SessionState,\n    operation: &Op,\n    router_data: &RouterData<F, R, router_types::PaymentsResponseData>,\n    platform: &domain::Platform,\n    payment_data: &mut D,\n    business_profile: &domain::Profile,\n    request_payment_method_data: Option<api_models::payments::PaymentMethodData>,\n    feature_config: &core_utils::FeatureConfig,\n) -> CustomResult<(), errors::ApiErrorResponse>\nwhere\n    F: Clone + Send + Sync,\n    R: Send,\n    D: OperationSessionGetters<F> + Send + Sync,\n    Op: Operation<F, R, Data = D> + Send + Sync,\n{\n    if feature_config.is_payment_method_modular_allowed {\n        logger::debug!(\n            payment_id = ?payment_data.get_payment_attempt().payment_id,\n            \"Modular merchant detected; calling update_modular_pm_and_mandate\"\n        );\n\n        let domain_payment_method_data =\n            request_payment_method_data.map(domain::PaymentMethodData::from);\n\n        operation\n            .to_post_update_tracker()?\n            .update_modular_pm_and_mandate(\n                state,\n                router_data,\n                platform,\n                payment_data,\n                business_profile,\n                domain_payment_method_data.as_ref(),\n            )\n            .await?;\n    } else {\n        logger::debug!(\n            payment_id = ?payment_data.get_payment_attempt().payment_id,\n            \"Non-modular merchant; calling save_pm_and_mandate\"\n        );\n        operation\n            .to_post_update_tracker()?\n            .save_pm_and_mandate(state, router_data, platform, payment_data, business_profile)\n            .await?;\n"
+        },
+        {
+          "function": "get_connector_with_networks",
+          "file": "crates/router/src/core/payments.rs",
+          "def_line": 2306,
+          "role": "target",
+          "source": "pub fn get_connector_with_networks(\n    connectors: &mut IntoIter<api::ConnectorRoutingData>,\n) -> Option<(api::ConnectorData, enums::CardNetwork)> {\n    connectors.find_map(|connector| {\n        connector\n            .network\n            .map(|network| (connector.connector_data, network))\n    })\n}\n\n#[cfg(feature = \"v1\")]\nfn get_connector_data_with_routing_decision(\n    connectors: &mut IntoIter<api::ConnectorRoutingData>,\n    business_profile: &domain::Profile,\n    debit_routing_output_optional: Option<api_models::open_router::DebitRoutingOutput>,\n) -> RouterResult<(\n    api::ConnectorData,\n    Option<routing_helpers::RoutingDecisionData>,\n)> {\n    if business_profile.is_debit_routing_enabled && debit_routing_output_optional.is_some() {\n        if let Some((data, card_network)) = get_connector_with_networks(connectors) {\n            let debit_routing_output =\n                debit_routing_output_optional.get_required_value(\"debit routing output\")?;\n            let routing_decision =\n                routing_helpers::RoutingDecisionData::get_debit_routing_decision_data(\n                    card_network,\n                    Some(debit_routing_output),\n                );\n            return Ok((data, Some(routing_decision)));\n        }\n    }\n\n    Ok((get_connector_data(connectors)?.connector_data, None))\n}\n\n#[cfg(feature = \"v2\")]\n#[instrument(skip_all)]\npub async fn call_surcharge_decision_management_for_session_flow(\n    _state: &SessionState,\n    _processor: &domain::Processor,\n    _payment_attempt: &storage::PaymentAttempt,\n    _payment_intent: &storage::PaymentIntent,\n    _billing_address: Option<hyperswitch_domain_models::address::Address>,\n    _session_connector_data: &[api::SessionConnectorData],\n) -> RouterResult<Option<api::SessionSurchargeDetails>> {\n    todo!()\n}\n\n#[cfg(feature = \"v1\")]\n#[instrument(skip_all)]\npub async fn call_surcharge_decision_management_for_session_flow(\n    state: &SessionState,\n    processor: &domain::Processor,\n    _business_profile: &domain::Profile,\n    payment_attempt: &storage::PaymentAttempt,\n    payment_intent: &storage::PaymentIntent,\n    billing_address: Option<hyperswitch_domain_models::address::Address>,\n    session_connector_data: &api::SessionConnectorDatas,\n) -> RouterResult<Option<api::SessionSurchargeDetails>> {\n    if let Some(surcharge_amount) = payment_attempt.net_amount.get_surcharge_amount() {\n        Ok(Some(api::SessionSurchargeDetails::PreDetermined(\n            types::SurchargeDetails {\n                original_amount: payment_attempt.net_amount.get_order_amount(),\n                surcharge: Surcharge::Fixed(surcharge_amount),\n                tax_on_surcharge: None,\n                surcharge_amount,\n                tax_on_surcharge_amount: payment_attempt\n                    .net_amount\n                    .get_tax_on_surcharge()\n                    .unwrap_or_default(),\n            },\n        )))\n    } else {\n        let payment_method_type_list = session_connector_data\n            .iter()\n            .map(|session_connector_data| session_connector_data.payment_method_sub_type)\n            .collect();\n\n        #[cfg(feature = \"v1\")]\n        let algorithm_ref: api::routing::RoutingAlgorithmRef = processor\n            .get_account()\n            .routing_algorithm\n            .clone()\n            .map(|val| val.parse_value(\"routing algorithm\"))\n            .transpose()\n            .change_context(errors::ApiErrorResponse::InternalServerError)\n            .attach_printable(\"Could not decode the routing algorithm\")?\n            .unwrap_or_default();\n\n        // TODO: Move to business profile surcharge column\n        #[cfg(feature = \"v2\")]\n        let algorithm_ref: api::routing::RoutingAlgorithmRef = todo!();\n\n        let surcharge_results =\n            surcharge_decision_configs::perform_surcharge_decision_management_for_session_flow(\n                state,\n                algorithm_ref,\n                payment_attempt,\n                payment_intent,\n                billing_address,\n"
+        }
+      ],
+      "connectors": [
+        "aci",
+        "adyen",
+        "adyenplatform",
+        "affirm",
+        "airwallex",
+        "amazonpay",
+        "archipel",
+        "authipay",
+        "authorizedotnet",
+        "bambora",
+        "bamboraapac",
+        "bankofamerica",
+        "barclaycard",
+        "billwerk",
+        "bitpay",
+        "blackhawknetwork",
+        "bluesnap",
+        "boku",
+        "braintree",
+        "breadpay",
+        "calida",
+        "cashtocode",
+        "celero",
+        "chargebee",
+        "checkbook",
+        "checkout",
+        "coinbase",
+        "coingate",
+        "cryptopay",
+        "custombilling",
+        "cybersource",
+        "cybersourcedecisionmanager",
+        "datatrans",
+        "deutschebank",
+        "digitalvirgo",
+        "dlocal",
+        "dwolla",
+        "ebanx",
+        "elavon",
+        "envoy",
+        "facilitapay",
+        "finix",
+        "fiserv",
+        "fiservcommercehub",
+        "fiservemea",
+        "fiuu",
+        "flexiti",
+        "forte",
+        "getnet",
+        "gigadat",
+        "globalpay",
+        "globepay",
+        "gocardless",
+        "gpayments",
+        "helcim",
+        "hipay",
+        "hyperpg",
+        "hyperswitch_vault",
+        "hyperwallet",
+        "iatapay",
+        "inespay",
+        "itaubank",
+        "jpmorgan",
+        "juspaythreedsserver",
+        "katapult",
+        "klarna",
+        "loonio",
+        "mifinity",
+        "mollie",
+        "moneris",
+        "mpgs",
+        "multisafepay",
+        "nexinets",
+        "nexixpay",
+        "nmi",
+        "nomupay",
+        "noon",
+        "nordea",
+        "novalnet",
+        "nuvei",
+        "opayo",
+        "opennode",
+        "paybox",
+        "payeezy",
+        "payjustnow",
+        "payjustnowinstore",
+        "payload",
+        "payme",
+        "paypal",
+        "paysafe",
+        "paystack",
+        "paytm",
+        "payu",
+        "peachpayments",
+        "phonepe",
+        "placetopay",
+        "powertranz",
+        "prophetpay",
+        "rapyd",
+        "razorpay",
+        "redsys",
+        "revolv3",
+        "santander",
+        "shift4",
+        "sift",
+        "silverflow",
+        "square",
+        "stax",
+        "stripe",
+        "stripebilling",
+        "taxjar",
+        "tesouro",
+        "thunes",
+        "tokenex",
+        "tokenio",
+        "truelayer",
+        "trustly",
+        "trustpay",
+        "trustpayments",
+        "tsys",
+        "unified_authentication_service",
+        "vgs",
+        "volt",
+        "wellsfargo",
+        "wellsfargopayout",
+        "wise",
+        "worldline",
+        "worldpay",
+        "worldpayvantiv",
+        "worldpayxml",
+        "xendit",
+        "zen",
+        "zift",
+        "zsl"
+      ],
+      "connector_count": 134,
+      "conditions_high": 5,
+      "conditions_inferred": 0,
+      "conditions_missing": 0
+    }
+  ]
+}

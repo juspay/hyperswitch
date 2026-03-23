@@ -1,0 +1,23 @@
+{
+  "_readme": [
+    "This pl runs one v1 Cypress payment spec that hits POST /payments and confirm — same family as get_connector_with_networks.json reachability (not guaranteed to hit debit-routing + network branch).",
+    "Prereqs: router running with Cypress env (BASEURL, API keys, connector). In cypress-tests: npm ci.",
+    "For LLVM line diff: build/run router with -Cinstrument-coverage, LLVM_PROFILE_FILE, run this pl with --allow-exec, stop router, then just coverage_html, then coverage_feedback_loop without --allow-exec to only diff."
+  ],
+  "items": [
+    {
+      "id": "cypress-v1-no3ds-auto-capture",
+      "kind": "subprocess",
+      "cwd": "cypress-tests",
+      "argv": [
+        "npx",
+        "cypress",
+        "run",
+        "--headless",
+        "--spec",
+        "cypress/e2e/spec/Payment/00004-NoThreeDSAutoCapture.cy.js"
+      ],
+      "timeout": 600
+    }
+  ]
+}

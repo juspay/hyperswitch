@@ -95,6 +95,116 @@ run_v2:
     cargo run --package router --no-default-features --features "${FEATURES}"
     set +x
 
+# Same as `run_v2`, but builds/runs with LLVM source-based coverage (.profraw under target/coverage-profraw/).
+# Prereqs: `rustup component add llvm-tools-preview` and `cargo install grcov`
+# After you stop the server (Ctrl+C), run `just coverage_html` to generate HTML + lcov.info.
+run_v2_llvm *FLAGS:
+    #! /usr/bin/env bash
+    set -euo pipefail
+
+    ROOT="$(pwd)"
+    mkdir -p "${ROOT}/target/coverage-profraw"
+    export RUSTFLAGS="-Cinstrument-coverage"
+    export LLVM_PROFILE_FILE="${ROOT}/target/coverage-profraw/router-%p-%m.profraw"
+
+    FEATURES="$(cargo metadata --all-features --format-version 1 --no-deps | \
+        jq -r '
+            [ .packages[] | select(.name == "router") | .features | keys[]
+            | select( any( . ; test("(([a-z_]+)_)?v2") ) ) ]
+            | join(",")
+    ')"
+
+    set -x
+    cargo run --package router --no-default-features --features "${FEATURES}" {{ FLAGS }}
+    set +x
+
+# Merge .profraw into HTML + lcov.info.
+# NOTE: Do NOT pass the whole repo to grcov — it walks every file and can take 10+ minutes or look "stuck".
+# We only pass dirs that actually contain *.profraw (from run_v2_llvm / demos).
+coverage_html:
+    #! /usr/bin/env bash
+    set -euo pipefail
+    ROOT="$(pwd)"
+    # grcov needs llvm-profdata on PATH (ships with Rust's llvm-tools-preview)
+    HOST="$(rustc -vV | sed -n 's/^host: //p')"
+    SYSROOT="$(rustc --print sysroot)"
+    export PATH="${SYSROOT}/lib/rustlib/${HOST}/bin:${HOME}/.cargo/bin:${PATH}"
+
+    command -v grcov >/dev/null 2>&1 || { echo "Install grcov: cargo install grcov  (then ensure ~/.cargo/bin is on PATH)" >&2; exit 1; }
+    if ! command -v llvm-profdata >/dev/null 2>&1; then
+        echo "llvm-profdata not found (required by grcov)." >&2
+        echo "Install:  rustup component add llvm-tools-preview" >&2
+        echo "If you use a pinned toolchain:  rustup component add llvm-tools-preview --toolchain \$(rustup show active-toolchain | cut -d' ' -f1)" >&2
+        exit 1
+    fi
+
+    GRCOV_PATHS=()
+    for d in "${ROOT}/target/coverage-profraw" "${ROOT}/target/coverage-poc-demo"; do
+        if [[ -d "$d" ]] && [[ -n "$(find "$d" -maxdepth 1 -name '*.profraw' 2>/dev/null | head -1)" ]]; then
+            GRCOV_PATHS+=("$d")
+        fi
+    done
+
+    if [[ ${#GRCOV_PATHS[@]} -eq 0 ]]; then
+        echo "No .profraw files found under target/coverage-profraw/ or target/coverage-poc-demo/." >&2
+        echo "Run:  just run_v2_llvm  →  hit the API  →  Ctrl+C  →  just coverage_html" >&2
+        exit 1
+    fi
+
+    mkdir -p "${ROOT}/target/coverage-html"
+    echo "Running grcov (HTML pass can take several minutes on this repo)…" >&2
+    set -x
+    grcov "${GRCOV_PATHS[@]}" \
+        --source-dir "${ROOT}" \
+        --binary-path "${ROOT}/target/debug" \
+        --output-type html \
+        --output-path "${ROOT}/target/coverage-html" \
+        --keep-only "crates/*" \
+        --ignore-not-existing
+    grcov "${GRCOV_PATHS[@]}" \
+        --source-dir "${ROOT}" \
+        --binary-path "${ROOT}/target/debug" \
+        --output-type lcov \
+        --output-path "${ROOT}/lcov.info" \
+        --keep-only "crates/*" \
+        --ignore-not-existing
+    set +x
+    # grcov >= 0.8 writes HTML under <output-path>/html/index.html (not index.html at output root).
+    if [[ -f "${ROOT}/target/coverage-html/html/index.html" ]]; then
+        echo "Open in browser: ${ROOT}/target/coverage-html/html/index.html"
+    elif [[ -f "${ROOT}/target/coverage-html/index.html" ]]; then
+        echo "Open in browser: ${ROOT}/target/coverage-html/index.html"
+    else
+        echo "HTML report not found under target/coverage-html/ (check grcov stderr above)." >&2
+        exit 1
+    fi
+    [[ -f "${ROOT}/lcov.info" ]] && echo "LCOV: ${ROOT}/lcov.info" || echo "Warning: lcov.info missing (second grcov step may have failed)." >&2
+
+# POC phase 1: emit **d** only (lcov vs static flow JSON). Empty pl; no specs loop (see script docstring).
+# Needs lcov.info from any pipeline. Example:  just coverage_flow_gap --targets-only --out coverage_flow_gap.json
+coverage_flow_gap *ARGS:
+    python3 scripts/coverage_flow_gap.py \
+        --flow-json get_connector_with_networks.json \
+        --lcov lcov.info \
+        --repo-root . \
+        {{ ARGS }}
+
+# curl /health → just coverage_html → diff for scripts/path_flow_health.json (router must be up; see script header)
+health_curl_coverage_diff:
+    bash scripts/run_health_curl_coverage_diff.sh
+
+# Build/run instrumented router, curl /health, stop (flush .profraw), coverage_html, diff + line-hit table (needs DB/Redis; see script header)
+health_llvm_e2e:
+    bash scripts/llvm_health_coverage_e2e.sh
+
+# Chain + lcov → d. Simplest Cypress pair: scripts/path_flow_health.json + scripts/coverage_pl_cypress.health.json (see scripts/README_coverage_pathflow.md)
+coverage_feedback_loop *ARGS:
+    python3 scripts/coverage_feedback_loop.py \
+        --chain-artifact get_connector_with_networks.json \
+        --lcov lcov.info \
+        --repo-root . \
+        {{ ARGS }}
+
 check *FLAGS:
     #! /usr/bin/env bash
     set -euo pipefail

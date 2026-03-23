@@ -9,11 +9,12 @@ use crate::{
     routes::metrics,
     services::{api, authentication as auth},
 };
-/// .
-// #[logger::instrument(skip_all, name = "name1", level = "warn", fields( key1 = "val1" ))]
+/// Shallow health (sync handler). Actix accepts a synchronous `HttpResponse` here.
+/// LLVM source-based coverage + grcov usually get per-line `DA:` for this body; `async fn` handlers
+/// (and thin wrappers around a sync helper) often end up with **no** `DA:` on the intended span in
+/// `lcov.info` because probes land on generated state-machine / wrapper code instead.
 #[instrument(skip_all, fields(flow = ?Flow::HealthCheck))]
-// #[actix_web::get("/health")]
-pub async fn health() -> impl actix_web::Responder {
+pub fn health() -> actix_web::HttpResponse {
     metrics::HEALTH_METRIC.add(1, &[]);
     logger::info!("Health was called");
 

@@ -1,0 +1,45 @@
+{
+  "function": "health",
+  "file": "crates/router/src/routes/health.rs",
+  "def_line": 16,
+  "endpoint_count": 1,
+  "flow_count": 1,
+  "endpoints": [
+    {
+      "method": "GET",
+      "path": "/health",
+      "handler": "health",
+      "chain": [
+        "health"
+      ]
+    }
+  ],
+  "flows": [
+    {
+      "flow_id": 1,
+      "description": "flow (condition not extracted mechanically)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/health",
+          "handler": "health"
+        }
+      ],
+      "prerequisites": [],
+      "chain": [
+        {
+          "function": "health",
+          "file": "crates/router/src/routes/health.rs",
+          "def_line": 16,
+          "role": "target",
+          "source": "pub async fn health() -> impl actix_web::Responder {\n    metrics::HEALTH_METRIC.add(1, &[]);\n    logger::info!(\"Health was called\");\n\n    actix_web::HttpResponse::Ok().body(\"health is good\")\n}\n\n#[instrument(skip_all, fields(flow = ?Flow::DeepHealthCheck))]\npub async fn deep_health_check(\n    state: web::Data<app::AppState>,\n    request: HttpRequest,\n) -> impl actix_web::Responder {\n    metrics::HEALTH_METRIC.add(1, &[]);\n\n    let flow = Flow::DeepHealthCheck;\n\n    Box::pin(api::server_wrap(\n        flow,\n        state,\n        &request,\n        (),\n        |state, _: (), _, _| deep_health_check_func(state),\n        &auth::NoAuth,\n        api_locking::LockAction::NotApplicable,\n    ))\n    .await\n}\n\nasync fn deep_health_check_func(\n    state: app::SessionState,\n) -> RouterResponse<RouterHealthCheckResponse> {\n    logger::info!(\"Deep health check was called\");\n\n    logger::debug!(\"Database health check begin\");\n\n    let db_status = state.health_check_db().await.map_err(|error| {\n        let message = error.to_string();\n        error.change_context(errors::ApiErrorResponse::HealthCheckError {\n            component: \"Database\",\n            message,\n        })\n    })?;\n\n    logger::debug!(\"Database health check end\");\n\n    logger::debug!(\"Redis health check begin\");\n\n    let redis_status = state.health_check_redis().await.map_err(|error| {\n        let message = error.to_string();\n        error.change_context(errors::ApiErrorResponse::HealthCheckError {\n            component: \"Redis\",\n            message,\n        })\n    })?;\n\n    logger::debug!(\"Redis health check end\");\n\n    logger::debug!(\"Locker health check begin\");\n\n    let locker_status = state.health_check_locker().await.map_err(|error| {\n        let message = error.to_string();\n        error.change_context(errors::ApiErrorResponse::HealthCheckError {\n            component: \"Locker\",\n            message,\n        })\n    })?;\n\n    logger::debug!(\"Locker health check end\");\n\n    logger::debug!(\"Analytics health check begin\");\n\n    #[cfg(feature = \"olap\")]\n    let analytics_status = state.health_check_analytics().await.map_err(|error| {\n        let message = error.to_string();\n        error.change_context(errors::ApiErrorResponse::HealthCheckError {\n            component: \"Analytics\",\n            message,\n        })\n    })?;\n\n    logger::debug!(\"Analytics health check end\");\n\n    logger::debug!(\"gRPC health check begin\");\n\n    #[cfg(feature = \"dynamic_routing\")]\n    let grpc_health_check = state.health_check_grpc().await.map_err(|error| {\n        let message = error.to_string();\n        error.change_context(errors::ApiErrorResponse::HealthCheckError {\n            component: \"gRPC services\",\n            message,\n        })\n    })?;\n\n    logger::debug!(\"gRPC health check end\");\n\n    logger::debug!(\"Decision Engine health check begin\");\n\n    #[cfg(feature = \"dynamic_routing\")]\n    let decision_engine_health_check =\n        state\n"
+        }
+      ],
+      "connectors": [],
+      "connector_count": 0,
+      "conditions_high": 0,
+      "conditions_inferred": 0,
+      "conditions_missing": 0
+    }
+  ]
+}
