@@ -21,7 +21,7 @@ use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
-use masking::{Secret, SwitchStrategy};
+use hyperswitch_masking::{Secret, SwitchStrategy};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -436,7 +436,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, IatapayPaymentsResponse, T, PaymentsRes
         Ok(Self {
             status,
             response: match error {
-                Some(error) => Err(error),
+                Some(err) => Err(err),
                 None => Ok(payment_response_data),
             },
             ..item.data

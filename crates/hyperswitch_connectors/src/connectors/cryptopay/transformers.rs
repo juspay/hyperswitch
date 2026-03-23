@@ -11,7 +11,7 @@ use hyperswitch_domain_models::{
     types,
 };
 use hyperswitch_interfaces::{consts, errors};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 

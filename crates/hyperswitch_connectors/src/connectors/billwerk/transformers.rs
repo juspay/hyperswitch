@@ -19,7 +19,7 @@ use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -307,7 +307,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BillwerkPaymentsResponse, T, PaymentsRe
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.state),
             response: match error_response {
-                Some(error) => Err(error),
+                Some(err) => Err(err),
                 None => Ok(payments_response),
             },
             ..item.data

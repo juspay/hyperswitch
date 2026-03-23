@@ -30,7 +30,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{consts, errors};
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use strum::Display;
 use url::Url;
@@ -1426,7 +1426,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                 Ok(Self {
                     status,
                     response: match error_response {
-                        Some(error) => Err(error),
+                        Some(err) => Err(err),
                         None => Ok(payments_response_data),
                     },
                     ..item.data
@@ -1496,7 +1496,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                 Ok(Self {
                     status,
                     response: match error_response {
-                        Some(error) => Err(error),
+                        Some(err) => Err(err),
                         None => Ok(payments_response_data),
                     },
                     ..item.data
@@ -1674,7 +1674,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
         Ok(Self {
             status,
             response: match error_response {
-                Some(error) => Err(error),
+                Some(err) => Err(err),
                 None => Ok(payments_response_data),
             },
             ..item.data
@@ -1795,7 +1795,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<FiuuPaymentCancelResponse>>
         Ok(Self {
             status,
             response: match error_response {
-                Some(error) => Err(error),
+                Some(err) => Err(err),
                 None => Ok(payments_response_data),
             },
             ..item.data

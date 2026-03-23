@@ -27,7 +27,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{consts, errors};
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
@@ -851,7 +851,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, TrustpayPaymentsResponse, T, PaymentsRe
         Ok(Self {
             status,
             response: match error {
-                Some(error) => Err(error),
+                Some(err) => Err(err),
                 None => Ok(payment_response_data),
             },
             connector_response,
@@ -1922,7 +1922,7 @@ impl<F> TryFrom<RefundsResponseRouterData<F, RefundResponse>> for RefundsRouterD
         };
         Ok(Self {
             response: match error {
-                Some(error) => Err(error),
+                Some(err) => Err(err),
                 None => Ok(response),
             },
             ..item.data

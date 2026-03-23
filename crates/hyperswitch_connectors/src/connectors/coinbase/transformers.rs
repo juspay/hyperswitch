@@ -11,7 +11,7 @@ use hyperswitch_domain_models::{
     types::{self, PaymentsAuthorizeRouterData},
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -161,16 +161,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, CoinbasePaymentsResponse, T, PaymentsRe
         let connector_id = ResponseId::ConnectorTransactionId(item.response.data.id.clone());
         let attempt_status = timeline.status.clone();
         let response_data = match timeline.context {
-            Some(context) => Ok(PaymentsResponseData::TransactionUnresolvedResponse {
-                resource_id: connector_id,
-                reason: Some(api_models::enums::UnresolvedResponseReason {
-                    code: context.to_string(),
-                    message:
-                        "Please check the transaction in coinbase dashboard and resolve manually"
-                            .to_string(),
-                }),
-                connector_response_reference_id: Some(item.response.data.id),
-            }),
             None => Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: connector_id.clone(),
                 redirection_data: Box::new(Some(redirection_data)),
@@ -181,6 +171,16 @@ impl<F, T> TryFrom<ResponseRouterData<F, CoinbasePaymentsResponse, T, PaymentsRe
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+            }),
+            Some(context) => Ok(PaymentsResponseData::TransactionUnresolvedResponse {
+                resource_id: connector_id,
+                reason: Some(api_models::enums::UnresolvedResponseReason {
+                    code: context.to_string(),
+                    message:
+                        "Please check the transaction in coinbase dashboard and resolve manually"
+                            .to_string(),
+                }),
+                connector_response_reference_id: Some(item.response.data.id),
             }),
         };
         Ok(Self {

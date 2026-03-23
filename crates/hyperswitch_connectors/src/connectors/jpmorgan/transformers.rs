@@ -13,7 +13,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::errors;
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -109,7 +109,7 @@ pub struct JpmorganPaymentsRequest {
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganCard {
-    account_number: Secret<String>,
+    account_number: cards::CardNumber,
     expiry: Expiry,
 }
 
@@ -194,7 +194,7 @@ impl TryFrom<&JpmorganRouterData<&PaymentsAuthorizeRouterData>> for JpmorganPaym
                     year: req_card.get_expiry_year_as_4_digit_i32()?,
                 };
 
-                let account_number = Secret::new(req_card.card_number.to_string());
+                let account_number = req_card.card_number;
 
                 let card = JpmorganCard {
                     account_number,
