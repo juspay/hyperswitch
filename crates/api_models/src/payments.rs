@@ -6743,6 +6743,11 @@ pub enum NextActionData {
         #[smithy(value_type = "IframeData")]
         iframe_data: IframeData,
     },
+    /// Contains url to be rendered in an iframe
+    InvokeDdc {
+        #[smithy(value_type = "DDCData")]
+        ddc_data: DDCData,
+    },
 }
 
 #[derive(
@@ -6770,6 +6775,14 @@ pub enum IframeData {
         #[smithy(value_type = "Option<String>")]
         message_version: Option<String>,
     },
+}
+
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
+pub struct DDCData {
+    pub iframe_url: String,
+    pub timeout_ms: Option<i32>,
 }
 
 #[derive(
@@ -7087,7 +7100,6 @@ pub struct PaymentsConnectorThreeDsInvokeData {
     pub message_version: Option<String>,
     pub three_ds_method_data_submission: bool,
 }
-
 #[derive(
     Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
 )]

@@ -3713,9 +3713,9 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                         api_models::payments::NextActionData::InvokeHiddenIframe{ .. } => None,
                         api_models::payments::NextActionData::InvokeUpiIntentSdk{ .. } => None,
                         api_models::payments::NextActionData::InvokeUpiQrFlow{ .. } => None,
+                        api_models::payments::NextActionData::InvokeDdc { .. } => None,
                     })
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
-
                     .attach_printable(
                         "did not receive redirect to url when status is requires customer action",
                     )?;
@@ -3734,10 +3734,26 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                 payment_id,
                 &payment_flow_response.business_profile,
                 payments_response,
-                connector,
+                connector.clone(),
             ),
             _ => Err(errors::ApiErrorResponse::InternalServerError).attach_printable_lazy(|| format!("Could not proceed with payment as payment status {} cannot be handled during redirection",payments_response.status))?
         }?;
+
+        if connector == "worldpayxml" {
+            let html = core_utils::get_html_redirect_response_after_ddc(
+                redirection_response.return_url_with_query_params,
+                "required", // hard-coded for now, need to update as we add support for other connectors
+            )?;
+            return Ok(services::ApplicationResponse::Form(Box::new(
+                services::RedirectionFormData {
+                    redirect_form: services::RedirectForm::Html { html_data: html },
+                    payment_method_data: None,
+                    amount: payments_response.amount.to_string(),
+                    currency: payments_response.currency.clone(),
+                },
+            )));
+        }
+
         if payments_response
             .is_iframe_redirection_enabled
             .unwrap_or(false)
@@ -3852,6 +3868,22 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
             payments_response,
             connector.clone(),
         )?;
+
+        if connector == "worldpayxml" {
+            let html = core_utils::get_html_redirect_response_after_ddc(
+                redirect_response.return_url_with_query_params,
+                "required", // hard-coded for now, need to update as we add support for other connectors
+            )?;
+            return Ok(services::ApplicationResponse::Form(Box::new(
+                services::RedirectionFormData {
+                    redirect_form: services::RedirectForm::Html { html_data: html },
+                    payment_method_data: None,
+                    amount: payments_response.amount.to_string(),
+                    currency: payments_response.currency.clone(),
+                },
+            )));
+        }
+
         if payments_response
             .is_iframe_redirection_enabled
             .unwrap_or(false)
