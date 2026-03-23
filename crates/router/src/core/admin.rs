@@ -4383,10 +4383,12 @@ impl ProfileWrapper {
             .profile
             .revenue_recovery_retry_algorithm_data
             .clone()
-            .unwrap_or(diesel_models::business_profile::RevenueRecoveryAlgorithmData {
-                monitoring_configured_timestamp: date_time::now(),
-                smart_features: None,
-            });
+            .unwrap_or(
+                diesel_models::business_profile::RevenueRecoveryAlgorithmData {
+                    monitoring_configured_timestamp: date_time::now(),
+                    smart_features: None,
+                },
+            );
 
         recovery_algorithm_data.monitoring_configured_timestamp = date_time::now();
 
@@ -4429,15 +4431,19 @@ impl ProfileWrapper {
             .profile
             .revenue_recovery_retry_algorithm_data
             .clone()
-            .unwrap_or(diesel_models::business_profile::RevenueRecoveryAlgorithmData {
-                monitoring_configured_timestamp: date_time::now(),
-                smart_features: None,
-            });
+            .unwrap_or(
+                diesel_models::business_profile::RevenueRecoveryAlgorithmData {
+                    monitoring_configured_timestamp: date_time::now(),
+                    smart_features: None,
+                },
+            );
 
-        let recovery_algorithm_data = diesel_models::business_profile::RevenueRecoveryAlgorithmData {
-            monitoring_configured_timestamp: existing_algorithm_data.monitoring_configured_timestamp,
-            smart_features: Some(smart_features.clone()),
-        };
+        let recovery_algorithm_data =
+            diesel_models::business_profile::RevenueRecoveryAlgorithmData {
+                monitoring_configured_timestamp: existing_algorithm_data
+                    .monitoring_configured_timestamp,
+                smart_features: Some(smart_features.clone()),
+            };
 
         let profile_update = domain::ProfileUpdate::RevenueRecoveryAlgorithmUpdate {
             revenue_recovery_retry_algorithm_type: self

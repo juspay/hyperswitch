@@ -2423,8 +2423,9 @@ impl Profile {
                             .route(web::put().to(profiles::profile_update)),
                     )
                     .service(
-                        web::resource("/revenue-recovery/features-config")
-                            .route(web::patch().to(profiles::profile_update_revenue_recovery_features)),
+                        web::resource("/revenue-recovery/features-config").route(
+                            web::patch().to(profiles::profile_update_revenue_recovery_features),
+                        ),
                     )
                     .service(
                         web::resource("/connector-accounts")

@@ -364,8 +364,7 @@ pub async fn profile_update_revenue_recovery_features(
         json_payload.into_inner(),
         |state,
          auth::AuthenticationDataWithoutProfile {
-             merchant_account,
-             ..
+             merchant_account, ..
          },
          req,
          _| {
