@@ -286,9 +286,18 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
     where
         Self: Sized,
     {
-        self.session_token =
-            session_token::add_session_token_if_needed(self, state, connector, gateway_context)
-                .await?;
+        let current_flow = api_interface::CurrentFlowInfo::SetupMandate {
+            auth_type: &self.auth_type,
+            request_data: &self.request,
+        };
+        self.session_token = session_token::add_session_token_if_needed(
+            self,
+            state,
+            connector,
+            gateway_context,
+            Some(current_flow),
+        )
+        .await?;
         Ok(())
     }
 

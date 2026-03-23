@@ -18,21 +18,21 @@ use hyperswitch_domain_models::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
-        UpdateMetadata,
+        AuthorizeSessionToken, UpdateMetadata,
     },
     router_request_types::{
-        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        PaymentsUpdateMetadataData, RefundsData, SetupMandateRequestData,
+        AccessTokenRequestData, AuthorizeSessionTokenData, PaymentMethodTokenizationData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
+        PaymentsSyncData, PaymentsUpdateMetadataData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
         SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsSyncRouterData, PaymentsUpdateMetadataRouterData, RefundSyncRouterData,
-        RefundsRouterData,
+        PaymentsAuthorizeRouterData, PaymentsAuthorizeSessionTokenRouterData,
+        PaymentsCancelRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
+        PaymentsUpdateMetadataRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -56,14 +56,15 @@ use crate::{
             SantanderPaymentRequest, SantanderRefundRequest, SantanderRouterData,
         },
         responses::{
-            SanatanderAccessTokenResponse, SantanderErrorResponse, SantanderGenericErrorResponse,
-            SantanderPaymentsResponse, SantanderPaymentsSyncResponse, SantanderRefundResponse,
+            SanatanderAccessTokenResponse, SantanderCreatePixPayloadLocationResponse,
+            SantanderErrorResponse, SantanderGenericErrorResponse, SantanderPaymentsResponse,
+            SantanderPaymentsSyncResponse, SantanderRefundResponse,
             SantanderUpdateMetadataResponse, SantanderVoidResponse,
         },
     },
     constants::headers,
     types::{RefreshTokenRouterData, ResponseRouterData},
-    utils::{self as connector_utils, convert_amount},
+    utils::{self as connector_utils, convert_amount, PaymentsAuthorizeRequestData},
 };
 
 #[derive(Clone)]
@@ -92,6 +93,7 @@ impl api::PaymentSession for Santander {}
 impl api::ConnectorAccessToken for Santander {}
 impl api::MandateSetup for Santander {}
 impl api::PaymentAuthorize for Santander {}
+impl api::PaymentAuthorizeSessionToken for Santander {}
 impl api::PaymentSync for Santander {}
 impl api::PaymentCapture for Santander {}
 impl api::PaymentVoid for Santander {}
@@ -105,6 +107,100 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
     for Santander
 {
     // Not Implemented (R)
+}
+
+impl ConnectorIntegration<AuthorizeSessionToken, AuthorizeSessionTokenData, PaymentsResponseData>
+    for Santander
+{
+    fn get_headers(
+        &self,
+        req: &PaymentsAuthorizeSessionTokenRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &PaymentsAuthorizeSessionTokenRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        match req.payment_method_type {
+            Some(enums::PaymentMethodType::PixAutomaticoPush)
+            | Some(enums::PaymentMethodType::PixAutomaticoQr) => {
+                Ok(format!("{}api/v1/locrec", self.base_url(connectors)))
+            }
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: req.payment_method.to_string(),
+                connector: "Santander",
+            }
+            .into()),
+        }
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsAuthorizeSessionTokenRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let auth_details = SantanderAuthType::try_from(&req.connector_auth_type)?;
+
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::PaymentsPreAuthorizeType::get_url(
+                    self, req, connectors,
+                )?)
+                .add_certificate(Some(auth_details.client_id))
+                .add_certificate_key(Some(auth_details.client_secret))
+                .attach_default_headers()
+                .headers(types::PaymentsPreAuthorizeType::get_headers(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsAuthorizeSessionTokenRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsAuthorizeSessionTokenRouterData, errors::ConnectorError> {
+        let response: SantanderCreatePixPayloadLocationResponse = res
+            .response
+            .parse_struct("SantanderCreatePixPayloadLocationResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 impl ConnectorIntegration<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsResponseData>
@@ -1571,6 +1667,21 @@ impl ConnectorSpecifications for Santander {
                 }
             }
             _ => payment_attempt.payment_id.get_string_repr().to_owned(),
+        }
+    }
+
+    fn is_authorize_session_token_call_required(
+        &self,
+        current_flow: Option<api::CurrentFlowInfo<'_>>,
+    ) -> bool {
+        match current_flow {
+            Some(api::CurrentFlowInfo::Authorize { request_data, .. }) => {
+                // Required for Journey 3 & 4 CITs but one-off payments should not have this call as per Santander's requirements
+                request_data.is_cit_mandate_payment()
+            }
+            // Required for Journey 1 & 2 CITs
+            Some(api::CurrentFlowInfo::SetupMandate { .. }) => true,
+            Some(api::CurrentFlowInfo::CompleteAuthorize { .. }) | None => false,
         }
     }
 }
