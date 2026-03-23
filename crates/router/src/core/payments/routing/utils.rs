@@ -456,7 +456,7 @@ pub fn normalize_hybrid_routing_response(
         .map_err(|error| {
             logger::error!(
                 error=?error,
-                "decision_engine_hybrid_error: Failed to extract connector from static output"
+                "euclid: failed to extract connector from hybrid static output"
             );
             error
         })?;
@@ -468,7 +468,7 @@ pub fn normalize_hybrid_routing_response(
         .map_err(|error| {
             logger::error!(
                 error=?error,
-                "decision_engine_hybrid_error: failed to transform static connectors"
+                "euclid: failed to transform connectors from hybrid static output"
             );
             error
         })?;
@@ -551,7 +551,7 @@ pub async fn decision_engine_hybrid_routing(
         event_response
             .response
             .ok_or(errors::RoutingError::OpenRouterError(
-                "Response from decision engine hybrid API is empty".to_string(),
+                "euclid: response from decision engine hybrid API is empty".to_string(),
             ))?;
 
     let outcome = normalize_hybrid_routing_response(&hybrid_response, &fallback_connectors)?;
@@ -559,7 +559,7 @@ pub async fn decision_engine_hybrid_routing(
         event_response
             .event
             .ok_or(errors::RoutingError::RoutingEventsError {
-                message: "Routing event not found in hybrid events response".to_string(),
+                message: "euclid: routing event not found in hybrid events response".to_string(),
                 status_code: 500,
             })?;
 

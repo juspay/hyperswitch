@@ -699,9 +699,19 @@ impl RoutingConnectorOutcome {
         if self.connectors.is_empty() {
             logger::warn!("euclid: {} returned empty connectors, falling back", stage);
             routing::log_connectors(stage, fallback);
+            logger::debug!(
+                stage = %stage,
+                routing_approach = ?fallback_approach,
+                "euclid: routing approach after stage"
+            );
             (fallback.to_vec(), fallback_approach)
         } else {
             routing::log_connectors(stage, &self.connectors);
+            logger::debug!(
+                stage = %stage,
+                routing_approach = ?success_approach,
+                "euclid: routing approach after stage"
+            );
             (self.connectors, success_approach)
         }
     }
@@ -777,7 +787,7 @@ impl RoutingStage for StaticRoutingStage {
                 static_routing_v1(&self.ctx.routing_algorithm, input.backend_input.clone())
                     .await
                     .change_context(errors::RoutingError::DslExecutionError)
-                    .attach_printable("euclid: unable to perform static routing")?;
+                    .attach_printable("euclid: unable to perform static routing locally")?;
 
             Ok(RoutingConnectorOutcome { connectors })
         })
@@ -840,7 +850,7 @@ pub async fn perform_static_routing_locally(
                 .inspect_err(|err| {
                     logger::error!(
                         error=?err,
-                        "euclid: static routing failed"
+                        "euclid: local static routing failed"
                     );
                 })
                 .ok()
@@ -1216,7 +1226,7 @@ where
             .payment_method_type
             .as_ref(),
     ) {
-        logger::debug!("euclid: considering pre-routing result");
+        logger::debug!("euclid: checking for pre-routing result");
         let pre_routing_input = PreRoutingInput {
             pre_routing_results: &routing_data.routing_info.pre_routing_results,
             payment_method_type,
@@ -1320,10 +1330,21 @@ impl RoutingConnectorOutcomeWithApproach {
         if self.connectors.is_empty() {
             logger::warn!("euclid: {} returned empty connectors, falling back", stage);
             routing::log_connectors(stage, fallback_connectors);
+            logger::debug!(
+                stage = %stage,
+                routing_approach = ?fallback_approach,
+                "euclid: routing approach after stage"
+            );
             (fallback_connectors.to_vec(), fallback_approach)
         } else {
+            let routing_approach = self.routing_approach;
             routing::log_connectors(stage, &self.connectors);
-            (self.connectors, self.routing_approach)
+            logger::debug!(
+                stage = %stage,
+                routing_approach = ?routing_approach,
+                "euclid: routing approach after stage"
+            );
+            (self.connectors, routing_approach)
         }
     }
 
@@ -1343,6 +1364,7 @@ pub struct HybridRoutingInput<'a> {
     pub backend_input: &'a backend::BackendInput,
     pub fallback_config: &'a [routing_types::RoutableConnectorChoice],
     pub static_connectors: &'a [routing_types::RoutableConnectorChoice],
+    pub static_approach: common_enums::RoutingApproach,
 }
 
 #[cfg(feature = "v1")]
@@ -1448,7 +1470,10 @@ impl RoutingStage for HybridRoutingStage {
             let (dynamic_routing_request, _dynamic_routing_volume_split) =
                 self.build_dynamic_routing_request(&input);
 
-            let static_routing_request = if input.state.conf.open_router.static_routing_enabled {
+            let should_include_static_request = input.state.conf.open_router.static_routing_enabled
+                && input.static_approach == common_enums::RoutingApproach::RuleBasedRouting;
+
+            let static_routing_request = if should_include_static_request {
                 Some(utils::build_static_routing_request_for_hybrid(
                     input
                         .business_profile
@@ -1523,6 +1548,7 @@ pub async fn perform_hybrid_routing_if_enabled(
         backend_input,
         fallback_config,
         static_connectors,
+        static_approach: static_approach.clone(),
     };
 
     stage
