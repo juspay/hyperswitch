@@ -32,7 +32,7 @@ use error_stack::{report, ResultExt};
 #[cfg(feature = "olap")]
 use futures::future::join_all;
 use hyperswitch_domain_models::{self as domain_models, payment_methods::PaymentMethod};
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 #[cfg(feature = "payout_retry")]
 use retry::GsmValidation;
 use router_env::{instrument, logger, tracing, Env};
@@ -1310,10 +1310,10 @@ pub async fn create_recipient(
                         is_eligible: recipient_create_data.payout_eligible,
                         unified_code: None,
                         unified_message: None,
-                        payout_connector_metadata: payout_data
-                            .payout_attempt
+                        payout_connector_metadata: recipient_create_data
                             .payout_connector_metadata
-                            .to_owned(),
+                            .clone()
+                            .or(payout_data.payout_attempt.payout_connector_metadata.clone()),
                     };
                     payout_data.payout_attempt = db
                         .update_payout_attempt(
@@ -1350,10 +1350,10 @@ pub async fn create_recipient(
                         is_eligible: recipient_create_data.payout_eligible,
                         unified_code: None,
                         unified_message: None,
-                        payout_connector_metadata: payout_data
-                            .payout_attempt
+                        payout_connector_metadata: recipient_create_data
                             .payout_connector_metadata
-                            .to_owned(),
+                            .clone()
+                            .or(payout_data.payout_attempt.payout_connector_metadata.clone()),
                     };
                     payout_data.payout_attempt = db
                         .update_payout_attempt(
