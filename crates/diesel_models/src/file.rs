@@ -1,6 +1,6 @@
 use common_utils::custom_serde;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
-use masking::{Deserialize, Serialize};
+use hyperswitch_masking::{Deserialize, Serialize};
 
 use crate::schema::file_metadata;
 

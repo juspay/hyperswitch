@@ -1,6 +1,6 @@
 use common_utils::pii;
 use error_stack::ResultExt;
-use masking::{ExposeInterface, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, PeekInterface};
 use totp_rs::{Algorithm, TOTP};
 
 use crate::{
@@ -11,7 +11,7 @@ use crate::{
 
 pub fn generate_default_totp(
     email: pii::Email,
-    secret: Option<masking::Secret<String>>,
+    secret: Option<hyperswitch_masking::Secret<String>>,
     issuer: String,
 ) -> UserResult<TOTP> {
     let secret = secret
@@ -66,7 +66,7 @@ pub async fn insert_totp_in_redis(state: &SessionState, user_id: &str) -> UserRe
 pub async fn insert_totp_secret_in_redis(
     state: &SessionState,
     user_id: &str,
-    secret: &masking::Secret<String>,
+    secret: &hyperswitch_masking::Secret<String>,
 ) -> UserResult<()> {
     let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
     redis_conn
@@ -82,7 +82,7 @@ pub async fn insert_totp_secret_in_redis(
 pub async fn get_totp_secret_from_redis(
     state: &SessionState,
     user_id: &str,
-) -> UserResult<Option<masking::Secret<String>>> {
+) -> UserResult<Option<hyperswitch_masking::Secret<String>>> {
     let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
     redis_conn
         .get_key::<Option<String>>(&get_totp_secret_key(user_id).into())

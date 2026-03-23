@@ -39,8 +39,8 @@ use diesel_models::{
 };
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
-use masking::ExposeInterface;
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::{PeekInterface, Secret};
 #[cfg(feature = "v1")]
 use router_env::logger;
 use rustc_hash::FxHashMap;
