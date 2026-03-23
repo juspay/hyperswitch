@@ -160,7 +160,7 @@ impl CardIssuersInterface for MockDb {
             .filter(|ci| {
                 query
                     .as_ref()
-                    .map_or(true, |q| ci.issuer_name.contains(q.as_str()))
+                    .is_none_or(|q| ci.issuer_name.contains(q.as_str()))
             })
             .take(limit.map_or(usize::MAX, usize::from))
             .cloned()
