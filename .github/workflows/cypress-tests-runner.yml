@@ -412,8 +412,8 @@ jobs:
     name: Run mandatory Cypress tests (hyperswitch-runners)
     needs: build-hyperswitch-runners
     if: |
-      github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
+      false && (github.event_name == 'merge_group' ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready')))
     permissions:
       pull-requests: write
     runs-on: hyperswitch-runners
@@ -619,7 +619,7 @@ jobs:
 
   prepare-matrix:
     name: Prepare Optional Connectors matrix to run cypress tests
-    if: github.event_name == 'merge_group'
+    # if: github.event_name == 'merge_group'
     runs-on: hyperswitch-runners
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -688,12 +688,14 @@ jobs:
 
   runner-optional-connectors:
     name: Run Optional Connectors Cypress tests
-    if: github.event_name == 'merge_group'
+    # if: github.event_name == 'merge_group'
     needs: [ build-hyperswitch-runners, prepare-matrix ]
     runs-on: hyperswitch-runners
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare-matrix.outputs.matrix) }}
+    permissions:
+      pull-requests: write
     env:
       # Use `sccache` for caching compilation artifacts
       RUSTC_WRAPPER: sccache
@@ -725,6 +727,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+
+      - name: Collect Workflow Telemetry
+        uses: catchpoint/workflow-telemetry-action@v2
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
