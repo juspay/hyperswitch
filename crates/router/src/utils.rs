@@ -1219,7 +1219,7 @@ where
             // the current thread and the lifecycle of spawn thread is not handled by runtime.
             // So when server shutdown won't wait for this thread's completion.
             if let Some(event_type) = event_type {
-                let (resolved_merchant_key_store, resolved_business_profile, compatible_connector) =
+                let (resolved_business_profile, compatible_connector) =
                     webhooks_utils::resolve_webhook_recipient_from_initiator(
                         state,
                         platform,
@@ -1227,17 +1227,17 @@ where
                     )
                     .await?;
                 let cloned_state = state.clone();
-                let processor_merchant_id =
-                    Some(platform.get_processor().get_account().get_id().clone());
+                let provider_merchant_id = platform.get_provider().get_account().get_id().clone();
+                let processor = platform.get_processor().clone();
                 tokio::spawn(
                     async move {
                         let primary_object_created_at = payments_response_json.created;
                         Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
                             cloned_state,
-                            resolved_merchant_key_store,
+                            provider_merchant_id,
+                            &processor,
                             resolved_business_profile,
                             compatible_connector,
-                            processor_merchant_id,
                             event_type,
                             diesel_models::enums::EventClass::Payments,
                             payment_id.get_string_repr().to_owned(),
@@ -1303,7 +1303,7 @@ pub async fn trigger_refund_outgoing_webhook(
         let refund_id = refund_response.refund_id.clone();
         let primary_object_created_at = refund_response.created_at;
         if let Some(outgoing_event_type) = event_type {
-            let (resolved_merchant_key_store, resolved_business_profile, compatible_connector) =
+            let (resolved_business_profile, compatible_connector) =
                 webhooks_utils::resolve_webhook_recipient_from_initiator(
                     state,
                     platform,
@@ -1311,16 +1311,16 @@ pub async fn trigger_refund_outgoing_webhook(
                 )
                 .await?;
             let cloned_state = state.clone();
-            let processor_merchant_id =
-                Some(platform.get_processor().get_account().get_id().clone());
+            let provider_merchant_id = platform.get_provider().get_account().get_id().clone();
+            let processor = platform.get_processor().clone();
             tokio::spawn(
                 async move {
                     Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
                         cloned_state,
-                        resolved_merchant_key_store,
+                        provider_merchant_id,
+                        &processor,
                         resolved_business_profile,
                         compatible_connector,
-                        processor_merchant_id,
                         outgoing_event_type,
                         diesel_models::enums::EventClass::Refunds,
                         refund_id.to_string(),
@@ -1385,7 +1385,7 @@ pub async fn trigger_payouts_webhook(
         let event_type = (*status).into();
         if let Some(event_type) = event_type {
             let cloned_response = payout_response.clone();
-            let (resolved_merchant_key_store, resolved_business_profile, compatible_connector) =
+            let (resolved_business_profile, compatible_connector) =
                 webhooks_utils::resolve_webhook_recipient_from_initiator(
                     state,
                     platform,
@@ -1393,8 +1393,8 @@ pub async fn trigger_payouts_webhook(
                 )
                 .await?;
             let cloned_state = state.clone();
-            let processor_merchant_id =
-                Some(platform.get_processor().get_account().get_id().clone());
+            let provider_merchant_id = platform.get_provider().get_account().get_id().clone();
+            let processor = platform.get_processor().clone();
 
             // This spawns this futures in a background thread, the exception inside this future won't affect
             // the current thread and the lifecycle of spawn thread is not handled by runtime.
@@ -1404,10 +1404,10 @@ pub async fn trigger_payouts_webhook(
                     let primary_object_created_at = cloned_response.created;
                     Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
                         cloned_state,
-                        resolved_merchant_key_store,
+                        provider_merchant_id,
+                        &processor,
                         resolved_business_profile,
                         compatible_connector,
-                        processor_merchant_id,
                         event_type,
                         diesel_models::enums::EventClass::Payouts,
                         cloned_response.payout_id.get_string_repr().to_owned(),
@@ -1457,16 +1457,21 @@ pub async fn trigger_subscriptions_outgoing_webhook(
     let invoice_id = invoice.id.get_string_repr().to_owned();
     let created_at = subscription.created_at;
     let compatible_connector = merchant_account.get_compatible_connector();
-    let cloned_key_store = key_store.clone();
-
-    let processor_merchant_id = Some(merchant_account.get_id().clone());
+    let platform = domain::Platform::new(
+        merchant_account.clone(),
+        key_store.clone(),
+        merchant_account.clone(),
+        key_store.clone(),
+        None,
+    );
+    let merchant_id = profile.merchant_id.clone();
     tokio::spawn(async move {
         Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
             cloned_state,
-            cloned_key_store,
+            merchant_id,
+            platform.get_processor(),
             cloned_profile,
             compatible_connector,
-            processor_merchant_id,
             common_enums::enums::EventType::InvoicePaid,
             common_enums::enums::EventClass::Subscriptions,
             invoice_id,

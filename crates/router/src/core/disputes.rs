@@ -933,7 +933,7 @@ pub async fn update_dispute_data(
     let disputes_response: dispute_models::DisputeResponse = dispute_object.clone().foreign_into();
     let event_type: storage_enums::EventType = dispute_details.dispute_status.into();
 
-    let (resolved_merchant_key_store, resolved_business_profile, compatible_connector) =
+    let (resolved_business_profile, compatible_connector) =
         webhooks::utils::resolve_webhook_recipient_from_initiator(
             state,
             &platform,
@@ -941,12 +941,14 @@ pub async fn update_dispute_data(
         )
         .await?;
 
+    let provider_merchant_id = platform.get_provider().get_account().get_id().clone();
+    let processor = platform.get_processor();
     Box::pin(webhooks::create_event_and_trigger_outgoing_webhook(
         state.clone(),
-        resolved_merchant_key_store,
+        provider_merchant_id,
+        processor,
         resolved_business_profile,
         compatible_connector,
-        Some(platform.get_processor().get_account().get_id().clone()),
         event_type,
         storage_enums::EventClass::Disputes,
         dispute_object.dispute_id.clone(),

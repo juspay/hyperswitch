@@ -1594,9 +1594,9 @@ impl RevenueRecoveryOutgoingWebhook {
                     ));
                 create_event_and_trigger_outgoing_webhook(
                     state.clone(),
+                    platform.get_provider().get_account().get_id().clone(),
+                    platform.get_processor(),
                     profile.clone(),
-                    platform.get_processor().get_key_store(),
-                    Some(platform.get_processor().get_account().get_id().clone()),
                     event_status,
                     event_class,
                     payment_attempt_id,

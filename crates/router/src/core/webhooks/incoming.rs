@@ -1583,7 +1583,7 @@ async fn payments_incoming_webhook_flow(
             // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
             if let Some(outgoing_event_type) = event_type {
                 let primary_object_created_at = payments_response.created;
-                let (resolved_merchant_key_store, resolved_business_profile, compatible_connector) =
+                let (resolved_business_profile, compatible_connector) =
                     utils::resolve_webhook_recipient_from_created_by(
                         &state,
                         &platform,
@@ -1593,10 +1593,10 @@ async fn payments_incoming_webhook_flow(
                     .await?;
                 Box::pin(super::create_event_and_trigger_outgoing_webhook(
                     state,
-                    resolved_merchant_key_store,
+                    platform.get_provider().get_account().get_id().clone(),
+                    platform.get_processor(),
                     resolved_business_profile,
                     compatible_connector,
-                    Some(platform.get_processor().get_account().get_id().clone()),
                     outgoing_event_type,
                     enums::EventClass::Payments,
                     payment_id.get_string_repr().to_owned(),
@@ -1896,7 +1896,7 @@ async fn payout_incoming_webhook_update_status(
         let payout_create_response =
             payouts::response_handler(&state, &platform, payout_data).await?;
 
-        let (resolved_merchant_key_store, resolved_business_profile, compatible_connector) =
+        let (resolved_business_profile, compatible_connector) =
             utils::resolve_webhook_recipient_from_created_by(
                 &state,
                 &platform,
@@ -1906,10 +1906,10 @@ async fn payout_incoming_webhook_update_status(
             .await?;
         Box::pin(super::create_event_and_trigger_outgoing_webhook(
             state,
-            resolved_merchant_key_store,
+            platform.get_provider().get_account().get_id().clone(),
+            platform.get_processor(),
             resolved_business_profile,
             compatible_connector,
-            Some(platform.get_processor().get_account().get_id().clone()),
             outgoing_event_type,
             enums::EventClass::Payouts,
             payout_data
@@ -1975,7 +1975,7 @@ async fn payout_incoming_webhook_retrieve_status(
     if let Some(outgoing_event_type) = event_type {
         let payout_response = payouts::response_handler(&state, &platform, payout_data).await?;
 
-        let (resolved_merchant_key_store, resolved_business_profile, compatible_connector) =
+        let (resolved_business_profile, compatible_connector) =
             utils::resolve_webhook_recipient_from_created_by(
                 &state,
                 &platform,
@@ -1985,10 +1985,10 @@ async fn payout_incoming_webhook_retrieve_status(
             .await?;
         Box::pin(super::create_event_and_trigger_outgoing_webhook(
             state,
-            resolved_merchant_key_store,
+            platform.get_provider().get_account().get_id().clone(),
+            platform.get_processor(),
             resolved_business_profile,
             compatible_connector,
-            Some(platform.get_processor().get_account().get_id().clone()),
             outgoing_event_type,
             enums::EventClass::Payouts,
             payout_data
@@ -2216,7 +2216,7 @@ async fn refunds_incoming_webhook_flow(
             .created_by
             .as_deref()
             .map(|s| s.parse::<CreatedBy>().unwrap_or(CreatedBy::Invalid));
-        let (resolved_merchant_key_store, resolved_business_profile, compatible_connector) =
+        let (resolved_business_profile, compatible_connector) =
             utils::resolve_webhook_recipient_from_created_by(
                 &state,
                 &platform,
@@ -2226,10 +2226,10 @@ async fn refunds_incoming_webhook_flow(
             .await?;
         Box::pin(super::create_event_and_trigger_outgoing_webhook(
             state,
-            resolved_merchant_key_store,
+            platform.get_provider().get_account().get_id().clone(),
+            platform.get_processor(),
             resolved_business_profile,
             compatible_connector,
-            Some(platform.get_processor().get_account().get_id().clone()),
             outgoing_event_type,
             enums::EventClass::Refunds,
             refund_id,
@@ -2572,23 +2572,20 @@ async fn external_authentication_incoming_webhook_flow(
                         // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
                         if let Some(outgoing_event_type) = event_type {
                             let primary_object_created_at = payments_response.created;
-                            let (
-                                resolved_merchant_key_store,
-                                resolved_business_profile,
-                                compatible_connector,
-                            ) = utils::resolve_webhook_recipient_from_created_by(
-                                &state,
-                                &platform,
-                                business_profile,
-                                updated_authentication.created_by.as_ref(),
-                            )
-                            .await?;
+                            let (resolved_business_profile, compatible_connector) =
+                                utils::resolve_webhook_recipient_from_created_by(
+                                    &state,
+                                    &platform,
+                                    business_profile,
+                                    updated_authentication.created_by.as_ref(),
+                                )
+                                .await?;
                             Box::pin(super::create_event_and_trigger_outgoing_webhook(
                                 state,
-                                resolved_merchant_key_store,
+                                platform.get_provider().get_account().get_id().clone(),
+                                platform.get_processor(),
                                 resolved_business_profile,
                                 compatible_connector,
-                                Some(platform.get_processor().get_account().get_id().clone()),
                                 outgoing_event_type,
                                 enums::EventClass::Payments,
                                 payment_id.get_string_repr().to_owned(),
@@ -2688,13 +2685,13 @@ async fn mandates_incoming_webhook_flow(
             // the mandates table lacks created_by, so initiator cannot be inferred.
             Box::pin(super::create_event_and_trigger_outgoing_webhook(
                 state,
-                platform.get_processor().get_key_store().clone(),
+                platform.get_provider().get_account().get_id().clone(),
+                platform.get_processor(),
                 business_profile,
                 platform
                     .get_processor()
                     .get_account()
                     .get_compatible_connector(),
-                Some(platform.get_processor().get_account().get_id().clone()),
                 outgoing_event_type,
                 enums::EventClass::Mandates,
                 updated_mandate.mandate_id.clone(),
@@ -2800,23 +2797,20 @@ async fn frm_incoming_webhook_flow(
                 let event_type: Option<enums::EventType> = payments_response.status.into();
                 if let Some(outgoing_event_type) = event_type {
                     let primary_object_created_at = payments_response.created;
-                    let (
-                        resolved_merchant_key_store,
-                        resolved_business_profile,
-                        compatible_connector,
-                    ) = utils::resolve_webhook_recipient_from_created_by(
-                        &state,
-                        &platform,
-                        business_profile,
-                        payment_attempt.created_by.as_ref(),
-                    )
-                    .await?;
+                    let (resolved_business_profile, compatible_connector) =
+                        utils::resolve_webhook_recipient_from_created_by(
+                            &state,
+                            &platform,
+                            business_profile,
+                            payment_attempt.created_by.as_ref(),
+                        )
+                        .await?;
                     Box::pin(super::create_event_and_trigger_outgoing_webhook(
                         state,
-                        resolved_merchant_key_store,
+                        platform.get_provider().get_account().get_id().clone(),
+                        platform.get_processor(),
                         resolved_business_profile,
                         compatible_connector,
-                        Some(platform.get_processor().get_account().get_id().clone()),
                         outgoing_event_type,
                         enums::EventClass::Payments,
                         payment_id.get_string_repr().to_owned(),
@@ -2895,7 +2889,7 @@ async fn disputes_incoming_webhook_flow(
             option_dispute.clone(),
             dispute_details,
             platform.get_processor().get_account().get_id(),
-            &platform.get_processor().get_account().organization_id,
+            platform.get_processor().get_account().get_org_id(),
             platform.get_initiator(),
             &payment_attempt,
             dispute_status,
@@ -2950,7 +2944,7 @@ async fn disputes_incoming_webhook_flow(
             .created_by
             .as_deref()
             .map(|s| s.parse::<CreatedBy>().unwrap_or(CreatedBy::Invalid));
-        let (resolved_merchant_key_store, resolved_business_profile, compatible_connector) =
+        let (resolved_business_profile, compatible_connector) =
             utils::resolve_webhook_recipient_from_created_by(
                 &state,
                 &platform,
@@ -2960,10 +2954,10 @@ async fn disputes_incoming_webhook_flow(
             .await?;
         Box::pin(super::create_event_and_trigger_outgoing_webhook(
             state,
-            resolved_merchant_key_store,
+            platform.get_provider().get_account().get_id().clone(),
+            platform.get_processor(),
             resolved_business_profile,
             compatible_connector,
-            Some(platform.get_processor().get_account().get_id().clone()),
             event_type,
             enums::EventClass::Disputes,
             dispute_object.dispute_id.clone(),
@@ -3053,7 +3047,7 @@ async fn bank_transfer_webhook_flow(
             // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
             if let Some(outgoing_event_type) = event_type {
                 let primary_object_created_at = payments_response.created;
-                let (resolved_merchant_key_store, resolved_business_profile, compatible_connector) =
+                let (resolved_business_profile, compatible_connector) =
                     utils::resolve_webhook_recipient_from_created_by(
                         &state,
                         &platform,
@@ -3063,10 +3057,10 @@ async fn bank_transfer_webhook_flow(
                     .await?;
                 Box::pin(super::create_event_and_trigger_outgoing_webhook(
                     state,
-                    resolved_merchant_key_store,
+                    platform.get_provider().get_account().get_id().clone(),
+                    platform.get_processor(),
                     resolved_business_profile,
                     compatible_connector,
-                    Some(platform.get_processor().get_account().get_id().clone()),
                     outgoing_event_type,
                     enums::EventClass::Payments,
                     payment_id.get_string_repr().to_owned(),

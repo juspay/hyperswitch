@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use common_enums::MerchantAccountType;
 use common_utils::{self, errors::CustomResult, fp_utils};
 use error_stack::ResultExt;
 use masking::PeekInterface;
@@ -8,7 +9,7 @@ use router_env::{instrument, tracing};
 use crate::{
     core::errors::{self, RouterResponse, StorageErrorExt},
     routes::SessionState,
-    services::ApplicationResponse,
+    services::{self, ApplicationResponse},
     types::{api, domain, storage, transformers::ForeignTryFrom},
     utils::{OptionExt, StringExt},
 };
@@ -269,7 +270,8 @@ pub async fn retry_delivery_attempt(
 ) -> RouterResponse<api::webhook_events::EventRetrieveResponse> {
     let store = state.store.as_ref();
 
-    let key_store = store
+    // merchant_id from URL is the processor (connected merchant in platform, or standard merchant)
+    let processor_key_store = store
         .get_merchant_key_store_by_merchant_id(
             &merchant_id,
             &store.get_master_key().to_vec().into(),
@@ -277,8 +279,53 @@ pub async fn retry_delivery_attempt(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
+    let processor_merchant_account = store
+        .find_merchant_account_by_merchant_id(&merchant_id, &processor_key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    // Build a Platform from actual provider and processor accounts.
+    let platform = match processor_merchant_account.merchant_account_type {
+        MerchantAccountType::Standard => {
+            // Standard merchant: processor == provider
+            domain::Platform::new(
+                processor_merchant_account.clone(),
+                processor_key_store.clone(),
+                processor_merchant_account,
+                processor_key_store,
+                None,
+            )
+        }
+        MerchantAccountType::Connected => {
+            let (platform_account, platform_key_store) =
+                services::authentication::get_platform_account_and_key_store(
+                    &state,
+                    &processor_merchant_account,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to fetch platform account for connected merchant")?;
+            domain::Platform::new(
+                platform_account,
+                platform_key_store,
+                processor_merchant_account,
+                processor_key_store,
+                None,
+            )
+        }
+        MerchantAccountType::Platform => {
+            return Err(errors::ApiErrorResponse::Unauthorized.into());
+        }
+    };
+
+    let provider_merchant_id = platform.get_provider().get_account().get_id().clone();
+
     let event_to_retry = store
-        .find_event_by_merchant_id_event_id(&key_store.merchant_id, &event_id, &key_store)
+        .find_event_by_merchant_id_event_id(
+            &provider_merchant_id,
+            &event_id,
+            platform.get_processor().get_key_store(),
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::EventNotFound)?;
 
@@ -287,11 +334,34 @@ pub async fn retry_delivery_attempt(
         .get_required_value("business_profile_id")
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to read business profile ID from event to retry")?;
-    let business_profile = store
-        .find_business_profile_by_profile_id(&key_store, &business_profile_id)
+
+    // Try provider first (platform-initiated path); fall back to processor (processor-initiated).
+    // find_business_profile_by_merchant_id_profile_id filters by merchant_id in SQL so a wrong
+    // merchant_id returns NotFound cleanly rather than a decryption error.
+    let business_profile = match store
+        .find_business_profile_by_merchant_id_profile_id(
+            platform.get_provider().get_key_store(),
+            &provider_merchant_id,
+            &business_profile_id,
+        )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to find business profile")?;
+    {
+        Ok(profile) => profile,
+        Err(e) if e.current_context().is_db_not_found() => store
+            .find_business_profile_by_merchant_id_profile_id(
+                platform.get_processor().get_key_store(),
+                &merchant_id,
+                &business_profile_id,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to find business profile")?,
+        Err(e) => {
+            return Err(e
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to find business profile"));
+        }
+    };
 
     let delivery_attempt = storage::enums::WebhookDeliveryAttempt::ManualRetry;
     let new_event_id = super::utils::generate_event_id();
@@ -312,7 +382,7 @@ pub async fn retry_delivery_attempt(
         primary_object_id: event_to_retry.primary_object_id,
         primary_object_type: event_to_retry.primary_object_type,
         created_at: now,
-        merchant_id: Some(business_profile.merchant_id.clone()),
+        merchant_id: event_to_retry.merchant_id,
         business_profile_id: Some(business_profile.get_id().to_owned()),
         primary_object_created_at: event_to_retry.primary_object_created_at,
         idempotent_event_id: Some(idempotent_event_id),
@@ -326,7 +396,7 @@ pub async fn retry_delivery_attempt(
     };
 
     let event = store
-        .insert_event(new_event, &key_store)
+        .insert_event(new_event, platform.get_processor().get_key_store())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to insert event")?;
@@ -342,23 +412,25 @@ pub async fn retry_delivery_attempt(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to parse webhook event request information")?;
 
-    let processor_merchant_id = event.processor_merchant_id.clone();
-
     Box::pin(super::outgoing::trigger_webhook_and_raise_event(
         state.clone(),
+        provider_merchant_id.clone(),
+        platform.get_processor().clone(),
         business_profile,
-        &key_store,
         event,
         request_content,
         delivery_attempt,
         None,
         None,
-        processor_merchant_id,
     ))
     .await;
 
     let updated_event = store
-        .find_event_by_merchant_id_event_id(&key_store.merchant_id, &new_event_id, &key_store)
+        .find_event_by_merchant_id_event_id(
+            &provider_merchant_id,
+            &new_event_id,
+            platform.get_processor().get_key_store(),
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::EventNotFound)?;
 

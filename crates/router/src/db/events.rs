@@ -1544,23 +1544,21 @@ mod tests {
             .get_processor()
             .get_account()
             .get_compatible_connector();
-        let processor_merchant_id = Some(platform.get_processor().get_account().get_id().clone());
         let mut handles = vec![];
         for _ in 0..10 {
             let state_clone = state.clone();
-            let cloned_key_store = platform.get_processor().get_key_store().clone();
             let business_profile_clone = business_profile.clone();
             let content_clone = content.clone();
             let primary_object_id_clone = primary_object_id.clone();
-            let processor_merchant_id_clone = processor_merchant_id.clone();
-
+            let provider_merchant_id = platform.get_provider().get_account().get_id().clone();
+            let processor = platform.get_processor().clone();
             let handle = tokio::spawn(async move {
                 webhooks_core::create_event_and_trigger_outgoing_webhook(
                     state_clone,
-                    cloned_key_store,
+                    provider_merchant_id,
+                    &processor,
                     business_profile_clone,
                     processor_compatible_connector,
-                    processor_merchant_id_clone,
                     event_type,
                     event_class,
                     (*primary_object_id_clone).to_string(),

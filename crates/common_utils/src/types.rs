@@ -1459,6 +1459,21 @@ impl_enum_str!(
     }
 );
 
+impl CreatedBy {
+    /// Returns `true` if the creator is the provider (platform) merchant, i.e. an API-triggered
+    /// creation whose `merchant_id` matches `provider_merchant_id`.
+    pub fn is_provider_initiated(&self, provider_merchant_id: &id_type::MerchantId) -> bool {
+        match self {
+            Self::Api { merchant_id } => {
+                id_type::MerchantId::try_from(Cow::Owned(merchant_id.clone()))
+                    .map(|id| id == *provider_merchant_id)
+                    .unwrap_or_default()
+            }
+            Self::Jwt { .. } | Self::Invalid | Self::EmbeddedToken { .. } => false,
+        }
+    }
+}
+
 /// Trait for enums created with `impl_enum_str!` macro that have an `Invalid` variant.
 /// This trait allows generic functions to check if a parsed enum value is invalid.
 pub trait HasInvalidVariant {
