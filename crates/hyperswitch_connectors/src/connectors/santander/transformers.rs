@@ -14,8 +14,9 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankTransferData, BoletoVoucherData, PaymentMethodData, VoucherData},
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
-    router_request_types::{PaymentsUpdateMetadataData, ResponseId},
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_flow_types::SetupMandate,
+    router_request_types::{PaymentsUpdateMetadataData, ResponseId, SetupMandateRequestData},
+    router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsSyncRouterData,
         PaymentsUpdateMetadataRouterData, RefundsRouterData,
@@ -33,23 +34,27 @@ use url::Url;
 use crate::{
     connectors::santander::{
         requests::{
-            BoletoAdditionalFields, Discount, DiscountObject, Environment, SantanderAuthRequest,
-            SantanderAuthType, SantanderBoletoCancelOperation, SantanderBoletoCancelRequest,
+            BoletoAdditionalFields, Discount, DiscountObject, Environment, JourneyData,
+            Periodicidade, RecurrenceActivation, RecurrenceCalendar, RecurrenceDebtor,
+            RecurrenceLink, RecurrenceValue, RetryPolicy, SantanderAuthRequest, SantanderAuthType,
+            SantanderBoletoCancelOperation, SantanderBoletoCancelRequest,
             SantanderBoletoPaymentRequest, SantanderBoletoUpdateRequest, SantanderDebtor,
             SantanderDiscountType, SantanderGrantType, SantanderMetadataObject,
             SantanderPaymentRequest, SantanderPaymentsCancelRequest, SantanderPixCancelRequest,
             SantanderPixDueDateCalendarRequest, SantanderPixImmediateCalendarRequest,
             SantanderPixQRPaymentRequest, SantanderPixRequestCalendar, SantanderProtestType,
-            SantanderRefundRequest, SantanderRouterData, SantanderValue, SantanderValueType,
+            SantanderRefundRequest, SantanderRouterData, SantanderSetupMandateRequest,
+            SantanderValue, SantanderValueType,
         },
         responses::{
-            Beneficiary, Key, NsuComposite, Payer, SanatanderAccessTokenResponse,
+            Beneficiary, Key, NsuComposite, Payer, RecurrenceStatus, SanatanderAccessTokenResponse,
             SanatanderTokenResponse, SantanderAdditionalInfo, SantanderBoletoDocumentKind,
             SantanderBoletoPaymentType, SantanderBoletoStatus, SantanderDocumentKind,
             SantanderPaymentStatus, SantanderPaymentsResponse, SantanderPaymentsSyncResponse,
             SantanderPixKeyType, SantanderPixQRCodePaymentsResponse,
             SantanderPixQRCodeSyncResponse, SantanderRefundResponse, SantanderRefundStatus,
-            SantanderUpdateMetadataResponse, SantanderVoidResponse, SantanderVoidStatus,
+            SantanderSetupMandateResponse, SantanderUpdateMetadataResponse, SantanderVoidResponse,
+            SantanderVoidStatus,
         },
     },
     types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
@@ -212,6 +217,18 @@ impl TryFrom<(&RefreshTokenRouterData, &SantanderMetadataObject)> for SantanderA
     ) -> Result<Self, Self::Error> {
         let (client_id, client_secret) = match item.0.payment_method_type {
             Some(enums::PaymentMethodType::Pix) => {
+                let pix_mca_metadata = item
+                    .1
+                    .pix
+                    .as_ref()
+                    .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
+                Ok((
+                    pix_mca_metadata.client_id.clone(),
+                    pix_mca_metadata.client_secret.clone(),
+                ))
+            }
+            Some(enums::PaymentMethodType::PixAutomaticoPush)
+            | Some(enums::PaymentMethodType::PixAutomaticoQr) => {
                 let pix_mca_metadata = item
                     .1
                     .pix
@@ -715,6 +732,18 @@ impl From<SantanderBoletoStatus> for AttemptStatus {
             SantanderBoletoStatus::Baixado => Self::Voided,
             SantanderBoletoStatus::Liquidado => Self::Charged,
             SantanderBoletoStatus::LiquidadoParcialmente => Self::PartialChargedAndChargeable,
+        }
+    }
+}
+
+impl From<RecurrenceStatus> for AttemptStatus {
+    fn from(item: RecurrenceStatus) -> Self {
+        match item {
+            RecurrenceStatus::Criada => Self::Pending,
+            RecurrenceStatus::Aprovada => Self::Authorized,
+            RecurrenceStatus::Rejeitada => Self::Failure,
+            RecurrenceStatus::Expirada => Self::Failure,
+            RecurrenceStatus::Cancelada => Self::Voided,
         }
     }
 }
@@ -1606,4 +1635,171 @@ fn get_boleto_additional_fields_from_connector_metadata(
             )
         })
         .unwrap_or_default()
+}
+
+impl
+    TryFrom<
+        &SantanderRouterData<
+            &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        >,
+    > for SantanderSetupMandateRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        value: &SantanderRouterData<
+            &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let item = value.router_data;
+        let santander_meta = item
+            .request
+            .connector_intent_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.santander.as_ref())
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "connector_metadata.santander",
+            })?;
+
+        let pix_automatico_meta = santander_meta.pix_automatico.as_ref().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "pix_automatico metadata",
+            },
+        )?;
+
+        let contrato = pix_automatico_meta
+            .contract_id
+            .clone()
+            .unwrap_or_else(|| item.payment_id.clone());
+
+        let politica_retentativa = if pix_automatico_meta.retry_policy.unwrap_or(false) {
+            RetryPolicy::Permite3r7d
+        } else {
+            RetryPolicy::NaoPermite
+        };
+
+        let customer_name = item
+            .get_optional_billing_full_name()
+            .or(item.request.customer_name.clone())
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "customer_name",
+            })?;
+
+        let (cpf, cnpj) = item
+            .customer_document_details
+            .as_ref()
+            .map(|details| match details.document_type {
+                common_types::customers::DocumentKind::Cpf => {
+                    (Some(details.document_number.clone()), None)
+                }
+                common_types::customers::DocumentKind::Cnpj => {
+                    (None, Some(details.document_number.clone()))
+                }
+            })
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "customer.document_details",
+            })?;
+
+        let objeto =
+            item.description
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "description",
+                })?;
+
+        let loc = item
+            .session_token
+            .as_ref()
+            .and_then(|token| token.parse::<i64>().ok());
+
+        // TODO: Get this field from request
+        let data_inicial = time::OffsetDateTime::now_utc()
+            .date()
+            .format(&time::macros::format_description!("[year]-[month]-[day]"))
+            .change_context(errors::ConnectorError::DateFormattingFailed)?;
+
+        let has_amount = item.request.amount > 0;
+
+        let valor = if has_amount {
+            Some(RecurrenceValue {
+                valor_rec: Some(value.amount.clone()),
+                valor_minimo_recebedor: None,
+            })
+        } else {
+            None
+        };
+
+        let ativacao = Some(RecurrenceActivation {
+            dados_jornada: Some(JourneyData {
+                txid: item.payment_id.clone(),
+            }),
+        });
+
+        Ok(Self {
+            vinculo: RecurrenceLink {
+                contrato,
+                devedor: RecurrenceDebtor {
+                    cpf,
+                    cnpj,
+                    nome: customer_name,
+                },
+                objeto,
+            },
+            calendario: RecurrenceCalendar {
+                data_inicial,
+                // TODO: Get the periodicity from request, for now keeping it as weekly as default
+                periodicidade: Periodicidade::Semanal,
+                data_final: None,
+            },
+            politica_retentativa,
+            loc,
+            valor,
+            ativacao,
+        })
+    }
+}
+
+impl<F>
+    TryFrom<
+        ResponseRouterData<
+            F,
+            SantanderSetupMandateResponse,
+            SetupMandateRequestData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<F, SetupMandateRequestData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<
+            F,
+            SantanderSetupMandateResponse,
+            SetupMandateRequestData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: AttemptStatus::from(item.response.status.clone()),
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(
+                    item.data.connector_request_reference_id.clone(),
+                ),
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(Some(MandateReference {
+                    connector_mandate_id: Some(item.response.id_rec.clone()),
+                    payment_method_id: None,
+                    mandate_metadata: None,
+                    connector_mandate_request_reference_id: None,
+                })),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                charges: None,
+                authentication_data: None,
+            }),
+            ..item.data
+        })
+    }
 }

@@ -12989,6 +12989,9 @@ pub struct SantanderConnectorMetadataData {
     /// Boleto-specific data and rules for Santander payments
     #[smithy(value_type = "Option<SantanderBoletoData>")]
     pub boleto: Option<SantanderBoletoData>,
+    /// Pix Automatico-specific data for Santander recurring payments
+    #[smithy(value_type = "Option<SantanderPixAutomaticoData>")]
+    pub pix_automatico: Option<SantanderPixAutomaticoData>,
 }
 
 /// Represents the specific data and rules related to Santander Boleto payments, including discounts, penalties, collection actions, payment constraints, beneficiary details, and document kind.
@@ -13017,6 +13020,20 @@ pub struct SantanderBoletoData {
     #[smithy(value_type = "Option<BoletoDocumentKind>")]
     #[schema(value_type = Option<BoletoDocumentKind>, example = "commercial_invoice")]
     pub document_kind: Option<common_enums::BoletoDocumentKind>,
+}
+
+/// Represents the specific data for Santander Pix Automatico (recurring PIX payments)
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct SantanderPixAutomaticoData {
+    /// Contract ID to identify the recurring payment contract
+    #[smithy(value_type = "Option<String>")]
+    #[schema(value_type = Option<String>, example = "pm_16503867")]
+    pub contract_id: Option<String>,
+    /// Enable retry policy for failed payments (maps to PERMITE_3R_7D if true)
+    #[smithy(value_type = "Option<bool>")]
+    #[schema(value_type = Option<bool>, example = true)]
+    pub retry_policy: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]

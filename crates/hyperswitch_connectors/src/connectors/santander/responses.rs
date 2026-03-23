@@ -737,3 +737,117 @@ pub enum SantanderBoletoStatus {
     /// A partial payment was made
     LiquidadoParcialmente,
 }
+
+// SetupMandate (Pix Automatico) Response Structures
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderSetupMandateResponse {
+    /// Recurrence ID
+    pub id_rec: String,
+    /// Information about the recurring object/service
+    pub vinculo: RecurrenceLinkResponse,
+    /// Calendar information for the recurrence
+    pub calendario: RecurrenceCalendarResponse,
+    /// Receiver information
+    pub recebedor: RecurrenceReceiver,
+    /// Status of the recurrence
+    pub status: RecurrenceStatus,
+    /// Retry policy for failed payments
+    pub politica_retentativa: requests::RetryPolicy,
+    /// Location information
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub loc: Option<LocationResponse>,
+    /// Update history
+    pub atualizacao: Vec<RecurrenceStatusUpdate>,
+}
+
+/// Information linking the recurrence to the service/contract
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecurrenceLinkResponse {
+    /// Description of the recurring object/service
+    pub objeto: String,
+    /// Debtor information
+    pub devedor: RecurrenceDebtorResponse,
+    /// Contract identifier
+    pub contrato: String,
+}
+
+/// Debtor information for recurring payments
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecurrenceDebtorResponse {
+    /// CNPJ (Business tax ID)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cnpj: Option<Secret<String>>,
+    /// CPF (Individual tax ID)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpf: Option<Secret<String>>,
+    /// Name of the debtor
+    pub nome: Secret<String>,
+}
+
+/// Calendar information for the recurring payment schedule
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecurrenceCalendarResponse {
+    /// Initial date in YYYY-MM-DD format
+    pub data_inicial: String,
+    /// Periodicity of the recurrence
+    pub periodicidade: requests::Periodicidade,
+    /// Optional end date in YYYY-MM-DD format
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data_final: Option<String>,
+}
+
+/// Receiver (merchant) information for recurring payments
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecurrenceReceiver {
+    /// Receiver's CNPJ (Business tax ID)
+    pub cnpj: Secret<String>,
+    /// Receiver's name
+    pub nome: Secret<String>,
+    /// Covenant/agreement code
+    pub convenio: String,
+}
+
+/// Status of the recurring payment mandate
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum RecurrenceStatus {
+    /// Created (awaiting approval)
+    Criada,
+    /// Approved (active)
+    Aprovada,
+    /// Rejected
+    Rejeitada,
+    /// Expired
+    Expirada,
+    /// Cancelled
+    Cancelada,
+}
+
+/// Location information for QR code
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LocationResponse {
+    /// Location ID
+    pub id: i64,
+    /// Location URL
+    pub location: String,
+    /// Creation timestamp
+    pub criacao: String,
+    /// Recurrence ID
+    pub id_rec: String,
+}
+
+/// Status update history entry for the recurrence
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecurrenceStatusUpdate {
+    /// Status of the recurrence
+    pub status: RecurrenceStatus,
+    /// Date/time of this status update
+    pub data: String,
+}

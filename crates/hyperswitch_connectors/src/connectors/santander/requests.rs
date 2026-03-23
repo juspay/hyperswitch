@@ -56,6 +56,7 @@ pub enum SantanderDiscountType {
 pub struct SantanderMetadataObject {
     pub pix: Option<PixMetadataObject>,
     pub boleto: Option<BoletoMetadataObject>,
+    pub pix_automatico: Option<PixAutomaticoMetadataObject>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -76,6 +77,14 @@ pub struct PixMetadataObject {
     pub pix_key_type: responses::SantanderPixKeyType,
     pub merchant_name: String,
     pub merchant_city: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PixAutomaticoMetadataObject {
+    pub client_id: Secret<String>,
+    pub client_secret: Secret<String>,
+    pub pix_key_value: Secret<String>,
+    pub pix_key_type: responses::SantanderPixKeyType,
 }
 
 pub struct SantanderRouterData<T> {
@@ -360,3 +369,109 @@ pub type BoletoAdditionalFields = (
         Option<StringMajorUnit>,
     ),
 );
+
+// SetupMandate (Pix Automatico) Request Structures
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderSetupMandateRequest {
+    /// Information about the recurring object/service
+    pub vinculo: RecurrenceLink,
+    /// Calendar information for the recurrence
+    pub calendario: RecurrenceCalendar,
+    /// Retry policy for failed payments
+    pub politica_retentativa: RetryPolicy,
+    /// Location ID for QR code
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub loc: Option<i64>,
+    /// Value information (optional, for fixed amount mandates)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub valor: Option<RecurrenceValue>,
+    /// Activation data (required for Journey 3)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ativacao: Option<RecurrenceActivation>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecurrenceValue {
+    /// Fixed recurring value
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub valor_rec: Option<StringMajorUnit>,
+    /// Minimum value set by receiver
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub valor_minimo_recebedor: Option<StringMajorUnit>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecurrenceActivation {
+    /// Journey-specific data
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dados_jornada: Option<JourneyData>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JourneyData {
+    /// Transaction ID for Journey 3
+    pub txid: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecurrenceLink {
+    /// Contract identifier
+    pub contrato: String,
+    /// Debtor information
+    pub devedor: RecurrenceDebtor,
+    /// Description of the recurring object
+    pub objeto: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecurrenceDebtor {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cnpj: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpf: Option<Secret<String>>,
+    pub nome: Secret<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecurrenceCalendar {
+    /// Initial date in YYYY-MM-DD format
+    pub data_inicial: String,
+    /// Periodicity of the recurrence
+    pub periodicidade: Periodicidade,
+    /// Optional end date in YYYY-MM-DD format
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data_final: Option<String>,
+}
+
+/// Periodicity of recurring payments
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum Periodicidade {
+    /// Weekly
+    Semanal,
+    /// Monthly
+    Mensal,
+    /// Quarterly
+    Trimestral,
+    /// Semi-annually (every 6 months)
+    Semestral,
+    /// Annually
+    Anual,
+}
+
+/// Retry policy for failed recurring payments
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum RetryPolicy {
+    /// Does not allow retries
+    NaoPermite,
+    /// Allows 3 retries over 7 days
+    Permite3r7d,
+}

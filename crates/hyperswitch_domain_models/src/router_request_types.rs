@@ -1710,6 +1710,7 @@ pub struct SetupMandateRequestData {
     pub partner_merchant_identifier_details:
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
     pub authentication_data: Option<AuthenticationData>,
+    pub connector_intent_metadata: Option<ConnectorMetadata>,
 }
 
 #[derive(Debug, Clone)]
