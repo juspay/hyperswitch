@@ -1126,6 +1126,7 @@ pub struct ConnectorTokenReferenceRecord {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_token_status: common_enums::ConnectorTokenStatus,
     pub connector_token_request_reference_id: Option<String>,
+    pub connector_customer_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
