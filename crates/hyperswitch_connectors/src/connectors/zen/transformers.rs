@@ -23,7 +23,7 @@ use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use ring::digest;
 use serde::{Deserialize, Serialize};
 use strum::Display;
@@ -992,7 +992,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, ApiResponse, T, PaymentsResponseData>>
 
         Ok(Self {
             status,
-            response: error.map_or_else(|| Ok(payment_response_data), Err),
+            response: match error {
+                Some(err) => Err(err),
+                None => Ok(payment_response_data),
+            },
             ..value.data
         })
     }
@@ -1086,7 +1089,10 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>>
     ) -> Result<Self, Self::Error> {
         let (error, refund_response_data) = get_zen_refund_response(item.response, item.http_code)?;
         Ok(Self {
-            response: error.map_or_else(|| Ok(refund_response_data), Err),
+            response: match error {
+                Some(err) => Err(err),
+                None => Ok(refund_response_data),
+            },
             ..item.data
         })
     }
