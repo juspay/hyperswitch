@@ -6,7 +6,7 @@ use common_utils::{
     errors::CustomResult,
     request::{Request, RequestContent},
 };
-use masking::Maskable;
+use hyperswitch_masking::Maskable;
 
 use crate::{
     core::errors::ConnectorError,
