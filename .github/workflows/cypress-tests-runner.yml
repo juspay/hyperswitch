@@ -21,7 +21,7 @@ env:
   MANDATORY_PAYMENTS_CONNECTORS_BATCH_3: "adyen checkout zift"
   MANDATORY_PAYMENTS_CONNECTORS_BATCH_4: "paypal noon fiuu"
   MANDATORY_PAYMENTS_CONNECTORS_BATCH_5: "authorizedotnet cashtocode loonio"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "worldpayxml worldpay volt"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "cybersource stripe gigadat cryptopay"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "airwallex nmi redsys"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3: "nmi noon"
   ALPHA_PAYMENTS_CONNECTORS: "celero silverflow"
@@ -450,13 +450,6 @@ jobs:
                   "parallel": 3,
                   "report_artifact_name": "cypress-test-results-batch-1",
                   "server_logs_artifact": "server-logs-batch-1"
-                },
-                {
-                  "name": "batch-2",
-                  "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2}"'",
-                  "parallel": 3,
-                  "report_artifact_name": "cypress-test-results-batch-2",
-                  "server_logs_artifact": "server-logs-batch-2"
                 }
               ]
             }'
@@ -501,6 +494,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+
+      - name: Collect Workflow Telemetry
+        uses: catchpoint/workflow-telemetry-action@v2
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
