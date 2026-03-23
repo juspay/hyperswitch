@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.02.0-hotfix10
+
+### Features
+
+- **connector:** Add processing account id in payload MITs ([#11578](https://github.com/juspay/hyperswitch/pull/11578)) ([`aea2cc6`](https://github.com/juspay/hyperswitch/commit/aea2cc6ed4bcf1256e8445eb097e02e0f9d70507))
+
+### Bug Fixes
+
+- **connector:** [ADYEN] Remove recurringProcessingModel in CIT transactions ([#11575](https://github.com/juspay/hyperswitch/pull/11575)) ([`a6f731c`](https://github.com/juspay/hyperswitch/commit/a6f731c24e958c50ce044eb7a1cf1e7adaf99e0d))
+
+**Full Changelog:** [`2026.02.02.0-hotfix9...2026.02.02.0-hotfix10`](https://github.com/juspay/hyperswitch/compare/2026.02.02.0-hotfix9...2026.02.02.0-hotfix10)
+
+- - -
+
 ## 2026.02.02.0-hotfix9
 
 ### Bug Fixes
