@@ -360,7 +360,12 @@ fn parse_decided_gateway_connector(
         None => (decided_gateway, None),
     };
 
-    let connector = RoutableConnectors::from_str(connector_name).map_err(|_| {
+    let connector = RoutableConnectors::from_str(connector_name).map_err(|error| {
+        logger::error!(
+            error=?error,
+            connector_name = %connector_name,
+            "euclid: failed to parse decided gateway connector name"
+        );
         errors::RoutingError::GenericConversionError {
             from: "String".to_string(),
             to: "RoutableConnectors".to_string(),
@@ -638,7 +643,13 @@ pub fn transform_de_output_for_router(
 
     // Add remaining connectors from de_output (only if not already seen), for fallback
     for conn in de_output {
-        let key = RoutableConnectors::from_str(&conn.gateway_name).map_err(|_| {
+        let connector_name = conn.gateway_name.clone();
+        let key = RoutableConnectors::from_str(&connector_name).map_err(|error| {
+            logger::error!(
+                error=?error,
+                connector_name = %connector_name,
+                "euclid: failed to parse connector name from decision engine output"
+            );
             errors::RoutingError::GenericConversionError {
                 from: "String".to_string(),
                 to: "RoutableConnectors".to_string(),
@@ -1027,9 +1038,15 @@ impl RoutingEq<Self> for RoutableConnectorChoice {
 
 pub fn to_json_string<T: Serialize>(value: &T) -> String {
     serde_json::to_string(value)
-        .map_err(|_| errors::RoutingError::GenericConversionError {
-            from: "T".to_string(),
-            to: "JsonValue".to_string(),
+        .map_err(|error| {
+            logger::error!(
+                error=?error,
+                "euclid: failed to serialize value to json string"
+            );
+            errors::RoutingError::GenericConversionError {
+                from: "T".to_string(),
+                to: "JsonValue".to_string(),
+            }
         })
         .unwrap_or_default()
 }
@@ -1444,9 +1461,16 @@ impl TryFrom<ConnectorInfo> for DeRoutableConnectorChoice {
             .transpose()?;
 
         let gateway_name = RoutableConnectors::from_str(&c.gateway_name)
-            .map_err(|_| errors::RoutingError::GenericConversionError {
-                from: "String".to_string(),
-                to: "RoutableConnectors".to_string(),
+            .map_err(|error| {
+                logger::error!(
+                    error=?error,
+                    gateway_name = %c.gateway_name,
+                    "euclid: unable to convert connector name to RoutableConnectors"
+                );
+                errors::RoutingError::GenericConversionError {
+                    from: "String".to_string(),
+                    to: "RoutableConnectors".to_string(),
+                }
             })
             .attach_printable("unable to convert connector name to RoutableConnectors")?;
 
