@@ -385,8 +385,41 @@ impl TryFrom<SetupMandateRequestData> for PaymentTriggerData {
 
     fn try_from(data: SetupMandateRequestData) -> Result<Self, Self::Error> {
         Ok(Self {
-            payment_method_data: data.payment_method_data,
+            payment_method_data: Some(data.payment_method_data),
             feature_metadata: data.feature_metadata,
+        })
+    }
+}
+
+impl TryFrom<PaymentsAuthorizeData> for PaymentTriggerData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: Some(data.payment_method_data),
+            feature_metadata: None,
+        })
+    }
+}
+
+impl TryFrom<PaymentsAuthenticateData> for PaymentTriggerData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: PaymentsAuthenticateData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: data.payment_method_data,
+            feature_metadata: None,
+        })
+    }
+}
+
+impl TryFrom<CompleteAuthorizeData> for PaymentTriggerData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: CompleteAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: data.payment_method_data,
+            feature_metadata: None,
         })
     }
 }
@@ -667,7 +700,7 @@ pub struct PaymentsPreProcessingData {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentTriggerData {
-    pub payment_method_data: PaymentMethodData,
+    pub payment_method_data: Option<PaymentMethodData>,
     pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
 }
 

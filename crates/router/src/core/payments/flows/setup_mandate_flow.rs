@@ -423,7 +423,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        _gateway_context: &gateway_context::RouterGatewayContext,
+        gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<(Self, bool)>
     where
         Self: Sized,
@@ -456,13 +456,14 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 types::PaymentTriggerData,
                 types::PaymentsResponseData,
             > = connector.connector.get_connector_integration();
-            let payment_trigger_router_data = services::execute_connector_processing_step(
+            let payment_trigger_router_data = gateway::execute_payment_gateway(
                 state,
                 connector_integration,
                 &payment_trigger_router_data,
                 payments::CallConnectorAction::Trigger,
                 None,
                 None,
+                gateway_context.clone(),
             )
             .await
             .to_payment_failed_response()?;

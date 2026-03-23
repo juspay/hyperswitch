@@ -1702,13 +1702,7 @@ impl ConnectorSpecifications for Santander {
     fn is_payment_trigger_flow_required(&self, current_flow: CurrentFlowInfo<'_>) -> bool {
         match current_flow {
             CurrentFlowInfo::SetupMandate { .. } => true,
-            CurrentFlowInfo::Authorize { request_data, .. } => {
-                match request_data.payment_method_type {
-                    Some(enums::PaymentMethodType::Pix) => false,
-                    _ => true,
-                }
-            }
-            CurrentFlowInfo::CompleteAuthorize { .. } => false,
+            CurrentFlowInfo::Authorize { .. } | CurrentFlowInfo::CompleteAuthorize { .. } => false,
         }
     }
 }

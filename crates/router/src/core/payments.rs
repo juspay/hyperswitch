@@ -4729,12 +4729,13 @@ where
         .await?;
     *payment_data = new_payment_data;
 
-    let mut router_data = call_connector_service_response.router_data;
+    let router_data = call_connector_service_response.router_data;
     let router_data = if call_connector_service_response.should_continue_further {
         // The status of payment_attempt and intent will be updated in the previous step
         // update this in router_data.
         // This is added because few connector integrations do not update the status,
         // and rely on previous status set in router_data
+        let mut router_data = router_data;
         router_data.status = payment_data.get_payment_attempt().status;
         router_data
             .decide_flows(
@@ -4743,14 +4744,23 @@ where
                 call_connector_action,
                 call_connector_service_response.connector_request,
                 business_profile,
-                header_payload,
+                header_payload.clone(),
                 return_raw_connector_response,
-                call_connector_service_response.gateway_context,
+                call_connector_service_response.gateway_context.clone(),
             )
             .await
     } else {
         Ok(router_data)
     }?;
+
+    // Call payment trigger step after the authorize/setup mandate flow completes
+    let (router_data, _should_continue_trigger) = router_data
+        .payment_trigger_step(
+            state,
+            connector,
+            &call_connector_service_response.gateway_context,
+        )
+        .await?;
 
     Ok((router_data, merchant_connector_account))
 }
@@ -5133,20 +5143,6 @@ where
         None => (None, false),
     };
 
-    let (router_data, should_continue_further) = if should_continue_further {
-        router_data
-            .payment_trigger_step(state, &connector, &gateway_context)
-            .await?
-    } else {
-        (router_data, false)
-    };
-
-    let connector_request = if should_continue_further {
-        connector_request
-    } else {
-        None
-    };
-
     Ok(ConnectorServiceIntermediateState {
         router_data,
         connector_request,
@@ -5218,14 +5214,23 @@ where
                 call_connector_action,
                 call_connector_service_response.connector_request,
                 business_profile,
-                header_payload,
+                header_payload.clone(),
                 return_raw_connector_response,
-                call_connector_service_response.gateway_context,
+                call_connector_service_response.gateway_context.clone(),
             )
             .await
     } else {
         Ok(router_data)
     }?;
+
+    // Call payment trigger step after the authorize/setup mandate flow completes
+    let (router_data, _should_continue_trigger) = router_data
+        .payment_trigger_step(
+            state,
+            connector,
+            &call_connector_service_response.gateway_context,
+        )
+        .await?;
 
     Ok((router_data, merchant_connector_account_type_details))
 }

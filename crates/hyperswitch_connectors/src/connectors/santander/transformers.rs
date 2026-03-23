@@ -92,7 +92,7 @@ impl TryFrom<&SantanderRouterData<&PaymentsTriggerRouterData>>
         item: &SantanderRouterData<&PaymentsTriggerRouterData>,
     ) -> Result<Self, Self::Error> {
         let bank_transfer_data = match &item.router_data.request.payment_method_data {
-            PaymentMethodData::BankTransfer(boxed_data) => match boxed_data.as_ref() {
+            Some(PaymentMethodData::BankTransfer(boxed_data)) => match boxed_data.as_ref() {
                 BankTransferData::PixAutomaticoPush {
                     account_number,
                     branch_code,
@@ -1809,7 +1809,7 @@ impl TryFrom<&SantanderRouterData<&PaymentsTriggerRouterData>>
         value: &SantanderRouterData<&PaymentsTriggerRouterData>,
     ) -> Result<Self, Self::Error> {
         match &value.router_data.request.payment_method_data {
-            PaymentMethodData::BankTransfer(bank_transfer_data) => {
+            Some(PaymentMethodData::BankTransfer(bank_transfer_data)) => {
                 match bank_transfer_data.as_ref() {
                     BankTransferData::PixAutomaticoPush { .. } => {
                         let solicitation_request =
@@ -1833,7 +1833,7 @@ impl TryFrom<&PaymentsTriggerRouterData> for SantanderPostProcessingStepRequest 
     type Error = Error;
     fn try_from(value: &PaymentsTriggerRouterData) -> Result<Self, Self::Error> {
         match &value.request.payment_method_data {
-            PaymentMethodData::BankTransfer(bank_transfer_data) => {
+            Some(PaymentMethodData::BankTransfer(bank_transfer_data)) => {
                 match bank_transfer_data.as_ref() {
                     BankTransferData::PixAutomaticoPush { .. } => {
                         let solicitation_request =
@@ -1880,7 +1880,7 @@ impl TryFrom<&PaymentsTriggerRouterData> for SantanderPixAutomaticSolicitationRe
 
         // Extract bank transfer data for PixAutomaticoPush
         let bank_transfer_data = match &item.request.payment_method_data {
-            PaymentMethodData::BankTransfer(boxed_data) => match boxed_data.as_ref() {
+            Some(PaymentMethodData::BankTransfer(boxed_data)) => match boxed_data.as_ref() {
                 BankTransferData::PixAutomaticoPush {
                     account_number,
                     branch_code,
