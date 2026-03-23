@@ -1,6 +1,6 @@
 use common_enums::CountryAlpha2;
 use common_utils::types::StringMajorUnit;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use super::requests::{

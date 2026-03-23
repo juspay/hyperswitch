@@ -3,7 +3,7 @@ use common_enums::MerchantDecision;
 use common_utils::errors::CustomResult;
 use diesel_models::configs;
 use error_stack::ResultExt;
-use masking::StrongSecret;
+use hyperswitch_masking::StrongSecret;
 
 use super::{errors, transformers::generate_fingerprint, SessionState};
 use crate::{

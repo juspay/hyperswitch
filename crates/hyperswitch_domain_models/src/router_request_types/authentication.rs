@@ -181,7 +181,7 @@ pub struct ExternalThreeDSConnectorMetadata {
 
 #[derive(Clone, Debug)]
 pub struct AuthenticationStore {
-    pub cavv: Option<masking::Secret<String>>,
+    pub cavv: Option<hyperswitch_masking::Secret<String>>,
     pub authentication: authentication::Authentication,
 }
 
