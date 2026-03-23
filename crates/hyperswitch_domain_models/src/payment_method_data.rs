@@ -1352,6 +1352,12 @@ pub enum BankTransferData {
         /// The expiration date and time for the Pix QR code
         expiry_date: Option<time::PrimitiveDateTime>,
     },
+    PixAutomaticoPush {
+        account_number: Option<Secret<String>>,
+        branch_code: Option<Secret<String>>,
+        bank_identifier: Option<Secret<String>>,
+    },
+    PixAutomaticoQr {},
     Pse {},
     LocalBankTransfer {
         bank_code: Option<String>,
@@ -2444,6 +2450,16 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
                 destination_bank_account_id,
                 expiry_date,
             },
+            api_models::payments::BankTransferData::PixAutomaticoPush {
+                account_number,
+                branch_code,
+                bank_identifier,
+            } => Self::PixAutomaticoPush {
+                account_number,
+                branch_code,
+                bank_identifier,
+            },
+            api_models::payments::BankTransferData::PixAutomaticoQr {} => Self::PixAutomaticoQr {},
             api_models::payments::BankTransferData::Pse {} => Self::Pse {},
             api_models::payments::BankTransferData::LocalBankTransfer { bank_code } => {
                 Self::LocalBankTransfer { bank_code }
@@ -2503,6 +2519,18 @@ impl From<BankTransferData> for api_models::payments::additional_info::BankTrans
                     expiry_date,
                 },
             )),
+            BankTransferData::PixAutomaticoPush {
+                account_number,
+                branch_code,
+                bank_identifier,
+            } => Self::PixAutomaticoPush(Box::new(
+                api_models::payments::additional_info::PixAutomaticoPushAdditionalData {
+                    account_number,
+                    branch_code,
+                    bank_identifier,
+                },
+            )),
+            BankTransferData::PixAutomaticoQr {} => Self::PixAutomaticoQr {},
             BankTransferData::Pse {} => Self::Pse {},
             BankTransferData::LocalBankTransfer { bank_code } => Self::LocalBankTransfer(Box::new(
                 api_models::payments::additional_info::LocalBankTransferAdditionalData {
@@ -2822,6 +2850,8 @@ impl GetPaymentMethodType for BankTransferData {
             Self::DanamonVaBankTransfer { .. } => api_enums::PaymentMethodType::DanamonVa,
             Self::MandiriVaBankTransfer { .. } => api_enums::PaymentMethodType::MandiriVa,
             Self::Pix { .. } => api_enums::PaymentMethodType::Pix,
+            Self::PixAutomaticoPush { .. } => api_enums::PaymentMethodType::PixAutomaticoPush,
+            Self::PixAutomaticoQr {} => api_enums::PaymentMethodType::PixAutomaticoQr,
             Self::Pse {} => api_enums::PaymentMethodType::Pse,
             Self::LocalBankTransfer { .. } => api_enums::PaymentMethodType::LocalBankTransfer,
             Self::InstantBankTransfer {} => api_enums::PaymentMethodType::InstantBankTransfer,
