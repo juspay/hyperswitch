@@ -788,54 +788,8 @@ impl RoutingStage for StaticRoutingStage {
     }
 }
 
-pub struct DecisionEngineStaticRoutingInput<'a> {
-    pub state: &'a SessionState,
-    pub business_profile: &'a domain::Profile,
-    pub backend_input: backend::BackendInput,
-    pub fallback_config: &'a [routing_types::RoutableConnectorChoice],
-    pub payment_id: String,
-}
-
-pub struct DecisionEngineStaticRoutingStage;
-
-impl RoutingStage for DecisionEngineStaticRoutingStage {
-    type Input<'a> = DecisionEngineStaticRoutingInput<'a>;
-    type Output = RoutingConnectorOutcome;
-    type Fut<'a> = BoxFuture<'a, RoutingResult<Self::Output>>;
-
-    fn route<'a>(&'a self, input: Self::Input<'a>) -> Self::Fut<'a> {
-        Box::pin(async move {
-            let connectors = if !input.state.conf.open_router.static_routing_enabled {
-                logger::debug!("decision engine not enabled");
-                Vec::default()
-            } else {
-                utils::decision_engine_routing(
-                    input.state,
-                    input.backend_input.clone(),
-                    input.business_profile,
-                    input.payment_id,
-                    input.fallback_config.to_vec(),
-                )
-                .await
-                .inspect_err(|err| {
-                    logger::error!(
-                        error=?err,
-                        "decision engine evaluation failed"
-                    );
-                })
-                .unwrap_or_default()
-            };
-            Ok(RoutingConnectorOutcome { connectors })
-        })
-    }
-
-    fn routing_approach(&self) -> common_enums::RoutingApproach {
-        common_enums::RoutingApproach::Other("DecisionEngineStaticRouting".to_string())
-    }
-}
-
 #[cfg(feature = "v1")]
-pub async fn perform_static_routing_with_de(
+pub async fn perform_static_routing_locally(
     state: &SessionState,
     business_profile: &domain::Profile,
     payment_dsl_input: &routing::PaymentsDslInput<'_>,
@@ -906,43 +860,7 @@ pub async fn perform_static_routing_with_de(
             common_enums::RoutingApproach::DefaultFallback,
         );
 
-    let de_stage = DecisionEngineStaticRoutingStage;
-
-    let de_input = DecisionEngineStaticRoutingInput {
-        state,
-        business_profile,
-        backend_input: backend_input.clone(),
-        fallback_config,
-        payment_id: payment_dsl_input
-            .payment_intent
-            .payment_id
-            .get_string_repr()
-            .to_string(),
-    };
-
-    let de_connectors = de_stage
-        .route(de_input)
-        .await
-        .inspect_err(|err| {
-            logger::error!(
-                error=?err,
-                "euclid: static routing failed"
-            );
-        })
-        .unwrap_or_else(|_| RoutingConnectorOutcome::empty())
-        .connectors;
-
-    utils::compare_and_log_result(
-        de_connectors.clone(),
-        static_connectors.clone(),
-        "evaluate_routing".to_string(),
-    );
-
-    let final_static_connector =
-        utils::select_routing_result(state, business_profile, static_connectors, de_connectors)
-            .await;
-
-    Ok((final_static_connector, static_approach))
+    Ok((static_connectors, static_approach))
 }
 
 pub struct SessionRoutingInput<'a> {
@@ -1417,139 +1335,207 @@ impl RoutingConnectorOutcomeWithApproach {
     }
 }
 
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-pub struct DynamicRoutingStage;
-
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-impl DynamicRoutingStage {
-    async fn resolve_dynamic_connectors(
-        &self,
-        input: &DynamicRoutingInput<'_>,
-        routing_type: &api_models::routing::RoutingType,
-    ) -> RoutingResult<Option<RoutingConnectorOutcomeWithApproach>> {
-        if !routing_type.is_dynamic_routing()
-            || !input.state.conf.open_router.dynamic_routing_enabled
-        {
-            Ok(None)
-        } else {
-            let payment_attempt = input.transaction_data.payment_attempt.clone();
-            match perform_dynamic_routing_with_open_router(
-                input.state,
-                input.static_connectors.to_vec(),
-                input.business_profile,
-                payment_attempt,
-            )
-            .await
-            {
-                Ok(result) => Ok(result),
-                Err(e) => {
-                    logger::error!(euclid_open_router_error=?e);
-                    Ok(None)
-                }
-            }
-        }
-    }
-}
-
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-pub struct DynamicRoutingInput<'a> {
+#[cfg(feature = "v1")]
+pub struct HybridRoutingInput<'a> {
     pub state: &'a SessionState,
     pub business_profile: &'a domain::Profile,
-    pub transaction_data: &'a routing::PaymentsDslInput<'a>,
+    pub payment_dsl_input: &'a routing::PaymentsDslInput<'a>,
+    pub backend_input: &'a backend::BackendInput,
+    pub fallback_config: &'a [routing_types::RoutableConnectorChoice],
     pub static_connectors: &'a [routing_types::RoutableConnectorChoice],
 }
 
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-impl RoutingStage for DynamicRoutingStage {
-    type Input<'a> = DynamicRoutingInput<'a>;
-    type Output = Option<RoutingConnectorOutcomeWithApproach>;
+#[cfg(feature = "v1")]
+pub struct HybridRoutingStage;
+
+#[cfg(feature = "v1")]
+impl HybridRoutingStage {
+    #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+    fn build_dynamic_routing_request(
+        &self,
+        input: &HybridRoutingInput<'_>,
+    ) -> (Option<OpenRouterDecideGatewayRequest>, Option<u8>) {
+        if !input.state.conf.open_router.dynamic_routing_enabled {
+            (None, None)
+        } else if let Some(dynamic_routing_algo) =
+            input.business_profile.dynamic_routing_algorithm.clone()
+        {
+            match dynamic_routing_algo.parse_value::<api_routing::DynamicRoutingAlgorithmRef>(
+                "DynamicRoutingAlgorithmRef",
+            ) {
+                Ok(dynamic_routing_config) => {
+                    let dynamic_routing_volume_split = dynamic_routing_config
+                        .dynamic_routing_volume_split
+                        .unwrap_or_default();
+                    let is_dynamic_feature_enabled = dynamic_routing_config
+                        .is_success_rate_routing_enabled()
+                        || dynamic_routing_config.is_elimination_enabled();
+
+                    if !is_dynamic_feature_enabled {
+                        logger::debug!(
+                            "euclid: dynamic routing config present but dynamic features are disabled"
+                        );
+                        (None, Some(dynamic_routing_volume_split))
+                    } else {
+                        match perform_dynamic_routing_volume_split(
+                            vec![
+                                api_models::routing::RoutingVolumeSplit {
+                                    routing_type: api_models::routing::RoutingType::Dynamic,
+                                    split: dynamic_routing_volume_split,
+                                },
+                                api_models::routing::RoutingVolumeSplit {
+                                    routing_type: api_models::routing::RoutingType::Static,
+                                    split: crate::consts::DYNAMIC_ROUTING_MAX_VOLUME
+                                        - dynamic_routing_volume_split,
+                                },
+                            ],
+                            None,
+                        ) {
+                            Ok(routing_choice)
+                                if routing_choice.routing_type.is_dynamic_routing() =>
+                            {
+                                (
+                                    Some(OpenRouterDecideGatewayRequest::construct_sr_request(
+                                        input.payment_dsl_input.payment_attempt,
+                                        input.static_connectors.to_vec(),
+                                        Some(or_types::RankingAlgorithm::SrBasedRouting),
+                                        dynamic_routing_config.is_elimination_enabled(),
+                                    )),
+                                    Some(dynamic_routing_volume_split),
+                                )
+                            }
+                            Ok(_) => (None, Some(dynamic_routing_volume_split)),
+                            Err(error) => {
+                                logger::error!(
+                                    error=?error,
+                                    "euclid: failed to perform dynamic routing volume split for hybrid routing"
+                                );
+                                (None, Some(dynamic_routing_volume_split))
+                            }
+                        }
+                    }
+                }
+                Err(error) => {
+                    logger::error!(
+                        error=?error,
+                        "euclid: failed to parse dynamic routing config for hybrid routing"
+                    );
+                    (None, None)
+                }
+            }
+        } else {
+            (None, None)
+        }
+    }
+
+    #[cfg(not(all(feature = "v1", feature = "dynamic_routing")))]
+    fn build_dynamic_routing_request(
+        &self,
+        _input: &HybridRoutingInput<'_>,
+    ) -> (Option<OpenRouterDecideGatewayRequest>, Option<u8>) {
+        (None, None)
+    }
+}
+
+#[cfg(feature = "v1")]
+impl RoutingStage for HybridRoutingStage {
+    type Input<'a> = HybridRoutingInput<'a>;
+    type Output = RoutingConnectorOutcomeWithApproach;
     type Fut<'a> = BoxFuture<'a, RoutingResult<Self::Output>>;
 
     fn route<'a>(&'a self, input: Self::Input<'a>) -> Self::Fut<'a> {
         Box::pin(async move {
-            let Some(algo) = input.business_profile.dynamic_routing_algorithm.clone() else {
-                return Ok(None);
+            let (dynamic_routing_request, _dynamic_routing_volume_split) =
+                self.build_dynamic_routing_request(&input);
+
+            let static_routing_request = if input.state.conf.open_router.static_routing_enabled {
+                Some(utils::build_static_routing_request_for_hybrid(
+                    input
+                        .business_profile
+                        .get_id()
+                        .get_string_repr()
+                        .to_string(),
+                    input.backend_input.clone(),
+                    input.fallback_config.to_vec(),
+                )?)
+            } else {
+                None
             };
 
-            let dynamic_routing_config: api_models::routing::DynamicRoutingAlgorithmRef = algo
-                .parse_value("DynamicRoutingAlgorithmRef")
-                .change_context(errors::RoutingError::DeserializationError {
-                    from: "json".into(),
-                    to: "DynamicAlgorithmRef".into(),
-                })?;
+            let outcome = if static_routing_request.is_none() && dynamic_routing_request.is_none() {
+                logger::debug!(
+                    "euclid: hybrid routing skipped since both static and dynamic DE flags are disabled"
+                );
+                RoutingConnectorOutcomeWithApproach::empty()
+            } else {
+                let payment_id = input
+                    .payment_dsl_input
+                    .payment_attempt
+                    .payment_id
+                    .get_string_repr()
+                    .to_string();
 
-            let dynamic_split = api_models::routing::RoutingVolumeSplit {
-                routing_type: api_models::routing::RoutingType::Dynamic,
-                split: dynamic_routing_config
-                    .dynamic_routing_volume_split
-                    .unwrap_or_default(),
+                let hybrid_outcome = utils::decision_engine_hybrid_routing(
+                    input.state,
+                    input.business_profile,
+                    payment_id,
+                    utils::HybridRoutingRequest {
+                        static_routing_request,
+                        dynamic_routing_request,
+                    },
+                    input.static_connectors.to_vec(),
+                )
+                .await?;
+
+                RoutingConnectorOutcomeWithApproach {
+                    connectors: hybrid_outcome.connectors,
+                    routing_approach: hybrid_outcome.routing_approach.into(),
+                }
             };
 
-            let static_split = api_models::routing::RoutingVolumeSplit {
-                routing_type: api_models::routing::RoutingType::Static,
-                split: crate::consts::DYNAMIC_ROUTING_MAX_VOLUME
-                    - dynamic_routing_config
-                        .dynamic_routing_volume_split
-                        .unwrap_or_default(),
-            };
-
-            let routing_choice =
-                perform_dynamic_routing_volume_split(vec![dynamic_split, static_split], None)
-                    .change_context(errors::RoutingError::VolumeSplitFailed)
-                    .attach_printable("euclid: failed to perform volume split on routing type")?;
-
-            self.resolve_dynamic_connectors(&input, &routing_choice.routing_type)
-                .await
+            Ok(outcome)
         })
     }
 
     fn routing_approach(&self) -> common_enums::RoutingApproach {
-        common_enums::RoutingApproach::Other("DynamicRouting".to_string())
+        common_enums::RoutingApproach::Other("HybridRouting".to_string())
     }
 }
 
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-pub async fn perform_dynamic_routing_if_enabled(
+#[cfg(feature = "v1")]
+pub async fn perform_hybrid_routing_if_enabled(
     state: &SessionState,
     business_profile: &domain::Profile,
     payment_dsl_input: &routing::PaymentsDslInput<'_>,
+    backend_input: &backend::BackendInput,
+    fallback_config: &[routing_types::RoutableConnectorChoice],
     static_connectors: &[routing_types::RoutableConnectorChoice],
     static_approach: common_enums::RoutingApproach,
 ) -> (
     Vec<routing_types::RoutableConnectorChoice>,
     common_enums::RoutingApproach,
 ) {
-    business_profile
-        .dynamic_routing_algorithm
-        .as_ref()
-        .map(|_| DynamicRoutingStage)
-        .async_and_then(|stage| async move {
-            let input = DynamicRoutingInput {
-                state,
-                business_profile,
-                transaction_data: payment_dsl_input,
-                static_connectors,
-            };
+    let stage = HybridRoutingStage;
+    let input = HybridRoutingInput {
+        state,
+        business_profile,
+        payment_dsl_input,
+        backend_input,
+        fallback_config,
+        static_connectors,
+    };
 
-            stage
-                .route(input)
-                .await
-                .inspect_err(|err| {
-                    logger::error!(
-                        error=?err,
-                        "euclid: dynamic routing failed"
-                    );
-                })
-                .ok()
-                .flatten()
-                .map(|outcome| RoutingConnectorOutcomeWithApproach {
-                    connectors: outcome.connectors,
-                    routing_approach: outcome.routing_approach,
-                })
-        })
+    stage
+        .route(input)
         .await
-        .unwrap_or_else(RoutingConnectorOutcomeWithApproach::empty)
-        .resolve_or_fallback("dynamic-routing", static_connectors, static_approach)
+        .inspect_err(|error| {
+            logger::error!(
+                error=?error,
+                "euclid: hybrid routing failed"
+            );
+        })
+        .unwrap_or_else(|_| RoutingConnectorOutcomeWithApproach::empty())
+        .resolve_or_fallback("hybrid-routing", static_connectors, static_approach)
 }
 
 pub async fn static_routing_v1(
