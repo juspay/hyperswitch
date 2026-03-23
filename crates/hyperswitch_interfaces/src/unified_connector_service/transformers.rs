@@ -202,7 +202,14 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
                 response.connector_transaction_id.clone(),
             );
 
-        let response = if let Some(error_info) = response.error.as_ref() {
+        let connector_details = response
+            .error
+            .as_ref()
+            .and_then(|e| e.connector_details.as_ref());
+
+        let response = if let Some(error_code) =
+            connector_details.and_then(|details| details.code.clone())
+        {
             let attempt_status = match response.status() {
                 payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
                 _ => Some(AttemptStatus::foreign_try_from((
@@ -212,18 +219,8 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
             };
 
             Err(ErrorResponse {
-                code: error_info
-                    .connector_details
-                    .as_ref()
-                    .and_then(|cd| cd.code.clone())
-                    .ok_or(
-                        error_stack::Report::new(
-                            UnifiedConnectorServiceError::ResponseDeserializationFailed,
-                        )
-                        .attach_printable("Missing error code in UCS response ErrorInfo"),
-                    )?,
-                message: error_info
-                    .connector_details
+                code: error_code,
+                message: connector_details
                     .as_ref()
                     .and_then(|cd| cd.message.clone())
                     .ok_or(
@@ -232,28 +229,31 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
                         )
                         .attach_printable("Missing error message in UCS response ErrorInfo"),
                     )?,
-                reason: error_info
-                    .connector_details
-                    .as_ref()
-                    .and_then(|cd| cd.reason.clone()),
+                reason: connector_details.as_ref().and_then(|cd| cd.reason.clone()),
                 status_code,
                 attempt_status,
                 connector_transaction_id: connector_transaction_id.get_optional_response_id(),
                 connector_response_reference_id: response.merchant_transaction_id,
-                network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
-                    id.network_details
-                        .as_ref()
-                        .and_then(|nd| nd.decline_code.clone())
+                network_decline_code: response.error.as_ref().and_then(|error| {
+                    error.issuer_details.as_ref().and_then(|id| {
+                        id.network_details
+                            .as_ref()
+                            .and_then(|nd| nd.decline_code.clone())
+                    })
                 }),
-                network_advice_code: error_info.issuer_details.as_ref().and_then(|id| {
-                    id.network_details
-                        .as_ref()
-                        .and_then(|nd| nd.advice_code.clone())
+                network_advice_code: response.error.as_ref().and_then(|error| {
+                    error.issuer_details.as_ref().and_then(|id| {
+                        id.network_details
+                            .as_ref()
+                            .and_then(|nd| nd.advice_code.clone())
+                    })
                 }),
-                network_error_message: error_info.issuer_details.as_ref().and_then(|id| {
-                    id.network_details
-                        .as_ref()
-                        .and_then(|nd| nd.error_message.clone())
+                network_error_message: response.error.as_ref().and_then(|error| {
+                    error.issuer_details.as_ref().and_then(|id| {
+                        id.network_details
+                            .as_ref()
+                            .and_then(|nd| nd.error_message.clone())
+                    })
                 }),
                 connector_metadata: None,
             })
