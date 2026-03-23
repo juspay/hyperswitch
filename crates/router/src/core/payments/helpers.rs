@@ -3215,57 +3215,104 @@ pub fn make_modular_pm_data<F: Clone, D>(
 where
     D: OperationSessionGetters<F> + Send + Sync + Clone,
 {
-    let is_connector_mandate_selected = payment_data
+    let selected_mandate_reference = payment_data
         .get_mandate_id()
-        .and_then(|mandate_id| mandate_id.mandate_reference_id.as_ref())
-        .is_some_and(|mandate_reference_id| {
-            matches!(
-                mandate_reference_id,
-                api_models::payments::MandateReferenceId::ConnectorMandateId(_)
-            )
-        });
+        .and_then(|mandate_id| mandate_id.mandate_reference_id.as_ref());
 
-    let payment_method_data = match payment_data.get_payment_method_data() {
-        Some(domain::PaymentMethodData::CardWithOptionalCVC(_card_data))
-            if is_connector_mandate_selected =>
-        {
-            Some(domain::PaymentMethodData::MandatePayment)
-        }
-        Some(domain::PaymentMethodData::CardWithOptionalCVC(card_data)) => {
-            let card_cvc = card_data.card_cvc.clone().ok_or(
-                errors::ApiErrorResponse::UnprocessableEntity {
-                    message: "card_cvc is required for card payment path".to_string(),
-                },
-            )?;
-
-            Some(domain::PaymentMethodData::Card(domain::Card {
-                card_number: card_data.card_number.clone(),
-                card_exp_month: card_data.card_exp_month.clone(),
-                card_exp_year: card_data.card_exp_year.clone(),
-                card_cvc,
-                card_issuer: card_data.card_issuer.clone(),
-                card_network: card_data.card_network.clone(),
-                card_type: card_data.card_type.clone(),
-                card_issuing_country: card_data.card_issuing_country.clone(),
-                card_issuing_country_code: card_data.card_issuing_country_code.clone(),
-                bank_code: card_data.bank_code.clone(),
-                nick_name: card_data.nick_name.clone(),
-                card_holder_name: card_data.card_holder_name.clone(),
-                co_badged_card_data: card_data.co_badged_card_data.clone(),
-            }))
-        }
-        Some(domain::PaymentMethodData::Card(_)) if is_connector_mandate_selected => {
-            Some(domain::PaymentMethodData::MandatePayment)
-        }
-        Some(payment_method_data) => Some(payment_method_data.clone()),
-        None => None,
-    };
+    let payment_method_data = PmModTransformedData::try_from((
+        payment_data.get_payment_method_data(),
+        selected_mandate_reference,
+    ))
+    .map(|data| data.0)?;
 
     let pm_id = payment_data
         .get_payment_method_info()
         .map(|payment_method_info| payment_method_info.payment_method_id.clone());
 
     Ok((payment_method_data, pm_id))
+}
+
+#[cfg(feature = "v1")]
+struct PmModTransformedData(Option<domain::PaymentMethodData>);
+
+#[cfg(feature = "v1")]
+impl<'a>
+    TryFrom<(
+        Option<&'a domain::PaymentMethodData>,
+        Option<&'a api_models::payments::MandateReferenceId>,
+    )> for PmModTransformedData
+{
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(
+        value: (
+            Option<&'a domain::PaymentMethodData>,
+            Option<&'a api_models::payments::MandateReferenceId>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let (payment_method_data, selected_mandate_reference) = value;
+        let payment_method_data = match (payment_method_data, selected_mandate_reference) {
+            // PSP tokens when it's ConnectorMandateId and card data is available
+            (
+                Some(
+                    domain::PaymentMethodData::CardWithOptionalCVC(_)
+                    | domain::PaymentMethodData::Card(_),
+                ),
+                Some(&api_models::payments::MandateReferenceId::ConnectorMandateId(_)),
+            ) => Some(domain::PaymentMethodData::MandatePayment),
+            // Card + NTI when Network Transaction ID is present
+            (
+                Some(domain::PaymentMethodData::CardWithOptionalCVC(card_data)),
+                Some(&api_models::payments::MandateReferenceId::NetworkMandateId(_)),
+            ) => Some(
+                domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
+                    domain::CardDetailsForNetworkTransactionId {
+                        card_number: card_data.card_number.clone(),
+                        card_exp_month: card_data.card_exp_month.clone(),
+                        card_exp_year: card_data.card_exp_year.clone(),
+                        card_issuer: card_data.card_issuer.clone(),
+                        card_network: card_data.card_network.clone(),
+                        card_type: card_data.card_type.clone(),
+                        card_issuing_country: card_data.card_issuing_country.clone(),
+                        card_issuing_country_code: card_data.card_issuing_country_code.clone(),
+                        bank_code: card_data.bank_code.clone(),
+                        nick_name: card_data.nick_name.clone(),
+                        card_holder_name: card_data.card_holder_name.clone(),
+                    },
+                ),
+            ),
+            // Raw card as last preference
+            (Some(domain::PaymentMethodData::CardWithOptionalCVC(card_data)), _) => {
+                let card_cvc = card_data.card_cvc.clone().ok_or(
+                    errors::ApiErrorResponse::UnprocessableEntity {
+                        message: "card_cvc is required for card payment path".to_string(),
+                    },
+                )?;
+
+                Some(domain::PaymentMethodData::Card(domain::Card {
+                    card_number: card_data.card_number.clone(),
+                    card_exp_month: card_data.card_exp_month.clone(),
+                    card_exp_year: card_data.card_exp_year.clone(),
+                    card_cvc,
+                    card_issuer: card_data.card_issuer.clone(),
+                    card_network: card_data.card_network.clone(),
+                    card_type: card_data.card_type.clone(),
+                    card_issuing_country: card_data.card_issuing_country.clone(),
+                    card_issuing_country_code: card_data.card_issuing_country_code.clone(),
+                    bank_code: card_data.bank_code.clone(),
+                    nick_name: card_data.nick_name.clone(),
+                    card_holder_name: card_data.card_holder_name.clone(),
+                    co_badged_card_data: card_data.co_badged_card_data.clone(),
+                }))
+            }
+
+            // Keep data as is, otherwise
+            (Some(payment_method_data), _) => Some(payment_method_data.clone()),
+            (None, _) => None,
+        };
+
+        Ok(Self(payment_method_data))
+    }
 }
 
 #[cfg(feature = "v1")]
