@@ -3839,6 +3839,8 @@ impl GetPaymentMethodType for BankTransferData {
             Self::DanamonVaBankTransfer { .. } => api_enums::PaymentMethodType::DanamonVa,
             Self::MandiriVaBankTransfer { .. } => api_enums::PaymentMethodType::MandiriVa,
             Self::Pix { .. } => api_enums::PaymentMethodType::Pix,
+            Self::PixAutomaticoQr {} => api_enums::PaymentMethodType::PixAutomaticoQr,
+            Self::PixAutomaticoPush { .. } => api_enums::PaymentMethodType::PixAutomaticoPush,
             Self::Pse {} => api_enums::PaymentMethodType::Pse,
             Self::LocalBankTransfer { .. } => api_enums::PaymentMethodType::LocalBankTransfer,
             Self::InstantBankTransfer {} => api_enums::PaymentMethodType::InstantBankTransfer,
@@ -4882,6 +4884,23 @@ pub enum BankTransferData {
         expiry_date: Option<PrimitiveDateTime>,
     },
     #[smithy(nested_value_type)]
+    PixAutomaticoQr {},
+    #[smithy(nested_value_type)]
+    PixAutomaticoPush {
+        /// Account number for Pix Automatico Push payment method
+        #[schema(value_type = Option<String>, example = "550689")]
+        #[smithy(value_type = "Option<String>")]
+        account_number: Option<Secret<String>>,
+        /// Branch code for Pix Automatico Push payment method
+        #[schema(value_type = Option<String>, example = "2569")]
+        #[smithy(value_type = "Option<String>")]
+        branch_code: Option<Secret<String>>,
+        /// Bank identifier for Pix Automatico Push payment method
+        #[schema(value_type = Option<String>, example = "91193552")]
+        #[smithy(value_type = "Option<String>")]
+        bank_identifier: Option<Secret<String>>,
+    },
+    #[smithy(nested_value_type)]
     Pse {},
     #[smithy(nested_value_type)]
     LocalBankTransfer {
@@ -5001,6 +5020,8 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
             }
             Self::LocalBankTransfer { .. }
             | Self::Pix { .. }
+            | Self::PixAutomaticoPush { .. }
+            | Self::PixAutomaticoQr {}
             | Self::Pse {}
             | Self::InstantBankTransfer {}
             | Self::InstantBankTransferFinland {}
