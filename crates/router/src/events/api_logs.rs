@@ -1,5 +1,5 @@
 use actix_web::HttpRequest;
-pub use common_utils::events::{ApiEventMetric, ApiEventsType};
+pub use common_utils::events::{ApiEventMetric, ApiEventsType, ExternalServiceCall};
 use common_utils::impl_api_event_type;
 use router_env::{types::FlowMetric, RequestId};
 use serde::Serialize;
@@ -170,4 +170,71 @@ impl ApiEventMetric for PollId {
             poll_id: self.poll_id.clone(),
         })
     }
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub struct NewApiEvent {
+    pub tenant_id: Option<common_utils::id_type::TenantId>,
+    pub merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub api_flow: Option<String>,
+    pub created_at_timestamp: i128,
+    pub request_id: Option<String>,
+    pub latency: u128,
+    pub status_code: i64,
+    #[serde(flatten)]
+    pub auth_type: Option<AuthenticationType>,
+    pub request: Option<String>,
+    pub user_agent: Option<String>,
+    pub ip_addr: Option<String>,
+    pub url_path: Option<String>,
+    pub response: Option<String>,
+    pub error: Option<serde_json::Value>,
+    #[serde(flatten)]
+    pub event_type: Option<ApiEventsType>,
+    pub hs_latency: Option<u128>,
+    pub http_method: Option<String>,
+    #[serde(flatten)]
+    pub infra_components: Option<serde_json::Value>,
+    pub external_service_calls: Vec<ExternalServiceCall>,
+}
+
+impl From<ApiEvent> for NewApiEvent {
+    fn from(api_event: ApiEvent) -> Self {
+        Self {
+            tenant_id: Some(api_event.tenant_id),
+            merchant_id: api_event.merchant_id,
+            api_flow: Some(api_event.api_flow),
+            created_at_timestamp: OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000,
+            request_id: Some(api_event.request_id),
+            latency: api_event.latency,
+            status_code: api_event.status_code,
+            auth_type: Some(api_event.auth_type),
+            request: Some(api_event.request),
+            user_agent: api_event.user_agent,
+            ip_addr: api_event.ip_addr,
+            url_path: Some(api_event.url_path),
+            response: api_event.response,
+            error: api_event.error,
+            event_type: Some(api_event.event_type),
+            hs_latency: api_event.hs_latency,
+            http_method: Some(api_event.http_method),
+            infra_components: api_event.infra_components,
+            external_service_calls: Vec::new(),
+        }
+    }
+}
+
+impl KafkaMessage for NewApiEvent {
+    fn event_type(&self) -> EventType {
+        EventType::NewApiLogs
+    }
+
+    fn key(&self) -> String {
+        self.request_id.clone().unwrap_or_default()
+    }
+}
+
+pub trait ObservabilityEventHandlerInterface {
+    fn log_wide_event(&self, event: NewApiEvent);
 }
