@@ -649,6 +649,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
+        mandate_data: singleUseMandateData,
         customer_acceptance: customerAcceptance,
       },
       Response: {
