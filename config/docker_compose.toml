@@ -1150,6 +1150,7 @@ consolidated_events_topic = "hyperswitch-consolidated-events"
 authentication_analytics_topic = "hyperswitch-authentication-events"
 routing_logs_topic = "hyperswitch-routing-api-events"
 revenue_recovery_topic = "hyperswitch-revenue-recovery-events"
+external_service_call_topic = "hyperswitch-external-service-call-events"
 
 [analytics]
 source = "sqlx"
@@ -1185,7 +1186,7 @@ partner_id = ""
 enabled = true
 
 [events]
-source = "logs"
+source = "kafka"
 
 [file_storage]
 file_storage_backend = "file_system"

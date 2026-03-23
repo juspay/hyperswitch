@@ -44,7 +44,7 @@ pub struct KeyManagerState {
     pub url: String,
     pub client_idle_timeout: Option<u64>,
     pub request_id: Option<String>,
-    pub event_emitter: Option<Arc<dyn ExternalServiceEventEmitter>>,
+    pub event_emitter: Arc<dyn ExternalServiceEventEmitter>,
     #[cfg(feature = "keymanager_mtls")]
     pub ca: Secret<String>,
     #[cfg(feature = "keymanager_mtls")]
@@ -63,7 +63,7 @@ impl KeyManagerState {
             url: String::default(),
             client_idle_timeout: Default::default(),
             request_id: None,
-            event_emitter: None,
+            event_emitter: Arc::new(NoOpEventEmitter),
             #[cfg(feature = "keymanager_mtls")]
             ca: Default::default(),
             #[cfg(feature = "keymanager_mtls")]
@@ -554,22 +554,7 @@ pub trait ToEncryptable<T, S: Clone, E>: Sized {
     ) -> CustomResult<T, errors::ParsingError>;
 }
 
-/// Represents a completed call to an external service.
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct ExternalServiceCall {
-    pub service_name: String,
-    pub endpoint: String,
-    pub method: String,
-    pub request_id: Option<String>,
-    pub tenant_id: String,
-    pub status_code: Option<u16>,
-    pub latency_ms: u128,
-    pub created_at_timestamp: i128,
-    pub error: Option<String>,
-}
-
-/// Trait for emitting external service call events to Kafka.
-/// Debug supertrait needed so KeyManagerState can derive Debug.
-pub trait ExternalServiceEventEmitter: std::fmt::Debug + Send + Sync {
-    fn emit_external_service_call(&self, event: ExternalServiceCall);
-}
+// Re-export types from external_service module for backward compatibility
+pub use crate::external_service::{
+    ExternalServiceCall, ExternalServiceEventEmitter, NoOpEventEmitter,
+};

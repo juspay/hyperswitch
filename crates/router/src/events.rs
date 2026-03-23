@@ -73,10 +73,10 @@ impl events_interfaces::EventHandlerInterface for EventsHandler {
     }
 }
 
-impl common_utils::types::keymanager::ExternalServiceEventEmitter for EventsHandler {
+impl common_utils::external_service::ExternalServiceEventEmitter for EventsHandler {
     fn emit_external_service_call(
         &self,
-        event: common_utils::types::keymanager::ExternalServiceCall,
+        event: common_utils::external_service::ExternalServiceCall,
     ) {
         self.log_event(&external_service_call::KafkaExternalServiceCall { event: &event });
     }

@@ -104,6 +104,7 @@ authentication_analytics_topic = "topic" # Kafka topic to be used for Authentica
 fraud_check_analytics_topic = "topic"    # Kafka topic to be used for Fraud Check events
 routing_logs_topic = "topic"             # Kafka topic to be used for Routing events
 revenue_recovery_topic = "topic"         # Kafka topic to be used for Revenue Recovery Events
+external_service_call_topic = "topic"   # Kafka topic to be used for External Service Call Events
 
 # File storage configuration
 [file_storage]

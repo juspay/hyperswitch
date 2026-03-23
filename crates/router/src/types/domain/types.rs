@@ -20,7 +20,7 @@ impl ForeignFrom<(&app::AppState, configs::Tenant)> for KeyManagerState {
             url: conf.url.clone(),
             client_idle_timeout: app_state.conf.proxy.idle_pool_connection_timeout,
             request_id: app_state.request_id.as_ref().map(|r| r.to_string()),
-            event_emitter: Some(std::sync::Arc::new(app_state.event_handler.clone())),
+            event_emitter: std::sync::Arc::new(app_state.event_handler.clone()),
             #[cfg(feature = "keymanager_mtls")]
             cert: conf.cert.clone(),
             #[cfg(feature = "keymanager_mtls")]
@@ -40,7 +40,7 @@ impl From<&app::SessionState> for KeyManagerState {
             url: conf.url.clone(),
             client_idle_timeout: state.conf.proxy.idle_pool_connection_timeout,
             request_id: state.request_id.as_ref().map(|r| r.to_string()),
-            event_emitter: Some(std::sync::Arc::new(state.event_handler.clone())),
+            event_emitter: std::sync::Arc::new(state.event_handler.clone()),
             #[cfg(feature = "keymanager_mtls")]
             cert: conf.cert.clone(),
             #[cfg(feature = "keymanager_mtls")]

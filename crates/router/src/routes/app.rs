@@ -570,7 +570,7 @@ impl AppState {
             url: km_conf.url.clone(),
             client_idle_timeout: conf.proxy.idle_pool_connection_timeout,
             request_id: None,
-            event_emitter: Some(Arc::new(event_handler.clone())),
+            event_emitter: Arc::new(event_handler.clone()),
             #[cfg(feature = "keymanager_mtls")]
             cert: km_conf.cert.clone(),
             #[cfg(feature = "keymanager_mtls")]

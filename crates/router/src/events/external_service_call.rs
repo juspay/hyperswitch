@@ -1,4 +1,4 @@
-use common_utils::types::keymanager::ExternalServiceCall;
+use common_utils::external_service::ExternalServiceCall;
 use serde::Serialize;
 
 use super::EventType;
@@ -12,10 +12,7 @@ pub struct KafkaExternalServiceCall<'a> {
 
 impl KafkaMessage for KafkaExternalServiceCall<'_> {
     fn key(&self) -> String {
-        self.event
-            .request_id
-            .clone()
-            .unwrap_or_else(|| "no_request_id".to_string())
+        self.event.request_id.clone()
     }
 
     fn event_type(&self) -> EventType {
