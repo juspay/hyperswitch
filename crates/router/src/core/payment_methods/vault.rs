@@ -16,7 +16,7 @@ use hyperswitch_domain_models::router_flow_types::{
 use hyperswitch_domain_models::{
     router_data_v2::flow_common_types::VaultConnectorFlowData, types::VaultRouterData,
 };
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 use router_env::{instrument, tracing};
 use scheduler::{types::process_data, utils as process_tracker_utils};
 
@@ -139,7 +139,7 @@ impl Vaultable for domain::Card {
             card_issuing_country: None,
             card_issuing_country_code: None,
             card_type: None,
-            nick_name: value1.nickname.map(masking::Secret::new),
+            nick_name: value1.nickname.map(hyperswitch_masking::Secret::new),
             card_holder_name: value1.card_holder_name,
             co_badged_card_data: None,
         };
@@ -536,7 +536,7 @@ impl Vaultable for api::CardPayout {
                 .map_err(|_| errors::VaultError::FetchCardFailed)?,
             expiry_month: value1.exp_month.into(),
             expiry_year: value1.exp_year.into(),
-            card_holder_name: value1.name_on_card.map(masking::Secret::new),
+            card_holder_name: value1.name_on_card.map(hyperswitch_masking::Secret::new),
             card_network: value1.card_network,
         };
 
@@ -552,13 +552,13 @@ impl Vaultable for api::CardPayout {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedWalletSensitiveValues {
     pub email: Option<Email>,
-    pub telephone_number: Option<masking::Secret<String>>,
-    pub wallet_id: Option<masking::Secret<String>>,
+    pub telephone_number: Option<hyperswitch_masking::Secret<String>>,
+    pub wallet_id: Option<hyperswitch_masking::Secret<String>>,
     pub wallet_type: PaymentMethodType,
     pub dpan: Option<cards::CardNumber>,
-    pub expiry_month: Option<masking::Secret<String>>,
-    pub expiry_year: Option<masking::Secret<String>>,
-    pub card_holder_name: Option<masking::Secret<String>>,
+    pub expiry_month: Option<hyperswitch_masking::Secret<String>>,
+    pub expiry_year: Option<hyperswitch_masking::Secret<String>>,
+    pub card_holder_name: Option<hyperswitch_masking::Secret<String>>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -687,14 +687,14 @@ impl Vaultable for api::WalletPayout {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedBankSensitiveValues {
-    pub bank_account_number: Option<masking::Secret<String>>,
-    pub bank_routing_number: Option<masking::Secret<String>>,
-    pub bic: Option<masking::Secret<String>>,
-    pub bank_sort_code: Option<masking::Secret<String>>,
-    pub iban: Option<masking::Secret<String>>,
-    pub pix_key: Option<masking::Secret<String>>,
-    pub tax_id: Option<masking::Secret<String>>,
-    pub bank_number: Option<masking::Secret<String>>,
+    pub bank_account_number: Option<hyperswitch_masking::Secret<String>>,
+    pub bank_routing_number: Option<hyperswitch_masking::Secret<String>>,
+    pub bic: Option<hyperswitch_masking::Secret<String>>,
+    pub bank_sort_code: Option<hyperswitch_masking::Secret<String>>,
+    pub iban: Option<hyperswitch_masking::Secret<String>>,
+    pub pix_key: Option<hyperswitch_masking::Secret<String>>,
+    pub tax_id: Option<hyperswitch_masking::Secret<String>>,
+    pub bank_number: Option<hyperswitch_masking::Secret<String>>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -1154,8 +1154,8 @@ impl Vaultable for api::PassthroughPayout {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedBankRedirectSensitiveValues {
     pub email: Option<Email>,
-    pub iban: Option<masking::Secret<String>>,
-    pub account_holder_name: Option<masking::Secret<String>>,
+    pub iban: Option<hyperswitch_masking::Secret<String>>,
+    pub account_holder_name: Option<hyperswitch_masking::Secret<String>>,
     pub bank_redirect_type: PaymentMethodType,
 }
 
@@ -1166,7 +1166,7 @@ pub struct TokenizedBankRedirectInsensitiveValues {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedPassthroughSensitiveValues {
-    pub psp_token: masking::Secret<String>,
+    pub psp_token: hyperswitch_masking::Secret<String>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -1322,7 +1322,7 @@ pub async fn create_tokenize_without_configurable_expiry(
     value1: String,
     value2: Option<String>,
     lookup_key: String,
-    encryption_key: &masking::Secret<Vec<u8>>,
+    encryption_key: &hyperswitch_masking::Secret<Vec<u8>>,
 ) -> RouterResult<String> {
     create_tokenize(state, value1, value2, lookup_key, encryption_key, None).await
 }
@@ -1333,7 +1333,7 @@ pub async fn create_tokenize_with_configurable_expiry(
     value1: String,
     value2: Option<String>,
     lookup_key: String,
-    encryption_key: &masking::Secret<Vec<u8>>,
+    encryption_key: &hyperswitch_masking::Secret<Vec<u8>>,
     expiry_time: Option<i64>,
 ) -> RouterResult<String> {
     create_tokenize(
@@ -1353,7 +1353,7 @@ async fn create_tokenize(
     value1: String,
     value2: Option<String>,
     lookup_key: String,
-    encryption_key: &masking::Secret<Vec<u8>>,
+    encryption_key: &hyperswitch_masking::Secret<Vec<u8>>,
     expiry_time: Option<i64>,
 ) -> RouterResult<String> {
     let redis_key = get_redis_locker_key(lookup_key.as_str());
@@ -1418,7 +1418,7 @@ pub async fn get_tokenized_data(
     state: &routes::SessionState,
     lookup_key: &str,
     _should_get_value2: bool,
-    encryption_key: &masking::Secret<Vec<u8>>,
+    encryption_key: &hyperswitch_masking::Secret<Vec<u8>>,
 ) -> RouterResult<api::TokenizePayloadRequest> {
     let redis_key = get_redis_locker_key(lookup_key);
     let func = || async {
@@ -1439,7 +1439,7 @@ pub async fn get_tokenized_data(
                 let decrypted_payload = GcmAes256
                     .decode_message(
                         encryption_key.peek().as_ref(),
-                        masking::Secret::new(resp.into()),
+                        hyperswitch_masking::Secret::new(resp.into()),
                     )
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to decode redis temp locker data")?;
@@ -1864,7 +1864,7 @@ pub async fn retrieve_payment_method_from_vault_using_payment_token(
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TemporaryVaultCvc {
-    card_cvc: masking::Secret<String>,
+    card_cvc: hyperswitch_masking::Secret<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -1872,7 +1872,7 @@ pub struct TemporaryVaultCvc {
 pub async fn insert_cvc_using_payment_token(
     state: &routes::SessionState,
     payment_method_id: &id_type::GlobalPaymentMethodId,
-    card_cvc: masking::Secret<String>,
+    card_cvc: hyperswitch_masking::Secret<String>,
     fulfillment_time: i64,
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<api_models::payment_methods::CardCVCTokenStorageDetails> {
@@ -1925,7 +1925,7 @@ pub async fn retrieve_and_delete_cvc_from_payment_token(
     state: &routes::SessionState,
     payment_method_id: &String,
     key_store: &domain::MerchantKeyStore,
-) -> RouterResult<masking::Secret<String>> {
+) -> RouterResult<hyperswitch_masking::Secret<String>> {
     let redis_conn = state
         .store
         .get_redis_conn()
