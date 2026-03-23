@@ -27,12 +27,37 @@
 import {
   defaultErrorHandler,
   extractIntegerAtEnd,
+  getOriginalConnectorName,
   getValueByKey,
 } from "../e2e/configs/Payment/Utils";
 import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { isoTimeTomorrow, validateEnv } from "../utils/RequestBodyUtils.js";
 import { handleRedirection } from "./redirectionHandler";
+
+function getOriginalConnectorId(globalState) {
+  return (
+    globalState.get("originalConnectorId") || globalState.get("connectorId")
+  );
+}
+
+function isStripeConnect(globalState) {
+  const connectorId = getOriginalConnectorId(globalState);
+  return (
+    typeof connectorId === "string" &&
+    connectorId.toLowerCase() === "stripeconnect"
+  );
+}
+
+function updateConnectorState(globalState, responseConnector) {
+  if (isStripeConnect(globalState)) {
+    const originalConnectorId = getOriginalConnectorId(globalState);
+    globalState.set("connectorId", originalConnectorId);
+    return;
+  }
+
+  globalState.set("connectorId", responseConnector);
+}
 
 // Helper function for creating individual rollout config
 function createIndividualRolloutConfig(
@@ -924,7 +949,9 @@ Cypress.Commands.add(
 
     createConnectorBody.profile_id = profileId;
     createConnectorBody.connector_type = connectorType;
-    createConnectorBody.connector_name = connectorName;
+    // Normalize to backend name (e.g. stripeconnect → stripe) for the API request
+    createConnectorBody.connector_name =
+      getOriginalConnectorName(connectorName);
     createConnectorBody.connector_label = connectorLabel;
     createConnectorBody.payment_methods_enabled = paymentMethodsEnabled;
     // readFile is used to read the contents of the file and it always returns a promise ([Object Object]) due to its asynchronous nature
@@ -952,7 +979,9 @@ Cypress.Commands.add(
 
           cy.wrap(response).then(() => {
             if (response.status === 200) {
-              expect(connectorName).to.equal(response.body.connector_name);
+              expect(getOriginalConnectorName(connectorName)).to.equal(
+                response.body.connector_name
+              );
               globalState.set(
                 `${mcaPrefix}Id`,
                 response.body.merchant_connector_id
@@ -991,9 +1020,16 @@ Cypress.Commands.add(
     const profile_id = globalState.get(`${profilePrefix}Id`);
     const url = `${base_url}/account/${merchant_id}/connectors`;
 
+    // Save the original connector ID before it gets overwritten
+    // This is needed to retrieve the correct config (e.g., stripeconnect vs stripe)
+    globalState.set("originalConnectorId", connector_id);
+
+    // Use originalConnectorName variable for connector_name field (resolved via stripeconnect -> stripe mapping)
+    const originalConnectorName = getOriginalConnectorName(connector_id);
+
     createConnectorBody.connector_type = connectorType;
     createConnectorBody.profile_id = profile_id;
-    createConnectorBody.connector_name = connector_id;
+    createConnectorBody.connector_name = originalConnectorName;
     createConnectorBody.payment_methods_enabled = payment_methods_enabled;
 
     // readFile is used to read the contents of the file and it always returns a promise ([Object Object]) due to its asynchronous nature
@@ -1038,7 +1074,8 @@ Cypress.Commands.add(
 
           cy.wrap(response).then(() => {
             if (response.status === 200) {
-              expect(globalState.get("connectorId")).to.equal(
+              // The backend returns the mapped connector name (e.g., "stripe" for "stripeconnect")
+              expect(originalConnectorName).to.equal(
                 response.body.connector_name
               );
               globalState.set(
@@ -1140,7 +1177,10 @@ Cypress.Commands.add(
 
 Cypress.Commands.add("connectorRetrieveCall", (globalState) => {
   const merchant_id = globalState.get("merchantId");
-  const connector_id = globalState.get("connectorId");
+  // Prefer originalConnectorId (set before API overwrites connectorId), fall back to connectorId
+  const connector_id = getOriginalConnectorId(globalState);
+  // The backend always stores/returns the canonical connector name (e.g. "stripe" for "stripeconnect")
+  const expected_connector_name = getOriginalConnectorName(connector_id);
   const merchant_connector_id = globalState.get("merchantConnectorId");
 
   cy.request({
@@ -1158,7 +1198,7 @@ Cypress.Commands.add("connectorRetrieveCall", (globalState) => {
 
     cy.wrap(response).then(() => {
       expect(response.headers["content-type"]).to.include("application/json");
-      expect(response.body.connector_name).to.equal(connector_id);
+      expect(response.body.connector_name).to.equal(expected_connector_name);
       expect(response.body.merchant_connector_id).to.equal(
         merchant_connector_id
       );
@@ -1196,7 +1236,10 @@ Cypress.Commands.add(
   (connectorType, updateConnectorBody, globalState) => {
     const api_key = globalState.get("apiKey");
     const base_url = globalState.get("baseUrl");
-    const connector_id = globalState.get("connectorId");
+    // Use originalConnectorId (preserved before API overwrites connectorId) with fallback
+    const connector_id = getOriginalConnectorId(globalState);
+    // Normalize to backend name (e.g. stripeconnect → stripe) for assertions
+    const expected_connector_name = getOriginalConnectorName(connector_id);
     const merchant_id = globalState.get("merchantId");
     const merchant_connector_id = globalState.get("merchantConnectorId");
     const connectorLabel = `updated_${RequestBodyUtils.generateRandomString(connector_id)}`;
@@ -1234,7 +1277,9 @@ Cypress.Commands.add(
             expect(response.headers["content-type"]).to.include(
               "application/json"
             );
-            expect(response.body.connector_name).to.equal(connector_id);
+            expect(response.body.connector_name).to.equal(
+              expected_connector_name
+            );
             expect(response.body.merchant_connector_id).to.equal(
               merchant_connector_id
             );
@@ -2029,12 +2074,24 @@ Cypress.Commands.add(
     const profileId = globalState.get(`${configInfo.profilePrefix}Id`);
     const url = `${baseUrl}/payments/${paymentIntentID}/confirm`;
 
+    // SAFETY: Remove split_payments if it exists from previous test mutation
+    if (confirmBody.split_payments) {
+      delete confirmBody.split_payments;
+    }
+
     confirmBody.client_secret = globalState.get("clientSecret");
     confirmBody.confirm = confirm;
     confirmBody.profile_id = profileId;
 
     for (const key in reqData) {
-      confirmBody[key] = reqData[key];
+      // Skip split_payments here - it will be added conditionally below
+      if (key !== "split_payments") {
+        confirmBody[key] = reqData[key];
+      }
+    }
+
+    if (reqData?.split_payments && isStripeConnect(globalState)) {
+      confirmBody.split_payments = reqData.split_payments;
     }
 
     cy.request({
@@ -2054,14 +2111,18 @@ Cypress.Commands.add(
         expect(response.headers["content-type"]).to.include("application/json");
         if (response.status === 200) {
           globalState.set("paymentID", paymentIntentID);
-          globalState.set("connectorId", response.body.connector);
+          updateConnectorState(globalState, response.body.connector);
           globalState.set(
             "connectorTransactionID",
             response.body.connector_transaction_id
           );
           globalState.set("paymentIntentStatus", response.body.status);
-          expect(response.body.connector, "connector").to.equal(
+          // Compare connector with backend connector name (handles stripeconnect -> stripe mapping)
+          const expectedConnector = getOriginalConnectorName(
             globalState.get("connectorId")
+          );
+          expect(response.body.connector, "connector").to.equal(
+            expectedConnector
           );
           expect(paymentIntentID, "payment_id").to.equal(
             response.body.payment_id
@@ -2172,6 +2233,7 @@ Cypress.Commands.add(
     const connectorId = globalState.get("connectorId");
     const paymentIntentId = globalState.get("paymentID");
     const profile_id = globalState.get(`${configInfo.profilePrefix}Id`);
+    const customer_id = globalState.get("customerId");
 
     for (const key in reqData) {
       confirmBody[key] = reqData[key];
@@ -2179,6 +2241,7 @@ Cypress.Commands.add(
     confirmBody.client_secret = globalState.get("clientSecret");
     confirmBody.confirm = confirm;
     confirmBody.profile_id = profile_id;
+    confirmBody.customer_id = customer_id;
 
     cy.request({
       method: "POST",
@@ -2198,7 +2261,7 @@ Cypress.Commands.add(
             "application/json"
           );
           globalState.set("paymentID", paymentIntentId);
-          globalState.set("connectorId", response.body.connector);
+          updateConnectorState(globalState, response.body.connector);
           globalState.set("paymentMethodType", confirmBody.payment_method_type);
 
           if (response.status === 200) {
@@ -2290,13 +2353,15 @@ Cypress.Commands.add(
     const configInfo = execConfig(validateConfig(configs));
     const paymentIntentID = globalState.get("paymentID");
     const profile_id = globalState.get(`${configInfo.profilePrefix}Id`);
+    const customer_id = globalState.get("customerId");
 
     for (const key in reqData) {
       confirmBody[key] = reqData[key];
     }
     confirmBody.client_secret = globalState.get("clientSecret");
     confirmBody.confirm = confirm;
-    confirmBody.profile_id = globalState.get(profile_id);
+    confirmBody.profile_id = profile_id;
+    confirmBody.customer_id = customer_id;
 
     globalState.set("paymentMethodType", confirmBody.payment_method_type);
 
@@ -2471,13 +2536,22 @@ Cypress.Commands.add(
       `${configInfo.merchantConnectorPrefix}Id`
     );
     const profile_id = globalState.get(`${configInfo.profilePrefix}Id`);
+    const customer_id = globalState.get("customerId");
 
     createConfirmPaymentBody.authentication_type = authentication_type;
     createConfirmPaymentBody.capture_method = capture_method;
-    createConfirmPaymentBody.customer_id = globalState.get("customerId");
     createConfirmPaymentBody.profile_id = profile_id;
+    createConfirmPaymentBody.customer_id = customer_id;
+
     for (const key in reqData) {
-      createConfirmPaymentBody[key] = reqData[key];
+      // Skip split_payments here - it will be added conditionally below
+      if (key !== "split_payments") {
+        createConfirmPaymentBody[key] = reqData[key];
+      }
+    }
+
+    if (reqData?.split_payments && isStripeConnect(globalState)) {
+      createConfirmPaymentBody.split_payments = reqData.split_payments;
     }
 
     cy.request({
@@ -2505,8 +2579,12 @@ Cypress.Commands.add(
             "actualSetupFutureUsage",
             response.body.setup_future_usage
           );
-          expect(response.body.connector, "connector").to.equal(
+          // Compare connector with backend connector name (handles stripeconnect -> stripe mapping)
+          const expectedConnector = getOriginalConnectorName(
             globalState.get("connectorId")
+          );
+          expect(response.body.connector, "connector").to.equal(
+            expectedConnector
           );
           expect(response.body.payment_id, "payment_id").to.equal(
             globalState.get("paymentID")
@@ -2640,9 +2718,12 @@ Cypress.Commands.add(
           globalState.set("paymentID", paymentIntentID);
 
           globalState.set("paymentID", paymentIntentID);
-          globalState.set("connectorId", response.body.connector);
-          expect(response.body.connector, "connector").to.equal(
+          updateConnectorState(globalState, response.body.connector);
+          const expectedConnector = getOriginalConnectorName(
             globalState.get("connectorId")
+          );
+          expect(response.body.connector, "connector").to.equal(
+            expectedConnector
           );
           expect(paymentIntentID, "payment_id").to.equal(
             response.body.payment_id
@@ -2896,8 +2977,11 @@ Cypress.Commands.add(
               response.body.status
             )
           ) {
-            expect(response.body.connector, "connector").to.equal(
+            const expectedConnector = getOriginalConnectorName(
               globalState.get("connectorId")
+            );
+            expect(response.body.connector, "connector").to.equal(
+              expectedConnector
             );
             expect(response.body.payment_method_data, "payment_method_data").to
               .not.be.empty;
@@ -3076,8 +3160,12 @@ Cypress.Commands.add(
       `${configInfo.merchantConnectorPrefix}Id`
     );
 
+    // Copy request data from config
     for (const key in reqData) {
-      requestBody[key] = reqData[key];
+      // Skip split_payments here - it will be added conditionally below
+      if (key !== "split_payments") {
+        requestBody[key] = reqData[key];
+      }
     }
     requestBody.amount = amount;
     requestBody.capture_method = capture_method;
@@ -3085,6 +3173,12 @@ Cypress.Commands.add(
     requestBody.customer_id = globalState.get("customerId");
     requestBody.payment_type = payment_type;
     requestBody.profile_id = profile_id;
+
+    // Include split_payments only for stripeconnect connector
+    // This handles Stripe Connect flows where split_payments is defined in the connector config
+    if (reqData?.split_payments && isStripeConnect(globalState)) {
+      requestBody.split_payments = reqData.split_payments;
+    }
 
     globalState.set("paymentAmount", requestBody.amount);
 
@@ -3107,8 +3201,11 @@ Cypress.Commands.add(
 
           expect(response.body.payment_method_data, "payment_method_data").to
             .not.be.empty;
-          expect(response.body.connector, "connector").to.equal(
+          const expectedConnector = getOriginalConnectorName(
             globalState.get("connectorId")
+          );
+          expect(response.body.connector, "connector").to.equal(
+            expectedConnector
           );
           expect(merchant_connector_id, "connector_id").to.equal(
             response.body.merchant_connector_id
@@ -3231,8 +3328,12 @@ Cypress.Commands.add(
     const configInfo = execConfig(validateConfig(configs));
     const profile_id = globalState.get(`${configInfo.profilePrefix}Id`);
 
+    // Copy request data from config
     for (const key in reqData) {
-      requestBody[key] = reqData[key];
+      // Skip split_payments here - it will be added conditionally below
+      if (key !== "split_payments") {
+        requestBody[key] = reqData[key];
+      }
     }
 
     const merchant_connector_id = globalState.get(
@@ -3245,6 +3346,12 @@ Cypress.Commands.add(
     requestBody.customer_id = globalState.get("customerId");
     requestBody.mandate_id = globalState.get("mandateId");
     requestBody.profile_id = profile_id;
+
+    // Include split_payments only for stripeconnect connector
+    // This handles Stripe Connect flows where split_payments is defined in the connector config
+    if (reqData?.split_payments && isStripeConnect(globalState)) {
+      requestBody.split_payments = reqData.split_payments;
+    }
 
     globalState.set("paymentAmount", requestBody.amount);
     cy.request({
@@ -3265,8 +3372,11 @@ Cypress.Commands.add(
           globalState.set("paymentID", response.body.payment_id);
           expect(response.body.payment_method_data, "payment_method_data").to
             .not.be.empty;
-          expect(response.body.connector, "connector").to.equal(
+          const expectedConnector = getOriginalConnectorName(
             globalState.get("connectorId")
+          );
+          expect(response.body.connector, "connector").to.equal(
+            expectedConnector
           );
           expect(merchant_connector_id, "connector_id").to.equal(
             response.body.merchant_connector_id
