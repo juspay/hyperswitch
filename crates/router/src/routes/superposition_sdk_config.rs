@@ -11,10 +11,10 @@ use crate::{
 pub async fn get_sdk_config(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(common_utils::id_type::ProfileId, String)>,
+    path: web::Path<(common_utils::id_type::ProfileId, String, String)>,
 ) -> HttpResponse {
     let flow = Flow::GetSuperpositionSdkConfig;
-    let (profile_id, _sdk_config) = path.into_inner();
+    let (profile_id, _platform, _sdk_config) = path.into_inner();
 
     Box::pin(api::server_wrap(
         flow,

@@ -3342,7 +3342,7 @@ impl SdkConfig {
         web::scope("/v1/sdk/configs")
             .app_data(web::Data::new(state))
             .service(
-                web::resource("{profile_id}/web/{sdk_config.json}")
+                web::resource("{profile_id}/{platform}/{sdk_config.json}")
                     .route(web::get().to(super::superposition_sdk_config::get_sdk_config)),
             )
     }
