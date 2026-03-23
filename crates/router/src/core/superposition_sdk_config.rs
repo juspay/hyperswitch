@@ -1,6 +1,7 @@
 use api_models::superposition_sdk_config::SuperPositionConfigResponse;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
+use serde_json::Map;
 
 use crate::{
     consts::superposition::DYNAMIC_FIELDS,
@@ -11,7 +12,8 @@ use crate::{
 
 pub async fn get_superposition_sdk_config(
     state: SessionState,
-    _platform: domain::Platform,
+    platform: domain::Platform,
+    profile_id: common_utils::id_type::ProfileId,
 ) -> RouterResponse<SuperPositionConfigResponse> {
     // let resolved_configs = state
     //     .superposition_service
@@ -22,12 +24,32 @@ pub async fn get_superposition_sdk_config(
     //     .change_context(errors::ApiErrorResponse::InternalServerError)
     //     .attach_printable("Failed to resolve superposition sdk config")?;
 
+    let merchant_account = platform.get_processor().get_account();
+
     let cached_configs = state
         .superposition_service
         .as_ref()
         .async_map(|sp| async move {
+            let mut dimension_filter = Map::new();
+            dimension_filter.insert(
+                "profile_id".to_string(),
+                serde_json::Value::String(profile_id.get_string_repr().to_string()),
+            );
+            dimension_filter.insert(
+                "merchant_id".to_string(),
+                serde_json::Value::String(merchant_account.get_id().get_string_repr().to_string()),
+            );
+            dimension_filter.insert(
+                "organization_id".to_string(),
+                serde_json::Value::String(
+                    merchant_account.get_org_id().get_string_repr().to_string(),
+                ),
+            );
             sp.as_ref()
-                .get_cached_config(Some(vec![DYNAMIC_FIELDS.to_string()]), None)
+                .get_cached_config(
+                    Some(vec![DYNAMIC_FIELDS.to_string()]),
+                    Some(dimension_filter),
+                )
                 .await
         })
         .await

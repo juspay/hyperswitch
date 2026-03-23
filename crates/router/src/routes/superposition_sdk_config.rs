@@ -14,7 +14,7 @@ pub async fn get_sdk_config(
     path: web::Path<(common_utils::id_type::ProfileId, String)>,
 ) -> HttpResponse {
     let flow = Flow::GetSuperpositionSdkConfig;
-    let (_profile_id, _sdk_config) = path.into_inner();
+    let (profile_id, _sdk_config) = path.into_inner();
 
     Box::pin(api::server_wrap(
         flow,
@@ -25,6 +25,7 @@ pub async fn get_sdk_config(
             crate::core::superposition_sdk_config::get_superposition_sdk_config(
                 state,
                 auth_data.platform,
+                profile_id.clone(),
             )
         },
         &auth::HeaderAuth(auth::PublishableKeyAuth {
