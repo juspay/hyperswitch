@@ -19,7 +19,7 @@ use external_services::http_client::client;
 use hyperswitch_domain_models::merchant_connector_account::{
     FromRequestEncryptableMerchantConnectorAccount, UpdateEncryptableMerchantConnectorAccount,
 };
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::types as pm_auth_types;
 use uuid::Uuid;
 #[cfg(feature = "olap")]
@@ -340,7 +340,7 @@ pub async fn create_merchant_account(
         key_manager_state,
         EncryptionTransferRequest {
             identifier: identifier.clone(),
-            key: masking::StrongSecret::new(consts::BASE64_ENGINE.encode(key)),
+            key: hyperswitch_masking::StrongSecret::new(consts::BASE64_ENGINE.encode(key)),
         },
     )
     .await
@@ -3543,6 +3543,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             .attach_printable("error while generating external vault details")?,
             billing_processor_id: self.billing_processor_id,
             is_l2_l3_enabled: self.is_l2_l3_enabled.unwrap_or(false),
+            payment_method_blocking: self.payment_method_blocking.map(ForeignInto::foreign_into),
         }))
     }
 
@@ -4046,6 +4047,9 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .map(ForeignInto::foreign_into),
                 billing_processor_id: self.billing_processor_id,
                 is_l2_l3_enabled: self.is_l2_l3_enabled,
+                payment_method_blocking: self
+                    .payment_method_blocking
+                    .map(ForeignInto::foreign_into),
             },
         )))
     }
@@ -4700,7 +4704,9 @@ async fn locker_recipient_create_call(
     let encrypted_data = domain_types::crypto_operation(
         key_manager_state,
         type_name!(payment_method::PaymentMethod),
-        domain_types::CryptoOperation::Encrypt(Secret::<String, masking::WithType>::new(data_json)),
+        domain_types::CryptoOperation::Encrypt(
+            Secret::<String, hyperswitch_masking::WithType>::new(data_json),
+        ),
         identifier,
         key,
     )

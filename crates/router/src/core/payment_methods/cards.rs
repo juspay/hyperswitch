@@ -50,9 +50,9 @@ use hyperswitch_constraint_graph as cgraph;
 use hyperswitch_domain_models::customer::CustomerUpdate;
 use hyperswitch_domain_models::mandates::CommonMandateReference;
 use hyperswitch_interfaces::secrets_interface::secret_state::RawSecret;
+use hyperswitch_masking::Secret;
 #[cfg(feature = "v1")]
 use kgraph_utils::transformers::IntoDirValue;
-use masking::Secret;
 use router_env::{instrument, tracing};
 use scheduler::errors as sch_errors;
 use strum::IntoEnumIterator;
@@ -95,7 +95,7 @@ use crate::{
         utils as core_utils,
     },
     db, logger,
-    pii::prelude::*,
+    pii::{ExposeInterface, ExposeOptionInterface, PeekInterface},
     routes::{self, metrics, payment_methods::ParentPaymentMethodToken},
     services,
     types::{
@@ -3848,6 +3848,20 @@ pub async fn list_payment_methods(
         .as_ref()
         .map(|payment_intent| payment_intent.customer_id.is_none())
         .unwrap_or(true);
+    let connector_supports_installments = currency.is_some_and(|cur| {
+        filtered_mcas.iter().any(|mca| {
+            mca.connector_name
+                .parse::<api_enums::Connector>()
+                .ok()
+                .is_some_and(|connector| {
+                    state
+                        .conf
+                        .installment_config
+                        .is_connector_currency_supported(&connector, cur)
+                })
+        })
+    });
+
     let merchant_surcharge_configs = if let Some((payment_attempt, payment_intent)) =
         payment_attempt.as_ref().zip(payment_intent.clone())
     {
@@ -3892,7 +3906,7 @@ pub async fn list_payment_methods(
                 .as_ref()
                 .map(|pa| pa.net_amount.get_total_amount())
                 .unwrap_or(pi.amount);
-            pi.into_payment_method_list_intent_data(net_amount)
+            pi.into_payment_method_list_intent_data(net_amount, connector_supports_installments)
         })
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4948,18 +4962,19 @@ where
 {
     let key = key_store.key.get_inner().peek();
     let identifier = Identifier::Merchant(key_store.merchant_id.clone());
-    let decrypted_data = domain::types::crypto_operation::<serde_json::Value, masking::WithType>(
-        &state.into(),
-        type_name!(T),
-        domain::types::CryptoOperation::DecryptOptional(data),
-        identifier,
-        key,
-    )
-    .await
-    .and_then(|val| val.try_into_optionaloperation())
-    .change_context(errors::StorageError::DecryptionError)
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("unable to decrypt data")?;
+    let decrypted_data =
+        domain::types::crypto_operation::<serde_json::Value, hyperswitch_masking::WithType>(
+            &state.into(),
+            type_name!(T),
+            domain::types::CryptoOperation::DecryptOptional(data),
+            identifier,
+            key,
+        )
+        .await
+        .and_then(|val| val.try_into_optionaloperation())
+        .change_context(errors::StorageError::DecryptionError)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to decrypt data")?;
 
     decrypted_data
         .map(|decrypted_data| decrypted_data.into_inner().expose())
@@ -5395,7 +5410,7 @@ where
         .change_context(errors::StorageError::SerializationFailed)
         .attach_printable("Unable to encode data")?;
 
-    let secret_data = Secret::<_, masking::WithType>::new(encoded_data);
+    let secret_data = Secret::<_, hyperswitch_masking::WithType>::new(encoded_data);
 
     let encrypted_data = domain::types::crypto_operation(
         key_manager_state,

@@ -16,7 +16,7 @@ use diesel_models::{types::OrderDetailsWithAmount, TaxDetails};
 use hyperswitch_domain_models::payments::PaymentIntent;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{address, routing};
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde_json::Value;
 use time::OffsetDateTime;
 
