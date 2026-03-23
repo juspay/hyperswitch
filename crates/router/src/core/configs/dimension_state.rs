@@ -198,4 +198,16 @@ impl<M, O, P> DimensionsBase for Dimensions<M, O, P> {
 }
 
 pub type DimensionsWithMerchantId = Dimensions<HasMerchantId, NoOrgId, NoProfileId>;
+
+impl DimensionsWithMerchantId {
+    /// Create a DimensionsWithMerchantId from a merchant_id
+    pub fn from_merchant_id(merchant_id: id_type::MerchantId) -> Self {
+        Dimensions {
+            merchant_id: Some(merchant_id),
+            organization_id: None,
+            profile_id: None,
+            _phantom: PhantomData,
+        }
+    }
+}
 pub type DimensionsWithMerchantIdAndProfileId = Dimensions<HasMerchantId, NoOrgId, HasProfileId>;
