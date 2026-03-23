@@ -14,7 +14,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use rand::distributions::DistString;
 use serde::{Deserialize, Deserializer, Serialize};
 

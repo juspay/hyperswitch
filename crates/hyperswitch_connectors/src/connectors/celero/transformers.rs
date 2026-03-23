@@ -22,7 +22,7 @@ use hyperswitch_interfaces::{
     consts,
     errors::{self},
 };
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{

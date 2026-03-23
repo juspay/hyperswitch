@@ -52,7 +52,7 @@ use hyperswitch_interfaces::{
     types::{self, Response, TokenizationType},
     webhooks,
 };
-use masking::{Mask, PeekInterface};
+use hyperswitch_masking::{Mask, PeekInterface};
 use transformers as paysafe;
 
 use crate::{
@@ -100,7 +100,8 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         &self,
         req: &PaymentsPreProcessingRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -202,7 +203,8 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
         &self,
         req: &TokenizationRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -299,7 +301,8 @@ where
         &self,
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
             self.get_content_type().to_string().into(),
@@ -330,7 +333,8 @@ impl ConnectorCommon for Paysafe {
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let auth = paysafe::PaysafeAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let auth_key = format!("{}:{}", auth.username.peek(), auth.password.peek());
@@ -435,7 +439,8 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
         &self,
         req: &ConnectorCustomerRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -521,7 +526,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -673,7 +679,8 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
         &self,
         req: &PaymentsCompleteAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
     fn get_content_type(&self) -> &'static str {
@@ -757,7 +764,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pay
         &self,
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -832,7 +840,8 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         &self,
         req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -922,7 +931,8 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Pa
         &self,
         req: &PaymentsCancelRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -1014,7 +1024,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Paysafe
         &self,
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -1103,7 +1114,8 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Paysafe {
         &self,
         req: &RefundSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -1190,7 +1202,8 @@ impl webhooks::IncomingWebhook for Paysafe {
     fn get_webhook_resource_object(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }

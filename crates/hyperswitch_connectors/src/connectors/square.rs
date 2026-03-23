@@ -47,8 +47,8 @@ use hyperswitch_interfaces::{
     types::{self, PaymentsAuthorizeType, Response},
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
+use hyperswitch_masking::{Mask, Maskable, PeekInterface};
 use lazy_static::lazy_static;
-use masking::{Mask, Maskable, PeekInterface};
 use transformers::{
     self as square, SquareAuthType, SquarePaymentsRequest, SquareRefundRequest, SquareTokenRequest,
 };
@@ -903,7 +903,8 @@ impl IncomingWebhook for Square {
     fn get_webhook_resource_object(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         let details: square::SquareWebhookBody =
             request
                 .body

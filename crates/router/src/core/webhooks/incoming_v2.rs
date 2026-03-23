@@ -249,7 +249,8 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     logger::info!(process_webhook=?process_webhook_further);
 
     let flow_type: api::WebhookFlow = event_type.into();
-    let mut event_object: Box<dyn masking::ErasedMaskSerialize> = Box::new(serde_json::Value::Null);
+    let mut event_object: Box<dyn hyperswitch_masking::ErasedMaskSerialize> =
+        Box::new(serde_json::Value::Null);
     let webhook_effect = if process_webhook_further
         && !matches!(flow_type, api::WebhookFlow::ReturnResponse)
     {

@@ -4,7 +4,7 @@ use common_utils::pii;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::types::{self, PayoutsRouterData};
 use hyperswitch_interfaces::errors::ConnectorError;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use super::{AdyenPlatformRouterData, Error};
@@ -543,6 +543,10 @@ impl<F> TryFrom<RawPaymentCounterparty<'_, F>>
                     })?,
                     payouts::Bank::Pix(..) => Err(ConnectorError::NotSupported {
                         message: "Bank transfer via Pix is not supported".to_string(),
+                        connector: "Adyenplatform",
+                    })?,
+                    payouts::Bank::Trustly(..) => Err(ConnectorError::NotSupported {
+                        message: "Bank transfer via Trustly is not supported".to_string(),
                         connector: "Adyenplatform",
                     })?,
                 };

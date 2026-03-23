@@ -72,7 +72,7 @@ use hyperswitch_domain_models::{
     payments::{self, payment_intent::CustomerData, ClickToPayMetaData},
     router_data::AccessToken,
 };
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
 use operations::ValidateStatusForOperation;
 use redis_interface::errors::RedisError;
@@ -8000,9 +8000,7 @@ where
     let payment_data_and_tokenization_action = match connector {
         Some(_) if is_mandate => {
             if feature_config.is_payment_method_modular_allowed {
-                let (payment_method_data, pm_id) = helpers::make_modular_pm_data(payment_data)?;
-                payment_data.set_payment_method_data(payment_method_data);
-                payment_data.set_payment_method_id_in_attempt(pm_id);
+                payment_data.set_payment_method_data(None);
             }
             (
                 payment_data.to_owned(),
