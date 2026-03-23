@@ -3897,6 +3897,29 @@ pub async fn retrieve_payment_method(
         .await
         .attach_printable("Failed to get raw payment method data")?
         .and_then(|data| data.convert_to_raw_payment_method_data());
+
+    let raw_network_token_details = raw_payment_method_fetch_access
+        .get_raw_network_token_data(&state, &platform, &profile, &payment_method, storage_type)
+        .await
+        .inspect_err(|err| {
+            logger::warn!(?err, "Failed to fetch raw network token details");
+        })
+        .ok()
+        .flatten();
+
+    let raw_payment_method_data = match (raw_payment_method_data, raw_network_token_details) {
+        (
+            Some(payment_methods::RawPaymentMethodData::Card(card_details)),
+            Some(network_token_details),
+        ) => Some(payment_methods::RawPaymentMethodData::CardWithNT(
+            payment_methods::RawCardWithNTDetails {
+                card_details,
+                network_token_details,
+            },
+        )),
+        (raw_payment_method_data, _) => raw_payment_method_data,
+    };
+
     let billing = payment_method
         .payment_method_billing_address
         .clone()
@@ -4128,6 +4151,68 @@ impl RawPaymentMethodFetchAccess {
                         "Failed to get card details for payment method vaulting data",
                     )?;
                 Ok(Some(payment_method_vault_data))
+            }
+        }
+    }
+
+    pub async fn get_raw_network_token_data(
+        &self,
+        state: &SessionState,
+        platform: &domain::Platform,
+        profile: &domain::Profile,
+        payment_method: &domain::PaymentMethod,
+        storage_type: common_enums::StorageType,
+    ) -> RouterResult<Option<payment_methods::CardDetail>> {
+        match self {
+            Self::Denied => {
+                logger::debug!("Raw network token fetch access denied");
+                Ok(None)
+            }
+            Self::Allowed => {
+                let Some(network_token_locker_id) = payment_method.network_token_locker_id.clone()
+                else {
+                    return Ok(None);
+                };
+
+                let Some(customer_id) = payment_method.customer_id.clone() else {
+                    logger::warn!("Skipping raw network token fetch: customer_id not found");
+                    return Ok(None);
+                };
+
+                let mut network_token_payment_method = payment_method.clone();
+                network_token_payment_method.locker_id =
+                    Some(domain::VaultId::generate(network_token_locker_id));
+                network_token_payment_method.customer_id = Some(customer_id);
+
+                let network_token_vault_data = vault::retrieve_payment_method_data_from_storage(
+                    state,
+                    platform,
+                    profile,
+                    &network_token_payment_method,
+                    storage_type,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to retrieve network token from vault")?
+                .data;
+
+                Ok(match network_token_vault_data {
+                    hyperswitch_domain_models::vault::PaymentMethodVaultingData::NetworkToken(
+                        network_token_details,
+                    ) => Some(payment_methods::CardDetail {
+                        card_number: network_token_details.network_token.into(),
+                        card_exp_month: network_token_details.network_token_exp_month,
+                        card_exp_year: network_token_details.network_token_exp_year,
+                        card_holder_name: network_token_details.card_holder_name,
+                        nick_name: network_token_details.nick_name,
+                        card_issuing_country: network_token_details.card_issuing_country,
+                        card_network: network_token_details.card_network,
+                        card_issuer: network_token_details.card_issuer,
+                        card_type: network_token_details.card_type,
+                        card_cvc: None,
+                    }),
+                    _ => None,
+                })
             }
         }
     }
