@@ -233,6 +233,7 @@ async fn handle_monitoring_threshold(
                 key_manager_state,
                 key_store,
                 retry_algorithm_type,
+                None,
             )
             .await
             .change_context(errors::RevenueRecoveryError::RetryAlgorithmUpdationFailed)?;
