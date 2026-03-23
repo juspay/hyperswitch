@@ -83,7 +83,7 @@ pub fn populate_browser_info(
     {
         *req_ip = req_ip
             .clone()
-            .or_else(|| ip_address.map(|ip| masking::Secret::new(ip.to_string())));
+            .or_else(|| ip_address.map(|ip| hyperswitch_masking::Secret::new(ip.to_string())));
     }
 
     let encoded = browser_info

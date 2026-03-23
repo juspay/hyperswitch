@@ -16,7 +16,7 @@ use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 use hyperswitch_interfaces::api::ConnectorSpecifications;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
 use super::domain;
 #[cfg(feature = "v2")]
@@ -643,7 +643,7 @@ impl
             crate::core::api_keys::PlaintextApiKey,
         ),
     ) -> Self {
-        use masking::StrongSecret;
+        use hyperswitch_masking::StrongSecret;
 
         let (api_key, plaintext_api_key) = item;
         Self {
@@ -1344,6 +1344,7 @@ impl ForeignFrom<&api_models::payouts::Bank> for api_enums::PaymentMethodType {
             api_models::payouts::Bank::Bacs(_) => Self::Bacs,
             api_models::payouts::Bank::Sepa(_) => Self::SepaBankTransfer,
             api_models::payouts::Bank::Pix(_) => Self::Pix,
+            api_models::payouts::Bank::Trustly(_) => Self::Trustly,
         }
     }
 }
@@ -2220,6 +2221,54 @@ impl ForeignFrom<diesel_models::business_profile::CardTestingGuardConfig>
             },
             customer_id_blocking_threshold: item.customer_id_blocking_threshold,
             card_testing_guard_expiry: item.card_testing_guard_expiry,
+        }
+    }
+}
+
+impl ForeignFrom<api_models::admin::PaymentMethodBlockingConfig>
+    for diesel_models::business_profile::PaymentMethodBlockingConfig
+{
+    fn foreign_from(item: api_models::admin::PaymentMethodBlockingConfig) -> Self {
+        Self {
+            card: item.card.map(|c| c.foreign_into()),
+        }
+    }
+}
+
+impl ForeignFrom<api_models::admin::CardBlockingConfig>
+    for diesel_models::business_profile::CardBlockingConfig
+{
+    fn foreign_from(item: api_models::admin::CardBlockingConfig) -> Self {
+        Self {
+            issuing_country: item.issuing_country,
+            card_types: item.card_types,
+            card_subtypes: item.card_subtypes,
+            issuers: item.issuers,
+            block_if_bin_info_unavailable: item.block_if_bin_info_unavailable,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::business_profile::PaymentMethodBlockingConfig>
+    for api_models::admin::PaymentMethodBlockingConfig
+{
+    fn foreign_from(item: diesel_models::business_profile::PaymentMethodBlockingConfig) -> Self {
+        Self {
+            card: item.card.map(|c| c.foreign_into()),
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::business_profile::CardBlockingConfig>
+    for api_models::admin::CardBlockingConfig
+{
+    fn foreign_from(item: diesel_models::business_profile::CardBlockingConfig) -> Self {
+        Self {
+            issuing_country: item.issuing_country,
+            card_types: item.card_types,
+            card_subtypes: item.card_subtypes,
+            issuers: item.issuers,
+            block_if_bin_info_unavailable: item.block_if_bin_info_unavailable,
         }
     }
 }

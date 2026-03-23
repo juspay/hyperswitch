@@ -21,16 +21,12 @@ describe("Platform Setup & Connected Merchant Onboarding", () => {
         merchant_account_type: "platform",
       };
 
-      cy.createPlatformMerchantCallTest(merchantCreateBody, globalState).then(
-        (response) => {
-          expect(response.status).to.equal(200);
-          expect(response.body).to.have.property(
-            "merchant_account_type",
-            "platform"
-          );
-          expect(response.body).to.have.property("organization_id");
-        }
-      );
+      cy.merchantCreateCallTest(merchantCreateBody, globalState, {
+        expectedMerchantAccountType: "platform",
+      });
+      cy.then(() => {
+        globalState.set("platformMerchantId", globalState.get("merchantId"));
+      });
     });
 
     it("retrieve-platform-merchant", () => {
@@ -52,32 +48,22 @@ describe("Platform Setup & Connected Merchant Onboarding", () => {
         organization_id: globalState.get("organizationId"),
       };
 
-      cy.createConnectedMerchantCallTest(merchantCreateBody, globalState).then(
-        (response) => {
-          expect(response.status).to.equal(200);
-          expect(response.body).to.have.property(
-            "merchant_account_type",
-            "connected"
-          );
-          globalState.set("connectedMerchantId_1", response.body.merchant_id);
-          globalState.set("profileId_CM1", response.body.default_profile);
-          globalState.set(
-            "publishableKey_CM1",
-            response.body.publishable_key
-          );
-        }
-      );
+      cy.merchantCreateCallTest(merchantCreateBody, globalState, {
+        expectedMerchantAccountType: "connected",
+        merchantIdStateKey: "connectedMerchantId1",
+        profileIdStateKey: "profileIdCm1",
+      });
     });
 
     it("create-api-key-for-connected-merchant-1", () => {
       const savedMerchantId = globalState.get("merchantId");
       const savedApiKey = globalState.get("apiKey");
-      globalState.set("merchantId", globalState.get("connectedMerchantId_1"));
+      globalState.set("merchantId", globalState.get("connectedMerchantId1"));
 
       cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
 
       cy.then(() => {
-        globalState.set("apiKey_CM1", globalState.get("apiKey"));
+        globalState.set("apiKeyCm1", globalState.get("apiKey"));
         globalState.set("merchantId", savedMerchantId);
         globalState.set("apiKey", savedApiKey);
       });
@@ -97,21 +83,11 @@ describe("Platform Setup & Connected Merchant Onboarding", () => {
         organization_id: globalState.get("organizationId"),
       };
 
-      cy.createConnectedMerchantCallTest(merchantCreateBody, globalState).then(
-        (response) => {
-          expect(response.status).to.equal(200);
-          expect(response.body).to.have.property(
-            "merchant_account_type",
-            "connected"
-          );
-          globalState.set("connectedMerchantId_2", response.body.merchant_id);
-          globalState.set("profileId_CM2", response.body.default_profile);
-          globalState.set(
-            "publishableKey_CM2",
-            response.body.publishable_key
-          );
-        }
-      );
+      cy.merchantCreateCallTest(merchantCreateBody, globalState, {
+        expectedMerchantAccountType: "connected",
+        merchantIdStateKey: "connectedMerchantId2",
+        profileIdStateKey: "profileIdCm2",
+      });
 
       cy.then(() => {
         globalState.set("adminApiKey", savedAdminApiKey);
@@ -122,13 +98,13 @@ describe("Platform Setup & Connected Merchant Onboarding", () => {
       const savedMerchantId = globalState.get("merchantId");
       const savedApiKey = globalState.get("apiKey");
       const savedAdminApiKey = globalState.get("adminApiKey");
-      globalState.set("merchantId", globalState.get("connectedMerchantId_2"));
+      globalState.set("merchantId", globalState.get("connectedMerchantId2"));
       globalState.set("adminApiKey", savedApiKey);
 
       cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
 
       cy.then(() => {
-        globalState.set("apiKey_CM2", globalState.get("apiKey"));
+        globalState.set("apiKeyCm2", globalState.get("apiKey"));
         globalState.set("merchantId", savedMerchantId);
         globalState.set("apiKey", savedApiKey);
         globalState.set("adminApiKey", savedAdminApiKey);
@@ -145,17 +121,11 @@ describe("Platform Setup & Connected Merchant Onboarding", () => {
         organization_id: globalState.get("organizationId"),
       };
 
-      cy.createConnectedMerchantCallTest(merchantCreateBody, globalState).then(
-        (response) => {
-          expect(response.status).to.equal(200);
-          expect(response.body).to.have.property(
-            "merchant_account_type",
-            "standard"
-          );
-          globalState.set("standardMerchantId", response.body.merchant_id);
-          globalState.set("profileId_SM", response.body.default_profile);
-        }
-      );
+      cy.merchantCreateCallTest(merchantCreateBody, globalState, {
+        expectedMerchantAccountType: "standard",
+        merchantIdStateKey: "standardMerchantId",
+        profileIdStateKey: "profileIdSm",
+      });
     });
 
     it("create-api-key-for-standard-merchant", () => {
@@ -166,7 +136,7 @@ describe("Platform Setup & Connected Merchant Onboarding", () => {
       cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
 
       cy.then(() => {
-        globalState.set("apiKey_SM", globalState.get("apiKey"));
+        globalState.set("apiKeySm", globalState.get("apiKey"));
         globalState.set("merchantId", savedMerchantId);
         globalState.set("apiKey", savedApiKey);
       });
@@ -185,23 +155,11 @@ describe("Platform Setup & Connected Merchant Onboarding", () => {
         organization_id: globalState.get("organizationId"),
       };
 
-      cy.createConnectedMerchantCallTest(merchantCreateBody, globalState).then(
-        (response) => {
-          expect(response.status).to.equal(200);
-          expect(response.body).to.have.property(
-            "merchant_account_type",
-            "standard"
-          );
-          globalState.set(
-            "standardMerchantId_PlatformKey",
-            response.body.merchant_id
-          );
-          globalState.set(
-            "profileId_SM_PlatformKey",
-            response.body.default_profile
-          );
-        }
-      );
+      cy.merchantCreateCallTest(merchantCreateBody, globalState, {
+        expectedMerchantAccountType: "standard",
+        merchantIdStateKey: "standardMerchantIdPlatformKey",
+        profileIdStateKey: "profileIdSmPlatformKey",
+      });
 
       cy.then(() => {
         globalState.set("adminApiKey", savedAdminApiKey);
@@ -214,14 +172,14 @@ describe("Platform Setup & Connected Merchant Onboarding", () => {
       const savedAdminApiKey = globalState.get("adminApiKey");
       globalState.set(
         "merchantId",
-        globalState.get("standardMerchantId_PlatformKey")
+        globalState.get("standardMerchantIdPlatformKey")
       );
       globalState.set("adminApiKey", savedApiKey);
 
       cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
 
       cy.then(() => {
-        globalState.set("apiKey_SM_PlatformKey", globalState.get("apiKey"));
+        globalState.set("apiKeySmPlatformKey", globalState.get("apiKey"));
         globalState.set("merchantId", savedMerchantId);
         globalState.set("apiKey", savedApiKey);
         globalState.set("adminApiKey", savedAdminApiKey);
@@ -231,42 +189,16 @@ describe("Platform Setup & Connected Merchant Onboarding", () => {
 
   context("Verify Merchants in Organization", () => {
     it("list-merchants-includes-all-merchants", () => {
-      cy.merchantListByOrgCallTest(globalState).then((response) => {
-        expect(response.status).to.equal(200);
-        expect(response.body).to.be.an("array");
-        expect(response.body.length).to.be.at.least(5);
-
-        const platformMerchant = response.body.find(
-          (m) => m.merchant_id === globalState.get("platformMerchantId")
-        );
-        expect(platformMerchant).to.exist;
-        expect(platformMerchant.merchant_account_type).to.equal("platform");
-
-        const cm1 = response.body.find(
-          (m) => m.merchant_id === globalState.get("connectedMerchantId_1")
-        );
-        expect(cm1).to.exist;
-        expect(cm1.merchant_account_type).to.equal("connected");
-
-        const cm2 = response.body.find(
-          (m) => m.merchant_id === globalState.get("connectedMerchantId_2")
-        );
-        expect(cm2).to.exist;
-        expect(cm2.merchant_account_type).to.equal("connected");
-
-        const sm = response.body.find(
-          (m) => m.merchant_id === globalState.get("standardMerchantId")
-        );
-        expect(sm).to.exist;
-        expect(sm.merchant_account_type).to.equal("standard");
-
-        const smPlatformKey = response.body.find(
-          (m) =>
-            m.merchant_id === globalState.get("standardMerchantId_PlatformKey")
-        );
-        expect(smPlatformKey).to.exist;
-        expect(smPlatformKey.merchant_account_type).to.equal("standard");
-      });
+      cy.merchantListByOrgCall(globalState, [
+        { merchantIdKey: "platformMerchantId", expectedType: "platform" },
+        { merchantIdKey: "connectedMerchantId1", expectedType: "connected" },
+        { merchantIdKey: "connectedMerchantId2", expectedType: "connected" },
+        { merchantIdKey: "standardMerchantId", expectedType: "standard" },
+        {
+          merchantIdKey: "standardMerchantIdPlatformKey",
+          expectedType: "standard",
+        },
+      ]);
     });
   });
 });

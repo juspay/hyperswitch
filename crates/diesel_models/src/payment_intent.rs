@@ -5,7 +5,7 @@ use common_types::{
 };
 use common_utils::{encryption::Encryption, pii, types::MinorUnit};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
-use masking::ExposeInterface;
+use hyperswitch_masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -41,8 +41,8 @@ pub struct PaymentIntent {
     pub last_synced: Option<PrimitiveDateTime>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub active_attempt_id: Option<common_utils::id_type::GlobalAttemptId>,
-    #[diesel(deserialize_as = super::OptionalDieselArray<masking::Secret<OrderDetailsWithAmount>>)]
-    pub order_details: Option<Vec<masking::Secret<OrderDetailsWithAmount>>>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<hyperswitch_masking::Secret<OrderDetailsWithAmount>>)]
+    pub order_details: Option<Vec<hyperswitch_masking::Secret<OrderDetailsWithAmount>>>,
     pub allowed_payment_method_types: Option<pii::SecretSerdeValue>,
     pub connector_metadata: Option<pii::SecretSerdeValue>,
     pub feature_metadata: Option<FeatureMetadata>,
@@ -358,8 +358,8 @@ pub struct PaymentIntentNew {
     pub last_synced: Option<PrimitiveDateTime>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub active_attempt_id: Option<common_utils::id_type::GlobalAttemptId>,
-    #[diesel(deserialize_as = super::OptionalDieselArray<masking::Secret<OrderDetailsWithAmount>>)]
-    pub order_details: Option<Vec<masking::Secret<OrderDetailsWithAmount>>>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<hyperswitch_masking::Secret<OrderDetailsWithAmount>>)]
+    pub order_details: Option<Vec<hyperswitch_masking::Secret<OrderDetailsWithAmount>>>,
     pub allowed_payment_method_types: Option<pii::SecretSerdeValue>,
     pub connector_metadata: Option<pii::SecretSerdeValue>,
     pub feature_metadata: Option<FeatureMetadata>,
@@ -533,12 +533,12 @@ pub enum PaymentIntentUpdate {
         fingerprint_id: Option<String>,
         updated_by: String,
         incremental_authorization_allowed: Option<bool>,
-        feature_metadata: Option<masking::Secret<serde_json::Value>>,
+        feature_metadata: Option<hyperswitch_masking::Secret<serde_json::Value>>,
     },
     MetadataUpdate {
         metadata: Option<serde_json::Value>,
         updated_by: String,
-        feature_metadata: Option<masking::Secret<serde_json::Value>>,
+        feature_metadata: Option<hyperswitch_masking::Secret<serde_json::Value>>,
     },
     Update(Box<PaymentIntentUpdateFields>),
     StateMetadataUpdate {
@@ -564,7 +564,7 @@ pub enum PaymentIntentUpdate {
         status: storage_enums::IntentStatus,
         updated_by: String,
         incremental_authorization_allowed: Option<bool>,
-        feature_metadata: Option<masking::Secret<serde_json::Value>>,
+        feature_metadata: Option<hyperswitch_masking::Secret<serde_json::Value>>,
     },
     PaymentAttemptAndAttemptCountUpdate {
         active_attempt_id: String,
@@ -673,7 +673,7 @@ pub struct PaymentIntentUpdateFields {
     pub force_3ds_challenge: Option<bool>,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub payment_channel: Option<common_enums::PaymentChannel>,
-    pub feature_metadata: Option<masking::Secret<serde_json::Value>>,
+    pub feature_metadata: Option<hyperswitch_masking::Secret<serde_json::Value>>,
     pub tax_status: Option<common_enums::TaxStatus>,
     pub discount_amount: Option<MinorUnit>,
     pub order_date: Option<PrimitiveDateTime>,
@@ -716,7 +716,7 @@ pub struct PaymentIntentUpdateInternal {
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub apply_mit_exemption: Option<bool>,
     pub statement_descriptor: Option<common_utils::types::StatementDescriptor>,
-    pub order_details: Option<Vec<masking::Secret<OrderDetailsWithAmount>>>,
+    pub order_details: Option<Vec<hyperswitch_masking::Secret<OrderDetailsWithAmount>>>,
     pub allowed_payment_method_types: Option<pii::SecretSerdeValue>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_metadata: Option<pii::SecretSerdeValue>,
@@ -915,7 +915,7 @@ pub struct PaymentIntentUpdateInternal {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub extended_return_url: Option<String>,
     pub payment_channel: Option<common_enums::PaymentChannel>,
-    pub feature_metadata: Option<masking::Secret<serde_json::Value>>,
+    pub feature_metadata: Option<hyperswitch_masking::Secret<serde_json::Value>>,
     pub tax_status: Option<common_enums::TaxStatus>,
     pub discount_amount: Option<MinorUnit>,
     pub order_date: Option<PrimitiveDateTime>,
