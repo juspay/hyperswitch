@@ -148,8 +148,13 @@ euclid-wasm features='dummy_connector':
         {{ source_directory() }}/crates/euclid_wasm \
         --features '{{ features }}'
 
-# Run pre-commit checks
-precommit: fmt clippy
+# Prefix for commands that need a Nix devshell; empty if already inside one.
+nix_shell := if env_var_or_default('IN_NIX_SHELL', '') != '' { '' } else { 'nix develop -c' }
+
+# Run all pre-commit hooks (managed by git-hooks.nix) on all files
+precommit:
+    {{ nix_shell }} pre-commit run -a
+
 
 # Use the env variables if present, or fallback to default values
 
