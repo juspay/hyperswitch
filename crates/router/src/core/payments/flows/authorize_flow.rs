@@ -395,7 +395,6 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         _processor: &domain::Processor,
         creds_identifier: Option<&str>,
         gateway_context: &gateway_context::RouterGatewayContext,
-        mandate_id: Option<api_models::payments::MandateIds>,
     ) -> RouterResult<types::AddAccessTokenResult> {
         let current_flow = Some(api_interface::CurrentFlowInfo::Authorize {
             auth_type: self.auth_type,
@@ -408,7 +407,6 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             creds_identifier,
             gateway_context,
             current_flow,
-            mandate_id,
         ))
         .await
     }

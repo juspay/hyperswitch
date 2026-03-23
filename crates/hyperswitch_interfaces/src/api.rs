@@ -124,6 +124,7 @@ pub trait Connector:
     + revenue_recovery::RevenueRecovery
     + ExternalVault
     + Subscriptions
+    + ConnectorAccessTokenSuffix
     + WebhookRegister
 {
 }
@@ -149,7 +150,8 @@ impl<
             + UnifiedAuthenticationService
             + revenue_recovery::RevenueRecovery
             + ExternalVault
-            + Subscriptions,
+            + Subscriptions
+            + ConnectorAccessTokenSuffix,
     > Connector for T
 {
 }
@@ -399,6 +401,23 @@ pub trait ConnectorCommon {
     }
 }
 
+impl ConnectorAccessTokenSuffix for BoxedConnector {
+    fn get_access_token_key(
+        &self,
+        router_data: &dyn AccessTokenData,
+        merchant_connector_id_or_connector_name: String,
+        current_flow: Option<CurrentFlowInfo>,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        // 'self' is the BoxedConnector (the Box)
+        // We dereference it to get the 'dyn Connector' and call the method
+        self.as_ref().get_access_token_key(
+            router_data,
+            merchant_connector_id_or_connector_name,
+            current_flow,
+        )
+    }
+}
+
 /// Alternate API flow that must be made instead of the current flow.
 /// For example, PreAuthenticate flow must be made instead of Authorize flow.
 #[derive(Debug, Clone, Copy)]
@@ -589,19 +608,6 @@ pub trait ConnectorSpecifications {
         &self,
     ) -> &'static common_types::connector_webhook_configuration::WebhookSetupCapabilities {
         &consts::DEFAULT_WEBHOOK_SETUP_CAPABILITIES
-    }
-
-    /// Get the access token key for storing and retrieving access tokens
-    fn get_access_token_key(
-        &self,
-        _current_flow: Option<CurrentFlowInfo>,
-        merchant_id: &common_utils::id_type::MerchantId,
-        merchant_connector_id_or_connector_name: &str,
-    ) -> String {
-        common_utils::access_token::get_default_access_token_key(
-            merchant_id,
-            merchant_connector_id_or_connector_name,
-        )
     }
 }
 
@@ -987,5 +993,21 @@ impl<F, Req, Res> AccessTokenData for RouterData<F, Req, Res> {
     }
     fn get_merchant_id(&self) -> common_utils::id_type::MerchantId {
         self.merchant_id.clone()
+    }
+}
+
+/// Trait ConnectorAccessTokenSuffix
+pub trait ConnectorAccessTokenSuffix {
+    /// Function to get dynamic access token key suffix from Connector
+    fn get_access_token_key(
+        &self,
+        router_data: &dyn AccessTokenData,
+        merchant_connector_id_or_connector_name: String,
+        _current_flow: Option<CurrentFlowInfo>,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(common_utils::access_token::get_default_access_token_key(
+            &router_data.get_merchant_id(),
+            merchant_connector_id_or_connector_name,
+        ))
     }
 }

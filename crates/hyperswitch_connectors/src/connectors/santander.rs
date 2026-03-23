@@ -38,8 +38,8 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{
     api::{
-        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
-        ConnectorValidation,
+        self, ConnectorAccessTokenSuffix, ConnectorCommon, ConnectorCommonExt,
+        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
@@ -64,10 +64,7 @@ use crate::{
     },
     constants::headers,
     types::{RefreshTokenRouterData, ResponseRouterData},
-    utils::{
-        self as connector_utils, convert_amount, PaymentsAccessTokenRequestData,
-        PaymentsAuthorizeRequestData,
-    },
+    utils::{self as connector_utils, convert_amount, PaymentsAuthorizeRequestData},
 };
 
 #[derive(Clone)]
@@ -498,7 +495,11 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
         req: &RefreshTokenRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        match req.request.is_mit_payment() {
+        match req
+            .request
+            .clone()
+            .is_mit_payment(req.request.current_flow.clone())
+        {
             // Journey 1/2/3/4 MITs
             true => Ok(format!(
                 "{}auth/oauth/v2/token",
@@ -511,7 +512,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
                         "{}oauth/token?grant_type=client_credentials",
                         connectors.santander.base_url
                     )),
-                    // Journey 1 CIT & MIT
+                    // Journey 1 CIT
                     Some(enums::PaymentMethodType::PixAutomaticoPush) => Ok(format!(
                         "{}auth/oauth/v2/token",
                         connectors.santander.base_url
@@ -1617,55 +1618,53 @@ impl ConnectorSpecifications for Santander {
         current_flow: Option<CurrentFlowInfo>,
     ) -> bool {
         match current_flow {
-            Some(CurrentFlowInfo::Authorize { request_data, .. }) => {
-                request_data.is_mandate_payment()
-            }
+            // Journey 1/2/3/4 CIT
             Some(CurrentFlowInfo::SetupMandate { .. }) => true,
-            Some(CurrentFlowInfo::CompleteAuthorize { .. }) | None => false,
+            Some(CurrentFlowInfo::CompleteAuthorize { .. })
+            | Some(CurrentFlowInfo::Authorize { .. })
+            | None => false,
         }
     }
+}
 
+impl ConnectorAccessTokenSuffix for Santander {
     fn get_access_token_key(
         &self,
+        router_data: &dyn api::AccessTokenData,
+        merchant_connector_id_or_connector_name: String,
         current_flow: Option<CurrentFlowInfo>,
-        merchant_id: &common_utils::id_type::MerchantId,
-        merchant_connector_id_or_connector_name: &str,
-    ) -> String {
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let merchant_id = &router_data.get_merchant_id();
+
         match current_flow {
             Some(CurrentFlowInfo::Authorize { request_data, .. }) => {
                 match request_data.get_payment_method_type() {
-                    Ok(payment_method_type) => format!(
-                        "access_token_{}_{}_{}_authorize",
+                    Ok(enums::PaymentMethodType::Boleto) => Ok(format!(
+                        "access_token_{}_{}_boleto",
                         merchant_id.get_string_repr(),
                         merchant_connector_id_or_connector_name,
-                        payment_method_type,
-                    ),
-                    Err(_) => format!(
-                        "access_token_{}_{}__authorize",
+                    )),
+                    Ok(enums::PaymentMethodType::PixAutomaticoQr)
+                    | Ok(enums::PaymentMethodType::Pix) => Ok(format!(
+                        "access_token_{}_{}_authorize",
                         merchant_id.get_string_repr(),
                         merchant_connector_id_or_connector_name,
-                    ),
+                    )),
+                    _ => Err(errors::ConnectorError::MissingRequiredField {
+                        field_name: "payment_method_type",
+                    }
+                    .into()),
                 }
             }
-            Some(CurrentFlowInfo::SetupMandate { request_data, .. }) => {
-                match request_data.payment_method_type {
-                    Some(payment_method_type) => format!(
-                        "access_token_{}_{}_{}_setup_mandate",
-                        merchant_id.get_string_repr(),
-                        merchant_connector_id_or_connector_name,
-                        payment_method_type,
-                    ),
-                    None => format!(
-                        "access_token_{}_{}_setup_mandate",
-                        merchant_id.get_string_repr(),
-                        merchant_connector_id_or_connector_name,
-                    ),
-                }
-            }
-            _ => common_utils::access_token::get_default_access_token_key(
+            Some(CurrentFlowInfo::SetupMandate { .. }) => Ok(format!(
+                "access_token_{}_{}_setup_mandate",
+                merchant_id.get_string_repr(),
+                merchant_connector_id_or_connector_name,
+            )),
+            _ => Ok(common_utils::access_token::get_default_access_token_key(
                 merchant_id,
                 merchant_connector_id_or_connector_name,
-            ),
+            )),
         }
     }
 }

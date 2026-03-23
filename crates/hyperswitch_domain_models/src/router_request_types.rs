@@ -1402,8 +1402,24 @@ pub struct AccessTokenRequestData {
     pub id: Option<Secret<String>>,
     pub authentication_token: Option<AccessTokenAuthenticationResponse>,
     pub current_flow: Option<CurrentFlowInfo>,
-    pub mandate_id: Option<api_models::payments::MandateIds>,
     // Add more keys if required
+}
+
+impl AccessTokenRequestData {
+    pub fn is_mit_payment(self, current_flow: Option<CurrentFlowInfo>) -> bool {
+        match current_flow {
+            Some(CurrentFlowInfo::Authorize { request_data, .. }) => {
+                request_data.mandate_id.is_some()
+            }
+            Some(CurrentFlowInfo::SetupMandate { request_data, .. }) => {
+                request_data.mandate_id.is_some()
+            }
+            Some(CurrentFlowInfo::CompleteAuthorize { request_data, .. }) => {
+                request_data.mandate_id.is_some()
+            }
+            None => false,
+        }
+    }
 }
 
 // This is for backward compatibility
@@ -1416,28 +1432,24 @@ impl TryFrom<router_data::ConnectorAuthType> for AccessTokenRequestData {
                 id: None,
                 authentication_token: None,
                 current_flow: None,
-                mandate_id: None,
             }),
             router_data::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 app_id: api_key,
                 id: Some(key1),
                 authentication_token: None,
                 current_flow: None,
-                mandate_id: None,
             }),
             router_data::ConnectorAuthType::SignatureKey { api_key, key1, .. } => Ok(Self {
                 app_id: api_key,
                 id: Some(key1),
                 authentication_token: None,
                 current_flow: None,
-                mandate_id: None,
             }),
             router_data::ConnectorAuthType::MultiAuthKey { api_key, key1, .. } => Ok(Self {
                 app_id: api_key,
                 id: Some(key1),
                 authentication_token: None,
                 current_flow: None,
-                mandate_id: None,
             }),
             router_data::ConnectorAuthType::CertificateAuth {
                 certificate,
@@ -1448,7 +1460,6 @@ impl TryFrom<router_data::ConnectorAuthType> for AccessTokenRequestData {
                 id: Some(private_key),
                 authentication_token: None,
                 current_flow: None,
-                mandate_id: None,
             }),
 
             _ => Err(ApiErrorResponse::InvalidDataValue {
@@ -1463,22 +1474,19 @@ impl
         router_data::ConnectorAuthType,
         Option<AccessTokenAuthenticationResponse>,
         Option<CurrentFlowInfo>,
-        Option<api_models::payments::MandateIds>,
     )> for AccessTokenRequestData
 {
     type Error = ApiErrorResponse;
     fn try_from(
-        (connector_auth, authentication_token, current_flow, mandate_id): (
+        (connector_auth, authentication_token, current_flow): (
             router_data::ConnectorAuthType,
             Option<AccessTokenAuthenticationResponse>,
             Option<CurrentFlowInfo>,
-            Option<api_models::payments::MandateIds>,
         ),
     ) -> Result<Self, Self::Error> {
         let mut access_token_request_data = Self::try_from(connector_auth)?;
         access_token_request_data.authentication_token = authentication_token;
         access_token_request_data.current_flow = current_flow;
-        access_token_request_data.mandate_id = mandate_id;
         Ok(access_token_request_data)
     }
 }

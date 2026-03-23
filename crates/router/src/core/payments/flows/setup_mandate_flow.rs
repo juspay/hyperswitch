@@ -266,7 +266,6 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         _processor: &domain::Processor,
         creds_identifier: Option<&str>,
         gateway_context: &gateway_context::RouterGatewayContext,
-        mandate_id: Option<api_models::payments::MandateIds>,
     ) -> RouterResult<types::AddAccessTokenResult> {
         let current_flow = Some(api_interface::CurrentFlowInfo::SetupMandate {
             auth_type: self.auth_type,
@@ -279,7 +278,6 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             creds_identifier,
             gateway_context,
             current_flow,
-            mandate_id,
         ))
         .await
     }
