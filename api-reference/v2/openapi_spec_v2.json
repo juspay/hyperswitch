@@ -19126,6 +19126,11 @@
             "type": "string",
             "description": "The merchant id of the merchant"
           },
+          "processor_merchant_id": {
+            "type": "string",
+            "description": "The processor/connected merchant id, if applicable",
+            "nullable": true
+          },
           "event_id": {
             "type": "string",
             "description": "The unique event id for each webhook"
