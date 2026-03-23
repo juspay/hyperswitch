@@ -57,6 +57,7 @@ pub mod revenue_recovery_redis;
 pub mod routing;
 #[cfg(feature = "v1")]
 pub mod subscription;
+pub mod superposition_sdk_config;
 pub mod three_ds_decision_rule;
 pub mod tokenization;
 #[cfg(feature = "olap")]
@@ -97,8 +98,8 @@ pub use self::app::{
     ConnectorOnboarding, Customers, Disputes, Embedded, EphemeralKey, FeatureMatrix, Files, Forex,
     Gsm, Health, Hypersense, Mandates, MerchantAccount, MerchantConnectorAccount, Oidc,
     PaymentLink, PaymentMethods, Payments, Poll, ProcessTracker, ProcessTrackerDeprecated, Profile,
-    ProfileAcquirer, ProfileNew, Refunds, Relay, RelayWebhooks, SessionState, ThreeDsDecisionRule,
-    User, UserDeprecated, Webhooks,
+    ProfileAcquirer, ProfileNew, Refunds, Relay, RelayWebhooks, SdkConfig, SessionState,
+    ThreeDsDecisionRule, User, UserDeprecated, Webhooks,
 };
 #[cfg(feature = "olap")]
 pub use self::app::{Blocklist, Organization, Routing, Subscription, Verify, WebhookEvents};
