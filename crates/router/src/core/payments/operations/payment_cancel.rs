@@ -259,7 +259,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelReques
                         .payment_intent
                         .feature_metadata
                         .clone()
-                        .map(masking::Secret::new),
+                        .map(hyperswitch_masking::Secret::new),
                 };
                 (Some(payment_intent_update), enums::AttemptStatus::Voided)
             } else {

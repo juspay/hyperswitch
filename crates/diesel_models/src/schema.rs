@@ -177,6 +177,10 @@ diesel::table! {
         billing_country -> Nullable<Varchar>,
         #[max_length = 16]
         shipping_country -> Nullable<Varchar>,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
     }
 }
 
@@ -295,6 +299,7 @@ diesel::table! {
         is_external_vault_enabled -> Nullable<Bool>,
         external_vault_connector_details -> Nullable<Jsonb>,
         is_l2_l3_enabled -> Nullable<Bool>,
+        payment_method_blocking -> Nullable<Jsonb>,
     }
 }
 
@@ -489,6 +494,10 @@ diesel::table! {
         #[max_length = 32]
         organization_id -> Varchar,
         dispute_currency -> Nullable<Currency>,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
     }
 }
 
@@ -1142,6 +1151,7 @@ diesel::table! {
         error_details -> Nullable<Jsonb>,
         #[max_length = 64]
         retry_type -> Nullable<Varchar>,
+        installment_data -> Nullable<Jsonb>,
     }
 }
 
@@ -1253,6 +1263,7 @@ diesel::table! {
         tokenization -> Nullable<Varchar>,
         partner_merchant_identifier_details -> Nullable<Jsonb>,
         state_metadata -> Nullable<Jsonb>,
+        installment_options -> Nullable<Jsonb>,
     }
 }
 
@@ -1402,6 +1413,10 @@ diesel::table! {
         #[max_length = 255]
         merchant_order_reference_id -> Nullable<Varchar>,
         payout_connector_metadata -> Nullable<Jsonb>,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
     }
 }
 
@@ -1448,6 +1463,10 @@ diesel::table! {
         priority -> Nullable<Varchar>,
         #[max_length = 32]
         organization_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
     }
 }
 
@@ -1543,6 +1562,10 @@ diesel::table! {
         #[max_length = 64]
         issuer_error_code -> Nullable<Varchar>,
         issuer_error_message -> Nullable<Text>,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
     }
 }
 
@@ -1829,6 +1852,7 @@ diesel::table! {
         totp_recovery_codes -> Nullable<Array<Nullable<Text>>>,
         last_password_modified_at -> Nullable<Timestamp>,
         lineage_context -> Nullable<Jsonb>,
+        is_active -> Nullable<Bool>,
     }
 }
 

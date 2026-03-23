@@ -41,7 +41,7 @@ pub use hyperswitch_interfaces::{
         WebhookTransformationStatus,
     },
 };
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::tracing;
 use time::{Duration, OffsetDateTime};
 use unified_connector_service_cards::{CardNumber, NetworkToken};
@@ -49,7 +49,6 @@ use unified_connector_service_client::payments::{
     self as payments_grpc, session_token, ConnectorState, Identifier,
     PaymentServiceTransformRequest, PaymentServiceTransformResponse,
 };
-use unified_connector_service_masking::ExposeInterface as UcsMaskingExposeInterface;
 
 use crate::{
     core::{errors, mandate::MandateBehaviour, unified_connector_service},
@@ -182,6 +181,7 @@ impl
             connector_metadata: None,
             return_url: router_data.request.router_return_url.clone(),
             test_mode: router_data.test_mode,
+            connector_customer_id: router_data.connector_customer.clone(),
         })
     }
 }
@@ -338,9 +338,7 @@ impl
                 .payment_method_token
                 .as_ref()
                 .and_then(|payment_method_token| payment_method_token.get_payment_method_token())
-                .map(|payment_method_token| {
-                    unified_connector_service_masking::Secret::new(payment_method_token.expose())
-                }),
+                .map(|payment_method_token| Secret::new(payment_method_token.expose())),
             merchant_account_metadata,
             description: router_data.description.clone(),
             setup_mandate_details: router_data
@@ -552,9 +550,7 @@ impl
                 .payment_method_token
                 .as_ref()
                 .and_then(|payment_method_token| payment_method_token.get_payment_method_token())
-                .map(|payment_method_token| {
-                    unified_connector_service_masking::Secret::new(payment_method_token.expose())
-                }),
+                .map(|payment_method_token| Secret::new(payment_method_token.expose())),
             merchant_account_metadata,
             description: router_data.description.clone(),
             setup_mandate_details: router_data
@@ -1817,9 +1813,7 @@ impl
                 .payment_method_token
                 .as_ref()
                 .and_then(|payment_method_token| payment_method_token.get_payment_method_token())
-                .map(|payment_method_token| {
-                    unified_connector_service_masking::Secret::new(payment_method_token.expose())
-                }),
+                .map(|payment_method_token| Secret::new(payment_method_token.expose())),
             request_ref_id: Some(Identifier {
                 id_type: Some(payments_grpc::identifier::IdType::Id(
                     router_data.connector_request_reference_id.clone(),
@@ -1904,9 +1898,11 @@ impl
                 .transpose()?
                 .map(|payment_channel| payment_channel.into()),
             locale: None,
-            connector_testing_data: router_data.request.connector_testing_data.as_ref().map(
-                |data| unified_connector_service_masking::Secret::new(data.peek().to_string()),
-            ),
+            connector_testing_data: router_data
+                .request
+                .connector_testing_data
+                .as_ref()
+                .map(|data| Secret::new(data.peek().to_string())),
         })
     }
 }
@@ -2103,16 +2099,16 @@ impl
             authentication_data,
             connector_metadata: None,
             locale: router_data.request.locale.clone(),
-            connector_testing_data: router_data.request.connector_testing_data.as_ref().map(
-                |data| unified_connector_service_masking::Secret::new(data.peek().to_string()),
-            ),
-            merchant_account_id: router_data.request.merchant_account_id.as_ref().map(
-                |merchant_account_id| {
-                    unified_connector_service_masking::Secret::new(
-                        merchant_account_id.clone().expose(),
-                    )
-                },
-            ),
+            connector_testing_data: router_data
+                .request
+                .connector_testing_data
+                .as_ref()
+                .map(|data| Secret::new(data.peek().to_string())),
+            merchant_account_id: router_data
+                .request
+                .merchant_account_id
+                .as_ref()
+                .map(|merchant_account_id| Secret::new(merchant_account_id.clone().expose())),
             merchant_configured_currency: router_data
                 .request
                 .merchant_config_currency
@@ -5408,24 +5404,7 @@ impl
 
         Ok(Self {
             method: 1, // POST method for webhooks
-            uri: Some({
-                let uri_result = request_details
-                    .headers
-                    .get("x-forwarded-path")
-                    .and_then(|h| h.to_str().map_err(|e| {
-                        tracing::warn!(
-                            header_conversion_error=?e,
-                            header_value=?h,
-                            "Failed to convert x-forwarded-path header to string for webhook processing"
-                        );
-                        e
-                    }).ok());
-
-                uri_result.unwrap_or_else(|| {
-                    tracing::debug!("x-forwarded-path header not found or invalid, using default '/Unknown'");
-                    "/Unknown"
-                }).to_string()
-            }),
+            uri: Some(request_details.uri.to_string()),
             body: request_details.body.to_vec(),
             headers: headers_map,
             query_params: Some(request_details.query_params.clone()),

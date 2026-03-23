@@ -10,7 +10,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use http::HeaderValue;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -71,7 +71,8 @@ impl NetworkTokenWebhookResponse {
 
 pub fn get_network_token_resource_object(
     request_details: &api::IncomingWebhookRequestDetails<'_>,
-) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::NetworkTokenizationError> {
+) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::NetworkTokenizationError>
+{
     let response: NetworkTokenWebhookResponse = request_details
         .body
         .parse_struct("NetworkTokenWebhookResponse")
@@ -336,7 +337,10 @@ pub async fn handle_metadata_update(
                     network_token_requestor_reference_id: None,
                     network_token_locker_id: None,
                     network_token_payment_method_data: None,
-                    last_modified_by: None,
+                    last_modified_by: platform
+                        .get_initiator()
+                        .and_then(|initiator| initiator.to_created_by())
+                        .map(|last_modified_by| last_modified_by.to_string()),
                     metadata: None,
                     last_used_at: None,
                     connector_mandate_details: None,
@@ -352,7 +356,10 @@ pub async fn handle_metadata_update(
                     network_token_requestor_reference_id: None,
                     network_token_locker_id: Some(res.payment_method_id),
                     network_token_payment_method_data: pm_data_encrypted.map(Into::into),
-                    last_modified_by: None,
+                    last_modified_by: platform
+                        .get_initiator()
+                        .and_then(|initiator| initiator.to_created_by())
+                        .map(|last_modified_by| last_modified_by.to_string()),
                     metadata: None,
                     last_used_at: None,
                     connector_mandate_details: None,

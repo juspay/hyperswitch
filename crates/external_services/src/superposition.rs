@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 use common_utils::{errors::CustomResult, id_type::TargetingKey};
 use error_stack::report;
-use masking::ExposeInterface;
+use hyperswitch_masking::ExposeInterface;
 
 pub use self::types::{ConfigContext, SuperpositionClientConfig, SuperpositionError};
 use crate::config_metrics;
@@ -212,7 +212,10 @@ pub trait Config {
     const SUPERPOSITION_KEY: &'static str;
 
     /// Get the default value for this config
-    const DEFAULT_VALUE: Self::Output;
+    /// Default implementation uses `Default::default()`, can be overridden for custom defaults
+    fn default_value() -> Self::Output {
+        Self::Output::default()
+    }
 
     /// Fetch config value from Superposition.
     fn fetch(

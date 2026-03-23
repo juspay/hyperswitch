@@ -2527,6 +2527,49 @@ options=["Connector", "Hyperswitch"]
 api_key="API Key"
 key1="Secret Key"
 
+[fiservcommercehub]
+[[fiservcommercehub.credit]]
+  payment_method_type = "Mastercard"
+[[fiservcommercehub.credit]]
+  payment_method_type = "Visa"
+[[fiservcommercehub.credit]]
+  payment_method_type = "Interac"
+[[fiservcommercehub.credit]]
+  payment_method_type = "AmericanExpress"
+[[fiservcommercehub.credit]]
+  payment_method_type = "JCB"
+[[fiservcommercehub.credit]]
+  payment_method_type = "DinersClub"
+[[fiservcommercehub.credit]]
+  payment_method_type = "Discover"
+[[fiservcommercehub.credit]]
+  payment_method_type = "CartesBancaires"
+[[fiservcommercehub.credit]]
+  payment_method_type = "UnionPay"
+[[fiservcommercehub.debit]]
+  payment_method_type = "Mastercard"
+[[fiservcommercehub.debit]]
+  payment_method_type = "Visa"
+[[fiservcommercehub.debit]]
+  payment_method_type = "Interac"
+[[fiservcommercehub.debit]]
+  payment_method_type = "AmericanExpress"
+[[fiservcommercehub.debit]]
+  payment_method_type = "JCB"
+[[fiservcommercehub.debit]]
+  payment_method_type = "DinersClub"
+[[fiservcommercehub.debit]]
+  payment_method_type = "Discover"
+[[fiservcommercehub.debit]]
+  payment_method_type = "CartesBancaires"
+[[fiservcommercehub.debit]]
+  payment_method_type = "UnionPay"
+[fiservcommercehub.connector_auth.MultiAuthKey]
+api_key="API Key"
+key1="Merchant ID"
+api_secret="API Secret"
+key2="Terminal ID"
+
 [forte]
 [[forte.credit]]
   payment_method_type = "Mastercard"
@@ -3460,6 +3503,14 @@ key1="Business Identifier"
 api_secret="Application Identifier"
 [noon.connector_webhook_details]
 merchant_secret="Source verification key"
+
+[noon.metadata.noon_region]
+name="noon_region"
+label="Region of your Noon Merchant Account"
+placeholder="Enter Region of your Noon Merchant Account"
+required=false
+type="Select"
+options=["Global","Ksa","Egypt"]
 
 [[noon.metadata.apple_pay]]
 name="certificate"
@@ -7749,6 +7800,37 @@ payment_method_type = "Maestro"
 [finix.connector_webhook_details]
 merchant_secret="Source verification key"
 
+[truelayer]
+[truelayer.connector_auth.BodyKey]
+api_key = "Client ID"
+key1 = "Client Secret"
+[[truelayer.bank_redirect]]
+payment_method_type = "open_banking_uk"
+
+[truelayer.metadata.kid]
+name = "kid"
+label = "KID"
+placeholder = "Enter your KID"
+required = true
+type = "Text"
+[truelayer.metadata.merchant_account_id]
+name = "merchant_account_id"
+label = "Merchant Account ID"
+placeholder = "Enter your Merchant Account ID"
+required = true
+type = "Text"
+[truelayer.metadata.account_holder_name]
+name = "account_holder_name"
+label = "Account Holder Name"
+placeholder = "Enter your Account Holder Name"
+required = true
+type = "Text"
+[truelayer.metadata.private_key]
+name = "private_key"
+label = "Private Key (Base64 encoded)"
+placeholder = "Enter your Private Key(Base64 encoded)"
+required = true
+type = "Text"
 
 [loonio]
 [loonio.connector_auth.BodyKey]
@@ -7764,6 +7846,51 @@ key1 = "Merchant Token"
 [[loonio_payout.bank_redirect]]
 payment_method_type = "interac"
 
+[truelayer_payout]
+[truelayer_payout.connector_auth.BodyKey]
+api_key = "Client ID"
+key1 = "Client Secret"
+[[truelayer_payout.bank_redirect]]
+payment_method_type = "open_banking_uk"
+
+[truelayer_payout.metadata.kid]
+name = "kid"
+label = "KID"
+placeholder = "Enter your KID"
+required = true
+type = "Text"
+[truelayer_payout.metadata.merchant_account_id]
+name = "merchant_account_id"
+label = "Merchant Account ID"
+placeholder = "Enter your Merchant Account ID"
+required = true
+type = "Text"
+[truelayer_payout.metadata.account_holder_name]
+name = "account_holder_name"
+label = "Account Holder Name"
+placeholder = "Enter your Account Holder Name"
+required = true
+type = "Text"
+[truelayer_payout.metadata.private_key]
+name = "private_key"
+label = "Private Key (Base64 encoded)"
+placeholder = "Enter your Private Key(Base64 encoded)"
+required = true
+type = "Text"
+
+[trustly_payout]
+[trustly_payout.connector_auth.BodyKey]
+api_key = "Username"
+key1 = "Password"
+[[trustly_payout.bank_transfer]]
+payment_method_type = "trustly"
+
+[trustly_payout.metadata.private_key]
+name = "private_key"
+label = "Private Key (Base64 encoded)"
+placeholder = "Enter your Private Key(Base64 encoded)"
+required = true
+type = "Text"
 
 [tesouro]
 [[tesouro.credit]]
@@ -7972,9 +8099,12 @@ key1 = "Merchant Account Id"
 [[payjustnow.pay_later]]
   payment_method_type = "payjustnow"
 
-[envoy]
-[envoy.connector_auth.HeaderKey]
-api_key = "API Key"
+[envoy_payout]
+[[envoy_payout.bank_transfer]]
+  payment_method_type = "sepa_bank_transfer"
+[envoy_payout.connector_auth.BodyKey]
+api_key = "Password"
+key1 = "Username"
 
 [vgs]
 [vgs.connector_auth.SignatureKey]
@@ -8134,7 +8264,47 @@ options=["Connector"]
 [[payjustnowinstore.pay_later]]
   payment_method_type = "payjustnow"
 
-[truelayer]
-[truelayer.connector_auth.BodyKey]
-  api_key = "Client ID"
-  key1 = "Client Secret"
+[revolv3]
+[[revolv3.credit]]
+payment_method_type = "Mastercard"
+[[revolv3.credit]]
+payment_method_type = "Visa"
+[[revolv3.credit]]
+payment_method_type = "Interac"
+[[revolv3.credit]]
+payment_method_type = "AmericanExpress"
+[[revolv3.credit]]
+payment_method_type = "JCB"
+[[revolv3.credit]]
+payment_method_type = "DinersClub"
+[[revolv3.credit]]
+payment_method_type = "Discover"
+[[revolv3.credit]]
+payment_method_type = "CartesBancaires"
+[[revolv3.credit]]
+payment_method_type = "UnionPay"
+[[revolv3.debit]]
+payment_method_type = "Mastercard"
+[[revolv3.debit]]
+payment_method_type = "Visa"
+[[revolv3.debit]]
+payment_method_type = "Interac"
+[[revolv3.debit]]
+payment_method_type = "AmericanExpress"
+[[revolv3.debit]]
+payment_method_type = "JCB"
+[[revolv3.debit]]
+payment_method_type = "DinersClub"
+[[revolv3.debit]]
+payment_method_type = "Discover"
+[[revolv3.debit]]
+payment_method_type = "CartesBancaires"
+[[revolv3.debit]]
+payment_method_type = "UnionPay"
+[revolv3.connector_auth.HeaderKey]
+api_key = "Static Tokens"
+
+[trustly]
+[trustly.connector_auth.HeaderKey]
+api_key = "API Key"
+

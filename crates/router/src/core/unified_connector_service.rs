@@ -38,7 +38,7 @@ use hyperswitch_domain_models::{
     router_request_types::RefundsData,
     router_response_types::{PaymentsResponseData, RefundsResponseData},
 };
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
 use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments::{
@@ -530,7 +530,7 @@ fn build_rollout_keys(
     // Detect if this is a refund flow based on flow name
     let is_refund_flow = matches!(flow_name, "Execute" | "RSync");
 
-    let rollout_key = if is_refund_flow {
+    if is_refund_flow {
         // Refund flows: UCS_merchant_connector_flow (e.g., UCS_merchant123_stripe_Execute)
         format!(
             "{}_{}_{}_{}",
@@ -583,9 +583,7 @@ fn build_rollout_keys(
                 )
             }
         }
-    };
-
-    rollout_key
+    }
 }
 
 /// Extracts the gateway system from the payment intent's feature metadata
@@ -939,6 +937,82 @@ pub fn build_unified_connector_service_payment_method(
                     payment_method: Some(PaymentMethod::Interac(interac)),
                 })
             }
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::Bizum { } => {
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Bizum(payments_grpc::Bizum{})),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::LocalBankRedirect { } => {
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::LocalBankRedirect(payments_grpc::LocalBankRedirect{})),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::OnlineBankingCzechRepublic {
+                issuer
+            } => {
+                let online_banking_czech_republic = payments_grpc::OnlineBankingCzechRepublic {
+                    issuer: payments_grpc::BankNames::foreign_try_from(issuer)?.into(),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::OnlineBankingCzechRepublic(online_banking_czech_republic)),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::OnlineBankingFinland {
+                email
+            } => {
+                let online_banking_finland = payments_grpc::OnlineBankingFinland {
+                    email: email.map(|e| e.expose().expose().into()),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::OnlineBankingFinland(online_banking_finland)),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::OnlineBankingPoland {
+                issuer
+            } => {
+                let online_banking_poland = payments_grpc::OnlineBankingPoland {
+                    issuer: payments_grpc::BankNames::foreign_try_from(issuer)?.into(),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::OnlineBankingPoland(online_banking_poland)),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::OnlineBankingSlovakia {
+                issuer
+            } => {
+                let online_banking_slovakia = payments_grpc::OnlineBankingSlovakia {
+                    issuer: payments_grpc::BankNames::foreign_try_from(issuer)?.into(),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::OnlineBankingSlovakia(online_banking_slovakia)),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::OnlineBankingThailand {
+                issuer
+            } => {
+                let online_banking_thailand = payments_grpc::OnlineBankingThailand {
+                    issuer: payments_grpc::BankNames::foreign_try_from(issuer)?.into(),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::OnlineBankingThailand(online_banking_thailand)),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::Eft {
+                provider
+            } => {
+                let eft = payments_grpc::Eft {
+                    provider,
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Eft(eft)),
+                })
+            }
             hyperswitch_domain_models::payment_method_data::BankRedirectData::BancontactCard {
                 card_number,
                 card_exp_month,
@@ -970,10 +1044,6 @@ pub fn build_unified_connector_service_payment_method(
                     payment_method: Some(PaymentMethod::OnlineBankingFpx(online_banking_fpx)),
                 })
             }
-            _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
-                "Unimplemented payment method subtype: {payment_method_type:?}"
-            ))
-            .into()),
         },
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::RealTimePayment(
             bank_transfer_data,
@@ -1080,6 +1150,22 @@ pub fn build_unified_connector_service_payment_method(
                     )),
                 })
             }
+            hyperswitch_domain_models::payment_method_data::BankTransferData::LocalBankTransfer {bank_code} =>
+                Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::LocalBankTransfer(payments_grpc::LocalBankTransfer {
+                            bank_code,
+                        })),
+                    }),
+            hyperswitch_domain_models::payment_method_data::BankTransferData::IndonesianBankTransfer {bank_name} =>
+                Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::IndonesianBankTransfer(payments_grpc::IndonesianBankTransfer {
+                            bank_name: bank_name.map(payments_grpc::BankNames::foreign_try_from).transpose()?.map(|b| b.into()),
+                        })),
+                    }),
+            hyperswitch_domain_models::payment_method_data::BankTransferData::Pse {} =>
+                Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::Pse(payments_grpc::Pse {})),
+                    }),
             hyperswitch_domain_models::payment_method_data::BankTransferData::InstantBankTransfer {} =>
                 Ok(payments_grpc::PaymentMethod {
                         payment_method: Some(PaymentMethod::InstantBankTransfer(payments_grpc::InstantBankTransfer {})),
@@ -1092,10 +1178,6 @@ pub fn build_unified_connector_service_payment_method(
                 Ok(payments_grpc::PaymentMethod {
                         payment_method: Some(PaymentMethod::InstantBankTransferPoland(payments_grpc::InstantBankTransferPoland {})),
                     }),
-            _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
-                "Unimplemented payment method subtype: {payment_method_type:?}"
-            ))
-            .into()),
         },
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::PayLater(
             pay_later_data,
@@ -1405,11 +1487,103 @@ pub fn build_unified_connector_service_payment_method(
                     payment_method: Some(PaymentMethod::Bacs(bacs)),
                 })
             }
-            _ => Err(UnifiedConnectorServiceError::NotImplemented(
-                "Unimplemented bank debit variant".to_string(),
-            )
-            .into()),
+            hyperswitch_domain_models::payment_method_data::BankDebitData::SepaGuarenteedBankDebit {
+                iban,
+                bank_account_holder_name,
+            } => {
+                let sepa_guaranteed_debit = payments_grpc::SepaGuaranteedDebit {
+                    iban: Some(iban.expose().into()),
+                    bank_account_holder_name: bank_account_holder_name
+                        .map(|name| name.expose().into()),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::SepaGuaranteedDebit(sepa_guaranteed_debit)),
+                })
+            }
         },
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::Voucher(voucher_data) => {
+            match voucher_data {
+                hyperswitch_domain_models::payment_method_data::VoucherData::Boleto(boleto_data) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::Boleto(
+                            payments_grpc::Boleto {
+                                social_security_number: boleto_data
+                                    .social_security_number
+                                    .map(|ssn| ssn.expose()),
+                            },
+                        )),
+                    })
+                }
+                hyperswitch_domain_models::payment_method_data::VoucherData::Alfamart(_) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::Alfamart(
+                            payments_grpc::Alfamart {},
+                        )),
+                    })
+                }
+                hyperswitch_domain_models::payment_method_data::VoucherData::Indomaret(_) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::Indomaret(
+                            payments_grpc::Indomaret {},
+                        )),
+                    })
+                }
+                hyperswitch_domain_models::payment_method_data::VoucherData::Oxxo => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::Oxxo(
+                            payments_grpc::Oxxo {},
+                        )),
+                    })
+                }
+                hyperswitch_domain_models::payment_method_data::VoucherData::SevenEleven(_) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::SevenEleven(
+                            payments_grpc::SevenEleven {},
+                        )),
+                    })
+                }
+                hyperswitch_domain_models::payment_method_data::VoucherData::Lawson(_) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::Lawson(
+                            payments_grpc::Lawson {},
+                        )),
+                    })
+                }
+                hyperswitch_domain_models::payment_method_data::VoucherData::MiniStop(_) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::MiniStop(
+                            payments_grpc::MiniStop {},
+                        )),
+                    })
+                }
+                hyperswitch_domain_models::payment_method_data::VoucherData::FamilyMart(_) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::FamilyMart(
+                            payments_grpc::FamilyMart {},
+                        )),
+                    })
+                }
+                hyperswitch_domain_models::payment_method_data::VoucherData::Seicomart(_) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::Seicomart(
+                            payments_grpc::Seicomart {},
+                        )),
+                    })
+                }
+                hyperswitch_domain_models::payment_method_data::VoucherData::PayEasy(_) => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::PayEasy(
+                            payments_grpc::PayEasy {},
+                        )),
+                    })
+                }
+                 _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
+                "Unimplemented payment method subtype: {payment_method_type:?}"
+            ))
+            .into()),
+            }
+        }
         _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
             "Unimplemented payment method: {payment_method_data:?}"
         ))
@@ -2119,7 +2293,7 @@ where
     let payout_id = router_data.payout_id.clone();
     let grpc_header = grpc_header_builder.build();
     // Log the actual gRPC request with masking
-    let grpc_request_body = masking::masked_serialize(&grpc_request)
+    let grpc_request_body = hyperswitch_masking::masked_serialize(&grpc_request)
         .unwrap_or_else(|_| serde_json::json!({"error": "failed_to_serialize_grpc_request"}));
 
     // Update connector call count metrics for UCS operations
@@ -2150,9 +2324,10 @@ where
                 .unwrap_or(200);
 
             // Log the actual gRPC response with masking
-            let grpc_response_body = masking::masked_serialize(&grpc_response).unwrap_or_else(
-                |_| serde_json::json!({"error": "failed_to_serialize_grpc_response"}),
-            );
+            let grpc_response_body = hyperswitch_masking::masked_serialize(&grpc_response)
+                .unwrap_or_else(
+                    |_| serde_json::json!({"error": "failed_to_serialize_grpc_response"}),
+                );
 
             (
                 status,
@@ -2262,7 +2437,7 @@ where
     let payout_id = router_data.payout_id.clone();
     let grpc_header = grpc_header_builder.build();
     // Log the actual gRPC request with masking
-    let grpc_request_body = masking::masked_serialize(&grpc_request)
+    let grpc_request_body = hyperswitch_masking::masked_serialize(&grpc_request)
         .unwrap_or_else(|_| serde_json::json!({"error": "failed_to_serialize_grpc_request"}));
 
     // Update connector call count metrics for UCS operations
@@ -2293,9 +2468,10 @@ where
                 .unwrap_or(200);
 
             // Log the actual gRPC response
-            let grpc_response_body = masking::masked_serialize(&grpc_response).unwrap_or_else(
-                |_| serde_json::json!({"error": "failed_to_serialize_grpc_response"}),
-            );
+            let grpc_response_body = hyperswitch_masking::masked_serialize(&grpc_response)
+                .unwrap_or_else(
+                    |_| serde_json::json!({"error": "failed_to_serialize_grpc_response"}),
+                );
 
             (
                 status,
@@ -2438,14 +2614,23 @@ pub async fn send_comparison_data(
         .set_body(RequestContent::Json(Box::new(comparison_data)))
         .build();
 
-    request.add_header(X_CONNECTOR_NAME, masking::Maskable::Normal(connector_name));
+    request.add_header(
+        X_CONNECTOR_NAME,
+        hyperswitch_masking::Maskable::Normal(connector_name),
+    );
 
     if let Some(sub_flow_name) = sub_flow_name.filter(|name| !name.is_empty()) {
-        request.add_header(X_SUB_FLOW_NAME, masking::Maskable::Normal(sub_flow_name));
+        request.add_header(
+            X_SUB_FLOW_NAME,
+            hyperswitch_masking::Maskable::Normal(sub_flow_name),
+        );
     }
 
     if let Some(req_id) = &state.request_id {
-        request.add_header(X_REQUEST_ID, masking::Maskable::Normal(req_id.to_string()));
+        request.add_header(
+            X_REQUEST_ID,
+            hyperswitch_masking::Maskable::Normal(req_id.to_string()),
+        );
     }
 
     let _ = http_client::send_request(&state.conf.proxy, request, comparison_config.timeout_secs)

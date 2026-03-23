@@ -50,9 +50,9 @@ use hyperswitch_constraint_graph as cgraph;
 use hyperswitch_domain_models::customer::CustomerUpdate;
 use hyperswitch_domain_models::mandates::CommonMandateReference;
 use hyperswitch_interfaces::secrets_interface::secret_state::RawSecret;
+use hyperswitch_masking::Secret;
 #[cfg(feature = "v1")]
 use kgraph_utils::transformers::IntoDirValue;
-use masking::Secret;
 use router_env::{instrument, tracing};
 use scheduler::errors as sch_errors;
 use strum::IntoEnumIterator;
@@ -95,7 +95,7 @@ use crate::{
         utils as core_utils,
     },
     db, logger,
-    pii::prelude::*,
+    pii::{ExposeInterface, ExposeOptionInterface, PeekInterface},
     routes::{self, metrics, payment_methods::ParentPaymentMethodToken},
     services,
     types::{
@@ -142,6 +142,7 @@ impl PaymentMethodsController for PmCards<'_> {
         vault_source_details: Option<domain::PaymentMethodVaultSourceDetails>,
         payment_method_customer_details_encrypted: crypto::OptionalEncryptableValue,
         locker_fingerprint_id: Option<String>,
+        initiator: Option<&domain::Initiator>,
     ) -> errors::CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
         let db = &*self.state.store;
         let customer = db
@@ -201,8 +202,8 @@ impl PaymentMethodsController for PmCards<'_> {
                     network_token_payment_method_data,
                     vault_source_details: vault_source_details
                         .unwrap_or(domain::PaymentMethodVaultSourceDetails::InternalVault),
-                    created_by: None,
-                    last_modified_by: None,
+                    created_by: initiator.and_then(|initiator| initiator.to_created_by()),
+                    last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
                     customer_details: payment_method_customer_details_encrypted,
                     locker_fingerprint_id,
                 },
@@ -214,7 +215,12 @@ impl PaymentMethodsController for PmCards<'_> {
 
         if customer.default_payment_method_id.is_none() && req.payment_method.is_some() {
             let _ = self
-                .set_default_payment_method(merchant_id, customer_id, payment_method_id.to_owned())
+                .set_default_payment_method(
+                    merchant_id,
+                    customer_id,
+                    payment_method_id.to_owned(),
+                    initiator,
+                )
                 .await
                 .map_err(|error| {
                     logger::error!(?error, "Failed to set the payment method as default")
@@ -276,6 +282,7 @@ impl PaymentMethodsController for PmCards<'_> {
         resp: &mut domain::PaymentMethodResponse,
         customer_id: &id_type::CustomerId,
         key_store: &domain::MerchantKeyStore,
+        initiator: Option<&domain::Initiator>,
     ) -> errors::RouterResult<domain::PaymentMethod> {
         let mut payment_method_id = resp.payment_method_id.clone();
         let mut locker_id = None;
@@ -335,6 +342,7 @@ impl PaymentMethodsController for PmCards<'_> {
                         None,
                         Default::default(),
                         resp.locker_fingerprint_id.clone(),
+                        initiator,
                     )
                     .await
                 } else {
@@ -366,6 +374,7 @@ impl PaymentMethodsController for PmCards<'_> {
         network_token_data: &api_models::payment_methods::MigrateNetworkTokenData,
         network_token_requestor_ref_id: String,
         pm_id: String,
+        initiator: Option<&domain::Initiator>,
     ) -> errors::RouterResult<bool> {
         let payment_method_create_request =
             api::PaymentMethodCreate::get_payment_method_create_from_payment_method_migrate(
@@ -425,7 +434,9 @@ impl PaymentMethodsController for PmCards<'_> {
                     network_token_locker_id: Some(token_pm_resp.payment_method_id),
                     network_token_payment_method_data: pm_network_token_data_encrypted
                         .map(Into::into),
-                    last_modified_by: None,
+                    last_modified_by: initiator
+                        .and_then(|initiator| initiator.to_created_by())
+                        .map(|last_modified_by| last_modified_by.to_string()),
                 };
                 let db = &*self.state.store;
                 let existing_pm = db
@@ -482,6 +493,7 @@ impl PaymentMethodsController for PmCards<'_> {
         network_token_payment_method_data: crypto::OptionalEncryptableValue,
         vault_source_details: Option<domain::PaymentMethodVaultSourceDetails>,
         locker_fingerprint_id: Option<String>,
+        initiator: Option<&domain::Initiator>,
     ) -> errors::RouterResult<domain::PaymentMethod> {
         let pm_card_details = match &resp.card {
             Some(card) => Some(PaymentMethodsData::Card(CardDetailsPaymentMethod::from((
@@ -538,6 +550,7 @@ impl PaymentMethodsController for PmCards<'_> {
             vault_source_details,
             None,
             locker_fingerprint_id,
+            initiator,
         )
         .await
     }
@@ -908,6 +921,7 @@ impl PaymentMethodsController for PmCards<'_> {
         merchant_id: &id_type::MerchantId,
         customer_id: &id_type::CustomerId,
         payment_method_id: String,
+        initiator: Option<&domain::Initiator>,
     ) -> errors::RouterResponse<api_models::payment_methods::CustomerDefaultPaymentMethodResponse>
     {
         let db = &*self.state.store;
@@ -958,7 +972,9 @@ impl PaymentMethodsController for PmCards<'_> {
 
         let customer_update = CustomerUpdate::UpdateDefaultPaymentMethod {
             default_payment_method_id: Some(Some(payment_method_id.to_owned())),
-            last_modified_by: None,
+            last_modified_by: initiator
+                .and_then(|initiator| initiator.to_created_by())
+                .map(|last_modified_by| last_modified_by.to_string()),
         };
         // update the db with the default payment method id
 
@@ -992,6 +1008,7 @@ impl PaymentMethodsController for PmCards<'_> {
         prev_status: common_enums::PaymentMethodStatus,
         curr_status: common_enums::PaymentMethodStatus,
         merchant_id: &id_type::MerchantId,
+        initiator: Option<&domain::Initiator>,
     ) -> Result<(), sch_errors::ProcessTrackerError> {
         add_payment_method_status_update_task(
             &*self.state.store,
@@ -1000,6 +1017,7 @@ impl PaymentMethodsController for PmCards<'_> {
             curr_status,
             merchant_id,
             self.state.conf.application_source,
+            initiator,
         )
         .await
     }
@@ -1102,6 +1120,7 @@ impl PaymentMethodsController for PmCards<'_> {
     async fn delete_payment_method(
         &self,
         pm_id: api::PaymentMethodId,
+        initiator: Option<&domain::Initiator>,
     ) -> errors::RouterResponse<api::PaymentMethodDeleteResponse> {
         let db = self.state.store.as_ref();
         let key = db
@@ -1172,7 +1191,9 @@ impl PaymentMethodsController for PmCards<'_> {
         if customer.default_payment_method_id.as_ref() == Some(&pm_id.payment_method_id) {
             let customer_update = CustomerUpdate::UpdateDefaultPaymentMethod {
                 default_payment_method_id: Some(None),
-                last_modified_by: None,
+                last_modified_by: initiator
+                    .and_then(|initiator| initiator.to_created_by())
+                    .map(|last_modified_by| last_modified_by.to_string()),
             };
             db.update_customer_by_customer_id_merchant_id(
                 key.customer_id,
@@ -1200,6 +1221,7 @@ impl PaymentMethodsController for PmCards<'_> {
     async fn add_payment_method(
         &self,
         req: &api::PaymentMethodCreate,
+        initiator: Option<&domain::Initiator>,
     ) -> errors::RouterResponse<api::PaymentMethodResponse> {
         req.validate()?;
         let db = &*self.state.store;
@@ -1293,6 +1315,7 @@ impl PaymentMethodsController for PmCards<'_> {
                             &mut resp,
                             &customer_id,
                             self.provider.get_key_store(),
+                            initiator,
                         )
                         .await?;
 
@@ -1306,6 +1329,7 @@ impl PaymentMethodsController for PmCards<'_> {
                                 &mut resp,
                                 &customer_id,
                                 self.provider.get_key_store(),
+                                initiator,
                             )
                             .await?;
 
@@ -1402,7 +1426,9 @@ impl PaymentMethodsController for PmCards<'_> {
 
                         let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
                             payment_method_data: pm_data_encrypted.map(Into::into),
-                            last_modified_by: None,
+                            last_modified_by: initiator
+                                .and_then(|initiator| initiator.to_created_by())
+                                .map(|last_modified_by| last_modified_by.to_string()),
                         };
 
                         db.update_payment_method(
@@ -1449,6 +1475,7 @@ impl PaymentMethodsController for PmCards<'_> {
                         None,
                         Default::default(), //Currently this method is used for adding payment method via PaymentMethodCreate API which doesn't support external vault. hence Default i.e. InternalVault is passed for vault source and type
                         resp.locker_fingerprint_id.clone(),
+                        initiator,
                     )
                     .await?;
 
@@ -1468,6 +1495,7 @@ pub async fn get_client_secret_or_add_payment_method(
     state: &routes::SessionState,
     req: api::PaymentMethodCreate,
     provider: &domain::Provider,
+    initiator: Option<&domain::Initiator>,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     let merchant_id = provider.get_account().get_id();
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
@@ -1496,7 +1524,7 @@ pub async fn get_client_secret_or_add_payment_method(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     if condition {
-        Box::pin(cards.add_payment_method(&req)).await
+        Box::pin(cards.add_payment_method(&req, initiator)).await
     } else {
         let payment_method_id = generate_id(consts::ID_LENGTH, "pm");
 
@@ -1521,6 +1549,7 @@ pub async fn get_client_secret_or_add_payment_method(
                 Default::default(), //Currently this method is used for adding payment method via PaymentMethodCreate API which doesn't support external vault. hence Default i.e. InternalVault is passed for vault type
                 None,
                 None,
+                initiator,
             )
             .await?;
 
@@ -1532,6 +1561,7 @@ pub async fn get_client_secret_or_add_payment_method(
                 enums::PaymentMethodStatus::Inactive,
                 merchant_id,
                 state.conf.application_source,
+                initiator,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1580,6 +1610,7 @@ pub async fn add_payment_method_data(
     state: routes::SessionState,
     req: api::PaymentMethodCreate,
     provider: domain::Provider,
+    initiator: Option<domain::Initiator>,
     pm_id: String,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     let db = &*state.store;
@@ -1642,7 +1673,10 @@ pub async fn add_payment_method_data(
                     if duplication_check.is_some() {
                         let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
                             status: Some(enums::PaymentMethodStatus::Inactive),
-                            last_modified_by: None,
+                            last_modified_by: initiator
+                                .as_ref()
+                                .and_then(|initiator| initiator.to_created_by())
+                                .map(|last_modified_by| last_modified_by.to_string()),
                         };
 
                         db.update_payment_method(
@@ -1661,6 +1695,7 @@ pub async fn add_payment_method_data(
                                 &mut domain_pm_resp,
                                 &customer_id,
                                 provider.get_key_store(),
+                                initiator.as_ref(),
                             )
                             .await?;
 
@@ -1719,7 +1754,10 @@ pub async fn add_payment_method_data(
                             payment_method_type: req.payment_method_type,
                             network_token_locker_id: None,
                             network_token_payment_method_data: None,
-                            last_modified_by: None,
+                            last_modified_by: initiator
+                                .as_ref()
+                                .and_then(|initiator| initiator.to_created_by())
+                                .map(|last_modified_by| last_modified_by.to_string()),
                             metadata: None,
                             last_used_at: None,
                             connector_mandate_details: None,
@@ -1741,6 +1779,7 @@ pub async fn add_payment_method_data(
                                     provider.get_account().get_id(),
                                     &customer_id,
                                     pm_id,
+                                    initiator.as_ref(),
                                 )
                                 .await
                                 .map_err(|error| {
@@ -1758,7 +1797,10 @@ pub async fn add_payment_method_data(
                 Err(e) => {
                     let pm_update = storage::PaymentMethodUpdate::StatusUpdate {
                         status: Some(enums::PaymentMethodStatus::Inactive),
-                        last_modified_by: None,
+                        last_modified_by: initiator
+                            .as_ref()
+                            .and_then(|initiator| initiator.to_created_by())
+                            .map(|last_modified_by| last_modified_by.to_string()),
                     };
 
                     db.update_payment_method(
@@ -1790,6 +1832,7 @@ pub async fn add_payment_method_data(
 pub async fn update_customer_payment_method(
     state: routes::SessionState,
     provider: domain::Provider,
+    initiator: Option<domain::Initiator>,
     req: api::PaymentMethodUpdate,
     payment_method_id: &str,
     pm_data: Option<domain::PaymentMethod>,
@@ -1975,7 +2018,9 @@ pub async fn update_customer_payment_method(
 
             let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
                 payment_method_data: pm_data_encrypted.map(Into::into),
-                last_modified_by: None,
+                last_modified_by: initiator
+                    .and_then(|initiator| initiator.to_created_by())
+                    .map(|last_modified_by| last_modified_by.to_string()),
             };
 
             add_card_resp
@@ -2052,7 +2097,9 @@ pub async fn update_customer_payment_method(
 
         let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
             payment_method_data: Some(pm_data_encrypted.into()),
-            last_modified_by: None,
+            last_modified_by: initiator
+                .and_then(|initiator| initiator.to_created_by())
+                .map(|last_modified_by| last_modified_by.to_string()),
         };
 
         let pm = db
@@ -2378,6 +2425,7 @@ pub async fn update_payment_method_metadata_and_network_token_data_and_last_used
     network_token_locker_id: Option<String>,
     pm_network_token_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>>,
     storage_scheme: MerchantStorageScheme,
+    initiator: Option<&domain::Initiator>,
 ) -> errors::CustomResult<(), errors::VaultError> {
     let pm_update = payment_method::PaymentMethodUpdate::AdditionalDataUpdate {
         locker_id: None,
@@ -2389,7 +2437,9 @@ pub async fn update_payment_method_metadata_and_network_token_data_and_last_used
         network_token_requestor_reference_id,
         network_token_locker_id,
         network_token_payment_method_data: pm_network_token_data_encrypted.map(Into::into),
-        last_modified_by: None,
+        last_modified_by: initiator
+            .and_then(|initiator| initiator.to_created_by())
+            .map(|last_modified_by| last_modified_by.to_string()),
         metadata: pm_metadata,
         last_used_at: Some(common_utils::date_time::now()),
         connector_mandate_details: None,
@@ -2411,12 +2461,15 @@ pub async fn update_payment_method_network_token_data(
     network_token_locker_id: Option<String>,
     pm_network_token_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>>,
     storage_scheme: MerchantStorageScheme,
+    initiator: Option<&domain::Initiator>,
 ) -> errors::CustomResult<(), errors::VaultError> {
     let pm_update = payment_method::PaymentMethodUpdate::NetworkTokenDataUpdate {
         network_token_requestor_reference_id,
         network_token_locker_id,
         network_token_payment_method_data: pm_network_token_data_encrypted.map(Into::into),
-        last_modified_by: None,
+        last_modified_by: initiator
+            .and_then(|initiator| initiator.to_created_by())
+            .map(|last_modified_by| last_modified_by.to_string()),
     };
 
     db.update_payment_method(key_store, pm, pm_update, storage_scheme)
@@ -2432,12 +2485,15 @@ pub async fn update_payment_method_and_last_used(
     payment_method_update: Option<Encryption>,
     storage_scheme: MerchantStorageScheme,
     card_scheme: Option<String>,
+    initiator: Option<&domain::Initiator>,
 ) -> errors::CustomResult<(), errors::VaultError> {
     let pm_update = payment_method::PaymentMethodUpdate::UpdatePaymentMethodDataAndLastUsed {
         payment_method_data: payment_method_update,
         scheme: card_scheme,
         last_used_at: common_utils::date_time::now(),
-        last_modified_by: None,
+        last_modified_by: initiator
+            .and_then(|initiator| initiator.to_created_by())
+            .map(|last_modified_by| last_modified_by.to_string()),
     };
     db.update_payment_method(key_store, pm, pm_update, storage_scheme)
         .await
@@ -2453,10 +2509,13 @@ pub async fn update_payment_method_connector_mandate_details(
     pm: domain::PaymentMethod,
     connector_mandate_details: Option<CommonMandateReference>,
     storage_scheme: MerchantStorageScheme,
+    initiator: Option<&domain::Initiator>,
 ) -> errors::CustomResult<(), errors::VaultError> {
     let pm_update = payment_method::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
         connector_mandate_details: connector_mandate_details.map(|cmd| cmd.into()),
-        last_modified_by: None,
+        last_modified_by: initiator
+            .and_then(|initiator| initiator.to_created_by())
+            .map(|last_modified_by| last_modified_by.to_string()),
     };
 
     db.update_payment_method(key_store, pm, pm_update, storage_scheme)
@@ -2472,6 +2531,7 @@ pub async fn update_payment_method_connector_mandate_details(
     pm: domain::PaymentMethod,
     connector_mandate_details: Option<CommonMandateReference>,
     storage_scheme: MerchantStorageScheme,
+    initiator: Option<&domain::Initiator>,
 ) -> errors::CustomResult<(), errors::VaultError> {
     let connector_mandate_details_value = connector_mandate_details
         .map(|common_mandate| {
@@ -2484,7 +2544,9 @@ pub async fn update_payment_method_connector_mandate_details(
 
     let pm_update = payment_method::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
         connector_mandate_details: connector_mandate_details_value,
-        last_modified_by: None,
+        last_modified_by: initiator
+            .and_then(|initiator| initiator.to_created_by())
+            .map(|last_modified_by| last_modified_by.to_string()),
     };
 
     db.update_payment_method(key_store, pm, pm_update, storage_scheme)
@@ -2504,6 +2566,7 @@ pub async fn update_payment_method_connector_mandate_details_and_network_token_d
     network_token_locker_id: Option<String>,
     pm_network_token_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>>,
     storage_scheme: MerchantStorageScheme,
+    initiator: Option<&domain::Initiator>,
 ) -> errors::CustomResult<(), errors::VaultError> {
     let connector_mandate_details_value = connector_mandate_details
         .map(|common_mandate| {
@@ -2523,7 +2586,9 @@ pub async fn update_payment_method_connector_mandate_details_and_network_token_d
         network_token_requestor_reference_id,
         network_token_locker_id,
         network_token_payment_method_data: pm_network_token_data_encrypted.map(Into::into),
-        last_modified_by: None,
+        last_modified_by: initiator
+            .and_then(|initiator| initiator.to_created_by())
+            .map(|last_modified_by| last_modified_by.to_string()),
         metadata: None,
         last_used_at: None,
         connector_mandate_details: connector_mandate_details_value,
@@ -3783,8 +3848,22 @@ pub async fn list_payment_methods(
         .as_ref()
         .map(|payment_intent| payment_intent.customer_id.is_none())
         .unwrap_or(true);
+    let connector_supports_installments = currency.is_some_and(|cur| {
+        filtered_mcas.iter().any(|mca| {
+            mca.connector_name
+                .parse::<api_enums::Connector>()
+                .ok()
+                .is_some_and(|connector| {
+                    state
+                        .conf
+                        .installment_config
+                        .is_connector_currency_supported(&connector, cur)
+                })
+        })
+    });
+
     let merchant_surcharge_configs = if let Some((payment_attempt, payment_intent)) =
-        payment_attempt.as_ref().zip(payment_intent)
+        payment_attempt.as_ref().zip(payment_intent.clone())
     {
         Box::pin(call_surcharge_decision_management(
             state,
@@ -3819,6 +3898,19 @@ pub async fn list_payment_methods(
     };
 
     let is_tax_connector_enabled = business_profile.get_is_tax_connector_enabled();
+
+    let intent_data = payment_intent
+        .clone()
+        .map(|pi| {
+            let net_amount = payment_attempt
+                .as_ref()
+                .map(|pa| pa.net_amount.get_total_amount())
+                .unwrap_or(pi.amount);
+            pi.into_payment_method_list_intent_data(net_amount, connector_supports_installments)
+        })
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to build intent data for payment method list")?;
 
     Ok(services::ApplicationResponse::Json(
         api::PaymentMethodListResponse {
@@ -3865,6 +3957,7 @@ pub async fn list_payment_methods(
             is_tax_calculation_enabled: is_tax_connector_enabled && !skip_external_tax_calculation,
             sdk_next_action,
             is_guest_customer,
+            intent_data,
         },
     ))
 }
@@ -4869,18 +4962,19 @@ where
 {
     let key = key_store.key.get_inner().peek();
     let identifier = Identifier::Merchant(key_store.merchant_id.clone());
-    let decrypted_data = domain::types::crypto_operation::<serde_json::Value, masking::WithType>(
-        &state.into(),
-        type_name!(T),
-        domain::types::CryptoOperation::DecryptOptional(data),
-        identifier,
-        key,
-    )
-    .await
-    .and_then(|val| val.try_into_optionaloperation())
-    .change_context(errors::StorageError::DecryptionError)
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("unable to decrypt data")?;
+    let decrypted_data =
+        domain::types::crypto_operation::<serde_json::Value, hyperswitch_masking::WithType>(
+            &state.into(),
+            type_name!(T),
+            domain::types::CryptoOperation::DecryptOptional(data),
+            identifier,
+            key,
+        )
+        .await
+        .and_then(|val| val.try_into_optionaloperation())
+        .change_context(errors::StorageError::DecryptionError)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to decrypt data")?;
 
     decrypted_data
         .map(|decrypted_data| decrypted_data.into_inner().expose())
@@ -5316,7 +5410,7 @@ where
         .change_context(errors::StorageError::SerializationFailed)
         .attach_printable("Unable to encode data")?;
 
-    let secret_data = Secret::<_, masking::WithType>::new(encoded_data);
+    let secret_data = Secret::<_, hyperswitch_masking::WithType>::new(encoded_data);
 
     let encrypted_data = domain::types::crypto_operation(
         key_manager_state,
@@ -5395,6 +5489,7 @@ pub async fn tokenize_card_flow(
     state: &routes::SessionState,
     req: domain::CardNetworkTokenizeRequest,
     provider: &domain::Provider,
+    initiator: Option<&domain::Initiator>,
 ) -> errors::RouterResult<api::CardNetworkTokenizeResponse> {
     match req.data {
         domain::TokenizeDataRequest::Card(ref card_req) => {
@@ -5406,7 +5501,7 @@ pub async fn tokenize_card_flow(
             );
             let builder =
                 tokenize::NetworkTokenizationBuilder::<tokenize::TokenizeWithCard>::default();
-            execute_card_tokenization(executor, builder, card_req).await
+            execute_card_tokenization(executor, builder, card_req, initiator).await
         }
         domain::TokenizeDataRequest::ExistingPaymentMethod(ref payment_method) => {
             let executor = tokenize::CardNetworkTokenizeExecutor::new(
@@ -5421,6 +5516,7 @@ pub async fn tokenize_card_flow(
                 executor,
                 builder,
                 payment_method,
+                initiator,
             ))
             .await
         }
@@ -5432,6 +5528,7 @@ pub async fn execute_card_tokenization(
     executor: tokenize::CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest>,
     builder: tokenize::NetworkTokenizationBuilder<'_, tokenize::TokenizeWithCard>,
     req: &domain::TokenizeCardRequest,
+    initiator: Option<&domain::Initiator>,
 ) -> errors::RouterResult<api::CardNetworkTokenizeResponse> {
     // Validate request and get optional customer
     let optional_customer = executor
@@ -5454,7 +5551,7 @@ pub async fn execute_card_tokenization(
     // Create customer if not present
     let customer = match optional_customer {
         Some(customer) => customer,
-        None => executor.create_customer().await?,
+        None => executor.create_customer(initiator).await?,
     };
     let builder = builder.set_customer(&customer);
 
@@ -5501,6 +5598,7 @@ pub async fn execute_payment_method_tokenization(
     executor: tokenize::CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest>,
     builder: tokenize::NetworkTokenizationBuilder<'_, tokenize::TokenizeWithPmId>,
     req: &domain::TokenizePaymentMethodRequest,
+    initiator: Option<&domain::Initiator>,
 ) -> errors::RouterResult<api::CardNetworkTokenizeResponse> {
     // Fetch payment method
     let payment_method = executor
@@ -5570,6 +5668,7 @@ pub async fn execute_payment_method_tokenization(
             payment_method,
             &network_token_details,
             &domain_card,
+            initiator,
         )
         .await?;
     let builder = builder.set_payment_method(&updated_payment_method);
