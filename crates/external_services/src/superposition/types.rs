@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use common_utils::{errors::CustomResult, fp_utils::when};
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 
 /// Wrapper type for JSON values from Superposition
 #[derive(Debug, Clone)]

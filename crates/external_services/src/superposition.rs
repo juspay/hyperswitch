@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 use common_utils::{errors::CustomResult, id_type::TargetingKey};
 use error_stack::report;
-use masking::ExposeInterface;
+use hyperswitch_masking::ExposeInterface;
 use serde_json::Map;
 
 pub use self::types::{ConfigContext, SuperpositionClientConfig, SuperpositionError};
