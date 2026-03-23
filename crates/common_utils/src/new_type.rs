@@ -21,7 +21,7 @@ impl hyperswitch_masking::SerializableSecret for MerchantName {}
 )]
 pub struct CardIssuerName(String);
 
-impl masking::SerializableSecret for CardIssuerName {}
+impl hyperswitch_masking::SerializableSecret for CardIssuerName {}
 
 /// Function for masking alphanumeric characters in a string.
 ///
