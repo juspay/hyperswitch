@@ -7,7 +7,6 @@ use common_enums::enums;
 #[cfg(feature = "payouts")]
 use common_enums::{CountryAlpha2, PayoutStatus};
 use common_utils::{id_type::CustomerId, pii, types::StringMajorUnit};
-use error_stack::ResultExt;
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::types::{PayoutsResponseData, PayoutsRouterData};
 use hyperswitch_domain_models::{
@@ -85,34 +84,24 @@ impl TryFrom<&TrustlyRouterData<&PaymentsAuthorizeRouterData>> for TrustlyPaymen
 pub struct TrustlyAuthType {
     pub(super) username: Secret<String>,
     pub(super) password: Secret<String>,
+    pub(super) private_key: Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for TrustlyAuthType {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+            ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => Ok(Self {
                 username: api_key.to_owned(),
                 password: key1.to_owned(),
+                private_key: api_secret.to_owned(),
             }),
             _ => Err(ConnectorError::FailedToObtainAuthType.into()),
         }
-    }
-}
-
-#[cfg(feature = "payouts")]
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct TrustlyMetadata {
-    private_key: Secret<String>,
-}
-
-#[cfg(feature = "payouts")]
-impl TryFrom<&Option<pii::SecretSerdeValue>> for TrustlyMetadata {
-    type Error = error_stack::Report<ConnectorError>;
-    fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
-        let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
-            .change_context(ConnectorError::InvalidConnectorConfig { config: "metadata" })?;
-        Ok(metadata)
     }
 }
 
@@ -382,8 +371,8 @@ fn serialize_value(value: &serde_json::Value) -> String {
     }
 }
 
-fn generate_trustly_signature<T: Serialize>(
-    method: &TrustlyMethod,
+pub fn generate_trustly_signature<T: Serialize>(
+    method: &str,
     uuid: &str,
     data: &T,
     private_key: &str,
@@ -394,7 +383,7 @@ fn generate_trustly_signature<T: Serialize>(
     let rsa = Rsa::private_key_from_pem(&pem).map_err(|_| ConnectorError::RequestEncodingFailed)?;
     let private_key = PKey::from_rsa(rsa).map_err(|_| ConnectorError::RequestEncodingFailed)?;
 
-    let plaintext = format!("{}{}{}", method.as_str(), uuid, trustly_serialize(data));
+    let plaintext = format!("{}{}{}", method, uuid, trustly_serialize(data));
 
     let mut signer = Signer::new(algorithm.message_digest(), &private_key)
         .map_err(|_| ConnectorError::RequestEncodingFailed)?;
@@ -517,10 +506,9 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for RegisterAccountRe
                 };
 
                 let uuid = uuid::Uuid::new_v4().to_string();
-                let private_key =
-                    TrustlyMetadata::try_from(&item.router_data.connector_meta_data)?.private_key;
                 let auth_details =
                     TrustlyAuthType::try_from(&item.router_data.connector_auth_type)?;
+                let private_key = auth_details.private_key.clone();
                 let register_account_data = RegisterAccountData {
                     account_number,
                     bank_number,
@@ -536,7 +524,7 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for RegisterAccountRe
                 };
 
                 let signature = generate_trustly_signature(
-                    &TrustlyMethod::RegisterAccount,
+                    TrustlyMethod::RegisterAccount.as_str(),
                     uuid.as_str(),
                     &register_account_data,
                     &private_key.expose(),
@@ -685,8 +673,7 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for AccountPayoutRequ
                 let auth_details =
                     TrustlyAuthType::try_from(&item.router_data.connector_auth_type)?;
 
-                let private_key =
-                    TrustlyMetadata::try_from(&item.router_data.connector_meta_data)?.private_key;
+                let private_key = auth_details.private_key.clone();
                 let uuid = uuid::Uuid::new_v4().to_string();
                 let account_payout_data = AccountPayoutData {
                     account_i_d: account_id.account_id,
@@ -712,7 +699,7 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for AccountPayoutRequ
                 };
 
                 let signature = generate_trustly_signature(
-                    &TrustlyMethod::AccountPayout,
+                    TrustlyMethod::AccountPayout.as_str(),
                     uuid.as_str(),
                     &account_payout_data,
                     &private_key.expose(),
@@ -843,11 +830,11 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for TrustlyPayoutSyncRequest {
             password: auth_details.password.clone(),
             username: auth_details.username.clone(),
         };
-        let private_key = TrustlyMetadata::try_from(&item.connector_meta_data)?.private_key;
+        let private_key = auth_details.private_key.clone();
 
         let uuid = uuid::Uuid::new_v4().to_string();
         let signature = generate_trustly_signature(
-            &TrustlyMethod::GetWithdrawals,
+            &TrustlyMethod::GetWithdrawals.as_str(),
             uuid.as_str(),
             &data,
             &private_key.expose(),
@@ -970,4 +957,97 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, TrustlyPayoutSyncResponse>> for Pay
             }
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrustlyWebhookBody {
+    pub method: TrustlyWebhookMethod,
+    pub params: TrustlyWebhookParams,
+    pub version: String,
+}
+
+impl TrustlyWebhookMethod {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Credit => "credit",
+            Self::Debit => "debit",
+            Self::Cancel => "cancel",
+            Self::Account => "account",
+            Self::Pending => "pending",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum TrustlyWebhookMethod {
+    Credit,
+    Debit,
+    Cancel,
+    Account,
+    Pending,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrustlyWebhookParams {
+    pub signature: String,
+    pub uuid: String,
+    pub data: TrustlyWebhookData,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrustlyWebhookData {
+    pub amount: Option<StringMajorUnit>,
+    pub currency: Option<common_enums::Currency>,
+    pub messageid: String,
+    pub orderid: String,
+    pub enduserid: Option<String>,
+    pub accountid: Option<Secret<String>>,
+    pub verified: Option<String>,
+    pub notificationid: String,
+    pub timestamp: Option<String>,
+    pub attributes: Option<TrustlyWebhookAttributes>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrustlyWebhookAttributes {
+    pub bank: Secret<String>,
+    pub city: Secret<String>,
+    pub name: Secret<String>,
+    pub address: Secret<String>,
+    pub zipcode: Secret<String>,
+    pub personid: Secret<String>,
+    pub descriptor: String,
+    pub lastdigits: String,
+    pub clearinghouse: String,
+}
+
+pub fn is_payment_webhook_event(webhook_method: TrustlyWebhookMethod) -> bool {
+    matches!(
+        webhook_method,
+        TrustlyWebhookMethod::Credit
+            | TrustlyWebhookMethod::Debit
+            | TrustlyWebhookMethod::Cancel
+            | TrustlyWebhookMethod::Account
+            | TrustlyWebhookMethod::Pending
+    )
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrustlyWebhookResponse {
+    pub result: TrustlyWebhookResponseResult,
+    pub version: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrustlyWebhookResponseResult {
+    pub signature: Secret<String>,
+    pub uuid: String,
+    pub method: String,
+    pub data: TrustlyWebhookResponseResultData,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrustlyWebhookResponseResultData {
+    pub status: String,
 }
