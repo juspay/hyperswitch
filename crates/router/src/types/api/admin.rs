@@ -515,5 +515,6 @@ pub async fn create_profile_from_merchant_account(
         .attach_printable("error while generating external_vault_details")?,
         billing_processor_id: request.billing_processor_id,
         is_l2_l3_enabled: request.is_l2_l3_enabled.unwrap_or(false),
+        default_fallback_routing: None,
     }))
 }

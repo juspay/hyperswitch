@@ -84,6 +84,7 @@ pub struct Profile {
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub is_l2_l3_enabled: Option<bool>,
+    pub default_fallback_routing: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(feature = "v1")]
@@ -147,6 +148,7 @@ pub struct ProfileNew {
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub is_l2_l3_enabled: Option<bool>,
+    pub default_fallback_routing: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(feature = "v1")]
@@ -211,6 +213,7 @@ pub struct ProfileUpdateInternal {
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+    pub default_fallback_routing: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(feature = "v1")]
@@ -272,6 +275,7 @@ impl ProfileUpdateInternal {
             is_external_vault_enabled,
             external_vault_connector_details,
             billing_processor_id,
+            default_fallback_routing,
         } = self;
         Profile {
             profile_id: source.profile_id,
@@ -367,6 +371,7 @@ impl ProfileUpdateInternal {
             external_vault_connector_details: external_vault_connector_details
                 .or(source.external_vault_connector_details),
             billing_processor_id: billing_processor_id.or(source.billing_processor_id),
+            default_fallback_routing: default_fallback_routing.or(source.default_fallback_routing),
         }
     }
 }
