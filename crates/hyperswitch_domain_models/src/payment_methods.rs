@@ -9,12 +9,10 @@ use common_enums::enums::MerchantStorageScheme;
 #[cfg(feature = "v1")]
 use common_utils::crypto::OptionalEncryptableValue;
 #[cfg(feature = "v2")]
-use common_utils::{
-    crypto::Encryptable, encryption::Encryption, ext_traits::OptionExt,
-    types::keymanager::ToEncryptable,
-};
+use common_utils::{crypto::Encryptable, encryption::Encryption, types::keymanager::ToEncryptable};
 use common_utils::{
     errors::{CustomResult, ParsingError, ValidationError},
+    ext_traits::OptionExt,
     id_type, pii, type_name,
     types::{keymanager, CreatedBy},
 };
@@ -58,7 +56,8 @@ impl VaultId {
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug)]
 pub struct PaymentMethod {
-    pub customer_id: id_type::CustomerId,
+    /// Customer_id is made optional to support guest checkout flow when modular pm is enabled
+    pub customer_id: Option<id_type::CustomerId>,
     pub merchant_id: id_type::MerchantId,
     pub payment_method_id: String,
     pub accepted_currency: Option<Vec<storage_enums::Currency>>,
@@ -414,8 +413,9 @@ impl super::behaviour::Conversion for PaymentMethod {
     type NewDstType = diesel_models::payment_method::PaymentMethodNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         let (vault_type, external_vault_source) = self.vault_source_details.into();
+        // Note: caller must ensure customer_id is not null before calling convert as storage model requires it.
         Ok(Self::DstType {
-            customer_id: self.customer_id,
+            customer_id: self.customer_id.get_required_value("customer_id")?,
             merchant_id: self.merchant_id,
             payment_method_id: self.payment_method_id,
             accepted_currency: self.accepted_currency,
@@ -558,8 +558,9 @@ impl super::behaviour::Conversion for PaymentMethod {
         ))?;
 
         // Construct the domain type
+        // Storage always has customer_id, wrap in Some for domain
         Ok(Self {
-            customer_id: item.customer_id,
+            customer_id: Some(item.customer_id),
             merchant_id: item.merchant_id,
             payment_method_id: item.payment_method_id,
             accepted_currency: item.accepted_currency,
@@ -607,8 +608,9 @@ impl super::behaviour::Conversion for PaymentMethod {
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         let (vault_type, external_vault_source) = self.vault_source_details.into();
+        // Note: caller must ensure customer_id is not null before calling convert as storage model requires it.
         Ok(Self::NewDstType {
-            customer_id: self.customer_id,
+            customer_id: self.customer_id.get_required_value("customer_id")?,
             merchant_id: self.merchant_id,
             payment_method_id: self.payment_method_id,
             accepted_currency: self.accepted_currency,
@@ -665,7 +667,7 @@ impl super::behaviour::Conversion for PaymentMethod {
     type NewDstType = diesel_models::payment_method::PaymentMethodNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(Self::DstType {
-            customer_id: self.customer_id.get_required_value("GlobalCustomerId")?,
+            customer_id: self.customer_id,
             merchant_id: self.merchant_id,
             id: self.id,
             created_at: self.created_at,
@@ -791,7 +793,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .attach_printable("Error while deserializing External Vault Token Data")?;
 
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
-                customer_id: Some(storage_model.customer_id),
+                customer_id: storage_model.customer_id,
                 merchant_id: storage_model.merchant_id,
                 id: storage_model.id,
                 created_at: storage_model.created_at,
@@ -836,7 +838,7 @@ impl super::behaviour::Conversion for PaymentMethod {
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         Ok(Self::NewDstType {
-            customer_id: self.customer_id.get_required_value("GlobalCustomerId")?,
+            customer_id: self.customer_id,
             merchant_id: self.merchant_id,
             id: self.id,
             created_at: self.created_at,
@@ -1545,7 +1547,7 @@ mod tests {
         mandate_data: Option<serde_json::Value>,
     ) -> PaymentMethod {
         let payment_method = PaymentMethod {
-            customer_id: id_type::CustomerId::default(),
+            customer_id: Some(id_type::CustomerId::default()),
             merchant_id: id_type::MerchantId::default(),
             payment_method_id: String::from("abc"),
             accepted_currency: None,

@@ -688,7 +688,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
         .insert_payment_method(
             provider.get_key_store(),
             domain_pm::PaymentMethod {
-                customer_id: customer_id.to_owned(),
+                customer_id: Some(customer_id.to_owned()),
                 merchant_id: merchant_id.to_owned(),
                 payment_method_id: payment_method_id.to_string(),
                 locker_id: None,
