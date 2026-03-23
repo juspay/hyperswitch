@@ -69,7 +69,15 @@ impl OutgoingWebhookType for webhooks::OutgoingWebhook {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub(crate) struct OutgoingWebhookTrackingData {
+    /// Always the platform/provider merchant_id
     pub(crate) merchant_id: common_utils::id_type::MerchantId,
+    /// Processor merchant_id. Used to fetch the key store for event encryption/decryption.
+    pub(crate) processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    /// Whether the platform merchant initiated this payment.
+    /// `Some(true)`  → business profile belongs to the platform; use platform key store.
+    /// `Some(false)` → business profile belongs to the processor/connected merchant.
+    /// `None`        → legacy task; fall back to `merchant_id` key store.
+    pub(crate) is_platform_initiated: Option<bool>,
     pub(crate) business_profile_id: common_utils::id_type::ProfileId,
     pub(crate) event_type: enums::EventType,
     pub(crate) event_class: enums::EventClass,

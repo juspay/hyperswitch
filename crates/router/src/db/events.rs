@@ -1080,6 +1080,7 @@ mod tests {
                         .unwrap(),
                     }),
                     is_overall_delivery_successful: Some(false),
+                    processor_merchant_id: Some(merchant_id.to_owned()),
                 },
                 &merchant_key_store,
             )
@@ -1193,6 +1194,7 @@ mod tests {
                         .unwrap(),
                     }),
                     is_overall_delivery_successful: Some(false),
+                    processor_merchant_id: Some(merchant_id.to_owned()),
                 },
                 &merchant_key_store,
             )
@@ -1539,19 +1541,25 @@ mod tests {
             api_webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(expected_response));
 
         // Run 10 concurrent webhook creations
+        let processor_compatible_connector = platform
+            .get_processor()
+            .get_account()
+            .get_compatible_connector();
         let mut handles = vec![];
         for _ in 0..10 {
             let state_clone = state.clone();
-            let cloned_processor = platform.get_processor().clone();
             let business_profile_clone = business_profile.clone();
             let content_clone = content.clone();
             let primary_object_id_clone = primary_object_id.clone();
-
+            let provider_merchant_id = platform.get_provider().get_account().get_id().clone();
+            let processor = platform.get_processor().clone();
             let handle = tokio::spawn(async move {
                 webhooks_core::create_event_and_trigger_outgoing_webhook(
                     state_clone,
-                    cloned_processor,
+                    provider_merchant_id,
+                    &processor,
                     business_profile_clone,
+                    processor_compatible_connector,
                     event_type,
                     event_class,
                     (*primary_object_id_clone).to_string(),

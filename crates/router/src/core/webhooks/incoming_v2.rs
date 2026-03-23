@@ -561,8 +561,9 @@ async fn payments_incoming_webhook_flow(
                 // TODO: trigger an outgoing webhook to merchant
                 Box::pin(create_event_and_trigger_outgoing_webhook(
                     state,
+                    platform.get_provider().get_account().get_id().clone(),
+                    platform.get_processor(),
                     profile,
-                    platform.get_processor().get_key_store(),
                     outgoing_event_type,
                     enums::EventClass::Payments,
                     payment_id.get_string_repr().to_owned(),

@@ -438,6 +438,10 @@ pub struct OutgoingWebhook {
     #[schema(value_type = String)]
     pub merchant_id: common_utils::id_type::MerchantId,
 
+    /// The processor/connected merchant id, if applicable
+    #[schema(value_type = Option<String>)]
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+
     /// The unique event id for each webhook
     pub event_id: String,
 

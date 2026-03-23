@@ -1,11 +1,13 @@
 use std::marker::PhantomData;
 
 use base64::Engine;
+use common_enums::MerchantAccountType;
 use common_utils::{
     consts,
     crypto::{self, GenerateDigest},
     errors::CustomResult,
     ext_traits::ValueExt,
+    types::CreatedBy,
 };
 use error_stack::{Report, ResultExt};
 use redis_interface as redis;
@@ -268,6 +270,134 @@ where
         Err(err) => Err(err
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error acquiring redis lock")),
+    }
+}
+
+/// Fetches the default business profile for the provider merchant.
+#[cfg(feature = "v1")]
+async fn fetch_provider_profile(
+    state: &SessionState,
+    platform: &domain::Platform,
+) -> RouterResult<domain::Profile> {
+    let profile_id = platform
+        .get_provider()
+        .get_account()
+        .get_default_profile()
+        .as_ref()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Platform provider merchant has no default profile configured")?;
+    state
+        .store
+        .find_business_profile_by_profile_id(platform.get_provider().get_key_store(), profile_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch provider merchant default business profile")
+}
+
+/// Fetches the default business profile for the provider merchant.
+#[cfg(feature = "v2")]
+async fn fetch_provider_profile(
+    state: &SessionState,
+    platform: &domain::Platform,
+) -> RouterResult<domain::Profile> {
+    state
+        .store
+        .list_profile_by_merchant_id(
+            platform.get_provider().get_key_store(),
+            platform.get_provider().get_account().get_id(),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to list provider merchant profiles")?
+        .into_iter()
+        .next()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Platform provider merchant has no profiles configured")
+}
+
+/// Resolves the outgoing webhook recipient for **direct payment flows** where
+/// `platform.get_initiator()` is available at call time.
+///
+/// Returns `(business_profile, compatible_connector)` for the recipient:
+/// - If the platform merchant initiated → uses the provider's default profile and
+///   compatible connector.
+/// - Otherwise → use the processor's business profile
+///   and the compatible connector.
+pub(crate) async fn resolve_webhook_recipient_from_initiator(
+    state: &SessionState,
+    platform: &domain::Platform,
+    processor_profile: domain::Profile,
+) -> RouterResult<(domain::Profile, Option<api_models::enums::Connector>)> {
+    match platform.get_initiator() {
+        Some(domain::Initiator::Api {
+            merchant_account_type: MerchantAccountType::Platform,
+            ..
+        }) => {
+            let profile = fetch_provider_profile(state, platform).await?;
+            Ok((
+                profile,
+                platform
+                    .get_provider()
+                    .get_account()
+                    .get_compatible_connector(),
+            ))
+        }
+        Some(domain::Initiator::Api {
+            merchant_account_type: MerchantAccountType::Connected,
+            ..
+        })
+        | Some(domain::Initiator::Api {
+            merchant_account_type: MerchantAccountType::Standard,
+            ..
+        })
+        | Some(domain::Initiator::Jwt { .. })
+        | Some(domain::Initiator::EmbeddedToken { .. })
+        | Some(domain::Initiator::Admin)
+        | None => Ok((
+            processor_profile,
+            platform
+                .get_processor()
+                .get_account()
+                .get_compatible_connector(),
+        )),
+    }
+}
+
+/// Resolves the outgoing webhook recipient for the **incoming webhook flow** where the initiator
+/// must be inferred from the `created_by` field stored on the payment object.
+///
+/// Returns `(business_profile, compatible_connector)` for the recipient:
+/// - If `created_by` holds a merchant ID that exactly matches the platform **provider** merchant
+///   ID → fetches the provider's default business profile and routes the webhook there.
+/// - Otherwise (JWT, absent `created_by`, same merchant as processor, or any unrecognised ID)
+///   → falls back to the processor's business profile and compatible connector.
+pub(crate) async fn resolve_webhook_recipient_from_created_by(
+    state: &SessionState,
+    platform: &domain::Platform,
+    processor_profile: domain::Profile,
+    created_by: Option<&CreatedBy>,
+) -> RouterResult<(domain::Profile, Option<api_models::enums::Connector>)> {
+    let is_provider_initiated = created_by
+        .map(|c| c.is_provider_initiated(platform.get_provider().get_account().get_id()))
+        .unwrap_or_default();
+
+    if is_provider_initiated {
+        let profile = fetch_provider_profile(state, platform).await?;
+        Ok((
+            profile,
+            platform
+                .get_provider()
+                .get_account()
+                .get_compatible_connector(),
+        ))
+    } else {
+        Ok((
+            processor_profile,
+            platform
+                .get_processor()
+                .get_account()
+                .get_compatible_connector(),
+        ))
     }
 }
 

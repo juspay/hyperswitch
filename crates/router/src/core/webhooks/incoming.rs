@@ -12,7 +12,7 @@ use common_utils::{
     errors::ReportSwitchExt,
     events::ApiEventsType,
     ext_traits::{AsyncExt, ByteSliceExt},
-    types::{AmountConvertor, StringMinorUnitForConnector},
+    types::{AmountConvertor, CreatedBy, StringMinorUnitForConnector},
 };
 use diesel_models::{refund as diesel_refund, ConnectorMandateReferenceId};
 use error_stack::{report, ResultExt};
@@ -1587,10 +1587,20 @@ async fn payments_incoming_webhook_flow(
             // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
             if let Some(outgoing_event_type) = event_type {
                 let primary_object_created_at = payments_response.created;
+                let (resolved_business_profile, compatible_connector) =
+                    utils::resolve_webhook_recipient_from_created_by(
+                        &state,
+                        &platform,
+                        business_profile,
+                        payment_attempt.created_by.as_ref(),
+                    )
+                    .await?;
                 Box::pin(super::create_event_and_trigger_outgoing_webhook(
                     state,
-                    platform.get_processor().clone(),
-                    business_profile,
+                    platform.get_provider().get_account().get_id().clone(),
+                    platform.get_processor(),
+                    resolved_business_profile,
+                    compatible_connector,
                     outgoing_event_type,
                     enums::EventClass::Payments,
                     payment_id.get_string_repr().to_owned(),
@@ -1890,10 +1900,20 @@ async fn payout_incoming_webhook_update_status(
         let payout_create_response =
             payouts::response_handler(&state, &platform, payout_data).await?;
 
+        let (resolved_business_profile, compatible_connector) =
+            utils::resolve_webhook_recipient_from_created_by(
+                &state,
+                &platform,
+                business_profile,
+                payout_data.payout_attempt.created_by.as_ref(),
+            )
+            .await?;
         Box::pin(super::create_event_and_trigger_outgoing_webhook(
             state,
-            platform.get_processor().clone(),
-            business_profile,
+            platform.get_provider().get_account().get_id().clone(),
+            platform.get_processor(),
+            resolved_business_profile,
+            compatible_connector,
             outgoing_event_type,
             enums::EventClass::Payouts,
             payout_data
@@ -1959,10 +1979,20 @@ async fn payout_incoming_webhook_retrieve_status(
     if let Some(outgoing_event_type) = event_type {
         let payout_response = payouts::response_handler(&state, &platform, payout_data).await?;
 
+        let (resolved_business_profile, compatible_connector) =
+            utils::resolve_webhook_recipient_from_created_by(
+                &state,
+                &platform,
+                business_profile,
+                payout_data.payout_attempt.created_by.as_ref(),
+            )
+            .await?;
         Box::pin(super::create_event_and_trigger_outgoing_webhook(
             state,
-            platform.get_processor().clone(),
-            business_profile,
+            platform.get_provider().get_account().get_id().clone(),
+            platform.get_processor(),
+            resolved_business_profile,
+            compatible_connector,
             outgoing_event_type,
             enums::EventClass::Payouts,
             payout_data
@@ -2186,10 +2216,24 @@ async fn refunds_incoming_webhook_flow(
     if let Some(outgoing_event_type) = event_type {
         let refund_response: api_models::refunds::RefundResponse =
             updated_refund.clone().foreign_into();
+        let refund_created_by = updated_refund
+            .created_by
+            .as_deref()
+            .map(|s| s.parse::<CreatedBy>().unwrap_or(CreatedBy::Invalid));
+        let (resolved_business_profile, compatible_connector) =
+            utils::resolve_webhook_recipient_from_created_by(
+                &state,
+                &platform,
+                business_profile,
+                refund_created_by.as_ref(),
+            )
+            .await?;
         Box::pin(super::create_event_and_trigger_outgoing_webhook(
             state,
-            platform.get_processor().clone(),
-            business_profile,
+            platform.get_provider().get_account().get_id().clone(),
+            platform.get_processor(),
+            resolved_business_profile,
+            compatible_connector,
             outgoing_event_type,
             enums::EventClass::Refunds,
             refund_id,
@@ -2532,10 +2576,20 @@ async fn external_authentication_incoming_webhook_flow(
                         // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
                         if let Some(outgoing_event_type) = event_type {
                             let primary_object_created_at = payments_response.created;
+                            let (resolved_business_profile, compatible_connector) =
+                                utils::resolve_webhook_recipient_from_created_by(
+                                    &state,
+                                    &platform,
+                                    business_profile,
+                                    updated_authentication.created_by.as_ref(),
+                                )
+                                .await?;
                             Box::pin(super::create_event_and_trigger_outgoing_webhook(
                                 state,
-                                platform.get_processor().clone(),
-                                business_profile,
+                                platform.get_provider().get_account().get_id().clone(),
+                                platform.get_processor(),
+                                resolved_business_profile,
+                                compatible_connector,
                                 outgoing_event_type,
                                 enums::EventClass::Payments,
                                 payment_id.get_string_repr().to_owned(),
@@ -2630,10 +2684,18 @@ async fn mandates_incoming_webhook_flow(
         );
         let event_type: Option<enums::EventType> = updated_mandate.mandate_status.into();
         if let Some(outgoing_event_type) = event_type {
+            // TODO(platform-webhooks): Route webhook to initiator once mandate tables gain
+            // `created_by`. Mandates have no direct payment_id link to payment_intent and
+            // the mandates table lacks created_by, so initiator cannot be inferred.
             Box::pin(super::create_event_and_trigger_outgoing_webhook(
                 state,
-                platform.get_processor().clone(),
+                platform.get_provider().get_account().get_id().clone(),
+                platform.get_processor(),
                 business_profile,
+                platform
+                    .get_processor()
+                    .get_account()
+                    .get_compatible_connector(),
                 outgoing_event_type,
                 enums::EventClass::Mandates,
                 updated_mandate.mandate_id.clone(),
@@ -2739,10 +2801,20 @@ async fn frm_incoming_webhook_flow(
                 let event_type: Option<enums::EventType> = payments_response.status.into();
                 if let Some(outgoing_event_type) = event_type {
                     let primary_object_created_at = payments_response.created;
+                    let (resolved_business_profile, compatible_connector) =
+                        utils::resolve_webhook_recipient_from_created_by(
+                            &state,
+                            &platform,
+                            business_profile,
+                            payment_attempt.created_by.as_ref(),
+                        )
+                        .await?;
                     Box::pin(super::create_event_and_trigger_outgoing_webhook(
                         state,
-                        platform.get_processor().clone(),
-                        business_profile,
+                        platform.get_provider().get_account().get_id().clone(),
+                        platform.get_processor(),
+                        resolved_business_profile,
+                        compatible_connector,
                         outgoing_event_type,
                         enums::EventClass::Payments,
                         payment_id.get_string_repr().to_owned(),
@@ -2821,7 +2893,7 @@ async fn disputes_incoming_webhook_flow(
             option_dispute.clone(),
             dispute_details,
             platform.get_processor().get_account().get_id(),
-            &platform.get_processor().get_account().organization_id,
+            platform.get_processor().get_account().get_org_id(),
             platform.get_initiator(),
             &payment_attempt,
             dispute_status,
@@ -2872,10 +2944,24 @@ async fn disputes_incoming_webhook_flow(
         let disputes_response = Box::new(dispute_object.clone().foreign_into());
         let event_type: enums::EventType = dispute_object.dispute_status.into();
 
+        let dispute_created_by = dispute_object
+            .created_by
+            .as_deref()
+            .map(|s| s.parse::<CreatedBy>().unwrap_or(CreatedBy::Invalid));
+        let (resolved_business_profile, compatible_connector) =
+            utils::resolve_webhook_recipient_from_created_by(
+                &state,
+                &platform,
+                business_profile,
+                dispute_created_by.as_ref(),
+            )
+            .await?;
         Box::pin(super::create_event_and_trigger_outgoing_webhook(
             state,
-            platform.get_processor().clone(),
-            business_profile,
+            platform.get_provider().get_account().get_id().clone(),
+            platform.get_processor(),
+            resolved_business_profile,
+            compatible_connector,
             event_type,
             enums::EventClass::Disputes,
             dispute_object.dispute_id.clone(),
@@ -2907,13 +2993,15 @@ async fn bank_transfer_webhook_flow(
     webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
-    let response = if source_verified {
+    let (response, payment_attempt_created_by) = if source_verified {
         let payment_attempt = get_payment_attempt_from_object_reference_id(
             &state,
             webhook_details.object_reference_id,
             platform.get_processor(),
         )
         .await?;
+        // Extract `created_by` before `payment_attempt` is partially moved below.
+        let created_by = payment_attempt.created_by;
         let payment_id = payment_attempt.payment_id;
         let request = api::PaymentsRequest {
             payment_id: Some(api_models::payments::PaymentIdType::PaymentIntentId(
@@ -2922,7 +3010,7 @@ async fn bank_transfer_webhook_flow(
             payment_token: payment_attempt.payment_token,
             ..Default::default()
         };
-        Box::pin(payments::payments_core::<
+        let response = Box::pin(payments::payments_core::<
             api::Authorize,
             api::PaymentsResponse,
             _,
@@ -2942,11 +3030,15 @@ async fn bank_transfer_webhook_flow(
             None,
             HeaderPayload::with_source(common_enums::PaymentSource::Webhook),
         ))
-        .await
+        .await;
+        (response, created_by)
     } else {
-        Err(report!(
-            errors::ApiErrorResponse::WebhookAuthenticationFailed
-        ))
+        (
+            Err(report!(
+                errors::ApiErrorResponse::WebhookAuthenticationFailed
+            )),
+            None,
+        )
     };
 
     match response? {
@@ -2959,10 +3051,20 @@ async fn bank_transfer_webhook_flow(
             // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
             if let Some(outgoing_event_type) = event_type {
                 let primary_object_created_at = payments_response.created;
+                let (resolved_business_profile, compatible_connector) =
+                    utils::resolve_webhook_recipient_from_created_by(
+                        &state,
+                        &platform,
+                        business_profile,
+                        payment_attempt_created_by.as_ref(),
+                    )
+                    .await?;
                 Box::pin(super::create_event_and_trigger_outgoing_webhook(
                     state,
-                    platform.get_processor().clone(),
-                    business_profile,
+                    platform.get_provider().get_account().get_id().clone(),
+                    platform.get_processor(),
+                    resolved_business_profile,
+                    compatible_connector,
                     outgoing_event_type,
                     enums::EventClass::Payments,
                     payment_id.get_string_repr().to_owned(),
@@ -3174,9 +3276,9 @@ async fn update_additional_payment_method_data(
 
     let pm = db
         .find_payment_method(
-            platform.get_processor().get_key_store(),
+            platform.get_provider().get_key_store(),
             payment_method_id.as_str(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_provider().get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
@@ -3233,9 +3335,9 @@ async fn update_connector_mandate_details(
             let payment_method_info = state
                 .store
                 .find_payment_method(
-                    platform.get_processor().get_key_store(),
+                    platform.get_provider().get_key_store(),
                     payment_method_id,
-                    platform.get_processor().get_account().storage_scheme,
+                    platform.get_provider().get_account().storage_scheme,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
