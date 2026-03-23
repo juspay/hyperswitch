@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use aws_smithy_types::Document;
 use common_utils::{errors::CustomResult, fp_utils::when};
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 
 /// Trait for converting Rust types to Superposition Document for write operations
 pub trait ToDocument {

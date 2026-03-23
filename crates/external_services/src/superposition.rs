@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use aws_smithy_types::Document;
 use common_utils::{errors::CustomResult, id_type::TargetingKey};
 use error_stack::report;
-use masking::ExposeInterface;
+use hyperswitch_masking::ExposeInterface;
 
 pub use self::types::{ConfigContext, SuperpositionClientConfig, SuperpositionError, ToDocument};
 use crate::config_metrics;

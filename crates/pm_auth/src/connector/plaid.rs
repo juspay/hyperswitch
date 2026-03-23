@@ -7,7 +7,7 @@ use common_utils::{
     request::{Method, Request, RequestBuilder, RequestContent},
 };
 use error_stack::ResultExt;
-use masking::{Mask, Maskable};
+use hyperswitch_masking::{Mask, Maskable};
 use transformers as plaid;
 
 use crate::{
