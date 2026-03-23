@@ -1883,7 +1883,8 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add("paymentMethodsCallTest", (globalState) => {
+Cypress.Commands.add("paymentMethodsCallTest", (globalState, data = null) => {
+  const resData = data?.Response || data;
   const clientSecret = globalState.get("clientSecret");
   const paymentIntentID = clientSecret.split("_secret_")[0];
 
@@ -1899,6 +1900,25 @@ Cypress.Commands.add("paymentMethodsCallTest", (globalState) => {
 
     cy.wrap(response).then(() => {
       expect(response.headers["content-type"]).to.include("application/json");
+
+      // Verify response against config data if provided (only check fields defined in config)
+      if (resData?.body) {
+        for (const key in resData.body) {
+          expect(response.body[key], [key]).to.deep.equal(resData.body[key]);
+        }
+      }
+
+      // Verify intent_data if provided in config (for installment tests)
+      if (resData?.intent_data) {
+        expect(response.body.intent_data, "intent_data").to.exist;
+        for (const key in resData.intent_data) {
+          expect(
+            response.body.intent_data[key],
+            `intent_data.${key}`
+          ).to.deep.equal(resData.intent_data[key]);
+        }
+      }
+
       expect(response.body).to.have.property("redirect_url");
       expect(response.body).to.have.property("payment_methods");
       if (
