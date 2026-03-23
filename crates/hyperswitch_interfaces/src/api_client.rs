@@ -15,7 +15,7 @@ use hyperswitch_domain_models::{
     errors::api_error_response,
     router_data::{ErrorResponse, RouterData},
 };
-use masking::Maskable;
+use hyperswitch_masking::Maskable;
 use reqwest::multipart::Form;
 use router_env::{instrument, logger, tracing, RequestId};
 use serde_json::json;
@@ -80,8 +80,8 @@ where
         &self,
         method: Method,
         url: String,
-        certificate: Option<masking::Secret<String>>,
-        certificate_key: Option<masking::Secret<String>>,
+        certificate: Option<hyperswitch_masking::Secret<String>>,
+        certificate_key: Option<hyperswitch_masking::Secret<String>>,
     ) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError>;
 
     /// Send a request and return the response
@@ -253,12 +253,12 @@ where
                         get_flow_name::<T>().unwrap_or_else(|_| "UnknownFlow".to_string());
                     request.headers.insert((
                         X_FLOW_NAME.to_string(),
-                        Maskable::Masked(masking::Secret::new(flow_name.to_string())),
+                        Maskable::Masked(hyperswitch_masking::Secret::new(flow_name.to_string())),
                     ));
                     let connector_name = req.connector.clone();
                     request.headers.insert((
                         X_CONNECTOR_NAME.to_string(),
-                        Maskable::Masked(masking::Secret::new(connector_name.clone().to_string())),
+                        Maskable::Masked(hyperswitch_masking::Secret::new(connector_name.clone().to_string())),
                     ));
                     state.get_request_id().as_ref().map(|id| {
                         let request_id = id.to_string();
@@ -585,7 +585,7 @@ where
         if decoded.starts_with('\u{feff}') {
             decoded = decoded.trim_start_matches('\u{feff}').to_string();
         }
-        router_data.raw_connector_response = Some(masking::Secret::new(decoded));
+        router_data.raw_connector_response = Some(hyperswitch_masking::Secret::new(decoded));
     }
     Ok(())
 }
