@@ -1670,18 +1670,16 @@ pub fn build_unified_connector_service_auth_metadata(
 
     let merchant_id = processor.get_account().get_id().get_string_repr();
 
-    // Extract connector metadata for connector-specific config
-    let connector_metadata = merchant_connector_account.get_metadata();
-    let connector_metadata_value = connector_metadata
+    // Extract connector metadata from MCA for connector-specific config
+    let merchant_account_metadata = merchant_connector_account.get_metadata();
+    let merchant_account_metadata_value = merchant_account_metadata
         .as_ref()
         .and_then(|m| serde_json::to_value(m.clone().expose()).ok());
     // Build connector-specific config for supported connectors
-    // Errors are propagated since connector credentials are important
-    // Unsupported connectors return None (no config needed)
     let connector_config = connector_config::build_connector_config_header(
         &connector_name,
         &auth_type,
-        connector_metadata_value.as_ref(),
+        merchant_account_metadata_value.as_ref(),
     )
     .change_context(UnifiedConnectorServiceError::FailedToObtainAuthType)
     .attach_printable("Failed to build connector config header")?
