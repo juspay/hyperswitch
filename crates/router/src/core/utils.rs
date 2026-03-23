@@ -809,6 +809,17 @@ pub fn get_split_refunds(
                         Ok(None)
                     }
                 }
+                // If charges data is unavailable, pass through merchant-provided split refund data without validation
+                (
+                    None,
+                    Some(common_types::refunds::SplitRefund::XenditSplitRefund(
+                        split_refund_request,
+                    )),
+                ) => Ok(Some(
+                    router_request_types::SplitRefundsRequest::XenditSplitRefund(
+                        split_refund_request.clone(),
+                    ),
+                )),
                 _ => Ok(None),
             }
         }
