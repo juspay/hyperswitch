@@ -2220,6 +2220,12 @@ Cypress.Commands.add(
                         .to.have.property("next_action")
                         .to.have.property("type")
                         .to.equal("wait_screen_information");
+                    } else if (
+                      connectorId === "stripe" &&
+                      response.body.payment_method_type === "blik"
+                    ) {
+                      expect(response.body).to.have.property("next_action").to
+                        .be.null;
                     } else {
                       expect(response.body)
                         .to.have.property("next_action")
