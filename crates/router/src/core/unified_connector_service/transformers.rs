@@ -41,7 +41,7 @@ pub use hyperswitch_interfaces::{
         WebhookTransformationStatus,
     },
 };
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::tracing;
 use time::{Duration, OffsetDateTime};
 use unified_connector_service_cards::{CardNumber, NetworkToken};
@@ -49,7 +49,6 @@ use unified_connector_service_client::payments::{
     self as payments_grpc, session_token, ConnectorState, EventServiceHandleRequest,
     EventServiceHandleResponse,
 };
-use unified_connector_service_masking::ExposeInterface as UcsMaskingExposeInterface;
 
 use crate::{
     core::{errors, mandate::MandateBehaviour, unified_connector_service},
@@ -314,9 +313,7 @@ impl
                 .payment_method_token
                 .as_ref()
                 .and_then(|payment_method_token| payment_method_token.get_payment_method_token())
-                .map(|payment_method_token| {
-                    unified_connector_service_masking::Secret::new(payment_method_token.expose())
-                }),
+                .map(|payment_method_token| Secret::new(payment_method_token.expose())),
             description: router_data.description.clone(),
             setup_mandate_details: router_data
                 .request
@@ -521,9 +518,7 @@ impl
                 .payment_method_token
                 .as_ref()
                 .and_then(|payment_method_token| payment_method_token.get_payment_method_token())
-                .map(|payment_method_token| {
-                    unified_connector_service_masking::Secret::new(payment_method_token.expose())
-                }),
+                .map(|payment_method_token| Secret::new(payment_method_token.expose())),
             description: router_data.description.clone(),
             setup_mandate_details: router_data
                 .request
@@ -1689,9 +1684,7 @@ impl
                 .payment_method_token
                 .as_ref()
                 .and_then(|payment_method_token| payment_method_token.get_payment_method_token())
-                .map(|payment_method_token| {
-                    unified_connector_service_masking::Secret::new(payment_method_token.expose())
-                }),
+                .map(|payment_method_token| Secret::new(payment_method_token.expose())),
             merchant_recurring_payment_id: router_data.connector_request_reference_id.clone(),
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
@@ -1770,10 +1763,13 @@ impl
                 .transpose()?
                 .map(|payment_channel| payment_channel.into()),
             locale: None,
-            connector_testing_data: router_data.request.connector_testing_data.as_ref().map(
-                |data| unified_connector_service_masking::Secret::new(data.peek().to_string()),
-            ),
+            connector_testing_data: router_data
+                .request
+                .connector_testing_data
+                .as_ref()
+                .map(|data| Secret::new(data.peek().to_string())),
             l2_l3_data: None,
+            setup_mandate_details: None,
         })
     }
 }
@@ -1954,16 +1950,16 @@ impl
             authentication_data,
             connector_feature_data: None,
             locale: router_data.request.locale.clone(),
-            connector_testing_data: router_data.request.connector_testing_data.as_ref().map(
-                |data| unified_connector_service_masking::Secret::new(data.peek().to_string()),
-            ),
-            merchant_account_id: router_data.request.merchant_account_id.as_ref().map(
-                |merchant_account_id| {
-                    unified_connector_service_masking::Secret::new(
-                        merchant_account_id.clone().expose(),
-                    )
-                },
-            ),
+            connector_testing_data: router_data
+                .request
+                .connector_testing_data
+                .as_ref()
+                .map(|data| Secret::new(data.peek().to_string())),
+            merchant_account_id: router_data
+                .request
+                .merchant_account_id
+                .as_ref()
+                .map(|merchant_account_id| Secret::new(merchant_account_id.clone().expose())),
             merchant_configured_currency: router_data
                 .request
                 .merchant_config_currency
@@ -5303,6 +5299,8 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
                     mandate_type: Some(payments_grpc::mandate_type::MandateType::SingleUse(
                         payments_grpc::MandateAmountData {
                             amount: amount_data.amount.get_amount_as_i64(),
+                            amount_type: None,
+                            frequency: None,
                             currency: payments_grpc::Currency::foreign_try_from(
                                 amount_data.currency,
                             )
@@ -5322,6 +5320,8 @@ impl transformers::ForeignTryFrom<&MandateData> for payments_grpc::SetupMandateD
                         payments_grpc::mandate_type::MandateType::MultiUse(
                             payments_grpc::MandateAmountData {
                                 amount: amount_data.amount.get_amount_as_i64(),
+                                amount_type: None,
+                                frequency: None,
                                 currency: payments_grpc::Currency::foreign_try_from(
                                     amount_data.currency,
                                 )
