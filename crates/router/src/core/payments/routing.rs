@@ -2063,15 +2063,14 @@ pub async fn refresh_cgraph_cache(
         .into_iter()
         .filter(|(key, _)| key != "default")
         .map(|(key, value)| {
-            let key = api_enums::RoutableConnectors::from_str(&key)
-                .map_err(|error| {
-                    logger::error!(
-                        error=?error,
-                        connector_name = %key,
-                        "euclid: invalid connector name in pm_filters config"
-                    );
-                    errors::RoutingError::InvalidConnectorName(key)
-                })?;
+            let key = api_enums::RoutableConnectors::from_str(&key).map_err(|error| {
+                logger::error!(
+                    error=?error,
+                    connector_name = %key,
+                    "euclid: invalid connector name in pm_filters config"
+                );
+                errors::RoutingError::InvalidConnectorName(key)
+            })?;
 
             Ok((key, value.foreign_into()))
         })
