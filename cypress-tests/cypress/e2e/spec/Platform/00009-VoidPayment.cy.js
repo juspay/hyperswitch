@@ -151,7 +151,10 @@ describe("Platform - Card Void Payment flow test", () => {
 
         globalState.set("apiKey", globalState.get("apiKey_CM1"));
         globalState.set("profileId", globalState.get("profileId_CM1"));
-        globalState.set("publishableKey", globalState.get("publishableKey_CM1"));
+        globalState.set(
+          "publishableKey",
+          globalState.get("publishableKey_CM1")
+        );
         globalState.set("connectorId", "stripe");
         globalState.set(
           "merchantConnectorId",
@@ -241,9 +244,9 @@ describe("Platform - Card Void Payment flow test", () => {
             cy.task("cli_log", "Skipping step: Void Payment without Capture");
             return;
           }
-          const voidData = getConnectorDetails(
-            globalState.get("connectorId")
-          )["card_pm"]["VoidAfterConfirm"];
+          const voidData = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["VoidAfterConfirm"];
 
           cy.voidCallTest(fixtures.voidBody, voidData, globalState);
         });
@@ -346,7 +349,10 @@ describe("Platform - Card Void Payment flow test", () => {
 
         globalState.set("apiKey", globalState.get("apiKey_CM1"));
         globalState.set("profileId", globalState.get("profileId_CM1"));
-        globalState.set("publishableKey", globalState.get("publishableKey_CM1"));
+        globalState.set(
+          "publishableKey",
+          globalState.get("publishableKey_CM1")
+        );
         globalState.set("connectorId", "stripe");
         globalState.set(
           "merchantConnectorId",
@@ -399,9 +405,9 @@ describe("Platform - Card Void Payment flow test", () => {
             );
             return;
           }
-          const voidData = getConnectorDetails(
-            globalState.get("connectorId")
-          )["card_pm"]["Void"];
+          const voidData = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["Void"];
 
           cy.voidCallTest(fixtures.voidBody, voidData, globalState);
         });
