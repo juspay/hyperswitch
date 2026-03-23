@@ -254,17 +254,22 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 let (uas_connector, _) =
                     get_connector_by_connector_name(&state, UNIFIED_AUTHENTICATION_SERVICE, None)?;
 
-            let webhook_processing_result = Box::pin(process_uas_incoming_webhook(
-                &state,
-                &request_details,
-                connector_name.clone(),
-                uas_connector.clone(),
-                platform.clone(),
-            ))
-            .await;
+                let webhook_processing_result = Box::pin(process_uas_incoming_webhook(
+                    &state,
+                    &request_details,
+                    connector_name.clone(),
+                    uas_connector.clone(),
+                    platform.clone(),
+                ))
+                .await;
 
-            (uas_connector, connector_name, webhook_processing_result, mca_data.merchant_connector_account.clone())
-        }
+                (
+                    uas_connector,
+                    connector_name,
+                    webhook_processing_result,
+                    mca_data.merchant_connector_account.clone(),
+                )
+            }
             ThreeDsProcessingMode::Direct(ref mca_data) => {
                 let connector = mca_data.connector.clone();
                 let connector_name = mca_data.connector_name.clone();
