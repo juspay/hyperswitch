@@ -13,7 +13,6 @@ use std::{
     borrow::Cow,
     fmt::Display,
     iter::Sum,
-    net::ToSocketAddrs,
     num::{NonZeroI64, NonZeroU8},
     ops::{Add, Div, Mul, Sub},
     primitive::i64,
@@ -739,33 +738,6 @@ impl Url {
             .clone();
         Self(url)
     }
-
-    /// Validate the return URL provided in the ReportRequest payload
-    /// Validating the URL upfront means we immediately reject invalid URLs with a 400 Bad Request.
-    /// This prevents us from unnecessarily spinning up a Lambda worker, executing expensive database queries,
-    /// and generating a report that the infrastructure would just end up blocking anyway.
-    /// It saves compute costs and gives the merchant immediate feedback.
-    pub fn validate_return_url(&self) -> Result<(), String> {
-        let parsed = &self.0;
-        // Validate scheme - only HTTPS allowed
-        if parsed.scheme() != "https" {
-            return Err("Invalid URL scheme. The scheme must be HTTPS.".to_string());
-        }
-
-        // Get host
-        let host = parsed
-            .host_str()
-            .ok_or_else(|| "URL must have a host.".to_string())?;
-
-        // DNS resolution and IP validation
-        let host_with_port = format!("{}:443", host);
-        // Resolve the host to its actual IP addresses
-        let _socket_addrs = host_with_port
-            .to_socket_addrs()
-            .map_err(|_| "Failed to resolve hostname".to_string())?;
-
-        Ok(())
-    }
 }
 
 impl<DB> ToSql<sql_types::Text, DB> for Url
@@ -788,6 +760,60 @@ where
         let val = String::from_sql(value)?;
         let url = url::Url::parse(&val)?;
         Ok(Self(url))
+    }
+}
+
+#[derive(
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    ToSchema,
+    PartialOrd,
+)]
+/// This domain type is specifically for merchant webhook URLs with validation
+pub struct MerchantWebhookUrl(url::Url);
+
+impl MerchantWebhookUrl {
+    /// Get string representation of the URL
+    pub fn get_string_repr(&self) -> &str {
+        self.0.as_str()
+    }
+
+    /// Wrap a url::Url in MerchantWebhookUrl type
+    pub fn wrap(url: url::Url) -> Self {
+        Self(url)
+    }
+
+    /// Get the inner url::Url
+    pub fn into_inner(self) -> url::Url {
+        self.0
+    }
+
+    /// Verify the URL scheme based on runtime environment
+    pub fn verify_https_scheme(&self) -> Result<(), String> {
+        let scheme = self.0.scheme().to_lowercase();
+
+        #[cfg(debug_assertions)]
+        {
+            // Debug builds: allow HTTP
+            if scheme == "https" || scheme == "http" {
+                return Ok(());
+            }
+        }
+
+        #[cfg(not(debug_assertions))]
+        {
+            // Release builds: HTTPS only
+            if scheme == "https" {
+                return Ok(());
+            }
+        }
+
+        Err("URL scheme must be HTTPS".to_string())
     }
 }
 

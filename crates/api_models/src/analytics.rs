@@ -4,7 +4,7 @@ pub use common_utils::types::TimeRange;
 use common_utils::{
     events::ApiEventMetric,
     pii::Email,
-    types::{authentication::AuthInfo, Url},
+    types::{authentication::AuthInfo, MerchantWebhookUrl},
 };
 
 use self::{
@@ -155,7 +155,7 @@ pub struct ReportRequest {
     pub time_range: TimeRange,
     pub emails: Option<Vec<Email>>,
     #[serde(default)]
-    pub return_url: Option<Url>,
+    pub return_url: Option<MerchantWebhookUrl>,
     #[cfg(feature = "v2")]
     #[serde(default)]
     pub report_type: ReportType,
