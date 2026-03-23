@@ -18,7 +18,7 @@ use diesel::{
     serialize::{Output, ToSql},
     sql_types::Text,
 };
-use masking::Secret;
+use hyperswitch_masking::Secret;
 pub use payments::ProductType;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use smithy::SmithyModel;
@@ -2528,7 +2528,7 @@ impl PaymentMethodType {
     }
 }
 
-impl masking::SerializableSecret for PaymentMethodType {}
+impl hyperswitch_masking::SerializableSecret for PaymentMethodType {}
 
 /// Indicates the type of payment method. Eg: 'card', 'wallet', etc.
 #[derive(
@@ -3183,6 +3183,26 @@ pub enum PanOrToken {
 pub enum CardType {
     Credit,
     Debit,
+}
+
+// TODO: This enum will be updated with all card subtype values
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumIter,
+    strum::EnumString,
+    utoipa::ToSchema,
+    Copy,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum CardSubtype {
+    Platinum,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, strum::EnumString, strum::Display)]

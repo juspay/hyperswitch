@@ -3,7 +3,7 @@ pub mod models {
 
     use async_trait::async_trait;
     use common_utils::pii::SecretSerdeValue;
-    use masking::Secret;
+    use hyperswitch_masking::Secret;
     use router_env::logger;
     use serde::{Deserialize, Serialize};
 
