@@ -4,6 +4,33 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.03.23.0
+
+### Features
+
+- **Connector:** [stripe] External 3ds authentication ([#11499](https://github.com/juspay/hyperswitch/pull/11499)) ([`9c09756`](https://github.com/juspay/hyperswitch/commit/9c0975674cfb151382d48371f14aa0be5866d5e9))
+- **connector:**
+  - [SANTANDER] Added support for additional fields in Boleto ([#11359](https://github.com/juspay/hyperswitch/pull/11359)) ([`e0acca1`](https://github.com/juspay/hyperswitch/commit/e0acca197cfaa5eb01d0da50f384786754e92391))
+  - [Noon] Add support for configurable region_based_endpoint while creating mca ([#11564](https://github.com/juspay/hyperswitch/pull/11564)) ([`72f003d`](https://github.com/juspay/hyperswitch/commit/72f003d4fed840f3f4d047e8e1951f39863d275a))
+
+### Bug Fixes
+
+- **connector:** [ADYEN] Remove recurringProcessingModel in CIT transactions ([#11547](https://github.com/juspay/hyperswitch/pull/11547)) ([`72cb6bc`](https://github.com/juspay/hyperswitch/commit/72cb6bc2c06b43cbd0995d16a956709f06049b7f))
+- **users:** Prevent password requirement bypass on reactivated user signin ([#11469](https://github.com/juspay/hyperswitch/pull/11469)) ([`e2a8ed9`](https://github.com/juspay/hyperswitch/commit/e2a8ed9f0efa561267ed23eaf4d5ed8a5b44c913))
+- **wasm:** [Fiservecommerce] removing wallets from wasm changes ([#11543](https://github.com/juspay/hyperswitch/pull/11543)) ([`84c2f16`](https://github.com/juspay/hyperswitch/commit/84c2f16a194f5b19251b36264eef58dee71b79e0))
+
+### Refactors
+
+- Pull `hyperswitch_masking` crate from crates.io ([#11508](https://github.com/juspay/hyperswitch/pull/11508)) ([`d72a9d9`](https://github.com/juspay/hyperswitch/commit/d72a9d942e4cbcf1aac24a4cfa9dedd8f178f22c))
+
+### Miscellaneous Tasks
+
+- **hyperswitch_connectors:** Fix warnings from Rust 1.94 ([#11523](https://github.com/juspay/hyperswitch/pull/11523)) ([`4fcf1c6`](https://github.com/juspay/hyperswitch/commit/4fcf1c6056f23d4db70ab6ff8b6fdcb7047bc509))
+
+**Full Changelog:** [`2026.03.19.0...2026.03.23.0`](https://github.com/juspay/hyperswitch/compare/2026.03.19.0...2026.03.23.0)
+
+- - -
+
 ## 2026.03.19.0
 
 ### Features
