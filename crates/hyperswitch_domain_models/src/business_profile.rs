@@ -17,6 +17,7 @@ use diesel_models::business_profile::{
     self as storage_types, AuthenticationConnectorDetails, BusinessPaymentLinkConfig,
     BusinessPayoutLinkConfig, CardTestingGuardConfig, ExternalVaultConnectorDetails,
     PaymentMethodBlockingConfig, ProfileUpdateInternal, WebhookDetails,
+    PaymentMethodBlockingConfig, ProfileUpdateInternal, WebhookDetails,
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};

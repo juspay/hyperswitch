@@ -460,6 +460,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::MerchantConnectorWebhookDetails,
         api_models::admin::ProfileCreate,
         api_models::admin::ProfileResponse,
+        api_models::enums::CardSubtype,
         api_models::admin::BusinessPaymentLinkConfig,
         api_models::admin::PaymentLinkBackgroundImageConfig,
         api_models::admin::PaymentLinkConfigRequest,

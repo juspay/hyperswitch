@@ -26628,6 +26628,20 @@
           "network_token"
         ]
       },
+      "PaymentMethodBlockingConfig": {
+        "type": "object",
+        "description": "Configuration for payment method blocking based on card attributes",
+        "properties": {
+          "card": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardBlockingConfig"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "PaymentMethodCollectLinkRequest": {
         "allOf": [
           {

@@ -85,6 +85,7 @@ pub struct Profile {
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub is_l2_l3_enabled: Option<bool>,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
 }
 
 #[cfg(feature = "v1")]
@@ -442,6 +443,7 @@ pub struct Profile {
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub is_l2_l3_enabled: Option<bool>,
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
