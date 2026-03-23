@@ -63,7 +63,7 @@ impl MandateResponseExt for MandateResponse {
             .clone()
             .get_required_value("customer_id")
             .change_context(errors::ApiErrorResponse::CustomerNotFound)
-            .attach_printable("customer_id not found")?;
+            .attach_printable("Missing customer_id in domain payment method")?;
 
         let card = if pm == storage_enums::PaymentMethod::Card {
             // if locker is disabled , decrypt the payment method data

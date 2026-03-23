@@ -322,7 +322,8 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
             .customer_id
             .clone()
             .get_required_value("customer_id")
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Missing customer_id in domain payment method")?;
 
         when(customer_id != customer_id_in_req, || {
             Err(report!(errors::ApiErrorResponse::InvalidRequestData {
