@@ -1031,8 +1031,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
-          error_code: "payment_intent_invalid_parameter",
+          status: "requires_customer_action",
         },
       },
     },

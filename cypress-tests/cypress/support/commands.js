@@ -2340,7 +2340,7 @@ Cypress.Commands.add(
                         .to.have.property("type")
                         .to.equal("wait_screen_information");
                     } else if (
-                      connectorId === "stripe" &&
+                      (connectorId === "stripe" || connectorId === "stripeconnect") &&
                       response.body.payment_method_type === "blik"
                     ) {
                       expect(response.body).to.have.property("next_action").to
