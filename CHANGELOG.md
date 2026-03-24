@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.02.0-hotfix11
+
+### Bug Fixes
+
+- **connector:** [Adyen] Add Subscription to AdyenRecurringProcessingModel enum ([#11605](https://github.com/juspay/hyperswitch/pull/11605)) ([`293de74`](https://github.com/juspay/hyperswitch/commit/293de74c0b874a3643e3d9511917fa91afa20f93))
+
+**Full Changelog:** [`2026.02.02.0-hotfix10...2026.02.02.0-hotfix11`](https://github.com/juspay/hyperswitch/compare/2026.02.02.0-hotfix10...2026.02.02.0-hotfix11)
+
+- - -
+
 ## 2026.02.02.0-hotfix10
 
 ### Features
