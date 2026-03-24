@@ -483,7 +483,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         .get_webhook_api_response(
             final_request_details,
             None,
-            merchant_connector_account.and_then(|mca| Some(mca.connector_account_details)),
+            merchant_connector_account.map(|mca| mca.connector_account_details),
         )
         .switch()
         .attach_printable("Could not get incoming webhook api response from connector")?;
