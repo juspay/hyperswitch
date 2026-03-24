@@ -2764,23 +2764,23 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
             }
         }
         VaultFetchAction::FetchNetworkTokenDetailsFromLocker(nt_data) => {
-            if let Some(network_token_data) =
-                vault_data.and_then(|vault_data| vault_data.get_network_token_data())
-            {
-                return Ok(domain::PaymentMethodData::NetworkToken(network_token_data));
-            }
-
             if let Some(network_token_locker_id) =
                 payment_method_info.network_token_locker_id.as_ref()
             {
-                let network_token_data = fetch_network_token_details_from_locker(
-                    state,
-                    customer_id,
-                    &payment_intent.merchant_id,
-                    network_token_locker_id,
-                    nt_data,
-                )
-                .await?;
+                let network_token_data = vault_data
+                    .and_then(|vault_data| vault_data.get_network_token_data())
+                    .map(Ok)
+                    .async_unwrap_or_else(|| async {
+                        fetch_network_token_details_from_locker(
+                            state,
+                            customer_id,
+                            &payment_intent.merchant_id,
+                            network_token_locker_id,
+                            nt_data,
+                        )
+                        .await
+                    })
+                    .await?;
                 Ok(domain::PaymentMethodData::NetworkToken(network_token_data))
             } else {
                 Err(errors::ApiErrorResponse::InternalServerError)
@@ -3255,8 +3255,8 @@ impl<'a>
             (
                 Some(
                     domain::PaymentMethodData::CardWithNetworkTokenDetails(_)
-                        | domain::PaymentMethodData::CardWithOptionalCVC(_)
-                        | domain::PaymentMethodData::Card(_),
+                    | domain::PaymentMethodData::CardWithOptionalCVC(_)
+                    | domain::PaymentMethodData::Card(_),
                 ),
                 Some(&api_models::payments::MandateReferenceId::ConnectorMandateId(_)),
             ) => Some(domain::PaymentMethodData::MandatePayment),
@@ -3326,9 +3326,12 @@ impl<'a>
                     },
                 ),
             ),
-            (Some(domain::PaymentMethodData::CardWithNetworkTokenDetails(
-                card_with_network_token_details,
-            )), _) => {
+            (
+                Some(domain::PaymentMethodData::CardWithNetworkTokenDetails(
+                    card_with_network_token_details,
+                )),
+                _,
+            ) => {
                 let card_cvc = card_with_network_token_details
                     .card_details
                     .card_cvc
