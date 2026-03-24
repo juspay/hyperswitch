@@ -1622,13 +1622,6 @@ pub struct PaymentsSessionData {
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
     pub payment_method: Option<common_enums::PaymentMethod>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
-    /// feature data
-    pub feature_data: Option<PaymentSessionFeatureData>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub enum PaymentSessionFeatureData {
-    PaypalMandateIds(api_models::payments::MandateIds),
 }
 
 #[derive(Debug, Clone, Default)]

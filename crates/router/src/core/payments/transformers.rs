@@ -5930,8 +5930,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             customer_name: None,
             order_tax_amount,
             shipping_cost,
-            // todo
-            feature_data: None,
             metadata,
             payment_method: payment_data.payment_attempt.payment_method,
             payment_method_type: payment_data.payment_attempt.payment_method_type,
