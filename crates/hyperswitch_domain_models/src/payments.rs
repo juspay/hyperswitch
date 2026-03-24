@@ -50,9 +50,8 @@ use diesel_models::types::{FeatureMetadata, OrderDetailsWithAmount};
 use error_stack::ResultExt;
 use hyperswitch_masking::ExposeInterface;
 
-use crate::ext_traits::OptionExt;
-
 use self::{payment_attempt::PaymentAttempt, payment_intent::CustomerData};
+use crate::ext_traits::OptionExt;
 #[cfg(feature = "v2")]
 use crate::{
     address::Address, business_profile, customer, errors, merchant_connector_account,
