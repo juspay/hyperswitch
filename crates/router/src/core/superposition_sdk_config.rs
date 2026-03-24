@@ -27,31 +27,28 @@ pub async fn get_superposition_sdk_config(
     //     .attach_printable("Failed to resolve superposition sdk config")?;
     let merchant_account = platform.get_processor().get_account();
 
+    let mut dimension_filter = Map::new();
+    dimension_filter.insert(
+        "profile_id".to_string(),
+        serde_json::Value::String(profile_id.get_string_repr().to_string()),
+    );
+    dimension_filter.insert(
+        "merchant_id".to_string(),
+        serde_json::Value::String(merchant_account.get_id().get_string_repr().to_string()),
+    );
+    dimension_filter.insert(
+        "organization_id".to_string(),
+        serde_json::Value::String(merchant_account.get_org_id().get_string_repr().to_string()),
+    );
+
     let cached_configs = state
         .superposition_service
         .as_ref()
-        .async_map(|sp| async move {
-            let mut dimension_filter = Map::new();
-            dimension_filter.insert(
-                "profile_id".to_string(),
-                serde_json::Value::String(profile_id.get_string_repr().to_string()),
-            );
-            dimension_filter.insert(
-                "merchant_id".to_string(),
-                serde_json::Value::String(merchant_account.get_id().get_string_repr().to_string()),
-            );
-            dimension_filter.insert(
-                "organization_id".to_string(),
-                serde_json::Value::String(
-                    merchant_account.get_org_id().get_string_repr().to_string(),
-                ),
-            );
-            sp.as_ref()
-                .get_cached_config(
-                    Some(vec![DYNAMIC_FIELDS.to_string()]),
-                    Some(dimension_filter),
-                )
-                .await
+        .async_map(|sp| {
+            sp.as_ref().get_cached_config(
+                Some(vec![DYNAMIC_FIELDS.to_string()]),
+                Some(dimension_filter.clone()),
+            )
         })
         .await
         .transpose()
@@ -62,6 +59,7 @@ pub async fn get_superposition_sdk_config(
         SuperPositionConfigResponse {
             raw_configs: cached_configs,
             resolved_configs: None,
+            context_used: dimension_filter,
         },
     ))
 }

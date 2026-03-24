@@ -6,6 +6,7 @@ use superposition_types::Config;
 pub struct SuperPositionConfigResponse {
     pub raw_configs: Option<Config>,
     pub resolved_configs: Option<Map<String, Value>>,
+    pub context_used: Map<String, Value>,
 }
 
 impl ApiEventMetric for SuperPositionConfigResponse {}
