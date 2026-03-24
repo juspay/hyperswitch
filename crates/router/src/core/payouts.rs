@@ -736,7 +736,8 @@ pub async fn payouts_list_core(
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
-    let payouts = core_utils::filter_objects_based_on_profile_id_list(profile_id_list.clone(), payouts);
+    let payouts =
+        core_utils::filter_objects_based_on_profile_id_list(profile_id_list.clone(), payouts);
 
     let mut pi_pa_tuple_vec = PayoutActionData::new();
 

@@ -140,7 +140,7 @@ impl Payouts {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common_utils::id_type::{MerchantId, ProfileId, PayoutId};
+    use common_utils::id_type::{MerchantId, PayoutId, ProfileId};
 
     #[test]
     fn test_get_total_count_signature_with_profile_id_list() {

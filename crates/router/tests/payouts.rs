@@ -137,8 +137,7 @@ async fn test_payouts_total_count_consistency() {
         .uri("/payouts/profile/list")
         .set_json(&constraints)
         .to_request();
-    let profile_response: PayoutListResponse =
-        call_and_read_body_json(&app, profile_request).await;
+    let profile_response: PayoutListResponse = call_and_read_body_json(&app, profile_request).await;
 
     // Get merchant-level list
     let merchant_request = TestRequest::get()
