@@ -86,7 +86,7 @@ pub struct ConnectorTokenDetails {
     pub original_payment_authorized_amount: Option<common_utils::types::MinorUnit>,
     pub original_payment_authorized_currency: Option<common_enums::Currency>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub token: masking::Secret<String>,
+    pub token: hyperswitch_masking::Secret<String>,
 }
 
 /// V2 CardCVCTokenStorageDetails (for deserialization, ignored in transformation)

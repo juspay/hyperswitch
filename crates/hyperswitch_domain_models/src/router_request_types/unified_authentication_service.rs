@@ -2,7 +2,7 @@ use api_models::payments::DeviceChannel;
 use common_enums::{MerchantCategoryCode, RoutingRegion};
 use common_types::payments::MerchantCountryCode;
 use common_utils::types::MinorUnit;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 
 use crate::address::Address;
 

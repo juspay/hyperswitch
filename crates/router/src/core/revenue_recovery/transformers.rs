@@ -1,5 +1,5 @@
 use common_enums::IntentStatus;
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 
 use crate::{
     core::revenue_recovery::types::RevenueRecoveryPaymentIntentStatus,
