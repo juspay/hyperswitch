@@ -1587,8 +1587,11 @@ pub async fn perform_hybrid_routing_if_enabled(
             "decision_engine_euclid: selected routing source after hybrid stage"
         );
 
-        hybrid_stage_outcome
-            .resolve_or_fallback("hybrid-routing", static_connectors, static_approach)
+        hybrid_stage_outcome.resolve_or_fallback(
+            "hybrid-routing",
+            static_connectors,
+            static_approach,
+        )
     } else {
         logger::debug!(
             business_profile_id=?business_profile.get_id(),
