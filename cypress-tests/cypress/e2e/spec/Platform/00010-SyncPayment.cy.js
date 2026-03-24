@@ -18,24 +18,33 @@ describe("Platform - Card Sync Payment flow test", () => {
   context(
     "Platform acts on behalf of Connected Merchant 1 - Sync Payment",
     () => {
-      let savedProfileId, savedConnectorId, savedMerchantConnectorId;
+      let savedApiKey,
+        savedPublishableKey,
+        savedProfileId,
+        savedMerchantConnectorId;
 
       before(() => {
+        savedApiKey = globalState.get("apiKey");
+        savedPublishableKey = globalState.get("publishableKey");
         savedProfileId = globalState.get("profileId");
-        savedConnectorId = globalState.get("connectorId");
         savedMerchantConnectorId = globalState.get("merchantConnectorId");
 
-        globalState.set("profileId", globalState.get("profileId_CM1"));
-        globalState.set("connectorId", "stripe");
+        globalState.set("apiKey", globalState.get("platformApiKey"));
+        globalState.set(
+          "publishableKey",
+          globalState.get("platformPublishableKey")
+        );
+        globalState.set("profileId", globalState.get("profileIdCm1"));
         globalState.set(
           "merchantConnectorId",
-          globalState.get("connectorId_CM1")
+          globalState.get("connectorIdCm1")
         );
       });
 
       after(() => {
+        globalState.set("apiKey", savedApiKey);
+        globalState.set("publishableKey", savedPublishableKey);
         globalState.set("profileId", savedProfileId);
-        globalState.set("connectorId", savedConnectorId);
         globalState.set("merchantConnectorId", savedMerchantConnectorId);
       });
 
@@ -52,7 +61,7 @@ describe("Platform - Card Sync Payment flow test", () => {
             "no_three_ds",
             "automatic",
             globalState,
-            globalState.get("connectedMerchantId_1")
+            globalState.get("connectedMerchantId1")
           );
 
           if (!utils.should_continue_further(data)) {
@@ -68,9 +77,8 @@ describe("Platform - Card Sync Payment flow test", () => {
           const savedPublishableKey = globalState.get("publishableKey");
           globalState.set(
             "publishableKey",
-            globalState.get("publishableKey_CM1")
+            globalState.get("publishableKeyCm1")
           );
-
           cy.paymentMethodsCallTest(globalState).then(() => {
             globalState.set("publishableKey", savedPublishableKey);
           });
@@ -89,7 +97,7 @@ describe("Platform - Card Sync Payment flow test", () => {
             data,
             true,
             globalState,
-            globalState.get("connectedMerchantId_1")
+            globalState.get("connectedMerchantId1")
           );
 
           if (!utils.should_continue_further(data)) {
@@ -110,7 +118,7 @@ describe("Platform - Card Sync Payment flow test", () => {
 
           cy.retrievePaymentWithHeaderCallTest({
             globalState,
-            connectedMerchantId: globalState.get("connectedMerchantId_1"),
+            connectedMerchantId: globalState.get("connectedMerchantId1"),
             data,
           });
         });
@@ -118,38 +126,7 @@ describe("Platform - Card Sync Payment flow test", () => {
     }
   );
 
-  context("Connected Merchant 1 makes own payment - Sync Payment", () => {
-    let savedApiKey,
-      savedProfileId,
-      savedPublishableKey,
-      savedConnectorId,
-      savedMerchantConnectorId;
-
-    before(() => {
-      savedApiKey = globalState.get("apiKey");
-      savedProfileId = globalState.get("profileId");
-      savedPublishableKey = globalState.get("publishableKey");
-      savedConnectorId = globalState.get("connectorId");
-      savedMerchantConnectorId = globalState.get("merchantConnectorId");
-
-      globalState.set("apiKey", globalState.get("apiKey_CM1"));
-      globalState.set("profileId", globalState.get("profileId_CM1"));
-      globalState.set("publishableKey", globalState.get("publishableKey_CM1"));
-      globalState.set("connectorId", "stripe");
-      globalState.set(
-        "merchantConnectorId",
-        globalState.get("connectorId_CM1")
-      );
-    });
-
-    after(() => {
-      globalState.set("apiKey", savedApiKey);
-      globalState.set("profileId", savedProfileId);
-      globalState.set("publishableKey", savedPublishableKey);
-      globalState.set("connectorId", savedConnectorId);
-      globalState.set("merchantConnectorId", savedMerchantConnectorId);
-    });
-
+  context("Connected Merchant 2 makes own payment - Sync Payment", () => {
     it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Retrieve Payment after Confirmation", () => {
       let shouldContinue = true;
 

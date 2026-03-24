@@ -16,24 +16,30 @@ describe("Platform - Card ThreeDS payment flow test", () => {
   });
 
   context("Platform acts on behalf of Connected Merchant 1 - ThreeDS", () => {
-    let savedProfileId, savedConnectorId, savedMerchantConnectorId;
+    let savedApiKey,
+      savedPublishableKey,
+      savedProfileId,
+      savedMerchantConnectorId;
 
     before(() => {
+      savedApiKey = globalState.get("apiKey");
+      savedPublishableKey = globalState.get("publishableKey");
       savedProfileId = globalState.get("profileId");
-      savedConnectorId = globalState.get("connectorId");
       savedMerchantConnectorId = globalState.get("merchantConnectorId");
 
-      globalState.set("profileId", globalState.get("profileId_CM1"));
-      globalState.set("connectorId", "stripe");
+      globalState.set("apiKey", globalState.get("platformApiKey"));
       globalState.set(
-        "merchantConnectorId",
-        globalState.get("connectorId_CM1")
+        "publishableKey",
+        globalState.get("platformPublishableKey")
       );
+      globalState.set("profileId", globalState.get("profileIdCm1"));
+      globalState.set("merchantConnectorId", globalState.get("connectorIdCm1"));
     });
 
     after(() => {
+      globalState.set("apiKey", savedApiKey);
+      globalState.set("publishableKey", savedPublishableKey);
       globalState.set("profileId", savedProfileId);
-      globalState.set("connectorId", savedConnectorId);
       globalState.set("merchantConnectorId", savedMerchantConnectorId);
     });
 
@@ -49,7 +55,7 @@ describe("Platform - Card ThreeDS payment flow test", () => {
           "three_ds",
           "automatic",
           globalState,
-          globalState.get("connectedMerchantId_1")
+          globalState.get("connectedMerchantId1")
         );
 
         if (!utils.should_continue_further(data)) {
@@ -63,11 +69,7 @@ describe("Platform - Card ThreeDS payment flow test", () => {
           return;
         }
         const savedPublishableKey = globalState.get("publishableKey");
-        globalState.set(
-          "publishableKey",
-          globalState.get("publishableKey_CM1")
-        );
-
+        globalState.set("publishableKey", globalState.get("publishableKeyCm1"));
         cy.paymentMethodsCallTest(globalState).then(() => {
           globalState.set("publishableKey", savedPublishableKey);
         });
@@ -85,7 +87,7 @@ describe("Platform - Card ThreeDS payment flow test", () => {
           data,
           true,
           globalState,
-          globalState.get("connectedMerchantId_1")
+          globalState.get("connectedMerchantId1")
         );
 
         if (!utils.should_continue_further(data)) {
@@ -104,38 +106,7 @@ describe("Platform - Card ThreeDS payment flow test", () => {
     });
   });
 
-  context("Connected Merchant 1 makes own payment - ThreeDS", () => {
-    let savedApiKey,
-      savedProfileId,
-      savedPublishableKey,
-      savedConnectorId,
-      savedMerchantConnectorId;
-
-    before(() => {
-      savedApiKey = globalState.get("apiKey");
-      savedProfileId = globalState.get("profileId");
-      savedPublishableKey = globalState.get("publishableKey");
-      savedConnectorId = globalState.get("connectorId");
-      savedMerchantConnectorId = globalState.get("merchantConnectorId");
-
-      globalState.set("apiKey", globalState.get("apiKey_CM1"));
-      globalState.set("profileId", globalState.get("profileId_CM1"));
-      globalState.set("publishableKey", globalState.get("publishableKey_CM1"));
-      globalState.set("connectorId", "stripe");
-      globalState.set(
-        "merchantConnectorId",
-        globalState.get("connectorId_CM1")
-      );
-    });
-
-    after(() => {
-      globalState.set("apiKey", savedApiKey);
-      globalState.set("profileId", savedProfileId);
-      globalState.set("publishableKey", savedPublishableKey);
-      globalState.set("connectorId", savedConnectorId);
-      globalState.set("merchantConnectorId", savedMerchantConnectorId);
-    });
-
+  context("Connected Merchant 2 makes own payment - ThreeDS", () => {
     it("Create Payment Intent -> Payment Methods Call -> Confirm Payment -> Handle Redirection", () => {
       let shouldContinue = true;
 
