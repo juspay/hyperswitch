@@ -19,7 +19,7 @@ use common_utils::{
     crypto::Encryptable,
     encryption::Encryption,
     errors::CustomResult,
-    ext_traits::{OptionExt, ValueExt},
+    ext_traits::ValueExt,
     id_type, pii,
     types::{keymanager::ToEncryptable, CreatedBy, MinorUnit},
 };
@@ -50,6 +50,8 @@ use diesel_models::types::{FeatureMetadata, OrderDetailsWithAmount};
 use error_stack::ResultExt;
 use hyperswitch_masking::ExposeInterface;
 
+use crate::ext_traits::OptionExt;
+
 use self::{payment_attempt::PaymentAttempt, payment_intent::CustomerData};
 #[cfg(feature = "v2")]
 use crate::{
@@ -59,7 +61,7 @@ use crate::{
     ApiModelToDieselModelConvertor,
 };
 #[cfg(feature = "v1")]
-use crate::{errors, ext_traits::OptionExt, payment_method_data, RemoteStorageObject};
+use crate::{errors, payment_method_data, RemoteStorageObject};
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToEncryption)]
