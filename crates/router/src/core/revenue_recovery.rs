@@ -1498,7 +1498,7 @@ pub fn map_to_recovery_payment_item(
             .and_then(|p| p.payment_method_type.into()),
         payment_method_subtype: payment_attempt
             .as_ref()
-            .and_then(|p| p.payment_method_subtype.into()),
+            .and_then(|p| p.payment_method_subtype),
         connector: payment_attempt.as_ref().and_then(|p| p.connector.clone()),
         merchant_connector_id: payment_attempt
             .as_ref()

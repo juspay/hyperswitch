@@ -4943,7 +4943,7 @@ fn construct_zero_auth_payments_request(
         ),
         payment_method_data: confirm_request.payment_method_data.clone(),
         payment_method_type: confirm_request.payment_method_type,
-        payment_method_subtype: payment_method_subtype,
+        payment_method_subtype,
         customer_id: payment_method_session.customer_id.clone(),
         customer_present: Some(enums::PresenceOfCustomerDuringPayment::Present),
         setup_future_usage: Some(common_enums::FutureUsage::OffSession),
