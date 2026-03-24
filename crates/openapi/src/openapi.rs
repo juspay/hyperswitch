@@ -67,7 +67,8 @@ Never share your secret api keys. Keep them guarded and secure.
         (name = "Routing", description = "Create and manage routing configurations"),
         (name = "Event", description = "Manage events"),
         (name = "Authentication", description = "Create and manage authentication"),
-        (name = "Subscriptions", description = "Subscription management and billing endpoints")
+        (name = "Subscriptions", description = "Subscription management and billing endpoints"),
+        (name = "Card Issuer", description = "Create and manage card issuers")
     ),
     // The paths will be displayed in the same order as they are registered here
     paths(
@@ -247,6 +248,11 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::subscriptions::pause_subscription,
         routes::subscriptions::resume_subscription,
         routes::subscriptions::cancel_subscription,
+
+        // Routes for card issuers
+        routes::card_issuer::add_card_issuer,
+        routes::card_issuer::update_card_issuer,
+        routes::card_issuer::list_card_issuers,
     ),
     components(schemas(
         common_utils::types::MinorUnit,
@@ -351,6 +357,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::CardTestingGuardStatus,
         api_models::admin::NetworkTokeizationProviderCredentials,
         api_models::admin::InternalNetworkTokenizationCredentials,
+        api_models::admin::PaymentMethodBlockingConfig,
+        api_models::admin::CardBlockingConfig,
         api_models::merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
         api_models::merchant_connector_webhook_management::RegisterConnectorWebhookResponse,
         api_models::merchant_connector_webhook_management::ConnectorWebhookResponse,
@@ -479,6 +487,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::MerchantConnectorWebhookDetails,
         api_models::admin::ProfileCreate,
         api_models::admin::ProfileResponse,
+        api_models::enums::CardSubtype,
         api_models::admin::BusinessPaymentLinkConfig,
         api_models::admin::PaymentLinkBackgroundImageConfig,
         api_models::admin::PaymentLinkConfigRequest,
@@ -487,6 +496,11 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::TransactionDetailsUiConfiguration,
         api_models::disputes::DisputeResponse,
         api_models::disputes::DisputeResponsePaymentsRetrieve,
+        api_models::card_issuer::CardIssuerRequest,
+        api_models::card_issuer::CardIssuerResponse,
+        api_models::card_issuer::CardIssuerUpdateRequest,
+        api_models::card_issuer::CardIssuerListQuery,
+        api_models::card_issuer::CardIssuerListResponse,
         api_models::gsm::GsmCreateRequest,
         api_models::gsm::GsmRetrieveRequest,
         api_models::gsm::GsmUpdateRequest,

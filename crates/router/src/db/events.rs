@@ -1405,6 +1405,7 @@ mod tests {
             billing_processor_id: None,
             is_l2_l3_enabled: false,
             network_tokenization_credentials: None,
+            payment_method_blocking: None,
         });
 
         let business_profile = state

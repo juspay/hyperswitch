@@ -6,6 +6,7 @@
   "email": "hyperswitch_sdk_demo_id@gmail.com",
   "setup_future_usage": null,
   "profile_id": "{{profile_id}}",
+  "customer_id": "john123",
   "connector_metadata": {
     "noon": {
       "order_category": "applepay"

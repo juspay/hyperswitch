@@ -3573,6 +3573,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             billing_processor_id: self.billing_processor_id,
             is_l2_l3_enabled: self.is_l2_l3_enabled.unwrap_or(false),
             network_tokenization_credentials,
+            payment_method_blocking: self.payment_method_blocking.map(ForeignInto::foreign_into),
         }))
     }
 
@@ -4085,6 +4086,9 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 billing_processor_id: self.billing_processor_id,
                 is_l2_l3_enabled: self.is_l2_l3_enabled,
                 network_tokenization_credentials,
+                payment_method_blocking: self
+                    .payment_method_blocking
+                    .map(ForeignInto::foreign_into),
             },
         )))
     }

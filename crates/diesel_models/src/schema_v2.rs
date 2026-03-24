@@ -295,6 +295,7 @@ diesel::table! {
         external_vault_connector_details -> Nullable<Jsonb>,
         is_l2_l3_enabled -> Nullable<Bool>,
         network_tokenization_credentials -> Nullable<Bytea>,
+        payment_method_blocking -> Nullable<Jsonb>,
         #[max_length = 64]
         routing_algorithm_id -> Nullable<Varchar>,
         order_fulfillment_time -> Nullable<Int8>,
@@ -362,6 +363,19 @@ diesel::table! {
         #[max_length = 128]
         connector_response_reference_id -> Nullable<Varchar>,
         processor_capture_data -> Nullable<Text>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    card_issuers (id) {
+        #[max_length = 64]
+        id -> Varchar,
+        issuer_name -> Varchar,
+        created_at -> Timestamp,
+        last_modified_at -> Timestamp,
     }
 }
 
@@ -1826,6 +1840,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     business_profile,
     callback_mapper,
     captures,
+    card_issuers,
     cards_info,
     configs,
     customers,
