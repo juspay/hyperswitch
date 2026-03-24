@@ -711,6 +711,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::Address,
         api_models::payments::SantanderConnectorMetadataData,
         api_models::payments::SantanderBoletoData,
+        api_models::payments::SantanderPixAutomaticoData,
         api_models::payments::BoletoPaymentTypeConstraints,
         api_models::payments::BeneficiaryDetails,
         api_models::payments::InterestDetail,

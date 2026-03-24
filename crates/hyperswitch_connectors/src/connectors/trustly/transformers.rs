@@ -372,7 +372,8 @@ fn serialize_value(value: &serde_json::Value) -> String {
                 .iter()
                 .filter(|(_, v)| !v.is_null())
                 .fold(String::new(), |mut acc, (k, v)| {
-                    let _ = write!(acc, "{}{}", k, serialize_data(v));
+                    acc.push_str(k);
+                    acc.push_str(&serialize_data(v));
                     acc
                 })
         }
@@ -420,7 +421,8 @@ fn serialize_data(value: &serde_json::Value) -> String {
             // BTreeMap keeps keys sorted (matches PHP's ksort)
             let sorted: BTreeMap<_, _> = map.iter().collect();
             sorted.iter().fold(String::new(), |mut acc, (k, v)| {
-                let _ = write!(acc, "{}{}", k, serialize_data(v));
+                acc.push_str(k);
+                acc.push_str(&serialize_data(v));
                 acc
             })
         }

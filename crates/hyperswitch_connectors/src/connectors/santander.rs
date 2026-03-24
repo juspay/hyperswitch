@@ -58,6 +58,7 @@ use crate::{
             SantanderAuthRequest, SantanderAuthType, SantanderMetadataObject,
             SantanderPaymentRequest, SantanderPostProcessingStepRequest, SantanderRefundRequest,
             SantanderRouterData,
+            SantanderSetupMandateRequest,
         },
         responses::{
             SanatanderAccessTokenResponse, SantanderCreatePixPayloadLocationResponse,
@@ -716,26 +717,9 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
 impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
     for Santander
 {
-    fn build_request(
-        &self,
-        req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
-        _connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        match req.payment_method_type {
-            Some(enums::PaymentMethodType::PixAutomaticoPush)
-            | Some(enums::PaymentMethodType::PixAutomaticoQr) => Ok(None),
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Setup Mandate flow for Santander".to_string(),
-            )
-            .into()),
-        }
-    }
-}
-
-impl ConnectorIntegration<PaymentTrigger, PaymentTriggerData, PaymentsResponseData> for Santander {
     fn get_headers(
         &self,
-        req: &PaymentsTriggerRouterData,
+        req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
@@ -747,84 +731,61 @@ impl ConnectorIntegration<PaymentTrigger, PaymentTriggerData, PaymentsResponseDa
 
     fn get_url(
         &self,
-        req: &PaymentsTriggerRouterData,
+        req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        match req.payment_method_type {
-            Some(enums::PaymentMethodType::PixAutomaticoPush) => {
-                Ok(format!("{}api/v1/solicrec", self.base_url(connectors)))
-            }
-            Some(enums::PaymentMethodType::PixAutomaticoQr) => Ok(format!(
-                "{}api/v1/rec/{}?txid={}",
-                self.base_url(connectors),
-                String::from("12"), // hardcoded as of now, change after SetupMandate flow is implemented
-                req.connector_request_reference_id
-            )),
-            _ => Err(errors::ConnectorError::NotSupported {
-                message: req.payment_method.to_string(),
-                connector: "Santander",
-            }
-            .into()),
-        }
+        Ok(format!("{}api/v1/rec", self.base_url(connectors)))
     }
 
     fn get_request_body(
         &self,
-        req: &PaymentsTriggerRouterData,
+        req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = SantanderPostProcessingStepRequest::try_from(req)?;
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = SantanderRouterData::from((amount, req));
+        let connector_req = SantanderSetupMandateRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
         &self,
-        req: &PaymentsTriggerRouterData,
+        req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         let auth_details = SantanderAuthType::try_from(&req.connector_auth_type)?;
-        let method = match req.payment_method_type {
-            Some(enums::PaymentMethodType::PixAutomaticoPush) => Method::Post,
-            Some(enums::PaymentMethodType::PixAutomaticoQr) => Method::Get,
-            _ => {
-                return Err(errors::ConnectorError::NotSupported {
-                    message: req.payment_method.to_string(),
-                    connector: "Santander",
-                }
-                .into())
-            }
-        };
 
-        let mut builder = RequestBuilder::new()
-            .method(method)
-            .url(&types::PaymentsPaymentTriggerType::get_url(
-                self, req, connectors,
-            )?)
-            .add_certificate(Some(auth_details.client_id))
-            .add_certificate_key(Some(auth_details.client_secret))
-            .attach_default_headers()
-            .headers(types::PaymentsPaymentTriggerType::get_headers(
-                self, req, connectors,
-            )?);
-
-        if method != Method::Get {
-            builder = builder.set_body(types::PaymentsPaymentTriggerType::get_request_body(
-                self, req, connectors,
-            )?);
-        }
-
-        Ok(Some(builder.build()))
+        let request = Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .attach_default_headers()
+                .headers(self.get_headers(req, connectors)?)
+                .url(&self.get_url(req, connectors)?)
+                .add_certificate(Some(auth_details.client_id))
+                .add_certificate_key(Some(auth_details.client_secret))
+                .set_body(self.get_request_body(req, connectors)?)
+                .build(),
+        );
+        Ok(request)
     }
 
     fn handle_response(
         &self,
-        data: &PaymentsTriggerRouterData,
+        data: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<PaymentsTriggerRouterData, errors::ConnectorError> {
-        let response: SantanderPaymentTriggerResponse = res
+    ) -> CustomResult<
+        RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        errors::ConnectorError,
+    > {
+        let response: responses::SantanderSetupMandateResponse = res
             .response
-            .parse_struct("Santander PaymentTriggerResponse")
+            .parse_struct("santander SantanderSetupMandateResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -835,6 +796,7 @@ impl ConnectorIntegration<PaymentTrigger, PaymentTriggerData, PaymentsResponseDa
             data: data.clone(),
             http_code: res.status_code,
         })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -1893,5 +1855,119 @@ impl ConnectorAccessTokenSuffix for Santander {
                 merchant_connector_id_or_connector_name,
             )),
         }
+    }
+}
+
+impl ConnectorIntegration<PaymentTrigger, PaymentTriggerData, PaymentsResponseData> for Santander {
+    fn get_headers(
+        &self,
+        req: &PaymentsTriggerRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &PaymentsTriggerRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        match req.payment_method_type {
+            Some(enums::PaymentMethodType::PixAutomaticoPush) => {
+                Ok(format!("{}api/v1/solicrec", self.base_url(connectors)))
+            }
+            Some(enums::PaymentMethodType::PixAutomaticoQr) => Ok(format!(
+                "{}api/v1/rec/{}?txid={}",
+                self.base_url(connectors),
+                String::from("12"), // hardcoded as of now, change after SetupMandate flow is implemented
+                req.connector_request_reference_id
+            )),
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: req.payment_method.to_string(),
+                connector: "Santander",
+            }
+            .into()),
+        }
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsTriggerRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = SantanderPostProcessingStepRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsTriggerRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let auth_details = SantanderAuthType::try_from(&req.connector_auth_type)?;
+        let method = match req.payment_method_type {
+            Some(enums::PaymentMethodType::PixAutomaticoPush) => Method::Post,
+            Some(enums::PaymentMethodType::PixAutomaticoQr) => Method::Get,
+            _ => {
+                return Err(errors::ConnectorError::NotSupported {
+                    message: req.payment_method.to_string(),
+                    connector: "Santander",
+                }
+                .into())
+            }
+        };
+
+        let mut builder = RequestBuilder::new()
+            .method(method)
+            .url(&types::PaymentsPaymentTriggerType::get_url(
+                self, req, connectors,
+            )?)
+            .add_certificate(Some(auth_details.client_id))
+            .add_certificate_key(Some(auth_details.client_secret))
+            .attach_default_headers()
+            .headers(types::PaymentsPaymentTriggerType::get_headers(
+                self, req, connectors,
+            )?);
+
+        if method != Method::Get {
+            builder = builder.set_body(types::PaymentsPaymentTriggerType::get_request_body(
+                self, req, connectors,
+            )?);
+        }
+
+        Ok(Some(builder.build()))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsTriggerRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsTriggerRouterData, errors::ConnectorError> {
+        let response: SantanderPaymentTriggerResponse = res
+            .response
+            .parse_struct("Santander PaymentTriggerResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
     }
 }

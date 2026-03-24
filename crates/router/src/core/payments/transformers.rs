@@ -1579,6 +1579,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         split_payments: None,
         partner_merchant_identifier_details: None,
         authentication_data: None,
+        connector_intent_metadata: None,
         feature_metadata: None,
     };
     let connector_mandate_request_reference_id = payment_data
@@ -6178,6 +6179,17 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                     .as_ref()
                     .map(AuthenticationData::foreign_try_from)
                     .transpose()?),
+            connector_intent_metadata: payment_data
+                .payment_intent
+                .metadata
+                .clone()
+                .map(|metadata| {
+                    metadata
+                        .parse_value::<api_models::payments::ConnectorMetadata>("ConnectorMetadata")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed parsing ConnectorMetadata")
+                })
+                .transpose()?,
             feature_metadata: payment_data
                 .payment_intent
                 .feature_metadata
