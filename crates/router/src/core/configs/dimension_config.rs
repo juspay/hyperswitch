@@ -249,3 +249,12 @@ config! {
     targeting_key = id_type::MerchantId
 }
 
+config! {
+    superposition_key = PT_MAPPING_PCR_RETRIES,
+    output = scheduler::types::process_data::RevenueRecoveryPaymentProcessTrackerMapping,
+    default = scheduler::types::process_data::RevenueRecoveryPaymentProcessTrackerMapping::default(),
+    object = true,
+    requires = DimensionsWithMerchantId,
+    targeting_key = id_type::MerchantId
+}
+

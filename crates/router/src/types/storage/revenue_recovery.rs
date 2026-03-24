@@ -57,6 +57,7 @@ impl RevenueRecoveryPaymentData {
                 logger::info!("Cascading type found for Revenue Recovery retry payment");
                 revenue_recovery::get_schedule_time_to_retry_mit_payments(
                     state.store.as_ref(),
+                    state.superposition_service.as_deref(),
                     merchant_id,
                     retry_count,
                 )

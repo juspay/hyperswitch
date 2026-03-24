@@ -235,37 +235,15 @@ pub(crate) async fn extract_data_and_perform_action(
 #[cfg(feature = "v2")]
 pub(crate) async fn get_schedule_time_to_retry_mit_payments(
     db: &dyn StorageInterface,
+    superposition_client: Option<&external_services::superposition::SuperpositionClient>,
     merchant_id: &id_type::MerchantId,
     retry_count: i32,
 ) -> Option<time::PrimitiveDateTime> {
-    let key = "pt_mapping_pcr_retries";
-    let result = db
-        .find_config_by_key(key)
-        .await
-        .map(|value| value.config)
-        .and_then(|config| {
-            config
-                .parse_struct("RevenueRecoveryPaymentProcessTrackerMapping")
-                .change_context(StorageError::DeserializationFailed)
-        });
-
-    let mapping = result.map_or_else(
-        |error| {
-            if error.current_context().is_db_not_found() {
-                logger::debug!("Revenue Recovery retry config `{key}` not found, ignoring");
-            } else {
-                logger::error!(
-                    ?error,
-                    "Failed to read Revenue Recovery retry config `{key}`"
-                );
-            }
-            process_data::RevenueRecoveryPaymentProcessTrackerMapping::default()
-        },
-        |mapping| {
-            logger::debug!(?mapping, "Using custom pcr payments retry config");
-            mapping
-        },
-    );
+    let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+        .with_merchant_id(merchant_id.clone());
+    let mapping = dimensions
+        .get_pt_mapping_pcr_retries(db, superposition_client, Some(merchant_id))
+        .await;
 
     let time_delta =
         scheduler_utils::get_pcr_payments_retry_schedule_time(mapping, merchant_id, retry_count);
@@ -670,6 +648,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
         RevenueRecoveryAlgorithmType::Cascading => {
             let time = get_schedule_time_to_retry_mit_payments(
                 state.store.as_ref(),
+                state.superposition_service.as_deref(),
                 &payment_intent.merchant_id,
                 retry_count,
             )
