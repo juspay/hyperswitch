@@ -4364,13 +4364,7 @@ impl ProfileWrapper {
             .attach_printable("Failed to update routing algorithm ref in business profile")?;
         Ok(())
     }
-    /// Updates revenue recovery algorithm type and monitoring timestamp on the profile.
-    ///
-    /// - Always refreshes `monitoring_configured_timestamp` (e.g. monitoring window / transition).
-    /// - **`smart_features` is left unchanged** when `smart_features` is `None`, so dashboard /
-    ///   feature-config toggles are not cleared when webhooks or billing flows only move
-    ///   algorithm state (same idea as the feature-config PATCH only touching flags).
-    /// - Pass `Some(...)` only when intentionally replacing the full enablement struct.
+
     pub async fn update_revenue_recovery_algorithm_under_profile(
         self,
         db: &dyn StorageInterface,
