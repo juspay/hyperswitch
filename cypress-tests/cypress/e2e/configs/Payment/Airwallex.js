@@ -515,6 +515,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: multiUseMandateData,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
