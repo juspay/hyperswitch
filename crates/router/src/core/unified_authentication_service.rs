@@ -25,6 +25,8 @@ use api_models::{
 use common_utils::{errors::CustomResult, ext_traits::ValueExt, types::AmountConvertor};
 use diesel_models::authentication::Authentication;
 use error_stack::ResultExt;
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::router_request_types;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse,
     ext_traits::OptionExt,
@@ -1882,6 +1884,21 @@ pub async fn authentication_sync_core(
         .await?;
     }
 
+    let config = db
+        .find_config_by_key_unwrap_or(
+            &merchant_id.get_should_disable_auth_tokenization(),
+            Some("false".to_string()),
+        )
+        .await;
+
+    let should_disable_auth_tokenization = match config {
+        Ok(conf) => conf.config == "true",
+        Err(error) => {
+            router_env::logger::error!(?error);
+            false
+        }
+    };
+
     let (updated_authentication, payment_method_data, vault_token_data) =
         if !authentication.authentication_status.is_terminal_status() {
             let post_auth_response = if authentication_connector.is_click_to_pay() {
@@ -1924,20 +1941,6 @@ pub async fn authentication_sync_core(
                 .await?
             };
 
-            let config = db
-                .find_config_by_key_unwrap_or(
-                    &merchant_id.get_should_disable_auth_tokenization(),
-                    Some("false".to_string()),
-                )
-                .await;
-            let should_disable_auth_tokenization = match config {
-                Ok(conf) => conf.config == "true",
-                Err(error) => {
-                    router_env::logger::error!(?error);
-                    false
-                }
-            };
-
             let vault_token_data = if should_disable_auth_tokenization {
                 // Do not tokenize if the disable flag is present in the config
                 None
@@ -1953,8 +1956,11 @@ pub async fn authentication_sync_core(
                 response
             };
 
-            let payment_method_data =
-                utils::get_authentication_payment_method_data(&post_auth_response);
+            let payment_method_data = utils::get_authentication_payment_method_data(
+                &post_auth_response,
+                should_disable_auth_tokenization,
+                &authentication,
+            )?;
 
             let auth_update_response = utils::external_authentication_update_trackers(
                 &state,
@@ -1974,7 +1980,34 @@ pub async fn authentication_sync_core(
 
             (auth_update_response, payment_method_data, vault_token_data)
         } else {
-            (authentication, None, None)
+            if authentication.authentication_status.is_success()
+                && should_disable_auth_tokenization
+                && auth_flow == AuthFlow::Merchant
+            {
+                let authentication_value = payment_methods::vault::get_tokenized_data(
+                    &state,
+                    authentication_id.get_string_repr(),
+                    false,
+                    platform.get_processor().get_key_store().key.get_inner(),
+                )
+                .await
+                .inspect_err(|err| router_env::logger::error!(tokenized_data_result=?err))
+                .attach_printable("cavv not present after authentication flow")
+                .ok();
+
+                let authentication_details = authentication.get_post_authentication_details(
+                    authentication_value.map(|value| value.value1),
+                );
+
+                let payment_method_data = authentication_details
+                    .to_authentication_payment_method_data_response(
+                        should_disable_auth_tokenization,
+                        &authentication,
+                    )?;
+                (authentication, payment_method_data, None)
+            } else {
+                (authentication, None, None)
+            }
         };
 
     let eci = match auth_flow {

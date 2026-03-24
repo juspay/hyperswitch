@@ -1,6 +1,9 @@
 use common_enums::{enums, AuthenticationConnectors};
 #[cfg(feature = "v1")]
-use common_utils::errors::{self, CustomResult};
+use common_utils::{
+    errors::{self, CustomResult},
+    types::SemanticVersion,
+};
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},
     id_type,
@@ -27,10 +30,6 @@ pub struct AuthenticationCreateRequest {
     /// The business profile that is associated with this authentication
     #[schema(value_type = Option<String>)]
     pub profile_id: Option<id_type::ProfileId>,
-
-    /// Customer details.
-    #[schema(value_type = Option<CustomerDetails>)]
-    pub customer: Option<CustomerDetails>,
 
     /// The amount for the transaction, required.
     #[schema(value_type = MinorUnit, example = 1000)]
@@ -754,20 +753,55 @@ pub enum AuthenticationPaymentMethodDataResponse {
     CardData {
         /// card expiry year
         #[schema(value_type = Option<String>)]
+        #[serde(skip_serializing_if = "Option::is_none")]
         card_expiry_year: Option<hyperswitch_masking::Secret<String>>,
 
         /// card expiry month
         #[schema(value_type = Option<String>)]
+        #[serde(skip_serializing_if = "Option::is_none")]
         card_expiry_month: Option<hyperswitch_masking::Secret<String>>,
     },
     NetworkTokenData {
         /// network token expiry month
         #[schema(value_type = Option<String>)]
+        #[serde(skip_serializing_if = "Option::is_none")]
         network_token_expiry_month: Option<hyperswitch_masking::Secret<String>>,
 
         /// network token expiry year
         #[schema(value_type = Option<String>)]
+        #[serde(skip_serializing_if = "Option::is_none")]
         network_token_expiry_year: Option<hyperswitch_masking::Secret<String>>,
+    },
+    ThreeDsData {
+        /// Authentication value for Mpi data, only available when auth tokenization is disabled
+        #[serde(skip_serializing_if = "Option::is_none")]
+        authentication_cryptogram: Option<Cryptogram>,
+
+        /// ECI value for Mpi data, only available when auth tokenization is disabled
+        #[serde(skip_serializing_if = "Option::is_none")]
+        eci: Option<String>,
+
+        /// Unique identifier for the 3DS server transaction
+        ds_trans_id: Option<String>,
+
+        /// Transaction status for Mpi data
+        trans_status: common_enums::TransactionStatus,
+
+        /// The version of the 3DS protocol used (e.g., "2.1.0" or "2.2.0").
+        #[schema(value_type = Option<String>)]
+        version: Option<SemanticVersion>,
+    },
+}
+
+/// Represents the 3DS cryptogram data returned after authentication.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Cryptogram {
+    /// Cardholder Authentication Verification Value (CAVV) cryptogram.
+    Cavv {
+        /// The authentication cryptogram provided by the issuer or ACS.
+        #[schema(value_type = Option<String>)]
+        authentication_cryptogram: hyperswitch_masking::Secret<String>,
     },
 }
 
