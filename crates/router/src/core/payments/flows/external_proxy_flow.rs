@@ -130,6 +130,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             self,
             creds_identifier,
             gateway_context,
+            None,
         ))
         .await
     }

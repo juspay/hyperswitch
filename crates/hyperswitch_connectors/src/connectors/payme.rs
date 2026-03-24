@@ -1470,7 +1470,7 @@ static PAYME_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 3] = [
 ];
 
 impl ConnectorSpecifications for Payme {
-    fn is_order_create_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn is_order_create_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize {
                 auth_type: _,

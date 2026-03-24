@@ -19,7 +19,7 @@ pub(crate) async fn add_session_token_if_needed<'a, F: Clone, Req: Debug + Clone
     state: &routes::SessionState,
     connector: &api_types::ConnectorData,
     gateway_context: &gateway_context::RouterGatewayContext,
-    current_flow: Option<hyperswitch_interfaces::api::CurrentFlowInfo<'_>>,
+    current_flow: Option<hyperswitch_interfaces::api::CurrentFlowInfo>,
 ) -> RouterResult<Option<String>>
 where
     types::AuthorizeSessionTokenData:

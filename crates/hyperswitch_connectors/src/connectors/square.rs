@@ -1005,7 +1005,7 @@ impl ConnectorSpecifications for Square {
     }
     fn is_authorize_session_token_call_required(
         &self,
-        _current_flow: Option<api::CurrentFlowInfo<'_>>,
+        _current_flow: Option<api::CurrentFlowInfo>,
     ) -> bool {
         true
     }
