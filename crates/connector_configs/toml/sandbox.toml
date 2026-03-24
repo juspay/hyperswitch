@@ -3468,7 +3468,7 @@ payment_method_type = "DinersClub"
 [[noon.debit]]
 payment_method_type = "Discover"
 
-[noon.metadata.noon_region]
+[[noon.metadata.noon_region]]
 name = "noon_region"
 label = "Region of your Noon Merchant Account"
 placeholder = "Enter Region of your Noon Merchant Account"
