@@ -51,7 +51,7 @@ use hyperswitch_interfaces::{
     errors::ConnectorError,
     types::{PayoutFulfillType, PayoutSyncType},
 };
-use masking::ExposeInterface;
+use hyperswitch_masking::ExposeInterface;
 use transformers as trustly;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
@@ -867,7 +867,7 @@ impl webhooks::IncomingWebhook for Trustly {
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _error_kind: Option<webhooks::IncomingWebhookFlowError>,
         connector_account_details: Option<
-            common_utils::crypto::Encryptable<masking::Secret<serde_json::Value>>,
+            common_utils::crypto::Encryptable<hyperswitch_masking::Secret<serde_json::Value>>,
         >,
     ) -> CustomResult<
         hyperswitch_domain_models::api::ApplicationResponse<serde_json::Value>,
