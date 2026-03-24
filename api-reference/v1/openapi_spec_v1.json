@@ -13040,6 +13040,32 @@
           }
         }
       },
+      "BeneficiaryDetails": {
+        "type": "object",
+        "description": "Represents the end-recipient of a payout or fund transfer.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The full legal name of the individual or entity receiving the funds.",
+            "example": "João da Silva",
+            "nullable": true
+          },
+          "document_number": {
+            "type": "string",
+            "description": "The customer's unique identification number (e.g., Tax ID, SSN, Passport Number).\nUsed by processors to verify the identity of the recipient and prevent fraud.\nLength of the document number depends upon the document_type.\nFor CPF/CNPJ it is typically 11/14 digits long.",
+            "example": "9615865832",
+            "nullable": true
+          },
+          "document_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DocumentKind"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "BillingDescriptor": {
         "type": "object",
         "description": "Billing Descriptor information to be sent to the payment gateway",
@@ -13249,6 +13275,64 @@
           "flexible_amount",
           "installment"
         ]
+      },
+      "BoletoPaymentTypeConstraints": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "fixed_amount"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "details"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "flexible_amount"
+                ]
+              },
+              "details": {
+                "$ref": "#/components/schemas/FlexibleAmountDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "details"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "installment"
+                ]
+              },
+              "details": {
+                "$ref": "#/components/schemas/InstallmentDetails"
+              }
+            }
+          }
+        ],
+        "description": "Represents the rules for legal protest (official debt registration) for non-payment, including the type of protest and the number of days after which the protest is initiated.",
+        "discriminator": {
+          "propertyName": "type"
+        }
       },
       "BoletoVoucherData": {
         "type": "object",
@@ -13527,6 +13611,14 @@
               }
             }
           }
+        ]
+      },
+      "CalculationType": {
+        "type": "string",
+        "description": "Defines how the payment amount is calculated for penalties or discounts, either as a percentage or as a flat amount.",
+        "enum": [
+          "percentage",
+          "flat_amount"
         ]
       },
       "CancelOption": {
@@ -13866,6 +13958,50 @@
             "type": "string",
             "description": "Card holder name",
             "example": "John Doe"
+          }
+        }
+      },
+      "CardBlockingConfig": {
+        "type": "object",
+        "description": "Card-specific blocking configuration",
+        "properties": {
+          "issuing_country": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CountryAlpha2"
+            },
+            "description": "Set of issuing countries to block using ISO 3166-1 alpha-2 codes (e.g., [\"IN\", \"US\"])",
+            "nullable": true
+          },
+          "card_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardType"
+            },
+            "description": "Set of card types to block (e.g., [\"Credit\", \"Debit\"])",
+            "nullable": true
+          },
+          "card_subtypes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardSubtype"
+            },
+            "description": "Set of card subtypes to block",
+            "nullable": true
+          },
+          "issuers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Set of card issuers to block (e.g., [\"HDFC Bank\", \"ICICI Bank\"])",
+            "uniqueItems": true,
+            "nullable": true
+          },
+          "block_if_bin_info_unavailable": {
+            "type": "boolean",
+            "description": "Whether to block if BIN is provided but no matching record found in cards_info table.\nDefaults to false (allow payment if BIN not found in database).",
+            "nullable": true
           }
         }
       },
@@ -14405,6 +14541,12 @@
           }
         }
       },
+      "CardSubtype": {
+        "type": "string",
+        "enum": [
+          "platinum"
+        ]
+      },
       "CardTestingGuardConfig": {
         "type": "object",
         "required": [
@@ -14766,6 +14908,28 @@
       "ClientSecret": {
         "type": "string",
         "description": "For Client based calls, SDK will use the client_secret\\nin order to call /payment_methods\\nClient secret will be generated whenever a new\\npayment method is created"
+      },
+      "CollectionActions": {
+        "type": "object",
+        "description": "Represents the legal or administrative actions that may be taken for non-payment, such as protest rules and automatic write-off timelines.",
+        "properties": {
+          "legal_protest": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProtestRules"
+              }
+            ],
+            "nullable": true
+          },
+          "auto_write_off_days": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Days after which the bill is automatically cancelled/written off",
+            "example": 60,
+            "nullable": true,
+            "minimum": 0
+          }
+        }
       },
       "Comparison": {
         "type": "object",
@@ -15250,6 +15414,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/PeachpaymentsData"
+              }
+            ],
+            "nullable": true
+          },
+          "santander": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SantanderConnectorMetadataData"
               }
             ],
             "nullable": true
@@ -17948,6 +18120,33 @@
           }
         }
       },
+      "DiscountTier": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "string",
+            "description": "The discount value (e.g., \"5.50\").",
+            "example": "5.50",
+            "nullable": true
+          },
+          "end_date": {
+            "type": "string",
+            "description": "The ISO-8601 date until which this discount is valid",
+            "example": "2027-12-31",
+            "nullable": true
+          }
+        }
+      },
+      "DiscountType": {
+        "type": "string",
+        "description": "Defines the type of discount applied to a payment, such as whether it's a fixed date discount, a daily calendar discount, or a daily business discount.",
+        "enum": [
+          "standard",
+          "fixed_date",
+          "daily_calendar",
+          "daily_business"
+        ]
+      },
       "DisplayAmountOnSdk": {
         "type": "object",
         "required": [
@@ -19519,6 +19718,32 @@
         ],
         "description": "Possible field type of required fields in payment_method_data"
       },
+      "FlexibleAmountDetails": {
+        "type": "object",
+        "description": "Represents the rules for legal protest (official debt registration) for non-payment, including the type of protest and the number of days after which the protest is initiated.",
+        "properties": {
+          "min_value": {
+            "type": "string",
+            "description": "Minimum value allowed (e.g., \"10.00\")",
+            "example": "38.02",
+            "nullable": true
+          },
+          "max_value": {
+            "type": "string",
+            "description": "Maximum value allowed (e.g., \"5000.00\")",
+            "example": "38.02",
+            "nullable": true
+          },
+          "value_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CalculationType"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "FrmAction": {
         "type": "string",
         "enum": [
@@ -20990,6 +21215,28 @@
           }
         }
       },
+      "InstallmentDetails": {
+        "type": "object",
+        "description": "Represents the rules for legal protest (official debt registration) for non-payment, including the type of protest and the number of days after which the protest is initiated.",
+        "properties": {
+          "max_partial_payments": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Maximum number of partial payments allowed (Up to 99 for Santander).",
+            "example": 99,
+            "nullable": true,
+            "minimum": 0
+          },
+          "value_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CalculationType"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "InstallmentOption": {
         "type": "object",
         "description": "Installment options grouped by payment method",
@@ -21105,6 +21352,24 @@
         "properties": {
           "customer_info": {
             "type": "object",
+            "nullable": true
+          }
+        }
+      },
+      "InterestDetail": {
+        "type": "object",
+        "description": "Represents the rules for applying discounts to a payment, such as a percentage discount or a fixed amount discount, along with any applicable grace periods.",
+        "properties": {
+          "interest_percentage": {
+            "type": "string",
+            "description": "Percentage of Juros (Interest). Pattern: ^[0-9]{1,3}\\.[0-9]{2}$",
+            "example": "5.00",
+            "nullable": true
+          },
+          "iof_percentage": {
+            "type": "string",
+            "description": "Percentage of IOF (Financial Operations Tax). Pattern: \\d{3}$\\.\\d{5}\nOnly provided if the agreement is \"Cobra IOF na Barra ou Cadastro\"",
+            "example": "32.45325",
             "nullable": true
           }
         }
@@ -26416,6 +26681,20 @@
           "mobile_payment",
           "network_token"
         ]
+      },
+      "PaymentMethodBlockingConfig": {
+        "type": "object",
+        "description": "Configuration for payment method blocking based on card attributes",
+        "properties": {
+          "card": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardBlockingConfig"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "PaymentMethodCollectLinkRequest": {
         "allOf": [
@@ -34142,6 +34421,48 @@
           }
         }
       },
+      "PenaltyDetail": {
+        "type": "object",
+        "description": "Represents the rules for applying discounts to a payment, such as a percentage discount or a fixed amount discount, along with any applicable grace periods.",
+        "properties": {
+          "value": {
+            "type": "string",
+            "description": "The numeric value (as a string to preserve decimal precision)",
+            "example": "2.00",
+            "nullable": true
+          },
+          "grace_period_days": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Grace period: Days after due date before this applies",
+            "example": 1,
+            "nullable": true,
+            "minimum": 0
+          }
+        }
+      },
+      "PenaltyRules": {
+        "type": "object",
+        "description": "Represents the rules for applying discounts to a payment, such as a percentage discount or a fixed amount discount, along with any applicable grace periods.",
+        "properties": {
+          "fixed_penalty": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PenaltyDetail"
+              }
+            ],
+            "nullable": true
+          },
+          "interest": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InterestDetail"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "PeriodUnit": {
         "type": "string",
         "enum": [
@@ -35095,6 +35416,14 @@
             "type": "boolean",
             "description": "Flag to enable Level 2 and Level 3 processing data for card transactions",
             "nullable": true
+          },
+          "payment_method_blocking": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodBlockingConfig"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -35461,6 +35790,14 @@
             "type": "boolean",
             "description": "Flag to enable Level 2 and Level 3 processing data for card transactions",
             "nullable": true
+          },
+          "payment_method_blocking": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodBlockingConfig"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -35504,6 +35841,35 @@
             "additionalProperties": {}
           }
         }
+      },
+      "ProtestRules": {
+        "type": "object",
+        "required": [
+          "protest_type",
+          "days_after_due_date"
+        ],
+        "properties": {
+          "protest_type": {
+            "$ref": "#/components/schemas/ProtestType"
+          },
+          "days_after_due_date": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of days after the due date to initiate the protest",
+            "example": 30,
+            "minimum": 0
+          }
+        }
+      },
+      "ProtestType": {
+        "type": "string",
+        "description": "Defines the type of protest for non-payment, such as whether the count is based on calendar days, business days, or if the protest logic is determined by a pre-signed contract with the bank.",
+        "enum": [
+          "disabled",
+          "calendar_days",
+          "business_days",
+          "contract_default"
+        ]
       },
       "RankingAlgorithm": {
         "type": "string",
@@ -37664,6 +38030,74 @@
           }
         }
       },
+      "SantanderBoletoData": {
+        "type": "object",
+        "description": "Represents the specific data and rules related to Santander Boleto payments, including discounts, penalties, collection actions, payment constraints, beneficiary details, and document kind.",
+        "properties": {
+          "discount_rules": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SantanderPaymentDiscountRules"
+              }
+            ],
+            "nullable": true
+          },
+          "penalties": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PenaltyRules"
+              }
+            ],
+            "nullable": true
+          },
+          "collection_actions": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CollectionActions"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_constraints": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BoletoPaymentTypeConstraints"
+              }
+            ],
+            "nullable": true
+          },
+          "beneficiary": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BeneficiaryDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "document_kind": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BoletoDocumentKind"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "SantanderConnectorMetadataData": {
+        "type": "object",
+        "description": "Represents the connector-specific metadata for Santander payments, including boleto data and related rules.",
+        "properties": {
+          "boleto": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SantanderBoletoData"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "SantanderData": {
         "type": "object",
         "properties": {
@@ -37673,6 +38107,30 @@
           }
         },
         "additionalProperties": false
+      },
+      "SantanderPaymentDiscountRules": {
+        "type": "object",
+        "description": "Defines the type of discount applied to a payment, such as whether it's a fixed date discount, a daily calendar discount, or a daily business discount.",
+        "required": [
+          "tiers"
+        ],
+        "properties": {
+          "discount_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DiscountType"
+              }
+            ],
+            "nullable": true
+          },
+          "tiers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DiscountTier"
+            },
+            "description": "A generic vector of discount tiers"
+          }
+        }
       },
       "ScaExemptionType": {
         "type": "string",
