@@ -631,14 +631,6 @@ pub trait ConnectorSpecifications {
     ) -> &'static common_types::connector_webhook_configuration::WebhookSetupCapabilities {
         &consts::DEFAULT_WEBHOOK_SETUP_CAPABILITIES
     }
-
-    /// Check if another operation is required
-    fn should_continue_further(
-        &self,
-        _payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
-    ) -> Option<bool> {
-        Some(false)
-    }
 }
 
 /// Extended trait for connector common to allow functions with generic type
@@ -938,6 +930,14 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
     /// fn is_webhook_source_verification_mandatory
     fn is_webhook_source_verification_mandatory(&self) -> bool {
         false
+    }
+
+    /// Validate if another operation is required
+    fn should_continue_further(
+        &self,
+        _payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+    ) -> Option<bool> {
+        Some(false)
     }
 }
 

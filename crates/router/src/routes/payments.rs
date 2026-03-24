@@ -6,7 +6,8 @@ pub mod helpers;
 use actix_web::{web, Responder};
 use error_stack::report;
 use hyperswitch_domain_models::{ext_traits::OptionExt, payments::HeaderPayload};
-use hyperswitch_interfaces::api::ConnectorSpecifications;
+#[cfg(feature = "v1")]
+use hyperswitch_interfaces::api::ConnectorValidation;
 use hyperswitch_masking::{PeekInterface, Secret};
 use router_env::{env, instrument, logger, tracing, types, Flow};
 
@@ -2411,11 +2412,16 @@ where
                         api_types::GetToken::Connector,
                         None,
                     )?;
-                    if connector_data
+                    let should_continue_further = connector_data
                         .connector
                         .should_continue_further(&payment_data.payment_intent.clone())
-                        .unwrap_or(false)
-                    {
+                        .unwrap_or(false);
+                    if should_continue_further {
+                        logger::info!(
+                            "Re-invoking payments_operation_core | should_continue_further: {} | payment_id: {:?}",
+                            should_continue_further,
+                            payment_data.get_payment_intent().payment_id,
+                        );
                         Box::pin(payments::payments_operation_core::<
                             api_types::SetupMandate,
                             _,
