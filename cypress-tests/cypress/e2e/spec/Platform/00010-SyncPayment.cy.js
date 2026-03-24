@@ -52,8 +52,9 @@ describe("Platform - Card Sync Payment flow test", () => {
         let shouldContinue = true;
 
         cy.step("Create Payment Intent for CM1 using header", () => {
-          const data =
-            getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PaymentIntent"];
 
           cy.createPaymentIntentWithHeaderCallTest(
             fixtures.createPaymentBody,
@@ -89,8 +90,9 @@ describe("Platform - Card Sync Payment flow test", () => {
             cy.task("cli_log", "Skipping step: Confirm Payment Intent");
             return;
           }
-          const data =
-            getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["No3DSAutoCapture"];
 
           cy.confirmPaymentWithHeaderCallTest(
             fixtures.confirmBody,
@@ -113,8 +115,9 @@ describe("Platform - Card Sync Payment flow test", () => {
             );
             return;
           }
-          const data =
-            getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSAutoCapture"];
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["No3DSAutoCapture"];
 
           cy.retrievePaymentWithHeaderCallTest({
             globalState,

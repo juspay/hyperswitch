@@ -47,7 +47,9 @@ describe("Platform - Card ThreeDS payment flow test", () => {
       let shouldContinue = true;
 
       cy.step("Create Payment Intent for CM1 using header", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntent"];
 
         cy.createPaymentIntentWithHeaderCallTest(
           fixtures.createPaymentBody,
@@ -80,7 +82,9 @@ describe("Platform - Card ThreeDS payment flow test", () => {
           cy.task("cli_log", "Skipping step: Confirm Payment");
           return;
         }
-        const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSAutoCapture"];
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["3DSAutoCapture"];
 
         cy.confirmPaymentWithHeaderCallTest(
           fixtures.confirmBody,

@@ -52,8 +52,9 @@ describe("Platform - Card Void Payment flow test", () => {
         let shouldContinue = true;
 
         cy.step("Create Payment Intent for CM1 using header", () => {
-          const data =
-            getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PaymentIntent"];
 
           cy.createPaymentIntentWithHeaderCallTest(
             fixtures.createPaymentBody,
@@ -89,8 +90,9 @@ describe("Platform - Card Void Payment flow test", () => {
             cy.task("cli_log", "Skipping step: Confirm Payment Intent");
             return;
           }
-          const data =
-            getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSManualCapture"];
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["No3DSManualCapture"];
 
           cy.confirmPaymentWithHeaderCallTest(
             fixtures.confirmBody,
@@ -113,8 +115,9 @@ describe("Platform - Card Void Payment flow test", () => {
             );
             return;
           }
-          const data =
-            getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSManualCapture"];
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["No3DSManualCapture"];
 
           cy.retrievePaymentWithHeaderCallTest({
             globalState,
@@ -132,8 +135,9 @@ describe("Platform - Card Void Payment flow test", () => {
             cy.task("cli_log", "Skipping step: Void Payment without Capture");
             return;
           }
-          const voidData =
-            getConnectorDetails(globalState.get("connectorId"))["card_pm"]["VoidAfterConfirm"];
+          const voidData = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["VoidAfterConfirm"];
 
           cy.voidCallWithHeaderTest(
             fixtures.voidBody,
@@ -253,10 +257,7 @@ describe("Platform - Card Void Payment flow test", () => {
           globalState.get("platformPublishableKey")
         );
         globalState.set("profileId", globalState.get("profileIdCm1"));
-        globalState.set(
-          "merchantConnectorId",
-          globalState.get("connectorId")
-        );
+        globalState.set("merchantConnectorId", globalState.get("connectorId"));
       });
 
       after(() => {
@@ -270,8 +271,9 @@ describe("Platform - Card Void Payment flow test", () => {
         let shouldContinue = true;
 
         cy.step("Create Payment Intent for CM1 using header", () => {
-          const data =
-            getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PaymentIntent"];
 
           cy.createPaymentIntentWithHeaderCallTest(
             fixtures.createPaymentBody,
@@ -310,7 +312,9 @@ describe("Platform - Card Void Payment flow test", () => {
             );
             return;
           }
-          const voidData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Void"];
+          const voidData = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["Void"];
 
           cy.voidCallWithHeaderTest(
             fixtures.voidBody,

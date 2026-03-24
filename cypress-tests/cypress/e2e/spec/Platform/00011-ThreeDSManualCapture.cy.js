@@ -52,8 +52,9 @@ describe("Platform - Card ThreeDS Manual Capture payment flow test", () => {
         let shouldContinue = true;
 
         cy.step("Create Payment Intent for CM1 using header", () => {
-          const data =
-            getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PaymentIntent"];
 
           cy.createPaymentIntentWithHeaderCallTest(
             fixtures.createPaymentBody,
@@ -89,8 +90,9 @@ describe("Platform - Card ThreeDS Manual Capture payment flow test", () => {
             cy.task("cli_log", "Skipping step: Confirm Payment Intent");
             return;
           }
-          const data =
-            getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSManualCapture"];
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["3DSManualCapture"];
 
           cy.confirmPaymentWithHeaderCallTest(
             fixtures.confirmBody,
@@ -122,8 +124,9 @@ describe("Platform - Card ThreeDS Manual Capture payment flow test", () => {
             );
             return;
           }
-          const data =
-            getConnectorDetails(globalState.get("connectorId"))["card_pm"]["3DSManualCapture"];
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["3DSManualCapture"];
 
           cy.retrievePaymentWithHeaderCallTest({
             globalState,
@@ -141,8 +144,9 @@ describe("Platform - Card ThreeDS Manual Capture payment flow test", () => {
             cy.task("cli_log", "Skipping step: Capture Payment");
             return;
           }
-          const captureData =
-            getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Capture"];
+          const captureData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["card_pm"]["Capture"];
 
           cy.captureCallWithHeaderTest(
             fixtures.captureBody,
@@ -161,8 +165,9 @@ describe("Platform - Card ThreeDS Manual Capture payment flow test", () => {
             cy.task("cli_log", "Skipping step: Retrieve Payment after Capture");
             return;
           }
-          const captureData =
-            getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Capture"];
+          const captureData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["card_pm"]["Capture"];
 
           cy.retrievePaymentWithHeaderCallTest({
             globalState,
