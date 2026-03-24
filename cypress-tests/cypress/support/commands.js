@@ -1098,7 +1098,6 @@ Cypress.Commands.add(
           logRequestId(response.headers["x-request-id"]);
 
           cy.wrap(response).then(() => {
-
             // Validate response when success is expected otherwise assert the expected status
             if (expectedStatus === 200) {
               if (response.status === 200) {
