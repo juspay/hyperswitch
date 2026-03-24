@@ -2541,6 +2541,103 @@ where
 }
 
 #[cfg(feature = "v1")]
+#[instrument(skip_all)]
+pub async fn payments_retrieve_core(
+    state: SessionState,
+    req_state: ReqState,
+    platform: domain::Platform,
+    profile_id: Option<id_type::ProfileId>,
+    req: api::PaymentsRetrieveRequest,
+    auth_flow: services::AuthFlow,
+    header_payload: HeaderPayload,
+) -> RouterResponse<api_models::payments::PaymentsResponse> {
+    let payment_id = &req.resource_id;
+
+    let processor = platform.get_processor();
+    let merchant_id = processor.get_account().get_id();
+    let key_store = processor.get_key_store();
+    let storage_scheme = processor.get_account().storage_scheme;
+
+    let payment_intent_id = match payment_id {
+        api::PaymentIdType::PaymentIntentId(id) => id.clone(),
+        _ => return Err(errors::ApiErrorResponse::PaymentNotFound.into()),
+    };
+
+    let payment_intent_result = state
+        .store
+        .find_payment_intent_by_payment_id_processor_merchant_id(
+            &payment_intent_id,
+            merchant_id,
+            key_store,
+            storage_scheme,
+        )
+        .await;
+
+    let should_call_void_sync = match payment_intent_result {
+        Ok(payment_intent) => payment_intent
+            .state_metadata
+            .as_ref()
+            .map(|metadata| metadata.is_post_capture_void_pending())
+            .unwrap_or(false),
+        Err(_) => return Err(errors::ApiErrorResponse::PaymentNotFound.into()),
+    };
+
+    if should_call_void_sync {
+        let payload = api::PaymentsCancelPostCaptureSyncBody {
+            payment_id: match payment_id {
+                api::PaymentIdType::PaymentIntentId(id) => id.clone(),
+                _ => return Err(errors::ApiErrorResponse::PaymentNotFound.into()),
+            },
+            merchant_id: None,
+        };
+
+        payments_core::<
+            api::PostCaptureVoidSync,
+            api_models::payments::PaymentsResponse,
+            _,
+            _,
+            _,
+            PaymentData<api::PostCaptureVoidSync>,
+        >(
+            state,
+            req_state,
+            platform,
+            profile_id,
+            PaymentCancelPostCaptureSync,
+            payload,
+            auth_flow,
+            CallConnectorAction::Trigger,
+            None,
+            None,
+            header_payload,
+        )
+        .await
+    } else {
+        payments_core::<
+            api::PSync,
+            api_models::payments::PaymentsResponse,
+            _,
+            _,
+            _,
+            PaymentData<api::PSync>,
+        >(
+            state,
+            req_state,
+            platform,
+            profile_id,
+            PaymentStatus,
+            req,
+            auth_flow,
+            CallConnectorAction::Trigger,
+            None,
+            None,
+            header_payload,
+        )
+        .await
+    }
+}
+
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn proxy_for_payments_core<F, Res, Req, Op, FData, D>(
     state: SessionState,

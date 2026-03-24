@@ -655,24 +655,13 @@ pub async fn payments_retrieve(
                 req.client_secret = Some(client_secret);
             }
 
-            payments::payments_core::<
-                api_types::PSync,
-                payment_types::PaymentsResponse,
-                _,
-                _,
-                _,
-                payments::PaymentData<api_types::PSync>,
-            >(
+            payments::payments_retrieve_core(
                 state,
                 req_state,
                 auth.platform,
                 auth.profile.map(|profile| profile.get_id().clone()),
-                payments::PaymentStatus,
                 req,
                 auth_flow,
-                payments::CallConnectorAction::Trigger,
-                None,
-                None,
                 header_payload.clone(),
             )
         },
