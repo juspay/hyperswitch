@@ -837,11 +837,11 @@ impl webhooks::IncomingWebhook for Trustly {
             .change_context(ConnectorError::ResponseDeserializationFailed)?;
 
         if trustly::is_payment_webhook_event(webhook_body.method) {
-            return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+            Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                 api_models::payments::PaymentIdType::ConnectorTransactionId(
                     webhook_body.params.data.orderid,
                 ),
-            ));
+            ))
         } else {
             Err(report!(ConnectorError::WebhooksNotImplemented))
         }

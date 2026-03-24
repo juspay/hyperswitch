@@ -834,7 +834,7 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for TrustlyPayoutSyncRequest {
 
         let uuid = uuid::Uuid::new_v4().to_string();
         let signature = generate_trustly_signature(
-            &TrustlyMethod::GetWithdrawals.as_str(),
+            TrustlyMethod::GetWithdrawals.as_str(),
             uuid.as_str(),
             &data,
             &private_key.expose(),

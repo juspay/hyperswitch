@@ -377,7 +377,9 @@ impl IncomingWebhook for ConnectorEnum {
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
         error_kind: Option<IncomingWebhookFlowError>,
-        connector_account_details: Option<crypto::Encryptable<hyperswitch_masking::Secret<serde_json::Value>>>,
+        connector_account_details: Option<
+            crypto::Encryptable<hyperswitch_masking::Secret<serde_json::Value>>,
+        >,
     ) -> CustomResult<ApplicationResponse<serde_json::Value>, errors::ConnectorError> {
         match self {
             Self::Old(connector) => {
