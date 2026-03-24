@@ -70,7 +70,7 @@ pub use hyperswitch_domain_models::{
 };
 use hyperswitch_domain_models::{
     payments::{self, payment_intent::CustomerData, ClickToPayMetaData},
-    router_data::AccessToken,
+    router_data::{AccessToken, FeatureData},
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
@@ -7721,6 +7721,72 @@ fn is_google_pay_pre_decrypt_type_connector_tokenization(
         // because the filter is only relevant for Google Pay pre-decrypt tokenization.
         // Returning true ensures that other payment methods or token types are not blocked.
         true
+    }
+}
+
+/// Feature related data
+/// # 1. PAYPAL returning customer flow
+/// - This flow requires to pass access token created customer.id (Vault customer id obtained in CIT) to initiate sdk
+/// - Take latest created PM , right now only pm is stored when multiple cit's are created and the old one is overridden for
+///
+async fn get_feature_data(
+    customer_id: Option<id_type::CustomerId>,
+    payment_method_type: Option<enums::PaymentMethodType>,
+    merchant_connector_account: &helpers::MerchantConnectorAccountType,
+    state: &SessionState,
+    merchant_id: &id_type::MerchantId,
+    key_store: &domain::MerchantKeyStore,
+    storage_scheme: storage_enums::MerchantStorageScheme,
+) -> Option<FeatureData> {
+    match (customer_id, payment_method_type) {
+        (Some(customer_id), Some(enums::PaymentMethodType::Paypal)) => {
+            let mca_id = merchant_connector_account.get_mca_id();
+            let payment_methods = state
+                .store
+                .find_payment_method_by_customer_id_merchant_id_status(
+                    key_store,
+                    &customer_id,
+                    merchant_id,
+                    storage_enums::PaymentMethodStatus::Active,
+                    None,
+                    storage_scheme,
+                )
+                .await
+                .unwrap_or_default();
+
+            // Helper closure to extract payment reference by MCA ID
+            // TODO check for cross currency too
+            let get_payment_ref =
+                |pm: &hyperswitch_domain_models::payment_methods::PaymentMethod| {
+                    pm.get_common_mandate_reference()
+                        .ok()
+                        .and_then(|mandate_ref| mandate_ref.payments)
+                        .and_then(|payments| {
+                            mca_id.as_ref().and_then(|id| payments.get(id).cloned())
+                        })
+                };
+
+            let paypal_payment_ref = payment_methods
+                .iter()
+                .filter(|pm| {
+                    pm.get_payment_method_subtype() == Some(enums::PaymentMethodType::Paypal)
+                        && get_payment_ref(pm).is_some()
+                })
+                .max_by_key(|pm| pm.created_at) // Sort by created_at descending, take latest
+                .and_then(get_payment_ref);
+
+            paypal_payment_ref.map(|payment_ref| {
+                FeatureData::PaypalReturningCustomer(Box::new(
+                    hyperswitch_domain_models::router_data::PaypalReturningCustomerData {
+                        paypal_vault_customer_id: payment_ref
+                            .connector_mandate_request_reference_id
+                            .clone()
+                            .map(Secret::new),
+                    },
+                ))
+            })
+        }
+        _ => None,
     }
 }
 
