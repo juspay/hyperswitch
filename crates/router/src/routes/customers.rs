@@ -1,15 +1,10 @@
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use common_utils::id_type;
-
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::{
-        api_locking,
-        customers::*,
-        utils::validate_legacy_endpoint_access,
-    },
+    core::{api_locking, customers::*, utils::validate_legacy_endpoint_access},
     services::{api, authentication as auth, authorization::permissions::Permission},
     types::api::customers,
 };
