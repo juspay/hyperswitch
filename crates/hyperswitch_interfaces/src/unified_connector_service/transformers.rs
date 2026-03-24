@@ -211,7 +211,7 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
             connector_details.and_then(|details| details.code.clone())
         {
             let attempt_status = match response.status() {
-                payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
+                payments_grpc::PaymentStatus::Unspecified => None,
                 _ => Some(AttemptStatus::foreign_try_from((
                     response.status(),
                     prev_status,
@@ -346,7 +346,7 @@ impl ForeignTryFrom<(payments_grpc::PaymentStatus, Self)> for AttemptStatus {
                 Ok(Self::DeviceDataCollectionPending)
             }
             payments_grpc::PaymentStatus::VoidedPostCapture => Ok(Self::Voided),
-            payments_grpc::PaymentStatus::AttemptStatusUnspecified => Ok(prev_status),
+            payments_grpc::PaymentStatus::Unspecified => Ok(prev_status),
             payments_grpc::PaymentStatus::PartiallyAuthorized => Ok(Self::PartiallyAuthorized),
             payments_grpc::PaymentStatus::Expired => Ok(Self::Expired),
         }

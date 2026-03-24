@@ -2127,7 +2127,7 @@ impl
 
         let response = if let Some(error_info) = response.error.as_ref() {
             let attempt_status = match response.status() {
-                payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
+                payments_grpc::PaymentStatus::Unspecified => None,
                 _ => Some(AttemptStatus::foreign_try_from((
                     response.status(),
                     prev_status,
@@ -2324,7 +2324,7 @@ impl
 
         let response = if let Some(error_info) = response.error.as_ref() {
             let attempt_status = match response.status() {
-                payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
+                payments_grpc::PaymentStatus::Unspecified => None,
                 _ => Some(AttemptStatus::foreign_try_from((
                     response.status(),
                     prev_status,
@@ -2431,7 +2431,7 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceCaptureResponse,
 
         let response = if let Some(error_info) = response.error.as_ref() {
             let attempt_status = match response.status() {
-                payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
+                payments_grpc::PaymentStatus::Unspecified => None,
                 _ => Some(AttemptStatus::foreign_try_from((
                     response.status(),
                     prev_status,
@@ -2599,7 +2599,7 @@ impl
 
         let response = if let Some(error_info) = response.error.as_ref() {
             let attempt_status = match response.status() {
-                payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
+                payments_grpc::PaymentStatus::Unspecified => None,
                 _ => Some(AttemptStatus::foreign_try_from((
                     response.status(),
                     prev_status,
@@ -2735,7 +2735,7 @@ impl
 
         let response = if let Some(error_info) = response.error.as_ref() {
             let attempt_status = match response.status() {
-                payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
+                payments_grpc::PaymentStatus::Unspecified => None,
                 _ => Some(AttemptStatus::foreign_try_from((
                     response.status(),
                     prev_status,
@@ -3984,7 +3984,7 @@ impl
 
         let response = if let Some(error_info) = response.error.as_ref() {
             let attempt_status = match response.status() {
-                payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
+                payments_grpc::PaymentStatus::Unspecified => None,
                 _ => Some(AttemptStatus::foreign_try_from((
                     response.status(),
                     prev_status,
@@ -4356,7 +4356,7 @@ impl
 
         let response = if let Some(error_info) = response.error.as_ref() {
             let attempt_status = match response.status() {
-                payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
+                payments_grpc::PaymentStatus::Unspecified => None,
                 _ => Some(AttemptStatus::foreign_try_from((
                     response.status(),
                     prev_status,
@@ -5170,7 +5170,7 @@ impl
 
         let response = if let Some(error_info) = response.error.as_ref() {
             let attempt_status = match response.status() {
-                payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
+                payments_grpc::PaymentStatus::Unspecified => None,
                 _ => Some(AttemptStatus::foreign_try_from((
                     response.status(),
                     prev_status,
@@ -5904,7 +5904,7 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceVoidResponse, At
 
         let response = if let Some(error_info) = response.error.as_ref() {
             let attempt_status = match response.status() {
-                payments_grpc::PaymentStatus::AttemptStatusUnspecified => None,
+                payments_grpc::PaymentStatus::Unspecified => None,
                 _ => Some(AttemptStatus::foreign_try_from((
                     response.status(),
                     prev_status,
