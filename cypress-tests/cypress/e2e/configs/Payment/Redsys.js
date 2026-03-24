@@ -484,69 +484,69 @@ export const connectorDetails = {
         currency: "EUR",
         amount: 6000,
       },
-      Response: {
-        status: 501,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "Selected payment method through Redsys is not implemented",
-            code: "IR_00",
-          },
-        },
-      },
+      // Response: {
+      //   status: 501,
+      //   body: {
+      //     error: {
+      //       type: "invalid_request",
+      //       message:
+      //         "Selected payment method through Redsys is not implemented",
+      //       code: "IR_00",
+      //     },
+      //   },
+      // },
     },
-    MITAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {},
-      Response: {
-        status: 501,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "Selected payment method through Redsys is not implemented",
-            code: "IR_00",
-          },
-        },
-      },
-    },
-    MITManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {},
-      Response: {
-        status: 501,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "Selected payment method through Redsys is not implemented",
-            code: "IR_00",
-          },
-        },
-      },
-    },
-    MITWithoutBillingAddress: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {},
-      Response: {
-        status: 501,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "Selected payment method through Redsys is not implemented",
-            code: "IR_00",
-          },
-        },
-      },
-    },
+    // MITAutoCapture: {
+    //   Configs: {
+    //     TRIGGER_SKIP: true,
+    //   },
+    //   Request: {},
+    //   Response: {
+    //     status: 501,
+    //     body: {
+    //       error: {
+    //         type: "invalid_request",
+    //         message:
+    //           "Selected payment method through Redsys is not implemented",
+    //         code: "IR_00",
+    //       },
+    //     },
+    //   },
+    // },
+    // MITManualCapture: {
+    //   Configs: {
+    //     TRIGGER_SKIP: true,
+    //   },
+    //   Request: {},
+    //   Response: {
+    //     status: 501,
+    //     body: {
+    //       error: {
+    //         type: "invalid_request",
+    //         message:
+    //           "Selected payment method through Redsys is not implemented",
+    //         code: "IR_00",
+    //       },
+    //     },
+    //   },
+    // },
+    // MITWithoutBillingAddress: {
+    //   Configs: {
+    //     TRIGGER_SKIP: true,
+    //   },
+    //   Request: {},
+    //   Response: {
+    //     status: 501,
+    //     body: {
+    //       error: {
+    //         type: "invalid_request",
+    //         message:
+    //           "Selected payment method through Redsys is not implemented",
+    //         code: "IR_00",
+    //       },
+    //     },
+    //   },
+    // },
     No3DSFailPayment: getCustomExchange({
       Request: {
         payment_method: "card",
