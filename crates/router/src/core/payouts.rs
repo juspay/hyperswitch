@@ -1021,9 +1021,15 @@ pub async fn payouts_list_available_filters_core(
 pub async fn get_payout_filters_core(
     state: SessionState,
     platform: domain::Platform,
+    profile_id_list: Option<Vec<id_type::ProfileId>>,
 ) -> RouterResponse<api::PayoutListFiltersV2> {
     let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
-        super::admin::list_payment_connectors(state, platform.get_processor().clone(), None).await?
+        super::admin::list_payment_connectors(
+            state,
+            platform.get_processor().clone(),
+            profile_id_list,
+        )
+        .await?
     {
         data
     } else {
