@@ -7,6 +7,7 @@ pub mod authentication;
 #[cfg(all(feature = "olap", feature = "v1"))]
 pub mod blocklist;
 pub mod cache;
+pub mod card_issuer;
 pub mod cards_info;
 pub mod configs;
 #[cfg(feature = "olap")]
@@ -93,12 +94,12 @@ pub use self::app::Proxy;
 #[cfg(all(feature = "olap", feature = "recon", feature = "v1"))]
 pub use self::app::Recon;
 pub use self::app::{
-    ApiKeys, AppState, ApplePayCertificatesMigration, Authentication, Cache, Cards, Chat, Configs,
-    ConnectorOnboarding, Customers, Disputes, Embedded, EphemeralKey, FeatureMatrix, Files, Forex,
-    Gsm, Health, Hypersense, Mandates, MerchantAccount, MerchantConnectorAccount, Oidc,
-    PaymentLink, PaymentMethods, Payments, Poll, ProcessTracker, ProcessTrackerDeprecated, Profile,
-    ProfileAcquirer, ProfileNew, Refunds, Relay, RelayWebhooks, SessionState, ThreeDsDecisionRule,
-    User, UserDeprecated, Webhooks,
+    ApiKeys, AppState, ApplePayCertificatesMigration, Authentication, Cache, CardIssuers, Cards,
+    Chat, Configs, ConnectorOnboarding, Customers, Disputes, Embedded, EphemeralKey, FeatureMatrix,
+    Files, Forex, Gsm, Health, Hypersense, Mandates, MerchantAccount, MerchantConnectorAccount,
+    Oidc, PaymentLink, PaymentMethods, Payments, Poll, ProcessTracker, ProcessTrackerDeprecated,
+    Profile, ProfileAcquirer, ProfileNew, Refunds, Relay, RelayWebhooks, SessionState,
+    ThreeDsDecisionRule, User, UserDeprecated, Webhooks,
 };
 #[cfg(feature = "olap")]
 pub use self::app::{Blocklist, Organization, Routing, Subscription, Verify, WebhookEvents};
