@@ -222,6 +222,28 @@ impl TryFrom<(&RefreshTokenRouterData, &SantanderMetadataObject)> for SantanderA
                     pix_mca_metadata.client_secret.clone(),
                 ))
             }
+            Some(enums::PaymentMethodType::PixAutomaticoPush) => {
+                let pix_mca_metadata = item
+                    .1
+                    .pix_automatico_push
+                    .as_ref()
+                    .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
+                Ok((
+                    pix_mca_metadata.client_id.clone(),
+                    pix_mca_metadata.client_secret.clone(),
+                ))
+            }
+            Some(enums::PaymentMethodType::PixAutomaticoQr) => {
+                let pix_mca_metadata = item
+                    .1
+                    .pix_automatico_qr
+                    .as_ref()
+                    .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
+                Ok((
+                    pix_mca_metadata.client_id.clone(),
+                    pix_mca_metadata.client_secret.clone(),
+                ))
+            }
             Some(enums::PaymentMethodType::Boleto) => {
                 let boleto_mca_metadata = item
                     .1

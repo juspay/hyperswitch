@@ -152,6 +152,8 @@ pub struct ConfigMetadata {
     pub apple_pay: Option<Vec<InputData>>,
     pub paypal_sdk: Option<Vec<InputData>>,
     pub pix: Option<Vec<InputData>>,
+    pub pix_automatico_push: Option<Vec<InputData>>,
+    pub pix_automatico_qr: Option<Vec<InputData>>,
     pub boleto: Option<Vec<InputData>>,
     pub merchant_id: Option<InputData>,
     pub endpoint_prefix: Option<InputData>,
