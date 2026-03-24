@@ -3,7 +3,7 @@ use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::api_locking,
+    core::{api_locking, superposition_sdk_config},
     services::{api, authentication as auth},
 };
 
@@ -22,7 +22,7 @@ pub async fn get_sdk_config(
         &req,
         (),
         |state: super::SessionState, auth_data, _req, _| {
-            crate::core::superposition_sdk_config::get_superposition_sdk_config(
+            superposition_sdk_config::get_superposition_sdk_config(
                 state,
                 auth_data.platform,
                 profile_id.clone(),
