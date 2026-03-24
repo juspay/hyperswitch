@@ -20,21 +20,25 @@ pub enum DimensionError {
 pub struct NoMerchantId;
 
 /// Marker for state WITH merchant_id
+#[derive(Clone)]
 pub struct HasMerchantId;
 
 /// Marker for state WITHOUT organization_id
+#[derive(Clone)]
 pub struct NoOrgId;
 
 /// Marker for state WITH organization_id
 pub struct HasOrgId;
 
 /// Marker for state WITHOUT profile_id
+#[derive(Clone)]
 pub struct NoProfileId;
 
 /// Marker for state WITH profile_id
 pub struct HasProfileId;
 
 /// Marker for state WITHOUT connector
+#[derive(Clone)]
 pub struct NoConnector;
 
 /// Marker for state WITH connector
@@ -51,6 +55,7 @@ pub struct HasConnector;
 /// * `O` - Organization ID type: `HasOrgId` (present) or `NoOrgId` (absent)
 /// * `P` - Profile ID type: `HasProfileId` (present) or `NoProfileId` (absent)
 /// * `Cn` - Connector type: `HasConnector` (present) or `NoConnector` (absent)
+#[derive(Clone)]
 pub struct Dimensions<M, O, P, Cn> {
     merchant_id: Option<id_type::MerchantId>,
     organization_id: Option<id_type::OrganizationId>,

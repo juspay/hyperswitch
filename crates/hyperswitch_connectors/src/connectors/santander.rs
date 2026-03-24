@@ -1795,6 +1795,20 @@ impl ConnectorSpecifications for Santander {
             _ => payment_attempt.payment_id.get_string_repr().to_owned(),
         }
     }
+
+    fn should_continue_further(
+        &self,
+        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+    ) -> Option<bool> {
+        #[cfg(feature = "v1")]
+        {
+            Some(payment_intent.setup_future_usage == Some(common_enums::FutureUsage::OffSession))
+        }
+        #[cfg(feature = "v2")]
+        {
+            Some(payment_intent.setup_future_usage == common_enums::FutureUsage::OffSession)
+        }
+    }
     fn is_payment_trigger_flow_required(&self, current_flow: CurrentFlowInfo<'_>) -> bool {
         match current_flow {
             CurrentFlowInfo::SetupMandate { .. } => true,
