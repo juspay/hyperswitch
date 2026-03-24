@@ -389,7 +389,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                             profile,
                             source_verified,
                             &connector,
-                            merchant_connector_account,
+                            merchant_connector_account.clone(),
                             &connector_name,
                             &request_details,
                             event_type,

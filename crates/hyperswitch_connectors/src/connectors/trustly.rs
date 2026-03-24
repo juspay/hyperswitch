@@ -866,7 +866,7 @@ impl webhooks::IncomingWebhook for Trustly {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _error_kind: Option<webhooks::IncomingWebhookFlowError>,
-        connector_account_details: Option<
+        connector_authentication_type: Option<
             common_utils::crypto::Encryptable<hyperswitch_masking::Secret<serde_json::Value>>,
         >,
     ) -> CustomResult<
@@ -882,7 +882,7 @@ impl webhooks::IncomingWebhook for Trustly {
             status: "OK".to_string(),
         };
 
-        let connector_auth_type: ConnectorAuthType = connector_account_details
+        let connector_auth_type: ConnectorAuthType = connector_authentication_type
             .ok_or(ConnectorError::FailedToObtainAuthType)?
             .parse_value("ConnectorAuthType")
             .change_context(ConnectorError::FailedToObtainAuthType)?;

@@ -411,7 +411,7 @@ impl IncomingWebhook for Adyenplatform {
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
         error_kind: Option<IncomingWebhookFlowError>,
-        _connector_account_details: Option<crypto::Encryptable<Secret<serde_json::Value>>>,
+        _connector_authentication_type: Option<crypto::Encryptable<Secret<serde_json::Value>>>,
     ) -> CustomResult<ApplicationResponse<serde_json::Value>, ConnectorError> {
         if error_kind.is_some() {
             Ok(ApplicationResponse::JsonWithHeaders((
