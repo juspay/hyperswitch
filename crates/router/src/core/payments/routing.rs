@@ -1560,11 +1560,11 @@ pub async fn perform_hybrid_routing_if_enabled(
 
     let is_decision_engine_cutover_enabled = matches!(
         utils::get_routing_result_source(state, business_profile).await,
-        Some(api_routing::RoutingResultSource::DecisionEngine)
+        Some(api_models::routing::RoutingResultSource::DecisionEngine)
     );
 
     if is_decision_engine_cutover_enabled {
-        stage
+        let hybrid_stage_outcome = stage
             .route(input)
             .await
             .inspect_err(|error| {
@@ -1573,12 +1573,31 @@ pub async fn perform_hybrid_routing_if_enabled(
                     "euclid: hybrid routing failed"
                 );
             })
-            .unwrap_or_else(|_| RoutingConnectorOutcomeWithApproach::empty())
+            .unwrap_or_else(|_| RoutingConnectorOutcomeWithApproach::empty());
+
+        let selected_source = if hybrid_stage_outcome.connectors.is_empty() {
+            "hyperswitch_static"
+        } else {
+            "decision_engine"
+        };
+
+        logger::info!(
+            business_profile_id=?business_profile.get_id(),
+            routing_source = %selected_source,
+            "decision_engine_euclid: selected routing source after hybrid stage"
+        );
+
+        hybrid_stage_outcome
             .resolve_or_fallback("hybrid-routing", static_connectors, static_approach)
     } else {
         logger::debug!(
             business_profile_id=?business_profile.get_id(),
             "decision_engine_euclid: cutover not enabled, using static routing result"
+        );
+        logger::info!(
+            business_profile_id=?business_profile.get_id(),
+            routing_source = "hyperswitch_static",
+            "decision_engine_euclid: selected routing source after hybrid stage"
         );
         (static_connectors.to_vec(), static_approach)
     }

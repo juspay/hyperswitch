@@ -76,8 +76,15 @@ pub struct HybridRoutingRequest {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct HybridRoutingResponse {
     pub static_routing: Option<RoutingEvaluateResponse>,
-    pub dynamic_routing: Option<or_types::DecideGatewayResponse>,
+    pub dynamic_routing: Option<DynamicRoutingWrapper>,
     pub evaluated_connectors: Option<Vec<DeRoutableConnectorChoice>>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct DynamicRoutingWrapper {
+    pub status: String,
+    pub decision: Option<or_types::DecideGatewayResponse>,
+    pub fallback_connectors: Option<Vec<DeRoutableConnectorChoice>>,
 }
 
 #[derive(Clone, Debug)]
@@ -347,65 +354,12 @@ pub fn build_static_routing_request_for_hybrid(
     )
 }
 
-fn parse_decided_gateway_connector(
-    decided_gateway: &str,
-    fallback_connectors: &[RoutableConnectorChoice],
-) -> RoutingResult<RoutableConnectorChoice> {
-    let (connector_name, mca_id) = match decided_gateway.split_once(':') {
-        Some((connector, merchant_connector_id)) => {
-            let normalized =
-                (!merchant_connector_id.is_empty()).then(|| merchant_connector_id.to_string());
-            (connector, normalized)
-        }
-        None => (decided_gateway, None),
-    };
-
-    let connector = RoutableConnectors::from_str(connector_name).map_err(|error| {
-        logger::error!(
-            error=?error,
-            connector_name = %connector_name,
-            "euclid: failed to parse decided gateway connector name"
-        );
-        errors::RoutingError::GenericConversionError {
-            from: "String".to_string(),
-            to: "RoutableConnectors".to_string(),
-        }
-    })?;
-
-    let merchant_connector_id = mca_id
-        .map(id_type::MerchantConnectorAccountId::wrap)
-        .transpose()
-        .change_context(errors::RoutingError::GenericConversionError {
-            from: "String".to_string(),
-            to: "MerchantConnectorAccountId".to_string(),
-        })?;
-
-    let connector_choice = if merchant_connector_id.is_none() {
-        fallback_connectors
-            .iter()
-            .find(|choice| choice.connector == connector)
-            .cloned()
-            .unwrap_or(RoutableConnectorChoice {
-                choice_kind: api_routing::RoutableChoiceKind::FullStruct,
-                connector,
-                merchant_connector_id: None,
-            })
-    } else {
-        RoutableConnectorChoice {
-            choice_kind: api_routing::RoutableChoiceKind::FullStruct,
-            connector,
-            merchant_connector_id,
-        }
-    };
-
-    Ok(connector_choice)
-}
-
 fn infer_hybrid_routing_approach(response: &HybridRoutingResponse) -> RoutingApproach {
     response
         .dynamic_routing
         .as_ref()
-        .and_then(|dynamic_routing| dynamic_routing.routing_approach.as_deref())
+        .and_then(|dynamic_routing| dynamic_routing.decision.as_ref())
+        .and_then(|decision| decision.routing_approach.as_deref())
         .map(RoutingApproach::from_decision_engine_approach)
         .unwrap_or_else(|| {
             if response.static_routing.is_some() {
@@ -418,7 +372,6 @@ fn infer_hybrid_routing_approach(response: &HybridRoutingResponse) -> RoutingApp
 
 pub fn normalize_hybrid_routing_response(
     response: &HybridRoutingResponse,
-    fallback_connectors: &[RoutableConnectorChoice],
 ) -> RoutingResult<HybridRoutingOutcome> {
     let outcome = if let Some(evaluated_connectors) = response
         .evaluated_connectors
@@ -430,25 +383,6 @@ pub fn normalize_hybrid_routing_response(
             .cloned()
             .map(RoutableConnectorChoice::from)
             .collect();
-
-        HybridRoutingOutcome {
-            connectors,
-            routing_approach: infer_hybrid_routing_approach(response),
-        }
-    } else if let Some(decided_gateway) = response
-        .dynamic_routing
-        .as_ref()
-        .and_then(|routing| routing.decided_gateway.as_deref())
-    {
-        let decided_connector =
-            parse_decided_gateway_connector(decided_gateway, fallback_connectors)?;
-        let mut connectors = vec![decided_connector];
-
-        for fallback_connector in fallback_connectors {
-            if !connectors.contains(fallback_connector) {
-                connectors.push(fallback_connector.clone());
-            }
-        }
 
         HybridRoutingOutcome {
             connectors,
@@ -483,6 +417,9 @@ pub fn normalize_hybrid_routing_response(
             routing_approach: RoutingApproach::StaticRouting,
         }
     } else {
+        logger::debug!(
+            "euclid: hybrid routing response did not include usable evaluated connectors or static output; returning empty connector set"
+        );
         HybridRoutingOutcome {
             connectors: Vec::new(),
             routing_approach: RoutingApproach::Default,
@@ -527,7 +464,7 @@ pub async fn decision_engine_hybrid_routing(
     business_profile: &domain::Profile,
     payment_id: String,
     hybrid_request: HybridRoutingRequest,
-    fallback_connectors: Vec<RoutableConnectorChoice>,
+    _fallback_connectors: Vec<RoutableConnectorChoice>,
 ) -> RoutingResult<HybridRoutingOutcome> {
     let routing_events_wrapper = RoutingEventsWrapper::new(
         state.tenant.tenant_id.clone(),
@@ -559,7 +496,7 @@ pub async fn decision_engine_hybrid_routing(
                 "euclid: response from decision engine hybrid API is empty".to_string(),
             ))?;
 
-    let outcome = normalize_hybrid_routing_response(&hybrid_response, &fallback_connectors)?;
+    let outcome = normalize_hybrid_routing_response(&hybrid_response)?;
     let mut routing_event =
         event_response
             .event
