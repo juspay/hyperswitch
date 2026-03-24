@@ -280,37 +280,15 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
 #[instrument(skip_all)]
 pub(crate) async fn get_webhook_delivery_retry_schedule_time(
     db: &dyn StorageInterface,
+    superposition_client: Option<&external_services::superposition::SuperpositionClient>,
     merchant_id: &id_type::MerchantId,
     retry_count: i32,
 ) -> Option<time::PrimitiveDateTime> {
-    let key = "pt_mapping_outgoing_webhooks";
-
-    let result = db
-        .find_config_by_key(key)
-        .await
-        .map(|value| value.config)
-        .and_then(|config| {
-            config
-                .parse_struct("OutgoingWebhookRetryProcessTrackerMapping")
-                .change_context(errors::StorageError::DeserializationFailed)
-        });
-    let mapping = result.map_or_else(
-        |error| {
-            if error.current_context().is_db_not_found() {
-                logger::debug!("Outgoing webhooks retry config `{key}` not found, ignoring");
-            } else {
-                logger::error!(
-                    ?error,
-                    "Failed to read outgoing webhooks retry config `{key}`"
-                );
-            }
-            process_data::OutgoingWebhookRetryProcessTrackerMapping::default()
-        },
-        |mapping| {
-            logger::debug!(?mapping, "Using custom outgoing webhooks retry config");
-            mapping
-        },
-    );
+    let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+        .with_merchant_id(merchant_id.clone());
+    let mapping = dimensions
+        .get_pt_mapping_outgoing_webhooks(db, superposition_client, Some(merchant_id))
+        .await;
 
     let time_delta = scheduler_utils::get_outgoing_webhook_retry_schedule_time(
         mapping,
@@ -326,11 +304,12 @@ pub(crate) async fn get_webhook_delivery_retry_schedule_time(
 #[instrument(skip_all)]
 pub(crate) async fn retry_webhook_delivery_task(
     db: &dyn StorageInterface,
+    superposition_client: Option<&external_services::superposition::SuperpositionClient>,
     merchant_id: &id_type::MerchantId,
     process: storage::ProcessTracker,
 ) -> errors::CustomResult<(), errors::StorageError> {
     let schedule_time =
-        get_webhook_delivery_retry_schedule_time(db, merchant_id, process.retry_count + 1).await;
+        get_webhook_delivery_retry_schedule_time(db, superposition_client, merchant_id, process.retry_count + 1).await;
 
     match schedule_time {
         Some(schedule_time) => {

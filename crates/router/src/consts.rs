@@ -356,6 +356,12 @@ pub mod superposition {
     pub const IMPLICIT_CUSTOMER_UPDATE: &str = "implicit_customer_update";
     /// Fingerprint secret configuration key
     pub const FINGERPRINT_SECRET: &str = "fingerprint_secret";
+    /// Poll config for external 3DS authentication key
+    pub const POLL_CONFIG_EXTERNAL_THREE_DS: &str = "poll_config_external_three_ds";
+    /// Outgoing webhook retry process tracker mapping key
+    pub const PT_MAPPING_OUTGOING_WEBHOOKS: &str = "pt_mapping_outgoing_webhooks";
+    /// PCR (Revenue Recovery) payments retry process tracker mapping key
+    pub const PT_MAPPING_PCR_RETRIES: &str = "pt_mapping_pcr_retries";
 }
 
 #[cfg(test)]

@@ -2,7 +2,10 @@ use common_utils::errors::CustomResult;
 use external_services::superposition;
 
 // Re-export dimension types for convenience
-pub use super::dimension_state::{DimensionsWithMerchantId, DimensionsWithMerchantIdAndProfileId};
+pub use super::dimension_state::{
+    DimensionsWithMerchantId, DimensionsWithMerchantIdAndConnector,
+    DimensionsWithMerchantIdAndProfileId,
+};
 use super::{fetch_db_config_for_dimensions, DatabaseBackedConfig};
 use crate::{consts::superposition as superposition_consts, db::StorageInterface, utils::id_type};
 
@@ -227,3 +230,22 @@ writable_config! {
     input = String,
     requires = DimensionsWithMerchantId
 }
+
+config! {
+    superposition_key = POLL_CONFIG_EXTERNAL_THREE_DS,
+    output = crate::types::PollConfig,
+    default = crate::types::PollConfig::default(),
+    object = true,
+    requires = DimensionsWithMerchantIdAndConnector,
+    targeting_key = id_type::MerchantId
+}
+
+config! {
+    superposition_key = PT_MAPPING_OUTGOING_WEBHOOKS,
+    output = scheduler::types::process_data::OutgoingWebhookRetryProcessTrackerMapping,
+    default = scheduler::types::process_data::OutgoingWebhookRetryProcessTrackerMapping::default(),
+    object = true,
+    requires = DimensionsWithMerchantId,
+    targeting_key = id_type::MerchantId
+}
+

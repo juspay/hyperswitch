@@ -194,6 +194,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
 
     let process_tracker = add_outgoing_webhook_retry_task_to_process_tracker(
         &*state.store,
+        state.superposition_service.as_deref(),
         &business_profile,
         &event,
         state.conf.application_source,
@@ -562,12 +563,14 @@ async fn raise_webhooks_analytics_event(
 
 pub(crate) async fn add_outgoing_webhook_retry_task_to_process_tracker(
     db: &dyn StorageInterface,
+    superposition_client: Option<&external_services::superposition::SuperpositionClient>,
     business_profile: &domain::Profile,
     event: &domain::Event,
     application_source: common_enums::ApplicationSource,
 ) -> CustomResult<storage::ProcessTracker, errors::StorageError> {
     let schedule_time = outgoing_webhook_retry::get_webhook_delivery_retry_schedule_time(
         db,
+        superposition_client,
         &business_profile.merchant_id,
         0,
     )
@@ -796,6 +799,7 @@ async fn api_client_error_handler(
         // Schedule a retry attempt for webhook delivery
         outgoing_webhook_retry::retry_webhook_delivery_task(
             &*state.store,
+            state.superposition_service.as_deref(),
             merchant_id,
             *process_tracker,
         )
@@ -968,6 +972,7 @@ async fn error_response_handler(
         // Schedule a retry attempt for webhook delivery
         outgoing_webhook_retry::retry_webhook_delivery_task(
             &*state.store,
+            state.superposition_service.as_deref(),
             merchant_id,
             *process_tracker,
         )
