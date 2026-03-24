@@ -483,7 +483,6 @@ export const connectorDetails = {
         shipping: Address,
         currency: "EUR",
       },
-
     },
 
     No3DSFailPayment: getCustomExchange({
