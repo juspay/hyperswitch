@@ -1,3 +1,4 @@
+use api_models::payments::PollConfig;
 use common_utils::types::StringMajorUnit;
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -743,4 +744,168 @@ pub enum SantanderBoletoStatus {
     Liquidado,
     /// A partial payment was made
     LiquidadoParcialmente,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticSolicitationResponse {
+    pub id_solic_rec: String,
+    pub id_rec: String,
+    pub calendario: SantanderPixAutomaticoCalendario,
+    pub destinatario: SantanderPixAutomaticoDestinatario,
+    pub status: String,
+    pub atualizacao: Vec<SantanderPixAutomaticoAtualizacao>,
+    pub rec_payload: Option<SantanderPixAutomaticoRecPayload>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoCalendario {
+    pub data_expiracao_solicitacao: Option<String>,
+    pub data_inicial: Option<String>,
+    pub data_final: Option<String>,
+    pub periodicidade: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoDestinatario {
+    pub conta: Option<String>,
+    pub ispb_participante: Option<String>,
+    pub agencia: Option<String>,
+    pub cpf: Option<Secret<String>>,
+    pub cnpj: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoAtualizacao {
+    pub status: String,
+    pub data: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoRecPayload {
+    pub id_rec: String,
+    pub vinculo: SantanderPixAutomaticoVinculo,
+    pub calendario: SantanderPixAutomaticoCalendario,
+    pub valor: Option<SantanderPixAutomaticoValor>,
+    pub recebedor: SantanderPixAutomaticoRecebedor,
+    pub atualizacao: Vec<SantanderPixAutomaticoAtualizacao>,
+    pub politica_retentativa: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoVinculo {
+    pub objeto: Option<String>,
+    pub devedor: SantanderPixAutomaticoDevedor,
+    pub contrato: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoDevedor {
+    pub cpf: Option<Secret<String>>,
+    pub cnpj: Option<Secret<String>>,
+    pub nome: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoValor {
+    pub valor_rec: Option<String>,
+    pub valor_minimo_recebedor: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoRecebedor {
+    pub convenio: Option<String>,
+    pub cnpj: Option<Secret<String>>,
+    pub nome: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticRecResponse {
+    pub id_rec: String,
+    pub vinculo: SantanderPixAutomaticoVinculo,
+    pub calendario: SantanderPixAutomaticoCalendario,
+    pub recebedor: SantanderPixAutomaticoRecebedor,
+    pub pagador: Option<SantanderPixAutomaticoPagador>,
+    pub status: String,
+    pub politica_retentativa: Option<String>,
+    pub loc: Option<SantanderPixAutomaticoLoc>,
+    pub atualizacao: Vec<SantanderPixAutomaticoAtualizacao>,
+    pub encerramento: Option<SantanderPixAutomaticoEncerramento>,
+    pub solicitacao: Option<Vec<SantanderPixAutomaticSolicitationResponse>>,
+    pub ativacao: Option<SantanderPixAutomaticoAtivacao>,
+    pub dados_qr: Option<SantanderPixAutomaticQrData>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoPagador {
+    pub ispb_participante: Option<String>,
+    pub cod_mun: Option<String>,
+    pub cpf: Option<Secret<String>>,
+    pub cnpj: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoLoc {
+    pub id: Option<i64>,
+    pub location: Option<String>,
+    pub criacao: Option<String>,
+    pub id_rec: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoEncerramento {
+    pub rejeicao: Option<SantanderPixAutomaticoRejeicao>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoRejeicao {
+    pub codigo: Option<String>,
+    pub descricao: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoAtivacao {
+    pub tipo_jornada: Option<String>,
+    pub dados_jornada: Option<SantanderPixAutomaticoDadosJornada>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoDadosJornada {
+    pub txid: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticQrData {
+    pub jornada: Option<String>,
+    pub pix_copia_e_cola: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum SantanderPaymentTriggerResponse {
+    PixAutomaticoSolicRec(Box<SantanderPixAutomaticSolicitationResponse>),
+    PixAutomaticoConsultAndActivateJourney(Box<SantanderPixAutomaticRecResponse>),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WaitScreenData {
+    pub display_from_timestamp: i128,
+    pub display_to_timestamp: Option<i128>,
+    pub poll_config: Option<PollConfig>,
 }
