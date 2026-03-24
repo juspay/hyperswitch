@@ -1681,13 +1681,14 @@ impl PaymentAttempt {
                     .map(|(sdk_uri, wait_info)| {
                         api_models::payments::NextActionData::from_upi_intent(sdk_uri, wait_info)
                     }),
-                (storage_enums::PaymentMethod::Upi, Some(storage_enums::PaymentMethodType::UpiQr)) => {
-                    sdk_uri_opt
-                        .zip(wait_screen_info)
-                        .map(|(sdk_uri, wait_info)| {
-                            api_models::payments::NextActionData::from_upi_qr(sdk_uri, wait_info)
-                        })
-                }
+                (
+                    storage_enums::PaymentMethod::Upi,
+                    Some(storage_enums::PaymentMethodType::UpiQr),
+                ) => sdk_uri_opt
+                    .zip(wait_screen_info)
+                    .map(|(sdk_uri, wait_info)| {
+                        api_models::payments::NextActionData::from_upi_qr(sdk_uri, wait_info)
+                    }),
                 (
                     storage_enums::PaymentMethod::Upi,
                     Some(storage_enums::PaymentMethodType::UpiCollect),
