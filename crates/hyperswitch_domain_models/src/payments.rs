@@ -19,7 +19,7 @@ use common_utils::{
     crypto::Encryptable,
     encryption::Encryption,
     errors::CustomResult,
-    ext_traits::ValueExt,
+    ext_traits::{OptionExt, ValueExt},
     id_type, pii,
     types::{keymanager::ToEncryptable, CreatedBy, MinorUnit},
 };
@@ -595,7 +595,7 @@ impl AmountDetails {
         let order_tax_amount = match self.skip_external_tax_calculation {
             common_enums::TaxCalculationOverride::Skip => {
                 self.tax_details.as_ref().and_then(|tax_details| {
-                    tax_details.get_tax_amount(Some(confirm_intent_request.payment_method_subtype))
+                    tax_details.get_tax_amount(confirm_intent_request.payment_method_subtype)
                 })
             }
             common_enums::TaxCalculationOverride::Calculate => None,
@@ -649,7 +649,7 @@ impl AmountDetails {
         let order_tax_amount = match self.skip_external_tax_calculation {
             common_enums::TaxCalculationOverride::Skip => {
                 self.tax_details.as_ref().and_then(|tax_details| {
-                    tax_details.get_tax_amount(Some(confirm_intent_request.payment_method_subtype))
+                    tax_details.get_tax_amount(confirm_intent_request.payment_method_subtype)
                 })
             }
             common_enums::TaxCalculationOverride::Calculate => None,
@@ -1483,7 +1483,14 @@ where
                             .clone(),
                     },
                 payment_method_type: self.payment_attempt.payment_method_type,
-                payment_method_subtype: self.payment_attempt.payment_method_subtype,
+                payment_method_subtype: self
+                    .payment_attempt
+                    .payment_method_subtype
+                    .get_required_value("payment_method_subtype")
+                    .change_context(
+                        errors::api_error_response::ApiErrorResponse::InternalServerError,
+                    )
+                    .attach_printable("Failed to construct revenue recovery metadata")?,
                 connector: connector.parse().map_err(|err| {
                     router_env::logger::error!(?err, "Failed to parse connector string to enum");
                     errors::api_error_response::ApiErrorResponse::InternalServerError

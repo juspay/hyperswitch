@@ -9636,9 +9636,11 @@ where
             .clone(),
         pre_routing_connector_choice: payment_data.get_pre_routing_result().and_then(
             |pre_routing_results| {
-                pre_routing_results
-                    .get(&payment_data.get_payment_attempt().payment_method_subtype)
-                    .cloned()
+                payment_data
+                    .get_payment_attempt()
+                    .payment_method_subtype
+                    .as_ref()
+                    .and_then(|subtype| pre_routing_results.get(subtype).cloned())
             },
         ),
 
