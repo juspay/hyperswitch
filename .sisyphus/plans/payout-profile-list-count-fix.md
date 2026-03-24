@@ -714,7 +714,7 @@ Max Concurrent: 4 (Wave 2)
 
 ---
 
-- [ ] 10. Add Integration Tests
+- [x] 10. Add Integration Tests
 
   **What to do**:
   - Open `/home/potter/Documents/hyperswitch/crates/router/tests/payouts.rs`

@@ -93,6 +93,7 @@ impl Payouts {
         .await
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn get_total_count_of_payouts(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
