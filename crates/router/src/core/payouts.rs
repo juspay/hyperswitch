@@ -736,7 +736,7 @@ pub async fn payouts_list_core(
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
-    let payouts = core_utils::filter_objects_based_on_profile_id_list(profile_id_list, payouts);
+    let payouts = core_utils::filter_objects_based_on_profile_id_list(profile_id_list.clone(), payouts);
 
     let mut pi_pa_tuple_vec = PayoutActionData::new();
 
@@ -883,7 +883,7 @@ pub async fn payouts_filtered_list_core(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
-    let list = core_utils::filter_objects_based_on_profile_id_list(profile_id_list, list);
+    let list = core_utils::filter_objects_based_on_profile_id_list(profile_id_list.clone(), list);
     let data: Vec<api::PayoutCreateResponse> =
         join_all(list.into_iter().map(|(p, pa, customer, address)| async {
             let customer: Option<domain::Customer> = customer

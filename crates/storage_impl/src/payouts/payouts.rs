@@ -783,7 +783,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         active_payout_ids: &[common_utils::id_type::PayoutId],
-        profile_id_list: Option<&[common_utils::id_type::ProfileId]>,
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         connector: Option<Vec<PayoutConnectors>>,
         currency: Option<Vec<storage_enums::Currency>>,
         status: Option<Vec<storage_enums::PayoutStatus>>,
@@ -809,7 +809,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             currency,
             status,
             payout_type,
-            profile_id_list.map(|p| p.to_vec()),
+            profile_id_list,
         )
         .await
         .map_err(|er| {
