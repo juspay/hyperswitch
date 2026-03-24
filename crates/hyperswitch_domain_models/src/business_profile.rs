@@ -16,7 +16,7 @@ use diesel_models::business_profile::RevenueRecoveryAlgorithmData;
 use diesel_models::business_profile::{
     self as storage_types, AuthenticationConnectorDetails, BusinessPaymentLinkConfig,
     BusinessPayoutLinkConfig, CardTestingGuardConfig, ExternalVaultConnectorDetails,
-    ProfileUpdateInternal, WebhookDetails,
+    PaymentMethodBlockingConfig, ProfileUpdateInternal, WebhookDetails,
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
@@ -91,6 +91,7 @@ pub struct Profile {
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
     pub external_vault_details: ExternalVaultDetails,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
 }
 
@@ -250,6 +251,7 @@ pub struct ProfileSetter {
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
     pub external_vault_details: ExternalVaultDetails,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
 }
 
@@ -319,6 +321,7 @@ impl From<ProfileSetter> for Profile {
             always_enable_overcapture: value.always_enable_overcapture,
             external_vault_details: value.external_vault_details,
             billing_processor_id: value.billing_processor_id,
+            payment_method_blocking: value.payment_method_blocking,
             default_fallback_routing: value.default_fallback_routing,
         }
     }
@@ -391,6 +394,7 @@ pub struct ProfileGeneralUpdate {
     pub is_external_vault_enabled: Option<common_enums::ExternalVaultEnabled>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
 }
 
 #[cfg(feature = "v1")]
@@ -483,6 +487,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_external_vault_enabled,
                     external_vault_connector_details,
                     billing_processor_id,
+                    payment_method_blocking,
                 } = *update;
 
                 let is_external_vault_enabled = match is_external_vault_enabled {
@@ -550,6 +555,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_external_vault_enabled,
                     external_vault_connector_details,
                     billing_processor_id,
+                    payment_method_blocking,
                     default_fallback_routing: None,
                 }
             }
@@ -613,6 +619,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 billing_processor_id: None,
                 is_l2_l3_enabled: None,
+                payment_method_blocking: None,
                 default_fallback_routing: None,
             },
             ProfileUpdate::DynamicRoutingAlgorithmUpdate {
@@ -673,6 +680,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 billing_processor_id: None,
                 is_l2_l3_enabled: None,
+                payment_method_blocking: None,
                 default_fallback_routing: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
@@ -733,6 +741,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 billing_processor_id: None,
                 is_l2_l3_enabled: None,
+                payment_method_blocking: None,
                 default_fallback_routing: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
@@ -793,6 +802,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 billing_processor_id: None,
                 is_l2_l3_enabled: None,
+                payment_method_blocking: None,
                 default_fallback_routing: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
@@ -853,6 +863,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 billing_processor_id: None,
                 is_l2_l3_enabled: None,
+                payment_method_blocking: None,
                 default_fallback_routing: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
@@ -913,6 +924,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 billing_processor_id: None,
                 is_l2_l3_enabled: None,
+                payment_method_blocking: None,
                 default_fallback_routing: None,
             },
             ProfileUpdate::AcquirerConfigMapUpdate {
@@ -973,6 +985,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 billing_processor_id: None,
                 is_l2_l3_enabled: None,
+                payment_method_blocking: None,
                 default_fallback_routing: None,
             },
             ProfileUpdate::DefaultRoutingFallbackUpdate {
@@ -1033,6 +1046,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 billing_processor_id: None,
                 is_l2_l3_enabled: None,
+                payment_method_blocking: None,
                 default_fallback_routing,
             },
         }
@@ -1116,6 +1130,7 @@ impl Conversion for Profile {
             is_external_vault_enabled,
             external_vault_connector_details,
             billing_processor_id: self.billing_processor_id,
+            payment_method_blocking: self.payment_method_blocking,
             default_fallback_routing: self.default_fallback_routing,
         })
     }
@@ -1242,6 +1257,7 @@ impl Conversion for Profile {
             always_enable_overcapture: item.always_enable_overcapture,
             external_vault_details,
             billing_processor_id: item.billing_processor_id,
+            payment_method_blocking: item.payment_method_blocking,
             default_fallback_routing: item.default_fallback_routing,
         })
     }
@@ -1312,6 +1328,7 @@ impl Conversion for Profile {
             is_external_vault_enabled,
             external_vault_connector_details,
             billing_processor_id: self.billing_processor_id,
+            payment_method_blocking: self.payment_method_blocking,
             default_fallback_routing: self.default_fallback_routing,
         })
     }
@@ -2489,6 +2506,7 @@ impl Conversion for Profile {
             is_l2_l3_enabled: None,
             always_enable_overcapture: None,
             billing_processor_id: self.billing_processor_id,
+            payment_method_blocking: None,
         })
     }
 
@@ -2659,6 +2677,7 @@ impl Conversion for Profile {
             merchant_country_code: self.merchant_country_code,
             split_txns_enabled: Some(self.split_txns_enabled),
             billing_processor_id: self.billing_processor_id,
+            payment_method_blocking: None,
         })
     }
 }

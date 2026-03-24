@@ -3636,6 +3636,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
                     .attach_printable("error while generating external vault details")?,
             billing_processor_id: self.billing_processor_id,
             is_l2_l3_enabled: self.is_l2_l3_enabled.unwrap_or(false),
+            payment_method_blocking: self.payment_method_blocking.map(ForeignInto::foreign_into),
             default_fallback_routing: None,
         }))
     }
@@ -4140,6 +4141,9 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .map(ForeignInto::foreign_into),
                 billing_processor_id: self.billing_processor_id,
                 is_l2_l3_enabled: self.is_l2_l3_enabled,
+                payment_method_blocking: self
+                    .payment_method_blocking
+                    .map(ForeignInto::foreign_into),
             },
         )))
     }
