@@ -40,7 +40,7 @@ pub trait BlocklistInterface {
         data_kind: common_enums::BlocklistDataKind,
         limit: i64,
         offset: i64,
-    ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError>;
+    ) -> CustomResult<(Vec<storage::Blocklist>, usize), errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -87,9 +87,16 @@ impl BlocklistInterface for Store {
         data_kind: common_enums::BlocklistDataKind,
         limit: i64,
         offset: i64,
-    ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        storage::Blocklist::list_by_merchant_id_data_kind(
+    ) -> CustomResult<(Vec<storage::Blocklist>, usize), errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        let total_count = storage::Blocklist::get_count_by_merchant_id_data_kind(
+            &conn,
+            merchant_id,
+            data_kind.clone(),
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))?;
+        let entries = storage::Blocklist::list_by_merchant_id_data_kind(
             &conn,
             merchant_id,
             data_kind,
@@ -97,7 +104,8 @@ impl BlocklistInterface for Store {
             offset,
         )
         .await
-        .map_err(|error| report!(errors::StorageError::from(error)))
+        .map_err(|error| report!(errors::StorageError::from(error)))?;
+        Ok((entries, total_count))
     }
 
     #[instrument(skip_all)]
@@ -144,7 +152,7 @@ impl BlocklistInterface for MockDb {
         _data_kind: common_enums::BlocklistDataKind,
         _limit: i64,
         _offset: i64,
-    ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
+    ) -> CustomResult<(Vec<storage::Blocklist>, usize), errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
 
@@ -196,7 +204,7 @@ impl BlocklistInterface for KafkaStore {
         data_kind: common_enums::BlocklistDataKind,
         limit: i64,
         offset: i64,
-    ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
+    ) -> CustomResult<(Vec<storage::Blocklist>, usize), errors::StorageError> {
         self.diesel_store
             .list_blocklist_entries_by_merchant_id_data_kind(merchant_id, data_kind, limit, offset)
             .await

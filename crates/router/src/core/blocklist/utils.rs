@@ -91,8 +91,8 @@ pub async fn list_blocklist_entries_for_merchant(
     state: &SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
     query: api_blocklist::ListBlocklistQuery,
-) -> RouterResult<Vec<api_blocklist::BlocklistResponse>> {
-    state
+) -> RouterResult<api_blocklist::ListBlocklistResponse> {
+    let (entries, total_count) = state
         .store
         .list_blocklist_entries_by_merchant_id_data_kind(
             merchant_id,
@@ -103,8 +103,16 @@ pub async fn list_blocklist_entries_for_merchant(
         .await
         .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
             message: "no blocklist records found".to_string(),
-        })
-        .map(|v| v.into_iter().map(ForeignInto::foreign_into).collect())
+        })?;
+
+    let data: Vec<api_blocklist::BlocklistResponse> =
+        entries.into_iter().map(ForeignInto::foreign_into).collect();
+
+    Ok(api_blocklist::ListBlocklistResponse {
+        count: data.len(),
+        total_count,
+        data,
+    })
 }
 
 fn validate_card_bin(bin: &str) -> RouterResult<()> {
