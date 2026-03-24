@@ -1723,9 +1723,7 @@ impl MerchantDefaultConfigUpdate<'_> {
                         "Vec<RoutableConnectorChoice>",
                     )
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "Business Profile default config has invalid structure",
-                    )?
+                    .attach_printable("Business Profile default config has invalid structure")?
             } else {
                 Vec::new()
             };
@@ -1741,10 +1739,16 @@ impl MerchantDefaultConfigUpdate<'_> {
                     default_fallback_routing: Some(default_fallback_routing),
                 };
                 self.store
-                    .update_profile_by_profile_id(self.key_store, self.business_profile.clone(), profile_update)
+                    .update_profile_by_profile_id(
+                        self.key_store,
+                        self.business_profile.clone(),
+                        profile_update,
+                    )
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to update routing algorithm ref in business profile")?;
+                    .attach_printable(
+                        "Failed to update routing algorithm ref in business profile",
+                    )?;
             }
         }
         Ok(())
@@ -1807,9 +1811,7 @@ impl MerchantDefaultConfigUpdate<'_> {
                         "Vec<RoutableConnectorChoice>",
                     )
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "Business Profile default config has invalid structure",
-                    )?
+                    .attach_printable("Business Profile default config has invalid structure")?
             } else {
                 Vec::new()
             };
@@ -1827,10 +1829,16 @@ impl MerchantDefaultConfigUpdate<'_> {
                     default_fallback_routing: Some(default_fallback_routing),
                 };
                 self.store
-                    .update_profile_by_profile_id(self.key_store, self.business_profile.clone(), profile_update)
+                    .update_profile_by_profile_id(
+                        self.key_store,
+                        self.business_profile.clone(),
+                        profile_update,
+                    )
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to update routing algorithm ref in business profile")?;
+                    .attach_printable(
+                        "Failed to update routing algorithm ref in business profile",
+                    )?;
             }
         }
         Ok(())
@@ -3633,7 +3641,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
                     .map(ForeignFrom::foreign_from),
             ))
             .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("error while generating external vault details")?,
+            .attach_printable("error while generating external vault details")?,
             billing_processor_id: self.billing_processor_id,
             is_l2_l3_enabled: self.is_l2_l3_enabled.unwrap_or(false),
             payment_method_blocking: self.payment_method_blocking.map(ForeignInto::foreign_into),
