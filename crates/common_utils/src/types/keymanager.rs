@@ -3,7 +3,7 @@
 use core::fmt;
 
 use base64::Engine;
-use masking::{ExposeInterface, PeekInterface, Secret, Strategy, StrongSecret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret, Strategy, StrongSecret};
 #[cfg(feature = "encryption_service")]
 use router_env::logger;
 #[cfg(feature = "km_forward_x_request_id")]
@@ -88,6 +88,10 @@ impl KeyManagerState {
             }
             infra_values
         })
+    }
+
+    pub fn is_encryption_service_enabled(&self) -> bool {
+        cfg!(feature = "encryption_service") && self.enabled
     }
 }
 

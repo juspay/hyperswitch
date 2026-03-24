@@ -4,7 +4,9 @@ pub mod merchant_connector_webhook_management;
 pub mod revenue_recovery;
 pub mod subscriptions;
 pub mod unified_authentication_service;
-use api_models::payments::{AdditionalPaymentData, AddressDetails, RequestSurchargeDetails};
+use api_models::payments::{
+    AdditionalPaymentData, AddressDetails, ConnectorMetadata, RequestSurchargeDetails,
+};
 use common_types::payments as common_payments_types;
 use common_utils::{
     consts, errors,
@@ -14,7 +16,7 @@ use common_utils::{
 };
 use diesel_models::{enums as storage_enums, types::OrderDetailsWithAmount};
 use error_stack::ResultExt;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
@@ -104,6 +106,9 @@ pub struct PaymentsAuthorizeData {
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
     pub rrn: Option<String>,
     pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
+    pub installment_details: Option<common_types::payments::InstallmentData>,
+    // Contains the connector specific metadata coming from payments request
+    pub connector_intent_metadata: Option<ConnectorMetadata>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1557,11 +1562,11 @@ pub struct PayoutsData {
 #[derive(Debug, Default, Clone)]
 pub struct CustomerDetails {
     pub customer_id: Option<id_type::CustomerId>,
-    pub name: Option<Secret<String, masking::WithType>>,
+    pub name: Option<Secret<String, hyperswitch_masking::WithType>>,
     pub email: Option<pii::Email>,
-    pub phone: Option<Secret<String, masking::WithType>>,
+    pub phone: Option<Secret<String, hyperswitch_masking::WithType>>,
     pub phone_country_code: Option<String>,
-    pub tax_registration_id: Option<Secret<String, masking::WithType>>,
+    pub tax_registration_id: Option<Secret<String, hyperswitch_masking::WithType>>,
     pub document_details: Option<api_models::customers::CustomerDocumentDetails>,
 }
 
@@ -1593,6 +1598,7 @@ pub struct VerifyWebhookSourceRequestData {
     pub webhook_headers: actix_web::http::header::HeaderMap,
     pub webhook_body: Vec<u8>,
     pub merchant_secret: api_models::webhooks::ConnectorWebhookSecrets,
+    pub webhook_uri: http::Uri,
 }
 
 #[derive(Debug, Clone)]
@@ -1703,6 +1709,7 @@ pub struct SetupMandateRequestData {
     pub tokenization: Option<common_enums::Tokenization>,
     pub partner_merchant_identifier_details:
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
+    pub authentication_data: Option<AuthenticationData>,
 }
 
 #[derive(Debug, Clone)]

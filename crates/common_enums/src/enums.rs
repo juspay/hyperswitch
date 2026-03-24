@@ -18,7 +18,7 @@ use diesel::{
     serialize::{Output, ToSql},
     sql_types::Text,
 };
-use masking::Secret;
+use hyperswitch_masking::Secret;
 pub use payments::ProductType;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use smithy::SmithyModel;
@@ -181,7 +181,6 @@ impl AttemptStatus {
             | Self::Charged
             | Self::AutoRefunded
             | Self::Voided
-            | Self::VoidedPostCharge
             | Self::VoidFailed
             | Self::CaptureFailed
             | Self::Failure
@@ -204,7 +203,8 @@ impl AttemptStatus {
             | Self::PaymentMethodAwaited
             | Self::ConfirmationAwaited
             | Self::DeviceDataCollectionPending
-            | Self::IntegrityFailure => false,
+            | Self::IntegrityFailure
+            | Self::VoidedPostCharge => false,
         }
     }
 
@@ -2493,7 +2493,7 @@ impl PaymentMethodType {
             Self::RedPagos => "RedPagos",
             Self::SamsungPay => "Samsung Pay",
             Self::Sepa => "SEPA Direct Debit",
-            Self::SepaGuarenteedDebit => "SEPA Guarenteed Direct Debit",
+            Self::SepaGuarenteedDebit => "SEPA Guaranteed Direct Debit",
             Self::SepaBankTransfer => "SEPA Bank Transfer",
             Self::Sofort => "Sofort",
             Self::Skrill => "Skrill",
@@ -2528,7 +2528,7 @@ impl PaymentMethodType {
     }
 }
 
-impl masking::SerializableSecret for PaymentMethodType {}
+impl hyperswitch_masking::SerializableSecret for PaymentMethodType {}
 
 /// Indicates the type of payment method. Eg: 'card', 'wallet', etc.
 #[derive(
@@ -2590,6 +2590,27 @@ impl PaymentMethod {
             | Self::RealTimePayment
             | Self::Upi
             | Self::Voucher
+            | Self::OpenBanking
+            | Self::MobilePayment
+            | Self::NetworkToken => false,
+        }
+    }
+
+    pub fn supports_installments(&self) -> bool {
+        match self {
+            Self::Card => true,
+            Self::CardRedirect
+            | Self::PayLater
+            | Self::Wallet
+            | Self::BankRedirect
+            | Self::BankTransfer
+            | Self::Crypto
+            | Self::BankDebit
+            | Self::Reward
+            | Self::RealTimePayment
+            | Self::Upi
+            | Self::Voucher
+            | Self::GiftCard
             | Self::OpenBanking
             | Self::MobilePayment
             | Self::NetworkToken => false,
@@ -2788,6 +2809,7 @@ pub enum PaymentType {
     NewMandate,
     SetupMandate,
     RecurringMandate,
+    Installment,
 }
 
 /// SCA Exemptions types available for authentication
@@ -2933,6 +2955,40 @@ pub enum RelayStatus {
     Pending,
     Success,
     Failure,
+}
+
+impl RelayStatus {
+    pub fn get_void_status(attempt_status: AttemptStatus) -> Self {
+        match attempt_status {
+            AttemptStatus::Failure
+            | AttemptStatus::AuthenticationFailed
+            | AttemptStatus::RouterDeclined
+            | AttemptStatus::AuthorizationFailed
+            | AttemptStatus::CaptureFailed
+            | AttemptStatus::VoidFailed
+            | AttemptStatus::IntegrityFailure
+            | AttemptStatus::AutoRefunded
+            | AttemptStatus::Expired => Self::Failure,
+            AttemptStatus::Pending
+            | AttemptStatus::PaymentMethodAwaited
+            | AttemptStatus::Authorized
+            | AttemptStatus::PartiallyAuthorized
+            | AttemptStatus::AuthenticationSuccessful
+            | AttemptStatus::ConfirmationAwaited
+            | AttemptStatus::DeviceDataCollectionPending
+            | AttemptStatus::VoidInitiated
+            | AttemptStatus::Unresolved
+            | AttemptStatus::Charged
+            | AttemptStatus::PartialChargedAndChargeable
+            | AttemptStatus::CodInitiated
+            | AttemptStatus::PartialCharged
+            | AttemptStatus::Authorizing
+            | AttemptStatus::CaptureInitiated
+            | AttemptStatus::AuthenticationPending
+            | AttemptStatus::Started => Self::Pending,
+            AttemptStatus::Voided | AttemptStatus::VoidedPostCharge => Self::Success,
+        }
+    }
 }
 
 #[derive(
@@ -3127,6 +3183,26 @@ pub enum PanOrToken {
 pub enum CardType {
     Credit,
     Debit,
+}
+
+// TODO: This enum will be updated with all card subtype values
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumIter,
+    strum::EnumString,
+    utoipa::ToSchema,
+    Copy,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum CardSubtype {
+    Platinum,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, strum::EnumString, strum::Display)]
@@ -8456,7 +8532,11 @@ impl PayoutStatus {
     }
 
     pub fn is_non_terminal_status(&self) -> bool {
-        !matches!(
+        !self.is_terminal_status()
+    }
+
+    pub fn is_terminal_status(&self) -> bool {
+        matches!(
             self,
             Self::Success | Self::Failed | Self::Cancelled | Self::Expired | Self::Reversed
         )
@@ -9987,6 +10067,12 @@ pub enum FeatureStatus {
     Supported,
 }
 
+impl FeatureStatus {
+    pub fn is_supported(&self) -> bool {
+        matches!(self, Self::Supported)
+    }
+}
+
 /// The type of tokenization to use for the payment method
 #[derive(
     Clone,
@@ -10191,6 +10277,7 @@ pub enum ProcessTrackerRunner {
     ProcessDisputeWorkflow,
     DisputeListWorkflow,
     InvoiceSyncflow,
+    PayoutSyncWorkFlow,
 }
 
 #[derive(
@@ -10755,4 +10842,44 @@ pub enum WebhookRegistrationStatus {
     Success,
     // Webhook registration has failed
     Failure,
+}
+
+/// The status of a post-capture void operation
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    SmithyModel,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum PostCaptureVoidStatus {
+    Succeeded,
+    #[default]
+    Pending,
+    Failed,
+}
+
+impl PostCaptureVoidStatus {
+    pub fn is_post_capture_void_failure(self) -> bool {
+        match self {
+            Self::Failed => true,
+            Self::Pending | Self::Succeeded => false,
+        }
+    }
 }

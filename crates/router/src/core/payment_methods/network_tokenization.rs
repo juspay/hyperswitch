@@ -22,8 +22,8 @@ use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payment_method_data::{
     NetworkTokenDetails, NetworkTokenDetailsPaymentMethod,
 };
+use hyperswitch_masking::{ErasedMaskSerialize, ExposeInterface, Mask, PeekInterface, Secret};
 use josekit::jwe;
-use masking::{ErasedMaskSerialize, ExposeInterface, Mask, PeekInterface, Secret};
 
 use super::transformers::DeleteCardResp;
 #[cfg(feature = "v2")]
@@ -446,6 +446,7 @@ pub async fn make_card_network_tokenization_request(
         card_holder_name: card.card_holder_name.clone(),
         nick_name: card.nick_name.clone(),
         cryptogram: None,
+        par: Some(Secret::new(resp.par)),
     };
     Ok((network_token_details, network_token_req_ref_id))
 }
@@ -663,6 +664,7 @@ pub async fn get_token_from_tokenization_service(
         card_issuing_country: None,
         bank_code: None,
         eci: token_response.eci,
+        par: token_response.card_details.map(|details| details.par),
     };
     Ok(network_token_data)
 }
@@ -743,6 +745,7 @@ pub async fn get_token_from_tokenization_service(
         card_issuing_country: token_decrypted.issuer_country,
         bank_code: None,
         eci: token_response.eci,
+        par: token_response.card_details.map(|details| details.par),
     };
     Ok(network_token_data)
 }

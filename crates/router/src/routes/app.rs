@@ -249,7 +249,7 @@ impl SessionStateInfo for SessionState {
     fn get_detached_auth(&self) -> RouterResult<(Blake3, &[u8])> {
         use error_stack::ResultExt;
         use hyperswitch_domain_models::errors::api_error_response as errors;
-        use masking::prelude::PeekInterface as _;
+        use hyperswitch_masking::PeekInterface as _;
         use router_env::logger;
 
         let output = CHECKSUM_KEY.get_or_try_init(|| {
@@ -263,8 +263,8 @@ impl SessionStateInfo for SessionState {
             let key = conf.api_keys.get_inner().checksum_auth_key.peek();
             hex::decode(key).map(|key| {
                 (
-                    masking::StrongSecret::new(context),
-                    masking::StrongSecret::new(key),
+                    hyperswitch_masking::StrongSecret::new(context),
+                    hyperswitch_masking::StrongSecret::new(key),
                 )
             })
         });
@@ -357,8 +357,8 @@ pub trait AppStateInfo {
 
 #[cfg(feature = "partial-auth")]
 static CHECKSUM_KEY: once_cell::sync::OnceCell<(
-    masking::StrongSecret<String>,
-    masking::StrongSecret<Vec<u8>>,
+    hyperswitch_masking::StrongSecret<String>,
+    hyperswitch_masking::StrongSecret<Vec<u8>>,
 )> = once_cell::sync::OnceCell::new();
 
 impl AppStateInfo for AppState {
@@ -463,16 +463,17 @@ impl AppState {
             let cache_store = get_cache_store(&conf.clone(), shut_down_signal, testable)
                 .await
                 .expect("Failed to create store");
-            let global_store: Box<dyn GlobalStorageInterface> = Box::pin(Self::get_store_interface(
-                &storage_impl,
-                &event_handler,
-                &conf,
-                &conf.multitenancy.global_tenant,
-                Arc::clone(&cache_store),
-                testable,
-            ))
-            .await
-            .get_global_storage_interface();
+            let global_store: Box<dyn GlobalStorageInterface> =
+                Box::pin(Self::get_store_interface(
+                    &storage_impl,
+                    &event_handler,
+                    &conf,
+                    &conf.multitenancy.global_tenant,
+                    Arc::clone(&cache_store),
+                    testable,
+                ))
+                .await
+                .get_global_storage_interface();
             #[cfg(feature = "olap")]
             let pools = conf
                 .multitenancy
@@ -2030,7 +2031,8 @@ impl MerchantConnectorAccount {
                 )
                 .service(
                     web::resource("/{merchant_id}/connectors/webhooks/{merchant_connector_id}")
-                        .route(web::post().to(connector_webhook_register)),
+                        .route(web::post().to(connector_webhook_register))
+                        .route(web::get().to(retrieve_connector_webhook)),
                 );
         }
         #[cfg(feature = "oltp")]
@@ -2774,7 +2776,7 @@ impl User {
         let mut route = web::scope("/user").app_data(web::Data::new(state.clone()));
 
         route = route
-            .service(web::resource("").route(web::get().to(user::get_user_details)))
+            .service(web::resource("").route(web::get().to(user::get_active_user_details)))
             .service(web::resource("/signin").route(web::post().to(user::user_signin)))
             .service(web::resource("/v2/signin").route(web::post().to(user::user_signin)))
             // signin/signup with sso using openidconnect
@@ -3112,6 +3114,19 @@ impl User {
                         ),
                 ),
         );
+
+        // Internal API endpoints (authenticated via X-Internal-API-Key header)
+        route = route.service(
+            web::scope("/internal")
+                .service(
+                    web::resource("/user/list").route(web::post().to(user::list_users_internal)),
+                )
+                .service(
+                    web::resource("/user/{user_id}")
+                        .route(web::get().to(user::get_user_details_internal)),
+                ),
+        );
+
         route
     }
 }

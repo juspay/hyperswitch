@@ -2,14 +2,14 @@
 use std::fmt;
 use std::{
     collections::{HashMap, HashSet},
-    num::NonZeroI64,
+    num::{NonZeroI64, NonZeroU8},
 };
 pub mod additional_info;
 pub mod trait_impls;
 use cards::{CardNumber, NetworkToken};
 #[cfg(feature = "v2")]
 use common_enums::enums::PaymentConnectorTransmission;
-use common_enums::{GooglePayCardFundingSource, ProductType};
+use common_enums::{self, GooglePayCardFundingSource, ProductType};
 #[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
     ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
@@ -62,7 +62,7 @@ where
         None => Ok(None),
     }
 }
-use masking::{PeekInterface, Secret, WithType};
+use hyperswitch_masking::{PeekInterface, Secret, WithType};
 use router_derive::Setter;
 #[cfg(feature = "v1")]
 use serde::{de, Deserializer};
@@ -123,7 +123,9 @@ pub struct BankCodeResponse {
 }
 
 /// Passing this object creates a new customer or attaches an existing customer to the payment
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, PartialEq, SmithyModel)]
+#[derive(
+    Debug, Default, serde::Deserialize, serde::Serialize, Clone, ToSchema, PartialEq, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct CustomerDetails {
     /// The identifier for the customer.
@@ -312,7 +314,7 @@ pub struct PaymentsCreateIntentRequest {
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    /// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
+    /// Some connectors like Airwallex and Noon might require some additional information, find specific details in the child attributes below.
     pub connector_metadata: Option<ConnectorMetadata>,
 
     /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
@@ -497,7 +499,7 @@ pub struct PaymentsUpdateIntentRequest {
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    /// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
+    /// Some connectors like Airwallex and Noon might require some additional information, find specific details in the child attributes below.
     #[schema(value_type = Option<ConnectorMetadata>)]
     pub connector_metadata: Option<ConnectorMetadata>,
 
@@ -672,7 +674,7 @@ pub struct PaymentsIntentResponse {
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    /// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
+    /// Some connectors like Airwallex and Noon might require some additional information, find specific details in the child attributes below.
     #[schema(value_type = Option<ConnectorMetadata>)]
     pub connector_metadata: Option<ConnectorMetadata>,
 
@@ -818,7 +820,7 @@ pub struct RevenueRecoveryGetIntentResponse {
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    /// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
+    /// Some connectors like Airwallex and Noon might require some additional information, find specific details in the child attributes below.
     #[schema(value_type = Option<ConnectorMetadata>)]
     pub connector_metadata: Option<ConnectorMetadata>,
 
@@ -1101,6 +1103,29 @@ impl AmountDetailsUpdate {
         self.tax_on_surcharge
     }
 }
+
+/// Installment selection sent by the customer during payment confirmation.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct InstallmentRequest {
+    /// Number of installments chosen by the customer
+    #[schema(value_type = u8)]
+    pub number_of_installments: NonZeroU8,
+    /// Billing frequency for the chosen installment plan
+    #[schema(value_type = BillingFrequency)]
+    pub billing_frequency: common_payments_types::BillingFrequency,
+}
+
+impl From<InstallmentRequest> for common_payments_types::InstallmentData {
+    fn from(data: InstallmentRequest) -> Self {
+        Self {
+            number_of_installments: data.number_of_installments,
+            billing_frequency: data.billing_frequency,
+            installment_interest: None,
+        }
+    }
+}
+
 #[cfg(feature = "v1")]
 #[derive(
     Default,
@@ -1379,7 +1404,7 @@ pub struct PaymentsRequest {
     #[smithy(value_type = "Option<Object>")]
     pub metadata: Option<serde_json::Value>,
 
-    /// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
+    /// Some connectors like Airwallex and Noon might require some additional information, find specific details in the child attributes below.
     #[smithy(value_type = "Option<ConnectorMetadata>")]
     pub connector_metadata: Option<ConnectorMetadata>,
 
@@ -1559,6 +1584,13 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<PartnerMerchantIdentifierDetails>)]
     pub partner_merchant_identifier_details:
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
+
+    /// Installment payment options grouped by payment method. When provided, the payment is treated as an installment payment.
+    #[schema(value_type = Option<Vec<InstallmentOption>>)]
+    pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
+
+    /// Installment data selected by the customer during payment confirmation. This is used to specify the chosen number of installments and billing frequency.
+    pub installment_data: Option<InstallmentRequest>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -1760,6 +1792,34 @@ impl PaymentsRequest {
             .into());
         }
 
+        Ok(())
+    }
+
+    pub fn validate_installment_options(
+        &self,
+    ) -> common_utils::errors::CustomResult<(), ValidationError> {
+        if let Some(installment_options) = &self.installment_options {
+            installment_options
+                .iter()
+                .try_fold(HashSet::new(), |mut seen, opt| {
+                    opt.payment_method
+                        .supports_installments()
+                        .then_some(())
+                        .ok_or_else(|| ValidationError::InvalidValue {
+                            message:
+                                "installment_options is only supported for payment method card."
+                                    .to_string(),
+                        })?;
+                    seen.insert(opt.payment_method)
+                        .then_some(seen)
+                        .ok_or_else(|| ValidationError::InvalidValue {
+                            message: format!(
+                                "duplicate payment_method '{}' in installment_options.",
+                                opt.payment_method
+                            ),
+                        })
+                })?;
+        }
         Ok(())
     }
 }
@@ -3465,6 +3525,11 @@ pub struct NetworkTokenData {
     #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub eci: Option<String>,
+
+    /// The Payment Account Reference (PAR) for this card.
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub par: Option<Secret<String>>,
 }
 
 #[derive(
@@ -3515,6 +3580,11 @@ pub struct NetworkTokenResponse {
     #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub card_holder_name: Option<Secret<String>>,
+
+    /// The Payment Account Reference (PAR) for this card
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub par: Option<Secret<String>>,
 }
 
 #[derive(
@@ -4060,6 +4130,9 @@ pub struct AdditionalNetworkTokenInfo {
 
     /// The card holder's name
     pub card_holder_name: Option<Secret<String>>,
+
+    /// Payment Account Reference (PAR) for the card
+    pub par: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -6241,7 +6314,7 @@ pub struct Address {
     pub email: Option<Email>,
 }
 
-impl masking::SerializableSecret for Address {}
+impl hyperswitch_masking::SerializableSecret for Address {}
 
 impl Address {
     /// Unify the address, giving priority to `self` when details are present in both
@@ -6605,6 +6678,10 @@ pub enum NextActionData {
         display_text: Option<String>,
         #[smithy(value_type = "Option<String>")]
         border_color: Option<String>,
+        /// The raw QR code data (EMV copy and paste) used for Brazilian payment methods like Pix
+        #[smithy(value_type = "Option<String>")]
+        #[schema(value_type = Option<String>)]
+        raw_qr_data: Option<String>,
     },
     /// Contains url to fetch Qr code data
     FetchQrCodeInformation {
@@ -6722,7 +6799,7 @@ pub struct ThreeDsData {
     #[schema(value_type = Option<CardNetwork>, example = "Visa")]
     #[smithy(value_type = "Option<CardNetwork>")]
     pub card_network: Option<api_enums::CardNetwork>,
-    /// Prefered 3ds Connector
+    /// Preferred 3ds Connector
     #[smithy(value_type = "Option<String>")]
     pub three_ds_connector: Option<String>,
 }
@@ -6746,7 +6823,7 @@ pub enum ThreeDsMethodData {
         /// Three DS Method Key
         #[smithy(value_type = "Option<ThreeDsMethodKey>")]
         three_ds_method_key: Option<ThreeDsMethodKey>,
-        /// Indicates whethere to wait for Post message after 3DS method data submission
+        /// Indicates whether to wait for Post message after 3DS method data submission
         #[smithy(value_type = "bool")]
         consume_post_message_for_three_ds_method_completion: bool,
     },
@@ -6789,6 +6866,7 @@ pub enum QrCodeInformation {
         qr_code_url: Url,
         display_to_timestamp: Option<i64>,
         expiry_type: Option<common_enums::enums::ExpiryType>,
+        raw_qr_data: Option<String>,
     },
     QrDataUrl {
         image_data_url: Url,
@@ -6874,6 +6952,10 @@ pub struct VoucherNextStepData {
     #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub qr_code_url: Option<Url>,
+    /// The raw QR code data (EMV copy and paste) used for Brazilian payment methods like Pix
+    #[smithy(value_type = "Option<String>")]
+    #[schema(value_type = Option<String>)]
+    pub raw_qr_data: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -7169,6 +7251,10 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<String>")]
     pub connector: Option<String>,
 
+    /// The current state metadata of the payment intent, providing additional context about its status.
+    #[schema(value_type = Option<PaymentIntentStateMetadata>)]
+    pub state_metadata: Option<common_types::payments::PaymentIntentStateMetadata>,
+
     /// A secret token unique to this payment intent. It is primarily used by client-side applications (e.g., Hyperswitch SDKs) to authenticate actions like confirming the payment or handling next actions. This secret should be handled carefully and not exposed publicly beyond its intended client-side use.
     #[schema(value_type = Option<String>, example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
     #[smithy(value_type = "Option<String>")]
@@ -7425,6 +7511,11 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<ConnectorMetadata>")]
     pub connector_metadata: Option<serde_json::Value>, // This is Value because it is fetched from DB and before putting in DB the type is validated
 
+    /// Returns additional provider-specific metadata for certain connectors
+    #[schema(value_type = Option<ConnectorMetadataResponse>)]
+    #[smithy(value_type = "Option<ConnectorMetadataResponse>")]
+    pub connector_response_metadata: Option<ConnectorMetadataResponse>,
+
     /// Additional data that might be required by hyperswitch, to enable some specific features.
     #[schema(value_type = Option<FeatureMetadata>)]
     #[smithy(value_type = "Option<FeatureMetadata>")]
@@ -7647,6 +7738,14 @@ pub struct PaymentsResponse {
 
     /// Tokenization details of the payment method data
     pub payment_method_tokenization_details: Option<PaymentMethodTokenizationDetails>,
+
+    /// Installment payment options associated with this payment, grouped by payment method
+    #[schema(value_type = Option<Vec<InstallmentOption>>)]
+    pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
+
+    /// Installment selection confirmed by the customer for this payment
+    #[schema(value_type = Option<InstallmentData>)]
+    pub installment_data: Option<common_types::payments::InstallmentData>,
 }
 
 #[cfg(feature = "v1")]
@@ -8104,7 +8203,7 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    /// Some connectors like Apple pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.
+    /// Some connectors like Airwallex and Noon might require some additional information, find specific details in the child attributes below.
     pub connector_metadata: Option<ConnectorMetadata>,
 
     /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
@@ -8517,7 +8616,7 @@ pub struct PaymentsResponse {
     pub authentication_type: Option<api_enums::AuthenticationType>,
 
     /// The authentication type that was appliced for this order
-    /// This depeneds on the 3DS rules configured, If not a default authentication type will be applied
+    /// This depends on the 3DS rules configured, If not a default authentication type will be applied
     #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "no_three_ds")]
     pub authentication_type_applied: Option<api_enums::AuthenticationType>,
 
@@ -8930,6 +9029,8 @@ pub struct PaymentListFilterConstraints {
     pub merchant_order_reference_id: Option<String>,
     /// Indicates the method by which a card is discovered during a payment
     pub card_discovery: Option<Vec<enums::CardDiscovery>>,
+    /// The customer email to filter payments list
+    pub customer_email: Option<Email>,
 }
 
 #[cfg(feature = "v1")]
@@ -9014,6 +9115,8 @@ pub enum SortOn {
     /// Sort by the created_at field
     #[default]
     Created,
+    /// Sort by the modified_at field
+    Modified,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -9153,6 +9256,7 @@ impl From<AdditionalNetworkTokenInfo> for NetworkTokenResponse {
             token_exp_month: network_token.token_exp_month,
             token_exp_year: network_token.token_exp_year,
             card_holder_name: network_token.card_holder_name,
+            par: network_token.par,
         }
     }
 }
@@ -9391,7 +9495,7 @@ pub struct OrderDetailsWithAmount {
     pub unit_discount_amount: Option<MinorUnit>,
 }
 
-impl masking::SerializableSecret for OrderDetailsWithAmount {}
+impl hyperswitch_masking::SerializableSecret for OrderDetailsWithAmount {}
 
 #[derive(
     Default,
@@ -9790,6 +9894,23 @@ pub struct ConnectorMetadata {
     pub adyen: Option<AdyenConnectorMetadata>,
     #[smithy(value_type = "Option<PeachpaymentsData>")]
     pub peachpayments: Option<PeachpaymentsData>,
+    #[smithy(value_type = "Option<SantanderData>")]
+    pub santander: Option<SantanderConnectorMetadataData>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(rename_all = "snake_case")]
+pub enum ConnectorMetadataResponse {
+    Santander(SantanderData),
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(deny_unknown_fields)]
+pub struct SantanderData {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub end_to_end_id: Option<String>,
 }
 
 impl ConnectorMetadata {
@@ -11415,12 +11536,14 @@ pub struct BoletoAdditionalDetails {
     #[schema(value_type = Option<String>, example="2026-12-31")]
     #[serde(default, with = "common_utils::custom_serde::date_only_optional")]
     pub due_date: Option<PrimitiveDateTime>,
-    // It tells the bank what type of commercial document created the boleto. Why does this boleto exist? What kind of transaction or contract caused it?
-    #[schema(value_type = Option<BoletoDocumentKind>, example="commercial_invoice")]
-    pub document_kind: Option<common_enums::enums::BoletoDocumentKind>,
-    // This field tells the bank how the boleto can be paid — whether the payer must pay the exact amount, can pay a different amount, or pay in parts.
-    #[schema(value_type = Option<BoletoPaymentType>, example="fixed_amount")]
-    pub payment_type: Option<common_enums::enums::BoletoPaymentType>,
+    /// It tells the bank what type of commercial document created the boleto. Why does this boleto exist? What kind of transaction or contract caused it?
+    /// Depcreated since it has been moved to connector_metadata
+    #[schema(value_type = Option<BoletoDocumentKind>, example="commercial_invoice", deprecated)]
+    pub document_kind: Option<common_enums::BoletoDocumentKind>,
+    /// This field tells the bank how the boleto can be paid — whether the payer must pay the exact amount, can pay a different amount, or pay in parts.
+    /// Depcreated since it has been moved to connector_metadata
+    #[schema(value_type = Option<BoletoPaymentType>, example="fixed_amount", deprecated)]
+    pub payment_type: Option<common_enums::BoletoPaymentType>,
     // It is a number which shows a contract between merchant and bank
     #[schema(value_type = Option<String>, example="3568253")]
     pub covenant_code: Option<Secret<String>>,
@@ -12279,7 +12402,7 @@ mod payments_response_api_contract {
 #[cfg(test)]
 mod billing_from_payment_method_data {
     use common_enums::CountryAlpha2;
-    use masking::ExposeOptionInterface;
+    use hyperswitch_masking::ExposeOptionInterface;
 
     use super::*;
 
@@ -12841,7 +12964,7 @@ pub struct CartesBancairesParams {
 }
 
 impl PaymentsUpdateMetadataRequest {
-    /// Helper function to validate that at least one of `metadata` or `feature_metadata` is present in the request
+    /// Helper function to validate that at least one of `metadata` or `feature_metadata` or `connector_metadata` is present in the request
     pub fn validate(&self) -> common_utils::errors::CustomResult<(), ValidationError> {
         let Self {
             metadata,
@@ -12857,4 +12980,272 @@ impl PaymentsUpdateMetadataRequest {
         }
         Ok(())
     }
+}
+
+/// Represents the connector-specific metadata for Santander payments, including boleto data and related rules.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct SantanderConnectorMetadataData {
+    /// Boleto-specific data and rules for Santander payments
+    #[smithy(value_type = "Option<SantanderBoletoData>")]
+    pub boleto: Option<SantanderBoletoData>,
+}
+
+/// Represents the specific data and rules related to Santander Boleto payments, including discounts, penalties, collection actions, payment constraints, beneficiary details, and document kind.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct SantanderBoletoData {
+    // Rules for applying discounts
+    #[smithy(value_type = "Option<SantanderPaymentDiscountRules>")]
+    #[schema(value_type = Option<SantanderPaymentDiscountRules>)]
+    pub discount_rules: Option<SantanderPaymentDiscountRules>,
+    /// Rules for late payments (Interest and Fines)
+    #[smithy(value_type = "Option<PenaltyRules>")]
+    #[schema(value_type = Option<PenaltyRules>)]
+    pub penalties: Option<PenaltyRules>,
+    /// Legal or administrative actions for non-payment (Protest/Write-off)
+    #[smithy(value_type = "Option<CollectionActions>")]
+    #[schema(value_type = Option<CollectionActions>)]
+    pub collection_actions: Option<CollectionActions>,
+    /// Constraints on how the payment can be made (Partial payments/Limits)
+    #[smithy(value_type = "Option<BoletoPaymentTypeConstraints>")]
+    #[schema(value_type = Option<BoletoPaymentTypeConstraints>)]
+    pub payment_constraints: Option<BoletoPaymentTypeConstraints>,
+    #[smithy(value_type = "Option<BeneficiaryDetails>")]
+    #[schema(value_type = Option<BeneficiaryDetails>)]
+    pub beneficiary: Option<BeneficiaryDetails>,
+    #[smithy(value_type = "Option<BoletoDocumentKind>")]
+    #[schema(value_type = Option<BoletoDocumentKind>, example = "commercial_invoice")]
+    pub document_kind: Option<common_enums::BoletoDocumentKind>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+/// Represents the end-recipient of a payout or fund transfer.
+pub struct BeneficiaryDetails {
+    /// The full legal name of the individual or entity receiving the funds.
+    #[smithy(value_type = "Option<String>")]
+    #[schema(value_type = Option<String>, example = "João da Silva")]
+    pub name: Option<String>,
+    /// The customer's unique identification number (e.g., Tax ID, SSN, Passport Number).
+    /// Used by processors to verify the identity of the recipient and prevent fraud.
+    /// Length of the document number depends upon the document_type.
+    /// For CPF/CNPJ it is typically 11/14 digits long.
+    #[smithy(value_type = "Option<String>")]
+    #[schema(value_type = Option<String>, example = "9615865832")]
+    pub document_number: Option<String>,
+    /// The category of identification provided (e.g., Passport, National ID, CPF).
+    #[smithy(value_type = "Option<DocumentKind>")]
+    #[schema(value_type = Option<DocumentKind>, example = "cpf")]
+    pub document_type: Option<DocumentKind>,
+}
+
+/// Represents the rules for applying discounts to a payment, such as a percentage discount or a fixed amount discount, along with any applicable grace periods.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct PenaltyRules {
+    /// Fixed fee applied once after the due date (Fine)
+    #[smithy(value_type = "Option<PenaltyDetail>")]
+    #[schema(value_type = Option<PenaltyDetail>)]
+    pub fixed_penalty: Option<PenaltyDetail>,
+    /// Recurring cost applied over time (Interest)
+    #[smithy(value_type = "Option<InterestDetail>")]
+    #[schema(value_type = Option<InterestDetail>)]
+    pub interest: Option<InterestDetail>,
+}
+
+/// Represents the rules for applying discounts to a payment, such as a percentage discount or a fixed amount discount, along with any applicable grace periods.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct InterestDetail {
+    /// Percentage of Juros (Interest). Pattern: ^[0-9]{1,3}\.[0-9]{2}$
+    #[schema(value_type = Option<String>, example = "5.00")]
+    #[smithy(value_type = "Option<String>")]
+    pub interest_percentage: Option<StringMajorUnit>,
+    /// Percentage of IOF (Financial Operations Tax). Pattern: \d{3}$\.\d{5}
+    /// Only provided if the agreement is "Cobra IOF na Barra ou Cadastro"
+    #[schema(value_type = Option<String>, example = "32.45325")]
+    #[smithy(value_type = "Option<String>")]
+    pub iof_percentage: Option<StringMajorUnit>,
+}
+
+/// Represents the rules for applying discounts to a payment, such as a percentage discount or a fixed amount discount, along with any applicable grace periods.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct PenaltyDetail {
+    /// The numeric value (as a string to preserve decimal precision)
+    #[schema(value_type = Option<String>, example = "2.00")]
+    #[smithy(value_type = "Option<String>")]
+    pub value: Option<StringMajorUnit>,
+    /// Grace period: Days after due date before this applies
+    #[schema(example = 1)]
+    #[smithy(value_type = "Option<u32>")]
+    pub grace_period_days: Option<u32>,
+}
+
+/// Represents the legal or administrative actions that may be taken for non-payment, such as protest rules and automatic write-off timelines.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct CollectionActions {
+    /// Logic for legal protest (official debt registration)
+    #[schema(value_type = Option<ProtestRules>)]
+    #[smithy(value_type = "Option<ProtestRules>")]
+    pub legal_protest: Option<ProtestRules>,
+    /// Days after which the bill is automatically cancelled/written off
+    #[schema(value_type = Option<u32>, example = 60)]
+    #[smithy(value_type = "Option<u32>")]
+    pub auto_write_off_days: Option<u32>,
+}
+
+/// Represents the rules for legal protest (official debt registration) for non-payment, including the type of protest and the number of days after which the protest is initiated.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[serde(rename_all = "snake_case", tag = "type", content = "details")]
+pub enum BoletoPaymentTypeConstraints {
+    /// Only the exact nominal amount can be paid.
+    FixedAmount,
+    /// The payer may pay any amount within an allowed range.
+    FlexibleAmount(FlexibleAmountDetails),
+    /// The payer may make multiple payments, up to a specific limit.
+    Installment(InstallmentDetails),
+}
+
+/// Represents the rules for legal protest (official debt registration) for non-payment, including the type of protest and the number of days after which the protest is initiated.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+pub struct FlexibleAmountDetails {
+    /// Minimum value allowed (e.g., "10.00")
+    #[schema(value_type = Option<String>, example = "38.02")]
+    #[smithy(value_type = "Option<String>")]
+    pub min_value: Option<StringMajorUnit>,
+    /// Maximum value allowed (e.g., "5000.00")
+    #[schema(value_type = Option<String>, example = "38.02")]
+    #[smithy(value_type = "Option<String>")]
+    pub max_value: Option<StringMajorUnit>,
+    /// Defines if the min/max values are percentages or flat amounts
+    #[schema(value_type = Option<CalculationType>, example = "percentage")]
+    #[smithy(value_type = "Option<CalculationType>")]
+    pub value_type: Option<CalculationType>,
+}
+
+/// Represents the rules for legal protest (official debt registration) for non-payment, including the type of protest and the number of days after which the protest is initiated.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+pub struct InstallmentDetails {
+    /// Maximum number of partial payments allowed (Up to 99 for Santander).
+    #[schema(value_type = Option<u32>, example = 99)]
+    #[smithy(value_type = "Option<u32>")]
+    pub max_partial_payments: Option<u32>,
+    /// Defines if the min/max values are percentages or flat amounts
+    #[schema(value_type = Option<CalculationType>, example = "percentage")]
+    #[smithy(value_type = "Option<CalculationType>")]
+    pub value_type: Option<CalculationType>,
+}
+
+/// Defines how the payment amount is calculated for penalties or discounts, either as a percentage or as a flat amount.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(rename_all = "snake_case")]
+pub enum CalculationType {
+    /// The value is treated as a percentage (e.g., "2.00" represents 2%).
+    /// In financial contexts, this is often used for late fees (fines) or
+    /// monthly interest rates.
+    Percentage,
+    /// The value is treated as a fixed monetary amount in the currency's major
+    /// or minor unit (e.g., "10.00" represents $10.00).
+    /// Typically used for flat-fee penalties or specific rebate amounts.
+    FlatAmount,
+}
+
+/// Defines the type of payment allowance for a boleto, such as whether only the exact amount is accepted, partial payments are allowed, or overpayment is permitted.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum PaymentAllowanceType {
+    /// Only the exact amount is accepted
+    Exact,
+    /// Any amount between min and max
+    Partial,
+    /// Overpayment allowed (common in some B2B contexts)
+    Flexible,
+}
+
+/// Defines the type of protest for non-payment, such as whether the count is based on calendar days, business days, or if the protest logic is determined by a pre-signed contract with the bank.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(rename_all = "snake_case")]
+pub enum ProtestType {
+    /// No legal protest will be initiated
+    Disabled,
+    /// Count is based on calendar days (Standard)
+    CalendarDays,
+    /// Count is based on business days (Mon-Fri, excluding bank holidays)
+    BusinessDays,
+    /// Protest logic is handled based on the merchant's pre-signed contract/agreement with the bank
+    ContractDefault,
+}
+
+/// Defines the type of discount applied to a payment, such as whether it's a fixed date discount, a daily calendar discount, or a daily business discount.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct SantanderPaymentDiscountRules {
+    /// Generic label for the logic (e.g., "tier_based", "early_bird")
+    #[schema(value_type = Option<DiscountType>, example = "fixed_date")]
+    #[smithy(value_type = "Option<DiscountType>")]
+    pub discount_type: Option<DiscountType>,
+    /// A generic vector of discount tiers
+    #[schema(value_type = Vec<DiscountTier>)]
+    #[smithy(value_type = "Option<DiscountType>")]
+    pub tiers: Vec<DiscountTier>,
+}
+
+/// Defines the type of discount applied to a payment, such as whether it's a fixed date discount, a daily calendar discount, or a daily business discount.
+#[derive(
+    Debug,
+    Default,
+    Clone,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    Display,
+    ToSchema,
+    SmithyModel,
+)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum DiscountType {
+    /// No discount logic will be applied. The payment amount remains at the base value.
+    #[default]
+    Standard,
+    /// A fixed amount reduction if paid on or before a specific date.
+    FixedDate,
+    /// A sliding discount calculated per calendar day until the due date.
+    DailyCalendar,
+    /// A sliding discount calculated per business day until the due date.
+    DailyBusiness,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct DiscountTier {
+    /// The discount value (e.g., "5.50").
+    #[schema(value_type = Option<String>, example = "5.50")]
+    #[smithy(value_type = "Option<String>")]
+    pub amount: Option<StringMajorUnit>,
+    /// The ISO-8601 date until which this discount is valid
+    #[schema(value_type = Option<String>, example="2027-12-31")]
+    #[serde(default, with = "common_utils::custom_serde::date_only_optional")]
+    #[smithy(value_type = "Option<String>")]
+    pub end_date: Option<PrimitiveDateTime>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct ProtestRules {
+    /// The timing logic for when the protest should occur
+    #[schema(value_type = ProtestType, example = "calendar_days")]
+    #[smithy(value_type = "ProtestType")]
+    pub protest_type: Option<ProtestType>,
+    /// Number of days after the due date to initiate the protest
+    #[schema(value_type = u32, example = 30)]
+    #[smithy(value_type = "u32")]
+    pub days_after_due_date: Option<u32>,
 }

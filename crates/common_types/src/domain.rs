@@ -6,7 +6,7 @@ use common_enums::enums;
 use common_utils::{impl_to_sql_from_sql_json, types::MinorUnit};
 use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
 #[cfg(feature = "v2")]
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use smithy::SmithyModel;
 use utoipa::ToSchema;
@@ -219,4 +219,15 @@ impl RetryFeatureData {
     pub fn get_decision(&self) -> common_enums::GsmDecision {
         self.decision
     }
+}
+
+/// Data for post capture void
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct PostCaptureVoidData {
+    /// Status of post capture void
+    pub status: common_enums::PostCaptureVoidStatus,
+    /// Connector reference id for post capture void
+    pub connector_reference_id: Option<String>,
+    /// Description or message related to the post capture void
+    pub description: Option<String>,
 }

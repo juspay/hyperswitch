@@ -108,7 +108,7 @@ pub mod pii {
 
     pub(crate) use common_utils::pii::Email;
     #[doc(inline)]
-    pub use masking::*;
+    pub use hyperswitch_masking::*;
 }
 
 pub fn mk_app(
@@ -234,7 +234,8 @@ pub fn mk_app(
                 .service(routes::ProcessTrackerDeprecated::server(state.clone()))
                 .service(routes::ProcessTracker::server(state.clone()))
                 .service(routes::Gsm::server(state.clone()))
-                .service(routes::RecoveryDataBackfill::server(state.clone()));
+                .service(routes::RecoveryDataBackfill::server(state.clone()))
+                .service(routes::Analytics::server(state.clone()));
         }
     }
 

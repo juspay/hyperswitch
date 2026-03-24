@@ -11,9 +11,8 @@ use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse, payments as domain_payments,
 };
 use hyperswitch_interfaces::api::gateway;
-use masking::ExposeInterface;
+use hyperswitch_masking::{ExposeInterface, ExposeInterface as UcsMaskingExposeInterface};
 use unified_connector_service_client::payments as payments_grpc;
-use unified_connector_service_masking::ExposeInterface as UcsMaskingExposeInterface;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -125,8 +124,14 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         creds_identifier: Option<&str>,
         gateway_context: &payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult> {
-        access_token::add_access_token(state, connector, self, creds_identifier, gateway_context)
-            .await
+        Box::pin(access_token::add_access_token(
+            state,
+            connector,
+            self,
+            creds_identifier,
+            gateway_context,
+        ))
+        .await
     }
 
     async fn add_session_token<'a>(
@@ -312,8 +317,10 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
 
             let create_order_resp = match resp.response {
                 Ok(res) => {
-                    if let types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id } =
-                        res
+                    if let types::PaymentsResponseData::PaymentsCreateOrderResponse {
+                        order_id,
+                        ..
+                    } = res
                     {
                         Ok(order_id)
                     } else {

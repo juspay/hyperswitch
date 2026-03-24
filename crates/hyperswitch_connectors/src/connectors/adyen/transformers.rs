@@ -1,4 +1,4 @@
-use std::{ops::Deref, str::FromStr};
+use std::{num::NonZeroU8, ops::Deref, str::FromStr};
 
 #[cfg(feature = "payouts")]
 use api_models::payouts::{self, PayoutMethodData};
@@ -54,7 +54,7 @@ use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::{Duration, OffsetDateTime, PrimitiveDateTime};
 use url::Url;
@@ -370,6 +370,7 @@ pub struct AdyenPaymentRequest<'a> {
     metadata: Option<serde_json::Value>,
     platform_chargeback_logic: Option<AdyenPlatformChargeBackLogicMetadata>,
     application_info: Option<ApplicationInfo>,
+    installments: Option<AdyenInstallments>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -747,6 +748,11 @@ pub enum ActionType {
 pub struct Amount {
     pub currency: storage_enums::Currency,
     pub value: MinorUnit,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AdyenInstallments {
+    value: NonZeroU8,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -2051,31 +2057,52 @@ fn get_recurring_processing_model(
 ) -> Result<RecurringDetails, Error> {
     let shopper_reference = item.get_connector_customer_id().ok();
 
-    match (item.request.setup_future_usage, item.request.off_session) {
-        // Setup for future off-session usage
-        (Some(storage_enums::FutureUsage::OffSession), _) => {
-            let store_payment_method = item.request.is_mandate_payment();
-            let shopper_reference =
-                shopper_reference.ok_or_else(missing_field_err("connector_customer_id"))?;
-            Ok((
-                Some(AdyenRecurringModel::UnscheduledCardOnFile),
-                Some(store_payment_method),
-                Some(shopper_reference),
-            ))
-        }
-        // Off-session payment
-        (_, Some(true)) => {
-            let shopper_reference =
-                shopper_reference.ok_or_else(missing_field_err("connector_customer_id"))?;
-            Ok((
-                Some(AdyenRecurringModel::UnscheduledCardOnFile),
-                None,
-                Some(shopper_reference),
-            ))
-        }
-        // On-session payment
-        _ => Ok((None, None, shopper_reference)),
+    let has_existing_mandate = item
+        .request
+        .mandate_id
+        .as_ref()
+        .and_then(|mandate| mandate.mandate_reference_id.as_ref())
+        .is_some();
+
+    let is_off_session_setup = matches!(
+        item.request.setup_future_usage,
+        Some(storage_enums::FutureUsage::OffSession)
+    );
+
+    let is_off_session_payment = item.request.off_session == Some(true);
+
+    // Case 1: Customer initiated mandate payment
+    if is_off_session_setup && has_existing_mandate {
+        let shopper_reference =
+            shopper_reference.ok_or_else(missing_field_err("connector_customer_id"))?;
+        return Ok((
+            Some(AdyenRecurringModel::UnscheduledCardOnFile),
+            None,
+            Some(shopper_reference),
+        ));
     }
+
+    // Case 2: Setup for future off-session usage
+    if is_off_session_setup {
+        let store_payment_method = item.request.is_mandate_payment();
+        let shopper_reference =
+            shopper_reference.ok_or_else(missing_field_err("connector_customer_id"))?;
+        return Ok((None, Some(store_payment_method), Some(shopper_reference)));
+    }
+
+    // Case 3: Off-session payment
+    if is_off_session_payment {
+        let shopper_reference =
+            shopper_reference.ok_or_else(missing_field_err("connector_customer_id"))?;
+        return Ok((
+            Some(AdyenRecurringModel::UnscheduledCardOnFile),
+            None,
+            Some(shopper_reference),
+        ));
+    }
+
+    // Case 4: On-session payment
+    Ok((None, None, shopper_reference))
 }
 
 fn get_browser_info(item: &PaymentsAuthorizeRouterData) -> Result<Option<AdyenBrowserInfo>, Error> {
@@ -2195,6 +2222,18 @@ fn get_amount_data(item: &AdyenRouterData<&PaymentsAuthorizeRouterData>) -> Amou
         currency: item.router_data.request.currency,
         value: item.amount.to_owned(),
     }
+}
+
+fn get_installment_details(
+    item: &AdyenRouterData<&PaymentsAuthorizeRouterData>,
+) -> Option<AdyenInstallments> {
+    item.router_data
+        .request
+        .installment_details
+        .as_ref()
+        .map(|d| AdyenInstallments {
+            value: d.number_of_installments,
+        })
 }
 
 pub fn get_address_info(
@@ -3309,6 +3348,7 @@ impl
                 .map(filter_adyen_metadata),
             platform_chargeback_logic,
             application_info,
+            installments: None,
         })
     }
 }
@@ -3358,6 +3398,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
         let telephone_number = item.router_data.get_optional_billing_phone_number();
         let application_info = get_application_info(item);
+        let installments = get_installment_details(item);
 
         let mpi_data =
             if let Some(auth_data) = value.0.router_data.request.authentication_data.as_ref() {
@@ -3445,6 +3486,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
                 .map(filter_adyen_metadata),
             platform_chargeback_logic,
             application_info,
+            installments,
         })
     }
 }
@@ -3538,6 +3580,7 @@ impl
                 .clone()
                 .map(filter_adyen_metadata),
             platform_chargeback_logic,
+            installments: None,
             application_info,
         };
         Ok(request)
@@ -3621,6 +3664,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &VoucherData)>
                 .map(filter_adyen_metadata),
 
             platform_chargeback_logic,
+            installments: None,
             application_info,
         };
         Ok(request)
@@ -3746,6 +3790,7 @@ impl
                 .map(filter_adyen_metadata),
 
             platform_chargeback_logic,
+            installments: None,
             application_info,
         };
         Ok(request)
@@ -3829,6 +3874,7 @@ impl
                 .clone()
                 .map(filter_adyen_metadata),
             platform_chargeback_logic,
+            installments: None,
             application_info,
         };
         Ok(request)
@@ -3917,6 +3963,7 @@ impl
                 .clone()
                 .map(filter_adyen_metadata),
             platform_chargeback_logic,
+            installments: None,
             application_info,
         })
     }
@@ -4088,6 +4135,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &WalletData)>
                 .clone()
                 .map(filter_adyen_metadata),
             platform_chargeback_logic,
+            installments: None,
             application_info,
         })
     }
@@ -4183,6 +4231,7 @@ impl
                 .clone()
                 .map(filter_adyen_metadata),
             platform_chargeback_logic,
+            installments: None,
             application_info,
         })
     }
@@ -4272,6 +4321,7 @@ impl
                 .clone()
                 .map(filter_adyen_metadata),
             platform_chargeback_logic,
+            installments: None,
             application_info,
         })
     }
@@ -4984,6 +5034,7 @@ pub fn get_qr_metadata(
             qr_code_url,
             display_to_timestamp,
             expiry_type: None,
+            raw_qr_data: None,
         };
         Some(qr_code_info.encode_to_value())
             .transpose()
@@ -5125,6 +5176,7 @@ pub fn get_present_to_shopper_metadata(
                 qr_code_url: None,
                 barcode: None,
                 expiry_date: None,
+                raw_qr_data: None,
             };
 
             Some(voucher_data.encode_to_value())
@@ -5257,10 +5309,10 @@ impl<F, Req>
         Ok(Self {
             status: adyen_payments_response_data.status,
             amount_captured: minor_amount_captured.map(|amount| amount.get_amount_as_i64()),
-            response: adyen_payments_response_data.error.map_or_else(
-                || Ok(adyen_payments_response_data.payments_response_data),
-                Err,
-            ),
+            response: match adyen_payments_response_data.error {
+                Some(err) => Err(err),
+                None => Ok(adyen_payments_response_data.payments_response_data),
+            },
             connector_response: adyen_payments_response_data.connector_response,
             minor_amount_captured,
             ..item.data
@@ -6210,6 +6262,10 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                         message: "Bank transfer via Pix is not supported".to_string(),
                         connector: "Adyen",
                     })?,
+                    payouts::Bank::Trustly(..) => Err(errors::ConnectorError::NotSupported {
+                        message: "Bank transfer via Trustly is not supported".to_string(),
+                        connector: "Adyen",
+                    })?,
                 };
                 let bank_data = PayoutBankData { bank: bank_details };
                 let address: &hyperswitch_domain_models::address::AddressDetails =
@@ -6860,6 +6916,7 @@ impl
                 .clone()
                 .map(filter_adyen_metadata),
             platform_chargeback_logic,
+            installments: None,
             application_info,
         })
     }
