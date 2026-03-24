@@ -286,7 +286,6 @@ default_imp_for_authorize_session_token!(
     connectors::Redsys,
     connectors::Revolv3,
     connectors::Riskified,
-    connectors::Santander,
     connectors::Shift4,
     connectors::Sift,
     connectors::Silverflow,

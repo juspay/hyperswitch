@@ -415,7 +415,7 @@ impl ConnectorAccessTokenSuffix for BoxedConnector {
 
 /// Current flow information passed to the connector specifications trait
 ///
-/// In order to make some desicion about the preprocessing or alternate flow
+/// In order to make some decision about the preprocessing or alternate flow
 #[derive(Clone, Debug)]
 pub enum CurrentFlowInfo<'a> {
     /// Authorize flow information
@@ -596,7 +596,10 @@ pub trait ConnectorSpecifications {
     }
 
     /// Is Authorize session token required before authorize
-    fn is_authorize_session_token_call_required(&self) -> bool {
+    fn is_authorize_session_token_call_required(
+        &self,
+        _current_flow: Option<CurrentFlowInfo<'_>>,
+    ) -> bool {
         false
     }
 
