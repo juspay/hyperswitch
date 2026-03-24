@@ -1,4 +1,3 @@
-use crate::types::PaymentsSessionResponseRouterData;
 #[cfg(feature = "payouts")]
 use api_models::payouts::{PayoutMethodData, Wallet as WalletPayout};
 use api_models::{
@@ -63,8 +62,8 @@ use crate::{constants, types::PayoutsResponseRouterData};
 use crate::{
     types::{
         PaymentsCaptureResponseRouterData, PaymentsExtendAuthorizationResponseRouterData,
-        PaymentsResponseRouterData, PaymentsSyncResponseRouterData, RefundsResponseRouterData,
-        ResponseRouterData,
+        PaymentsResponseRouterData, PaymentsSessionResponseRouterData,
+        PaymentsSyncResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
     },
     utils::{
         self, is_payment_failure, missing_field_err, to_connector_meta, AccessTokenRequestInfo,
