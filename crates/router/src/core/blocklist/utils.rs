@@ -1,7 +1,7 @@
 use api_models::blocklist as api_blocklist;
 use common_enums::MerchantDecision;
 use common_utils::errors::CustomResult;
-use diesel_models::configs;
+use diesel_models::{business_profile::CardBlockingConfig, configs};
 use error_stack::ResultExt;
 use hyperswitch_masking::StrongSecret;
 
@@ -487,63 +487,44 @@ pub async fn should_payment_be_blocked_by_profile_config(
 
         match card_info {
             None => {
-                should_block = card_config.block_if_bin_info_unavailable.unwrap_or(false);
+                should_block = card_config.should_block_if_bin_info_unavailable();
             }
             Some(info) => {
-                // Check issuing country
-                if let (Some(blocked_countries), Some(country_str)) =
-                    (&card_config.issuing_country, &info.country_code)
-                {
-                    if let Ok(country) = country_str.parse::<common_enums::CountryAlpha2>() {
-                        if blocked_countries.contains(&country) {
-                            should_block = true;
-                        }
-                    }
-                }
-
-                // Check card type
-                if let (Some(blocked_types), Some(type_str)) =
-                    (&card_config.card_types, &info.card_type)
-                {
-                    if let Ok(card_type) = type_str.parse::<common_enums::CardType>() {
-                        if blocked_types.contains(&card_type) {
-                            should_block = true;
-                        }
-                    }
-                }
-
-                // Check card subtype
-                if let (Some(blocked_subtypes), Some(subtype_str)) =
-                    (&card_config.card_subtypes, &info.card_subtype)
-                {
-                    if let Ok(card_subtype) = subtype_str.parse::<common_enums::CardSubtype>() {
-                        if blocked_subtypes.contains(&card_subtype) {
-                            should_block = true;
-                        }
-                    }
-                }
+                should_block = CardBlockingConfig::should_block_by_attribute(
+                    &card_config.issuing_country,
+                    info.country_code.as_deref(),
+                ) || CardBlockingConfig::should_block_by_attribute(
+                    &card_config.card_types,
+                    info.card_type.as_deref(),
+                ) || CardBlockingConfig::should_block_by_attribute(
+                    &card_config.card_subtypes,
+                    info.card_subtype.as_deref(),
+                );
 
                 // Check card issuer — profile stores IDs, cards_info has name
-                if let (Some(blocked_ids), Some(issuer_name)) =
-                    (&card_config.issuers, &info.card_issuer)
-                {
-                    let issuer_ids = blocked_ids
-                        .iter()
-                        .filter_map(|id| {
-                            common_utils::id_type::CardIssuerId::try_from_string(id.clone()).ok()
-                        })
-                        .collect();
-                    let resolved_names = state
-                        .store
-                        .get_card_issuers_by_ids(issuer_ids)
-                        .await
-                        .map_err(|error| logger::warn!(card_issuer_lookup_error=?error))
-                        .unwrap_or_default()
-                        .into_iter()
-                        .map(|i| i.issuer_name)
-                        .collect::<std::collections::HashSet<_>>();
-                    if resolved_names.contains(issuer_name.as_str()) {
-                        should_block = true;
+                if !should_block {
+                    if let (Some(blocked_ids), Some(issuer_name)) =
+                        (&card_config.issuers, &info.card_issuer)
+                    {
+                        let issuer_ids = blocked_ids
+                            .iter()
+                            .filter_map(|id| {
+                                common_utils::id_type::CardIssuerId::try_from_string(id.clone())
+                                    .ok()
+                            })
+                            .collect();
+                        let resolved_names = state
+                            .store
+                            .get_card_issuers_by_ids(issuer_ids)
+                            .await
+                            .map_err(|error| logger::warn!(card_issuer_lookup_error=?error))
+                            .unwrap_or_default()
+                            .into_iter()
+                            .map(|i| i.issuer_name)
+                            .collect::<std::collections::HashSet<_>>();
+                        if resolved_names.contains(issuer_name.as_str()) {
+                            should_block = true;
+                        }
                     }
                 }
             }
