@@ -282,10 +282,12 @@ pub struct CardBlockingConfig {
     /// Set of issuing countries to block using ISO 3166-1 alpha-2 codes (e.g., ["IN", "US"])
     pub issuing_country: Option<HashSet<String>>,
     /// Set of card types to block (e.g., ["Credit", "Debit"])
-    pub card_types: Option<HashSet<String>>,
-    /// Set of card subtypes to block (e.g., ["Business", "Corporate"])
-    pub card_subtypes: Option<HashSet<String>>,
-    /// Set of card issuers to block (e.g., ["HDFC Bank", "ICICI Bank"])
+    #[schema(value_type = Option<Vec<CardType>>)]
+    pub card_types: Option<HashSet<common_enums::CardType>>,
+    /// Set of card subtypes to block
+    #[schema(value_type = Option<Vec<CardSubtype>>)]
+    pub card_subtypes: Option<HashSet<common_enums::CardSubtype>>,
+    /// Set of card issuer IDs to block
     pub issuers: Option<HashSet<String>>,
     /// Whether to block if BIN is provided but no matching record found in cards_info table.
     /// Defaults to false (allow payment if BIN not found in database).
