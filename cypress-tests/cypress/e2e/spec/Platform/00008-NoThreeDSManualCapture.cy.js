@@ -53,7 +53,7 @@ describe("Platform - Card NoThreeDS Manual Capture payment flow test", () => {
 
         cy.step("Create Payment Intent for CM1 using header", () => {
           const data =
-            getConnectorDetails("stripe")["card_pm"]["PaymentIntent"];
+            getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PaymentIntent"];
 
           cy.createPaymentIntentWithHeaderCallTest(
             fixtures.createPaymentBody,
@@ -90,7 +90,7 @@ describe("Platform - Card NoThreeDS Manual Capture payment flow test", () => {
             return;
           }
           const data =
-            getConnectorDetails("stripe")["card_pm"]["No3DSManualCapture"];
+            getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSManualCapture"];
 
           cy.confirmPaymentWithHeaderCallTest(
             fixtures.confirmBody,
@@ -114,7 +114,7 @@ describe("Platform - Card NoThreeDS Manual Capture payment flow test", () => {
             return;
           }
           const data =
-            getConnectorDetails("stripe")["card_pm"]["No3DSManualCapture"];
+            getConnectorDetails(globalState.get("connectorId"))["card_pm"]["No3DSManualCapture"];
 
           cy.retrievePaymentWithHeaderCallTest({
             globalState,
@@ -133,7 +133,7 @@ describe("Platform - Card NoThreeDS Manual Capture payment flow test", () => {
             return;
           }
           const captureData =
-            getConnectorDetails("stripe")["card_pm"]["Capture"];
+            getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Capture"];
 
           cy.captureCallWithHeaderTest(
             fixtures.captureBody,
@@ -153,7 +153,7 @@ describe("Platform - Card NoThreeDS Manual Capture payment flow test", () => {
             return;
           }
           const captureData =
-            getConnectorDetails("stripe")["card_pm"]["Capture"];
+            getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Capture"];
 
           cy.retrievePaymentWithHeaderCallTest({
             globalState,
