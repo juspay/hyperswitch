@@ -27,7 +27,11 @@ impl ToDocument for bool {
 impl ToDocument for i64 {
     fn to_document(&self) -> Document {
         if *self >= 0 {
-            Document::Number(aws_smithy_types::Number::PosInt(*self as u64))
+            let converted = u64::try_from(*self).unwrap_or_else(|e| {
+                router_env::logger::warn!("Failed to convert i64 {} to u64: {}", self, e);
+                u64::default()
+            });
+            Document::Number(aws_smithy_types::Number::PosInt(converted))
         } else {
             Document::Number(aws_smithy_types::Number::NegInt(*self))
         }
@@ -37,9 +41,18 @@ impl ToDocument for i64 {
 impl ToDocument for i32 {
     fn to_document(&self) -> Document {
         if *self >= 0 {
-            Document::Number(aws_smithy_types::Number::PosInt(*self as u64))
+            let converted = u64::try_from(*self).unwrap_or_else(|e| {
+                router_env::logger::warn!("Failed to convert i32 {} to u64: {}", self, e);
+                u64::default()
+            });
+            Document::Number(aws_smithy_types::Number::PosInt(converted))
         } else {
-            Document::Number(aws_smithy_types::Number::NegInt(*self as i64))
+            // let converted = i64::try_from(*self).unwrap_or_else(|e| {
+            //     router_env::logger::warn!("Failed to convert i32 {} to i64: {}", self, e);
+            //     i64::default()
+            // });
+            let converted = i64::from(*self);
+            Document::Number(aws_smithy_types::Number::NegInt(converted))
         }
     }
 }
@@ -47,12 +60,20 @@ impl ToDocument for i32 {
 impl ToDocument for serde_json::Value {
     fn to_document(&self) -> Document {
         match self {
-            serde_json::Value::String(s) => Document::String(s.clone()),
-            serde_json::Value::Bool(b) => Document::Bool(*b),
-            serde_json::Value::Number(n) => {
+            Self::String(s) => Document::String(s.clone()),
+            Self::Bool(b) => Document::Bool(*b),
+            Self::Number(n) => {
                 if let Some(n) = n.as_i64() {
                     if n >= 0 {
-                        Document::Number(aws_smithy_types::Number::PosInt(n as u64))
+                        let converted = u64::try_from(n).unwrap_or_else(|e| {
+                            router_env::logger::warn!(
+                                "Failed to convert i64 {} to u64 in JSON value: {}",
+                                n,
+                                e
+                            );
+                            u64::default()
+                        });
+                        Document::Number(aws_smithy_types::Number::PosInt(converted))
                     } else {
                         Document::Number(aws_smithy_types::Number::NegInt(n))
                     }
@@ -63,15 +84,13 @@ impl ToDocument for serde_json::Value {
                     Document::String(n.to_string())
                 }
             }
-            serde_json::Value::Object(obj) => Document::Object(
+            Self::Object(obj) => Document::Object(
                 obj.iter()
                     .map(|(k, v)| (k.clone(), v.to_document()))
                     .collect(),
             ),
-            serde_json::Value::Array(arr) => {
-                Document::Array(arr.iter().map(|v| v.to_document()).collect())
-            }
-            serde_json::Value::Null => Document::Null,
+            Self::Array(arr) => Document::Array(arr.iter().map(|v| v.to_document()).collect()),
+            Self::Null => Document::Null,
         }
     }
 }
