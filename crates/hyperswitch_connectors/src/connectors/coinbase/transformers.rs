@@ -160,8 +160,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, CoinbasePaymentsResponse, T, PaymentsRe
             .clone();
         let connector_id = ResponseId::ConnectorTransactionId(item.response.data.id.clone());
         let attempt_status = timeline.status.clone();
-        let response_data = timeline.context.map_or(
-            Ok(PaymentsResponseData::TransactionResponse {
+        let response_data = match timeline.context {
+            None => Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: connector_id.clone(),
                 redirection_data: Box::new(Some(redirection_data)),
                 mandate_reference: Box::new(None),
@@ -172,18 +172,17 @@ impl<F, T> TryFrom<ResponseRouterData<F, CoinbasePaymentsResponse, T, PaymentsRe
                 authentication_data: None,
                 charges: None,
             }),
-            |context| {
-                Ok(PaymentsResponseData::TransactionUnresolvedResponse{
+            Some(context) => Ok(PaymentsResponseData::TransactionUnresolvedResponse {
                 resource_id: connector_id,
                 reason: Some(api_models::enums::UnresolvedResponseReason {
-                code: context.to_string(),
-                message: "Please check the transaction in coinbase dashboard and resolve manually"
-                    .to_string(),
+                    code: context.to_string(),
+                    message:
+                        "Please check the transaction in coinbase dashboard and resolve manually"
+                            .to_string(),
                 }),
                 connector_response_reference_id: Some(item.response.data.id),
-            })
-            },
-        );
+            }),
+        };
         Ok(Self {
             status: enums::AttemptStatus::from(attempt_status),
             response: response_data,

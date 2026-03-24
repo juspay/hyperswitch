@@ -176,7 +176,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     request_details.body = &decoded_body;
 
     let event_type = match connector
-        .get_webhook_event_type(&request_details)
+        .get_webhook_event_type(&request_details, None)
         .allow_webhook_event_type_not_found(
             state
                 .clone()

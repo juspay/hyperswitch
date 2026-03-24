@@ -701,6 +701,7 @@ impl webhooks::IncomingWebhook for Dlocal {
     fn get_webhook_event_type(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         Ok(IncomingWebhookEvent::EventNotSupported)
     }
