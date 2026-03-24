@@ -15,7 +15,8 @@ pub async fn get_superposition_sdk_config(
     platform: domain::Platform,
     profile_id: common_utils::id_type::ProfileId,
 ) -> RouterResponse<SuperPositionConfigResponse> {
-    /// we want resolve config with filters which is not yet available in any version of superposition yet. so we are commenting it for future usecase
+    // we want resolve config with filters which is not yet available in any version of superposition yet. so we are commenting it for future usecase
+
     // let resolved_configs = state
     //     .superposition_service
     //     .as_ref()
