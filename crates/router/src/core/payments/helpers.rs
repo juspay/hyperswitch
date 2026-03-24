@@ -3252,6 +3252,7 @@ impl<'a>
     ) -> Result<Self, Self::Error> {
         let (payment_method_data, selected_mandate_reference) = value;
         let payment_method_data = match (payment_method_data, selected_mandate_reference) {
+            // PSP tokens when it's ConnectorMandateId and card data is available.
             (
                 Some(
                     domain::PaymentMethodData::CardWithNetworkTokenDetails(_)
@@ -3260,6 +3261,7 @@ impl<'a>
                 ),
                 Some(&api_models::payments::MandateReferenceId::ConnectorMandateId(_)),
             ) => Some(domain::PaymentMethodData::MandatePayment),
+            // NT + NTI flow when NetworkTokenWithNTI mandate reference is selected.
             (
                 Some(domain::PaymentMethodData::CardWithNetworkTokenDetails(
                     card_with_network_token_details,
@@ -3271,127 +3273,35 @@ impl<'a>
                     .clone()
                     .into(),
             )),
+            // Card + NTI flow when NetworkMandateId is selected for modular CardWithNetworkTokenDetails.
             (
                 Some(domain::PaymentMethodData::CardWithNetworkTokenDetails(
                     card_with_network_token_details,
                 )),
                 Some(&api_models::payments::MandateReferenceId::NetworkMandateId(_)),
-            ) => Some(
-                domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
-                    domain::CardDetailsForNetworkTransactionId {
-                        card_number: card_with_network_token_details
-                            .card_details
-                            .card_number
-                            .clone(),
-                        card_exp_month: card_with_network_token_details
-                            .card_details
-                            .card_exp_month
-                            .clone(),
-                        card_exp_year: card_with_network_token_details
-                            .card_details
-                            .card_exp_year
-                            .clone(),
-                        card_issuer: card_with_network_token_details
-                            .card_details
-                            .card_issuer
-                            .clone(),
-                        card_network: card_with_network_token_details
-                            .card_details
-                            .card_network
-                            .clone(),
-                        card_type: card_with_network_token_details
-                            .card_details
-                            .card_type
-                            .clone(),
-                        card_issuing_country: card_with_network_token_details
-                            .card_details
-                            .card_issuing_country
-                            .clone(),
-                        card_issuing_country_code: card_with_network_token_details
-                            .card_details
-                            .card_issuing_country_code
-                            .clone(),
-                        bank_code: card_with_network_token_details
-                            .card_details
-                            .bank_code
-                            .clone(),
-                        nick_name: card_with_network_token_details
-                            .card_details
-                            .nick_name
-                            .clone(),
-                        card_holder_name: card_with_network_token_details
-                            .card_details
-                            .card_holder_name
-                            .clone(),
-                    },
-                ),
-            ),
-            (
-                Some(domain::PaymentMethodData::CardWithNetworkTokenDetails(
-                    card_with_network_token_details,
-                )),
-                _,
             ) => {
-                let card_cvc = card_with_network_token_details
-                    .card_details
-                    .card_cvc
-                    .clone()
-                    .ok_or(errors::ApiErrorResponse::UnprocessableEntity {
-                        message: "card_cvc is required for card payment path".to_string(),
-                    })?;
-
-                Some(domain::PaymentMethodData::Card(domain::Card {
-                    card_number: card_with_network_token_details
-                        .card_details
-                        .card_number
-                        .clone(),
-                    card_exp_month: card_with_network_token_details
-                        .card_details
-                        .card_exp_month
-                        .clone(),
-                    card_exp_year: card_with_network_token_details
-                        .card_details
-                        .card_exp_year
-                        .clone(),
-                    card_cvc,
-                    card_issuer: card_with_network_token_details
-                        .card_details
-                        .card_issuer
-                        .clone(),
-                    card_network: card_with_network_token_details
-                        .card_details
-                        .card_network
-                        .clone(),
-                    card_type: card_with_network_token_details
-                        .card_details
-                        .card_type
-                        .clone(),
-                    card_issuing_country: card_with_network_token_details
-                        .card_details
-                        .card_issuing_country
-                        .clone(),
-                    card_issuing_country_code: card_with_network_token_details
-                        .card_details
-                        .card_issuing_country_code
-                        .clone(),
-                    bank_code: card_with_network_token_details
-                        .card_details
-                        .bank_code
-                        .clone(),
-                    nick_name: card_with_network_token_details
-                        .card_details
-                        .nick_name
-                        .clone(),
-                    card_holder_name: card_with_network_token_details
-                        .card_details
-                        .card_holder_name
-                        .clone(),
-                    co_badged_card_data: card_with_network_token_details
-                        .card_details
-                        .co_badged_card_data
-                        .clone(),
-                }))
+                let card_details = &card_with_network_token_details.card_details;
+                Some(
+                    domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
+                        domain::CardDetailsForNetworkTransactionId {
+                            card_number: card_details.card_number.clone(),
+                            card_exp_month: card_details.card_exp_month.clone(),
+                            card_exp_year: card_details.card_exp_year.clone(),
+                            card_issuer: card_details.card_issuer.clone(),
+                            card_network: card_details.card_network.clone(),
+                            card_type: card_details.card_type.clone(),
+                            card_issuing_country: card_details.card_issuing_country.clone(),
+                            card_issuing_country_code: card_details
+                                .card_issuing_country_code
+                                .clone(),
+                            bank_code: card_details.bank_code.clone(),
+                            nick_name: card_details.nick_name.clone(),
+                            card_holder_name: card_details.card_holder_name.clone(),
+                        },
+                    ),
+                )
             }
+            // Card + NTI flow when NetworkMandateId is selected for CardWithOptionalCVC.
             (
                 Some(domain::PaymentMethodData::CardWithOptionalCVC(card_data)),
                 Some(&api_models::payments::MandateReferenceId::NetworkMandateId(_)),
@@ -3412,6 +3322,7 @@ impl<'a>
                     },
                 ),
             ),
+            // Raw card as last preference for CardWithOptionalCVC.
             (Some(domain::PaymentMethodData::CardWithOptionalCVC(card_data)), _) => {
                 let card_cvc = card_data.card_cvc.clone().ok_or(
                     errors::ApiErrorResponse::UnprocessableEntity {
@@ -3435,7 +3346,39 @@ impl<'a>
                     co_badged_card_data: card_data.co_badged_card_data.clone(),
                 }))
             }
+            // Raw card as fallback for CardWithNetworkTokenDetails when mandate-specific paths are not selected.
+            (
+                Some(domain::PaymentMethodData::CardWithNetworkTokenDetails(
+                    card_with_network_token_details,
+                )),
+                _,
+            ) => {
+                let card_details = &card_with_network_token_details.card_details;
+                let card_cvc = card_details.card_cvc.clone().ok_or(
+                    errors::ApiErrorResponse::UnprocessableEntity {
+                        message: "card_cvc is required for card payment path".to_string(),
+                    },
+                )?;
+
+                Some(domain::PaymentMethodData::Card(domain::Card {
+                    card_number: card_details.card_number.clone(),
+                    card_exp_month: card_details.card_exp_month.clone(),
+                    card_exp_year: card_details.card_exp_year.clone(),
+                    card_cvc,
+                    card_issuer: card_details.card_issuer.clone(),
+                    card_network: card_details.card_network.clone(),
+                    card_type: card_details.card_type.clone(),
+                    card_issuing_country: card_details.card_issuing_country.clone(),
+                    card_issuing_country_code: card_details.card_issuing_country_code.clone(),
+                    bank_code: card_details.bank_code.clone(),
+                    nick_name: card_details.nick_name.clone(),
+                    card_holder_name: card_details.card_holder_name.clone(),
+                    co_badged_card_data: card_details.co_badged_card_data.clone(),
+                }))
+            }
+            // Keep data as-is, otherwise.
             (Some(payment_method_data), _) => Some(payment_method_data.clone()),
+            // Preserve empty input.
             (None, _) => None,
         };
 

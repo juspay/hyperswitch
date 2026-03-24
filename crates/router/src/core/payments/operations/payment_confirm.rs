@@ -882,16 +882,15 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         );
 
         //setting vault operation to existing vault data if raw payment method data is present in pm_info
-        let vault_operation = payment_method_with_raw_data.as_ref().and_then(|pm| {
-            match &pm.raw_payment_method_data {
+        let vault_operation =
+            payment_method_with_raw_data.and_then(|pm| match pm.raw_payment_method_data {
                 Some(domain::PaymentMethodData::Card(card)) => {
                     Some(domain_payments::VaultOperation::ExistingVaultData(
-                        domain_payments::VaultData::Card(card.clone()),
+                        domain_payments::VaultData::Card(card),
                     ))
                 }
                 _ => None,
-            }
-        });
+            });
 
         payment_attempt.installment_data = request.installment_data.clone().map(Into::into);
 
