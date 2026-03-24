@@ -4,7 +4,7 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 
-describe("Platform - Card Void Payment flow test", () => {
+describe("Platform - Card ThreeDS Manual Capture payment flow test", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
@@ -16,7 +16,7 @@ describe("Platform - Card Void Payment flow test", () => {
   });
 
   context(
-    "Platform acts on behalf of Connected Merchant 1 - Void Payment in Requires_capture state",
+    "Platform acts on behalf of Connected Merchant 1 - ThreeDS Manual Full Capture",
     () => {
       let savedApiKey,
         savedPublishableKey,
@@ -48,7 +48,7 @@ describe("Platform - Card Void Payment flow test", () => {
         globalState.set("merchantConnectorId", savedMerchantConnectorId);
       });
 
-      it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Retrieve Payment after Confirmation -> Void Payment without Capture", () => {
+      it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Handle Redirection -> Retrieve Payment after Confirmation -> Capture Payment -> Retrieve Payment after Capture", () => {
         let shouldContinue = true;
 
         cy.step("Create Payment Intent for CM1 using header", () => {
@@ -56,10 +56,10 @@ describe("Platform - Card Void Payment flow test", () => {
             "card_pm"
           ]["PaymentIntent"];
 
-          cy.createPaymentIntentWithHeaderCallTest(
+          cy.createPaymentIntentTest(
             fixtures.createPaymentBody,
             data,
-            "no_three_ds",
+            "three_ds",
             "manual",
             globalState,
             globalState.get("connectedMerchantId1")
@@ -92,9 +92,9 @@ describe("Platform - Card Void Payment flow test", () => {
           }
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
-          ]["No3DSManualCapture"];
+          ]["3DSManualCapture"];
 
-          cy.confirmPaymentWithHeaderCallTest(
+          cy.confirmCallTest(
             fixtures.confirmBody,
             data,
             true,
@@ -107,6 +107,15 @@ describe("Platform - Card Void Payment flow test", () => {
           }
         });
 
+        cy.step("Handle Redirection", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: Handle Redirection");
+            return;
+          }
+          const expected_redirection = fixtures.confirmBody["return_url"];
+          cy.handleRedirection(globalState, expected_redirection);
+        });
+
         cy.step("Retrieve Payment after Confirmation", () => {
           if (!shouldContinue) {
             cy.task(
@@ -117,9 +126,9 @@ describe("Platform - Card Void Payment flow test", () => {
           }
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
-          ]["No3DSManualCapture"];
+          ]["3DSManualCapture"];
 
-          cy.retrievePaymentWithHeaderCallTest({
+          cy.retrievePaymentCallTest({
             globalState,
             connectedMerchantId: globalState.get("connectedMerchantId1"),
             data,
@@ -130,30 +139,50 @@ describe("Platform - Card Void Payment flow test", () => {
           }
         });
 
-        cy.step("Void Payment without Capture", () => {
+        cy.step("Capture Payment", () => {
           if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: Void Payment without Capture");
+            cy.task("cli_log", "Skipping step: Capture Payment");
             return;
           }
-          const voidData = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["VoidAfterConfirm"];
+          const captureData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["card_pm"]["Capture"];
 
-          cy.voidCallWithHeaderTest(
-            fixtures.voidBody,
-            voidData,
+          cy.captureCallTest(
+            fixtures.captureBody,
+            captureData,
             globalState,
             globalState.get("connectedMerchantId1")
           );
+
+          if (!utils.should_continue_further(captureData)) {
+            shouldContinue = false;
+          }
+        });
+
+        cy.step("Retrieve Payment after Capture", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: Retrieve Payment after Capture");
+            return;
+          }
+          const captureData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["card_pm"]["Capture"];
+
+          cy.retrievePaymentCallTest({
+            globalState,
+            connectedMerchantId: globalState.get("connectedMerchantId1"),
+            data: captureData,
+          });
         });
       });
     }
   );
 
   context(
-    "Connected Merchant 2 makes own payment - Void Payment in Requires_capture state",
+    "Connected Merchant 2 makes own payment - ThreeDS Manual Full Capture",
     () => {
-      it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Retrieve Payment after Confirmation -> Void Payment without Capture", () => {
+      it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Handle Redirection -> Retrieve Payment after Confirmation -> Capture Payment -> Retrieve Payment after Capture", () => {
         let shouldContinue = true;
 
         cy.step("Create Payment Intent", () => {
@@ -164,7 +193,7 @@ describe("Platform - Card Void Payment flow test", () => {
           cy.createPaymentIntentTest(
             fixtures.createPaymentBody,
             data,
-            "no_three_ds",
+            "three_ds",
             "manual",
             globalState
           );
@@ -189,7 +218,7 @@ describe("Platform - Card Void Payment flow test", () => {
           }
           const confirmData = getConnectorDetails(
             globalState.get("connectorId")
-          )["card_pm"]["No3DSManualCapture"];
+          )["card_pm"]["3DSManualCapture"];
 
           cy.confirmCallTest(
             fixtures.confirmBody,
@@ -203,6 +232,15 @@ describe("Platform - Card Void Payment flow test", () => {
           }
         });
 
+        cy.step("Handle Redirection", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: Handle Redirection");
+            return;
+          }
+          const expected_redirection = fixtures.confirmBody["return_url"];
+          cy.handleRedirection(globalState, expected_redirection);
+        });
+
         cy.step("Retrieve Payment after Confirmation", () => {
           if (!shouldContinue) {
             cy.task(
@@ -213,7 +251,7 @@ describe("Platform - Card Void Payment flow test", () => {
           }
           const confirmData = getConnectorDetails(
             globalState.get("connectorId")
-          )["card_pm"]["No3DSManualCapture"];
+          )["card_pm"]["3DSManualCapture"];
 
           cy.retrievePaymentCallTest({ globalState, data: confirmData });
 
@@ -222,156 +260,32 @@ describe("Platform - Card Void Payment flow test", () => {
           }
         });
 
-        cy.step("Void Payment without Capture", () => {
+        cy.step("Capture Payment", () => {
           if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: Void Payment without Capture");
+            cy.task("cli_log", "Skipping step: Capture Payment");
             return;
           }
-          const voidData = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["VoidAfterConfirm"];
+          const captureData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["card_pm"]["Capture"];
 
-          cy.voidCallTest(fixtures.voidBody, voidData, globalState);
-        });
-      });
-    }
-  );
+          cy.captureCallTest(fixtures.captureBody, captureData, globalState);
 
-  context(
-    "Platform acts on behalf of Connected Merchant 1 - Void Payment in Requires_payment_method state",
-    () => {
-      let savedApiKey,
-        savedPublishableKey,
-        savedProfileId,
-        savedMerchantConnectorId;
-
-      before(() => {
-        savedApiKey = globalState.get("apiKey");
-        savedPublishableKey = globalState.get("publishableKey");
-        savedProfileId = globalState.get("profileId");
-        savedMerchantConnectorId = globalState.get("merchantConnectorId");
-
-        globalState.set("apiKey", globalState.get("platformApiKey"));
-        globalState.set(
-          "publishableKey",
-          globalState.get("platformPublishableKey")
-        );
-        globalState.set("profileId", globalState.get("profileIdCm1"));
-        globalState.set("merchantConnectorId", globalState.get("connectorId"));
-      });
-
-      after(() => {
-        globalState.set("apiKey", savedApiKey);
-        globalState.set("publishableKey", savedPublishableKey);
-        globalState.set("profileId", savedProfileId);
-        globalState.set("merchantConnectorId", savedMerchantConnectorId);
-      });
-
-      it("Create Payment Intent -> Payment Methods Call -> Void Payment without Confirmation", () => {
-        let shouldContinue = true;
-
-        cy.step("Create Payment Intent for CM1 using header", () => {
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["PaymentIntent"];
-
-          cy.createPaymentIntentWithHeaderCallTest(
-            fixtures.createPaymentBody,
-            data,
-            "no_three_ds",
-            "manual",
-            globalState,
-            globalState.get("connectedMerchantId1")
-          );
-
-          if (!utils.should_continue_further(data)) {
+          if (!utils.should_continue_further(captureData)) {
             shouldContinue = false;
           }
         });
 
-        cy.step("Payment Methods Call", () => {
+        cy.step("Retrieve Payment after Capture", () => {
           if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: Payment Methods Call");
+            cy.task("cli_log", "Skipping step: Retrieve Payment after Capture");
             return;
           }
-          const savedPublishableKey = globalState.get("publishableKey");
-          globalState.set(
-            "publishableKey",
-            globalState.get("publishableKeyCm1")
-          );
-          cy.paymentMethodsCallTest(globalState).then(() => {
-            globalState.set("publishableKey", savedPublishableKey);
-          });
-        });
+          const captureData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["card_pm"]["Capture"];
 
-        cy.step("Void Payment without Confirmation", () => {
-          if (!shouldContinue) {
-            cy.task(
-              "cli_log",
-              "Skipping step: Void Payment without Confirmation"
-            );
-            return;
-          }
-          const voidData = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["Void"];
-
-          cy.voidCallWithHeaderTest(
-            fixtures.voidBody,
-            voidData,
-            globalState,
-            globalState.get("connectedMerchantId1")
-          );
-        });
-      });
-    }
-  );
-
-  context(
-    "Connected Merchant 2 makes own payment - Void Payment in Requires_payment_method state",
-    () => {
-      it("Create Payment Intent -> Payment Methods Call -> Void Payment without Confirmation", () => {
-        let shouldContinue = true;
-
-        cy.step("Create Payment Intent", () => {
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["PaymentIntent"];
-
-          cy.createPaymentIntentTest(
-            fixtures.createPaymentBody,
-            data,
-            "no_three_ds",
-            "manual",
-            globalState
-          );
-
-          if (!utils.should_continue_further(data)) {
-            shouldContinue = false;
-          }
-        });
-
-        cy.step("Payment Methods Call", () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: Payment Methods Call");
-            return;
-          }
-          cy.paymentMethodsCallTest(globalState);
-        });
-
-        cy.step("Void Payment without Confirmation", () => {
-          if (!shouldContinue) {
-            cy.task(
-              "cli_log",
-              "Skipping step: Void Payment without Confirmation"
-            );
-            return;
-          }
-          const voidData = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["Void"];
-
-          cy.voidCallTest(fixtures.voidBody, voidData, globalState);
+          cy.retrievePaymentCallTest({ globalState, data: captureData });
         });
       });
     }

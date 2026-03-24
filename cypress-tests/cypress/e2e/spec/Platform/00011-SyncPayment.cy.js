@@ -56,7 +56,7 @@ describe("Platform - Card Sync Payment flow test", () => {
             "card_pm"
           ]["PaymentIntent"];
 
-          cy.createPaymentIntentWithHeaderCallTest(
+          cy.createPaymentIntentTest(
             fixtures.createPaymentBody,
             data,
             "no_three_ds",
@@ -94,7 +94,7 @@ describe("Platform - Card Sync Payment flow test", () => {
             "card_pm"
           ]["No3DSAutoCapture"];
 
-          cy.confirmPaymentWithHeaderCallTest(
+          cy.confirmCallTest(
             fixtures.confirmBody,
             data,
             true,
@@ -119,7 +119,7 @@ describe("Platform - Card Sync Payment flow test", () => {
             "card_pm"
           ]["No3DSAutoCapture"];
 
-          cy.retrievePaymentWithHeaderCallTest({
+          cy.retrievePaymentCallTest({
             globalState,
             connectedMerchantId: globalState.get("connectedMerchantId1"),
             data,

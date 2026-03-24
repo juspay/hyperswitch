@@ -56,7 +56,7 @@ describe("Platform - Card NoThreeDS Manual Capture payment flow test", () => {
             "card_pm"
           ]["PaymentIntent"];
 
-          cy.createPaymentIntentWithHeaderCallTest(
+          cy.createPaymentIntentTest(
             fixtures.createPaymentBody,
             data,
             "no_three_ds",
@@ -94,7 +94,7 @@ describe("Platform - Card NoThreeDS Manual Capture payment flow test", () => {
             "card_pm"
           ]["No3DSManualCapture"];
 
-          cy.confirmPaymentWithHeaderCallTest(
+          cy.confirmCallTest(
             fixtures.confirmBody,
             data,
             true,
@@ -119,7 +119,7 @@ describe("Platform - Card NoThreeDS Manual Capture payment flow test", () => {
             "card_pm"
           ]["No3DSManualCapture"];
 
-          cy.retrievePaymentWithHeaderCallTest({
+          cy.retrievePaymentCallTest({
             globalState,
             connectedMerchantId: globalState.get("connectedMerchantId1"),
             data,
@@ -139,7 +139,7 @@ describe("Platform - Card NoThreeDS Manual Capture payment flow test", () => {
             globalState.get("connectorId")
           )["card_pm"]["Capture"];
 
-          cy.captureCallWithHeaderTest(
+          cy.captureCallTest(
             fixtures.captureBody,
             captureData,
             globalState,
@@ -160,7 +160,7 @@ describe("Platform - Card NoThreeDS Manual Capture payment flow test", () => {
             globalState.get("connectorId")
           )["card_pm"]["Capture"];
 
-          cy.retrievePaymentWithHeaderCallTest({
+          cy.retrievePaymentCallTest({
             globalState,
             connectedMerchantId: globalState.get("connectedMerchantId1"),
             data: captureData,
