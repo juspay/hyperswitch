@@ -873,6 +873,8 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::Paypal
             | enums::PaymentMethodType::BhnCardNetwork
             | enums::PaymentMethodType::Pix
+            | enums::PaymentMethodType::PixAutomaticoPush
+            | enums::PaymentMethodType::PixAutomaticoQr
             | enums::PaymentMethodType::UpiCollect
             | enums::PaymentMethodType::UpiIntent
             | enums::PaymentMethodType::Cashapp
@@ -1511,7 +1513,9 @@ fn create_stripe_payment_method(
                 ))
                 .into(),
             ),
-            payment_method_data::BankTransferData::Pse {}
+            payment_method_data::BankTransferData::PixAutomaticoPush { .. }
+            | payment_method_data::BankTransferData::PixAutomaticoQr {}
+            | payment_method_data::BankTransferData::Pse {}
             | payment_method_data::BankTransferData::LocalBankTransfer { .. }
             | payment_method_data::BankTransferData::InstantBankTransfer {}
             | payment_method_data::BankTransferData::InstantBankTransferFinland { .. }
@@ -4694,6 +4698,8 @@ impl
                     ))
                 }
                 payment_method_data::BankTransferData::Pix { .. }
+                | payment_method_data::BankTransferData::PixAutomaticoPush { .. }
+                | payment_method_data::BankTransferData::PixAutomaticoQr {}
                 | payment_method_data::BankTransferData::Pse {}
                 | payment_method_data::BankTransferData::PermataBankTransfer { .. }
                 | payment_method_data::BankTransferData::BcaBankTransfer { .. }
