@@ -1,13 +1,16 @@
 use actix_web::http::header::HeaderMap;
 use api_models::{
-    cards_info as card_info_types, enums as api_enums, gsm as gsm_api_types, payment_methods,
-    payments, routing::ConnectorSelection,
+    card_issuer as card_issuer_types, cards_info as card_info_types, enums as api_enums,
+    gsm as gsm_api_types, payment_methods,
+    payments,
+    routing::ConnectorSelection,
 };
 use common_utils::{
     consts::X_HS_LATENCY,
     crypto::Encryptable,
     ext_traits::{Encode, StringExt, ValueExt},
     fp_utils::when,
+    new_type::CardIssuerName,
     pii,
     types::ConnectorTransactionIdTrait,
 };
@@ -2537,5 +2540,21 @@ impl ForeignFrom<&revenue_recovery_redis_operation::PaymentProcessorTokenStatus>
             signature_network: None,
             auth_code: None,
         }
+    }
+}
+
+impl ForeignTryFrom<storage::CardIssuer> for card_issuer_types::CardIssuerResponse {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn foreign_try_from(from: storage::CardIssuer) -> Result<Self, Self::Error> {
+        let issuer_name = CardIssuerName::try_new(from.issuer_name).change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "issuer_name",
+            },
+        )?;
+        Ok(Self {
+            id: from.id,
+            issuer_name,
+        })
     }
 }

@@ -8143,6 +8143,155 @@
           }
         ]
       }
+    },
+    "/card_issuers": {
+      "post": {
+        "tags": [
+          "Card Issuer"
+        ],
+        "summary": "Card Issuer - Create",
+        "description": "Creates a new card issuer entry",
+        "operationId": "Create Card Issuer",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CardIssuerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Card issuer created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardIssuerResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid fields"
+          },
+          "409": {
+            "description": "Card issuer already exists"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "Card Issuer"
+        ],
+        "summary": "Card Issuer - List",
+        "description": "Lists card issuers with optional search filter",
+        "operationId": "List Card Issuers",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "description": "Optional search term to filter issuers by name",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of results to return",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true,
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Card issuers listed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardIssuerListResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/card_issuers/{id}": {
+      "put": {
+        "tags": [
+          "Card Issuer"
+        ],
+        "summary": "Card Issuer - Update",
+        "description": "Updates an existing card issuer entry",
+        "operationId": "Update Card Issuer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the card issuer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CardIssuerUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Card issuer updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardIssuerResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Card issuer not found"
+          },
+          "409": {
+            "description": "Card issuer with this name already exists"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -13730,7 +13879,7 @@
             "items": {
               "type": "string"
             },
-            "description": "Set of card issuers to block (e.g., [\"HDFC Bank\", \"ICICI Bank\"])",
+            "description": "Set of card issuer IDs to block",
             "uniqueItems": true,
             "nullable": true
           },
@@ -13954,6 +14103,81 @@
           "saved_card",
           "click_to_pay"
         ]
+      },
+      "CardIssuerListQuery": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Optional search term to filter issuers by name (case-insensitive prefix match)",
+            "example": "hdfc",
+            "nullable": true
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Maximum number of results to return (default: 30, max: 255)",
+            "default": 30,
+            "example": 30,
+            "maximum": 255,
+            "minimum": 0
+          }
+        }
+      },
+      "CardIssuerListResponse": {
+        "type": "object",
+        "required": [
+          "issuers"
+        ],
+        "properties": {
+          "issuers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardIssuerResponse"
+            }
+          }
+        }
+      },
+      "CardIssuerRequest": {
+        "type": "object",
+        "required": [
+          "issuer_name"
+        ],
+        "properties": {
+          "issuer_name": {
+            "type": "string",
+            "description": "The name of the card issuer to add",
+            "example": "STATE BANK OF INDIA"
+          }
+        }
+      },
+      "CardIssuerResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "issuer_name"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "issuer_name": {
+            "type": "string"
+          }
+        }
+      },
+      "CardIssuerUpdateRequest": {
+        "type": "object",
+        "required": [
+          "issuer_name"
+        ],
+        "properties": {
+          "issuer_name": {
+            "type": "string",
+            "description": "The new name for the card issuer",
+            "example": "STATE BANK OF INDIA UPDATED"
+          }
+        }
       },
       "CardNetwork": {
         "type": "string",
@@ -39879,6 +40103,10 @@
     {
       "name": "Subscriptions",
       "description": "Subscription management and billing endpoints"
+    },
+    {
+      "name": "Card Issuer",
+      "description": "Create and manage card issuers"
     }
   ]
 }
