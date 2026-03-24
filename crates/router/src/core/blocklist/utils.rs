@@ -92,14 +92,22 @@ pub async fn list_blocklist_entries_for_merchant(
     merchant_id: &common_utils::id_type::MerchantId,
     query: api_blocklist::ListBlocklistQuery,
 ) -> RouterResult<api_blocklist::ListBlocklistResponse> {
-    let (entries, total_count) = state
+    let entries = state
         .store
         .list_blocklist_entries_by_merchant_id_data_kind(
             merchant_id,
-            query.data_kind,
+            query.data_kind.clone(),
             query.limit.into(),
             query.offset.into(),
         )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "no blocklist records found".to_string(),
+        })?;
+
+    let total_count = state
+        .store
+        .get_blocklist_entries_count_by_merchant_id_data_kind(merchant_id, query.data_kind)
         .await
         .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
             message: "no blocklist records found".to_string(),

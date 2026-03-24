@@ -1,4 +1,4 @@
-use error_stack::report;
+use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 use storage_impl::MockDb;
 
@@ -40,7 +40,13 @@ pub trait BlocklistInterface {
         data_kind: common_enums::BlocklistDataKind,
         limit: i64,
         offset: i64,
-    ) -> CustomResult<(Vec<storage::Blocklist>, usize), errors::StorageError>;
+    ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError>;
+
+    async fn get_blocklist_entries_count_by_merchant_id_data_kind(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        data_kind: common_enums::BlocklistDataKind,
+    ) -> CustomResult<usize, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -87,16 +93,9 @@ impl BlocklistInterface for Store {
         data_kind: common_enums::BlocklistDataKind,
         limit: i64,
         offset: i64,
-    ) -> CustomResult<(Vec<storage::Blocklist>, usize), errors::StorageError> {
+    ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        let total_count = storage::Blocklist::get_count_by_merchant_id_data_kind(
-            &conn,
-            merchant_id,
-            data_kind.clone(),
-        )
-        .await
-        .map_err(|error| report!(errors::StorageError::from(error)))?;
-        let entries = storage::Blocklist::list_by_merchant_id_data_kind(
+        storage::Blocklist::list_by_merchant_id_data_kind(
             &conn,
             merchant_id,
             data_kind,
@@ -104,8 +103,23 @@ impl BlocklistInterface for Store {
             offset,
         )
         .await
-        .map_err(|error| report!(errors::StorageError::from(error)))?;
-        Ok((entries, total_count))
+        .change_context(errors::StorageError::DatabaseError(report!(
+            diesel_models::errors::DatabaseError::Others
+        )))
+    }
+
+    #[instrument(skip_all)]
+    async fn get_blocklist_entries_count_by_merchant_id_data_kind(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        data_kind: common_enums::BlocklistDataKind,
+    ) -> CustomResult<usize, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::Blocklist::get_count_by_merchant_id_data_kind(&conn, merchant_id, data_kind)
+            .await
+            .change_context(errors::StorageError::DatabaseError(report!(
+                diesel_models::errors::DatabaseError::Others
+            )))
     }
 
     #[instrument(skip_all)]
@@ -152,7 +166,15 @@ impl BlocklistInterface for MockDb {
         _data_kind: common_enums::BlocklistDataKind,
         _limit: i64,
         _offset: i64,
-    ) -> CustomResult<(Vec<storage::Blocklist>, usize), errors::StorageError> {
+    ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn get_blocklist_entries_count_by_merchant_id_data_kind(
+        &self,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _data_kind: common_enums::BlocklistDataKind,
+    ) -> CustomResult<usize, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
 
@@ -204,9 +226,20 @@ impl BlocklistInterface for KafkaStore {
         data_kind: common_enums::BlocklistDataKind,
         limit: i64,
         offset: i64,
-    ) -> CustomResult<(Vec<storage::Blocklist>, usize), errors::StorageError> {
+    ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
         self.diesel_store
             .list_blocklist_entries_by_merchant_id_data_kind(merchant_id, data_kind, limit, offset)
+            .await
+    }
+
+    #[instrument(skip_all)]
+    async fn get_blocklist_entries_count_by_merchant_id_data_kind(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        data_kind: common_enums::BlocklistDataKind,
+    ) -> CustomResult<usize, errors::StorageError> {
+        self.diesel_store
+            .get_blocklist_entries_count_by_merchant_id_data_kind(merchant_id, data_kind)
             .await
     }
 
