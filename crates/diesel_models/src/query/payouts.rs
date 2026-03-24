@@ -144,25 +144,25 @@ mod tests {
 
     #[test]
     fn test_get_total_count_signature_with_profile_id_list() {
-        fn _verify_signature_compiles(
-            conn: &PgPooledConn,
-            merchant_id: &MerchantId,
-            active_payout_ids: &[PayoutId],
-            profile_id_list: Option<Vec<ProfileId>>,
+        fn _verify_signature_compiles<'a>(
+            conn: &'a PgPooledConn,
+            merchant_id: &'a MerchantId,
+            active_payout_ids: &'a [PayoutId],
             connector: Option<Vec<String>>,
             currency: Option<Vec<enums::Currency>>,
             status: Option<Vec<enums::PayoutStatus>>,
             payout_type: Option<Vec<enums::PayoutType>>,
-        ) -> impl std::future::Future<Output = StorageResult<i64>> + '_ {
+            profile_id_list: Option<Vec<ProfileId>>,
+        ) -> impl std::future::Future<Output = StorageResult<i64>> + 'a {
             Payouts::get_total_count_of_payouts(
                 conn,
                 merchant_id,
                 active_payout_ids,
-                profile_id_list,
                 connector,
                 currency,
                 status,
                 payout_type,
+                profile_id_list,
             )
         }
     }
