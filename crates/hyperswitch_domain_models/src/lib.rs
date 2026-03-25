@@ -5,6 +5,7 @@ pub mod behaviour;
 pub mod bulk_tokenization;
 pub mod business_profile;
 pub mod callback_mapper;
+pub mod card_issuer;
 pub mod card_testing_guard_data;
 pub mod cards_info;
 pub mod chat;

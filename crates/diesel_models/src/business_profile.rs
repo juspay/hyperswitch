@@ -84,6 +84,7 @@ pub struct Profile {
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub is_l2_l3_enabled: Option<bool>,
+    pub network_tokenization_credentials: Option<Encryption>,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
 }
@@ -149,6 +150,7 @@ pub struct ProfileNew {
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub is_l2_l3_enabled: Option<bool>,
+    pub network_tokenization_credentials: Option<Encryption>,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
 }
@@ -215,6 +217,7 @@ pub struct ProfileUpdateInternal {
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+    pub network_tokenization_credentials: Option<Encryption>,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
 }
@@ -278,6 +281,7 @@ impl ProfileUpdateInternal {
             is_external_vault_enabled,
             external_vault_connector_details,
             billing_processor_id,
+            network_tokenization_credentials,
             payment_method_blocking,
             default_fallback_routing,
         } = self;
@@ -375,6 +379,8 @@ impl ProfileUpdateInternal {
             external_vault_connector_details: external_vault_connector_details
                 .or(source.external_vault_connector_details),
             billing_processor_id: billing_processor_id.or(source.billing_processor_id),
+            network_tokenization_credentials: network_tokenization_credentials
+                .or(source.network_tokenization_credentials),
             payment_method_blocking: payment_method_blocking.or(source.payment_method_blocking),
             default_fallback_routing: default_fallback_routing.or(source.default_fallback_routing),
         }
@@ -447,6 +453,7 @@ pub struct Profile {
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub is_l2_l3_enabled: Option<bool>,
+    pub network_tokenization_credentials: Option<Encryption>,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
@@ -761,6 +768,7 @@ impl ProfileUpdateInternal {
             always_enable_overcapture: None,
             is_l2_l3_enabled: None,
             billing_processor_id: billing_processor_id.or(source.billing_processor_id),
+            network_tokenization_credentials: source.network_tokenization_credentials,
             payment_method_blocking: None,
         }
     }
@@ -957,6 +965,23 @@ pub struct CardBlockingConfig {
     /// Whether to block if BIN is provided but no matching record found in cards_info table.
     /// Defaults to false (allow payment if BIN not found in database).
     pub block_if_bin_info_unavailable: Option<bool>,
+}
+
+impl CardBlockingConfig {
+    pub fn should_block_if_bin_info_unavailable(&self) -> bool {
+        self.block_if_bin_info_unavailable.unwrap_or(false)
+    }
+
+    pub fn should_block_by_attribute<T>(blocked: &Option<HashSet<T>>, value: Option<&str>) -> bool
+    where
+        T: std::str::FromStr + std::hash::Hash + Eq,
+    {
+        blocked
+            .as_ref()
+            .zip(value)
+            .and_then(|(set, s)| s.parse::<T>().ok().map(|v| (set, v)))
+            .is_some_and(|(set, v)| set.contains(&v))
+    }
 }
 
 common_utils::impl_to_sql_from_sql_json!(PaymentMethodBlockingConfig);

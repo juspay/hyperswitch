@@ -335,6 +335,7 @@ pub fn create_merchant_account_request_for_org(
         pm_collect_link_config: None,
         product_type: Some(product_type),
         merchant_account_type: None,
+        network_tokenization_credentials: None,
     })
 }
 
