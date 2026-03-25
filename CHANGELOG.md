@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.02.0-hotfix12
+
+### Bug Fixes
+
+- **connector:** [ADYEN] Remove recurringProcessingModel in CIT transactions - REVERT ([#11622](https://github.com/juspay/hyperswitch/pull/11622)) ([`a5a1814`](https://github.com/juspay/hyperswitch/commit/a5a18144c4c688566ef2c670d774edb752f46458))
+
+**Full Changelog:** [`2026.02.02.0-hotfix11...2026.02.02.0-hotfix12`](https://github.com/juspay/hyperswitch/compare/2026.02.02.0-hotfix11...2026.02.02.0-hotfix12)
+
+- - -
+
 ## 2026.02.02.0-hotfix11
 
 ### Bug Fixes
