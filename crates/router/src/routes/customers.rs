@@ -1,6 +1,5 @@
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use common_utils::id_type;
-
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
