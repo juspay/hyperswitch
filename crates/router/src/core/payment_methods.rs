@@ -56,8 +56,8 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::connector_integration_interface::RouterDataConversion;
 #[cfg(feature = "v2")]
-use masking::ExposeInterface;
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::{PeekInterface, Secret};
 use router_env::{instrument, tracing};
 use time::Duration;
 
@@ -1442,21 +1442,17 @@ impl PaymentMethodResolver {
                     logger::debug!(
                         "No CVC found in the payment method request, trying to retrieve from redis"
                     );
-                    let existing_cvc_expiry_details =
-                        vault::retrieve_key_and_ttl_for_cvc_from_payment_method_id(
-                            state,
-                            existing_pm.id.to_owned(),
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to retrieve cvc from redis")
-                        .ok()
-                        .map(|time| {
-                            payment_methods::CardCVCTokenStorageDetails::generate_expiry_timestamp(
-                                time,
-                            )
-                        });
-                    existing_cvc_expiry_details
+                    vault::retrieve_key_and_ttl_for_cvc_from_payment_method_id(
+                        state,
+                        existing_pm.id.to_owned(),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to retrieve cvc from redis")
+                    .ok()
+                    .map(|time| {
+                        payment_methods::CardCVCTokenStorageDetails::generate_expiry_timestamp(time)
+                    })
                 };
                 let billing = billing_address
                     .clone()
@@ -3251,7 +3247,7 @@ pub async fn vault_payment_method_external(
     access_token::create_access_token(
         state,
         &connector_data,
-        merchant_account,
+        merchant_account.get_id(),
         &mut old_router_data,
     )
     .await?;
@@ -3402,7 +3398,7 @@ pub async fn vault_payment_method_external_v1(
     access_token::create_access_token(
         state,
         &connector_data,
-        merchant_account,
+        merchant_account.get_id(),
         &mut old_router_data,
     )
     .await?;
@@ -3517,12 +3513,12 @@ pub async fn vault_payment_method(
             let payment_method_custom_data =
                 get_payment_method_custom_data(pmd.clone(), vault_token_selector)?;
 
-            vault_payment_method_external(
+            Box::pin(vault_payment_method_external(
                 state,
                 &payment_method_custom_data,
                 platform.get_provider().get_account(),
                 merchant_connector_account,
-            )
+            ))
             .await
             .map(|value| (value, Some(external_vault_source)))
         }
