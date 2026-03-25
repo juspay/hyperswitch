@@ -288,7 +288,7 @@ pub struct CardBlockingConfig {
     /// Set of card subtypes to block
     #[schema(value_type = Option<Vec<CardSubtype>>)]
     pub card_subtypes: Option<HashSet<common_enums::CardSubtype>>,
-    /// Set of card issuers to block (e.g., ["HDFC Bank", "ICICI Bank"])
+    /// Set of card issuer IDs to block
     pub issuers: Option<HashSet<String>>,
     /// Whether to block if BIN is provided but no matching record found in cards_info table.
     /// Defaults to false (allow payment if BIN not found in database).

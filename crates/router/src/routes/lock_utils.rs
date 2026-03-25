@@ -53,6 +53,7 @@ pub enum ApiIdentifier {
     GenericTokenization,
     RecoveryRecovery,
     Superposition,
+    CardIssuers,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -387,6 +388,9 @@ impl From<Flow> for ApiIdentifier {
             Flow::GetSuperpositionSdkConfig => Self::Superposition,
             Flow::MerchantConnectorWebhookRegister | Flow::MerchantConnectorWebhookList => {
                 Self::MerchantConnectorWebhookManagement
+            }
+            Flow::AddCardIssuer | Flow::UpdateCardIssuer | Flow::ListCardIssuers => {
+                Self::CardIssuers
             }
         }
     }
