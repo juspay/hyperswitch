@@ -1502,6 +1502,7 @@ default_imp_for_cancel_post_capture_sync!(
     connectors::Finix,
     connectors::Fiserv,
     connectors::Fiservemea,
+    connectors::Fiservcommercehub,
     connectors::Forte,
     connectors::Getnet,
     connectors::Gigadat,
