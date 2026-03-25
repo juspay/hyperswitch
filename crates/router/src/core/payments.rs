@@ -7752,6 +7752,12 @@ async fn get_feature_data(
                     storage_scheme,
                 )
                 .await
+                .inspect_err(|err| {
+                    router_env::logger::error!(
+                        error=?err,
+                        "Failed to fetch payment methods for returning customer flow, proceeding without feature data"
+                    );
+                })
                 .unwrap_or_default();
 
             // Helper closure to extract payment reference by MCA ID
