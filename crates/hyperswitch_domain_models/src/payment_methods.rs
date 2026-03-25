@@ -96,6 +96,7 @@ pub struct PaymentMethod {
     pub last_modified_by: Option<CreatedBy>,
     pub customer_details: OptionalEncryptableValue,
     pub locker_fingerprint_id: Option<String>,
+    pub storage_type: Option<common_enums::StorageType>,
 }
 
 #[cfg(feature = "v2")]
@@ -177,6 +178,16 @@ impl PaymentMethod {
     #[cfg(feature = "v1")]
     pub fn get_payment_method_type(&self) -> Option<storage_enums::PaymentMethod> {
         self.payment_method
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn is_pm_volatile(&self) -> bool {
+        matches!(self.storage_type, Some(common_enums::StorageType::Volatile))
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn is_pm_volatile(&self) -> bool {
+        todo!()
     }
 
     #[cfg(feature = "v2")]
@@ -603,6 +614,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .and_then(|last_modified_by| last_modified_by.parse::<CreatedBy>().ok()),
             customer_details,
             locker_fingerprint_id: item.locker_fingerprint_id,
+            storage_type: None,
         })
     }
 
@@ -1586,6 +1598,7 @@ mod tests {
             last_modified_by: None,
             customer_details: None,
             locker_fingerprint_id: None,
+            storage_type: None,
         };
         payment_method.clone()
     }

@@ -206,6 +206,7 @@ impl PaymentMethodsController for PmCards<'_> {
                     last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
                     customer_details: payment_method_customer_details_encrypted,
                     locker_fingerprint_id,
+                    storage_type: None,
                 },
                 self.provider.get_account().storage_scheme,
             )

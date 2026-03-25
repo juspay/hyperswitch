@@ -1340,6 +1340,7 @@ impl DomainPaymentMethodWrapper {
                 .and_then(|initiator| initiator.to_created_by()),
             customer_details: None,
             locker_fingerprint_id: None,
+            storage_type: response.storage_type,
         }))
     }
 
@@ -1468,6 +1469,7 @@ impl DomainPaymentMethodWrapper {
                 .and_then(|initiator| initiator.to_created_by()),
             customer_details: None,
             locker_fingerprint_id: None,
+            storage_type: response.storage_type,
         }))
     }
 }
@@ -1572,6 +1574,7 @@ impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
             last_modified_by: None,
             customer_details: None,
             locker_fingerprint_id: None,
+            storage_type: response.storage_type,
         }))
     }
 }
