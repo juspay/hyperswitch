@@ -1,4 +1,3 @@
-#[cfg(feature = "v2")]
 use std::collections::HashMap;
 
 #[cfg(feature = "v2")]
@@ -97,6 +96,7 @@ pub struct PaymentMethod {
     pub last_modified_by: Option<CreatedBy>,
     pub customer_details: OptionalEncryptableValue,
     pub locker_fingerprint_id: Option<String>,
+    pub network_tokenization_data: OptionalEncryptableValue,
 }
 
 #[cfg(feature = "v2")]
@@ -143,6 +143,9 @@ pub struct PaymentMethod {
     pub last_modified_by: Option<CreatedBy>,
     #[encrypt(ty = Value)]
     pub customer_details: Option<Encryptable<customers::CustomerDocumentDetails>>,
+    #[encrypt(ty = Value)]
+    pub network_tokenization_data:
+        Option<Encryptable<PaymentMethodNetworkTokenizationDataDomainType>>,
 }
 
 impl PaymentMethod {
@@ -461,6 +464,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .map(|last_modified_by| last_modified_by.to_string()),
             customer_details: self.customer_details.map(|val| val.into()),
             locker_fingerprint_id: self.locker_fingerprint_id,
+            network_tokenization_data: self.network_tokenization_data.map(|val| val.into()),
         })
     }
 
@@ -478,6 +482,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             payment_method_data,
             payment_method_billing_address,
             network_token_payment_method_data,
+            network_tokenization_data,
             customer_details,
         ) = async {
             let payment_method_data = item
@@ -525,6 +530,21 @@ impl super::behaviour::Conversion for PaymentMethod {
                 })
                 .await?;
 
+            let network_tokenization_data = item
+                .network_tokenization_data
+                .async_lift(|inner| async {
+                    crypto_operation(
+                        state,
+                        type_name!(Self::DstType),
+                        CryptoOperation::DecryptOptional(inner),
+                        key_manager_identifier.clone(),
+                        key.peek(),
+                    )
+                    .await
+                    .and_then(|val| val.try_into_optionaloperation())
+                })
+                .await?;
+
             let customer_details = item
                 .customer_details
                 .async_lift(|inner| async {
@@ -544,6 +564,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 payment_method_data,
                 payment_method_billing_address,
                 network_token_payment_method_data,
+                network_tokenization_data,
                 customer_details,
             ))
         }
@@ -602,6 +623,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .and_then(|last_modified_by| last_modified_by.parse::<CreatedBy>().ok()),
             customer_details,
             locker_fingerprint_id: item.locker_fingerprint_id,
+            network_tokenization_data,
         })
     }
 
@@ -654,6 +676,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .map(|last_modified_by| last_modified_by.to_string()),
             customer_details: self.customer_details.map(|val| val.into()),
             locker_fingerprint_id: self.locker_fingerprint_id,
+            network_tokenization_data: self.network_tokenization_data.map(|val| val.into()),
         })
     }
 }
@@ -699,6 +722,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .last_modified_by
                 .map(|last_modified_by| last_modified_by.to_string()),
             customer_details: self.customer_details.map(|val| val.into()),
+            network_tokenization_data: self.network_tokenization_data.map(|val| val.into()),
         })
     }
 
@@ -726,6 +750,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                             .network_token_payment_method_data,
                         external_vault_token_data: storage_model.external_vault_token_data,
                         customer_details: storage_model.customer_details,
+                        network_tokenization_data: storage_model.network_tokenization_data,
                     },
                 )),
                 key_manager_identifier,
@@ -790,6 +815,17 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .change_context(common_utils::errors::CryptoError::DecodingFailed)
                 .attach_printable("Error while deserializing External Vault Token Data")?;
 
+            let network_tokenization_data = data
+                .network_tokenization_data
+                .map(|tokenization_data| {
+                    tokenization_data.deserialize_inner_value(|value| {
+                        value.parse_value("Network Tokenization Data")
+                    })
+                })
+                .transpose()
+                .change_context(common_utils::errors::CryptoError::DecodingFailed)
+                .attach_printable("Error while deserializing Network Tokenization Data")?;
+
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 customer_id: Some(storage_model.customer_id),
                 merchant_id: storage_model.merchant_id,
@@ -826,6 +862,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                     .last_modified_by
                     .and_then(|last_modified_by| last_modified_by.parse::<CreatedBy>().ok()),
                 customer_details,
+                network_tokenization_data,
             })
         }
         .await
@@ -1534,6 +1571,26 @@ pub struct PaymentMethodResponse {
     pub locker_fingerprint_id: Option<String>,
 }
 
+/// Struct to hold Network Tokenization Data for a payment method. This struct contains optional fields for network token requestor reference ID, network token locker ID, and network token payment method data.
+/// This struct is used to store the network tokenization data associated with a payment method in the database.
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct PaymentMethodNetworkTokenData {
+    network_token_requestor_reference_id: Secret<String>,
+    network_token_locker_id: Secret<String>,
+    network_token_payment_method_data: crate::payment_method_data::PaymentMethodsData,
+}
+
+/// The domain type for Network Tokenization Data stored in payment methods table.
+/// This structure allows for efficient retrieval of network tokenization data based on either merchant or profile context.
+/// This struct contains two maps:
+/// 1. `merchant_map`: A map where the key is the MerchantId and the value is the Network Tokenization Data specific to that merchant.
+/// 2. `profile_map`: A map where the key is the ProfileId and the value is the Network Tokenization Data specific to that profile.
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct PaymentMethodNetworkTokenizationDataDomainType {
+    pub merchant_map: Option<HashMap<id_type::MerchantId, PaymentMethodNetworkTokenData>>,
+    pub profile_map: Option<HashMap<id_type::ProfileId, PaymentMethodNetworkTokenData>>,
+}
+
 #[cfg(feature = "v1")]
 #[cfg(test)]
 mod tests {
@@ -1584,6 +1641,7 @@ mod tests {
             last_modified_by: None,
             customer_details: None,
             locker_fingerprint_id: None,
+            network_tokenization_data: None,
         };
         payment_method.clone()
     }
