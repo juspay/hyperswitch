@@ -954,4 +954,21 @@ pub struct CardBlockingConfig {
     pub block_if_bin_info_unavailable: Option<bool>,
 }
 
+impl CardBlockingConfig {
+    pub fn should_block_if_bin_info_unavailable(&self) -> bool {
+        self.block_if_bin_info_unavailable.unwrap_or(false)
+    }
+
+    pub fn should_block_by_attribute<T>(blocked: &Option<HashSet<T>>, value: Option<&str>) -> bool
+    where
+        T: std::str::FromStr + std::hash::Hash + Eq,
+    {
+        blocked
+            .as_ref()
+            .zip(value)
+            .and_then(|(set, s)| s.parse::<T>().ok().map(|v| (set, v)))
+            .is_some_and(|(set, v)| set.contains(&v))
+    }
+}
+
 common_utils::impl_to_sql_from_sql_json!(PaymentMethodBlockingConfig);
