@@ -75,5 +75,6 @@ impl EuclidDirFilter for ThreeDSDecisionRule {
         DirKeyKind::CustomerDeviceDisplaySize,
         DirKeyKind::AcquirerCountry,
         DirKeyKind::AcquirerFraudRate,
+        DirKeyKind::CardDiscovery,
     ];
 }

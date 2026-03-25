@@ -1341,6 +1341,7 @@ impl DomainPaymentMethodWrapper {
                 .and_then(|initiator| initiator.to_created_by()),
             customer_details: None,
             locker_fingerprint_id: None,
+            network_tokenization_data: None,
         }))
     }
 
@@ -1465,6 +1466,7 @@ impl DomainPaymentMethodWrapper {
                 .and_then(|initiator| initiator.to_created_by()),
             customer_details: None,
             locker_fingerprint_id: None,
+            network_tokenization_data: None,
         }))
     }
 }
@@ -1568,6 +1570,75 @@ impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
             last_modified_by: None,
             customer_details: None,
             locker_fingerprint_id: None,
+            network_tokenization_data: None,
+        }))
+    }
+}
+
+#[cfg(feature = "v1")]
+impl<'a>
+    crate::types::transformers::ForeignTryFrom<(
+        &'a hyperswitch_domain_models::payment_method_data::CardWithOptionalCVC,
+    )> for domain::CardDetailsForNetworkTransactionId
+{
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn foreign_try_from(
+        value: (&'a hyperswitch_domain_models::payment_method_data::CardWithOptionalCVC,),
+    ) -> Result<Self, Self::Error> {
+        let (card_data,) = value;
+
+        Ok(Self {
+            card_number: card_data.card_number.clone(),
+            card_exp_month: card_data.card_exp_month.clone(),
+            card_exp_year: card_data.card_exp_year.clone(),
+            card_issuer: card_data.card_issuer.clone(),
+            card_network: card_data.card_network.clone(),
+            card_type: card_data.card_type.clone(),
+            card_issuing_country: card_data.card_issuing_country.clone(),
+            card_issuing_country_code: card_data.card_issuing_country_code.clone(),
+            bank_code: card_data.bank_code.clone(),
+            nick_name: card_data.nick_name.clone(),
+            card_holder_name: card_data.card_holder_name.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
+impl<'a>
+    crate::types::transformers::ForeignTryFrom<(
+        &'a hyperswitch_domain_models::payment_method_data::CardWithOptionalCVC,
+    )> for domain::PaymentMethodData
+{
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn foreign_try_from(
+        value: (&'a hyperswitch_domain_models::payment_method_data::CardWithOptionalCVC,),
+    ) -> Result<Self, Self::Error> {
+        let (card_data,) = value;
+
+        let card_cvc =
+            card_data
+                .card_cvc
+                .clone()
+                .ok_or(errors::ApiErrorResponse::UnprocessableEntity {
+                    message: "card_cvc is required for card payment path".to_string(),
+                })?;
+
+        Ok(Self::Card(domain::Card {
+            card_number: card_data.card_number.clone(),
+            card_exp_month: card_data.card_exp_month.clone(),
+            card_exp_year: card_data.card_exp_year.clone(),
+            card_cvc,
+            card_issuer: card_data.card_issuer.clone(),
+            card_network: card_data.card_network.clone(),
+            card_type: card_data.card_type.clone(),
+            card_issuing_country: card_data.card_issuing_country.clone(),
+            card_issuing_country_code: card_data.card_issuing_country_code.clone(),
+            bank_code: card_data.bank_code.clone(),
+            nick_name: card_data.nick_name.clone(),
+            card_holder_name: card_data.card_holder_name.clone(),
+            co_badged_card_data: card_data.co_badged_card_data.clone(),
         }))
     }
 }
