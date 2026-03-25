@@ -1065,6 +1065,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_l2_l3_enabled: None,
                 payment_method_blocking: None,
                 default_fallback_routing,
+                network_tokenization_credentials: None,
             },
         }
     }
