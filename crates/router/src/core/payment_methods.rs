@@ -4970,7 +4970,7 @@ fn construct_zero_auth_payments_request(
         session_expiry: None,
         frm_metadata: None,
         request_external_three_ds_authentication: None,
-        customer_acceptance: None,
+        customer_acceptance: confirm_request.customer_acceptance.clone(),
         browser_info: None,
         force_3ds_challenge: None,
         is_iframe_redirection_enabled: None,
@@ -5115,6 +5115,14 @@ pub async fn payment_methods_session_confirm(
             tokenization_type: common_enums::TokenizationType::MultiUse,
             ..
         }) => {
+            request
+                .customer_acceptance
+                .as_ref()
+                .get_required_value("customer_acceptance")
+                .change_context(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "customer_acceptance",
+                })?;
+
             let zero_auth_request = construct_zero_auth_payments_request(
                 &request,
                 &payment_method_session,
@@ -5136,6 +5144,14 @@ pub async fn payment_methods_session_confirm(
             tokenization_type: common_enums::TokenizationType::SingleUse,
             ..
         }) => {
+            request
+                .customer_acceptance
+                .as_ref()
+                .get_required_value("customer_acceptance")
+                .change_context(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "customer_acceptance",
+                })?;
+
             Box::pin(create_single_use_tokenization_flow(
                 state.clone(),
                 req_state.clone(),
@@ -5144,6 +5160,7 @@ pub async fn payment_methods_session_confirm(
                 &create_payment_method_request.clone(),
                 &payment_method_response,
                 &payment_method_session,
+                request.customer_acceptance.clone(),
             ))
             .await?;
             None
@@ -5259,6 +5276,7 @@ async fn create_single_use_tokenization_flow(
     payment_method_create_request: &payment_methods::PaymentMethodCreate,
     payment_method: &api::PaymentMethodResponse,
     payment_method_session: &domain::payment_methods::PaymentMethodSession,
+    customer_acceptance: Option<common_types::payments::CustomerAcceptance>,
 ) -> RouterResult<()> {
     let customer_id = payment_method_create_request.customer_id.to_owned();
     let connector_id = payment_method_create_request
@@ -5301,7 +5319,7 @@ async fn create_single_use_tokenization_flow(
         split_payments: None,
         mandate_id: None,
         setup_future_usage: None,
-        customer_acceptance: None,
+        customer_acceptance,
         setup_mandate_details: None,
         payment_method_type: None,
         capture_method: None,
