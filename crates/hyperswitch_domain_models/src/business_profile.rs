@@ -91,6 +91,7 @@ pub struct Profile {
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
     pub external_vault_details: ExternalVaultDetails,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub network_tokenization_credentials: OptionalEncryptableValue,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
 }
 
@@ -250,6 +251,7 @@ pub struct ProfileSetter {
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
     pub external_vault_details: ExternalVaultDetails,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub network_tokenization_credentials: OptionalEncryptableValue,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
 }
 
@@ -319,6 +321,7 @@ impl From<ProfileSetter> for Profile {
             always_enable_overcapture: value.always_enable_overcapture,
             external_vault_details: value.external_vault_details,
             billing_processor_id: value.billing_processor_id,
+            network_tokenization_credentials: value.network_tokenization_credentials,
             payment_method_blocking: value.payment_method_blocking,
         }
     }
@@ -391,6 +394,7 @@ pub struct ProfileGeneralUpdate {
     pub is_external_vault_enabled: Option<common_enums::ExternalVaultEnabled>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub network_tokenization_credentials: OptionalEncryptableValue,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
 }
 
@@ -414,6 +418,7 @@ pub enum ProfileUpdate {
     },
     NetworkTokenizationUpdate {
         is_network_tokenization_enabled: bool,
+        network_tokenization_credentials: OptionalEncryptableValue,
     },
     CardTestingSecretKeyUpdate {
         card_testing_secret_key: OptionalEncryptableName,
@@ -481,6 +486,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_external_vault_enabled,
                     external_vault_connector_details,
                     billing_processor_id,
+                    network_tokenization_credentials,
                     payment_method_blocking,
                 } = *update;
 
@@ -549,6 +555,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_external_vault_enabled,
                     external_vault_connector_details,
                     billing_processor_id,
+                    network_tokenization_credentials: network_tokenization_credentials
+                        .map(Encryption::from),
                     payment_method_blocking,
                 }
             }
@@ -612,6 +620,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 billing_processor_id: None,
                 is_l2_l3_enabled: None,
+                network_tokenization_credentials: None,
                 payment_method_blocking: None,
             },
             ProfileUpdate::DynamicRoutingAlgorithmUpdate {
@@ -672,6 +681,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 billing_processor_id: None,
                 is_l2_l3_enabled: None,
+                network_tokenization_credentials: None,
                 payment_method_blocking: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
@@ -732,6 +742,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 billing_processor_id: None,
                 is_l2_l3_enabled: None,
+                network_tokenization_credentials: None,
                 payment_method_blocking: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
@@ -792,10 +803,12 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 billing_processor_id: None,
                 is_l2_l3_enabled: None,
+                network_tokenization_credentials: None,
                 payment_method_blocking: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
+                network_tokenization_credentials,
             } => Self {
                 profile_name: None,
                 modified_at: now,
@@ -852,6 +865,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 billing_processor_id: None,
                 is_l2_l3_enabled: None,
+                network_tokenization_credentials: network_tokenization_credentials
+                    .map(Encryption::from),
                 payment_method_blocking: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
@@ -912,6 +927,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 billing_processor_id: None,
                 is_l2_l3_enabled: None,
+                network_tokenization_credentials: None,
                 payment_method_blocking: None,
             },
             ProfileUpdate::AcquirerConfigMapUpdate {
@@ -972,6 +988,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 billing_processor_id: None,
                 is_l2_l3_enabled: None,
+                network_tokenization_credentials: None,
                 payment_method_blocking: None,
             },
         }
@@ -1055,6 +1072,9 @@ impl Conversion for Profile {
             is_external_vault_enabled,
             external_vault_connector_details,
             billing_processor_id: self.billing_processor_id,
+            network_tokenization_credentials: self
+                .network_tokenization_credentials
+                .map(|name| name.into()),
             payment_method_blocking: self.payment_method_blocking,
         })
     }
@@ -1069,7 +1089,11 @@ impl Conversion for Profile {
         Self: Sized,
     {
         // Decrypt encrypted fields first
-        let (outgoing_webhook_custom_http_headers, card_testing_secret_key) = async {
+        let (
+            outgoing_webhook_custom_http_headers,
+            card_testing_secret_key,
+            network_tokenization_credentials,
+        ) = async {
             let outgoing_webhook_custom_http_headers = item
                 .outgoing_webhook_custom_http_headers
                 .async_lift(|inner| async {
@@ -1100,9 +1124,25 @@ impl Conversion for Profile {
                 })
                 .await?;
 
+            let network_tokenization_credentials = item
+                .network_tokenization_credentials
+                .async_lift(|inner| async {
+                    crypto_operation(
+                        state,
+                        type_name!(Self::DstType),
+                        CryptoOperation::DecryptOptional(inner),
+                        key_manager_identifier.clone(),
+                        key.peek(),
+                    )
+                    .await
+                    .and_then(|val| val.try_into_optionaloperation())
+                })
+                .await?;
+
             Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>((
                 outgoing_webhook_custom_http_headers,
                 card_testing_secret_key,
+                network_tokenization_credentials,
             ))
         }
         .await
@@ -1181,6 +1221,7 @@ impl Conversion for Profile {
             always_enable_overcapture: item.always_enable_overcapture,
             external_vault_details,
             billing_processor_id: item.billing_processor_id,
+            network_tokenization_credentials,
             payment_method_blocking: item.payment_method_blocking,
         })
     }
@@ -1251,6 +1292,9 @@ impl Conversion for Profile {
             is_external_vault_enabled,
             external_vault_connector_details,
             billing_processor_id: self.billing_processor_id,
+            network_tokenization_credentials: self
+                .network_tokenization_credentials
+                .map(|name| name.into()),
             payment_method_blocking: self.payment_method_blocking,
         })
     }
@@ -2428,6 +2472,7 @@ impl Conversion for Profile {
             is_l2_l3_enabled: None,
             always_enable_overcapture: None,
             billing_processor_id: self.billing_processor_id,
+            network_tokenization_credentials: None,
             payment_method_blocking: None,
         })
     }
