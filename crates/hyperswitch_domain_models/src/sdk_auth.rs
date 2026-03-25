@@ -81,6 +81,10 @@ pub struct SdkAuthorization {
 
     #[cfg(feature = "v2")]
     pub payment_method_session_id: Option<id_type::GlobalPaymentMethodSessionId>,
+
+    /// Payment Session ID for SDK authorization validation
+    #[cfg(feature = "v1")]
+    pub payment_session_id: Option<id_type::PaymentSessionId>,
 }
 
 impl SdkAuthorization {
@@ -104,6 +108,10 @@ impl SdkAuthorization {
             self.payment_method_session_id
                 .as_ref()
                 .map(|id| format!("payment_method_session_id={}", id.get_string_repr())),
+            #[cfg(feature = "v1")]
+            self.payment_session_id
+                .as_ref()
+                .map(|id| format!("payment_session_id={}", id.get_string_repr())),
         ]
         .into_iter()
         .flatten()
@@ -202,6 +210,18 @@ impl SdkAuthorization {
                     )
                 },
             ),
+            #[cfg(feature = "v1")]
+            payment_session_id: parts
+                .get("payment_session_id")
+                .map(|payment_session_id| {
+                    id_type::PaymentSessionId::try_from(std::borrow::Cow::from(
+                        payment_session_id.to_string(),
+                    ))
+                    .change_context(ValidationError::InvalidValue {
+                        message: "Invalid payment_session_id format".to_string(),
+                    })
+                })
+                .transpose()?,
         })
     }
 }

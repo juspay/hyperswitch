@@ -8334,6 +8334,7 @@ where
     pub is_manual_retry_enabled: Option<bool>,
     pub is_l2_l3_enabled: bool,
     pub external_authentication_data: Option<api_models::payments::ExternalThreeDsData>,
+    pub payment_session_id: Option<id_type::PaymentSessionId>,
 }
 
 #[cfg(feature = "v1")]
@@ -11805,6 +11806,9 @@ pub trait OperationSessionGetters<F> {
     fn get_is_manual_retry_enabled(&self) -> Option<bool>;
 
     #[cfg(feature = "v1")]
+    fn get_payment_session_id(&self) -> Option<id_type::PaymentSessionId>;
+
+    #[cfg(feature = "v1")]
     fn get_installment_details(&self) -> Option<&common_types::payments::InstallmentData>;
 }
 
@@ -12051,6 +12055,11 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
 
     fn get_installment_details(&self) -> Option<&common_types::payments::InstallmentData> {
         self.payment_attempt.installment_data.as_ref()
+    }
+
+    #[cfg(feature = "v1")]
+    fn get_payment_session_id(&self) -> Option<id_type::PaymentSessionId> {
+        self.payment_session_id.clone()
     }
 
     // #[cfg(feature = "v2")]

@@ -50,6 +50,7 @@ use crate::{
         storage::{
             self,
             enums::{self, IntentStatus},
+            payment_session_redis::PaymentSessionRedisManager,
         },
         transformers::ForeignFrom,
     },
@@ -625,6 +626,17 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let unified_address = address.unify_with_payment_method_data_billing(add);
 
+        // Generate payment session for the payment
+        let payment_session_id = PaymentSessionRedisManager::create_session(
+            state,
+            platform.get_processor().get_account().get_id(),
+            &payment_id,
+            session_expiry,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to create payment session")?;
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -673,6 +685,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             is_manual_retry_enabled: None,
             is_l2_l3_enabled: business_profile.is_l2_l3_enabled,
             external_authentication_data: request.three_ds_data.clone(),
+            payment_session_id: Some(payment_session_id),
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
