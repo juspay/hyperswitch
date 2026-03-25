@@ -668,8 +668,8 @@ where
             let merchant_advice = payments_helpers::get_merchant_advice_code_config(
                 &state.conf.merchant_advice_codes,
                 payment_data.get_payment_intent().off_session,
-                card_network.as_ref(),
-                error_response.network_advice_code.as_deref(),
+                card_network.clone(),
+                error_response.network_advice_code.clone(),
             );
 
             let payment_attempt_update = storage::PaymentAttemptUpdate::ErrorUpdate {

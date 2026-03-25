@@ -549,20 +549,20 @@ pub struct NetworkErrorDetails {
 #[cfg(feature = "v1")]
 impl NetworkErrorDetails {
     fn new(
-        network_details: Option<Option<NetworkDetails>>,
+        network_advice_code: Option<Option<String>>,
         advice_message: Option<Option<String>>,
         card_network: Option<storage_enums::CardNetwork>,
     ) -> Option<Option<Self>> {
-        if network_details.is_none() && advice_message.is_none() {
+        if network_advice_code.is_none() && advice_message.is_none() {
             None
         } else {
-            let network_details_val = network_details.flatten();
+            let network_advice_code_val = network_advice_code.flatten();
             let advice_message_val = advice_message.flatten();
 
-            if network_details_val.is_some() || advice_message_val.is_some() {
+            if network_advice_code_val.is_some() || advice_message_val.is_some() {
                 Some(Some(Self {
                     name: card_network,
-                    advice_code: network_details_val.and_then(|n| n.network_advice_code),
+                    advice_code: network_advice_code_val,
                     advice_message: advice_message_val,
                 }))
             } else {
@@ -2391,8 +2391,10 @@ impl PaymentAttemptUpdate {
                     user_guidance_message.clone(),
                     recommended_action,
                 );
+                let network_advice_code =
+                    network_details.map(|opt| opt.and_then(|n| n.network_advice_code));
                 let network_error_details =
-                    NetworkErrorDetails::new(network_details, advice_message, card_network);
+                    NetworkErrorDetails::new(network_advice_code, advice_message, card_network);
                 let issuer_details = IssuerErrorDetails::new(
                     issuer_error_code.clone(),
                     issuer_error_message.clone(),
@@ -2532,8 +2534,11 @@ impl PaymentAttemptUpdate {
                     user_guidance_message.clone(),
                     recommended_action,
                 );
+                let network_advice_code = network_details
+                    .clone()
+                    .map(|opt| opt.and_then(|n| n.network_advice_code));
                 let network_error_details =
-                    NetworkErrorDetails::new(network_details.clone(), advice_message, card_network);
+                    NetworkErrorDetails::new(network_advice_code, advice_message, card_network);
                 let issuer_details = IssuerErrorDetails::new(
                     issuer_error_code.clone(),
                     issuer_error_message.clone(),

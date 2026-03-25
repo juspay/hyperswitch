@@ -8754,22 +8754,22 @@ where
 }
 
 /// Lookup merchant advice code configuration for MIT transactions.
-pub fn get_merchant_advice_code_config<'a>(
-    config: &'a MerchantAdviceCodeLookupConfig,
+pub fn get_merchant_advice_code_config(
+    config: &MerchantAdviceCodeLookupConfig,
     off_session: Option<bool>,
-    network: Option<&'a common_enums::CardNetwork>,
-    advice_code: Option<&'a str>,
-) -> Option<&'a MerchantAdviceCodeConfig> {
+    network: Option<common_enums::CardNetwork>,
+    advice_code: Option<String>,
+) -> Option<&MerchantAdviceCodeConfig> {
     match (off_session, network, advice_code) {
         (Some(true), Some(network), Some(advice_code)) => {
-            match config.get_config(network, advice_code) {
+            match config.get_config(&network, &advice_code) {
                 Some(config) => Some(config),
                 None => {
                     metrics::MERCHANT_ADVICE_CODE_CONFIG_MISS.add(
                         1,
                         router_env::metric_attributes!(
                             ("network", network.to_string()),
-                            ("advice_code", advice_code.to_owned()),
+                            ("advice_code", advice_code.clone()),
                         ),
                     );
                     logger::warn!(

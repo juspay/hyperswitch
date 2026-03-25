@@ -2061,8 +2061,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     let merchant_advice = payments_helpers::get_merchant_advice_code_config(
                         &state.conf.merchant_advice_codes,
                         payment_data.payment_intent.off_session,
-                        card_network.as_ref(),
-                        err.network_advice_code.as_deref(),
+                        card_network.clone(),
+                        err.network_advice_code.clone(),
                     );
 
                     let (unified_code, unified_message) = if let Some((code, message)) =
