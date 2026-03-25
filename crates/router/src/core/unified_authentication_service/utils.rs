@@ -21,7 +21,7 @@ use hyperswitch_domain_models::{
     type_encryption::AsyncLift,
 };
 use hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails;
-use masking::{ExposeInterface, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, PeekInterface};
 
 use super::types::{
     IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW,
@@ -179,7 +179,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                     .clone()
                     .map(|billing| {
                         common_utils::ext_traits::Encode::encode_to_value(&billing)
-                            .map(masking::Secret::<serde_json::Value>::new)
+                            .map(hyperswitch_masking::Secret::<serde_json::Value>::new)
                     })
                     .transpose()
                     .change_context(ApiErrorResponse::InternalServerError)
@@ -189,7 +189,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                     .clone()
                     .map(|shipping| {
                         common_utils::ext_traits::Encode::encode_to_value(&shipping)
-                            .map(masking::Secret::<serde_json::Value>::new)
+                            .map(hyperswitch_masking::Secret::<serde_json::Value>::new)
                     })
                     .transpose()
                     .change_context(ApiErrorResponse::InternalServerError)

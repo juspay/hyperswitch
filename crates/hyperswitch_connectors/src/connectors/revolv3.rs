@@ -67,7 +67,8 @@ impl api::ConnectorCommon for Revolv3 {
     fn get_auth_header(
         &self,
         _auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         Ok(Vec::new())
     }
 
@@ -144,7 +145,8 @@ impl webhooks::IncomingWebhook for Revolv3 {
     fn get_webhook_resource_object(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         Err((errors::ConnectorError::WebhooksNotImplemented).into())
     }
 }

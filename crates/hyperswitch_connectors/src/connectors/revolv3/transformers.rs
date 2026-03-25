@@ -3,7 +3,7 @@ use hyperswitch_interfaces::errors;
 use serde::{Deserialize, Serialize};
 
 pub struct Revolv3AuthType {
-    pub api_key: masking::Secret<String>,
+    pub api_key: hyperswitch_masking::Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for Revolv3AuthType {

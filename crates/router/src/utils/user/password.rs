@@ -7,7 +7,7 @@ use argon2::{
 };
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use rand::{seq::SliceRandom, Rng};
 
 use crate::core::errors::UserErrors;
