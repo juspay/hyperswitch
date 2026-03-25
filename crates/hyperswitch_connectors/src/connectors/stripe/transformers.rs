@@ -692,7 +692,7 @@ pub enum StripeBankTransferData {
 #[serde(untagged)]
 pub enum StripeWallet {
     ApplepayToken(StripeApplePay),
-    GooglepayToken(GooglePayToken), // tokenization by googlepay sdk
+    GooglepayToken(GooglePayToken),
     ApplepayPayment(ApplepayPayment),
     AmazonpayPayment(AmazonpayPayment),
     WechatpayPayment(WechatpayPayment),
