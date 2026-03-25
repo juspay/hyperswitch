@@ -1934,7 +1934,7 @@ impl TryFrom<(&GooglePayWalletData, Option<PaymentMethodToken>)> for StripePayme
             // Use decrypted token flow
             Ok(Self::Wallet(StripeWallet::GooglepayToken(GooglePayToken {
                 token: gpay_token,
-                payment_method_types: StripePaymentMethodType::Card,
+                payment_type: StripePaymentMethodType::Card,
             })))
         } else {
             // Use encrypted token flow

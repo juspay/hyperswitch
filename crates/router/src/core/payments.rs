@@ -115,8 +115,6 @@ use crate::core::debit_routing;
 #[cfg(feature = "frm")]
 use crate::core::fraud_check as frm_core;
 #[cfg(feature = "v2")]
-use crate::core::revenue_recovery::get_workflow_entries;
-#[cfg(feature = "v2")]
 use crate::core::revenue_recovery::map_to_recovery_payment_item;
 #[cfg(feature = "v1")]
 use crate::core::routing::helpers as routing_helpers;
@@ -162,6 +160,8 @@ use crate::{
     },
     workflows::payment_sync,
 };
+#[cfg(feature = "v2")]
+use crate::{core::revenue_recovery::get_workflow_entries, db::storage::payment_method};
 #[cfg(feature = "v1")]
 use crate::{
     core::{
@@ -7583,6 +7583,7 @@ fn is_payment_method_tokenization_enabled_for_connector(
     payment_method: storage::enums::PaymentMethod,
     payment_method_type: Option<storage::enums::PaymentMethodType>,
     mandate_flow_enabled: storage_enums::FutureUsage,
+    payment_method_token: Option<&PaymentMethodToken>,
 ) -> RouterResult<bool> {
     let connector_tokenization_filter = state.conf.tokenization.0.get(connector_name);
 
@@ -7594,7 +7595,8 @@ fn is_payment_method_tokenization_enabled_for_connector(
                 .contains(&payment_method)
                 && is_payment_method_type_allowed_for_connector(
                     payment_method_type,
-                    connector_filter.payment_method_type.clone(),
+                    payment_method_token,
+                    connector_filter,
                 )
                 && is_payment_flow_allowed_for_connector(
                     mandate_flow_enabled,
