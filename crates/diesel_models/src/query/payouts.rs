@@ -144,7 +144,9 @@ mod tests {
     use common_utils::id_type::{MerchantId, PayoutId, ProfileId};
 
     #[test]
+    #[allow(clippy::too_many_arguments)]
     fn test_get_total_count_signature_with_profile_id_list() {
+        #[allow(clippy::too_many_arguments)]
         fn _verify_signature_compiles<'a>(
             conn: &'a PgPooledConn,
             merchant_id: &'a MerchantId,

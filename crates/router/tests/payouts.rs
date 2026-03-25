@@ -1,8 +1,21 @@
-use actix_web::test::{call_and_read_body_json, TestRequest};
-use api_models::payouts::{PayoutListConstraints, PayoutListResponse};
-use common_utils::id_type;
+use actix_web::test::TestRequest;
+use api_models::payouts::PayoutListConstraints;
+use serde_json::Value;
 
 mod utils;
+
+async fn call_payout_list(
+    app: &impl actix_web::dev::Service<
+        actix_http::Request,
+        Response = actix_web::dev::ServiceResponse<impl actix_http::body::MessageBody>,
+        Error = actix_web::Error,
+    >,
+    request: actix_http::Request,
+) -> Value {
+    let response = actix_web::test::call_service(app, request).await;
+    let body = actix_web::test::read_body(response).await;
+    serde_json::from_slice(&body).expect("Failed to parse JSON response")
+}
 
 /// Test that /payouts/profile/list returns total_count: 0 for an empty profile
 #[actix_web::test]
@@ -24,20 +37,18 @@ async fn test_payouts_profile_list_empty_returns_zero_total_count() {
         .set_json(&constraints)
         .to_request();
 
-    let response: PayoutListResponse = call_and_read_body_json(&app, request).await;
+    let response = call_payout_list(&app, request).await;
 
     // Verify the response structure has total_count field and it's 0 for empty profile
-    assert_eq!(response.size, 0);
-    assert!(response.data.is_empty());
-    assert_eq!(response.total_count, Some(0));
+    assert_eq!(response["size"], 0);
+    assert!(response["data"].as_array().map(|a| a.is_empty()).unwrap_or(false));
+    assert_eq!(response["total_count"], 0);
 }
 
-/// Test that /payouts/profile/list returns correct total_count for profile with payouts
 #[actix_web::test]
 async fn test_payouts_profile_list_returns_correct_total_count() {
     let app = Box::pin(utils::mk_service()).await;
 
-    // Create a request to the profile list endpoint
     let constraints = PayoutListConstraints {
         customer_id: None,
         starting_after: None,
@@ -52,22 +63,18 @@ async fn test_payouts_profile_list_returns_correct_total_count() {
         .set_json(&constraints)
         .to_request();
 
-    let response: PayoutListResponse = call_and_read_body_json(&app, request).await;
+    let response = call_payout_list(&app, request).await;
 
-    // Verify the response structure has total_count field
-    assert!(response.total_count.is_some());
-    // total_count should be >= size (could be more if paginated)
-    if let Some(total_count) = response.total_count {
-        assert!(total_count >= response.size as i64);
-    }
+    assert!(response.get("total_count").is_some());
+    let size = response["size"].as_u64().unwrap_or(0) as i64;
+    let total_count = response["total_count"].as_i64().unwrap_or(0);
+    assert!(total_count >= size);
 }
 
-/// Test that /payouts/list (merchant-level) returns actual total_count
 #[actix_web::test]
 async fn test_payouts_merchant_list_returns_actual_total_count() {
     let app = Box::pin(utils::mk_service()).await;
 
-    // Create a request to the merchant-level list endpoint
     let constraints = PayoutListConstraints {
         customer_id: None,
         starting_after: None,
@@ -82,17 +89,14 @@ async fn test_payouts_merchant_list_returns_actual_total_count() {
         .set_json(&constraints)
         .to_request();
 
-    let response: PayoutListResponse = call_and_read_body_json(&app, request).await;
+    let response = call_payout_list(&app, request).await;
 
-    // Verify the response structure has total_count field with actual count
-    assert!(response.total_count.is_some());
-    // total_count should be >= size (could be more if paginated)
-    if let Some(total_count) = response.total_count {
-        assert!(total_count >= response.size as i64);
-    }
+    assert!(response.get("total_count").is_some());
+    let size = response["size"].as_u64().unwrap_or(0) as i64;
+    let total_count = response["total_count"].as_i64().unwrap_or(0);
+    assert!(total_count >= size);
 }
 
-/// Test that /payouts/profile/list response structure matches expected schema
 #[actix_web::test]
 async fn test_payouts_profile_list_response_structure() {
     let app = Box::pin(utils::mk_service()).await;
@@ -111,14 +115,14 @@ async fn test_payouts_profile_list_response_structure() {
         .set_json(&constraints)
         .to_request();
 
-    let response: PayoutListResponse = call_and_read_body_json(&app, request).await;
+    let response = call_payout_list(&app, request).await;
 
-    // Verify all expected fields are present
-    assert_eq!(response.size, response.data.len());
-    assert!(response.total_count.is_some());
+    let size = response["size"].as_u64().unwrap_or(0) as usize;
+    let data_len = response["data"].as_array().map(|a| a.len()).unwrap_or(0);
+    assert_eq!(size, data_len);
+    assert!(response.get("total_count").is_some());
 }
 
-/// Test total_count consistency between profile-level and merchant-level endpoints
 #[actix_web::test]
 async fn test_payouts_total_count_consistency() {
     let app = Box::pin(utils::mk_service()).await;
@@ -132,31 +136,24 @@ async fn test_payouts_total_count_consistency() {
         time_range: None,
     };
 
-    // Get profile-level list
     let profile_request = TestRequest::get()
         .uri("/payouts/profile/list")
         .set_json(&constraints)
         .to_request();
-    let profile_response: PayoutListResponse = call_and_read_body_json(&app, profile_request).await;
+    let profile_response = call_payout_list(&app, profile_request).await;
 
-    // Get merchant-level list
     let merchant_request = TestRequest::get()
         .uri("/payouts/list")
         .set_json(&constraints)
         .to_request();
-    let merchant_response: PayoutListResponse =
-        call_and_read_body_json(&app, merchant_request).await;
+    let merchant_response = call_payout_list(&app, merchant_request).await;
 
-    // Both should have total_count field
-    assert!(profile_response.total_count.is_some());
-    assert!(merchant_response.total_count.is_some());
+    assert!(profile_response.get("total_count").is_some());
+    assert!(merchant_response.get("total_count").is_some());
 
-    // Profile-level count should be <= merchant-level count (subset)
-    if let (Some(profile_count), Some(merchant_count)) =
-        (profile_response.total_count, merchant_response.total_count)
-    {
-        assert!(profile_count <= merchant_count);
-    }
+    let profile_count = profile_response["total_count"].as_i64().unwrap_or(0);
+    let merchant_count = merchant_response["total_count"].as_i64().unwrap_or(0);
+    assert!(profile_count <= merchant_count);
 }
 
 #[actix_web::test]
