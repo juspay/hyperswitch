@@ -8056,6 +8056,7 @@ where
                         payment_data.set_payment_method_data(payment_method_data);
                         payment_data.set_payment_method_id_in_attempt(pm_id);
                     } else {
+                        logger::debug!("Organization is eligible for PM Modular service, calling make_modular_pm_data");
                         let (payment_method_data, pm_id) =
                             helpers::make_modular_pm_data(payment_data)?;
                         payment_data.set_payment_method_data(payment_method_data);
@@ -8104,6 +8105,7 @@ where
                         payment_data.set_payment_method_data(payment_method_data);
                         payment_data.set_payment_method_id_in_attempt(pm_id);
                     } else {
+                        logger::debug!("Organization is eligible for PM Modular service, calling make_modular_pm_data");
                         let (payment_method_data, pm_id) =
                             helpers::make_modular_pm_data(payment_data)?;
                         payment_data.set_payment_method_data(payment_method_data);
