@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  hyperswitch-extension:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - HYPERSWITCH_API_KEY=${HYPERSWITCH_API_KEY}
+      - HYPERSWITCH_BASE_URL=${HYPERSWITCH_BASE_URL:-https://sandbox.hyperswitch.io}
+      - COMMERCETOOLS_PROJECT_KEY=${COMMERCETOOLS_PROJECT_KEY}
+      - COMMERCETOOLS_CLIENT_ID=${COMMERCETOOLS_CLIENT_ID}
+      - COMMERCETOOLS_CLIENT_SECRET=${COMMERCETOOLS_CLIENT_SECRET}
+      - COMMERCETOOLS_API_URL=${COMMERCETOOLS_API_URL:-https://api.europe-west1.gcp.commercetools.com}
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET}
+      - HTTP_PROXY=${HTTP_PROXY}
+      - HTTPS_PROXY=${HTTPS_PROXY}
+    volumes:
+      - ./src:/app/src
+    restart: unless-stopped
