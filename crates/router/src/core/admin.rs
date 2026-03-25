@@ -1715,9 +1715,9 @@ impl MerchantDefaultConfigUpdate<'_> {
             }
             // Update the business_profile.default_fallback_routing column
             let mut profile_fallback_config = if let Some(default_fallback_routing) =
-                self.business_profile.default_fallback_routing.clone()
+                &self.business_profile.default_fallback_routing
             {
-                default_fallback_routing
+                default_fallback_routing.clone()
                     .expose()
                     .parse_value::<Vec<routing_types::RoutableConnectorChoice>>(
                         "Vec<RoutableConnectorChoice>",
@@ -1803,9 +1803,10 @@ impl MerchantDefaultConfigUpdate<'_> {
             }
             // Update the business_profile.default_fallback_routing column
             let mut profile_fallback_config = if let Some(default_fallback_routing) =
-                self.business_profile.default_fallback_routing.clone()
+                &self.business_profile.default_fallback_routing
             {
                 default_fallback_routing
+                    .clone()
                     .expose()
                     .parse_value::<Vec<routing_types::RoutableConnectorChoice>>(
                         "Vec<RoutableConnectorChoice>",
