@@ -3130,9 +3130,373 @@ pub enum CardType {
     utoipa::ToSchema,
     Copy,
 )]
+#[strum(serialize_all = "UPPERCASE")]
 #[serde(rename_all = "snake_case")]
 pub enum CardSubtype {
+    Aarp,
+    Airmilespremier,
+    Atmcard,
+    Atmonly,
+    #[strum(serialize = "ATMONLY-CASHLINECARD")]
+    AtmonlyCashlinecard,
+    #[strum(serialize = "BEST PRICE SAVE MAX")]
+    BestPriceSaveMax,
+    #[strum(serialize = "BEST PRICE SAVE SMART")]
+    BestPriceSaveSmart,
+    Bharat,
+    #[strum(serialize = "BHARAT CASHBACK")]
+    BharatCashback,
+    #[strum(serialize = "BHARAT PLATINUM")]
+    BharatPlatinum,
+    Black,
+    Blackcard,
+    Blue,
+    #[strum(serialize = "BLUE&REVOLVING")]
+    BlueAndRevolving,
+    Blueairmilescashbackcard,
+    Bluecash,
+    Blueforbusiness,
+    Bmiplus,
+    Bonus,
+    Business,
+    #[strum(serialize = "BUSINESS GOLD")]
+    BusinessGold,
+    #[strum(serialize = "BUSINESS MONEYBACK")]
+    BusinessMoneyback,
+    #[strum(serialize = "BUSINESS PLATINUM")]
+    BusinessPlatinum,
+    #[strum(serialize = "BUSINESS PREPAID")]
+    BusinessPrepaid,
+    #[strum(serialize = "BUSINESS REGALIA")]
+    BusinessRegalia,
+    #[strum(serialize = "BUSINESS REGALIA FIRST")]
+    BusinessRegaliaFirst,
+    Businesscard,
+    Businesselite,
+    Businessimmediatedebit,
+    Businessloan,
+    Cashback,
+    Cashrebate,
+    Centurion,
+    Centurionservicio,
+    Chargecard,
+    Checkcard,
+    Classic,
+    Classicpremium,
+    Commercial,
+    Commercialtransportebt,
+    Companion,
+    Consumer,
+    Consumercard,
+    #[strum(serialize = "CORP.GOLDD&RANGES")]
+    CorpGolddAndRanges,
+    #[strum(serialize = "CORP.GOLDS&RANGES")]
+    CorpGoldsAndRanges,
+    #[strum(serialize = "CORP.GREEND&RANGES")]
+    CorpGreendAndRanges,
+    #[strum(serialize = "CORP.GREENS&RANGES")]
+    CorpGreensAndRanges,
+    #[strum(serialize = "CORP.PURCHASINGCARD")]
+    CorpPurchasingcard,
+    #[strum(serialize = "CORPO.CO.S&RANGES")]
+    CorpoCoSAndRanges,
+    Corporate,
+    #[strum(serialize = "CORPORATE PLATINUM")]
+    CorporatePlatinum,
+    #[strum(serialize = "CORPORATE PREMIUM")]
+    CorporatePremium,
+    Corporatecard,
+    Corporateexecutive,
+    Corporatefleetcard,
+    Corporategold,
+    Corporategoldyplatinum,
+    Corporategreen,
+    Corporategreenebta,
+    Corporatepurchasing,
+    Corporaterevolving,
+    Corporatet,
+    #[strum(serialize = "CORPORATET&E")]
+    CorporatetAndE,
+    Corporation,
+    Credit,
+    Ctslandcard,
+    Debit,
+    Delayeddebit,
+    Delta,
+    #[strum(serialize = "DINERS CLUB BLACK")]
+    DinersClubBlack,
+    #[strum(serialize = "DINERS CLUB MILES")]
+    DinersClubMiles,
+    #[strum(serialize = "DINERS CLUB PREMIUM")]
+    DinersClubPremium,
+    #[strum(serialize = "DINERS CLUB PRIVILEGE")]
+    DinersClubPrivilege,
+    #[strum(serialize = "DINERS CLUB REWARDZ")]
+    DinersClubRewardz,
+    #[strum(serialize = "DOCTORS PLATINUM")]
+    DoctorsPlatinum,
+    #[strum(serialize = "DOCTORS REGALIA")]
+    DoctorsRegalia,
+    #[strum(serialize = "DOCTORS SUPERIA")]
+    DoctorsSuperia,
+    Dorada,
+    #[strum(serialize = "DUMMY LOGO")]
+    DummyLogo,
+    #[strum(serialize = "EASY EMI")]
+    EasyEmi,
+    #[strum(serialize = "EDGE PLATINUM")]
+    EdgePlatinum,
+    Electricorange,
+    Electron,
+    Electronic,
+    Electronicunembossed,
+    Embossed,
+    Executivebusiness,
+    Express,
+    Firstcitizen,
+    #[strum(serialize = "FIRSTCITIZEN BLACK")]
+    FirstcitizenBlack,
+    Fleetcard,
+    #[strum(serialize = "FLIPKART WHOLESALE")]
+    FlipkartWholesale,
+    Freedom,
+    #[strum(serialize = "FREEDOM PLATINUM")]
+    FreedomPlatinum,
+    #[strum(serialize = "GENERAL PURPOSE RE-LOADABLE CARD")]
+    GeneralPurposeReLoadableCard,
+    Gift,
+    #[strum(serialize = "GIFT CARDS")]
+    GiftCards,
+    Globalpayment,
+    Gmcard,
+    Gold,
+    #[strum(serialize = "GOLD&PLATINUM")]
+    GoldAndPlatinum,
+    #[strum(serialize = "GOLD PERSONAL")]
+    GoldPersonal,
+    #[strum(serialize = "GOLD/PLATINUM")]
+    GoldPlatinum,
+    #[strum(serialize = "GOLD/PREM")]
+    GoldPrem,
+    Goldcashbackcard,
+    Goldgrccyblue,
+    Goldimmediatedebit,
+    Goldpremium,
+    Governmentcommercialcard,
+    Governmentservicesloan,
+    Green,
+    Gsacard,
+    #[strum(serialize = "GSACORPORATET&E")]
+    GsacorporatetAndE,
+    Gsapurchasing,
+    #[strum(serialize = "HSANON-SUBSTANTIATED")]
+    HsanonSubstantiated,
+    Icard,
+    Ikeacard,
+    Immediatedebit,
+    #[strum(serialize = "INDIAN OIL")]
+    IndianOil,
+    #[strum(serialize = "INDIGO 6E REWARDS")]
+    Indigo6eRewards,
+    Individual,
+    Infinia,
+    Infinite,
+    #[strum(serialize = "INTERMILES DINERS CLUB")]
+    IntermilesDinersClub,
+    #[strum(serialize = "INTERMILES PREMIUM")]
+    IntermilesPremium,
+    #[strum(serialize = "INTERMILES SIGNATURE")]
+    IntermilesSignature,
+    #[strum(serialize = "IX RBL 09")]
+    IxRbl09,
+    #[strum(serialize = "IX RBL 24")]
+    IxRbl24,
+    #[strum(serialize = "IX SLICE 01")]
+    IxSlice01,
+    #[strum(serialize = "IX SLICE 02")]
+    IxSlice02,
+    #[strum(serialize = "JCB CLASSIC")]
+    JcbClassic,
+    #[strum(serialize = "JCB PLATINUM")]
+    JcbPlatinum,
+    #[strum(serialize = "JCB SELECT")]
+    JcbSelect,
+    #[strum(serialize = "JUMBO LOAN")]
+    JumboLoan,
+    Lowescard,
+    Mastercard,
+    Mastermoney,
+    #[strum(serialize = "MICRO-BUSINESSCARD")]
+    MicroBusinesscard,
+    Millennia,
+    #[strum(serialize = "MONEYBACK INSTA")]
+    MoneybackInsta,
+    #[strum(serialize = "MONEYBACK PLATINUM")]
+    MoneybackPlatinum,
+    #[strum(serialize = "MONEYBACK PLUS")]
+    MoneybackPlus,
+    #[strum(serialize = "MONEYBACK ST")]
+    MoneybackSt,
+    Newworld,
+    Newworldimmediatedebit,
+    Optima,
+    Others,
+    Ourocard,
+    Paymentcard,
+    Paypass,
+    #[strum(serialize = "PAYROLL CARDS")]
+    PayrollCards,
+    Paytm,
+    #[strum(serialize = "PAYTM BUSINESS")]
+    PaytmBusiness,
+    #[strum(serialize = "PAYTM MOBILE")]
+    PaytmMobile,
+    #[strum(serialize = "PAYTM SELECT")]
+    PaytmSelect,
+    Peony,
+    Peonymoneylink,
+    Pinelabs,
+    #[strum(serialize = "PINELABS PRO")]
+    PinelabsPro,
     Platinum,
+    Platinum1,
+    #[strum(serialize = "PLATINUM EDGE")]
+    PlatinumEdge,
+    #[strum(serialize = "PLATINUM FREEDOM")]
+    PlatinumFreedom,
+    #[strum(serialize = "PLATINUM PLUS")]
+    PlatinumPlus,
+    #[strum(serialize = "PLATINUM SOLITAIRE")]
+    PlatinumSolitaire,
+    #[strum(serialize = "PLATINUM TIMES")]
+    PlatinumTimes,
+    Platinumimmediatedebit,
+    Platinumtravel,
+    Plus,
+    Pmjdy,
+    Premier,
+    Premium,
+    Premiumcard,
+    Premiumplus,
+    Prepaid,
+    #[strum(serialize = "PREPAID-ELECTRON")]
+    PrepaidElectron,
+    #[strum(serialize = "PREPAID-PRIVATELABEL")]
+    PrepaidPrivatelabel,
+    Prepaidcash,
+    Prepaidtravelmoney,
+    Private,
+    Privatelabel,
+    Pro,
+    Proprietary,
+    #[strum(serialize = "PROPRIETARY ATM")]
+    ProprietaryAtm,
+    Purchasing,
+    Quantum,
+    Rebate,
+    Regalia,
+    #[strum(serialize = "REGALIA FIRST")]
+    RegaliaFirst,
+    Revolving,
+    Rewards,
+    Rewardsonly,
+    #[strum(serialize = "RUPAY SELECT")]
+    RupaySelect,
+    Salute,
+    #[strum(serialize = "SAP CONCUR SOLUTIONS BLACK CORPORATE")]
+    SapConcurSolutionsBlackCorporate,
+    #[strum(serialize = "SAP CONCUR SOLUTIONS PRIME CORPORATE")]
+    SapConcurSolutionsPrimeCorporate,
+    Sbsgoldyblue,
+    Sears,
+    Signature,
+    Signaturebusiness,
+    Signaturebusinessplatinum,
+    Silver,
+    #[serde(rename = "6e_rewards")]
+    SixERewards,
+    #[serde(rename = "6e_rewards_xl")]
+    SixERewardsXl,
+    Smallbusiness,
+    Smallbusinesscard,
+    Smallbusinesssbsgreen,
+    Smallcorporate,
+    Smallcorporatecard,
+    Solitaire,
+    #[strum(serialize = "SOLITAIRE PLATINUM")]
+    SolitairePlatinum,
+    Standard,
+    Standardunembossed,
+    #[strum(serialize = "TATA NEU INFINITY")]
+    TataNeuInfinity,
+    #[strum(serialize = "TATA NEU PLUS")]
+    TataNeuPlus,
+    #[strum(serialize = "TEACHERS PLATINUM")]
+    TeachersPlatinum,
+    #[strum(serialize = "TEST PLASTIC")]
+    TestPlastic,
+    Titanium,
+    #[strum(serialize = "TITANIUM EDGE")]
+    TitaniumEdge,
+    #[strum(serialize = "TITANIUM PERSONAL")]
+    TitaniumPersonal,
+    #[strum(serialize = "TITANIUM TIMES")]
+    TitaniumTimes,
+    Tjpersonal,
+    Travelmoney,
+    #[strum(serialize = "UAT RANGE")]
+    UatRange,
+    Unembossed,
+    Virginatlantic,
+    Virtual,
+    #[strum(serialize = "VISA BUSINESS")]
+    VisaBusiness,
+    #[strum(serialize = "VISA BUSINESS ENHANCED")]
+    VisaBusinessEnhanced,
+    #[strum(serialize = "VISA CLASSIC")]
+    VisaClassic,
+    #[strum(serialize = "VISA CORPORATE T&E")]
+    VisaCorporateTAndE,
+    #[strum(serialize = "VISA ELECTRON")]
+    VisaElectron,
+    #[strum(serialize = "VISA ENHANCED")]
+    VisaEnhanced,
+    #[strum(serialize = "VISA GOLD")]
+    VisaGold,
+    #[strum(serialize = "VISA INFINITE")]
+    VisaInfinite,
+    #[strum(serialize = "VISA INFINITE BUSINESS")]
+    VisaInfiniteBusiness,
+    #[strum(serialize = "VISA PLATINUM")]
+    VisaPlatinum,
+    #[strum(serialize = "VISA PLATINUM BUSINESS")]
+    VisaPlatinumBusiness,
+    #[strum(serialize = "VISA PURCHASING")]
+    VisaPurchasing,
+    #[strum(serialize = "VISA PURCHASING WITH FLEET")]
+    VisaPurchasingWithFleet,
+    #[strum(serialize = "VISA REWARDS")]
+    VisaRewards,
+    #[strum(serialize = "VISA SIGNATURE")]
+    VisaSignature,
+    #[strum(serialize = "VISA SIGNATURE BUSINESS")]
+    VisaSignatureBusiness,
+    #[strum(serialize = "VISA TRADITIONAL")]
+    VisaTraditional,
+    Visacash,
+    Visacommerce,
+    Vpay,
+    World,
+    #[strum(serialize = "WORLD MASTER")]
+    WorldMaster,
+    Worldblack,
+    Worldcard,
+    Worlddebitembossed,
+    Worldelite,
+    Worldeliteforbusiness,
+    Worldembossed,
+    Worldforbusiness,
+    Worldsigniaimmediatedebit,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, strum::EnumString, strum::Display)]

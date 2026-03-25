@@ -1,7 +1,7 @@
 use api_models::blocklist as api_blocklist;
 use common_enums::MerchantDecision;
 use common_utils::errors::CustomResult;
-use diesel_models::configs;
+use diesel_models::{business_profile::CardBlockingConfig, configs};
 use error_stack::ResultExt;
 use hyperswitch_masking::StrongSecret;
 
@@ -385,15 +385,25 @@ pub async fn validate_data_for_blocklist<F>(
     state: &SessionState,
     processor: &domain::Processor,
     payment_data: &mut PaymentData<F>,
+    business_profile: &domain::Profile,
 ) -> CustomResult<bool, errors::ApiErrorResponse>
 where
     F: Send + Clone,
 {
     let db = &state.store;
-    let should_payment_be_blocked =
+    let mut should_block =
         should_payment_be_blocked(state, processor, &payment_data.payment_method_data).await?;
-    if should_payment_be_blocked {
-        // Update db for attempt and intent status.
+
+    if !should_block {
+        should_block = should_payment_be_blocked_by_profile_config(
+            state,
+            &payment_data.payment_method_data,
+            business_profile,
+        )
+        .await?;
+    }
+
+    if should_block {
         db.update_payment_intent(
             payment_data.payment_intent.clone(),
             storage::PaymentIntentUpdate::RejectUpdate {
@@ -445,6 +455,83 @@ where
         .await?;
         Ok(false)
     }
+}
+
+pub async fn should_payment_be_blocked_by_profile_config(
+    state: &SessionState,
+    payment_method_data: &Option<domain::PaymentMethodData>,
+    business_profile: &domain::Profile,
+) -> CustomResult<bool, errors::ApiErrorResponse> {
+    let mut should_block = false;
+
+    let card_config = business_profile
+        .payment_method_blocking
+        .as_ref()
+        .and_then(|config| config.card.as_ref());
+
+    let card_isin = payment_method_data
+        .as_ref()
+        .and_then(|pm_data| match pm_data {
+            domain::PaymentMethodData::Card(card) => Some(card.card_number.get_card_isin()),
+            _ => None,
+        });
+
+    if let (Some(card_config), Some(card_isin)) = (card_config, card_isin) {
+        let card_info = state
+            .store
+            .get_card_info(&card_isin)
+            .await
+            .map_err(|error| logger::warn!(card_info_error=?error))
+            .ok()
+            .flatten();
+
+        match card_info {
+            None => {
+                should_block = card_config.should_block_if_bin_info_unavailable();
+            }
+            Some(info) => {
+                should_block = CardBlockingConfig::should_block_by_attribute(
+                    &card_config.issuing_country,
+                    info.country_code.as_deref(),
+                ) || CardBlockingConfig::should_block_by_attribute(
+                    &card_config.card_types,
+                    info.card_type.as_deref(),
+                ) || CardBlockingConfig::should_block_by_attribute(
+                    &card_config.card_subtypes,
+                    info.card_subtype.as_deref(),
+                );
+
+                // Check card issuer — profile stores IDs, cards_info has name
+                if !should_block {
+                    if let (Some(blocked_ids), Some(issuer_name)) =
+                        (&card_config.issuers, &info.card_issuer)
+                    {
+                        let issuer_ids = blocked_ids
+                            .iter()
+                            .filter_map(|id| {
+                                common_utils::id_type::CardIssuerId::try_from_string(id.clone())
+                                    .ok()
+                            })
+                            .collect();
+                        let resolved_names = state
+                            .store
+                            .get_card_issuers_by_ids(issuer_ids)
+                            .await
+                            .map_err(|error| logger::warn!(card_issuer_lookup_error=?error))
+                            .unwrap_or_default()
+                            .into_iter()
+                            .map(|i| i.issuer_name)
+                            .collect::<std::collections::HashSet<_>>();
+                        if resolved_names.contains(issuer_name.as_str()) {
+                            should_block = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(should_block)
 }
 
 pub async fn generate_payment_fingerprint(
