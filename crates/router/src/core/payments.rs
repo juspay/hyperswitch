@@ -7724,11 +7724,29 @@ fn is_google_pay_pre_decrypt_type_connector_tokenization(
     }
 }
 
-/// Feature related data
-/// # 1. PAYPAL returning customer flow
-/// - This flow requires to pass access token created customer.id (Vault customer id obtained in CIT) to initiate sdk
-/// - Take latest created PM , right now only pm is stored when multiple cit's are created and the old one is overridden for
+/// Feature-related data used by connector-specific flows.
 ///
+/// # 1. PayPal returning customer flow
+///
+/// For PayPal, a returning customer flow requires the PayPal vault customer id
+/// (`customer.id`) that was returned when the initial Cardholder Initiated
+/// Transaction (CIT) was created. That id is obtained from the PayPal access
+/// token and persisted in the router database as part of the stored PayPal
+/// payment method for the customer and the relevant Merchant Connector
+/// Account (MCA).
+///
+/// This function:
+/// - identifies the PayPal context from the provided `customer_id`,
+///   `payment_method_type`, and `merchant_connector_account`,
+/// - selects the latest **active** PayPal payment method for that customer
+///   and connector/MCA combination (older entries are effectively
+///   overridden when multiple CITs are created), and
+/// - reads the persisted PayPal vault customer id from that payment method
+///   and places it into `FeatureData` so it can be passed to the PayPal SDK
+///   to initialize the returning-customer flow.
+///
+/// For non-PayPal or flows without a stored PayPal payment method, this
+/// function returns `None`.
 async fn get_feature_data(
     customer_id: Option<id_type::CustomerId>,
     payment_method_type: Option<enums::PaymentMethodType>,
