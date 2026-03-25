@@ -1,6 +1,7 @@
 CREATE TABLE connector_events_queue
 (
     `merchant_id` String,
+    `processor_merchant_id` Nullable(String),
     `payment_id` Nullable(String),
     `connector_name` LowCardinality(String),
     `request_id` String,
@@ -41,6 +42,7 @@ WHERE
 
 CREATE TABLE connector_events (
     `merchant_id` LowCardinality(String),
+    `processor_merchant_id` Nullable(String),
     `payment_id` Nullable(String),
     `connector_name` LowCardinality(String),
     `request_id` String,
@@ -72,6 +74,7 @@ ORDER BY
 
 CREATE TABLE connector_events_audit (
     `merchant_id` LowCardinality(String),
+    `processor_merchant_id` Nullable(String),
     `payment_id` String,
     `connector_name` LowCardinality(String),
     `request_id` String,
@@ -96,6 +99,7 @@ ORDER BY
 
 CREATE TABLE connector_events_payout_audit (
     `merchant_id` LowCardinality(String),
+    `processor_merchant_id` Nullable(String),
     `payout_id` String,
     `connector_name` LowCardinality(String),
     `request_id` String,
@@ -118,6 +122,7 @@ ORDER BY
 
 CREATE MATERIALIZED VIEW connector_events_audit_mv TO connector_events_audit (
     `merchant_id` String,
+    `processor_merchant_id` Nullable(String),
     `payment_id` Nullable(String),
     `connector_name` LowCardinality(String),
     `request_id` String,
@@ -136,6 +141,7 @@ CREATE MATERIALIZED VIEW connector_events_audit_mv TO connector_events_audit (
 ) AS
 SELECT
     merchant_id,
+    processor_merchant_id,
     payment_id,
     connector_name,
     request_id,
@@ -159,6 +165,7 @@ WHERE
 
 CREATE MATERIALIZED VIEW connector_events_payout_audit_mv TO connector_events_payout_audit (
     `merchant_id` String,
+    `processor_merchant_id` Nullable(String),
     `payout_id` Nullable(String),
     `connector_name` LowCardinality(String),
     `request_id` String,
@@ -175,6 +182,7 @@ CREATE MATERIALIZED VIEW connector_events_payout_audit_mv TO connector_events_pa
 ) AS
 SELECT
     merchant_id,
+    processor_merchant_id,
     payout_id,
     connector_name,
     request_id,
@@ -196,6 +204,7 @@ WHERE
 
 CREATE MATERIALIZED VIEW connector_events_mv TO connector_events (
     `merchant_id` String,
+    `processor_merchant_id` Nullable(String),
     `payment_id` Nullable(String),
     `connector_name` LowCardinality(String),
     `request_id` String,
@@ -215,6 +224,7 @@ CREATE MATERIALIZED VIEW connector_events_mv TO connector_events (
 ) AS
 SELECT
     merchant_id,
+    processor_merchant_id,
     payment_id,
     connector_name,
     request_id,
