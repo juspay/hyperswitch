@@ -1332,14 +1332,4 @@ export const connectorDetails = {
       },
     },
   },
-  webhook: {
-    TransactionIdConfig: {
-      // Defines how to locate and parse the payment reference ID from connector-specific webhook payloads
-      path: "payload.id",
-      // Type of payment reference ID
-      type: "string",
-    },
-    // CyberSource captures are async; after webhook round-trip, payment settles at "processing"
-    ExpectedPaymentStatus: "processing",
-  },
 };
