@@ -5357,33 +5357,53 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add("IncomingWebhookTest", (globalState, webhookPayload) => {
-  const connector = globalState.get("connectorId");
-  const merchantId = globalState.get("merchantId");
-  const completeUrl = `${Cypress.env("BASEURL")}/webhooks/${merchantId}/${connector}`;
+Cypress.Commands.add(
+  "IncomingWebhookTest",
+  (globalState, webhookPayload, contentType, customHeaders = {}) => {
+    const connector = globalState.get("connectorId");
+    const merchantId = globalState.get("merchantId");
+    const completeUrl = `${Cypress.env("BASEURL")}/webhooks/${merchantId}/${connector}`;
 
-  // Send webhook POST request
-  return cy
-    .request({
-      method: "POST",
-      url: completeUrl,
-      headers: { "Content-Type": "application/json" },
-      body: webhookPayload,
-      failOnStatusCode: false,
-    })
-    .then((response) => {
-      logRequestId(response.headers["x-request-id"]);
+    // Determine content type and encode body accordingly
+    const resolvedContentType = contentType || "application/json";
+    let body;
+    if (resolvedContentType === "application/x-www-form-urlencoded") {
+      // Convert JSON object to URL-encoded form string
+      body = Object.entries(webhookPayload)
+        .map(
+          ([key, value]) =>
+            `${encodeURIComponent(key)}=${encodeURIComponent(value)}`
+        )
+        .join("&");
+    } else {
+      body = webhookPayload;
+    }
 
-      return cy.wrap(response).then(() => {
-        // Throw for failed status
-        if (response.status !== 200) {
-          throw new Error(
-            `Webhook failed with error code "${response.body.error.code}" error message "${response.body.error.message}"`
-          );
-        }
+    const headers = { "Content-Type": resolvedContentType, ...customHeaders };
+
+    // Send webhook POST request
+    return cy
+      .request({
+        method: "POST",
+        url: completeUrl,
+        headers: headers,
+        body: body,
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        logRequestId(response.headers["x-request-id"]);
+
+        return cy.wrap(response).then(() => {
+          // Throw for failed status
+          if (response.status !== 200) {
+            throw new Error(
+              `Webhook failed with error code "${response.body.error.code}" error message "${response.body.error.message}"`
+            );
+          }
+        });
       });
-    });
-});
+  }
+);
 
 Cypress.Commands.add(
   "customerCreateCall",
