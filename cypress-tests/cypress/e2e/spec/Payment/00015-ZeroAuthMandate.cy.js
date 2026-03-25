@@ -414,4 +414,51 @@ describe("Card - SingleUse Mandates flow test", () => {
       cy.retrievePaymentCallTest({ globalState, data });
     });
   });
+
+  context("Card - UCS Zero Auth Mandate flow test", () => {
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("customer-create-call-test", () => {
+      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+    });
+
+    it("Confirm No 3DS CIT", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["ZeroAuthMandate"];
+
+      cy.citForMandatesCallTest(
+        fixtures.citConfirmBody,
+        data,
+        0,
+        true,
+        "automatic",
+        "setup_mandate",
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("Confirm No 3DS MIT", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["MITAutoCapture"];
+
+      cy.mitUsingPMId(
+        fixtures.pmIdConfirmBody,
+        data,
+        7000,
+        true,
+        "automatic",
+        globalState
+      );
+    });
+  });
 });

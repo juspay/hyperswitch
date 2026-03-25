@@ -444,6 +444,7 @@ export const CONNECTOR_LISTS = {
       "mollie",
       "zift",
     ],
+    MANDATE_ID_TEST: ["paybox"],
     // Add more exclusion lists
   },
 
