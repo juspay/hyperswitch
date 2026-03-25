@@ -14,10 +14,10 @@ use common_utils::{
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{payment_method_data, sdk_auth::SdkAuthorization};
-use josekit::jwe;
 #[cfg(feature = "v1")]
-use masking::Mask;
-use masking::{ExposeInterface, PeekInterface};
+use hyperswitch_masking::Mask;
+use hyperswitch_masking::{ExposeInterface, PeekInterface};
+use josekit::jwe;
 #[cfg(feature = "v1")]
 use payment_methods::client::{
     self as pm_client,
@@ -1344,6 +1344,7 @@ impl DomainPaymentMethodWrapper {
                 .and_then(|initiator| initiator.to_created_by()),
             customer_details: None,
             locker_fingerprint_id: None,
+            network_tokenization_data: None,
         }))
     }
 
@@ -1476,6 +1477,7 @@ impl DomainPaymentMethodWrapper {
                 .and_then(|initiator| initiator.to_created_by()),
             customer_details: None,
             locker_fingerprint_id: None,
+            network_tokenization_data: None,
         }))
     }
 }
@@ -1581,6 +1583,7 @@ impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
             last_modified_by: None,
             customer_details: None,
             locker_fingerprint_id: None,
+            network_tokenization_data: None,
         }))
     }
 }

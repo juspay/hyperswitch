@@ -20,7 +20,7 @@ use hyperswitch_domain_models::{
     payment_method_data::RecurringDetails as domain_recurring_details,
     router_request_types::unified_authentication_service,
 };
-use masking::{ExposeInterface, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, PeekInterface};
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
 use tracing_futures::Instrument;
@@ -440,7 +440,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while encoding customer_acceptance to value")?
-            .map(masking::Secret::new)
+            .map(hyperswitch_masking::Secret::new)
             .or(payment_attempt.customer_acceptance);
 
         currency = payment_attempt.currency.get_required_value("currency")?;
@@ -2092,7 +2092,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 };
 
                 let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
-                    cavv: tokenized_data.map(|tokenized_data| masking::Secret::new(tokenized_data.value1)),
+                    cavv: tokenized_data.map(|tokenized_data| hyperswitch_masking::Secret::new(tokenized_data.value1)),
                     authentication: updated_authentication
                 };
 
@@ -2116,8 +2116,15 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         state: &SessionState,
         processor: &domain::Processor,
         payment_data: &mut PaymentData<F>,
+        business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
-        blocklist_utils::validate_data_for_blocklist(state, processor, payment_data).await
+        blocklist_utils::validate_data_for_blocklist(
+            state,
+            processor,
+            payment_data,
+            business_profile,
+        )
+        .await
     }
 
     #[instrument(skip_all)]
@@ -2600,7 +2607,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .payment_intent
                             .feature_metadata
                             .clone()
-                            .map(masking::Secret::new),
+                            .map(hyperswitch_masking::Secret::new),
                         tax_status: payment_data.payment_intent.tax_status,
                         discount_amount: payment_data.payment_intent.discount_amount,
                         order_date: payment_data.payment_intent.order_date,
