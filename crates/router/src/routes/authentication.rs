@@ -6,7 +6,7 @@ use api_models::authentication::{
     AuthenticationRetrieveEligibilityCheckRequest, AuthenticationSessionTokenRequest,
     AuthenticationSyncPostUpdateRequest, AuthenticationSyncRequest,
 };
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router_env::{instrument, tracing, Flow};
 
 use crate::{

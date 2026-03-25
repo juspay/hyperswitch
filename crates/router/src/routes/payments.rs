@@ -6,7 +6,7 @@ pub mod helpers;
 use actix_web::{web, Responder};
 use error_stack::report;
 use hyperswitch_domain_models::{ext_traits::OptionExt, payments::HeaderPayload};
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use router_env::{env, instrument, logger, tracing, types, Flow};
 
 use super::app::ReqState;

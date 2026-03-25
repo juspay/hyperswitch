@@ -21,7 +21,7 @@ use diesel_models::{
     user_authentication_method::{UserAuthenticationMethodNew, UserAuthenticationMethodUpdate},
 };
 use error_stack::{report, ResultExt};
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{env, logger};
 use storage_impl::errors::StorageError;
 #[cfg(not(feature = "email"))]
@@ -2407,9 +2407,9 @@ pub async fn update_totp(
             &user_token.user_id,
             storage_user::UserUpdate::TotpUpdate {
                 totp_status: None,
-                totp_secret: Some(
+                totp_secret: Some(Some(
                     // TODO: Impl conversion trait for User and move this there
-                    domain::types::crypto_operation::<String, masking::WithType>(
+                    domain::types::crypto_operation::<String, hyperswitch_masking::WithType>(
                         &(&state).into(),
                         type_name!(storage_user::User),
                         domain::types::CryptoOperation::Encrypt(totp.get_secret_base32().into()),
@@ -2420,7 +2420,7 @@ pub async fn update_totp(
                     .and_then(|val| val.try_into_operation())
                     .change_context(UserErrors::InternalServerError)?
                     .into(),
-                ),
+                )),
 
                 totp_recovery_codes: None,
             },
@@ -2459,11 +2459,11 @@ pub async fn generate_recovery_codes(
             storage_user::UserUpdate::TotpUpdate {
                 totp_status: None,
                 totp_secret: None,
-                totp_recovery_codes: Some(
+                totp_recovery_codes: Some(Some(
                     recovery_codes
                         .get_hashed()
                         .change_context(UserErrors::InternalServerError)?,
-                ),
+                )),
             },
         )
         .await
@@ -2550,7 +2550,7 @@ pub async fn verify_recovery_code(
             storage_user::UserUpdate::TotpUpdate {
                 totp_status: None,
                 totp_secret: None,
-                totp_recovery_codes: Some(recovery_codes),
+                totp_recovery_codes: Some(Some(recovery_codes)),
             },
         )
         .await

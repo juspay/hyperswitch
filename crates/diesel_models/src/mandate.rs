@@ -1,7 +1,7 @@
 use common_enums::MerchantStorageScheme;
 use common_utils::pii;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use time::PrimitiveDateTime;
 
 use crate::{enums as storage_enums, schema::mandate};

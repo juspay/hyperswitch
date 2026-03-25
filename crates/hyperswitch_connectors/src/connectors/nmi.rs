@@ -50,7 +50,7 @@ use hyperswitch_interfaces::{
     },
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
-use masking::Maskable;
+use hyperswitch_masking::Maskable;
 use regex::Regex;
 use transformers as nmi;
 
@@ -1041,7 +1041,7 @@ impl IncomingWebhook for Nmi {
     fn get_webhook_resource_object(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, ConnectorError> {
         let webhook_body: nmi::NmiWebhookBody = request
             .body
             .parse_struct("nmi NmiWebhookBody")
