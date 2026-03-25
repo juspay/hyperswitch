@@ -21811,6 +21811,14 @@
             "type": "string",
             "description": "The return url to which the customer should be redirected to after adding the payment method",
             "nullable": true
+          },
+          "customer_acceptance": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerAcceptance"
+              }
+            ],
+            "nullable": true
           }
         }
       },
