@@ -7755,7 +7755,6 @@ async fn get_feature_data(
                 .unwrap_or_default();
 
             // Helper closure to extract payment reference by MCA ID
-            // TODO check for cross currency too
             let get_payment_ref =
                 |pm: &hyperswitch_domain_models::payment_methods::PaymentMethod| {
                     pm.get_common_mandate_reference()

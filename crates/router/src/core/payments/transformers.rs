@@ -1993,7 +1993,6 @@ where
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details,
-        // todo
         feature_data,
     };
 

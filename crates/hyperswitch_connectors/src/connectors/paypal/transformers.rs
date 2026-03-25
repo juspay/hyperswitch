@@ -1488,7 +1488,6 @@ pub struct PaypalAuthUpdateRequest {
     client_id: Secret<String>,
     client_secret: Secret<String>,
     response_type: Option<PaypalAuthResponseType>,
-
     target_customer_id: Option<Secret<String>>,
 }
 impl TryFrom<&RefreshTokenRouterData> for PaypalAuthUpdateRequest {
