@@ -49,9 +49,9 @@ describe("Payment Webhook Tests", () => {
 
     // If connector requires webhook signature verification (e.g. WorldPay),
     // set connector_webhook_details with the test secret during connector creation
-    const webhookConfig = getConnectorDetails(
-      globalState.get("connectorId")
-    )["webhook"];
+    const webhookConfig = getConnectorDetails(globalState.get("connectorId"))[
+      "webhook"
+    ];
     if (webhookConfig?.webhookSecret) {
       connectorBody.connector_webhook_details = {
         merchant_secret: webhookConfig.webhookSecret,
@@ -153,8 +153,7 @@ describe("Payment Webhook Tests", () => {
           message: bodyString,
         }).then((signature) => {
           const customHeaders = {
-            [webhookConfig.signatureHeader]:
-              `${webhookConfig.signaturePrefix}${signature}`,
+            [webhookConfig.signatureHeader]: `${webhookConfig.signaturePrefix}${signature}`,
           };
           // Pass stringified body to ensure signed bytes match sent bytes
           cy.IncomingWebhookTest(

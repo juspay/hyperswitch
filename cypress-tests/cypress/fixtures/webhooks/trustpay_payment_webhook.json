@@ -6,7 +6,7 @@
     },
     "Status": "Paid",
     "Amount": {
-      "Amount": 60.00,
+      "Amount": 60.0,
       "Currency": "USD"
     }
   },

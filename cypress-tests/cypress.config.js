@@ -35,10 +35,7 @@ export default defineConfig({
         },
         hmac_sha256: ({ secret, message }) => {
           const key = Buffer.from(secret, "hex");
-          return crypto
-            .createHmac("sha256", key)
-            .update(message)
-            .digest("hex");
+          return crypto.createHmac("sha256", key).update(message).digest("hex");
         },
       });
       on("after:spec", (spec, results) => {
