@@ -483,7 +483,13 @@ pub async fn customers_delete(
         |state, auth: auth::AuthenticationData, customer_id, _| {
             Box::pin(async move {
                 core_utils::validate_legacy_endpoint_access(&state, &auth.platform).await?;
-                crate::core::mandate::get_customer_mandates(state, auth.platform, customer_id).await
+                delete_customer(
+                    state,
+                    auth.platform.get_provider().clone(),
+                    auth.platform.get_initiator().cloned(),
+                    customer_id,
+                )
+                .await
             })
         },
         auth::auth_type(
