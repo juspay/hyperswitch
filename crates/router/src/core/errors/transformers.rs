@@ -87,15 +87,14 @@ impl ErrorSwitch<CustomersErrorResponse> for ApiErrorResponse {
 
 impl From<ApiErrorResponse> for CustomersErrorResponse {
     fn from(error: ApiErrorResponse) -> Self {
-        use CustomersErrorResponse as CER;
         match error {
-            ApiErrorResponse::InternalServerError => CER::InternalServerError,
-            ApiErrorResponse::MandateActive => CER::MandateActive,
-            ApiErrorResponse::CustomerNotFound => CER::CustomerNotFound,
-            ApiErrorResponse::AccessForbidden { resource } => CER::AccessForbidden {
+            ApiErrorResponse::InternalServerError => Self::InternalServerError,
+            ApiErrorResponse::MandateActive => Self::MandateActive,
+            ApiErrorResponse::CustomerNotFound => Self::CustomerNotFound,
+            ApiErrorResponse::AccessForbidden { resource } => Self::AccessForbidden {
                 message: resource.clone(),
             },
-            _ => CER::InternalServerError,
+            _ => Self::InternalServerError,
         }
     }
 }

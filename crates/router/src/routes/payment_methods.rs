@@ -691,7 +691,7 @@ pub async fn list_payment_method_api(
                 }
 
                 // TODO (#7195): Fill platform_merchant_account in the client secret auth and pass it here.
-                cards::list_payment_methods(state, auth.platform, req).await
+                Box::pin(cards::list_payment_methods(state, auth.platform, req)).await
             })
         },
         &*auth,
@@ -1087,14 +1087,14 @@ pub async fn payment_method_update_api(
                     req.client_secret = Some(client_secret);
                 }
 
-                cards::update_customer_payment_method(
+                Box::pin(cards::update_customer_payment_method(
                     state,
                     auth.platform.get_provider().clone(),
                     auth.platform.get_initiator().cloned(),
                     req,
                     &payment_method_id,
                     None,
-                )
+                ))
                 .await
             })
         },
