@@ -366,6 +366,7 @@ pub fn get_variant_values(key: &str) -> Result<JsValue, JsValue> {
             dir_enums::CustomerDeviceDisplaySize::VARIANTS
         }
         dir::DirKeyKind::NetworkTokenType => dir_enums::NetworkTokenType::VARIANTS,
+        dir::DirKeyKind::CardDiscovery => dir_enums::CardDiscovery::VARIANTS,
 
         dir::DirKeyKind::PaymentAmount
         | dir::DirKeyKind::Connector

@@ -205,6 +205,7 @@ pub fn make_dsl_input_for_payouts(
                 })
             }),
         card_network: None,
+        card_discovery: None,
     };
     Ok(dsl_inputs::BackendInput {
         mandate,
@@ -284,6 +285,7 @@ pub fn make_dsl_input(
 
                 _ => None,
             }),
+        card_discovery: None,
     };
 
     let payment_input = dsl_inputs::PaymentInput {
@@ -432,6 +434,7 @@ pub fn make_dsl_input(
                 | domain::PaymentMethodData::OpenBanking(_)
                 | domain::PaymentMethodData::MobilePayment(_) => None,
             }),
+        card_discovery: None,
     };
 
     let issuer_data_input = dsl_inputs::IssuerDataInput {
@@ -1344,6 +1347,7 @@ pub async fn perform_session_flow_routing<'a>(
         payment_method: None,
         payment_method_type: None,
         card_network: None,
+        card_discovery: None,
     };
 
     let payment_input = dsl_inputs::PaymentInput {
@@ -1492,6 +1496,7 @@ pub async fn perform_session_flow_routing(
         payment_method: None,
         payment_method_type: None,
         card_network: None,
+        card_discovery: None,
     };
 
     let payment_input = dsl_inputs::PaymentInput {
@@ -1872,6 +1877,7 @@ pub fn make_dsl_input_for_surcharge(
         payment_method: None,
         payment_method_type: None,
         card_network: None,
+        card_discovery: None,
     };
     let backend_input = dsl_inputs::BackendInput {
         metadata,
