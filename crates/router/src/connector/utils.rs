@@ -24,7 +24,7 @@ use common_utils::{
 use diesel_models::{enums, types::OrderDetailsWithAmount};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
-use masking::{Deserialize, ExposeInterface, Secret};
+use hyperswitch_masking::{Deserialize, ExposeInterface, Secret};
 use regex::Regex;
 
 #[cfg(feature = "frm")]
@@ -2658,6 +2658,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
     fn from(pm_data: domain::payments::PaymentMethodData) -> Self {
         match pm_data {
             domain::payments::PaymentMethodData::Card(_) => Self::Card,
+            domain::payments::PaymentMethodData::CardWithOptionalCVC(_) => Self::Card,
             domain::payments::PaymentMethodData::NetworkToken(_) => Self::NetworkToken,
             domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => Self::Card,
             domain::PaymentMethodData::CardWithLimitedDetails(_) => Self::Card,

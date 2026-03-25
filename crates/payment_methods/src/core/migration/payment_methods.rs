@@ -19,9 +19,9 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::{ext_traits::OptionExt, payment_methods as domain_pm};
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 #[cfg(feature = "v1")]
-use masking::Secret;
+use hyperswitch_masking::Secret;
 #[cfg(feature = "v1")]
 use router_env::{instrument, logger, tracing};
 #[cfg(feature = "v1")]
@@ -727,6 +727,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
                 customer_details: None,
                 locker_fingerprint_id: None,
+                network_tokenization_data: None,
                 storage_type: None,
             },
             provider.get_account().storage_scheme,

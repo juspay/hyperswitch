@@ -2541,12 +2541,6 @@ key1 = "Secret Key"
   payment_method_type = "CartesBancaires"
 [[fiservcommercehub.debit]]
   payment_method_type = "UnionPay"
-[[fiservcommercehub.wallet]]
-  payment_method_type = "google_pay"
-[[fiservcommercehub.wallet]]
-  payment_method_type = "paypal"
-[[fiservcommercehub.wallet]]
-  payment_method_type = "apple_pay"
 [fiservcommercehub.connector_auth.MultiAuthKey]
 api_key="API Key"
 key1="Merchant ID"
@@ -3467,6 +3461,14 @@ payment_method_type = "JCB"
 payment_method_type = "DinersClub"
 [[noon.debit]]
 payment_method_type = "Discover"
+
+[noon.metadata.noon_region]
+name = "noon_region"
+label = "Region of your Noon Merchant Account"
+placeholder = "Enter Region of your Noon Merchant Account"
+required = false
+type = "Select"
+options = ["Global", "Ksa", "Egypt"]
 [[noon.debit]]
 payment_method_type = "CartesBancaires"
 [[noon.debit]]

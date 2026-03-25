@@ -1,7 +1,7 @@
 use api_models::enums as api_enums;
 use common_utils::{ext_traits::OptionExt, fp_utils::when, pii::Email};
 use error_stack::{report, ResultExt};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router_env::logger;
 
 use super::{
@@ -412,6 +412,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
             last_modified_by: initiator
                 .and_then(|initiator| initiator.to_created_by())
                 .map(|last_modified_by| last_modified_by.to_string()),
+            network_tokenization_data: None,
         };
         self.state
             .store

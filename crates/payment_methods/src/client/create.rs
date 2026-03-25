@@ -9,7 +9,7 @@ use common_utils::{
 };
 use hyperswitch_domain_models::payment_method_data::PaymentMethodData;
 use hyperswitch_interfaces::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 /// V1-facing create flow type.
@@ -20,7 +20,7 @@ pub struct CreatePaymentMethod;
 pub struct CreatePaymentMethodV1Request {
     pub merchant_id: id_type::MerchantId,
     pub payment_method: common_enums::PaymentMethod,
-    pub payment_method_type: common_enums::PaymentMethodType,
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub customer_id: id_type::CustomerId, // Payment method data will be saved when customer acceptance is given, hence customer id will always be present
     pub payment_method_data: PaymentMethodData,
@@ -33,7 +33,7 @@ pub struct CreatePaymentMethodV1Request {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ModularPMCreateRequest {
     pub payment_method_type: common_enums::PaymentMethod,
-    pub payment_method_subtype: common_enums::PaymentMethodType,
+    pub payment_method_subtype: Option<common_enums::PaymentMethodType>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub customer_id: id_type::CustomerId, // Payment method data will be saved when customer acceptance is given, hence customer id will always be present
     pub payment_method_data: PaymentMethodCreateData,
@@ -118,6 +118,7 @@ pub struct ConnectorTokenDetails {
     pub original_payment_authorized_amount: Option<MinorUnit>,
     pub original_payment_authorized_currency: Option<common_enums::Currency>,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub connector_customer_id: Option<String>,
     pub token: Secret<String>,
 }
 
