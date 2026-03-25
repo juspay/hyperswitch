@@ -129,7 +129,8 @@ use crate::core::{
 use crate::types::api::convert_connector_data_to_routable_connectors;
 use crate::{
     configs::settings::{
-        ApplePayPreDecryptFlow, GooglePayPreDecryptFlow, PaymentFlow, PaymentMethodTypeTokenFilter,
+        ApplePayPreDecryptFlow, GooglePayPreDecryptFlow, PaymentFlow, PaymentMethodTokenFilter,
+        PaymentMethodTypeTokenFilter,
     },
     consts,
     core::{
@@ -7636,17 +7637,8 @@ fn is_payment_method_tokenization_enabled_for_connector(
                 .contains(&payment_method)
                 && is_payment_method_type_allowed_for_connector(
                     payment_method_type,
-                    connector_filter.payment_method_type.clone(),
-                )
-                && is_apple_pay_pre_decrypt_type_connector_tokenization(
-                    payment_method_type,
                     payment_method_token,
-                    connector_filter.apple_pay_pre_decrypt_flow.clone(),
-                )
-                && is_google_pay_pre_decrypt_type_connector_tokenization(
-                    payment_method_type,
-                    payment_method_token,
-                    connector_filter.google_pay_pre_decrypt_flow.clone(),
+                    connector_filter,
                 )
                 && is_payment_flow_allowed_for_connector(
                     mandate_flow_enabled,
@@ -7697,16 +7689,17 @@ fn is_apple_pay_pre_decrypt_type_connector_tokenization(
     payment_method_type: Option<storage::enums::PaymentMethodType>,
     payment_method_token: Option<&PaymentMethodToken>,
     apple_pay_pre_decrypt_flow_filter: Option<ApplePayPreDecryptFlow>,
-) -> bool {
+) -> Option<bool> {
     match (payment_method_type, payment_method_token) {
         (
             Some(storage::enums::PaymentMethodType::ApplePay),
             Some(PaymentMethodToken::ApplePayDecrypt(..)),
-        ) => !matches!(
+        ) => Some(!matches!(
             apple_pay_pre_decrypt_flow_filter,
             Some(ApplePayPreDecryptFlow::NetworkTokenization)
-        ),
-        _ => true,
+        )),
+        // not applicable
+        _ => None,
     }
 }
 
@@ -7714,21 +7707,19 @@ fn is_google_pay_pre_decrypt_type_connector_tokenization(
     payment_method_type: Option<storage::enums::PaymentMethodType>,
     payment_method_token: Option<&PaymentMethodToken>,
     google_pay_pre_decrypt_flow_filter: Option<GooglePayPreDecryptFlow>,
-) -> bool {
+) -> Option<bool> {
     if let (
         Some(storage::enums::PaymentMethodType::GooglePay),
         Some(PaymentMethodToken::GooglePayDecrypt(..)),
     ) = (payment_method_type, payment_method_token)
     {
-        !matches!(
+        Some(!matches!(
             google_pay_pre_decrypt_flow_filter,
             Some(GooglePayPreDecryptFlow::NetworkTokenization)
-        )
+        ))
     } else {
-        // Always return true for non–Google Pay pre-decrypt cases,
-        // because the filter is only relevant for Google Pay pre-decrypt tokenization.
-        // Returning true ensures that other payment methods or token types are not blocked.
-        true
+        // not applicable
+        None
     }
 }
 
@@ -7875,8 +7866,24 @@ fn get_google_pay_connector_wallet_details(
 
 fn is_payment_method_type_allowed_for_connector(
     current_pm_type: Option<storage::enums::PaymentMethodType>,
-    pm_type_filter: Option<PaymentMethodTypeTokenFilter>,
+    payment_method_token: Option<&PaymentMethodToken>,
+    connector_filter: &PaymentMethodTokenFilter,
 ) -> bool {
+    if let Some(apple_pay_enabled) = is_apple_pay_pre_decrypt_type_connector_tokenization(
+        current_pm_type,
+        payment_method_token,
+        connector_filter.apple_pay_pre_decrypt_flow.clone(),
+    ) {
+        return apple_pay_enabled;
+    }
+    if let Some(google_pay_enabled) = is_google_pay_pre_decrypt_type_connector_tokenization(
+        current_pm_type,
+        payment_method_token,
+        connector_filter.google_pay_pre_decrypt_flow.clone(),
+    ) {
+        return google_pay_enabled;
+    }
+    let pm_type_filter = connector_filter.payment_method_type.clone();
     match (current_pm_type).zip(pm_type_filter) {
         Some((pm_type, type_filter)) => match type_filter {
             PaymentMethodTypeTokenFilter::AllAccepted => true,

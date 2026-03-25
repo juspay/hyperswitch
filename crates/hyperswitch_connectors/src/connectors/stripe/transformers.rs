@@ -8,7 +8,7 @@ use common_types::{
 };
 use common_utils::{
     collect_missing_value_keys,
-    errors::{CustomResult, ValidationError},
+    errors::CustomResult,
     ext_traits::{ByteSliceExt, Encode, OptionExt as _},
     pii::{self, Email},
     request::{Method, RequestContent},
@@ -803,14 +803,6 @@ pub struct WechatpayPayment {
 #[serde(rename_all = "snake_case")]
 pub enum WechatClient {
     Web,
-}
-
-#[derive(Debug, Eq, PartialEq, Serialize)]
-pub struct GooglePayPayment {
-    #[serde(rename = "payment_method_data[card][token]")]
-    pub token: Secret<String>,
-    #[serde(rename = "payment_method_data[type]")]
-    pub payment_method_types: StripePaymentMethodType,
 }
 
 // All supported payment_method_types in stripe
