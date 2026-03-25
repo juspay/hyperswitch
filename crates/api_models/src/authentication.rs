@@ -1,9 +1,6 @@
 use common_enums::{enums, AuthenticationConnectors};
 #[cfg(feature = "v1")]
-use common_utils::{
-    errors::{self, CustomResult},
-    types::SemanticVersion,
-};
+use common_utils::errors::{self, CustomResult};
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},
     id_type,
@@ -785,11 +782,11 @@ pub enum AuthenticationPaymentMethodDataResponse {
         ds_trans_id: Option<String>,
 
         /// Transaction status for Mpi data
-        trans_status: common_enums::TransactionStatus,
+        transaction_status: common_enums::TransactionStatus,
 
         /// The version of the 3DS protocol used (e.g., "2.1.0" or "2.2.0").
         #[schema(value_type = Option<String>)]
-        version: Option<SemanticVersion>,
+        version: Option<common_utils::types::SemanticVersion>,
     },
 }
 

@@ -16,10 +16,8 @@ use serde_json::Value;
 
 use super::behaviour;
 use crate::{
-    payment_methods,
-    router_request_types::{
-        self,
-        unified_authentication_service::{DynamicData, PostAuthenticationDetails},
+    router_request_types::unified_authentication_service::{
+        DynamicData, PostAuthenticationDetails,
     },
     type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
 };
@@ -137,7 +135,7 @@ impl Authentication {
         PostAuthenticationDetails {
             token_details: None,
             dynamic_data_details: Some(DynamicData {
-                dynamic_data_value: authentication_value.map(|value| Secret::new(value)),
+                dynamic_data_value: authentication_value.map(Secret::new),
                 dynamic_data_type: None,
                 ds_trans_id: self.ds_trans_id.clone(),
             }),

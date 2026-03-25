@@ -184,3 +184,14 @@ pub trait UnifiedAuthenticationService {
         .into())
     }
 }
+
+/// Strategy for handling authentication sync based on current state
+#[derive(Debug, Clone, Copy)]
+pub enum AuthSyncStrategy {
+    /// Execute full post-authentication flow (call connector, tokenize, update trackers)
+    ExecutePostAuth,
+    /// Use previously stored authentication value (terminal success + merchant flow + no tokenization)
+    UseStoredAuthValue,
+    /// No operation needed (terminal status but conditions for stored value not met)
+    NoOperation,
+}

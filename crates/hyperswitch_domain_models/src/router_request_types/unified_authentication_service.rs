@@ -1,4 +1,3 @@
-#[cfg(feature = "v1")]
 use api_models::payments::DeviceChannel;
 use common_enums::{MerchantCategoryCode, RoutingRegion};
 use common_types::payments::MerchantCountryCode;
@@ -244,7 +243,7 @@ impl PostAuthenticationDetails {
                             }),
                             eci: self.eci.clone(),
                             ds_trans_id: dynamic_data.ds_trans_id.clone(),
-                            trans_status,
+                            transaction_status: trans_status,
                             version: authentication.maximum_supported_version.clone(),
                         })
                     },
@@ -253,7 +252,7 @@ impl PostAuthenticationDetails {
             .transpose();
 
         // Return MpiData if available, otherwise fall back to CardData or NetworkTokenData
-        let result = match mpi_data {
+        match mpi_data {
             Ok(Some(data)) => Ok(Some(data)),
             _ => Ok(match (self.raw_card_details, self.token_details) {
                 (Some(card_data), _) => Some(
@@ -270,13 +269,11 @@ impl PostAuthenticationDetails {
                 ),
                 (None, None) => None,
             }),
-        };
-
-        result
+        }
     }
 
-    pub fn get_post_authentication_details(&self) -> PostAuthenticationDetails {
-        PostAuthenticationDetails {
+    pub fn get_post_authentication_details(&self) -> Self {
+        Self {
             eci: self.eci.clone(),
             token_details: self.token_details.clone(),
             dynamic_data_details: self.dynamic_data_details.clone(),

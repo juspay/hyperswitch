@@ -25,8 +25,6 @@ use api_models::{
 use common_utils::{errors::CustomResult, ext_traits::ValueExt, types::AmountConvertor};
 use diesel_models::authentication::Authentication;
 use error_stack::ResultExt;
-#[cfg(feature = "v1")]
-use hyperswitch_domain_models::router_request_types;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse,
     ext_traits::OptionExt,
@@ -59,7 +57,7 @@ use crate::{
         metrics, payment_methods,
         payments::{helpers, validate_customer_details_for_click_to_pay},
         unified_authentication_service::types::{
-            ClickToPay, ExternalAuthentication, UnifiedAuthenticationService,
+            AuthSyncStrategy, ClickToPay, ExternalAuthentication, UnifiedAuthenticationService,
             UNIFIED_AUTHENTICATION_SERVICE,
         },
         utils as core_utils,
@@ -1750,6 +1748,160 @@ impl
     }
 }
 
+/// Determines the appropriate authentication sync strategy based on current state
+#[cfg(feature = "v1")]
+fn determine_auth_sync_strategy(
+    authentication: &hyperswitch_domain_models::authentication::Authentication,
+    should_disable_auth_tokenization: bool,
+    auth_flow: AuthFlow,
+) -> AuthSyncStrategy {
+    if !authentication.authentication_status.is_terminal_status() {
+        AuthSyncStrategy::ExecutePostAuth
+    } else if authentication.authentication_status.is_success()
+        && should_disable_auth_tokenization
+        && auth_flow == AuthFlow::Merchant
+    {
+        AuthSyncStrategy::UseStoredAuthValue
+    } else {
+        AuthSyncStrategy::NoOperation
+    }
+}
+
+/// Executes the full post-authentication flow including connector call, tokenization, and tracker updates
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+async fn execute_post_authentication_flow(
+    state: &SessionState,
+    platform: &domain::Platform,
+    business_profile: &domain::Profile,
+    authentication: &hyperswitch_domain_models::authentication::Authentication,
+    authentication_connector: &common_enums::AuthenticationConnectors,
+    three_ds_connector_account: &MerchantConnectorAccountType,
+    authentication_id: &common_utils::id_type::AuthenticationId,
+    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_account: &domain::MerchantAccount,
+    should_disable_auth_tokenization: bool,
+) -> RouterResult<(
+    hyperswitch_domain_models::authentication::Authentication,
+    Option<api_models::authentication::AuthenticationPaymentMethodDataResponse>,
+    Option<api_models::authentication::AuthenticationVaultTokenData>,
+)> {
+    let post_auth_response = if authentication_connector.is_click_to_pay() {
+        let response = ClickToPay::post_authentication(
+            state,
+            business_profile,
+            None,
+            &three_ds_connector_account.clone(),
+            &authentication_connector.to_string(),
+            authentication_id,
+            common_enums::PaymentMethod::Card,
+            merchant_id,
+            None,
+            None,
+        )
+        .await?;
+        metrics::POST_AUTHENTICATION_CARDS_SUCCESSFULLY_DECRYPTED.add(1, &[]);
+        response
+    } else {
+        let routing_region = utils::fetch_routing_region_for_uas(
+            state,
+            merchant_id.clone(),
+            merchant_account.organization_id.clone(),
+        )
+        .await
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch routing path")?;
+        ExternalAuthentication::post_authentication(
+            state,
+            business_profile,
+            None,
+            three_ds_connector_account,
+            &authentication_connector.to_string(),
+            authentication_id,
+            common_enums::PaymentMethod::Card,
+            merchant_id,
+            Some(authentication),
+            Some(routing_region),
+        )
+        .await?
+    };
+
+    let vault_token_data = if should_disable_auth_tokenization {
+        // Do not tokenize if the disable flag is present in the config
+        None
+    } else {
+        let response = Box::pin(utils::get_auth_multi_token_from_external_vault(
+            state,
+            platform,
+            business_profile,
+            &post_auth_response,
+        ))
+        .await?;
+        metrics::POST_AUTHENTICATION_TOKEN_PUSHED_TO_VGS.add(1, &[]);
+        response
+    };
+
+    let payment_method_data = utils::get_authentication_payment_method_data(
+        &post_auth_response,
+        should_disable_auth_tokenization,
+        authentication,
+    )?;
+
+    let auth_update_response = utils::external_authentication_update_trackers(
+        state,
+        post_auth_response,
+        authentication.clone(),
+        None,
+        platform.get_processor().get_key_store(),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+    )
+    .await?;
+
+    Ok((auth_update_response, payment_method_data, vault_token_data))
+}
+
+/// Uses the stored authentication value for terminal success cases in merchant flow
+#[cfg(feature = "v1")]
+async fn use_stored_authentication_value(
+    state: &SessionState,
+    platform: &domain::Platform,
+    authentication: &hyperswitch_domain_models::authentication::Authentication,
+    authentication_id: &common_utils::id_type::AuthenticationId,
+    should_disable_auth_tokenization: bool,
+) -> RouterResult<(
+    hyperswitch_domain_models::authentication::Authentication,
+    Option<api_models::authentication::AuthenticationPaymentMethodDataResponse>,
+    Option<api_models::authentication::AuthenticationVaultTokenData>,
+)> {
+    let authentication_value = payment_methods::vault::get_tokenized_data(
+        state,
+        authentication_id.get_string_repr(),
+        false,
+        platform.get_processor().get_key_store().key.get_inner(),
+    )
+    .await
+    .inspect_err(|err| router_env::logger::error!(tokenized_data_result=?err))
+    .attach_printable("cavv not present after authentication flow")
+    .ok();
+
+    let authentication_details = authentication
+        .get_post_authentication_details(authentication_value.map(|value| value.value1));
+
+    let payment_method_data = authentication_details
+        .to_authentication_payment_method_data_response(
+            should_disable_auth_tokenization,
+            authentication,
+        )?;
+
+    Ok((authentication.clone(), payment_method_data, None))
+}
+
 #[cfg(feature = "v1")]
 pub async fn authentication_sync_core(
     state: SessionState,
@@ -1899,116 +2051,39 @@ pub async fn authentication_sync_core(
         }
     };
 
-    let (updated_authentication, payment_method_data, vault_token_data) =
-        if !authentication.authentication_status.is_terminal_status() {
-            let post_auth_response = if authentication_connector.is_click_to_pay() {
-                let response = ClickToPay::post_authentication(
-                    &state,
-                    &business_profile,
-                    None,
-                    &three_ds_connector_account.clone(),
-                    &authentication_connector.to_string(),
-                    &authentication_id,
-                    common_enums::PaymentMethod::Card,
-                    merchant_id,
-                    None,
-                    None,
-                )
-                .await?;
-                metrics::POST_AUTHENTICATION_CARDS_SUCCESSFULLY_DECRYPTED.add(1, &[]);
-                response
-            } else {
-                let routing_region = utils::fetch_routing_region_for_uas(
-                    &state,
-                    merchant_id.clone(),
-                    merchant_account.organization_id.clone(),
-                )
-                .await
-                .change_context(ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to fetch routing path")?;
-                ExternalAuthentication::post_authentication(
-                    &state,
-                    &business_profile,
-                    None,
-                    &three_ds_connector_account,
-                    &authentication_connector.to_string(),
-                    &authentication_id,
-                    common_enums::PaymentMethod::Card,
-                    merchant_id,
-                    Some(&authentication),
-                    Some(routing_region),
-                )
-                .await?
-            };
+    // Determine the authentication sync strategy based on current state
+    let strategy =
+        determine_auth_sync_strategy(&authentication, should_disable_auth_tokenization, auth_flow);
 
-            let vault_token_data = if should_disable_auth_tokenization {
-                // Do not tokenize if the disable flag is present in the config
-                None
-            } else {
-                let response = Box::pin(utils::get_auth_multi_token_from_external_vault(
-                    &state,
-                    &platform,
-                    &business_profile,
-                    &post_auth_response,
-                ))
-                .await?;
-                metrics::POST_AUTHENTICATION_TOKEN_PUSHED_TO_VGS.add(1, &[]);
-                response
-            };
-
-            let payment_method_data = utils::get_authentication_payment_method_data(
-                &post_auth_response,
-                should_disable_auth_tokenization,
-                &authentication,
-            )?;
-
-            let auth_update_response = utils::external_authentication_update_trackers(
+    // Execute the appropriate flow based on the strategy
+    let (updated_authentication, payment_method_data, vault_token_data) = match strategy {
+        AuthSyncStrategy::ExecutePostAuth => {
+            Box::pin(execute_post_authentication_flow(
                 &state,
-                post_auth_response,
-                authentication.clone(),
-                None,
-                platform.get_processor().get_key_store(),
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
+                &platform,
+                &business_profile,
+                &authentication,
+                &authentication_connector,
+                &three_ds_connector_account,
+                &authentication_id,
+                merchant_id,
+                merchant_account,
+                should_disable_auth_tokenization,
+            ))
+            .await?
+        }
+        AuthSyncStrategy::UseStoredAuthValue => {
+            use_stored_authentication_value(
+                &state,
+                &platform,
+                &authentication,
+                &authentication_id,
+                should_disable_auth_tokenization,
             )
-            .await?;
-
-            (auth_update_response, payment_method_data, vault_token_data)
-        } else {
-            if authentication.authentication_status.is_success()
-                && should_disable_auth_tokenization
-                && auth_flow == AuthFlow::Merchant
-            {
-                let authentication_value = payment_methods::vault::get_tokenized_data(
-                    &state,
-                    authentication_id.get_string_repr(),
-                    false,
-                    platform.get_processor().get_key_store().key.get_inner(),
-                )
-                .await
-                .inspect_err(|err| router_env::logger::error!(tokenized_data_result=?err))
-                .attach_printable("cavv not present after authentication flow")
-                .ok();
-
-                let authentication_details = authentication.get_post_authentication_details(
-                    authentication_value.map(|value| value.value1),
-                );
-
-                let payment_method_data = authentication_details
-                    .to_authentication_payment_method_data_response(
-                        should_disable_auth_tokenization,
-                        &authentication,
-                    )?;
-                (authentication, payment_method_data, None)
-            } else {
-                (authentication, None, None)
-            }
-        };
+            .await?
+        }
+        AuthSyncStrategy::NoOperation => (authentication, None, None),
+    };
 
     let eci = match auth_flow {
         AuthFlow::Client => None,
