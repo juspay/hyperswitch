@@ -21,7 +21,7 @@ pub enum CustomersErrorResponse {
     CustomerAlreadyExists,
 
     #[error("Access forbidden")]
-    AccessForbidden,
+    AccessForbidden { message: String },
 }
 
 impl actix_web::ResponseError for CustomersErrorResponse {

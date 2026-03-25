@@ -40,10 +40,13 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for CustomersError
                 "Customer with the given `customer_id` already exists",
                 None,
             )),
-            Self::AccessForbidden => AER::ForbiddenCommonResource(ApiError::new(
+            Self::AccessForbidden { message } => AER::ForbiddenCommonResource(ApiError::new(
                 "IR",
                 22,
-                "Access forbidden. Not authorized to access this resource",
+                format!(
+                    "Access forbidden. Not authorized to access this resource {}",
+                    message
+                ),
                 None,
             )),
         }
@@ -74,7 +77,9 @@ impl ErrorSwitch<CustomersErrorResponse> for ApiErrorResponse {
             Self::InternalServerError => CER::InternalServerError,
             Self::MandateActive => CER::MandateActive,
             Self::CustomerNotFound => CER::CustomerNotFound,
-            Self::AccessForbidden { .. } => CER::AccessForbidden,
+            Self::AccessForbidden { resource } => CER::AccessForbidden {
+                message: resource.clone(),
+            },
             _ => CER::InternalServerError,
         }
     }
@@ -87,7 +92,9 @@ impl From<ApiErrorResponse> for CustomersErrorResponse {
             ApiErrorResponse::InternalServerError => CER::InternalServerError,
             ApiErrorResponse::MandateActive => CER::MandateActive,
             ApiErrorResponse::CustomerNotFound => CER::CustomerNotFound,
-            ApiErrorResponse::AccessForbidden { .. } => CER::AccessForbidden,
+            ApiErrorResponse::AccessForbidden { resource } => CER::AccessForbidden {
+                message: resource.clone(),
+            },
             _ => CER::InternalServerError,
         }
     }

@@ -8,11 +8,13 @@ use crate::{
     core::{
         api_locking,
         customers::*,
-        utils::validate_legacy_endpoint_access,
     },
     services::{api, authentication as auth, authorization::permissions::Permission},
     types::api::customers,
 };
+
+#[cfg(feature = "v1")]
+use crate::core::utils as core_utils;
 
 #[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersCreate))]
@@ -68,7 +70,7 @@ pub async fn customers_create(
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
             Box::pin(async move {
-                validate_legacy_endpoint_access(&state, &auth.platform).await?;
+                core_utils::validate_legacy_endpoint_access(&state, &auth.platform).await?;
                 create_customer(
                     state,
                     auth.platform.get_provider().clone(),
@@ -131,7 +133,7 @@ pub async fn customers_retrieve(
         customer_id,
         move |state, auth: auth::AuthenticationData, customer_id, _| {
             Box::pin(async move {
-                validate_legacy_endpoint_access(&state, &auth.platform).await?;
+                core_utils::validate_legacy_endpoint_access(&state, &auth.platform).await?;
                 let profile_id = auth.profile.map(|profile| profile.get_id().clone());
                 retrieve_customer(
                     state,
@@ -363,7 +365,7 @@ pub async fn customers_update(
         request_internal,
         |state, auth: auth::AuthenticationData, request_internal, _| {
             Box::pin(async move {
-                validate_legacy_endpoint_access(&state, &auth.platform).await?;
+                core_utils::validate_legacy_endpoint_access(&state, &auth.platform).await?;
                 update_customer(
                     state,
                     auth.platform.get_provider().clone(),
@@ -485,7 +487,7 @@ pub async fn customers_delete(
         customer_id,
         |state, auth: auth::AuthenticationData, customer_id, _| {
             Box::pin(async move {
-                validate_legacy_endpoint_access(&state, &auth.platform).await?;
+                core_utils::validate_legacy_endpoint_access(&state, &auth.platform).await?;
                 crate::core::mandate::get_customer_mandates(state, auth.platform, customer_id).await
             })
         },
