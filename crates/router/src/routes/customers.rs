@@ -3,17 +3,13 @@ use common_utils::id_type;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
+#[cfg(feature = "v1")]
+use crate::core::utils as core_utils;
 use crate::{
-    core::{
-        api_locking,
-        customers::*,
-    },
+    core::{api_locking, customers::*},
     services::{api, authentication as auth, authorization::permissions::Permission},
     types::api::customers,
 };
-
-#[cfg(feature = "v1")]
-use crate::core::utils as core_utils;
 
 #[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersCreate))]
