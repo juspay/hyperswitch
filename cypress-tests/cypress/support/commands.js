@@ -2530,7 +2530,8 @@ Cypress.Commands.add(
     data,
     authentication_type,
     capture_method,
-    globalState
+    globalState,
+    connectedMerchantId
   ) => {
     const {
       Configs: configs = {},
@@ -2552,13 +2553,19 @@ Cypress.Commands.add(
       createConfirmPaymentBody[key] = reqData[key];
     }
 
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    };
+
+    if (connectedMerchantId) {
+      headers["x-connected-merchant-id"] = connectedMerchantId;
+    }
+
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payments`,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": globalState.get("apiKey"),
-      },
+      headers: headers,
       failOnStatusCode: false,
       body: createConfirmPaymentBody,
     }).then((response) => {
