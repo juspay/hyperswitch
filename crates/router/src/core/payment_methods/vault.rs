@@ -704,6 +704,7 @@ pub struct TokenizedBankInsensitiveValues {
     pub bank_country_code: Option<api::enums::CountryAlpha2>,
     pub bank_city: Option<String>,
     pub bank_branch: Option<String>,
+    pub country_code: Option<api::enums::CountryAlpha2>,
 }
 
 #[cfg(feature = "payouts")]
@@ -782,6 +783,7 @@ impl Vaultable for api::BankPayout {
                 bank_country_code: b.bank_country_code.to_owned(),
                 bank_city: b.bank_city.to_owned(),
                 bank_branch: None,
+                country_code: None,
             },
             Self::Bacs(b) => TokenizedBankInsensitiveValues {
                 customer_id,
@@ -789,6 +791,7 @@ impl Vaultable for api::BankPayout {
                 bank_country_code: b.bank_country_code.to_owned(),
                 bank_city: b.bank_city.to_owned(),
                 bank_branch: None,
+                country_code: None,
             },
             Self::Sepa(bank_details) => TokenizedBankInsensitiveValues {
                 customer_id,
@@ -796,6 +799,7 @@ impl Vaultable for api::BankPayout {
                 bank_country_code: bank_details.bank_country_code.to_owned(),
                 bank_city: bank_details.bank_city.to_owned(),
                 bank_branch: None,
+                country_code: None,
             },
             Self::Pix(bank_details) => TokenizedBankInsensitiveValues {
                 customer_id,
@@ -803,13 +807,15 @@ impl Vaultable for api::BankPayout {
                 bank_country_code: None,
                 bank_city: None,
                 bank_branch: bank_details.bank_branch.to_owned(),
+                country_code: None,
             },
             Self::Trustly(bank_details) => TokenizedBankInsensitiveValues {
                 customer_id,
                 bank_name: None,
-                bank_country_code: Some(bank_details.country_code),
+                bank_country_code: None,
                 bank_city: None,
                 bank_branch: None,
+                country_code: Some(bank_details.country_code.to_owned()),
             },
         };
 
@@ -845,7 +851,7 @@ impl Vaultable for api::BankPayout {
             bank_sensitive_data.pix_key,
             bank_sensitive_data.tax_id,
             // TRUSTLY
-            bank_insensitive_data.bank_country_code,
+            bank_insensitive_data.country_code,
         ) {
             (Some(ban), Some(brn), None, None, None, None, None, None) => {
                 Self::Ach(payouts::AchBankTransfer {

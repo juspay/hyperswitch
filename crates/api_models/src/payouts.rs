@@ -277,14 +277,72 @@ pub struct CardPayout {
     pub card_network: Option<CardNetwork>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, Serialize, ToSchema)]
 #[serde(untagged)]
 pub enum Bank {
     Ach(AchBankTransfer),
     Bacs(BacsBankTransfer),
-    Trustly(TrustlyBankTransfer),
     Sepa(SepaBankTransfer),
+    Trustly(TrustlyBankTransfer),
     Pix(PixBankTransfer),
+}
+
+// Shadow enum — only used internally to break recursion
+#[derive(Deserialize, Debug)]
+#[serde(untagged)]
+enum BankInner {
+    Ach(AchBankTransfer),
+    Bacs(BacsBankTransfer),
+    Sepa(SepaBankTransfer),
+    Trustly(TrustlyBankTransfer),
+    Pix(PixBankTransfer),
+}
+
+impl<'de> Deserialize<'de> for Bank {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        struct Wrapper<'a> {
+            payout_method_type: Option<&'a str>,
+            #[serde(flatten)]
+            data: BankInner,
+        }
+
+        // First deserialize into raw Value so we can use it twice:
+        // once for the Wrapper (to extract payout_method_type + BankInner)
+        // once for re-deserializing into the correct specific struct when tag is present
+        let value = serde_json::Value::deserialize(deserializer)?;
+        let wrapper = Wrapper::deserialize(&value).map_err(serde::de::Error::custom)?;
+        let bank = match wrapper.payout_method_type {
+            // Tag present — use it to explicitly route to correct variant
+            Some("ach") => {
+                Self::Ach(AchBankTransfer::deserialize(&value).map_err(serde::de::Error::custom)?)
+            }
+            Some("bacs") => {
+                Self::Bacs(BacsBankTransfer::deserialize(&value).map_err(serde::de::Error::custom)?)
+            }
+            Some("sepa") => {
+                Self::Sepa(SepaBankTransfer::deserialize(&value).map_err(serde::de::Error::custom)?)
+            }
+            Some("trustly") => Self::Trustly(
+                TrustlyBankTransfer::deserialize(&value).map_err(serde::de::Error::custom)?,
+            ),
+            Some("pix") => {
+                Self::Pix(PixBankTransfer::deserialize(&value).map_err(serde::de::Error::custom)?)
+            }
+            // No tag — fallback to untagged shape matching via BankInner
+            Some(_) | None => {
+                match wrapper.data {
+                BankInner::Ach(v) => Self::Ach(v),
+                BankInner::Bacs(v) => Self::Bacs(v),
+                BankInner::Sepa(v) => Self::Sepa(v),
+                BankInner::Trustly(v) => Self::Trustly(v),
+                BankInner::Pix(v) => Self::Pix(v),
+            }
+        }
+        };
+
+        Ok(bank)
+    }
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]

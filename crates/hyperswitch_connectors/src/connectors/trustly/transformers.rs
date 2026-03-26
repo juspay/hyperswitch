@@ -6,7 +6,8 @@ use base64::{engine::general_purpose, Engine as _};
 use common_enums::enums;
 #[cfg(feature = "payouts")]
 use common_enums::{CountryAlpha2, PayoutStatus};
-use common_utils::{id_type::CustomerId, pii, types::StringMajorUnit};
+use common_utils::{errors::CustomResult, id_type::CustomerId, pii, types::StringMajorUnit};
+use error_stack::{report, ResultExt};
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::types::{PayoutsResponseData, PayoutsRouterData};
 use hyperswitch_domain_models::{
@@ -19,7 +20,12 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::errors::ConnectorError;
 use hyperswitch_masking::{ExposeInterface, Secret};
-use openssl::{hash::MessageDigest, pkey::PKey, rsa::Rsa, sign::Signer};
+use openssl::{
+    hash::MessageDigest,
+    pkey::PKey,
+    rsa::Rsa,
+    sign::{Signer, Verifier},
+};
 use serde::{Deserialize, Serialize};
 
 use crate::types::{RefundsResponseRouterData, ResponseRouterData};
@@ -338,12 +344,18 @@ fn trustly_serialize<T: Serialize>(data: &T) -> String {
 
 enum Algorithm {
     SHA256,
+    SHA384,
+    SHA512,
+    SHA1,
 }
 
 impl Algorithm {
     fn message_digest(&self) -> MessageDigest {
         match self {
             Self::SHA256 => MessageDigest::sha256(),
+            Self::SHA384 => MessageDigest::sha384(),
+            Self::SHA512 => MessageDigest::sha512(),
+            Self::SHA1 => MessageDigest::sha1(),
         }
     }
 
@@ -687,12 +699,10 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for AccountPayoutRequ
                     }),
                     currency: item.router_data.request.destination_currency,
                     end_user_i_d: item.router_data.get_customer_id()?,
-                    message_i_d: item
-                        .router_data
-                        .request
-                        .payout_id
-                        .get_string_repr()
-                        .to_string(),
+                    message_i_d: format!(
+                        "payout_{}",
+                        item.router_data.request.payout_id.get_string_repr()
+                    ),
                     notification_u_r_l: notification_url,
                     password: auth_details.password.clone(),
                     username: auth_details.username.clone(),
@@ -857,6 +867,7 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for TrustlyPayoutSyncRequest {
 pub enum TrustlyPayoutSyncResponse {
     Success(TrustlyPayoutSyncResponseSuccess),
     Error(TrustlyErrorResponse),
+    Webhook(Box<TrustlyWebhookBody>),
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -912,6 +923,18 @@ impl From<TrustlyPayoutStatus> for PayoutStatus {
     }
 }
 
+fn get_payout_status_from_webhook(
+    item: TrustlyWebhookMethod,
+) -> Result<PayoutStatus, ConnectorError> {
+    match item {
+        TrustlyWebhookMethod::Credit => Ok(PayoutStatus::Reversed),
+        TrustlyWebhookMethod::Cancel => Ok(PayoutStatus::Cancelled),
+        TrustlyWebhookMethod::PayoutFailed => Ok(PayoutStatus::Failed),
+        TrustlyWebhookMethod::PayoutConfirmation => Ok(PayoutStatus::Success),
+        _ => Err(ConnectorError::WebhookEventTypeNotFound),
+    }
+}
+
 #[cfg(feature = "payouts")]
 impl<F> TryFrom<PayoutsResponseRouterData<F, TrustlyPayoutSyncResponse>> for PayoutsRouterData<F> {
     type Error = error_stack::Report<ConnectorError>;
@@ -955,6 +978,22 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, TrustlyPayoutSyncResponse>> for Pay
                     ..item.data
                 })
             }
+            TrustlyPayoutSyncResponse::Webhook(webhook_body) => {
+                let status = get_payout_status_from_webhook(webhook_body.method.clone())?;
+
+                Ok(Self {
+                    response: Ok(PayoutsResponseData {
+                        status: Some(status),
+                        connector_payout_id: Some(webhook_body.params.data.orderid.clone()),
+                        payout_eligible: None,
+                        should_add_next_step_to_process_tracker: false,
+                        error_code: webhook_body.params.data.errorcode,
+                        error_message: webhook_body.params.data.errormessage,
+                        payout_connector_metadata: None,
+                    }),
+                    ..item.data
+                })
+            }
         }
     }
 }
@@ -974,6 +1013,8 @@ impl TrustlyWebhookMethod {
             Self::Cancel => "cancel",
             Self::Account => "account",
             Self::Pending => "pending",
+            Self::PayoutConfirmation => "payoutconfirmation",
+            Self::PayoutFailed => "payoutfailed",
         }
     }
 }
@@ -986,6 +1027,8 @@ pub enum TrustlyWebhookMethod {
     Cancel,
     Account,
     Pending,
+    PayoutConfirmation,
+    PayoutFailed,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -1007,6 +1050,8 @@ pub struct TrustlyWebhookData {
     pub notificationid: String,
     pub timestamp: Option<String>,
     pub attributes: Option<TrustlyWebhookAttributes>,
+    pub errorcode: Option<String>,
+    pub errormessage: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -1022,7 +1067,7 @@ pub struct TrustlyWebhookAttributes {
     pub clearinghouse: String,
 }
 
-pub fn is_payment_webhook_event(webhook_method: TrustlyWebhookMethod) -> bool {
+pub fn is_payment_webhook_event(webhook_method: TrustlyWebhookMethod, message_id: String) -> bool {
     matches!(
         webhook_method,
         TrustlyWebhookMethod::Credit
@@ -1030,7 +1075,44 @@ pub fn is_payment_webhook_event(webhook_method: TrustlyWebhookMethod) -> bool {
             | TrustlyWebhookMethod::Cancel
             | TrustlyWebhookMethod::Account
             | TrustlyWebhookMethod::Pending
-    )
+    ) && !message_id.starts_with("payout_")
+}
+
+pub fn is_payout_webhook_event(webhook_method: TrustlyWebhookMethod, message_id: String) -> bool {
+    matches!(
+        webhook_method,
+        TrustlyWebhookMethod::PayoutConfirmation
+            | TrustlyWebhookMethod::PayoutFailed
+            | TrustlyWebhookMethod::Credit
+            | TrustlyWebhookMethod::Cancel
+    ) && message_id.starts_with("payout_")
+}
+
+pub fn is_refund_webhook_event(webhook_method: TrustlyWebhookMethod, message_id: String) -> bool {
+    matches!(
+        webhook_method,
+        TrustlyWebhookMethod::PayoutConfirmation | TrustlyWebhookMethod::PayoutFailed
+    ) && !message_id.starts_with("payout_")
+}
+
+pub fn get_payout_webhook_event(
+    webhook_method: TrustlyWebhookMethod,
+) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, ConnectorError> {
+    match webhook_method {
+        TrustlyWebhookMethod::PayoutConfirmation => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::PayoutSuccess)
+        }
+        TrustlyWebhookMethod::PayoutFailed => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::PayoutFailure)
+        }
+        TrustlyWebhookMethod::Cancel => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::PayoutCancelled)
+        }
+        TrustlyWebhookMethod::Credit => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::PayoutReversed)
+        }
+        _ => Err(report!(ConnectorError::WebhookEventTypeNotFound)),
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -1050,4 +1132,56 @@ pub struct TrustlyWebhookResponseResult {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TrustlyWebhookResponseResultData {
     pub status: String,
+}
+
+pub fn verify_webhook_signature(
+    webhook_body: &TrustlyWebhookBody,
+    public_key: Vec<u8>,
+) -> error_stack::Result<bool, ConnectorError> {
+    let method = webhook_body.method.clone();
+    let uuid = webhook_body.params.uuid.clone();
+    let data = &webhook_body.params.data;
+    let signature = &webhook_body.params.signature;
+
+    let pem_bytes = general_purpose::STANDARD
+        .decode(&public_key)
+        .change_context(ConnectorError::WebhookSourceVerificationFailed)?;
+
+    let rsa = Rsa::public_key_from_pem(&pem_bytes)
+        .change_context(ConnectorError::WebhookSourceVerificationFailed)?;
+    let public_key =
+        PKey::from_rsa(rsa).change_context(ConnectorError::WebhookSourceVerificationFailed)?;
+
+    let (algorithm, signature_b64) = if signature.len() >= 10
+        && signature.starts_with("alg=RS")
+        && matches!(signature.as_bytes().get(9), Some(b';'))
+    {
+        let prefix = &signature[..10];
+
+        let algorithm = match prefix {
+            "alg=RS256;" => Algorithm::SHA256,
+            "alg=RS384;" => Algorithm::SHA384,
+            "alg=RS512;" => Algorithm::SHA512,
+            _ => Algorithm::SHA1,
+        };
+
+        (algorithm, &signature[10..])
+    } else {
+        (Algorithm::SHA1, signature.as_str())
+    };
+
+    let plaintext = format!("{}{}{}", method.as_str(), uuid, trustly_serialize(data));
+
+    let signature_bytes = general_purpose::STANDARD
+        .decode(signature_b64)
+        .change_context(ConnectorError::WebhookSourceVerificationFailed)?;
+
+    let mut verifier = Verifier::new(algorithm.message_digest(), &public_key)
+        .change_context(ConnectorError::WebhookSourceVerificationFailed)?;
+    verifier
+        .update(plaintext.as_bytes())
+        .change_context(ConnectorError::WebhookSourceVerificationFailed)?;
+    verifier
+        .verify(&signature_bytes)
+        .change_context(ConnectorError::WebhookSourceVerificationFailed)
 }

@@ -7000,10 +7000,10 @@
             "$ref": "#/components/schemas/BacsBankTransfer"
           },
           {
-            "$ref": "#/components/schemas/TrustlyBankTransfer"
+            "$ref": "#/components/schemas/SepaBankTransfer"
           },
           {
-            "$ref": "#/components/schemas/SepaBankTransfer"
+            "$ref": "#/components/schemas/TrustlyBankTransfer"
           },
           {
             "$ref": "#/components/schemas/PixBankTransfer"

@@ -7885,6 +7885,8 @@ key1 = "Password"
 api_secret = "Private Key(Base64 encoded)"
 [[trustly_payout.bank_transfer]]
 payment_method_type = "trustly"
+[trustly_payout.connector_webhook_details]
+merchant_secret="Trustly's public key"
 
 [tesouro]
 [[tesouro.credit]]
@@ -8305,3 +8307,5 @@ key1 = "Password"
 api_secret = "Private Key(Base64 encoded)"
 [[trustly.bank_redirect]]
 payment_method_type = "trustly"
+[trustly.connector_webhook_details]
+merchant_secret="Trustly's public key"
