@@ -728,26 +728,6 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
                     initialization_token: mifinity.initialization_token,
                 })
             }
-            Some(payments_grpc::redirect_form::FormType::Nmi(nmi)) => {
-                let currency = common_enums::Currency::from_str(&nmi.currency)
-                    .map_err(|_| UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                        format!("Invalid currency: {}", nmi.currency)
-                    ))?;
-
-                let public_key = nmi.public_key
-                    .map(|s| hyperswitch_masking::Secret::new(s.data))
-                    .ok_or(UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                        "Missing public_key in NmiData".to_string()
-                    ))?;
-                Ok(Self::Nmi {
-                    amount: nmi.amount,
-                    currency,
-                    public_key,
-                    customer_vault_id: nmi.customer_vault_id,
-                    order_id: nmi.order_id,
-                    continue_redirection_url: nmi.continue_redirection_url,
-                })
-            }
             None => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "Missing form type".to_string(),
