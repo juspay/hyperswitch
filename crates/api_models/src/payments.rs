@@ -11682,21 +11682,11 @@ pub struct ScheduledExpirationTime {
 pub enum PixAutomaticoAdditionalDetails {
     /// Pix Automatico Push notification flow
     PixAutomaticoPush(PixAutomaticoPushDetails),
-    /// Pix Automatico QR based code flow
-    PixAutomaticoQr(PixAutomaticoQrDetails),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PixAutomaticoPushDetails {
     /// Time in seconds until which the push notification is valid
-    #[schema(value_type = u32, example = 3600)]
-    pub time: u32,
-}
-
-// Double check with Santander team if needed in J2 flow at all
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct PixAutomaticoQrDetails {
-    /// Time in seconds until which the QR code is valid
     #[schema(value_type = u32, example = 3600)]
     pub time: u32,
 }

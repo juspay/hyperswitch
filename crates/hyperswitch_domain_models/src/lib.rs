@@ -236,9 +236,6 @@ impl ApiModelToDieselModelConvertor<api_models::payments::PixAutomaticoAdditiona
                     time: v.time,
                 })
             }
-            api_models::payments::PixAutomaticoAdditionalDetails::PixAutomaticoQr(v) => {
-                Self::PixAutomaticoQr(diesel_models::types::PixAutomaticoQrDetails { time: v.time })
-            }
         }
     }
 
@@ -247,11 +244,6 @@ impl ApiModelToDieselModelConvertor<api_models::payments::PixAutomaticoAdditiona
             Self::PixAutomaticoPush(v) => {
                 api_models::payments::PixAutomaticoAdditionalDetails::PixAutomaticoPush(
                     api_models::payments::PixAutomaticoPushDetails { time: v.time },
-                )
-            }
-            Self::PixAutomaticoQr(v) => {
-                api_models::payments::PixAutomaticoAdditionalDetails::PixAutomaticoQr(
-                    api_models::payments::PixAutomaticoQrDetails { time: v.time },
                 )
             }
         }
