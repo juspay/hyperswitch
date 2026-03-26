@@ -189,11 +189,6 @@ impl PaymentMethod {
     }
 
     #[cfg(feature = "v2")]
-    pub fn is_pm_volatile(&self) -> bool {
-        todo!()
-    }
-
-    #[cfg(feature = "v2")]
     pub fn get_payment_method_type(&self) -> Option<storage_enums::PaymentMethod> {
         self.payment_method_type
     }

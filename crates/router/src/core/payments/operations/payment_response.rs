@@ -86,8 +86,7 @@ where
     ) {
         let is_volatile = payment_data
             .get_payment_method_info()
-            .map(|pm| pm.is_pm_volatile())
-            .unwrap_or(false);
+            .map(|pm| pm.is_pm_volatile());
 
         let payment_method_id = payment_data
             .payment_method_info
@@ -95,7 +94,7 @@ where
             .map(|pm_info| pm_info.get_id().clone());
 
         match (is_volatile, payment_method_id) {
-            (false, Some(pm_id)) => {
+            (Some(false), Some(pm_id)) => {
                 let should_update = resp.status.should_update_payment_method();
                 logger::info!(
                     "Payment method is card; is eligible for modular update: {}",
