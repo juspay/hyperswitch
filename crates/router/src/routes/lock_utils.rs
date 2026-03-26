@@ -52,6 +52,7 @@ pub enum ApiIdentifier {
     ThreeDsDecisionRule,
     GenericTokenization,
     RecoveryRecovery,
+    Superposition,
     CardIssuers,
 }
 
@@ -385,6 +386,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::NetworkTokenEligibilityCheck => Self::GenericTokenization,
 
             Flow::RecoveryDataBackfill | Flow::RevenueRecoveryRedis => Self::RecoveryRecovery,
+            Flow::GetSuperpositionSdkConfig => Self::Superposition,
             Flow::MerchantConnectorWebhookRegister | Flow::MerchantConnectorWebhookList => {
                 Self::MerchantConnectorWebhookManagement
             }
