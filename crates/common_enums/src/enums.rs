@@ -11075,7 +11075,9 @@ pub enum RoutingRegion {
     strum::Display,
     strum::EnumString,
     ToSchema,
+    SmithyModel,
 )]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum BoletoDocumentKind {

@@ -21,15 +21,15 @@ use com.hyperswitch.smithy.types#MandateResponse
 use com.hyperswitch.smithy.types#MandateListConstraints
 
 use aws.protocols#restJson1
+use smithy.api#httpApiKeyAuth
 
 /// The Hyperswitch API.
-@restJson1
-@aws.api#service(
-    sdkId: "hyperswitch",
-    arnNamespace: "hyperswitch",
-    cloudFormationName: "Hyperswitch",
-    endpointPrefix: "api"
+@title("Hyperswitch API")
+@externalDocumentation(
+    "API Docs": "https://docs.hyperswitch.io/api-reference"
 )
+@restJson1
+@httpApiKeyAuth(name: "api-key", in: "header")
 service Hyperswitch {
     version: "2024-07-31",
     operations: [PaymentsCreate, PaymentsConfirm, PaymentsUpdate, PaymentsRetrieve, PaymentsCapture, PaymentsCancel, RefundsCreate, RefundsRetrieve, RefundsUpdate, RefundsList, CustomersCreate, CustomersRetrieve, CustomersUpdate, CustomersDelete, CustomersList, MandatesRevoke, MandatesRetrieve, MandatesList]
@@ -99,6 +99,7 @@ structure PaymentsRetrieveRequest {
 
 @documentation("Retrieve a payment using the payment_id.")
 @http(method: "GET", uri: "/payments/{payment_id}")
+@readonly
 operation PaymentsRetrieve {
     input: PaymentsRetrieveRequest,
     output: PaymentsResponse,
@@ -168,6 +169,7 @@ structure RefundsRetrieveRequest {
 
 @documentation("Retrieve a refund using the refund_id.")
 @http(method: "GET", uri: "/refunds/{id}")
+@readonly
 operation RefundsRetrieve {
     input: RefundsRetrieveRequest,
     output: RefundResponse,
@@ -233,6 +235,7 @@ structure CustomersRetrieveRequest {
 
 @documentation("Retrieve a customer using the customer_id.")
 @http(method: "GET", uri: "/customers/{customer_id}")
+@readonly
 operation CustomersRetrieve {
     input: CustomersRetrieveRequest,
     output: CustomerResponse,
@@ -268,6 +271,7 @@ structure CustomersDeleteRequest {
 
 @documentation("Delete a customer using the customer_id.")
 @http(method: "DELETE", uri: "/customers/{customer_id}")
+@idempotent
 operation CustomersDelete {
     input: CustomersDeleteRequest,
     output: CustomerDeleteResponse,
@@ -282,6 +286,7 @@ structure CustomersListRequestInput with [CustomerListRequest] {
 
 @documentation("Retrieve a list of customers.")
 @http(method: "GET", uri: "/customers/list")
+@readonly
 operation CustomersList {
     input: CustomersListRequestInput,
     output:= {
@@ -315,6 +320,7 @@ structure MandatesRetrieveRequest {
 
 @documentation("Retrieve a mandate using the mandate_id.")
 @http(method: "GET", uri: "/mandates/{id}")
+@readonly
 operation MandatesRetrieve {
     input: MandatesRetrieveRequest,
     output: MandateResponse,
@@ -329,6 +335,7 @@ structure MandatesListRequestInput with [MandateListConstraints] {
 
 @documentation("Retrieve a list of mandates.")
 @http(method: "GET", uri: "/mandates/list")
+@readonly
 operation MandatesList {
     input: MandatesListRequestInput,
     output:= {

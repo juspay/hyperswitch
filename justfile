@@ -240,3 +240,27 @@ resurrect database_name=db_name:
 
 ci_hack:
     scripts/ci-checks.sh
+
+# ===========================================
+# Smithy SDK Generation Recipes
+# ===========================================
+
+# Generate Smithy IDL from Rust
+smithy-idl:
+    cargo run --package smithy-generator
+
+# Validate Smithy models (includes dependencies from smithy-build.json)
+smithy-validate:
+    cd smithy && smithy validate --config smithy-build.json models/
+
+# Build all SDKs
+smithy-build:
+    cd smithy && smithy build
+
+# Generate TypeScript SDK only
+smithy-ts:
+    cd smithy && smithy build --projection typescript
+
+# Generate Python SDK only
+smithy-py:
+    cd smithy && smithy build --projection python

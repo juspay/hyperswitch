@@ -8384,7 +8384,10 @@ pub struct PaymentsStatusRequest {
 
 /// Complete error details for V1 PaymentsResponse containing unified, issuer, and connector-level error information.
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, ToSchema)]
+#[derive(
+    Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PaymentErrorDetails {
     /// Unified error details (standardized across connectors)
     pub unified_details: Option<ApiUnifiedErrorDetails>,
@@ -11530,7 +11533,10 @@ impl FeatureMetadata {
     }
 }
 
-#[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize, ToSchema, PartialEq)]
+#[derive(
+    Debug, Default, Clone, serde::Deserialize, serde::Serialize, ToSchema, PartialEq, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct BoletoAdditionalDetails {
     /// Due Date for the Boleto
     #[schema(value_type = Option<String>, example="2026-12-31")]
@@ -11576,7 +11582,10 @@ impl BoletoAdditionalDetails {
     }
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum PixAdditionalDetails {
     #[serde(rename = "immediate")]
     Immediate(ImmediateExpirationTime),

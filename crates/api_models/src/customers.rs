@@ -487,7 +487,8 @@ pub struct CustomerListResponse {
     pub total_count: usize,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, ToSchema, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema, PartialEq, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct CustomerDocumentDetails {
     /// The customer's document type
     #[schema(value_type = DocumentKind, example = "cpf")]

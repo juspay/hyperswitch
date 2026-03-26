@@ -1,4 +1,5 @@
 use common_enums::MerchantAccountType;
+use smithy::SmithyModel;
 use utoipa::ToSchema;
 
 /// Represents the initiator context in platform-connected setups
@@ -15,7 +16,9 @@ use utoipa::ToSchema;
     strum::Display,
     strum::EnumString,
     ToSchema,
+    SmithyModel,
 )]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum Initiator {

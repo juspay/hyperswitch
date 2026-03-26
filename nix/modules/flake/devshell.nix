@@ -1,9 +1,10 @@
 {
   debug = true;
-  perSystem = { config, pkgs, self', ... }:
+  perSystem = { config, pkgs, self', inputs', ... }:
     let
       rustMsrv = config.rust-project.cargoToml.workspace.package.rust-version;
       rustDevVersion = config.rust-project.toolchain.version;
+      smithy-cli = inputs'.superposition.packages.smithy-cli;
     in
     {
       devShells = {
@@ -20,6 +21,13 @@
               pkg-config
               postgresql # for libpq
               protobuf
+              smithy-cli
+              nodejs
+              yarn
+              jdk17
+              gradle
+              python312
+              uv
             ];
           };
         dev = pkgs.mkShell {
@@ -31,6 +39,8 @@
             nixd
             rust-bin.stable.${rustDevVersion}.default
             swagger-cli
+            nodejs
+            yarn
           ];
           shellHook = ''
             echo 1>&2 "Ready to work on hyperswitch!"
