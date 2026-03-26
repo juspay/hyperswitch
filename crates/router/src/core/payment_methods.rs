@@ -75,7 +75,7 @@ use crate::{
     routes::{self, payment_methods as pm_routes},
     services::encryption,
     types::{
-        api::PaymentMethodCreateExt,
+        api::{PaymentMethodCreateExt, PaymentMethodSessionExt},
         domain::types as domain_types,
         storage::{ephemeral_key, PaymentMethodListContext},
         transformers::{ForeignFrom, ForeignTryFrom},
@@ -5020,7 +5020,6 @@ pub async fn payment_methods_session_confirm(
     request: payment_methods::PaymentMethodSessionConfirmRequest,
 ) -> RouterResponse<payment_methods::PaymentMethodSessionResponse> {
     let db: &dyn StorageInterface = state.store.as_ref();
-    request.validate()?;
 
     // Validate if the session still exists
     let payment_method_session = db
@@ -5033,6 +5032,8 @@ pub async fn payment_methods_session_confirm(
             message: "payment methods session does not exist or has expired".to_string(),
         })
         .attach_printable("Failed to retrieve payment methods session from db")?;
+
+    request.validate(&payment_method_session)?;
 
     let payment_method_session_billing = payment_method_session
         .billing
@@ -5118,14 +5119,6 @@ pub async fn payment_methods_session_confirm(
             tokenization_type: common_enums::TokenizationType::MultiUse,
             ..
         }) => {
-            request
-                .customer_acceptance
-                .as_ref()
-                .get_required_value("customer_acceptance")
-                .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "customer_acceptance",
-                })?;
-
             let zero_auth_request = construct_zero_auth_payments_request(
                 &request,
                 &payment_method_session,
@@ -5147,14 +5140,6 @@ pub async fn payment_methods_session_confirm(
             tokenization_type: common_enums::TokenizationType::SingleUse,
             ..
         }) => {
-            request
-                .customer_acceptance
-                .as_ref()
-                .get_required_value("customer_acceptance")
-                .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "customer_acceptance",
-                })?;
-
             Box::pin(create_single_use_tokenization_flow(
                 state.clone(),
                 req_state.clone(),
