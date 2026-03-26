@@ -17,36 +17,40 @@ describe("Platform Payment Flows", () => {
 
   context("Platform Acts On Behalf Of Connected Merchants", () => {
     it("platform-creates-payment-for-cm1-using-header", () => {
-      const paymentRequestBody = {
-        ...fixtures.createConfirmPaymentBody,
-        profile_id: globalState.get("profileIdCm1"),
-        customer_id: globalState.get("customerIdCm1Created"),
-      };
+      globalState.set("customerId", globalState.get("customerIdCm1Created"));
+      globalState.set("profileId", globalState.get("profileIdCm1"));
+      globalState.set("merchantConnectorId", globalState.get("connectorIdCm1"));
 
-      cy.createPaymentWithHeaderCall(
-        paymentRequestBody,
-        globalState.get("apiKey"),
-        globalState.get("connectedMerchantId1"),
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSAutoCapture"];
+
+      cy.createConfirmPaymentTest(
+        fixtures.createConfirmPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
         globalState,
-        200,
-        "platformPaymentIdCm1"
+        globalState.get("connectedMerchantId1")
       );
     });
 
     it("platform-creates-payment-for-cm2-using-header", () => {
-      const paymentRequestBody = {
-        ...fixtures.createConfirmPaymentBody,
-        profile_id: globalState.get("profileIdCm2"),
-        customer_id: globalState.get("customerIdCm1Created"),
-      };
+      globalState.set("customerId", globalState.get("customerIdCm1Created"));
+      globalState.set("profileId", globalState.get("profileIdCm2"));
+      globalState.set("merchantConnectorId", globalState.get("connectorIdCm2"));
 
-      cy.createPaymentWithHeaderCall(
-        paymentRequestBody,
-        globalState.get("apiKey"),
-        globalState.get("connectedMerchantId2"),
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSAutoCapture"];
+
+      cy.createConfirmPaymentTest(
+        fixtures.createConfirmPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
         globalState,
-        200,
-        "platformPaymentIdCm2"
+        globalState.get("connectedMerchantId2")
       );
     });
   });
