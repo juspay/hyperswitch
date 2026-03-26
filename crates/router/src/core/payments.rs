@@ -2592,7 +2592,7 @@ pub async fn payments_retrieve_core(
             merchant_id: None,
         };
 
-        payments_core::<
+        Box::pin(payments_core::<
             api::PostCaptureVoidSync,
             api_models::payments::PaymentsResponse,
             _,
@@ -2611,10 +2611,10 @@ pub async fn payments_retrieve_core(
             None,
             None,
             header_payload,
-        )
+        ))
         .await
     } else {
-        payments_core::<
+        Box::pin(payments_core::<
             api::PSync,
             api_models::payments::PaymentsResponse,
             _,
@@ -2633,7 +2633,7 @@ pub async fn payments_retrieve_core(
             None,
             None,
             header_payload,
-        )
+        ))
         .await
     }
 }
