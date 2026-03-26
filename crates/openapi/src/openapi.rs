@@ -541,7 +541,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::SessionTokenInfo,
         api_models::payments::PixAdditionalDetails,
         api_models::payments::PixAutomaticoPushDetails,
-        api_models::payments::PixAutomaticoQrDetails,
         api_models::payments::PixAutomaticoAdditionalDetails,
         api_models::payments::ImmediateExpirationTime,
         api_models::payments::ScheduledExpirationTime,
