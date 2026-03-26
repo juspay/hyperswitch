@@ -72,8 +72,8 @@ pub enum UserUpdate {
     },
     TotpUpdate {
         totp_status: Option<TotpStatus>,
-        totp_secret: Option<Encryption>,
-        totp_recovery_codes: Option<Vec<Secret<String>>>,
+        totp_secret: Option<Option<Encryption>>,
+        totp_recovery_codes: Option<Option<Vec<Secret<String>>>>,
     },
     PasswordUpdate {
         password: Secret<String>,
@@ -129,8 +129,8 @@ impl From<UserUpdate> for UserUpdateInternal {
                 is_verified: None,
                 last_modified_at,
                 totp_status,
-                totp_secret: Some(totp_secret),
-                totp_recovery_codes: Some(totp_recovery_codes),
+                totp_secret,
+                totp_recovery_codes,
                 last_password_modified_at: None,
                 lineage_context: None,
                 is_active: None,

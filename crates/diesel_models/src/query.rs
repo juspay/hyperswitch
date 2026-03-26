@@ -3,6 +3,7 @@ pub mod api_keys;
 pub mod blocklist_lookup;
 pub mod business_profile;
 mod capture;
+pub mod card_issuer;
 pub mod cards_info;
 pub mod configs;
 

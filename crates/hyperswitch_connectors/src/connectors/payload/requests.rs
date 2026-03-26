@@ -81,6 +81,8 @@ pub struct PayloadMandateRequestData {
     // For manual capture, set status to "authorized", otherwise omit
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<responses::PayloadPaymentStatus>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub processing_id: Option<Secret<String>>,
 }
 
 #[derive(Default, Clone, Debug, Serialize, Eq, PartialEq)]
