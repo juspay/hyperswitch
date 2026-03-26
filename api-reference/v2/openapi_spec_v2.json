@@ -26736,6 +26736,17 @@
                 "$ref": "#/components/schemas/CardDetail"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "card_with_n_t"
+            ],
+            "properties": {
+              "card_with_n_t": {
+                "$ref": "#/components/schemas/RawCardWithNTDetails"
+              }
+            }
           }
         ]
       },
