@@ -746,8 +746,8 @@ pub struct SantanderPixAutomaticSolicitationResponse {
     pub id_rec: String,
     pub calendario: SantanderPixAutomaticoCalendario,
     pub destinatario: SantanderPixAutomaticoDestinatario,
-    pub status: String,
-    pub atualizacao: Vec<SantanderPixAutomaticoAtualizacao>,
+    pub status: Option<RecurrenceStatus>,
+    pub atualizacao: Option<Vec<SantanderPixAutomaticoAtualizacao>>,
     pub rec_payload: Option<SantanderPixAutomaticoRecPayload>,
 }
 
@@ -773,7 +773,7 @@ pub struct SantanderPixAutomaticoDestinatario {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderPixAutomaticoAtualizacao {
-    pub status: String,
+    pub status: Option<RecurrenceStatus>,
     pub data: String,
 }
 
@@ -807,13 +807,6 @@ pub struct SantanderPixAutomaticoDevedor {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SantanderPixAutomaticoValor {
-    pub valor_rec: Option<String>,
-    pub valor_minimo_recebedor: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct SantanderPixAutomaticoRecebedor {
     pub convenio: Option<String>,
     pub cnpj: Option<Secret<String>>,
@@ -826,15 +819,17 @@ pub struct SantanderPixAutomaticRecResponse {
     pub id_rec: String,
     pub vinculo: SantanderPixAutomaticoVinculo,
     pub calendario: SantanderPixAutomaticoCalendario,
+    pub valor: Option<SantanderPixAutomaticoValor>,
     pub recebedor: SantanderPixAutomaticoRecebedor,
     pub pagador: Option<SantanderPixAutomaticoPagador>,
-    pub status: String,
+    pub status: RecurrenceStatus,
     pub politica_retentativa: Option<String>,
     pub loc: Option<SantanderPixAutomaticoLoc>,
     pub atualizacao: Vec<SantanderPixAutomaticoAtualizacao>,
     pub encerramento: Option<SantanderPixAutomaticoEncerramento>,
     pub solicitacao: Option<Vec<SantanderPixAutomaticSolicitationResponse>>,
     pub ativacao: Option<SantanderPixAutomaticoAtivacao>,
+    #[serde(rename = "dadosQR")]
     pub dados_qr: Option<SantanderPixAutomaticQrData>,
 }
 
@@ -885,15 +880,16 @@ pub struct SantanderPixAutomaticoDadosJornada {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderPixAutomaticQrData {
-    pub jornada: Option<String>,
+    pub jornada: Option<SantanderJourneyType>,
+    #[serde(rename = "pixCopiaECola")]
     pub pix_copia_e_cola: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum SantanderPaymentTriggerResponse {
-    PixAutomaticoSolicRec(Box<SantanderPixAutomaticSolicitationResponse>),
     PixAutomaticoConsultAndActivateJourney(Box<SantanderPixAutomaticRecResponse>),
+    PixAutomaticoSolicRec(Box<SantanderPixAutomaticSolicitationResponse>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -901,4 +897,55 @@ pub struct WaitScreenData {
     pub display_from_timestamp: i128,
     pub display_to_timestamp: Option<i128>,
     pub poll_config: Option<PollConfig>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum SantanderJourneyType {
+    // Paying user accepted the recurrence through external notification to the ecosystem
+    #[serde(rename = "JORNADA_1")]
+    Jornada1,
+    // Paying user accepted the recurrence by reading the recurrence QR Code
+    #[serde(rename = "JORNADA_2")]
+    Jornada2,
+    // Paying user initiated the recurrence by reading a composite QR Code + paying an immediate charge
+    #[serde(rename = "JORNADA_3")]
+    Jornada3,
+    // Paying user initiated the recurrence by reading a composite QR Code + paying an scheduled charge
+    #[serde(rename = "JORNADA_4")]
+    Jornada4,
+    // Initial value after creation and before recurrence activation
+    #[serde(rename = "AGUARDANDO_DEFINICAO")]
+    AguardandoDefinicao,
+}
+
+/// Status of the recurring payment mandate
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum RecurrenceStatus {
+    /// Created (awaiting approval)
+    Criada,
+    /// Approved (active)
+    Aprovada,
+    /// Rejected
+    Rejeitada,
+    /// Expired
+    Expirada,
+    /// Cancelled
+    Cancelada,
+    /// Received
+    Recebida,
+    // Sent
+    Enviada,
+    // Accepted
+    Aceita,
+    /// Unknown status
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoValor {
+    pub valor_rec: Option<StringMajorUnit>,
+    pub valor_minimo_recebedor: Option<StringMajorUnit>,
 }

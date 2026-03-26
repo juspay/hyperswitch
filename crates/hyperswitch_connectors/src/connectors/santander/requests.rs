@@ -123,7 +123,8 @@ pub struct SantanderDebtor {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cpf: Option<Secret<String>>,
     // Name
-    pub nome: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nome: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     // Street
     pub logradouro: Option<Secret<String>>,

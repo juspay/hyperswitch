@@ -201,7 +201,7 @@ impl
                         ResponseId::ConnectorTransactionId(
                             item.data.connector_request_reference_id.clone(),
                         ),
-                        Some(response.id_solic_rec.clone()),
+                        Some(response.id_rec.clone()),
                         Some(MandateReference {
                             connector_mandate_id: Some(response.id_rec.clone()),
                             payment_method_id: None,
@@ -214,12 +214,21 @@ impl
                 SantanderPaymentTriggerResponse::PixAutomaticoConsultAndActivateJourney(
                     response,
                 ) => {
+                    let journey = response
+                        .dados_qr
+                        .as_ref()
+                        .map(|qr_data| qr_data.jornada.clone())
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "response.dadosQR.jornada",
+                        })?;
+                    let expiry_type = journey.and_then(|j| Option::<ExpiryType>::from(j));
                     let connector_metadata = match response
                         .dados_qr
-                        .and_then(|dados_qr| dados_qr.pix_copia_e_cola)
+                        .as_ref()
+                        .and_then(|dados_qr| dados_qr.pix_copia_e_cola.clone())
                     {
                         Some(pix_copia_e_cola) => {
-                            convert_pix_data_to_value(pix_copia_e_cola, None)?
+                            convert_pix_data_to_value(pix_copia_e_cola, expiry_type)?
                         }
                         None => None,
                     };
@@ -228,7 +237,7 @@ impl
                         ResponseId::ConnectorTransactionId(
                             item.data.connector_request_reference_id.clone(),
                         ),
-                        None,
+                        Some(response.id_rec.clone()),
                         Some(MandateReference {
                             connector_mandate_id: Some(response.id_rec.clone()),
                             payment_method_id: None,

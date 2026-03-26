@@ -618,12 +618,27 @@ impl ConnectorIntegration<PaymentTrigger, PaymentTriggerData, PaymentsResponseDa
             Some(enums::PaymentMethodType::PixAutomaticoPush) => {
                 Ok(format!("{}api/v1/solicrec", self.base_url(connectors)))
             }
-            Some(enums::PaymentMethodType::PixAutomaticoQr) => Ok(format!(
-                "{}api/v1/rec/{}?txid={}",
-                self.base_url(connectors),
-                String::from("12"), // hardcoded as of now, change after SetupMandate flow is implemented
-                req.connector_request_reference_id
-            )),
+            Some(enums::PaymentMethodType::PixAutomaticoQr) => {
+                let mandate_id = req
+                    .request
+                    .get_connector_mandate_id()
+                    .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
+
+                if req.request.amount.unwrap_or(0) > 0 {
+                    Ok(format!(
+                        "{}api/v1/rec/{}?txid={}",
+                        self.base_url(connectors),
+                        mandate_id,
+                        req.connector_request_reference_id
+                    ))
+                } else {
+                    Ok(format!(
+                        "{}api/v1/rec/{}",
+                        self.base_url(connectors),
+                        mandate_id
+                    ))
+                }
+            }
             _ => Err(errors::ConnectorError::NotSupported {
                 message: req.payment_method.to_string(),
                 connector: "Santander",
