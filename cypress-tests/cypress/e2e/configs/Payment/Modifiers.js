@@ -23,6 +23,7 @@ function normalize(input) {
     stax: "Stax",
     wellsfargo: "Wellsfargo",
     nmi: "Nmi",
+    stripeconnect: "stripe",
     // Add more known exceptions here
   };
 

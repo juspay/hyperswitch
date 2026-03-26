@@ -756,6 +756,7 @@ where
         &req,
         platform.get_processor(),
         &business_profile,
+        &feature_config,
         &mut payment_data,
         eligible_connectors,
         mandate_type,
@@ -4890,7 +4891,14 @@ where
     routing_decision.map(|decision| decision.apply_routing_decision(payment_data));
 
     // Validating the blocklist guard and generate the fingerprint
-    blocklist_guard(state, platform.get_processor(), operation, payment_data).await?;
+    blocklist_guard(
+        state,
+        platform.get_processor(),
+        operation,
+        payment_data,
+        business_profile,
+    )
+    .await?;
 
     let merchant_recipient_data = payment_data
         .get_merchant_recipient_data(
@@ -6696,6 +6704,7 @@ async fn blocklist_guard<F, ApiRequest, D>(
     processor: &domain::Processor,
     operation: &BoxedOperation<'_, F, ApiRequest, D>,
     payment_data: &mut D,
+    business_profile: &domain::Profile,
 ) -> CustomResult<bool, errors::ApiErrorResponse>
 where
     F: Send + Clone + Sync,
@@ -6723,7 +6732,7 @@ where
     if blocklist_guard_enabled {
         Ok(operation
             .to_domain()?
-            .guard_payment_against_blocklist(state, processor, payment_data)
+            .guard_payment_against_blocklist(state, processor, payment_data, business_profile)
             .await?)
     } else {
         Ok(false)
@@ -8036,10 +8045,15 @@ where
         .unwrap_or(false);
 
     let payment_data_and_tokenization_action = match connector {
-        Some(_) if is_mandate => (
-            payment_data.to_owned(),
-            TokenizationAction::SkipConnectorTokenization,
-        ),
+        Some(_) if is_mandate => {
+            if feature_config.is_payment_method_modular_allowed {
+                payment_data.set_payment_method_data(None);
+            }
+            (
+                payment_data.to_owned(),
+                TokenizationAction::SkipConnectorTokenization,
+            )
+        }
         Some(connector) if is_operation_confirm(&operation) => {
             let payment_method = payment_data
                 .get_payment_attempt()
@@ -8089,8 +8103,12 @@ where
                         payment_data.set_payment_method_data(payment_method_data);
                         payment_data.set_payment_method_id_in_attempt(pm_id);
                     } else {
-                        //Merchant enabled for PM Modular service
-                        logger::debug!("Organization is eligible for PM Modular service, skipping make_pm_data call since raw payment method data fetch is done");
+                        logger::debug!("Organization is eligible for PM Modular service, calling make_modular_pm_data");
+                        let (payment_method_data, pm_id) =
+                            helpers::make_modular_pm_data(payment_data)?;
+                        payment_data.set_payment_method_data(payment_method_data);
+                        payment_data.set_payment_method_id_in_attempt(pm_id);
+
                         let payment_token = payment_data
                             .get_payment_method_data()
                             .async_map(|payment_method_data| async {
@@ -8112,11 +8130,6 @@ where
                             .transpose()?
                             .flatten();
                         payment_token.map(|data| payment_data.set_token(data));
-                        let pm_id = payment_data
-                            .get_payment_method_info()
-                            .map(|pm| pm.payment_method_id.clone());
-                        //Payment method data is already set in get trackers flow if modular pm service is enabled
-                        payment_data.set_payment_method_id_in_attempt(pm_id);
                     }
 
                     TokenizationAction::SkipConnectorTokenization
@@ -8139,8 +8152,12 @@ where
                         payment_data.set_payment_method_data(payment_method_data);
                         payment_data.set_payment_method_id_in_attempt(pm_id);
                     } else {
-                        //Merchant enabled for PM Modular service
-                        logger::debug!("Organization is eligible for PM Modular service, skipping make_pm_data call since raw payment method data fetch is done");
+                        logger::debug!("Organization is eligible for PM Modular service, calling make_modular_pm_data");
+                        let (payment_method_data, pm_id) =
+                            helpers::make_modular_pm_data(payment_data)?;
+                        payment_data.set_payment_method_data(payment_method_data);
+                        payment_data.set_payment_method_id_in_attempt(pm_id);
+
                         let payment_token = payment_data
                             .get_payment_method_data()
                             .async_map(|payment_method_data| async {
@@ -8162,11 +8179,6 @@ where
                             .transpose()?
                             .flatten();
                         payment_token.map(|data| payment_data.set_token(data));
-                        let pm_id = payment_data
-                            .get_payment_method_info()
-                            .map(|pm| pm.payment_method_id.clone());
-                        //Payment method data is already set in get trackers flow if modular pm service is enabled
-                        payment_data.set_payment_method_id_in_attempt(pm_id);
                     }
                     TokenizationAction::TokenizeInConnector
                 }
@@ -9304,6 +9316,7 @@ pub async fn choose_connector<F, Req, D>(
     req: &Req,
     processor: &domain::Processor,
     business_profile: &domain::Profile,
+    feature_config: &core_utils::FeatureConfig,
     payment_data: &mut D,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     mandate_type: Option<api::MandateTransactionType>,
@@ -9372,6 +9385,7 @@ where
                             state,
                             processor,
                             business_profile,
+                            feature_config,
                             payment_data,
                             Some(straight_through),
                             eligible_connectors,
@@ -9387,6 +9401,7 @@ where
                             state,
                             processor,
                             business_profile,
+                            feature_config,
                             payment_data,
                             None,
                             eligible_connectors,
@@ -9585,6 +9600,7 @@ pub async fn perform_routing_for_connector_selection<F, D>(
     state: &SessionState,
     processor: &domain::Processor,
     business_profile: &domain::Profile,
+    feature_config: &core_utils::FeatureConfig,
     payment_data: &mut D,
     request_straight_through: Option<serde_json::Value>,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
@@ -9637,6 +9653,7 @@ where
         mandate_type,
         fallback_config,
         backend_input,
+        feature_config.is_payment_method_modular_allowed,
     )
     .await?;
 
@@ -9829,6 +9846,7 @@ pub async fn decide_connector<F, D>(
     mandate_type: Option<api::MandateTransactionType>,
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
     backend_input: dsl_inputs::BackendInput,
+    is_payment_method_modular_allowed: bool,
 ) -> RouterResult<ConnectorCallType>
 where
     F: Send + Clone,
@@ -10014,6 +10032,7 @@ where
         routing_data,
         connector_data,
         mandate_type,
+        is_payment_method_modular_allowed,
         business_profile.is_connector_agnostic_mit_enabled,
         business_profile.is_network_tokenization_enabled,
     )
@@ -10028,36 +10047,42 @@ pub async fn plan_payment_execution_after_routing<F: Clone, D>(
     routing_data: &mut storage::RoutingData,
     connectors: Vec<api::ConnectorRoutingData>,
     mandate_type: Option<api::MandateTransactionType>,
+    is_payment_method_modular_allowed: bool,
     is_connector_agnostic_mit_enabled: Option<bool>,
     is_network_tokenization_enabled: bool,
 ) -> RouterResult<ConnectorCallType>
 where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
+    let has_token_data = payment_data.get_token_data().is_some();
+    let is_token_data_present = has_token_data || is_payment_method_modular_allowed;
+
     match (
         payment_data.get_payment_intent().setup_future_usage,
-        payment_data.get_token_data().as_ref(),
+        is_token_data_present,
         payment_data.get_recurring_details().as_ref(),
         payment_data.get_payment_intent().off_session,
         mandate_type,
     ) {
         (
             Some(storage_enums::FutureUsage::OffSession),
-            Some(_),
+            true,
             None,
             None,
             Some(api::MandateTransactionType::RecurringMandateTransaction),
         )
         | (
             None,
-            None,
+            _, // `false` for legacy and `true` for non modular merchants
             Some(RecurringDetails::PaymentMethodId(_)),
             Some(true),
             Some(api::MandateTransactionType::RecurringMandateTransaction),
         )
-        | (None, Some(_), None, Some(true), _) => {
+        | (None, true, None, Some(true), _) => {
+            if !has_token_data {
+                logger::debug!("euclid_routing: modular fallback token-MIT path selected");
+            }
             logger::debug!("euclid_routing: performing routing for token-based MIT flow");
-
             let payment_method_info = payment_data
                 .get_payment_method_info()
                 .get_required_value("payment_method_info")?
@@ -10124,7 +10149,7 @@ where
         }
         (
             None,
-            None,
+            _, // `false` for legacy and `true` for non modular merchants
             Some(RecurringDetails::ProcessorPaymentToken(_token)),
             Some(true),
             Some(api::MandateTransactionType::RecurringMandateTransaction),
@@ -10813,7 +10838,7 @@ pub async fn static_dynamic_routing_v1_for_payments(
     backend_input: euclid::backend::BackendInput,
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
 ) -> RouterResult<routing::RoutingConnectorOutcomeWithApproachAndEligibility> {
-    let (static_connectors, static_approach) = routing::perform_static_routing_with_de(
+    let (static_connectors, static_approach) = routing::perform_static_routing_locally(
         state,
         business_profile,
         &payment_dsl_input,
@@ -10822,18 +10847,16 @@ pub async fn static_dynamic_routing_v1_for_payments(
     )
     .await?;
 
-    #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-    let (connectors, routing_approach) = routing::perform_dynamic_routing_if_enabled(
+    let (connectors, routing_approach) = routing::perform_hybrid_routing_if_enabled(
         state,
         business_profile,
         &payment_dsl_input,
+        &backend_input,
+        &fallback_config,
         &static_connectors,
         static_approach,
     )
     .await;
-
-    #[cfg(not(all(feature = "v1", feature = "dynamic_routing")))]
-    let (connectors, routing_approach) = (static_connectors, static_approach);
 
     Ok(routing::RoutingConnectorOutcomeWithApproachAndEligibility {
         connectors,
