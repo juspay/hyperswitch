@@ -5273,7 +5273,6 @@ where
     }
 }
 
-#[cfg(feature = "v1")]
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationData, A> for DashboardNoPermissionAuth
 where
@@ -5336,10 +5335,23 @@ where
         )
         .await?;
 
-        let auth = AuthenticationData {
-            platform,
-            profile: Some(profile),
-            client_secret: None,
+        let auth = {
+            #[cfg(feature = "v1")]
+            {
+                AuthenticationData {
+                    platform,
+                    profile: Some(profile),
+                    client_secret: None,
+                }
+            }
+            #[cfg(feature = "v2")]
+            {
+                AuthenticationData {
+                    platform,
+                    profile,
+                    client_secret: None,
+                }
+            }
         };
         Ok((
             auth,
