@@ -4658,14 +4658,6 @@ where
             .ok();
     }
 
-    let (router_data, should_continue_further) = if should_continue_further {
-        router_data
-            .payment_trigger_step(state, &connector, &context)
-            .await?
-    } else {
-        (router_data, false)
-    };
-
     let connector_request = if should_continue_further {
         connector_request
     } else {
@@ -4755,14 +4747,20 @@ where
         Ok(router_data)
     }?;
 
+    let should_continue_payment = router_data.response.is_ok();
+
     // Call payment trigger step after the authorize/setup mandate flow completes
-    let (router_data, _should_continue_trigger) = router_data
-        .payment_trigger_step(
-            state,
-            connector,
-            &call_connector_service_response.gateway_context,
-        )
-        .await?;
+    let (router_data, _should_continue_trigger) = if should_continue_payment {
+        router_data
+            .payment_trigger_step(
+                state,
+                connector,
+                &call_connector_service_response.gateway_context,
+            )
+            .await?
+    } else {
+        (router_data, false)
+    };
 
     Ok((router_data, merchant_connector_account))
 }
@@ -5233,14 +5231,20 @@ where
         Ok(router_data)
     }?;
 
+    let should_continue_payment = router_data.response.is_ok();
+
     // Call payment trigger step after the authorize/setup mandate flow completes
-    let (router_data, _should_continue_trigger) = router_data
-        .payment_trigger_step(
-            state,
-            connector,
-            &call_connector_service_response.gateway_context,
-        )
-        .await?;
+    let (router_data, _should_continue_trigger) = if should_continue_payment {
+        router_data
+            .payment_trigger_step(
+                state,
+                connector,
+                &call_connector_service_response.gateway_context,
+            )
+            .await?
+    } else {
+        (router_data, false)
+    };
 
     Ok((router_data, merchant_connector_account_type_details))
 }
