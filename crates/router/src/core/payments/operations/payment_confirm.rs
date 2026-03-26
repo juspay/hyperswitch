@@ -1546,6 +1546,9 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 })
                 .ok()
                 .flatten();
+            // Compute card_discovery and set it on payment_attempt BEFORE the 3DS rule evaluation
+            payment_data.payment_attempt.card_discovery =
+                payment_data.get_card_discovery_for_card_payment_method();
             // get three_ds_decision_rule_output using algorithm_id and payment data
             let decision = three_ds_decision_rule::get_three_ds_decision_rule_output(
                 state,
@@ -1568,6 +1571,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             card_network: additional_card_info
                                 .as_ref()
                                 .and_then(|info| info.card_network.clone()),
+                            card_discovery: payment_data.payment_attempt.card_discovery,
                         },
                     ),
                     issuer: Some(api_models::three_ds_decision_rule::IssuerData {
@@ -2122,8 +2126,15 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         state: &SessionState,
         processor: &domain::Processor,
         payment_data: &mut PaymentData<F>,
+        business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
-        blocklist_utils::validate_data_for_blocklist(state, processor, payment_data).await
+        blocklist_utils::validate_data_for_blocklist(
+            state,
+            processor,
+            payment_data,
+            business_profile,
+        )
+        .await
     }
 
     #[instrument(skip_all)]

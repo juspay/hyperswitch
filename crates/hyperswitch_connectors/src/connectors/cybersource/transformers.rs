@@ -989,13 +989,18 @@ impl
                         }
                         None => None,
                     };
+                    commerce_indicator = "recurring".to_string();
                     (
                         None,
                         None,
                         Some(CybersourceAuthorizationOptions {
-                            initiator: None,
+                            initiator: Some(CybersourcePaymentInitiator {
+                                initiator_type: Some(CybersourcePaymentInitiatorTypes::Merchant),
+                                credential_stored_on_file: None,
+                                stored_credential_used: Some(true),
+                            }),
                             merchant_initiated_transaction: Some(MerchantInitiatedTransaction {
-                                reason: None,
+                                reason: Some("7".to_string()), // The value 7 indicates Subscription
                                 original_authorized_amount,
                                 previous_transaction_id: None,
                             }),

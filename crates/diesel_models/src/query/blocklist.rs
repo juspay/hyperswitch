@@ -47,6 +47,20 @@ impl Blocklist {
         .await
     }
 
+    pub async fn get_count_by_merchant_id_data_kind(
+        conn: &PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
+        data_kind: common_enums::BlocklistDataKind,
+    ) -> StorageResult<usize> {
+        generics::generic_count::<<Self as HasTable>::Table, _>(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::data_kind.eq(data_kind.to_owned())),
+        )
+        .await
+    }
+
     pub async fn list_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,

@@ -1670,7 +1670,7 @@ impl<F> TryFrom<&TrustpayRouterData<&RefundsRouterData<F>>> for TrustpayRefundRe
     fn try_from(item: &TrustpayRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         let amount = item.amount.to_owned();
         match item.router_data.payment_method {
-            enums::PaymentMethod::BankRedirect => {
+            enums::PaymentMethod::BankRedirect | enums::PaymentMethod::BankTransfer => {
                 let auth = TrustpayAuthType::try_from(&item.router_data.connector_auth_type)
                     .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
                 Ok(Self::BankRedirectRefund(Box::new(

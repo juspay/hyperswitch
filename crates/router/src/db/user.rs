@@ -329,8 +329,9 @@ impl UserInterface for MockDb {
             } => storage::User {
                 last_modified_at,
                 totp_status: totp_status.unwrap_or(user.totp_status),
-                totp_secret: totp_secret.or(user.totp_secret.clone()),
-                totp_recovery_codes: totp_recovery_codes.or(user.totp_recovery_codes.clone()),
+                totp_secret: totp_secret.unwrap_or(user.totp_secret.clone()),
+                totp_recovery_codes: totp_recovery_codes
+                    .unwrap_or(user.totp_recovery_codes.clone()),
                 ..user.to_owned()
             },
 
@@ -402,9 +403,9 @@ impl UserInterface for MockDb {
             } => storage::User {
                 last_modified_at,
                 totp_status: totp_status.unwrap_or(user.totp_status),
-                totp_secret: totp_secret.or_else(|| user.totp_secret.clone()),
+                totp_secret: totp_secret.unwrap_or(user.totp_secret.clone()),
                 totp_recovery_codes: totp_recovery_codes
-                    .or_else(|| user.totp_recovery_codes.clone()),
+                    .unwrap_or(user.totp_recovery_codes.clone()),
                 ..user.to_owned()
             },
 
