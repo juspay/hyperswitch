@@ -22,7 +22,7 @@ pub trait RefundDbExt: Sized {
     #[cfg(feature = "v1")]
     async fn filter_by_constraints(
         conn: &PgPooledConn,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &refunds::RefundListConstraints,
         limit: i64,
         offset: i64,
@@ -40,21 +40,21 @@ pub trait RefundDbExt: Sized {
     #[cfg(feature = "v1")]
     async fn filter_by_meta_constraints(
         conn: &PgPooledConn,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &common_utils::types::TimeRange,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::DatabaseError>;
 
     #[cfg(feature = "v1")]
     async fn get_refunds_count(
         conn: &PgPooledConn,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &refunds::RefundListConstraints,
     ) -> CustomResult<i64, errors::DatabaseError>;
 
     #[cfg(feature = "v1")]
     async fn get_refund_status_with_count(
         conn: &PgPooledConn,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         time_range: &common_utils::types::TimeRange,
     ) -> CustomResult<Vec<(RefundStatus, i64)>, errors::DatabaseError>;
@@ -72,13 +72,19 @@ impl RefundDbExt for Refund {
     #[cfg(feature = "v1")]
     async fn filter_by_constraints(
         conn: &PgPooledConn,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &refunds::RefundListConstraints,
         limit: i64,
         offset: i64,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
         let mut filter = <Self as HasTable>::table()
-            .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
+            .filter(
+                dsl::processor_merchant_id
+                    .eq(processor_merchant_id.to_owned())
+                    .or(dsl::processor_merchant_id
+                        .is_null()
+                        .and(dsl::merchant_id.eq(processor_merchant_id.to_owned()))),
+            )
             .order(dsl::modified_at.desc())
             .into_boxed();
         let mut search_by_pay_or_ref_id = false;
@@ -260,7 +266,7 @@ impl RefundDbExt for Refund {
     #[cfg(feature = "v1")]
     async fn filter_by_meta_constraints(
         conn: &PgPooledConn,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &common_utils::types::TimeRange,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::DatabaseError> {
         let start_time = refund_list_details.start_time;
@@ -270,7 +276,13 @@ impl RefundDbExt for Refund {
             .unwrap_or_else(common_utils::date_time::now);
 
         let filter = <Self as HasTable>::table()
-            .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
+            .filter(
+                dsl::processor_merchant_id
+                    .eq(processor_merchant_id.to_owned())
+                    .or(dsl::processor_merchant_id
+                        .is_null()
+                        .and(dsl::merchant_id.eq(processor_merchant_id.to_owned()))),
+            )
             .order(dsl::modified_at.desc())
             .filter(dsl::created_at.ge(start_time))
             .filter(dsl::created_at.le(end_time));
@@ -316,12 +328,18 @@ impl RefundDbExt for Refund {
     #[cfg(feature = "v1")]
     async fn get_refunds_count(
         conn: &PgPooledConn,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         refund_list_details: &refunds::RefundListConstraints,
     ) -> CustomResult<i64, errors::DatabaseError> {
         let mut filter = <Self as HasTable>::table()
             .count()
-            .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
+            .filter(
+                dsl::processor_merchant_id
+                    .eq(processor_merchant_id.to_owned())
+                    .or(dsl::processor_merchant_id
+                        .is_null()
+                        .and(dsl::merchant_id.eq(processor_merchant_id.to_owned()))),
+            )
             .into_boxed();
 
         let mut search_by_pay_or_ref_id = false;
@@ -473,14 +491,20 @@ impl RefundDbExt for Refund {
     #[cfg(feature = "v1")]
     async fn get_refund_status_with_count(
         conn: &PgPooledConn,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         time_range: &common_utils::types::TimeRange,
     ) -> CustomResult<Vec<(RefundStatus, i64)>, errors::DatabaseError> {
         let mut query = <Self as HasTable>::table()
             .group_by(dsl::refund_status)
             .select((dsl::refund_status, diesel::dsl::count_star()))
-            .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
+            .filter(
+                dsl::processor_merchant_id
+                    .eq(processor_merchant_id.to_owned())
+                    .or(dsl::processor_merchant_id
+                        .is_null()
+                        .and(dsl::merchant_id.eq(processor_merchant_id.to_owned()))),
+            )
             .into_boxed();
 
         if let Some(profile_id) = profile_id_list {
