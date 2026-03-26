@@ -3,7 +3,7 @@ use external_services::superposition;
 
 // Re-export dimension types for convenience
 pub use super::dimension_state::{
-    DimensionsWithMerchantId, DimensionsWithMerchantIdAndConnector,
+    DimensionsWithConnector, DimensionsWithMerchantId, DimensionsWithMerchantIdAndConnector,
     DimensionsWithMerchantIdAndProfileId,
 };
 use super::{fetch_db_config_for_dimensions, DatabaseBackedConfig};
@@ -255,6 +255,33 @@ config! {
     default = scheduler::types::process_data::RevenueRecoveryPaymentProcessTrackerMapping::default(),
     object = true,
     requires = DimensionsWithMerchantId,
+    targeting_key = id_type::MerchantId
+}
+
+config! {
+    superposition_key = PT_MAPPING_PAYMENT_SYNC,
+    output = scheduler::types::process_data::ConnectorPTMapping,
+    default = scheduler::types::process_data::ConnectorPTMapping::default(),
+    object = true,
+    requires = DimensionsWithMerchantIdAndConnector,
+    targeting_key = id_type::MerchantId
+}
+
+config! {
+    superposition_key = PT_MAPPING_REFUND_SYNC,
+    output = scheduler::types::process_data::ConnectorPTMapping,
+    default = scheduler::types::process_data::ConnectorPTMapping::default(),
+    object = true,
+    requires = DimensionsWithMerchantIdAndConnector,
+    targeting_key = id_type::MerchantId
+}
+
+config! {
+    superposition_key = PT_MAPPING_DISPUTE_SYNC,
+    output = scheduler::types::process_data::ConnectorPTMapping,
+    default = scheduler::types::process_data::ConnectorPTMapping::default(),
+    object = true,
+    requires = DimensionsWithMerchantIdAndConnector,
     targeting_key = id_type::MerchantId
 }
 

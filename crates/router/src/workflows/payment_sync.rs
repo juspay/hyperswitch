@@ -131,6 +131,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
 
                 let is_last_retry = retry_sync_task(
                     db,
+                    state.superposition_service.as_deref(),
                     connector,
                     payment_data.payment_attempt.merchant_id.clone(),
                     process,
@@ -262,30 +263,18 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
 /// `frequency` and `count`: The next 5 retries should have an interval of 300 seconds between them
 pub async fn get_sync_process_schedule_time(
     db: &dyn StorageInterface,
-    connector: &str,
+    superposition_client: Option<&external_services::superposition::SuperpositionClient>,
+    connector: common_enums::connector_enums::Connector,
     merchant_id: &common_utils::id_type::MerchantId,
     retry_count: i32,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
-    let mapping: common_utils::errors::CustomResult<
-        process_data::ConnectorPTMapping,
-        errors::StorageError,
-    > = db
-        .find_config_by_key(&format!("pt_mapping_{connector}"))
-        .await
-        .map(|value| value.config)
-        .and_then(|config| {
-            config
-                .parse_struct("ConnectorPTMapping")
-                .change_context(errors::StorageError::DeserializationFailed)
-        });
-    let mapping = match mapping {
-        Ok(x) => x,
-        Err(error) => {
-            logger::info!(?error, "Redis Mapping Error");
-            process_data::ConnectorPTMapping::default()
-        }
-    };
-    let time_delta = scheduler_utils::get_schedule_time(mapping, merchant_id, retry_count);
+    let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+        .with_merchant_id(merchant_id.clone())
+        .with_connector(connector);
+    let mapping = dimensions
+        .get_pt_mapping_payment_sync(db, superposition_client, Some(merchant_id))
+        .await;
+    let time_delta = scheduler_utils::get_schedule_time(mapping, retry_count);
 
     Ok(scheduler_utils::get_time_from_delta(time_delta))
 }
@@ -295,12 +284,16 @@ pub async fn get_sync_process_schedule_time(
 /// Returns bool which indicates whether this was the last retry or not
 pub async fn retry_sync_task(
     db: &dyn StorageInterface,
+    superposition_client: Option<&external_services::superposition::SuperpositionClient>,
     connector: String,
     merchant_id: common_utils::id_type::MerchantId,
     pt: storage::ProcessTracker,
 ) -> Result<bool, sch_errors::ProcessTrackerError> {
+    let connector_enum = connector
+        .parse::<common_enums::connector_enums::Connector>()
+        .map_err(|_| sch_errors::ProcessTrackerError::UnexpectedFlow)?;
     let schedule_time =
-        get_sync_process_schedule_time(db, &connector, &merchant_id, pt.retry_count + 1).await?;
+        get_sync_process_schedule_time(db, superposition_client, connector_enum, &merchant_id, pt.retry_count + 1).await?;
 
     match schedule_time {
         Some(s_time) => {
@@ -328,8 +321,11 @@ pub async fn recovery_retry_sync_task(
     pt: storage::ProcessTracker,
 ) -> Result<bool, sch_errors::ProcessTrackerError> {
     let db = &*state.store;
+    let connector_enum = connector
+        .parse::<common_enums::connector_enums::Connector>()
+        .map_err(|_| sch_errors::ProcessTrackerError::UnexpectedFlow)?;
     let schedule_time =
-        get_sync_process_schedule_time(db, &connector, &merchant_id, pt.retry_count + 1).await?;
+        get_sync_process_schedule_time(db, state.superposition_service.as_deref(), connector_enum, &merchant_id, pt.retry_count + 1).await?;
 
     match schedule_time {
         Some(s_time) => {

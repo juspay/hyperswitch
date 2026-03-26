@@ -362,6 +362,12 @@ pub mod superposition {
     pub const PT_MAPPING_OUTGOING_WEBHOOKS: &str = "pt_mapping_outgoing_webhooks";
     /// PCR (Revenue Recovery) payments retry process tracker mapping key
     pub const PT_MAPPING_PCR_RETRIES: &str = "pt_mapping_pcr_retries";
+    /// Payment sync (psync) retry process tracker mapping key
+    pub const PT_MAPPING_PAYMENT_SYNC: &str = "pt_mapping_payment_sync";
+    /// Refund sync retry process tracker mapping key
+    pub const PT_MAPPING_REFUND_SYNC: &str = "pt_mapping_refund_sync";
+    /// Dispute sync retry process tracker mapping key
+    pub const PT_MAPPING_DISPUTE_SYNC: &str = "pt_mapping_dispute_sync";
 }
 
 #[cfg(test)]

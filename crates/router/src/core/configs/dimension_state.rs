@@ -323,6 +323,7 @@ pub type DimensionsWithOrgIdAndMerchantIdAndProfileId =
     Dimensions<HasMerchantId, HasOrgId, HasProfileId, NoConnector>;
 pub type DimensionsWithMerchantIdAndProfileId =
     Dimensions<HasMerchantId, NoOrgId, HasProfileId, NoConnector>;
+pub type DimensionsWithConnector = Dimensions<NoMerchantId, NoOrgId, NoProfileId, HasConnector>;
 pub type DimensionsWithMerchantIdAndConnector =
     Dimensions<HasMerchantId, NoOrgId, NoProfileId, HasConnector>;
 pub type DimensionsWithMerchantIdAndProfileIdAndConnector =

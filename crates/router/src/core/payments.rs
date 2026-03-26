@@ -955,9 +955,14 @@ where
                     .map_err(|e| logger::error!(routable_connector_error=?e))
                     .unwrap_or_default();
                     let schedule_time = if should_add_task_to_process_tracker {
+                        let connector_enum = connector.connector_data.connector.id()
+                            .parse::<common_enums::connector_enums::Connector>()
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Invalid connector name")?;
                         payment_sync::get_sync_process_schedule_time(
                             &*state.store,
-                            connector.connector_data.connector.id(),
+                            state.superposition_service.as_deref(),
+                            connector_enum,
                             platform.get_processor().get_account().get_id(),
                             0,
                         )
@@ -1128,9 +1133,14 @@ where
                         )?;
 
                     let schedule_time = if should_add_task_to_process_tracker {
+                        let connector_enum = connector_data.connector.id()
+                            .parse::<common_enums::connector_enums::Connector>()
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Invalid connector name")?;
                         payment_sync::get_sync_process_schedule_time(
                             &*state.store,
-                            connector_data.connector.id(),
+                            state.superposition_service.as_deref(),
+                            connector_enum,
                             platform.get_processor().get_account().get_id(),
                             0,
                         )
@@ -1562,9 +1572,14 @@ where
     let locale = header_payload.locale.clone();
 
     let schedule_time = if should_add_task_to_process_tracker {
+        let connector_enum = connector.connector.id()
+            .parse::<common_enums::connector_enums::Connector>()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Invalid connector name")?;
         payment_sync::get_sync_process_schedule_time(
             &*state.store,
-            connector.connector.id(),
+            state.superposition_service.as_deref(),
+            connector_enum,
             platform.get_processor().get_account().get_id(),
             0,
         )

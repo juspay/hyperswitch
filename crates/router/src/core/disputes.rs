@@ -863,9 +863,14 @@ pub async fn fetch_disputes_from_connector(
         .await;
 
         if payment_attempt.is_ok() {
+            let connector_enum = connector_name
+                .parse::<common_enums::connector_enums::Connector>()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Invalid connector name")?;
             let schedule_time = process_dispute::get_sync_process_schedule_time(
                 &*state.store,
-                &connector_name,
+                state.superposition_service.as_deref(),
+                connector_enum,
                 platform.get_processor().get_account().get_id(),
                 0,
             )

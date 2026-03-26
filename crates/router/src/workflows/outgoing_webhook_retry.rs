@@ -258,13 +258,6 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
 ///     "start_after": 60,
 ///     "frequency": [300],
 ///     "count": [5]
-///   },
-///   "custom_merchant_mapping": {
-///     "merchant_id1": {
-///       "start_after": 30,
-///       "frequency": [300],
-///       "count": [2]
-///     }
 ///   }
 /// }
 /// ```
@@ -274,8 +267,6 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
 ///   default.
 /// - `default_mapping.frequency` and `count`: The next 5 retries should have an interval of 300
 ///   seconds between them by default.
-/// - `custom_merchant_mapping.merchant_id1`: Merchant-specific retry configuration for merchant
-///   with merchant ID `merchant_id1`.
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub(crate) async fn get_webhook_delivery_retry_schedule_time(
@@ -292,7 +283,6 @@ pub(crate) async fn get_webhook_delivery_retry_schedule_time(
 
     let time_delta = scheduler_utils::get_outgoing_webhook_retry_schedule_time(
         mapping,
-        merchant_id,
         retry_count,
     );
 
