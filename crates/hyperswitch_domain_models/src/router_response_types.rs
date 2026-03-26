@@ -869,3 +869,8 @@ impl Default for VaultResponseData {
         }
     }
 }
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PaymentTriggerResponse {
+    pub placeholder_field: Option<String>,
+}

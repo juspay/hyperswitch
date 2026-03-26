@@ -66,7 +66,9 @@ pub use hyperswitch_domain_models::{
     payment_address::PaymentAddress,
     payments::{self as domain_payments, HeaderPayload},
     router_data::{PaymentMethodToken, RouterData},
-    router_request_types::CustomerDetails,
+    router_flow_types,
+    router_request_types::{self, CustomerDetails},
+    router_response_types,
 };
 use hyperswitch_domain_models::{
     payments::{self, payment_intent::CustomerData, ClickToPayMetaData},
@@ -4724,17 +4726,27 @@ where
             .decide_flows(
                 state,
                 connector,
-                call_connector_action,
+                call_connector_action.clone(),
                 call_connector_service_response.connector_request,
                 business_profile,
                 header_payload,
                 return_raw_connector_response,
-                call_connector_service_response.gateway_context,
+                call_connector_service_response.gateway_context.clone(),
             )
             .await
     } else {
         Ok(router_data)
     }?;
+
+    // Invoke payment trigger flow after decide_flows completes
+    let router_data = router_data
+        .payment_trigger_flow(
+            state,
+            connector,
+            call_connector_action,
+            call_connector_service_response.gateway_context,
+        )
+        .await?;
 
     Ok((router_data, merchant_connector_account))
 }
@@ -5185,17 +5197,27 @@ where
             .decide_flows(
                 state,
                 connector,
-                call_connector_action,
+                call_connector_action.clone(),
                 call_connector_service_response.connector_request,
                 business_profile,
                 header_payload,
                 return_raw_connector_response,
-                call_connector_service_response.gateway_context,
+                call_connector_service_response.gateway_context.clone(),
             )
             .await
     } else {
         Ok(router_data)
     }?;
+
+    // Invoke payment trigger flow after decide_flows completes
+    let router_data = router_data
+        .payment_trigger_flow(
+            state,
+            connector,
+            call_connector_action,
+            call_connector_service_response.gateway_context,
+        )
+        .await?;
 
     Ok((router_data, merchant_connector_account_type_details))
 }

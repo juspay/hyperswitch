@@ -16,14 +16,17 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
-        payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
+        payments::{
+            Authorize, Capture, PSync, PaymentMethodToken, PaymentTrigger, Session, SetupMandate,
+            Void,
+        },
         refunds::{Execute, RSync},
         UpdateMetadata,
     },
     router_request_types::{
-        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        PaymentsUpdateMetadataData, RefundsData, SetupMandateRequestData,
+        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentTriggerRequest,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
+        PaymentsSyncData, PaymentsUpdateMetadataData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
@@ -100,6 +103,7 @@ impl api::RefundExecute for Santander {}
 impl api::RefundSync for Santander {}
 impl api::PaymentToken for Santander {}
 impl api::PaymentUpdateMetadata for Santander {}
+impl api::PaymentsPaymentTrigger for Santander {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Santander
@@ -579,6 +583,21 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(
             errors::ConnectorError::NotImplemented("Setup Mandate flow for Santander".to_string())
+                .into(),
+        )
+    }
+}
+
+impl ConnectorIntegration<PaymentTrigger, PaymentTriggerRequest, PaymentsResponseData>
+    for Santander
+{
+    fn build_request(
+        &self,
+        _req: &RouterData<PaymentTrigger, PaymentTriggerRequest, PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("Payment Trigger flow for Santander".to_string())
                 .into(),
         )
     }
@@ -1531,6 +1550,10 @@ impl ConnectorSpecifications for Santander {
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
         Some(&*SANTANDER_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn is_payment_trigger_flow_required(&self, _current_flow: api::CurrentFlowInfo<'_>) -> bool {
+        true
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {

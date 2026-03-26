@@ -1708,6 +1708,11 @@ pub struct SetupMandateRequestData {
     pub authentication_data: Option<AuthenticationData>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct PaymentTriggerRequest {
+    pub placeholder_field: Option<String>,
+}
+
 #[derive(Debug, Clone)]
 pub struct VaultRequestData {
     pub payment_method_vaulting_data: Option<PaymentMethodCustomVaultingData>,

@@ -127,6 +127,24 @@ pub trait Feature<F, T> {
         })
     }
 
+    /// Post-processing payment trigger flow that runs after the main decide_flows completes.
+    /// This can be overridden by specific flows (like Authorize and SetupMandate) to invoke
+    /// an additional connector API call after the main flow succeeds.
+    async fn payment_trigger_flow<'a>(
+        self,
+        _state: &SessionState,
+        _connector: &api::ConnectorData,
+        _call_connector_action: payments::CallConnectorAction,
+        _gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<Self>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(self)
+    }
+
     async fn add_access_token<'a>(
         &self,
         state: &SessionState,

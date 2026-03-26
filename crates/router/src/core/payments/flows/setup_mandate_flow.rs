@@ -135,17 +135,18 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 }
             }
         }
-        let resp = gateway::execute_payment_gateway(
+        let mut resp = gateway::execute_payment_gateway(
             state,
             connector_integration,
             &self,
             call_connector_action.clone(),
             connector_request,
             None,
-            gateway_context,
+            gateway_context.clone(),
         )
         .await
         .to_setup_mandate_failed_response()?;
+
         Ok(resp)
     }
 
@@ -257,6 +258,81 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 should_continue_payment: true,
             })
         }
+    }
+
+    async fn payment_trigger_flow<'a>(
+        mut self,
+        state: &SessionState,
+        connector: &api::ConnectorData,
+        call_connector_action: payments::CallConnectorAction,
+        _gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<Self>
+    where
+        Self: Sized,
+    {
+        if connector.connector.is_payment_trigger_flow_required(
+            api_interface::CurrentFlowInfo::SetupMandate {
+                auth_type: &self.auth_type,
+                request_data: &self.request,
+            },
+        ) {
+            logger::info!(
+                "Payment trigger flow is required for connector: {}",
+                connector.connector_name
+            );
+
+            let payment_trigger_request_data =
+                router_request_types::PaymentTriggerRequest {
+                    placeholder_field: None,
+                };
+
+            let payment_trigger_response_data: Result<
+                router_response_types::PaymentTriggerResponse,
+                types::ErrorResponse,
+            > = Err(types::ErrorResponse::default());
+
+            let payment_trigger_router_data = helpers::router_data_type_conversion::<
+                _,
+                router_flow_types::PaymentTrigger,
+                _,
+                _,
+                _,
+                _,
+            >(
+                self.clone(),
+                payment_trigger_request_data,
+                payment_trigger_response_data,
+            );
+
+            let connector_integration: services::connector_integration_interface::BoxedConnectorIntegrationInterface<
+                router_flow_types::PaymentTrigger,
+                router_request_types::PaymentTriggerRequest,
+                router_types::PaymentsResponseData,
+            > = connector.connector.get_connector_integration();
+
+            let payment_trigger_response = services::execute_connector_processing_step(
+                state,
+                connector_integration,
+                &payment_trigger_router_data,
+                call_connector_action,
+                None,
+                None,
+            )
+            .await;
+
+            match payment_trigger_response {
+                Ok(response_router_data) => {
+                    logger::info!("Payment trigger flow completed successfully");
+                    self.response = response_router_data.response;
+                }
+                Err(err) => {
+                    logger::error!("Payment trigger flow failed: {:?}", err);
+                    // Continue with original response - don't fail the mandate setup
+                }
+            }
+        }
+
+        Ok(self)
     }
 
     async fn add_access_token<'a>(
