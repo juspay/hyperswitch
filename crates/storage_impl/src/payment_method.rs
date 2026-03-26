@@ -224,26 +224,28 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         let p_update: PaymentMethodUpdateInternal =
             payment_method_update.convert_to_payment_method_update(storage_scheme);
         let updated_payment_method = p_update.clone().apply_changeset(payment_method.clone());
-        self.update_resource(
-            key_store,
-            storage_scheme,
-            payment_method
-                .clone()
-                .update_with_payment_method_id(&conn, p_update.clone()),
-            updated_payment_method,
-            UpdateResourceParams {
-                updateable: kv::Updateable::PaymentMethodUpdate(Box::new(
-                    kv::PaymentMethodUpdateMems {
-                        orig: payment_method.clone(),
-                        update_data: p_update.clone(),
-                    },
-                )),
-                operation: Op::Update(
-                    key.clone(),
-                    &field,
-                    payment_method.clone().updated_by.as_deref(),
-                ),
-            },
+        Box::pin(
+            self.update_resource(
+                key_store,
+                storage_scheme,
+                payment_method
+                    .clone()
+                    .update_with_payment_method_id(&conn, p_update.clone()),
+                updated_payment_method,
+                UpdateResourceParams {
+                    updateable: kv::Updateable::PaymentMethodUpdate(Box::new(
+                        kv::PaymentMethodUpdateMems {
+                            orig: payment_method.clone(),
+                            update_data: p_update.clone(),
+                        },
+                    )),
+                    operation: Op::Update(
+                        key.clone(),
+                        &field,
+                        payment_method.clone().updated_by.as_deref(),
+                    ),
+                },
+            ),
         )
         .await
     }

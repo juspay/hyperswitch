@@ -344,6 +344,7 @@ pub async fn handle_metadata_update(
                     metadata: None,
                     last_used_at: None,
                     connector_mandate_details: None,
+                    network_tokenization_data: None,
                 }
             } else {
                 storage::PaymentMethodUpdate::AdditionalDataUpdate {
@@ -363,6 +364,7 @@ pub async fn handle_metadata_update(
                     metadata: None,
                     last_used_at: None,
                     connector_mandate_details: None,
+                    network_tokenization_data: None,
                 }
             };
             let db = &*state.store;

@@ -1411,6 +1411,13 @@ pub fn build_unified_connector_service_payment_method(
                 payment_method: Some(PaymentMethod::NetworkToken(network_token)),
             })
         }
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(wallet_token_data) => {
+            let decrypted_wallet_token_details = payments_grpc::DecryptedWalletTokenDetailsForNetworkTransactionId::foreign_try_from(wallet_token_data)?;
+
+            Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::DecryptedWalletTokenDetailsForNetworkTransactionId(decrypted_wallet_token_details)),
+            })
+        }
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankDebit(
             bank_debit_data,
         ) => match bank_debit_data {
