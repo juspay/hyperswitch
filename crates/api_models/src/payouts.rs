@@ -330,15 +330,13 @@ impl<'de> Deserialize<'de> for Bank {
                 TrustlyBankTransfer::deserialize(&value).map_err(serde::de::Error::custom)?,
             ),
             // No tag — fallback to untagged shape matching via BankInner
-            Some(_) | None => {
-                match wrapper.data {
+            Some(_) | None => match wrapper.data {
                 BankInner::Ach(v) => Self::Ach(v),
                 BankInner::Bacs(v) => Self::Bacs(v),
                 BankInner::Sepa(v) => Self::Sepa(v),
                 BankInner::Trustly(v) => Self::Trustly(v),
                 BankInner::Pix(v) => Self::Pix(v),
-            }
-        }
+            },
         };
 
         Ok(bank)
