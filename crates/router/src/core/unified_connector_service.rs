@@ -38,7 +38,7 @@ use hyperswitch_domain_models::{
     router_request_types::RefundsData,
     router_response_types::{PaymentsResponseData, RefundsResponseData},
 };
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
 use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments::{
@@ -2300,7 +2300,7 @@ where
     let payout_id = router_data.payout_id.clone();
     let grpc_header = grpc_header_builder.build();
     // Log the actual gRPC request with masking
-    let grpc_request_body = masking::masked_serialize(&grpc_request)
+    let grpc_request_body = hyperswitch_masking::masked_serialize(&grpc_request)
         .unwrap_or_else(|_| serde_json::json!({"error": "failed_to_serialize_grpc_request"}));
 
     // Update connector call count metrics for UCS operations
@@ -2331,9 +2331,10 @@ where
                 .unwrap_or(200);
 
             // Log the actual gRPC response with masking
-            let grpc_response_body = masking::masked_serialize(&grpc_response).unwrap_or_else(
-                |_| serde_json::json!({"error": "failed_to_serialize_grpc_response"}),
-            );
+            let grpc_response_body = hyperswitch_masking::masked_serialize(&grpc_response)
+                .unwrap_or_else(
+                    |_| serde_json::json!({"error": "failed_to_serialize_grpc_response"}),
+                );
 
             (
                 status,
@@ -2443,7 +2444,7 @@ where
     let payout_id = router_data.payout_id.clone();
     let grpc_header = grpc_header_builder.build();
     // Log the actual gRPC request with masking
-    let grpc_request_body = masking::masked_serialize(&grpc_request)
+    let grpc_request_body = hyperswitch_masking::masked_serialize(&grpc_request)
         .unwrap_or_else(|_| serde_json::json!({"error": "failed_to_serialize_grpc_request"}));
 
     // Update connector call count metrics for UCS operations
@@ -2474,9 +2475,10 @@ where
                 .unwrap_or(200);
 
             // Log the actual gRPC response
-            let grpc_response_body = masking::masked_serialize(&grpc_response).unwrap_or_else(
-                |_| serde_json::json!({"error": "failed_to_serialize_grpc_response"}),
-            );
+            let grpc_response_body = hyperswitch_masking::masked_serialize(&grpc_response)
+                .unwrap_or_else(
+                    |_| serde_json::json!({"error": "failed_to_serialize_grpc_response"}),
+                );
 
             (
                 status,
@@ -2619,14 +2621,23 @@ pub async fn send_comparison_data(
         .set_body(RequestContent::Json(Box::new(comparison_data)))
         .build();
 
-    request.add_header(X_CONNECTOR_NAME, masking::Maskable::Normal(connector_name));
+    request.add_header(
+        X_CONNECTOR_NAME,
+        hyperswitch_masking::Maskable::Normal(connector_name),
+    );
 
     if let Some(sub_flow_name) = sub_flow_name.filter(|name| !name.is_empty()) {
-        request.add_header(X_SUB_FLOW_NAME, masking::Maskable::Normal(sub_flow_name));
+        request.add_header(
+            X_SUB_FLOW_NAME,
+            hyperswitch_masking::Maskable::Normal(sub_flow_name),
+        );
     }
 
     if let Some(req_id) = &state.request_id {
-        request.add_header(X_REQUEST_ID, masking::Maskable::Normal(req_id.to_string()));
+        request.add_header(
+            X_REQUEST_ID,
+            hyperswitch_masking::Maskable::Normal(req_id.to_string()),
+        );
     }
 
     let _ = http_client::send_request(&state.conf.proxy, request, comparison_config.timeout_secs)

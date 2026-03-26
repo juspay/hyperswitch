@@ -2,7 +2,7 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     card_testing_guard_data::CardTestingGuardData, router_request_types::BrowserInformation,
 };
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use router_env::logger;
 
 use super::errors;

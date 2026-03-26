@@ -30,7 +30,7 @@ tokio = "1.48.0"
 toml = "0.8.22"
 
 # First party crates
-masking = { version = "0.1.0", path = "../masking" }
+hyperswitch_masking = "0.0.1"
 common_enums = { version = "0.1.0", path = "../common_enums" }
 
 [lints]

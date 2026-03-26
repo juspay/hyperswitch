@@ -17,9 +17,8 @@ use hyperswitch_interfaces::{
     consts as interface_consts, errors as interface_errors,
     unified_connector_service::transformers as ucs_transformers,
 };
-use masking::{self, ExposeInterface};
+use hyperswitch_masking::{self, ExposeInterface};
 use unified_connector_service_client::payments as payments_grpc;
-use unified_connector_service_masking::ExposeInterface as UcsMaskingExposeInterface;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -521,6 +520,69 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                     | common_enums::AttemptStatus::Failure
             );
             Ok((complete_authorize_router_data, should_continue))
+        } else {
+            Ok((self, true))
+        }
+    }
+
+    async fn payment_trigger_step<'a>(
+        self,
+        state: &SessionState,
+        connector: &api::ConnectorData,
+        gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<(Self, bool)>
+    where
+        Self: Sized,
+    {
+        if connector.connector.is_payment_trigger_flow_required(
+            api_interface::CurrentFlowInfo::CompleteAuthorize {
+                auth_type: &self.auth_type,
+                request_data: &self.request,
+                payment_method: Some(self.payment_method),
+            },
+        ) {
+            logger::info!(
+                "Payment trigger flow is required for connector: {} for Complete Authorize flow",
+                connector.connector_name
+            );
+            let complete_authorize_request_data = self.request.clone();
+            let payment_trigger_request_data =
+                types::PaymentTriggerData::try_from(self.request.to_owned())?;
+            let payment_trigger_response_data: Result<
+                types::PaymentsResponseData,
+                types::ErrorResponse,
+            > = Err(types::ErrorResponse::default());
+            let payment_trigger_router_data =
+                helpers::router_data_type_conversion::<_, api::PaymentTrigger, _, _, _, _>(
+                    self.clone(),
+                    payment_trigger_request_data,
+                    payment_trigger_response_data,
+                );
+            let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
+                api::PaymentTrigger,
+                types::PaymentTriggerData,
+                types::PaymentsResponseData,
+            > = connector.connector.get_connector_integration();
+            let payment_trigger_router_data = gateway::execute_payment_gateway(
+                state,
+                connector_integration,
+                &payment_trigger_router_data,
+                payments::CallConnectorAction::Trigger,
+                None,
+                None,
+                gateway_context.clone(),
+            )
+            .await
+            .to_payment_failed_response()?;
+            let payment_trigger_response = payment_trigger_router_data.response.clone();
+            let complete_authorize_router_data =
+                helpers::router_data_type_conversion::<_, api::CompleteAuthorize, _, _, _, _>(
+                    payment_trigger_router_data,
+                    complete_authorize_request_data,
+                    payment_trigger_response,
+                );
+            let should_continue_payment = complete_authorize_router_data.response.is_ok();
+            Ok((complete_authorize_router_data, should_continue_payment))
         } else {
             Ok((self, true))
         }

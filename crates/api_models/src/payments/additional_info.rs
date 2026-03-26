@@ -1,7 +1,7 @@
 use common_utils::new_type::{
     MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode, MaskedUpiVpaId,
 };
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use smithy::SmithyModel;
 use utoipa::ToSchema;
 
@@ -275,17 +275,17 @@ pub enum BankTransferAdditionalData {
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct PixAutomaticoPushAdditionalData {
-    /// Partially masked account number for Pix Automatico Push payment method
+    /// Account number for Pix Automatico Push payment method
     #[schema(value_type = Option<String>, example = "550689")]
     #[smithy(value_type = "Option<String>")]
     pub account_number: Option<Secret<String>>,
 
-    /// Partially masked branch code for Pix Automatico Push payment method
+    /// Branch code for Pix Automatico Push payment method
     #[schema(value_type = Option<String>, example = "2569")]
     #[smithy(value_type = "Option<String>")]
     pub branch_code: Option<Secret<String>>,
 
-    /// Partially masked bank identifier for Pix Automatico Push payment method
+    /// Bank identifier for Pix Automatico Push payment method
     #[schema(value_type = Option<String>, example = "91193552")]
     #[smithy(value_type = "Option<String>")]
     pub bank_identifier: Option<Secret<String>>,

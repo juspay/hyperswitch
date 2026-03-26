@@ -7,7 +7,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{behaviour::Conversion, payment_methods};
-use masking::{Mask, PeekInterface};
+use hyperswitch_masking::{Mask, PeekInterface};
 use serde_json::Value;
 use x509_parser::nom::{
     bytes::complete::{tag, take_while1},
@@ -125,7 +125,7 @@ impl ProxyRequestWrapper {
         }
     }
 
-    pub fn get_headers(&self) -> Vec<(String, masking::Maskable<String>)> {
+    pub fn get_headers(&self) -> Vec<(String, hyperswitch_masking::Maskable<String>)> {
         self.0
             .headers
             .as_map()

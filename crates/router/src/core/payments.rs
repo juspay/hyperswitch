@@ -72,7 +72,7 @@ use hyperswitch_domain_models::{
     payments::{self, payment_intent::CustomerData, ClickToPayMetaData},
     router_data::AccessToken,
 };
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
 use operations::ValidateStatusForOperation;
 use redis_interface::errors::RedisError;
@@ -3629,6 +3629,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                 apple_pay_recurring_details: None,
                 pix_additional_details: None,
                 boleto_additional_details: None,
+                pix_automatico_additional_details: None,
             }),
             ..Default::default()
         };
@@ -4138,6 +4139,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     apple_pay_recurring_details: None,
                     pix_additional_details: None,
                     boleto_additional_details: None,
+                    pix_automatico_additional_details: None,
                 }),
                 ..Default::default()
             };
@@ -4654,6 +4656,12 @@ where
             .ok();
     }
 
+    let connector_request = if should_continue_further {
+        connector_request
+    } else {
+        None
+    };
+
     Ok((
         updated_customer,
         ConnectorServiceIntermediateState {
@@ -4713,12 +4721,13 @@ where
         .await?;
     *payment_data = new_payment_data;
 
-    let mut router_data = call_connector_service_response.router_data;
+    let router_data = call_connector_service_response.router_data;
     let router_data = if call_connector_service_response.should_continue_further {
         // The status of payment_attempt and intent will be updated in the previous step
         // update this in router_data.
         // This is added because few connector integrations do not update the status,
         // and rely on previous status set in router_data
+        let mut router_data = router_data;
         router_data.status = payment_data.get_payment_attempt().status;
         router_data
             .decide_flows(
@@ -4727,14 +4736,29 @@ where
                 call_connector_action,
                 call_connector_service_response.connector_request,
                 business_profile,
-                header_payload,
+                header_payload.clone(),
                 return_raw_connector_response,
-                call_connector_service_response.gateway_context,
+                call_connector_service_response.gateway_context.clone(),
             )
             .await
     } else {
         Ok(router_data)
     }?;
+
+    let should_continue_payment = router_data.response.is_ok();
+
+    // Call payment trigger step after the authorize/setup mandate flow completes
+    let (router_data, _should_continue_trigger) = if should_continue_payment {
+        router_data
+            .payment_trigger_step(
+                state,
+                connector,
+                &call_connector_service_response.gateway_context,
+            )
+            .await?
+    } else {
+        (router_data, false)
+    };
 
     Ok((router_data, merchant_connector_account))
 }
@@ -5188,14 +5212,29 @@ where
                 call_connector_action,
                 call_connector_service_response.connector_request,
                 business_profile,
-                header_payload,
+                header_payload.clone(),
                 return_raw_connector_response,
-                call_connector_service_response.gateway_context,
+                call_connector_service_response.gateway_context.clone(),
             )
             .await
     } else {
         Ok(router_data)
     }?;
+
+    let should_continue_payment = router_data.response.is_ok();
+
+    // Call payment trigger step after the authorize/setup mandate flow completes
+    let (router_data, _should_continue_trigger) = if should_continue_payment {
+        router_data
+            .payment_trigger_step(
+                state,
+                connector,
+                &call_connector_service_response.gateway_context,
+            )
+            .await?
+    } else {
+        (router_data, false)
+    };
 
     Ok((router_data, merchant_connector_account_type_details))
 }

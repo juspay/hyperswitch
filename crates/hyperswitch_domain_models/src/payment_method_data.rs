@@ -18,7 +18,7 @@ use common_utils::{
     payout_method_utils,
     pii::{self, Email},
 };
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::Date;
 
@@ -2450,6 +2450,16 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
                 destination_bank_account_id,
                 expiry_date,
             },
+            api_models::payments::BankTransferData::PixAutomaticoPush {
+                account_number,
+                branch_code,
+                bank_identifier,
+            } => Self::PixAutomaticoPush {
+                account_number,
+                branch_code,
+                bank_identifier,
+            },
+            api_models::payments::BankTransferData::PixAutomaticoQr {} => Self::PixAutomaticoQr {},
             api_models::payments::BankTransferData::Pse {} => Self::Pse {},
             api_models::payments::BankTransferData::LocalBankTransfer { bank_code } => {
                 Self::LocalBankTransfer { bank_code }

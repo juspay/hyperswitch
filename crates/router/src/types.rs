@@ -14,7 +14,7 @@ pub mod domain;
 pub mod fraud_check;
 pub mod payment_methods;
 pub mod pm_auth;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 pub mod storage;
 pub mod transformers;
 use std::marker::PhantomData;
@@ -39,9 +39,9 @@ use hyperswitch_domain_models::router_flow_types::{
     payments::{
         Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture,
         CompleteAuthorize, CreateConnectorCustomer, CreateOrder, ExtendAuthorization,
-        ExternalVaultProxy, IncrementalAuthorization, InitPayment, PSync, PostCaptureVoid,
-        PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
-        SetupMandate, UpdateMetadata, Void,
+        ExternalVaultProxy, IncrementalAuthorization, InitPayment, PSync, PaymentTrigger,
+        PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing, Reject,
+        SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
     },
     refunds::{Execute, RSync},
     webhooks::VerifyWebhookSource,
@@ -76,16 +76,16 @@ pub use hyperswitch_domain_models::{
         CreateOrderRequestData, DefendDisputeRequestData, DestinationChargeRefund,
         DirectChargeRefund, DisputeSyncData, ExternalVaultProxyPaymentsData,
         FetchDisputesRequestData, MandateRevokeRequestData, MultipleCaptureRequestData,
-        PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthenticateData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
-        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
-        PaymentsUpdateMetadataData, RefundsData, ResponseId, RetrieveFileRequestData,
-        SdkPaymentsSessionUpdateData, SetupMandateRequestData, SplitRefundsRequest,
-        SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData, VaultRequestData,
-        VerifyWebhookSourceRequestData,
+        PaymentMethodTokenizationData, PaymentTriggerData, PaymentsApproveData,
+        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsExtendAuthorizationData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
+        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData, PaymentsSyncData,
+        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData, ResponseId,
+        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
+        SplitRefundsRequest, SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData,
+        VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
@@ -116,11 +116,12 @@ pub use hyperswitch_interfaces::{
         AcceptDisputeType, ConnectorCustomerType, DefendDisputeType, FetchDisputesType,
         IncrementalAuthorizationType, MandateRevokeType, PaymentsAuthorizeType,
         PaymentsBalanceType, PaymentsCaptureType, PaymentsCompleteAuthorizeType, PaymentsInitType,
-        PaymentsPostCaptureVoidType, PaymentsPostProcessingType, PaymentsPostSessionTokensType,
-        PaymentsPreAuthorizeType, PaymentsPreProcessingType, PaymentsSessionType, PaymentsSyncType,
-        PaymentsUpdateMetadataType, PaymentsVoidType, RefreshTokenType, RefundExecuteType,
-        RefundSyncType, Response, RetrieveFileType, SdkSessionUpdateType, SetupMandateType,
-        SubmitEvidenceType, TokenizationType, UploadFileType, VerifyWebhookSourceType,
+        PaymentsPaymentTriggerType, PaymentsPostCaptureVoidType, PaymentsPostProcessingType,
+        PaymentsPostSessionTokensType, PaymentsPreAuthorizeType, PaymentsPreProcessingType,
+        PaymentsSessionType, PaymentsSyncType, PaymentsUpdateMetadataType, PaymentsVoidType,
+        RefreshTokenType, RefundExecuteType, RefundSyncType, Response, RetrieveFileType,
+        SdkSessionUpdateType, SetupMandateType, SubmitEvidenceType, TokenizationType,
+        UploadFileType, VerifyWebhookSourceType,
     },
 };
 
@@ -140,6 +141,8 @@ pub type ExternalVaultProxyPaymentsRouterData =
     RouterData<ExternalVaultProxy, ExternalVaultProxyPaymentsData, PaymentsResponseData>;
 pub type PaymentsPreProcessingRouterData =
     RouterData<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>;
+pub type PaymentsTriggerRouterData =
+    RouterData<PaymentTrigger, PaymentTriggerData, PaymentsResponseData>;
 pub type PaymentsPostProcessingRouterData =
     RouterData<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>;
 pub type PaymentsAuthorizeSessionTokenRouterData =

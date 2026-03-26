@@ -62,7 +62,7 @@ where
         None => Ok(None),
     }
 }
-use masking::{PeekInterface, Secret, WithType};
+use hyperswitch_masking::{PeekInterface, Secret, WithType};
 use router_derive::Setter;
 #[cfg(feature = "v1")]
 use serde::{de, Deserializer};
@@ -3852,6 +3852,8 @@ impl GetPaymentMethodType for BankTransferData {
             Self::DanamonVaBankTransfer { .. } => api_enums::PaymentMethodType::DanamonVa,
             Self::MandiriVaBankTransfer { .. } => api_enums::PaymentMethodType::MandiriVa,
             Self::Pix { .. } => api_enums::PaymentMethodType::Pix,
+            Self::PixAutomaticoQr {} => api_enums::PaymentMethodType::PixAutomaticoQr,
+            Self::PixAutomaticoPush { .. } => api_enums::PaymentMethodType::PixAutomaticoPush,
             Self::Pse {} => api_enums::PaymentMethodType::Pse,
             Self::LocalBankTransfer { .. } => api_enums::PaymentMethodType::LocalBankTransfer,
             Self::InstantBankTransfer {} => api_enums::PaymentMethodType::InstantBankTransfer,
@@ -4895,6 +4897,23 @@ pub enum BankTransferData {
         expiry_date: Option<PrimitiveDateTime>,
     },
     #[smithy(nested_value_type)]
+    PixAutomaticoQr {},
+    #[smithy(nested_value_type)]
+    PixAutomaticoPush {
+        /// Account number for Pix Automatico Push payment method
+        #[schema(value_type = Option<String>, example = "550689")]
+        #[smithy(value_type = "Option<String>")]
+        account_number: Option<Secret<String>>,
+        /// Branch code for Pix Automatico Push payment method
+        #[schema(value_type = Option<String>, example = "2569")]
+        #[smithy(value_type = "Option<String>")]
+        branch_code: Option<Secret<String>>,
+        /// Bank identifier for Pix Automatico Push payment method
+        #[schema(value_type = Option<String>, example = "91193552")]
+        #[smithy(value_type = "Option<String>")]
+        bank_identifier: Option<Secret<String>>,
+    },
+    #[smithy(nested_value_type)]
     Pse {},
     #[smithy(nested_value_type)]
     LocalBankTransfer {
@@ -5014,6 +5033,8 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
             }
             Self::LocalBankTransfer { .. }
             | Self::Pix { .. }
+            | Self::PixAutomaticoPush { .. }
+            | Self::PixAutomaticoQr {}
             | Self::Pse {}
             | Self::InstantBankTransfer {}
             | Self::InstantBankTransferFinland {}
@@ -6314,7 +6335,7 @@ pub struct Address {
     pub email: Option<Email>,
 }
 
-impl masking::SerializableSecret for Address {}
+impl hyperswitch_masking::SerializableSecret for Address {}
 
 impl Address {
     /// Unify the address, giving priority to `self` when details are present in both
@@ -9495,7 +9516,7 @@ pub struct OrderDetailsWithAmount {
     pub unit_discount_amount: Option<MinorUnit>,
 }
 
-impl masking::SerializableSecret for OrderDetailsWithAmount {}
+impl hyperswitch_masking::SerializableSecret for OrderDetailsWithAmount {}
 
 #[derive(
     Default,
@@ -11398,6 +11419,8 @@ pub struct FeatureMetadata {
     pub pix_additional_details: Option<PixAdditionalDetails>,
     /// Extra information like fine percentage, interest percentage etc required for Pix payment method
     pub boleto_additional_details: Option<BoletoAdditionalDetails>,
+    /// Pix Automatico additional details for Push and QR flows
+    pub pix_automatico_additional_details: Option<PixAutomaticoAdditionalDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -11413,6 +11436,21 @@ impl FeatureMetadata {
             .as_ref()
             .and_then(|boleto| boleto.covenant_code.clone())
     }
+    /// Gets the Pix Automatico Push expiry time in seconds, returns error if not present
+    pub fn get_pix_automatico_push_expiry_time(&self) -> Result<u32, ValidationError> {
+        self.pix_automatico_additional_details
+            .as_ref()
+            .ok_or(ValidationError::MissingRequiredField {
+                field_name: "feature_metadata.pix_automatico_additional_details".to_string(),
+            })
+            .and_then(|details| match details {
+                PixAutomaticoAdditionalDetails::PixAutomaticoPush(push) => Ok(push.time),
+                _ => Err(ValidationError::InvalidValue {
+                    message: "pix_automatico_additional_details is not of type PixAutomaticoPush"
+                        .to_string(),
+                }),
+            })
+    }
     pub fn set_payment_revenue_recovery_metadata_using_api(
         self,
         payment_revenue_recovery_metadata: PaymentRevenueRecoveryMetadata,
@@ -11424,6 +11462,7 @@ impl FeatureMetadata {
             revenue_recovery: Some(payment_revenue_recovery_metadata),
             pix_additional_details: self.pix_additional_details,
             boleto_additional_details: self.boleto_additional_details,
+            pix_automatico_additional_details: self.pix_automatico_additional_details,
         }
     }
     /// Extracts the Pix key and its secret value specifically from PixAdditionalDetails
@@ -11474,6 +11513,9 @@ pub struct FeatureMetadata {
     /// Extra information like fine percentage, interest percentage etc required for Pix payment method
     #[smithy(value_type = "Option<BoletoAdditionalDetails>")]
     pub boleto_additional_details: Option<BoletoAdditionalDetails>,
+    /// Pix Automatico additional details for Push Notification and QR based flows
+    #[smithy(value_type = "Option<PixAutomaticoAdditionalDetails>")]
+    pub pix_automatico_additional_details: Option<PixAutomaticoAdditionalDetails>,
 }
 #[cfg(feature = "v1")]
 impl FeatureMetadata {
@@ -11482,6 +11524,17 @@ impl FeatureMetadata {
         self.boleto_additional_details
             .as_ref()
             .and_then(|boleto| boleto.covenant_code.clone())
+    }
+    /// Gets the Pix Automatico Push expiry time in seconds, returns error if not present
+    pub fn get_pix_automatico_push_expiry_time(&self) -> Result<u32, ValidationError> {
+        self.pix_automatico_additional_details
+            .as_ref()
+            .ok_or(ValidationError::MissingRequiredField {
+                field_name: "feature_metadata.pix_automatico_additional_details".to_string(),
+            })
+            .map(|details| match details {
+                PixAutomaticoAdditionalDetails::PixAutomaticoPush(push) => push.time,
+            })
     }
     pub fn merge(self, other: Option<Self>) -> Self {
         if let Some(other) = other {
@@ -11499,6 +11552,9 @@ impl FeatureMetadata {
                     self.boleto_additional_details,
                     other.boleto_additional_details,
                 ),
+                pix_automatico_additional_details: self
+                    .pix_automatico_additional_details
+                    .or(other.pix_automatico_additional_details),
             }
         } else {
             self
@@ -11616,6 +11672,20 @@ pub struct ScheduledExpirationTime {
         })
     )]
     pub pix_key: Option<enums::PixKey>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum PixAutomaticoAdditionalDetails {
+    /// Pix Automatico Push notification flow
+    PixAutomaticoPush(PixAutomaticoPushDetails),
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PixAutomaticoPushDetails {
+    /// Time in seconds until which the push notification is valid
+    #[schema(value_type = u32, example = 3600)]
+    pub time: u32,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel, PartialEq)]
@@ -12402,7 +12472,7 @@ mod payments_response_api_contract {
 #[cfg(test)]
 mod billing_from_payment_method_data {
     use common_enums::CountryAlpha2;
-    use masking::ExposeOptionInterface;
+    use hyperswitch_masking::ExposeOptionInterface;
 
     use super::*;
 
