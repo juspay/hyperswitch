@@ -296,6 +296,7 @@ diesel::table! {
         is_l2_l3_enabled -> Nullable<Bool>,
         network_tokenization_credentials -> Nullable<Bytea>,
         payment_method_blocking -> Nullable<Jsonb>,
+        default_fallback_routing -> Nullable<Jsonb>,
         #[max_length = 64]
         routing_algorithm_id -> Nullable<Varchar>,
         order_fulfillment_time -> Nullable<Int8>,
@@ -304,7 +305,6 @@ diesel::table! {
         frm_routing_algorithm_id -> Nullable<Varchar>,
         #[max_length = 64]
         payout_routing_algorithm_id -> Nullable<Varchar>,
-        default_fallback_routing -> Nullable<Jsonb>,
         three_ds_decision_manager_config -> Nullable<Jsonb>,
         should_collect_cvv_during_payment -> Nullable<Bool>,
         revenue_recovery_retry_algorithm_type -> Nullable<RevenueRecoveryAlgorithmType>,
@@ -1115,7 +1115,7 @@ diesel::table! {
         #[max_length = 128]
         connector_payment_id -> Nullable<Varchar>,
         #[max_length = 64]
-        payment_method_subtype -> Varchar,
+        payment_method_subtype -> Nullable<Varchar>,
         routing_result -> Nullable<Jsonb>,
         authentication_applied -> Nullable<AuthenticationType>,
         #[max_length = 128]
