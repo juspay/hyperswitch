@@ -1076,6 +1076,7 @@ impl transformers::ForeignFrom<api_models::payment_methods::ConnectorTokenDetail
             original_payment_authorized_amount,
             original_payment_authorized_currency,
             metadata,
+            connector_customer_id,
             token,
             ..
         } = item;
@@ -1089,6 +1090,7 @@ impl transformers::ForeignFrom<api_models::payment_methods::ConnectorTokenDetail
             metadata,
             connector_token_status: status,
             connector_token_request_reference_id,
+            connector_customer_id,
         }
     }
 }
@@ -1111,6 +1113,7 @@ impl
             original_payment_authorized_amount,
             original_payment_authorized_currency,
             metadata,
+            connector_customer_id,
             connector_token,
             connector_token_status,
             ..
@@ -1123,6 +1126,7 @@ impl
             original_payment_authorized_amount,
             original_payment_authorized_currency,
             metadata,
+            connector_customer_id,
             token: Secret::new(connector_token),
             // Token that is derived from payments mandate reference will always be multi use token
             token_type: common_enums::TokenizationType::MultiUse,
@@ -1143,6 +1147,7 @@ impl transformers::ForeignFrom<&payment_method_data::SingleUsePaymentMethodToken
             original_payment_authorized_amount: None,
             original_payment_authorized_currency: None,
             metadata: None,
+            connector_customer_id: None,
             token: token.clone().token,
         }
     }
@@ -1236,7 +1241,7 @@ impl DomainPaymentMethodWrapper {
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt payment method billing address")?;
-        let _connector_mandate_details = response
+        let connector_mandate_details = response
             .connector_tokens
             .as_ref()
             .map(|connector_tokens| {
@@ -1268,23 +1273,15 @@ impl DomainPaymentMethodWrapper {
                                 connector_mandate_request_reference_id: token_detail
                                     .connector_token_request_reference_id
                                     .clone(),
-                                connector_customer_id: None,
+                                connector_customer_id: token_detail.connector_customer_id.clone(),
                             },
                         )
                     })
                     .collect();
 
-                let mandate_reference =
-                    hyperswitch_domain_models::mandates::CommonMandateReference {
-                        payments: Some(
-                            hyperswitch_domain_models::mandates::PaymentsMandateReference(
-                                payments_map,
-                            ),
-                        ),
-                        payouts: None,
-                    };
-
-                serde_json::to_value(mandate_reference)
+                serde_json::to_value(
+                    hyperswitch_domain_models::mandates::PaymentsMandateReference(payments_map),
+                )
             })
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1324,10 +1321,10 @@ impl DomainPaymentMethodWrapper {
             last_used_at: response
                 .last_used_at
                 .unwrap_or_else(common_utils::date_time::now),
-            connector_mandate_details: None,
+            connector_mandate_details,
             customer_acceptance: None,
             status: common_enums::PaymentMethodStatus::Active, //should be sent from PM service
-            network_transaction_id: None,
+            network_transaction_id: response.network_transaction_id.clone(),
             client_secret: None,
             payment_method_billing_address: encrypted_payment_method_billing_address,
             updated_by: None,
@@ -1401,23 +1398,15 @@ impl DomainPaymentMethodWrapper {
                                 connector_mandate_request_reference_id: token_detail
                                     .connector_token_request_reference_id
                                     .clone(),
-                                connector_customer_id: None,
+                                connector_customer_id: token_detail.connector_customer_id.clone(),
                             },
                         )
                     })
                     .collect();
 
-                let mandate_reference =
-                    hyperswitch_domain_models::mandates::CommonMandateReference {
-                        payments: Some(
-                            hyperswitch_domain_models::mandates::PaymentsMandateReference(
-                                payments_map,
-                            ),
-                        ),
-                        payouts: None,
-                    };
-
-                serde_json::to_value(mandate_reference)
+                serde_json::to_value(
+                    hyperswitch_domain_models::mandates::PaymentsMandateReference(payments_map),
+                )
             })
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1500,18 +1489,16 @@ impl
     ) -> Result<Self, Self::Error> {
         match raw_data {
             payment_methods::types::RawPaymentMethodData::Card(card_detail) => {
-                // Use card_cvc from card_token if available, otherwise fall back to card_details.card_cvc
                 let card_cvc = card_token
                     .as_ref()
                     .and_then(|token| token.card_cvc.clone())
-                    .or(card_detail.card_cvc.clone())
-                    .get_required_value("card_cvc")?;
+                    .or(card_detail.card_cvc.clone());
                 let card_holder_name = card_token
                     .and_then(|token| token.card_holder_name.clone())
                     .or(card_detail.card_holder_name.clone());
 
-                Ok(Self(domain::PaymentMethodData::Card(
-                    hyperswitch_domain_models::payment_method_data::Card {
+                Ok(Self(domain::PaymentMethodData::CardWithOptionalCVC(
+                    hyperswitch_domain_models::payment_method_data::CardWithOptionalCVC {
                         card_number: card_detail.card_number,
                         card_exp_month: card_detail.card_exp_month,
                         card_exp_year: card_detail.card_exp_year,
@@ -1588,6 +1575,45 @@ impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
     }
 }
 
+#[cfg(feature = "v1")]
+impl<'a>
+    crate::types::transformers::ForeignTryFrom<(
+        &'a hyperswitch_domain_models::payment_method_data::CardWithOptionalCVC,
+    )> for domain::PaymentMethodData
+{
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn foreign_try_from(
+        value: (&'a hyperswitch_domain_models::payment_method_data::CardWithOptionalCVC,),
+    ) -> Result<Self, Self::Error> {
+        let (card_data,) = value;
+
+        let card_cvc =
+            card_data
+                .card_cvc
+                .clone()
+                .ok_or(errors::ApiErrorResponse::UnprocessableEntity {
+                    message: "card_cvc is required for card payment path".to_string(),
+                })?;
+
+        Ok(Self::Card(domain::Card {
+            card_number: card_data.card_number.clone(),
+            card_exp_month: card_data.card_exp_month.clone(),
+            card_exp_year: card_data.card_exp_year.clone(),
+            card_cvc,
+            card_issuer: card_data.card_issuer.clone(),
+            card_network: card_data.card_network.clone(),
+            card_type: card_data.card_type.clone(),
+            card_issuing_country: card_data.card_issuing_country.clone(),
+            card_issuing_country_code: card_data.card_issuing_country_code.clone(),
+            bank_code: card_data.bank_code.clone(),
+            nick_name: card_data.nick_name.clone(),
+            card_holder_name: card_data.card_holder_name.clone(),
+            co_badged_card_data: card_data.co_badged_card_data.clone(),
+        }))
+    }
+}
+
 //Fetch Payment Method from Modular Service
 #[cfg(feature = "v1")]
 pub async fn fetch_payment_method_from_modular_service(
@@ -1596,7 +1622,6 @@ pub async fn fetch_payment_method_from_modular_service(
     profile_id: &id_type::ProfileId,
     payment_method_id: &str, //Currently PM id is string in v1
     pmd_card_token: Option<domain::CardToken>,
-    is_off_session_payment: bool,
 ) -> CustomResult<PaymentMethodWithRawData, errors::ApiErrorResponse> {
     let payment_method_fetch_req = RetrievePaymentMethodV1Request {
         payment_method_id: api_models::payment_methods::PaymentMethodId {
@@ -1624,19 +1649,11 @@ pub async fn fetch_payment_method_from_modular_service(
     .await
     .attach_printable("Failed to transform payment method retrieve response")?;
 
-    //Convert RawPaymentMethodData to domain::PaymentMethodData
-    let raw_payment_method_data = (!is_off_session_payment)
-        .then(|| {
-            pm_response
-                .raw_payment_method_data
-                .map(|raw_data| {
-                    DomainPaymentMethodDataWrapper::try_from((raw_data, pmd_card_token.clone()))
-                })
-                .transpose()
-        })
+    let raw_payment_method_data = pm_response
+        .raw_payment_method_data
+        .map(|raw_data| DomainPaymentMethodDataWrapper::try_from((raw_data, pmd_card_token)))
         .transpose()
-        .attach_printable("Failed to convert raw payment method data")?
-        .flatten();
+        .attach_printable("Failed to convert raw payment method data")?;
 
     let pm_wrapper = PaymentMethodWithRawData {
         payment_method,
@@ -1702,7 +1719,7 @@ pub async fn create_payment_method_in_modular_service(
     processor_merchant_id: &id_type::MerchantId,
     profile_id: &id_type::ProfileId,
     payment_method: common_enums::PaymentMethod,
-    payment_method_type: common_enums::PaymentMethodType,
+    payment_method_type: Option<common_enums::PaymentMethodType>,
     payment_method_data: domain::PaymentMethodData,
     billing_address: Option<hyperswitch_domain_models::address::Address>,
     customer_id: id_type::CustomerId,
