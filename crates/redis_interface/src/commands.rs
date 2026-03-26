@@ -49,6 +49,10 @@ impl super::RedisConnectionPool {
     {
         let start = std::time::Instant::now();
         let redis_key = key.tenant_aware_key(self);
+        logger::debug!(
+            key = %redis_key,
+            "Redis SET command Started"
+        );
 
         let result = self
             .pool
@@ -82,6 +86,10 @@ impl super::RedisConnectionPool {
     {
         let start = std::time::Instant::now();
         let redis_key = key.tenant_aware_key(self);
+        logger::debug!(
+            key = %redis_key,
+            "Redis SET (KEEPTTL) command Started"
+        );
 
         let result = self
             .pool
@@ -113,6 +121,10 @@ impl super::RedisConnectionPool {
     {
         let start = std::time::Instant::now();
         let keys_display = format!("{:?}", &value);
+        logger::debug!(
+            keys = %keys_display,
+            "Redis MSETNX command Started"
+        );
 
         let result = self.pool.msetnx(value).await;
 
@@ -137,6 +149,11 @@ impl super::RedisConnectionPool {
     {
         let start = std::time::Instant::now();
         let redis_key = key.tenant_aware_key(self);
+
+        logger::debug!(
+            key = %redis_key,
+            "Redis SETNX (serialized) command Started"
+        );
 
         let serialized = value
             .encode_to_vec()
@@ -167,6 +184,11 @@ impl super::RedisConnectionPool {
         let start = std::time::Instant::now();
         let redis_key = key.tenant_aware_key(self);
 
+        logger::debug!(
+            key = %redis_key,
+            "Redis SET (serialized) command Started"
+        );
+
         let serialized = value
             .encode_to_vec()
             .change_context(errors::RedisError::JsonSerializationFailed)?;
@@ -193,6 +215,11 @@ impl super::RedisConnectionPool {
     {
         let start = std::time::Instant::now();
         let redis_key = key.tenant_aware_key(self);
+
+        logger::debug!(
+            key = %redis_key,
+            "Redis SET (serialized, KEEPTTL) command Started"
+        );
 
         let serialized = value
             .encode_to_vec()
@@ -228,6 +255,11 @@ impl super::RedisConnectionPool {
             .encode_to_vec()
             .change_context(errors::RedisError::JsonSerializationFailed)?;
 
+        logger::debug!(
+            key = %redis_key,
+            "Redis SETEX (serialized) command Started"
+        );
+
         let result = self
             .pool
             .set(
@@ -256,6 +288,10 @@ impl super::RedisConnectionPool {
     {
         let start = std::time::Instant::now();
         let redis_key = key.tenant_aware_key(self);
+        logger::debug!(
+            key = %redis_key,
+            "Redis GET command Started"
+        );
 
         let result = match self.pool.get(redis_key.clone()).await {
             Ok(v) => Ok(v),
@@ -293,6 +329,9 @@ impl super::RedisConnectionPool {
         if keys.is_empty() {
             return Ok(Vec::new());
         }
+        logger::debug!(
+            "Redis MGET command Started"
+        );
 
         let start = std::time::Instant::now();
         let tenant_aware_keys: Vec<String> =
@@ -320,6 +359,9 @@ impl super::RedisConnectionPool {
         if keys.is_empty() {
             return Ok(Vec::new());
         }
+        logger::debug!(
+            "Redis GET (parallel) command Started"
+        );
 
         let start = std::time::Instant::now();
         let tenant_aware_keys: Vec<String> =
@@ -353,6 +395,9 @@ impl super::RedisConnectionPool {
     {
         let start = std::time::Instant::now();
         let keys_display: Vec<String> = keys.iter().map(|k| k.tenant_aware_key(self)).collect();
+        logger::debug!(
+            "Redis get_keys_by_mode completed Started"
+        );
 
         let result = if self.config.cluster_enabled {
             // Use individual GET commands for cluster mode to avoid CROSSSLOT errors
@@ -385,6 +430,10 @@ impl super::RedisConnectionPool {
 
         let start = std::time::Instant::now();
         let keys_display: Vec<String> = keys.iter().map(|k| k.tenant_aware_key(self)).collect();
+        logger::debug!(
+            keys = ?keys_display.clone(),
+            "Redis GET multiple keys Started"
+        );
 
         let result = match self.get_keys_by_mode(keys).await {
             Ok(values) => Ok(values),
@@ -456,6 +505,12 @@ impl super::RedisConnectionPool {
         let start = std::time::Instant::now();
         let redis_key = key.tenant_aware_key(self);
 
+        logger::debug!(
+            key = %redis_key,
+            type_name = %type_name,
+            "Redis GET and deserialize Started"
+        );
+
         let value_bytes = self.get_key::<Vec<u8>>(key).await?;
 
         fp_utils::when(value_bytes.is_empty(), || Err(errors::RedisError::NotFound))?;
@@ -485,6 +540,12 @@ impl super::RedisConnectionPool {
     {
         let start = std::time::Instant::now();
         let keys_display: Vec<String> = keys.iter().map(|k| k.tenant_aware_key(self)).collect();
+
+        logger::debug!(
+            keys = ?keys_display,
+            type_name = %type_name,
+            "Redis GET multiple and deserialize Started"
+        );
 
         let value_bytes_vec = self.get_multiple_keys::<Vec<u8>>(keys).await?;
 
@@ -519,6 +580,10 @@ impl super::RedisConnectionPool {
     pub async fn delete_key(&self, key: &RedisKey) -> CustomResult<DelReply, errors::RedisError> {
         let start = std::time::Instant::now();
         let redis_key = key.tenant_aware_key(self);
+        logger::debug!(
+            key = %redis_key,
+            "Redis DEL command Started"
+        );
 
         let result = match self.pool.del(redis_key.clone()).await {
             Ok(v) => Ok(v),
@@ -551,6 +616,10 @@ impl super::RedisConnectionPool {
     ) -> CustomResult<Vec<DelReply>, errors::RedisError> {
         let start = std::time::Instant::now();
         let keys_display: Vec<String> = keys.iter().map(|k| k.tenant_aware_key(self)).collect();
+        logger::debug!(
+            keys = ?keys_display,
+            "Redis DEL multiple keys Started"
+        );
 
         let futures = keys.iter().map(|key| self.delete_key(key));
 
@@ -580,6 +649,12 @@ impl super::RedisConnectionPool {
     {
         let start = std::time::Instant::now();
         let redis_key = key.tenant_aware_key(self);
+
+        logger::debug!(
+            key = %redis_key,
+            "Redis SETEX command Started"
+        );
+
 
         let result = self
             .pool
@@ -617,6 +692,11 @@ impl super::RedisConnectionPool {
         let redis_key = key.tenant_aware_key(self);
         let ttl = seconds.unwrap_or(self.config.default_ttl.into());
 
+        logger::debug!(
+            key = %redis_key,
+            "Redis SETNX command Started"
+        );
+
         let result = self
             .pool
             .set(
@@ -647,6 +727,11 @@ impl super::RedisConnectionPool {
         let start = std::time::Instant::now();
         let redis_key = key.tenant_aware_key(self);
 
+        logger::debug!(
+            key = %redis_key,
+            "Redis EXPIRE command Started"
+        );
+
         let result = self.pool.expire(redis_key.clone(), seconds).await;
 
         logger::debug!(
@@ -667,6 +752,11 @@ impl super::RedisConnectionPool {
     ) -> CustomResult<(), errors::RedisError> {
         let start = std::time::Instant::now();
         let redis_key = key.tenant_aware_key(self);
+        logger::debug!(
+            key = %redis_key,
+            timestamp = %timestamp,
+            "Redis EXPIREAT command Started"
+        );
 
         let result = self.pool.expire_at(redis_key.clone(), timestamp).await;
 
@@ -684,6 +774,10 @@ impl super::RedisConnectionPool {
     pub async fn get_ttl(&self, key: &RedisKey) -> CustomResult<i64, errors::RedisError> {
         let start = std::time::Instant::now();
         let redis_key = key.tenant_aware_key(self);
+        logger::debug!(
+            key = %redis_key,
+            "Redis TTL command Started"
+        );
 
         let result = self.pool.ttl(redis_key.clone()).await;
 
@@ -709,6 +803,10 @@ impl super::RedisConnectionPool {
     {
         let start = std::time::Instant::now();
         let redis_key = key.tenant_aware_key(self);
+        logger::debug!(
+            key = %redis_key,
+            "Redis HSET command Started"
+        );
 
         let output: Result<(), _> = self
             .pool
@@ -745,6 +843,11 @@ impl super::RedisConnectionPool {
     {
         let start = std::time::Instant::now();
         let redis_key = key.tenant_aware_key(self);
+        logger::debug!(
+            key = %redis_key,
+            field = %field,
+            "Redis HSETNX command Started"
+        );
 
         let output: Result<HsetnxReply, _> = self
             .pool
@@ -783,7 +886,12 @@ impl super::RedisConnectionPool {
     {
         let start = std::time::Instant::now();
         let redis_key = key.tenant_aware_key(self);
-
+        
+        logger::debug!(
+            key = %redis_key,
+            field = %field,
+            "Redis HSETNX (serialized) command Started"
+        );
         let serialized = value
             .encode_to_vec()
             .change_context(errors::RedisError::JsonSerializationFailed)?;
@@ -844,6 +952,11 @@ impl super::RedisConnectionPool {
     {
         let start = std::time::Instant::now();
         let redis_key = key.tenant_aware_key(self);
+        logger::debug!(
+            key = %redis_key,
+            fields = ?fields_to_increment,
+            "Redis HINCRBY commands Started"
+        );
 
         let mut values_after_increment = Vec::with_capacity(fields_to_increment.len());
         for (field, increment) in fields_to_increment.iter() {
@@ -874,6 +987,11 @@ impl super::RedisConnectionPool {
     ) -> CustomResult<Vec<String>, errors::RedisError> {
         let start = std::time::Instant::now();
         let redis_key = key.tenant_aware_key(self);
+        logger::debug!(
+            key = %redis_key,
+            pattern = %pattern,
+            "Redis HSCAN command Started"
+        );
 
         let result = self
             .pool
@@ -917,6 +1035,10 @@ impl super::RedisConnectionPool {
     ) -> CustomResult<Vec<String>, errors::RedisError> {
         let start = std::time::Instant::now();
         let redis_pattern = pattern.tenant_aware_key(self);
+        logger::debug!(
+            pattern = %redis_pattern,
+            "Redis SCAN command Started"
+        );
 
         let result = self
             .pool
@@ -993,6 +1115,11 @@ impl super::RedisConnectionPool {
     {
         let start = std::time::Instant::now();
         let redis_key = key.tenant_aware_key(self);
+        logger::debug!(
+            key = %redis_key,
+            field = %field,
+            "Redis HGET command Started"
+        );
 
         let result = match self.pool.hget(redis_key.clone(), field).await {
             Ok(v) => Ok(v),
@@ -1026,6 +1153,10 @@ impl super::RedisConnectionPool {
     {
         let start = std::time::Instant::now();
         let redis_key = key.tenant_aware_key(self);
+        logger::debug!(
+            key = %redis_key,
+            "Redis HGETALL command Started"
+        );
 
         let result = match self.pool.hgetall(redis_key.clone()).await {
             Ok(v) => Ok(v),
@@ -1063,6 +1194,12 @@ impl super::RedisConnectionPool {
     {
         let start = std::time::Instant::now();
         let redis_key = key.tenant_aware_key(self);
+        logger::debug!(
+            key = %redis_key,
+            field = %field,
+            type_name = %type_name,
+            "Redis HGET and deserialize Started"
+        );
 
         let value_bytes = self.get_hash_field::<Vec<u8>>(key, field).await?;
 
@@ -1097,6 +1234,10 @@ impl super::RedisConnectionPool {
     {
         let start = std::time::Instant::now();
         let redis_key = key.tenant_aware_key(self);
+        logger::debug!(
+            key = %redis_key,
+            "Redis SADD command Started"
+        );
 
         let result = self.pool.sadd(redis_key.clone(), members).await;
 
@@ -1122,6 +1263,11 @@ impl super::RedisConnectionPool {
     {
         let start = std::time::Instant::now();
         let redis_key = stream.tenant_aware_key(self);
+        logger::debug!(
+            key = %redis_key,
+            entry_id = ?entry_id,
+            "Redis XADD command Started"
+        );
 
         let result = self
             .pool
