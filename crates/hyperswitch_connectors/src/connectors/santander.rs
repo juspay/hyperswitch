@@ -21,10 +21,10 @@ use hyperswitch_domain_models::{
         AuthorizeSessionToken, UpdateMetadata,
     },
     router_request_types::{
-        AccessTokenRequestData, CurrentFlowInfo, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
-        PaymentsSyncData, PaymentsUpdateMetadataData, RefundsData, ResponseId,
-        SetupMandateRequestData, AuthorizeSessionTokenData,
+        AccessTokenRequestData, AuthorizeSessionTokenData, CurrentFlowInfo,
+        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData, PaymentsUpdateMetadataData,
+        RefundsData, ResponseId, SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
