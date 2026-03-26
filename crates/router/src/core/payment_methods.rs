@@ -4163,7 +4163,9 @@ impl RawPaymentMethodFetchAccess {
         storage_type: common_enums::StorageType,
     ) -> RouterResult<payment_methods::CardDetail> {
         match self {
-            Self::Denied => Err(report!(errors::ApiErrorResponse::AccessDenied))
+            Self::Denied => Err(report!(errors::ApiErrorResponse::AccessForbidden {
+                resource: "raw network token data".to_string()
+            }))
                 .attach_printable("Raw network token fetch access denied"),
             Self::Allowed => {
                 let network_token_locker_id = payment_method
@@ -4205,12 +4207,9 @@ impl RawPaymentMethodFetchAccess {
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed to check network token status")?;
 
-                let is_active = check_token_status_response.payload.token_status
-                    == pm_types::TokenStatus::Active;
-
-                match (is_active, network_token_vault_data) {
+                match (check_token_status_response.payload.token_status, network_token_vault_data) {
                     (
-                        true,
+                        pm_types::TokenStatus::Active,
                         hyperswitch_domain_models::vault::PaymentMethodVaultingData::NetworkToken(
                             network_token_details,
                         ),
