@@ -761,8 +761,9 @@ impl EmailData for RoleDeleted {
         }
         .into_iter()
         .fold(String::new(), |mut acc, item| {
-            use std::fmt::Write;
-            let _ = write!(acc, "<li>{}</li>", item);
+            acc.push_str("<li>");
+            acc.push_str(&item);
+            acc.push_str("</li>");
             acc
         });
 

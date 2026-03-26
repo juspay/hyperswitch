@@ -113,6 +113,7 @@ impl Feature<api::SdkSessionUpdate, types::SdkPaymentsSessionUpdateData>
             self,
             creds_identifier,
             gateway_context,
+            None,
         ))
         .await
     }

@@ -176,6 +176,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
             self,
             creds_identifier,
             gateway_context,
+            None,
         ))
         .await
     }

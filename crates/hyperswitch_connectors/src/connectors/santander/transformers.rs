@@ -14,8 +14,10 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankTransferData, BoletoVoucherData, PaymentMethodData, VoucherData},
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
-    router_flow_types::payments::PaymentTrigger,
-    router_request_types::{PaymentTriggerData, PaymentsUpdateMetadataData, ResponseId},
+    router_flow_types::{payments::PaymentTrigger, AuthorizeSessionToken},
+    router_request_types::{
+        AuthorizeSessionTokenData, PaymentTriggerData, PaymentsUpdateMetadataData, ResponseId,
+    },
     router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsSyncRouterData,
@@ -47,14 +49,15 @@ use crate::{
             SantanderRouterData, SantanderValue, SantanderValueType,
         },
         responses::{
-            Beneficiary, Key, NsuComposite, Payer, SanatanderAccessTokenResponse,
+            Beneficiary, Key, NsuComposite, Payer, RecurrenceStatus, SanatanderAccessTokenResponse,
             SanatanderTokenResponse, SantanderAdditionalInfo, SantanderBoletoDocumentKind,
-            SantanderBoletoPaymentType, SantanderBoletoStatus, SantanderDocumentKind,
+            SantanderBoletoPaymentType, SantanderBoletoStatus,
+            SantanderCreatePixPayloadLocationResponse, SantanderDocumentKind, SantanderJourneyType,
             SantanderPaymentStatus, SantanderPaymentTriggerResponse, SantanderPaymentsResponse,
             SantanderPaymentsSyncResponse, SantanderPixKeyType, SantanderPixQRCodePaymentsResponse,
             SantanderPixQRCodeSyncResponse, SantanderRefundResponse, SantanderRefundStatus,
             SantanderUpdateMetadataResponse, SantanderVoidResponse, SantanderVoidStatus,
-            WaitScreenData, RecurrenceStatus,
+            WaitScreenData,
         },
     },
     types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
@@ -69,6 +72,36 @@ impl<T> From<(StringMajorUnit, T)> for SantanderRouterData<T> {
             amount,
             router_data: item,
         }
+    }
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            AuthorizeSessionToken,
+            SantanderCreatePixPayloadLocationResponse,
+            AuthorizeSessionTokenData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<AuthorizeSessionToken, AuthorizeSessionTokenData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<
+            AuthorizeSessionToken,
+            SantanderCreatePixPayloadLocationResponse,
+            AuthorizeSessionTokenData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            session_token: Some(item.response.id.to_string()),
+            response: Ok(PaymentsResponseData::SessionTokenResponse {
+                session_token: item.response.id.to_string(),
+            }),
+            ..item.data
+        })
     }
 }
 
@@ -126,7 +159,8 @@ impl TryFrom<&SantanderRouterData<&PaymentsTriggerRouterData>>
             }
         };
 
-        let expiry_time_seconds = item.router_data.
+        let expiry_time_seconds = item
+            .router_data
             .request
             .feature_metadata
             .as_ref()
@@ -227,7 +261,7 @@ impl
 
                 let status = response
                     .status
-                    .map(|status| AttemptStatus::from(status))
+                    .map(AttemptStatus::from)
                     .unwrap_or(AttemptStatus::Pending);
 
                 (
@@ -265,8 +299,7 @@ impl
                     None => None,
                 };
 
-                let status = RecurrenceStatus::from(response.status);
-
+                let status = AttemptStatus::from(response.status);
                 (
                     status,
                     ResponseId::ConnectorTransactionId(

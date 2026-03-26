@@ -4492,15 +4492,16 @@ where
         )
         .await?;
 
-    router_data
-        .add_session_token(state, &connector, &context)
-        .await?;
-
     let should_continue_further = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
         &mut router_data,
         &call_connector_action,
     );
+
+    // AuthorizeSessionTokenFlow needs access token to be added in router data before creating session token, as the session token creation might require access token in headers for some connectors (like Santander)
+    router_data
+        .add_session_token(state, &connector, &context)
+        .await?;
 
     // Balance check flow for payment methods like Giftcard, Voucher etc.
     let should_continue_further = if should_continue_further {
@@ -5092,15 +5093,16 @@ where
         )
         .await?;
 
-    router_data
-        .add_session_token(state, &connector, &gateway_context)
-        .await?;
-
     let should_continue_further = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
         &mut router_data,
         &call_connector_action,
     );
+
+    router_data
+        .add_session_token(state, &connector, &gateway_context)
+        .await?;
+
     let payment_method_token_response = router_data
         .add_payment_method_token(
             state,
@@ -6077,15 +6079,15 @@ where
         )
         .await?;
 
-    router_data
-        .add_session_token(state, &connector, &default_gateway_context)
-        .await?;
-
     let mut should_continue_further = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
         &mut router_data,
         &call_connector_action,
     );
+
+    router_data
+        .add_session_token(state, &connector, &default_gateway_context)
+        .await?;
 
     let (connector_request, should_continue_further) = if should_continue_further {
         router_data
