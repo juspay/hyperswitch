@@ -11519,11 +11519,8 @@ impl FeatureMetadata {
             .ok_or(ValidationError::MissingRequiredField {
                 field_name: "feature_metadata.pix_automatico_additional_details".to_string(),
             })
-            .and_then(|details| match details {
-                PixAutomaticoAdditionalDetails::PixAutomaticoPush(push) => Ok(push.time),
-                _ => Err(ValidationError::IncorrectValueProvided {
-                    field_name: "feature_metadata.pix_automatico_additional_details",
-                }),
+            .map(|details| match details {
+                PixAutomaticoAdditionalDetails::PixAutomaticoPush(push) => push.time,
             })
     }
     pub fn merge(self, other: Option<Self>) -> Self {
