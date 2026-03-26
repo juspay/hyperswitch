@@ -177,21 +177,12 @@ pub struct ScheduledExpirationTime {
 pub enum PixAutomaticoAdditionalDetails {
     /// Pix Automatico Push notification flow
     PixAutomaticoPush(PixAutomaticoPushDetails),
-    /// Pix Automatico QR code flow
-    PixAutomaticoQr(PixAutomaticoQrDetails),
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Json)]
 pub struct PixAutomaticoPushDetails {
     /// Time in seconds until which the push notification is valid
-    pub time: u32,
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
-#[diesel(sql_type = Json)]
-pub struct PixAutomaticoQrDetails {
-    /// Time in seconds until which the QR code is valid
     pub time: u32,
 }
 
