@@ -32,7 +32,6 @@ pub mod merchant_key_store;
 pub mod payment_attempt;
 pub mod payment_link;
 pub mod payment_method;
-pub mod payment_session_redis;
 pub mod payout_attempt;
 pub mod payouts;
 pub mod refund;

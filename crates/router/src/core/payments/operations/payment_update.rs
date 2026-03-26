@@ -23,7 +23,10 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payment_methods::cards::create_encrypted_data,
-        payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
+        payments::{
+            self, helpers, operations, payment_session::PaymentSessionManager, CustomerDetails,
+            PaymentAddress, PaymentData,
+        },
         utils as core_utils,
     },
     events::audit_events::{AuditEvent, AuditEventType},
@@ -33,10 +36,7 @@ use crate::{
         self,
         api::{self, ConnectorCallType, PaymentIdTypeExt},
         domain,
-        storage::{
-            self, enums as storage_enums, payment_attempt::PaymentAttemptExt,
-            payment_session_redis::PaymentSessionRedisManager,
-        },
+        storage::{self, enums as storage_enums, payment_attempt::PaymentAttemptExt},
         transformers::ForeignTryFrom,
     },
     utils::OptionExt,
@@ -1082,38 +1082,29 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        // Refresh payment session for the payment (only if not a confirm operation)
-        if !payment_data.confirm.unwrap_or(false) {
-            let merchant_id = processor.get_account().get_id().clone();
-            let payment_id = payment_data.payment_intent.payment_id.clone();
+        let merchant_id = processor.get_account().get_id().clone();
+        let payment_id = payment_data.payment_intent.payment_id.clone();
 
-            // Recreate session (invalidate old + create new)
-            let (new_payment_session_id, invalidation_report) =
-                PaymentSessionRedisManager::recreate_session(
-                    state,
-                    &merchant_id,
-                    &payment_id,
-                    payment_data
-                        .payment_intent
-                        .session_expiry
-                        .unwrap_or_else(|| {
-                            common_utils::date_time::now()
-                                + time::Duration::seconds(crate::consts::DEFAULT_SESSION_EXPIRY)
-                        }),
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to refresh payment session during payment update")?;
+        // Recreate session (Overwrite old session)
+        let (new_payment_session_id, invalidation_report) =
+            PaymentSessionManager::recreate_session(
+                state,
+                &merchant_id,
+                &payment_id,
+                payment_data.payment_intent.session_expiry,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to refresh payment session during payment update")?;
 
-            services::logger::debug!(
-                payment_id = %payment_id.get_string_repr(),
-                session_existed = invalidation_report.session_existed,
-                "Payment session recreated during update"
-            );
+        services::logger::debug!(
+            payment_id = %payment_id.get_string_repr(),
+            session_existed = invalidation_report.session_existed,
+            "Payment session recreated during update"
+        );
 
-            // Update payment_data with new session_id
-            payment_data.payment_session_id = Some(new_payment_session_id);
-        }
+        // Update payment_data with new session_id
+        payment_data.payment_session_id = Some(new_payment_session_id);
 
         let amount = payment_data.amount;
         req_state

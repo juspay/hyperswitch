@@ -36,7 +36,10 @@ use crate::{
         mandate::helpers as m_helpers,
         payment_link,
         payment_methods::transformers as pm_transformers,
-        payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
+        payments::{
+            self, helpers, operations, payment_session::PaymentSessionManager, CustomerDetails,
+            PaymentAddress, PaymentData,
+        },
         utils as core_utils,
     },
     db::StorageInterface,
@@ -50,7 +53,6 @@ use crate::{
         storage::{
             self,
             enums::{self, IntentStatus},
-            payment_session_redis::PaymentSessionRedisManager,
         },
         transformers::ForeignFrom,
     },
@@ -627,11 +629,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let unified_address = address.unify_with_payment_method_data_billing(add);
 
         // Generate payment session for the payment
-        let payment_session_id = PaymentSessionRedisManager::create_session(
+        let payment_session_id = PaymentSessionManager::create_session(
             state,
             platform.get_processor().get_account().get_id(),
             &payment_id,
-            session_expiry,
+            Some(session_expiry),
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)

@@ -51,11 +51,12 @@ use crate::{
             SDK_AUTH_INVALID_SESSION_TOTAL, SDK_AUTH_LEGACY_FLOW_TOTAL,
             SDK_AUTH_SESSION_VALIDATED_TOTAL,
         },
+        payments::payment_session::PaymentSessionManager,
     },
     headers,
     routes::app::SessionStateInfo,
     services::api,
-    types::{domain, storage, storage::payment_session_redis::PaymentSessionRedisManager},
+    types::{domain, storage},
     utils::OptionExt,
 };
 
@@ -3399,79 +3400,6 @@ where
         // Extract client_secret from decoded SDK authorization
         let client_secret = sdk_auth.client_secret.clone();
 
-        // Validate session_id if present (V1 only, backward compatibility)
-        if let Some(ref payment_session_id) = sdk_auth.payment_session_id {
-            // Extract payment_id from client_secret (format: "{payment_id}_secret_{random}")
-
-            let payment_id =
-                crate::core::payments::helpers::get_payment_id_from_client_secret(&client_secret)?;
-
-            let payment_id = id_type::PaymentId::wrap(payment_id)
-                .change_context(errors::ApiErrorResponse::Unauthorized)
-                .attach_printable("Invalid payment_id in client_secret")?;
-
-            // Get merchant_id from platform (will be resolved below)
-            // We need to find the processor merchant first
-            let (processor_merchant, _) = state
-                .store()
-                .find_merchant_account_by_publishable_key(&sdk_auth.publishable_key)
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::Unauthorized)
-                .attach_printable("Invalid publishable key in SDK authorization")?;
-
-            let merchant_id = processor_merchant.get_id().clone();
-
-            // Validate session
-            let is_valid = PaymentSessionRedisManager::validate_session(
-                state,
-                &merchant_id,
-                &payment_id,
-                payment_session_id,
-            )
-            .await
-            .unwrap_or(false);
-
-            if !is_valid {
-                // Increment invalid session metric
-                SDK_AUTH_INVALID_SESSION_TOTAL.add(
-                    1,
-                    &[router_env::opentelemetry::KeyValue::new(
-                        "merchant_id",
-                        merchant_id.get_string_repr().to_string(),
-                    )],
-                );
-
-                return Err(errors::ApiErrorResponse::Unauthorized.into());
-            }
-
-            // Increment successful validation metric
-            SDK_AUTH_SESSION_VALIDATED_TOTAL.add(
-                1,
-                &[router_env::opentelemetry::KeyValue::new(
-                    "merchant_id",
-                    merchant_id.get_string_repr().to_string(),
-                )],
-            );
-        } else {
-            // Legacy flow - no session_id provided
-            // Get merchant_id for metrics
-            if let Ok((processor_merchant, _)) = state
-                .store()
-                .find_merchant_account_by_publishable_key(&sdk_auth.publishable_key)
-                .await
-            {
-                SDK_AUTH_LEGACY_FLOW_TOTAL.add(
-                    1,
-                    &[router_env::opentelemetry::KeyValue::new(
-                        "merchant_id",
-                        processor_merchant.get_id().get_string_repr().to_string(),
-                    )],
-                );
-            }
-
-            logger::info!("SDK auth without session_id - legacy flow");
-        }
-
         let (initiator_merchant, initiator_merchant_key_store) = match sdk_auth
             .platform_publishable_key
         {
@@ -3505,6 +3433,67 @@ where
             self.allow_platform_self_operation,
         )
         .await?;
+
+        // Validate session_id if present
+        match sdk_auth.payment_session_id {
+            Some(payment_session_id) => {
+                let merchant_id = platform.get_processor().get_account().get_id();
+
+                let payment_id = crate::core::payments::helpers::get_payment_id_from_client_secret(
+                    &client_secret,
+                )?;
+
+                let payment_id = id_type::PaymentId::wrap(payment_id)
+                    .change_context(errors::ApiErrorResponse::Unauthorized)
+                    .attach_printable("Invalid payment_id in client_secret")?;
+
+                // Validate session
+                PaymentSessionManager::validate_session(
+                    state,
+                    merchant_id,
+                    &payment_id,
+                    &payment_session_id,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::Unauthorized)
+                .attach_printable("Failed to validate payment session")?
+                .then_some(())
+                .ok_or_else(|| {
+                    SDK_AUTH_INVALID_SESSION_TOTAL.add(
+                        1,
+                        &[router_env::opentelemetry::KeyValue::new(
+                            "merchant_id",
+                            merchant_id.get_string_repr().to_string(),
+                        )],
+                    );
+                    report!(errors::ApiErrorResponse::Unauthorized)
+                        .attach_printable("Invalid Session ID")
+                })?;
+
+                SDK_AUTH_SESSION_VALIDATED_TOTAL.add(
+                    1,
+                    &[router_env::opentelemetry::KeyValue::new(
+                        "merchant_id",
+                        merchant_id.get_string_repr().to_string(),
+                    )],
+                );
+            }
+            None => {
+                // Legacy flow - no session_id provided
+                // Get merchant_id for metrics
+                let merchant_id = platform.get_processor().get_account().get_id();
+
+                SDK_AUTH_LEGACY_FLOW_TOTAL.add(
+                    1,
+                    &[router_env::opentelemetry::KeyValue::new(
+                        "merchant_id",
+                        merchant_id.get_string_repr().to_string(),
+                    )],
+                );
+
+                logger::info!("SDK auth without session_id - legacy flow");
+            }
+        }
 
         let profile = state
             .store()

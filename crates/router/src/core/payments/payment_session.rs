@@ -1,19 +1,15 @@
-//! Payment Session Redis Operations - PR 1
-//!
-//! Core session ID management for SDK authorization.
-//! PR 2 will add PM token tracking via session_entries.
+//! Core payment session ID management for SDK authorization.
 
 use common_utils::{
     errors::CustomResult,
     id_type::{self, GenerateId, MerchantId, PaymentId},
 };
 use error_stack::ResultExt;
-use redis_interface::DelReply;
 use router_env::{instrument, logger, tracing};
 use serde::{Deserialize, Serialize};
-use time::PrimitiveDateTime;
+use time::{Duration, PrimitiveDateTime};
 
-use crate::{db::errors, routes::app::SessionStateInfo};
+use crate::{consts, db::errors, routes::app::SessionStateInfo};
 
 /// Payment session data structure stored in Redis
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -34,15 +30,17 @@ pub struct SessionInvalidationReport {
 }
 
 /// Manager for payment session Redis operations
-pub struct PaymentSessionRedisManager;
+pub struct PaymentSessionManager;
 
-impl PaymentSessionRedisManager {
-    /// Generate Redis key in format: payment_session:{merchant_id}:{payment_id}
-    fn get_session_key(merchant_id: &MerchantId, payment_id: &PaymentId) -> String {
+impl PaymentSessionManager {
+    /// Generate Redis key in format: payment_session:{processor_merchant_id}:{payment_id}
+    /// We have a unique constraint on (processor_merchant_id, payment_id), so using them
+    /// for creating the redis key
+    fn get_session_key(processor_merchant_id: &MerchantId, payment_id: &PaymentId) -> String {
         format!(
             "{}:{}:{}",
-            crate::consts::PAYMENT_SESSION_KEY_PREFIX,
-            merchant_id.get_string_repr(),
+            consts::PAYMENT_SESSION_KEY_PREFIX,
+            processor_merchant_id.get_string_repr(),
             payment_id.get_string_repr()
         )
     }
@@ -51,7 +49,7 @@ impl PaymentSessionRedisManager {
     ///
     /// # Arguments
     /// * `state` - Application state with Redis connection
-    /// * `merchant_id` - Merchant ID for the payment
+    /// * `processor_merchant_id` - Merchant ID for the payment
     /// * `payment_id` - Payment ID for the session
     /// * `session_expiry` - Expiry time for the session
     ///
@@ -63,9 +61,9 @@ impl PaymentSessionRedisManager {
     #[instrument(skip_all)]
     pub async fn create_session<S>(
         state: &S,
-        merchant_id: &MerchantId,
+        processor_merchant_id: &MerchantId,
         payment_id: &PaymentId,
-        session_expiry: PrimitiveDateTime,
+        session_expiry: Option<PrimitiveDateTime>,
     ) -> CustomResult<id_type::PaymentSessionId, errors::StorageError>
     where
         S: SessionStateInfo + Sync,
@@ -78,10 +76,12 @@ impl PaymentSessionRedisManager {
                     errors::RedisError::RedisConnectionError.into(),
                 ))?;
 
+        let session_expiry = session_expiry.unwrap_or_else(Self::get_default_session_expiry);
+
         // Generate a unique session ID
         let payment_session_id = id_type::PaymentSessionId::generate();
 
-        let key = Self::get_session_key(merchant_id, payment_id);
+        let key = Self::get_session_key(processor_merchant_id, payment_id);
 
         // Calculate TTL in seconds from now until session_expiry
         let now = common_utils::date_time::now();
@@ -110,7 +110,7 @@ impl PaymentSessionRedisManager {
             ))?;
 
         logger::debug!(
-            merchant_id = %merchant_id.get_string_repr(),
+            processor_merchant_id = %processor_merchant_id.get_string_repr(),
             payment_id = %payment_id.get_string_repr(),
             ttl_seconds,
             "Created payment session"
@@ -123,7 +123,7 @@ impl PaymentSessionRedisManager {
     ///
     /// # Arguments
     /// * `state` - Application state with Redis connection
-    /// * `merchant_id` - Merchant ID for the payment
+    /// * `processor_merchant_id` - Merchant ID for the payment
     /// * `payment_id` - Payment ID for the session
     ///
     /// # Returns
@@ -131,7 +131,7 @@ impl PaymentSessionRedisManager {
     #[instrument(skip_all)]
     pub async fn get_session<S>(
         state: &S,
-        merchant_id: &MerchantId,
+        processor_merchant_id: &MerchantId,
         payment_id: &PaymentId,
     ) -> CustomResult<Option<PaymentSessionData>, errors::StorageError>
     where
@@ -145,7 +145,7 @@ impl PaymentSessionRedisManager {
                     errors::RedisError::RedisConnectionError.into(),
                 ))?;
 
-        let key = Self::get_session_key(merchant_id, payment_id);
+        let key = Self::get_session_key(processor_merchant_id, payment_id);
 
         match redis_conn
             .get_and_deserialize_key::<PaymentSessionData>(&key.into(), "PaymentSessionData")
@@ -153,85 +153,35 @@ impl PaymentSessionRedisManager {
         {
             Ok(session_data) => {
                 logger::debug!(
-                    merchant_id = %merchant_id.get_string_repr(),
+                    processor_merchant_id = %processor_merchant_id.get_string_repr(),
                     payment_id = %payment_id.get_string_repr(),
                     "Retrieved payment session"
                 );
                 Ok(Some(session_data))
             }
-            Err(_) => {
-                logger::debug!(
-                    merchant_id = %merchant_id.get_string_repr(),
-                    payment_id = %payment_id.get_string_repr(),
-                    "No payment session found"
-                );
-                Ok(None)
-            }
-        }
-    }
 
-    /// Invalidate (delete) existing session for a payment
-    ///
-    /// # Arguments
-    /// * `state` - Application state with Redis connection
-    /// * `merchant_id` - Merchant ID for the payment
-    /// * `payment_id` - Payment ID for the session
-    ///
-    /// # Returns
-    /// Report indicating whether session existed
-    #[instrument(skip_all)]
-    async fn invalidate_session<S>(
-        state: &S,
-        merchant_id: &MerchantId,
-        payment_id: &PaymentId,
-    ) -> CustomResult<SessionInvalidationReport, errors::StorageError>
-    where
-        S: SessionStateInfo + Sync,
-    {
-        let redis_conn =
-            state
-                .store()
-                .get_redis_conn()
-                .change_context(errors::StorageError::RedisError(
-                    errors::RedisError::RedisConnectionError.into(),
-                ))?;
-
-        let key = Self::get_session_key(merchant_id, payment_id);
-
-        // Check if session exists before deleting
-        let session_existed = Self::get_session(state, merchant_id, payment_id)
-            .await?
-            .is_some();
-
-        // Delete payment session key
-        match redis_conn.delete_key(&key.into()).await {
-            Ok(DelReply::KeyDeleted) => {
-                logger::debug!(
-                    merchant_id = %merchant_id.get_string_repr(),
-                    payment_id = %payment_id.get_string_repr(),
-                    "Invalidated payment session"
-                );
-            }
-            Ok(DelReply::KeyNotDeleted) => {
-                logger::debug!(
-                    merchant_id = %merchant_id.get_string_repr(),
-                    payment_id = %payment_id.get_string_repr(),
-                    "No payment session to invalidate"
-                );
-            }
             Err(err) => {
-                logger::error!(?err, "Failed to delete payment session key");
+                if matches!(err.current_context(), errors::RedisError::NotFound) {
+                    logger::debug!(
+                        processor_merchant_id = %processor_merchant_id.get_string_repr(),
+                        payment_id = %payment_id.get_string_repr(),
+                        "No payment session found"
+                    );
+                    Ok(None)
+                } else {
+                    Err(err).change_context(errors::StorageError::RedisError(
+                        errors::RedisError::GetHashFieldFailed.into(),
+                    ))
+                }
             }
         }
-
-        Ok(SessionInvalidationReport { session_existed })
     }
 
     /// Validate session ID against stored value
     ///
     /// # Arguments
     /// * `state` - Application state with Redis connection
-    /// * `merchant_id` - Merchant ID for the payment
+    /// * `processor_merchant_id` - Merchant ID for the payment
     /// * `payment_id` - Payment ID for the session
     /// * `session_id` - Session ID to validate
     ///
@@ -240,18 +190,22 @@ impl PaymentSessionRedisManager {
     #[instrument(skip_all)]
     pub async fn validate_session<S>(
         state: &S,
-        merchant_id: &MerchantId,
+        processor_merchant_id: &MerchantId,
         payment_id: &PaymentId,
         payment_session_id: &id_type::PaymentSessionId,
     ) -> CustomResult<bool, errors::StorageError>
     where
         S: SessionStateInfo + Sync,
     {
-        match Self::get_session(state, merchant_id, payment_id).await? {
+        let session = Self::get_session(state, processor_merchant_id, payment_id)
+            .await
+            .attach_printable("Unable to retrieve payment session")?;
+
+        match session {
             Some(data) => {
                 let is_valid = &data.payment_session_id == payment_session_id;
                 logger::debug!(
-                    merchant_id = %merchant_id.get_string_repr(),
+                    processor_merchant_id = %processor_merchant_id.get_string_repr(),
                     payment_id = %payment_id.get_string_repr(),
                     is_valid,
                     "Validated payment session"
@@ -260,7 +214,7 @@ impl PaymentSessionRedisManager {
             }
             None => {
                 logger::debug!(
-                    merchant_id = %merchant_id.get_string_repr(),
+                    processor_merchant_id = %processor_merchant_id.get_string_repr(),
                     payment_id = %payment_id.get_string_repr(),
                     "Payment session not found for validation"
                 );
@@ -276,7 +230,7 @@ impl PaymentSessionRedisManager {
     ///
     /// # Arguments
     /// * `state` - Application state with Redis connection
-    /// * `merchant_id` - Merchant ID for the payment
+    /// * `processor_merchant_id` - Merchant ID for the payment
     /// * `payment_id` - Payment ID for the session
     /// * `session_expiry` - Expiry time for the new session
     ///
@@ -285,27 +239,41 @@ impl PaymentSessionRedisManager {
     #[instrument(skip_all)]
     pub async fn recreate_session<S>(
         state: &S,
-        merchant_id: &MerchantId,
+        processor_merchant_id: &MerchantId,
         payment_id: &PaymentId,
-        session_expiry: PrimitiveDateTime,
+        session_expiry: Option<PrimitiveDateTime>,
     ) -> CustomResult<(id_type::PaymentSessionId, SessionInvalidationReport), errors::StorageError>
     where
         S: SessionStateInfo + Sync,
     {
-        // Invalidate old session
-        let report = Self::invalidate_session(state, merchant_id, payment_id).await?;
+        let session_expiry = session_expiry.unwrap_or_else(Self::get_default_session_expiry);
 
-        // Create new session
-        let new_session_id =
-            Self::create_session(state, merchant_id, payment_id, session_expiry).await?;
+        let session_existed = Self::get_session(state, processor_merchant_id, payment_id)
+            .await?
+            .is_some();
+
+        let report = SessionInvalidationReport { session_existed };
+
+        // Create new session, overwriting the previous value in redis
+        let new_session_id = Self::create_session(
+            state,
+            processor_merchant_id,
+            payment_id,
+            Some(session_expiry),
+        )
+        .await?;
 
         logger::debug!(
-            merchant_id = %merchant_id.get_string_repr(),
+            processor_merchant_id = %processor_merchant_id.get_string_repr(),
             payment_id = %payment_id.get_string_repr(),
             session_existed = report.session_existed,
             "Recreated payment session"
         );
 
         Ok((new_session_id, report))
+    }
+
+    fn get_default_session_expiry() -> PrimitiveDateTime {
+        common_utils::date_time::now() + Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)
     }
 }

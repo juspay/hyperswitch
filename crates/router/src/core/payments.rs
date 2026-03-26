@@ -7,6 +7,7 @@ pub mod helpers;
 pub mod operations;
 pub mod session_token;
 
+pub mod payment_session;
 #[cfg(feature = "retry")]
 pub mod retry;
 pub mod routing;
