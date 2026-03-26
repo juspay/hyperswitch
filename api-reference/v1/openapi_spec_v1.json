@@ -10005,14 +10005,6 @@
             "description": "The business profile that is associated with this authentication",
             "nullable": true
           },
-          "customer": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CustomerDetails"
-              }
-            ],
-            "nullable": true
-          },
           "amount": {
             "$ref": "#/components/schemas/MinorUnit"
           },
@@ -10063,6 +10055,19 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/CustomerDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "AuthenticationDetails": {
+        "type": "object",
+        "properties": {
+          "three_ds_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalThreeDsData"
               }
             ],
             "nullable": true
@@ -10753,6 +10758,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/AuthenticationVaultTokenData"
+              }
+            ],
+            "nullable": true
+          },
+          "authentication_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationDetails"
               }
             ],
             "nullable": true

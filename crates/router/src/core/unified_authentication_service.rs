@@ -1946,7 +1946,7 @@ async fn use_stored_authentication_value(
 
         let authentication_details = api_models::authentication::AuthenticationDetails {
             three_ds_data: Some(api_models::authentication::ExternalThreeDsData {
-                authentication_cryptogram: authentication_cryptogram,
+                authentication_cryptogram,
                 eci: post_authentication_details.eci,
                 ds_trans_id: post_authentication_details
                     .dynamic_data_details

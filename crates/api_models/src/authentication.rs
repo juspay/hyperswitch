@@ -684,6 +684,8 @@ pub struct AuthenticationSyncResponse {
     /// The tokens for vaulted data
     pub vault_token_data: Option<AuthenticationVaultTokenData>,
 
+    /// The authentication details after external authentication
+    #[schema(value_type = Option<AuthenticationDetails>)]
     pub authentication_details: Option<AuthenticationDetails>,
 
     /// Billing address.
