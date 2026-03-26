@@ -418,6 +418,8 @@ impl TryFrom<SetupMandateRequestData> for PaymentTriggerData {
         Ok(Self {
             payment_method_data: Some(data.payment_method_data),
             feature_metadata: data.feature_metadata,
+            mandate_id: data.mandate_id,
+            amount: Some(data.amount),
         })
     }
 }
@@ -429,6 +431,8 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentTriggerData {
         Ok(Self {
             payment_method_data: Some(data.payment_method_data),
             feature_metadata: None,
+            mandate_id: None,
+            amount: None,
         })
     }
 }
@@ -440,6 +444,8 @@ impl TryFrom<PaymentsAuthenticateData> for PaymentTriggerData {
         Ok(Self {
             payment_method_data: data.payment_method_data,
             feature_metadata: None,
+            mandate_id: None,
+            amount: None,
         })
     }
 }
@@ -451,6 +457,8 @@ impl TryFrom<CompleteAuthorizeData> for PaymentTriggerData {
         Ok(Self {
             payment_method_data: data.payment_method_data,
             feature_metadata: None,
+            mandate_id: None,
+            amount: None,
         })
     }
 }
@@ -727,12 +735,6 @@ pub struct PaymentsPreProcessingData {
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
     pub is_stored_credential: Option<bool>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct PaymentTriggerData {
-    pub payment_method_data: Option<PaymentMethodData>,
-    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1816,4 +1818,28 @@ pub struct VaultRequestData {
 pub struct DisputeSyncData {
     pub dispute_id: String,
     pub connector_dispute_id: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PaymentTriggerData {
+    pub payment_method_data: Option<PaymentMethodData>,
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
+    pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub amount: Option<i64>,
+}
+
+impl PaymentTriggerData {
+    pub fn get_connector_mandate_id(&self) -> Option<String> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+                    connector_mandate_ids,
+                )) => connector_mandate_ids.get_connector_mandate_id(),
+                Some(api_models::payments::MandateReferenceId::NetworkMandateId(_))
+                | Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_))
+                | Some(api_models::payments::MandateReferenceId::CardWithLimitedData)
+                | None => None,
+            })
+    }
 }
