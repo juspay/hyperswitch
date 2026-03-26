@@ -3308,12 +3308,12 @@ impl<'a>
                 Some(&api_models::payments::MandateReferenceId::NetworkMandateId(_)),
             ) => Some(
                 domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
-                    domain::CardDetailsForNetworkTransactionId::foreign_try_from(card_data)?,
+                    domain::CardDetailsForNetworkTransactionId::foreign_try_from((card_data,))?,
                 ),
             ),
             // Raw card as last preference for CardWithOptionalCVC.
             (Some(domain::PaymentMethodData::CardWithOptionalCVC(card_data)), _) => {
-                Some(domain::PaymentMethodData::foreign_try_from(card_data)?)
+                Some(domain::PaymentMethodData::foreign_try_from((card_data,))?)
             }
             // Raw card as fallback for CardWithNetworkTokenDetails when mandate-specific paths are not selected.
             (
