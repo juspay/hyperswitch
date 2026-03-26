@@ -1258,8 +1258,10 @@ pub async fn fetch_altid_and_cryptogram(
                     "Alt-ID error: {:?}",
                     parsed_error.error_message
                 );
-                Err(errors::NetworkTokenizationError::FetchAltIdFailed)
-                    .attach_printable(format!("Alt-ID API error: {:?}", parsed_error.error_message))
+                Err(errors::NetworkTokenizationError::FetchAltIdFailed).attach_printable(format!(
+                    "Alt-ID API error: {:?}",
+                    parsed_error.error_message
+                ))
             }
             Ok(res) => Ok(res),
         })

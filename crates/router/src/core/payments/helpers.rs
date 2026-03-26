@@ -8804,7 +8804,7 @@ fn is_indian_merchant(business_profile: &domain::Profile) -> bool {
 /// Attempt to get Alt-ID (network token) for guest checkout card payments.
 /// This function checks if Alt-ID should be used and fetches it from the tokenization service.
 /// Returns None if Alt-ID is not applicable or fails (allowing fallback to raw card).
-/// 
+///
 /// Alt-ID is only applicable for:
 /// - Indian merchants (RBI mandate)
 /// - Domestic Indian cards (card_issuing_country == "india")
@@ -8897,7 +8897,10 @@ pub async fn try_get_altid_for_guest_checkout(
             None
         }
         Err(err) => {
-            logger::warn!("Failed to fetch Alt-ID: {:?}, falling back to raw card", err);
+            logger::warn!(
+                "Failed to fetch Alt-ID: {:?}, falling back to raw card",
+                err
+            );
             None
         }
     }
