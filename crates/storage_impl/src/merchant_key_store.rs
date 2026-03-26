@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     behaviour::{Conversion, ReverseConversion},
@@ -5,7 +7,7 @@ use hyperswitch_domain_models::{
     merchant_key_store::MerchantKeyStoreInterface,
 };
 use hyperswitch_masking::Secret;
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 
 #[cfg(feature = "accounts_cache")]
 use crate::redis::{
@@ -109,6 +111,13 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for RouterStore<T> {
         merchant_id: &common_utils::id_type::MerchantId,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::MerchantKeyStore, Self::Error> {
+        let start = Instant::now();
+
+        logger::info!(
+            "[TIMEOUT_RCA:T4:ENTITY_KEYSTORE_START] entity_type=key_store entity_id={}",
+            merchant_id.get_string_repr()
+        );
+
         let fetch_func = || async {
             let conn = pg_accounts_connection_read(self).await?;
 
@@ -124,16 +133,14 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for RouterStore<T> {
             .attach_printable("Missing KeyManagerState")?;
 
         #[cfg(not(feature = "accounts_cache"))]
-        {
-            fetch_func()
-                .await?
-                .convert(state, key, merchant_id.clone().into())
-                .await
-                .change_context(Self::Error::DecryptionError)
-        }
+        let result = fetch_func()
+            .await?
+            .convert(state, key, merchant_id.clone().into())
+            .await
+            .change_context(Self::Error::DecryptionError);
 
         #[cfg(feature = "accounts_cache")]
-        {
+        let result = {
             let key_store_cache_key =
                 format!("merchant_key_store_{}", merchant_id.get_string_repr());
             cache::get_or_populate_in_memory(
@@ -146,7 +153,16 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for RouterStore<T> {
             .convert(state, key, merchant_id.clone().into())
             .await
             .change_context(Self::Error::DecryptionError)
-        }
+        };
+
+        let duration = start.elapsed().as_micros();
+        logger::info!(
+            "[TIMEOUT_RCA:T4:ENTITY_KEYSTORE_END] entity_type=key_store entity_id={} duration_us={}",
+            merchant_id.get_string_repr(),
+            duration
+        );
+
+        result
     }
 
     #[instrument(skip_all)]

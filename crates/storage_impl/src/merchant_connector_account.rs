@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use async_bb8_diesel::AsyncConnection;
 use common_utils::{encryption::Encryption, ext_traits::AsyncExt};
 use diesel_models::merchant_connector_account as storage;
@@ -7,7 +9,7 @@ use hyperswitch_domain_models::{
     merchant_connector_account::{self as domain, MerchantConnectorAccountInterface},
     merchant_key_store::MerchantKeyStore,
 };
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 
 #[cfg(feature = "accounts_cache")]
 use crate::redis::cache;
@@ -374,6 +376,13 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
+        let start = Instant::now();
+
+        logger::info!(
+            "[TIMEOUT_RCA:T4:ENTITY_MCA_START] entity_type=merchant_connector_account entity_id={}",
+            merchant_connector_id.get_string_repr()
+        );
+
         let find_call = || async {
             let conn = pg_accounts_connection_read(self).await?;
             storage::MerchantConnectorAccount::find_by_merchant_id_merchant_connector_id(
@@ -386,31 +395,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         };
 
         #[cfg(not(feature = "accounts_cache"))]
-        {
-            find_call()
-                .await?
-                .convert(
-                    self.get_keymanager_state()
-                        .attach_printable("Missing KeyManagerState")?,
-                    key_store.key.get_inner(),
-                    key_store.merchant_id.clone().into(),
-                )
-                .await
-                .change_context(Self::Error::DecryptionError)
-        }
-
-        #[cfg(feature = "accounts_cache")]
-        {
-            cache::get_or_populate_in_memory(
-                self,
-                &format!(
-                    "{}_{}",
-                    merchant_id.get_string_repr(),
-                    merchant_connector_id.get_string_repr()
-                ),
-                find_call,
-                &cache::ACCOUNTS_CACHE,
-            )
+        let result = find_call()
             .await?
             .convert(
                 self.get_keymanager_state()
@@ -419,8 +404,37 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
                 key_store.merchant_id.clone().into(),
             )
             .await
-            .change_context(Self::Error::DecryptionError)
-        }
+            .change_context(Self::Error::DecryptionError);
+
+        #[cfg(feature = "accounts_cache")]
+        let result = cache::get_or_populate_in_memory(
+            self,
+            &format!(
+                "{}_{}",
+                merchant_id.get_string_repr(),
+                merchant_connector_id.get_string_repr()
+            ),
+            find_call,
+            &cache::ACCOUNTS_CACHE,
+        )
+        .await?
+        .convert(
+            self.get_keymanager_state()
+                .attach_printable("Missing KeyManagerState")?,
+            key_store.key.get_inner(),
+            key_store.merchant_id.clone().into(),
+        )
+        .await
+        .change_context(Self::Error::DecryptionError);
+
+        let duration = start.elapsed().as_micros();
+        logger::info!(
+            "[TIMEOUT_RCA:T4:ENTITY_MCA_END] entity_type=merchant_connector_account entity_id={} duration_us={}",
+            merchant_connector_id.get_string_repr(),
+            duration
+        );
+
+        result
     }
 
     #[instrument(skip_all)]
@@ -430,6 +444,13 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         id: &common_utils::id_type::MerchantConnectorAccountId,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
+        let start = Instant::now();
+
+        logger::info!(
+            "[TIMEOUT_RCA:T4:ENTITY_MCA_START] entity_type=merchant_connector_account entity_id={}",
+            id.get_string_repr()
+        );
+
         let find_call = || async {
             let conn = pg_accounts_connection_read(self).await?;
             storage::MerchantConnectorAccount::find_by_id(&conn, id)
@@ -438,39 +459,42 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         };
 
         #[cfg(not(feature = "accounts_cache"))]
-        {
-            find_call()
-                .await?
-                .convert(
-                    self.get_keymanager_state()
-                        .attach_printable("Missing KeyManagerState")?,
-                    key_store.key.get_inner(),
-                    key_store.merchant_id.clone(),
-                )
-                .await
-                .change_context(Self::Error::DecryptionError)
-        }
-
-        #[cfg(feature = "accounts_cache")]
-        {
-            cache::get_or_populate_in_memory(
-                self,
-                id.get_string_repr(),
-                find_call,
-                &cache::ACCOUNTS_CACHE,
-            )
+        let result = find_call()
             .await?
             .convert(
                 self.get_keymanager_state()
                     .attach_printable("Missing KeyManagerState")?,
                 key_store.key.get_inner(),
-                common_utils::types::keymanager::Identifier::Merchant(
-                    key_store.merchant_id.clone(),
-                ),
+                key_store.merchant_id.clone(),
             )
             .await
-            .change_context(Self::Error::DecryptionError)
-        }
+            .change_context(Self::Error::DecryptionError);
+
+        #[cfg(feature = "accounts_cache")]
+        let result = cache::get_or_populate_in_memory(
+            self,
+            id.get_string_repr(),
+            find_call,
+            &cache::ACCOUNTS_CACHE,
+        )
+        .await?
+        .convert(
+            self.get_keymanager_state()
+                .attach_printable("Missing KeyManagerState")?,
+            key_store.key.get_inner(),
+            common_utils::types::keymanager::Identifier::Merchant(key_store.merchant_id.clone()),
+        )
+        .await
+        .change_context(Self::Error::DecryptionError);
+
+        let duration = start.elapsed().as_micros();
+        logger::info!(
+            "[TIMEOUT_RCA:T4:ENTITY_MCA_END] entity_type=merchant_connector_account entity_id={} duration_us={}",
+            id.get_string_repr(),
+            duration
+        );
+
+        result
     }
 
     #[instrument(skip_all)]

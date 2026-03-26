@@ -77,11 +77,12 @@ pub async fn check_user_in_blacklist<A: SessionStateInfo>(
     let token = format!("{USER_BLACKLIST_PREFIX}{user_id}");
     let token_issued_at = expiry_to_i64(token_expiry - JWT_TOKEN_TIME_IN_SECS)?;
     let redis_conn = get_redis_connection_for_global_tenant(state)?;
-    redis_conn
+    let result = redis_conn
         .get_key::<Option<i64>>(&token.as_str().into())
         .await
         .change_context(ApiErrorResponse::InternalServerError)
-        .map(|timestamp| timestamp > Some(token_issued_at))
+        .map(|timestamp| timestamp > Some(token_issued_at));
+    result
 }
 
 pub async fn check_role_in_blacklist<A: SessionStateInfo>(
@@ -92,11 +93,12 @@ pub async fn check_role_in_blacklist<A: SessionStateInfo>(
     let token = format!("{ROLE_BLACKLIST_PREFIX}{role_id}");
     let token_issued_at = expiry_to_i64(token_expiry - JWT_TOKEN_TIME_IN_SECS)?;
     let redis_conn = get_redis_connection_for_global_tenant(state)?;
-    redis_conn
+    let result = redis_conn
         .get_key::<Option<i64>>(&token.as_str().into())
         .await
         .change_context(ApiErrorResponse::InternalServerError)
-        .map(|timestamp| timestamp > Some(token_issued_at))
+        .map(|timestamp| timestamp > Some(token_issued_at));
+    result
 }
 
 #[cfg(feature = "email")]

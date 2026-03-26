@@ -89,6 +89,17 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         payment_method_with_raw_data: Option<pm_transformers::PaymentMethodWithRawData>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
+        let payment_id_str = payment_id
+            .get_payment_intent_id()
+            .map(|id| id.get_string_repr().to_owned())
+            .unwrap_or_default();
+        let op_start_time = std::time::Instant::now();
+        logger::info!(
+            "[TIMEOUT_RCA:T8:PAYMENT_OP_START] operation={} payment_id={}",
+            "PaymentConfirm",
+            payment_id_str
+        );
+
         let processor_merchant_id = platform.get_processor().get_account().get_id();
         let storage_scheme = platform.get_processor().get_account().storage_scheme;
         let (currency, amount);
@@ -892,6 +903,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         payment_attempt.installment_data = request.installment_data.clone().map(Into::into);
 
+        logger::info!("[TIMEOUT_RCA:T8:PAYMENT_DATA_BUILD_START]");
+        let data_build_start_time = std::time::Instant::now();
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -942,6 +956,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             external_authentication_data: request.three_ds_data.clone(),
         };
 
+        let data_build_duration_ms = std::time::Instant::now()
+            .duration_since(data_build_start_time)
+            .as_millis();
+        logger::info!(
+            "[TIMEOUT_RCA:T8:PAYMENT_DATA_BUILD_END] duration_ms={}",
+            data_build_duration_ms
+        );
+
         let get_trackers_response = operations::GetTrackerResponse {
             operation: Box::new(self),
             customer_details: Some(customer_details),
@@ -949,6 +971,16 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             business_profile,
             mandate_type,
         };
+
+        let op_duration_ms = std::time::Instant::now()
+            .duration_since(op_start_time)
+            .as_millis();
+        logger::info!(
+            "[TIMEOUT_RCA:T8:PAYMENT_OP_END] operation={} payment_id={} duration_ms={}",
+            "PaymentConfirm",
+            payment_id_str,
+            op_duration_ms
+        );
 
         Ok(get_trackers_response)
     }

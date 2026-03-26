@@ -4,7 +4,7 @@ use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -48,6 +48,17 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRe
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsCancelRequest, PaymentData<F>>,
     > {
+        let payment_id_str = payment_id
+            .get_payment_intent_id()
+            .map(|id| id.get_string_repr().to_owned())
+            .unwrap_or_default();
+        let op_start_time = std::time::Instant::now();
+        logger::info!(
+            "[TIMEOUT_RCA:T8:PAYMENT_OP_START] operation={} payment_id={}",
+            "PaymentCancel",
+            payment_id_str
+        );
+
         let db = &*state.store;
 
         let processor_merchant_id = platform.get_processor().get_account().get_id();
@@ -161,6 +172,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRe
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
+        logger::info!("[TIMEOUT_RCA:T8:PAYMENT_DATA_BUILD_START]");
+        let data_build_start_time = std::time::Instant::now();
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -216,6 +230,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRe
             external_authentication_data: None,
         };
 
+        let data_build_duration_ms = std::time::Instant::now()
+            .duration_since(data_build_start_time)
+            .as_millis();
+        logger::info!(
+            "[TIMEOUT_RCA:T8:PAYMENT_DATA_BUILD_END] duration_ms={}",
+            data_build_duration_ms
+        );
+
         let get_trackers_response = operations::GetTrackerResponse {
             operation: Box::new(self),
             customer_details: None,
@@ -223,6 +245,16 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRe
             business_profile,
             mandate_type: None,
         };
+
+        let op_duration_ms = std::time::Instant::now()
+            .duration_since(op_start_time)
+            .as_millis();
+        logger::info!(
+            "[TIMEOUT_RCA:T8:PAYMENT_OP_END] operation={} payment_id={} duration_ms={}",
+            "PaymentCancel",
+            payment_id_str,
+            op_duration_ms
+        );
 
         Ok(get_trackers_response)
     }

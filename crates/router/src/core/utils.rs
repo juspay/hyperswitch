@@ -1,7 +1,7 @@
 pub mod refunds_transformers;
 pub mod refunds_validator;
 
-use std::{collections::HashSet, marker::PhantomData, str::FromStr};
+use std::{collections::HashSet, marker::PhantomData, str::FromStr, time::Instant};
 
 use api_models::enums::{Connector, DisputeStage, DisputeStatus};
 #[cfg(feature = "payouts")]
@@ -71,11 +71,35 @@ pub async fn get_feature_config(
     state: &SessionState,
     platform: &domain::Platform,
 ) -> FeatureConfig {
+    let start = Instant::now();
+
+    router_env::logger::info!(
+        "[TIMEOUT_RCA:T5:FEATURE_CONFIG_START] platform={}",
+        platform
+            .get_processor()
+            .get_account()
+            .get_id()
+            .get_string_repr()
+    );
+
     let is_payment_method_modular_allowed = crate::core::payment_methods::utils::get_organization_eligibility_config_for_pm_modular_service(
         state.store.as_ref(),
         &platform.get_processor().get_account().organization_id,
     )
     .await;
+
+    let duration_us = start.elapsed().as_micros();
+    router_env::logger::info!(
+        "[TIMEOUT_RCA:T5:FEATURE_CONFIG_END] platform={} duration_us={} is_pm_modular_enabled={}",
+        platform
+            .get_processor()
+            .get_account()
+            .get_id()
+            .get_string_repr(),
+        duration_us,
+        is_payment_method_modular_allowed
+    );
+
     FeatureConfig {
         is_payment_method_modular_allowed,
     }

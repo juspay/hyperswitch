@@ -1,4 +1,4 @@
-use std::{str::FromStr, sync::Arc};
+use std::{str::FromStr, sync::Arc, time::Instant};
 
 use api_models::{
     admin::{self, PaymentMethodsEnabled},
@@ -837,19 +837,28 @@ pub async fn get_organization_eligibility_config_for_pm_modular_service(
     db: &dyn StorageInterface,
     organization_id: &common_utils::id_type::OrganizationId,
 ) -> bool {
+    let start = Instant::now();
+
+    logger::info!("[TIMEOUT_RCA:T5:PM_CONFIG_START]");
+
     let config = db
         .find_config_by_key_unwrap_or(
             &organization_id.get_should_call_pm_modular_service_key(),
             Some("false".to_string()),
         )
         .await;
-    match config {
+    let result = match config {
         Ok(conf) => conf.config == "true",
         Err(error) => {
             logger::error!(?error);
             false
         }
-    }
+    };
+
+    let duration_us = start.elapsed().as_micros();
+    logger::info!("[TIMEOUT_RCA:T5:PM_CONFIG_END] duration_us={}", duration_us);
+
+    result
 }
 
 pub async fn get_sdk_next_action_for_payment_method_list(

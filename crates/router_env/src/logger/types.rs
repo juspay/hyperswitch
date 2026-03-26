@@ -47,6 +47,8 @@ pub enum Tag {
 
     /// Compatibility Layer Request
     CompatibilityLayerRequest,
+    /// Timeout RCA (Root Cause Analysis) logging
+    TimeoutRca,
 }
 
 /// API Flow

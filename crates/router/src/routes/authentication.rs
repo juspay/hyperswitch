@@ -7,7 +7,7 @@ use api_models::authentication::{
     AuthenticationSyncPostUpdateRequest, AuthenticationSyncRequest,
 };
 use hyperswitch_masking::Secret;
-use router_env::{instrument, tracing, Flow};
+use router_env::{instrument, logger, tracing, Flow, Tag};
 
 use crate::{
     core::{api_locking, unified_authentication_service},
@@ -23,6 +23,10 @@ pub async fn authentication_create(
     json_payload: web::Json<AuthenticationCreateRequest>,
 ) -> impl Responder {
     let flow = Flow::AuthenticationCreate;
+    logger::info!(
+        tag = ?Tag::TimeoutRca,
+        "[TIMEOUT_RCA:T2:AUTH_START] endpoint=authentication_create"
+    );
 
     Box::pin(api::server_wrap(
         flow,
@@ -50,6 +54,12 @@ pub async fn authentication_eligibility(
     path: web::Path<common_utils::id_type::AuthenticationId>,
 ) -> impl Responder {
     let flow = Flow::AuthenticationEligibility;
+    let authentication_id = path.into_inner();
+    logger::info!(
+        tag = ?Tag::TimeoutRca,
+        "[TIMEOUT_RCA:T2:AUTH_START] endpoint=authentication_eligibility authentication_id={:?}",
+        authentication_id
+    );
 
     let api_auth = auth::ApiKeyAuth::default();
     let payload = json_payload.into_inner();
@@ -58,8 +68,6 @@ pub async fn authentication_eligibility(
         Ok((auth, _auth_flow)) => (auth, _auth_flow),
         Err(e) => return api::log_and_return_error_response(e),
     };
-
-    let authentication_id = path.into_inner();
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -93,6 +101,11 @@ pub async fn authentication_authenticate(
 ) -> impl Responder {
     let flow = Flow::AuthenticationAuthenticate;
     let authentication_id = path.into_inner();
+    logger::info!(
+        tag = ?Tag::TimeoutRca,
+        "[TIMEOUT_RCA:T2:AUTH_START] endpoint=authentication_authenticate authentication_id={:?}",
+        authentication_id
+    );
     let api_auth = auth::ApiKeyAuth::default();
     let payload = AuthenticationAuthenticateRequest {
         authentication_id,
@@ -138,9 +151,14 @@ pub async fn authentication_eligibility_check(
 ) -> impl Responder {
     let flow = Flow::AuthenticationEligibilityCheck;
     let authentication_id = path.into_inner();
+    logger::info!(
+        tag = ?Tag::TimeoutRca,
+        "[TIMEOUT_RCA:T2:AUTH_START] endpoint=authentication_eligibility_check authentication_id={:?}",
+        authentication_id
+    );
     let api_auth = auth::ApiKeyAuth::default();
     let payload = AuthenticationEligibilityCheckRequest {
-        authentication_id,
+        authentication_id: authentication_id.clone(),
         ..json_payload.into_inner()
     };
 
@@ -149,6 +167,11 @@ pub async fn authentication_eligibility_check(
             Ok((auth, auth_flow)) => (auth, auth_flow),
             Err(e) => return api::log_and_return_error_response(e),
         };
+    logger::info!(
+        tag = ?Tag::TimeoutRca,
+        "[TIMEOUT_RCA:T2:AUTH_SUCCESS] endpoint=authentication_eligibility_check authentication_id={:?}",
+        authentication_id
+    );
 
     Box::pin(api::server_wrap(
         flow,
@@ -182,6 +205,11 @@ pub async fn authentication_retrieve_eligibility_check(
 ) -> impl Responder {
     let flow = Flow::AuthenticationRetrieveEligibilityCheck;
     let authentication_id = path.into_inner();
+    logger::info!(
+        tag = ?Tag::TimeoutRca,
+        "[TIMEOUT_RCA:T2:AUTH_START] endpoint=authentication_retrieve_eligibility_check authentication_id={:?}",
+        authentication_id
+    );
     let payload = AuthenticationRetrieveEligibilityCheckRequest { authentication_id };
 
     Box::pin(api::server_wrap(
@@ -219,6 +247,11 @@ pub async fn authentication_sync(
     let flow = Flow::AuthenticationSync;
     let api_auth = auth::ApiKeyAuth::default();
     let (_merchant_id, authentication_id) = path.into_inner();
+    logger::info!(
+        tag = ?Tag::TimeoutRca,
+        "[TIMEOUT_RCA:T2:AUTH_START] endpoint=authentication_sync authentication_id={:?}",
+        authentication_id
+    );
     let payload = AuthenticationSyncRequest {
         authentication_id,
         ..json_payload.into_inner()
@@ -264,6 +297,11 @@ pub async fn authentication_sync_post_update(
 ) -> impl Responder {
     let flow = Flow::AuthenticationSyncPostUpdate;
     let (merchant_id, authentication_id) = path.into_inner();
+    logger::info!(
+        tag = ?Tag::TimeoutRca,
+        "[TIMEOUT_RCA:T2:AUTH_START] endpoint=authentication_sync_post_update authentication_id={:?}",
+        authentication_id
+    );
     let payload = AuthenticationSyncPostUpdateRequest { authentication_id };
 
     Box::pin(api::server_wrap(
@@ -290,6 +328,11 @@ pub async fn authentication_session_token(
 ) -> impl Responder {
     let flow = Flow::AuthenticationSessionToken;
     let authentication_id = path.into_inner();
+    logger::info!(
+        tag = ?Tag::TimeoutRca,
+        "[TIMEOUT_RCA:T2:AUTH_START] endpoint=authentication_session_token authentication_id={:?}",
+        authentication_id
+    );
     let api_auth = auth::ApiKeyAuth::default();
 
     let payload = AuthenticationSessionTokenRequest {

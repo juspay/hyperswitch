@@ -63,7 +63,7 @@ use crate::{
         errors::{self, CustomResult},
     },
     events::api_logs::{ApiEvent, ApiEventMetric, ApiEventsType},
-    headers, logger,
+    headers, logger, request_context,
     routes::{
         app::{AppStateInfo, ReqState, SessionStateInfo},
         metrics, AppState, SessionState,
@@ -394,6 +394,15 @@ where
     let request_method = request.method().as_str();
     let url_path = request.path();
 
+    let request_id = RequestId::extract(request).await.ok();
+    logger::info!(
+        tag = ?Tag::TimeoutRca,
+        "[TIMEOUT_RCA:T1:REQUEST_START] method={} uri={} request_id={}",
+        request_method,
+        url_path,
+        request_id.map(|id| id.to_string()).unwrap_or_else(|| "unknown".to_string())
+    );
+
     let unmasked_incoming_header_keys = state.conf().unmasked_headers.keys;
 
     let incoming_request_header = request.headers();
@@ -570,6 +579,26 @@ where
         tag = ?Tag::EndRequest,
         time_taken_ms = request_duration.as_millis(),
     );
+
+    // Tier 1 logging for request lifecycle - REQUEST_END
+    let cache_metrics = request_context::get_request_metrics();
+    let cache_summary = cache_metrics.map_or(
+        String::new(),
+        |(in_mem_hits, redis_hits, db_fetches, total_ops)| {
+            format!(
+                " cache_in_mem_hits={} cache_redis_hits={} cache_db_fetches={} total_cache_ops={}",
+                in_mem_hits, redis_hits, db_fetches, total_ops
+            )
+        },
+    );
+    logger::info!(
+        tag = ?Tag::TimeoutRca,
+        "[TIMEOUT_RCA:T1:REQUEST_END] status={} duration_ms={} {}",
+        response_code,
+        request_duration.as_millis(),
+        cache_summary
+    );
+
     res
 }
 

@@ -1,6 +1,11 @@
-use std::{marker::PhantomData, str::FromStr};
+use std::{marker::PhantomData, str::FromStr, time::Instant};
 
 use actix_web::http::header::HeaderMap;
+
+/// Helper function to compute duration in microseconds
+fn duration_us(start: Instant) -> u128 {
+    start.elapsed().as_micros()
+}
 #[cfg(feature = "v2")]
 use api_models::payment_methods::PaymentMethodIntentConfirm;
 #[cfg(feature = "v1")]
@@ -591,10 +596,10 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
-        let api_key = get_api_key(request_headers)
+        let api_key_raw = get_api_key(request_headers)
             .change_context(errors::ApiErrorResponse::Unauthorized)?
             .trim();
-        if api_key.is_empty() {
+        if api_key_raw.is_empty() {
             return Err(errors::ApiErrorResponse::Unauthorized)
                 .attach_printable("API key is empty");
         }
@@ -602,7 +607,7 @@ where
         let profile_id = HeaderMapStruct::new(request_headers)
             .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)?;
 
-        let api_key = api_keys::PlaintextApiKey::from(api_key);
+        let api_key = api_keys::PlaintextApiKey::from(api_key_raw);
         let hash_key = {
             let config = state.conf();
             config.api_keys.get_inner().get_hash_key()?
@@ -699,15 +704,21 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
-        let api_key = get_api_key(request_headers)
+        let auth_start = Instant::now();
+        logger::info!("[TIMEOUT_RCA:T2:AUTH_START] auth_type=ApiKeyAuth");
+
+        let api_key_raw = get_api_key(request_headers)
             .change_context(errors::ApiErrorResponse::Unauthorized)?
             .trim();
-        if api_key.is_empty() {
+        if api_key_raw.is_empty() {
             return Err(errors::ApiErrorResponse::Unauthorized)
                 .attach_printable("API key is empty");
         }
 
-        let api_key = api_keys::PlaintextApiKey::from(api_key);
+        logger::info!("[TIMEOUT_RCA:T2:AUTH_APIKEY_START]");
+        let apikey_lookup_start = Instant::now();
+
+        let api_key = api_keys::PlaintextApiKey::from(api_key_raw);
         let hash_key = {
             let config = state.conf();
             config.api_keys.get_inner().get_hash_key()?
@@ -722,6 +733,11 @@ where
             .attach_printable("Failed to retrieve API key")?
             .ok_or(report!(errors::ApiErrorResponse::Unauthorized)) // If retrieve returned `None`
             .attach_printable("Merchant not authenticated")?;
+
+        logger::info!(
+            "[TIMEOUT_RCA:T2:AUTH_APIKEY_END] duration_us={}",
+            duration_us(apikey_lookup_start)
+        );
 
         if stored_api_key
             .expires_at
@@ -801,6 +817,10 @@ where
             profile,
             client_secret: None,
         };
+        logger::info!(
+            "[TIMEOUT_RCA:T2:AUTH_END] auth_type=ApiKeyAuth duration_us={}",
+            duration_us(auth_start)
+        );
         Ok((
             auth.clone(),
             AuthenticationType::ApiKey {

@@ -3,6 +3,7 @@ use std::{
     borrow::Cow,
     fmt::Debug,
     sync::{Arc, LazyLock},
+    time::Instant,
 };
 
 use common_utils::{
@@ -351,27 +352,69 @@ where
     F: FnOnce() -> Fut + Send,
     Fut: futures::Future<Output = CustomResult<T, StorageError>> + Send,
 {
+    let start = Instant::now();
+    let cache_type = cache.name();
+
+    logger::info!(
+        tag = ?logger::Tag::TimeoutRca,
+        "[TIMEOUT_RCA:T3:CACHE_POPULATE_START] key={} cache_type={}",
+        key,
+        cache_type
+    );
+
     let redis = &store
         .get_redis_conn()
         .change_context(StorageError::RedisError(
             RedisError::RedisConnectionError.into(),
         ))
         .attach_printable("Failed to get redis connection")?;
+
+    let redis_key_prefix = redis.key_prefix.clone();
+
     let cache_val = cache
         .get_val::<T>(CacheKey {
             key: key.to_string(),
-            prefix: redis.key_prefix.clone(),
+            prefix: redis_key_prefix.clone(),
         })
         .await;
+
     if let Some(val) = cache_val {
+        let duration = start.elapsed().as_micros();
+        logger::info!(
+            tag = ?logger::Tag::TimeoutRca,
+            "[TIMEOUT_RCA:T3:CACHE_HIT] key={} cache_type={} duration_us={} source=in_memory",
+            key,
+            cache_type,
+            duration
+        );
+
         Ok(val)
     } else {
+        let miss_duration = start.elapsed().as_micros();
+        logger::info!(
+            tag = ?logger::Tag::TimeoutRca,
+            "[TIMEOUT_RCA:T3:CACHE_MISS] key={} cache_type={} duration_us={} source=redis",
+            key,
+            cache_type,
+            miss_duration
+        );
+
         let val = get_or_populate_redis(redis, key, fun).await?;
+
+        let db_duration = start.elapsed().as_micros();
+        logger::info!(
+            tag = ?logger::Tag::TimeoutRca,
+            "[TIMEOUT_RCA:T3:CACHE_POPULATE_END] key={} cache_type={} duration_us={} source=db",
+            key,
+            cache_type,
+            db_duration
+        );
+
         cache
             .push(
                 CacheKey {
                     key: key.to_string(),
-                    prefix: redis.key_prefix.clone(),
+                    prefix: redis_key_prefix,
                 },
                 val.clone(),
             )

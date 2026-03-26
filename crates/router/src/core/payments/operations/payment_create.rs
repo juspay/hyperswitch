@@ -78,6 +78,17 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         payment_method_with_raw_data: Option<pm_transformers::PaymentMethodWithRawData>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
+        let payment_id_str = payment_id
+            .get_payment_intent_id()
+            .map(|id| id.get_string_repr().to_owned())
+            .unwrap_or_default();
+        let op_start_time = std::time::Instant::now();
+        logger::info!(
+            "[TIMEOUT_RCA:T8:PAYMENT_OP_START] operation={} payment_id={}",
+            "PaymentCreate",
+            payment_id_str
+        );
+
         let db = &*state.store;
         let money @ (amount, currency) = payments_create_request_validation(request)?;
 
@@ -625,6 +636,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let unified_address = address.unify_with_payment_method_data_billing(add);
 
+        logger::info!("[TIMEOUT_RCA:T8:PAYMENT_DATA_BUILD_START]");
+        let data_build_start_time = std::time::Instant::now();
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -675,6 +689,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             external_authentication_data: request.three_ds_data.clone(),
         };
 
+        let data_build_duration_ms = std::time::Instant::now()
+            .duration_since(data_build_start_time)
+            .as_millis();
+        logger::info!(
+            "[TIMEOUT_RCA:T8:PAYMENT_DATA_BUILD_END] duration_ms={}",
+            data_build_duration_ms
+        );
+
         let get_trackers_response = operations::GetTrackerResponse {
             operation,
             customer_details: Some(customer_details),
@@ -682,6 +704,16 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             business_profile,
             mandate_type,
         };
+
+        let op_duration_ms = std::time::Instant::now()
+            .duration_since(op_start_time)
+            .as_millis();
+        logger::info!(
+            "[TIMEOUT_RCA:T8:PAYMENT_OP_END] operation={} payment_id={} duration_ms={}",
+            "PaymentCreate",
+            payment_id_str,
+            op_duration_ms
+        );
 
         Ok(get_trackers_response)
     }

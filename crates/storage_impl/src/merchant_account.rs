@@ -1,5 +1,6 @@
 #[cfg(feature = "olap")]
 use std::collections::HashMap;
+use std::time::Instant;
 
 use common_utils::ext_traits::AsyncExt;
 use diesel_models::merchant_account as storage;
@@ -11,7 +12,7 @@ use hyperswitch_domain_models::{
     merchant_key_store::{MerchantKeyStore, MerchantKeyStoreInterface},
 };
 use hyperswitch_masking::PeekInterface;
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 
 #[cfg(feature = "accounts_cache")]
 use crate::redis::{
@@ -179,6 +180,13 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
         merchant_id: &common_utils::id_type::MerchantId,
         merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, StorageError> {
+        let start = Instant::now();
+
+        logger::info!(
+            "[TIMEOUT_RCA:T4:ENTITY_MERCHANT_START] entity_type=merchant entity_id={}",
+            merchant_id.get_string_repr()
+        );
+
         let fetch_func = || async {
             let conn = pg_accounts_connection_read(self).await?;
             storage::MerchantAccount::find_by_merchant_id(&conn, merchant_id)
@@ -190,35 +198,40 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
             .attach_printable("Missing KeyManagerState")?;
 
         #[cfg(not(feature = "accounts_cache"))]
-        {
-            fetch_func()
-                .await?
-                .convert(
-                    state,
-                    merchant_key_store.key.get_inner(),
-                    merchant_id.to_owned().into(),
-                )
-                .await
-                .change_context(StorageError::DecryptionError)
-        }
-
-        #[cfg(feature = "accounts_cache")]
-        {
-            cache::get_or_populate_in_memory(
-                self,
-                merchant_id.get_string_repr(),
-                fetch_func,
-                &ACCOUNTS_CACHE,
-            )
+        let result = fetch_func()
             .await?
             .convert(
                 state,
                 merchant_key_store.key.get_inner(),
-                merchant_key_store.merchant_id.clone().into(),
+                merchant_id.to_owned().into(),
             )
             .await
-            .change_context(StorageError::DecryptionError)
-        }
+            .change_context(StorageError::DecryptionError);
+
+        #[cfg(feature = "accounts_cache")]
+        let result = cache::get_or_populate_in_memory(
+            self,
+            merchant_id.get_string_repr(),
+            fetch_func,
+            &ACCOUNTS_CACHE,
+        )
+        .await?
+        .convert(
+            state,
+            merchant_key_store.key.get_inner(),
+            merchant_key_store.merchant_id.clone().into(),
+        )
+        .await
+        .change_context(StorageError::DecryptionError);
+
+        let duration = start.elapsed().as_micros();
+        logger::info!(
+            "[TIMEOUT_RCA:T4:ENTITY_MERCHANT_END] entity_type=merchant entity_id={} duration_us={}",
+            merchant_id.get_string_repr(),
+            duration
+        );
+
+        result
     }
 
     #[instrument(skip_all)]
@@ -288,6 +301,13 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
         &self,
         publishable_key: &str,
     ) -> CustomResult<(domain::MerchantAccount, MerchantKeyStore), StorageError> {
+        let start = Instant::now();
+
+        logger::info!(
+            "[TIMEOUT_RCA:T4:ENTITY_MERCHANT_START] entity_type=merchant_publishable_key entity_id={}",
+            publishable_key
+        );
+
         let fetch_by_pub_key_func = || async {
             let conn = pg_accounts_connection_read(self).await?;
 
@@ -327,6 +347,14 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
             )
             .await
             .change_context(StorageError::DecryptionError)?;
+
+        let duration = start.elapsed().as_micros();
+        logger::info!(
+            "[TIMEOUT_RCA:T4:ENTITY_MERCHANT_END] entity_type=merchant_publishable_key entity_id={} duration_us={}",
+            publishable_key,
+            duration
+        );
+
         Ok((domain_merchant_account, key_store))
     }
 

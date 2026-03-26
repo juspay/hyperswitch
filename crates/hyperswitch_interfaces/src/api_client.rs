@@ -462,24 +462,46 @@ pub async fn call_connector_api(
     let current_time = Instant::now();
     let headers = request.headers.clone();
     let url = request.url.clone();
+    let method = request.method;
+
+    logger::info!(
+        "[TIMEOUT_RCA:T7:HTTP_CALL_START] service={} endpoint={} method={}",
+        flow_name,
+        url,
+        method
+    );
+
     let response = state
         .get_api_client()
         .send_request(state, request, None, true)
         .await;
 
+    let duration_ms = current_time.elapsed().as_millis();
+
     match response.as_ref() {
         Ok(resp) => {
             let status_code = resp.status().as_u16();
-            let elapsed_time = current_time.elapsed();
+            logger::info!(
+                "[TIMEOUT_RCA:T7:HTTP_CALL_END] service={} duration_ms={} status={}",
+                flow_name,
+                duration_ms,
+                status_code
+            );
             logger::info!(
                 ?headers,
                 url,
                 status_code,
                 flow=?flow_name,
-                ?elapsed_time
+                elapsed_time=duration_ms
             );
         }
         Err(err) => {
+            logger::info!(
+                "[TIMEOUT_RCA:T7:HTTP_CALL_FAILED] service={} duration_ms={} error={}",
+                flow_name,
+                duration_ms,
+                err
+            );
             logger::info!(
                 call_connector_api_error=?err
             );

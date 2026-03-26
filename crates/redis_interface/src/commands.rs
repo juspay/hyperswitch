@@ -21,7 +21,7 @@ use fred::{
     },
 };
 use futures::StreamExt;
-use tracing::instrument;
+use tracing::{info, instrument};
 
 use crate::{
     errors,
@@ -46,7 +46,15 @@ impl super::RedisConnectionPool {
         V: TryInto<RedisValue> + Debug + Send + Sync,
         V::Error: Into<fred::error::RedisError> + Send + Sync,
     {
-        self.pool
+        let start = std::time::Instant::now();
+
+        info!(
+            "[TIMEOUT_RCA:T6:REDIS_LOOKUP_START] command=SET key={:?}",
+            key
+        );
+
+        let result = self
+            .pool
             .set(
                 key.tenant_aware_key(self),
                 value,
@@ -55,7 +63,16 @@ impl super::RedisConnectionPool {
                 false,
             )
             .await
-            .change_context(errors::RedisError::SetFailed)
+            .change_context(errors::RedisError::SetFailed);
+
+        let duration = start.elapsed().as_micros();
+        let result_size = result.as_ref().map(|_| 0).unwrap_or(0);
+        info!(
+            "[TIMEOUT_RCA:T6:REDIS_LOOKUP_END] command=SET key={:?} duration_us={} result_size={}",
+            key, duration, result_size
+        );
+
+        result
     }
 
     pub async fn set_key_without_modifying_ttl<V>(
@@ -174,7 +191,14 @@ impl super::RedisConnectionPool {
     where
         V: FromRedis + Unpin + Send + 'static,
     {
-        match self
+        let start = std::time::Instant::now();
+
+        info!(
+            "[TIMEOUT_RCA:T6:REDIS_LOOKUP_START] command=GET key={:?}",
+            key
+        );
+
+        let result = match self
             .pool
             .get(key.tenant_aware_key(self))
             .await
@@ -195,7 +219,15 @@ impl super::RedisConnectionPool {
                         .change_context(errors::RedisError::GetFailed)
                 }
             }
-        }
+        };
+
+        let duration = start.elapsed().as_micros();
+        info!(
+            "[TIMEOUT_RCA:T6:REDIS_LOOKUP_END] command=GET key={:?} duration_us={}",
+            key, duration,
+        );
+
+        result
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -504,11 +536,26 @@ impl super::RedisConnectionPool {
         V: TryInto<RedisMap> + Debug + Send + Sync,
         V::Error: Into<fred::error::RedisError> + Send + Sync,
     {
+        let start = std::time::Instant::now();
+
+        info!(
+            "[TIMEOUT_RCA:T6:REDIS_LOOKUP_START] command=HSET key={:?}",
+            key
+        );
+
         let output: Result<(), _> = self
             .pool
             .hset(key.tenant_aware_key(self), values)
             .await
             .change_context(errors::RedisError::SetHashFailed);
+
+        let duration = start.elapsed().as_micros();
+        let result_size = output.as_ref().map(|_| 0).unwrap_or(0);
+        info!(
+            "[TIMEOUT_RCA:T6:REDIS_LOOKUP_END] command=HSET key={:?} duration_us={} result_size={}",
+            key, duration, result_size
+        );
+
         // setting expiry for the key
         output
             .async_and_then(|_| {
