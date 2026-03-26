@@ -684,15 +684,12 @@ pub async fn list_payment_method_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, mut req, _| {
-            Box::pin(async move {
-                validate_legacy_endpoint_access(&state, &auth.platform).await?;
-                if let Some(client_secret) = auth.client_secret {
-                    req.client_secret = Some(client_secret);
-                }
+            if let Some(client_secret) = auth.client_secret {
+                req.client_secret = Some(client_secret);
+            }
 
-                // TODO (#7195): Fill platform_merchant_account in the client secret auth and pass it here.
-                Box::pin(cards::list_payment_methods(state, auth.platform, req)).await
-            })
+            // TODO (#7195): Fill platform_merchant_account in the client secret auth and pass it here.
+            cards::list_payment_methods(state, auth.platform, req)
         },
         &*auth,
         api_locking::LockAction::NotApplicable,
