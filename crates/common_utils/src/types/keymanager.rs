@@ -51,7 +51,6 @@ pub struct KeyManagerState {
     pub cert: Secret<String>,
     pub infra_values: Option<serde_json::Value>,
     pub use_legacy_key_store_decryption: bool,
-    pub emit_external_service_call_events: bool,
 }
 
 impl KeyManagerState {
@@ -71,7 +70,6 @@ impl KeyManagerState {
             cert: Default::default(),
             infra_values: Default::default(),
             use_legacy_key_store_decryption: false,
-            emit_external_service_call_events: false,
         }
     }
 

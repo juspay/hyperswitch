@@ -570,14 +570,17 @@ impl AppState {
             url: km_conf.url.clone(),
             client_idle_timeout: conf.proxy.idle_pool_connection_timeout,
             request_id: None,
-            event_emitter: Arc::new(event_handler.clone()),
+            event_emitter: if conf.events.emit_external_service_call_events {
+                Arc::new(event_handler.clone())
+            } else {
+                Arc::new(common_utils::external_service::NoOpEventEmitter)
+            },
             #[cfg(feature = "keymanager_mtls")]
             cert: km_conf.cert.clone(),
             #[cfg(feature = "keymanager_mtls")]
             ca: km_conf.ca.clone(),
             infra_values: Self::process_env_mappings(conf.infra_values.clone()),
             use_legacy_key_store_decryption: km_conf.use_legacy_key_store_decryption,
-            emit_external_service_call_events: km_conf.emit_external_service_call_events,
         };
         match storage_impl {
             StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match event_handler {

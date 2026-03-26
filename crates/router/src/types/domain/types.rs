@@ -20,14 +20,17 @@ impl ForeignFrom<(&app::AppState, configs::Tenant)> for KeyManagerState {
             url: conf.url.clone(),
             client_idle_timeout: app_state.conf.proxy.idle_pool_connection_timeout,
             request_id: app_state.request_id.as_ref().map(|r| r.to_string()),
-            event_emitter: std::sync::Arc::new(app_state.event_handler.clone()),
+            event_emitter: if app_state.conf.events.emit_external_service_call_events {
+                std::sync::Arc::new(app_state.event_handler.clone())
+            } else {
+                std::sync::Arc::new(common_utils::external_service::NoOpEventEmitter)
+            },
             #[cfg(feature = "keymanager_mtls")]
             cert: conf.cert.clone(),
             #[cfg(feature = "keymanager_mtls")]
             ca: conf.ca.clone(),
             infra_values: app::AppState::process_env_mappings(app_state.conf.infra_values.clone()),
             use_legacy_key_store_decryption: conf.use_legacy_key_store_decryption,
-            emit_external_service_call_events: conf.emit_external_service_call_events,
         }
     }
 }
@@ -41,14 +44,17 @@ impl From<&app::SessionState> for KeyManagerState {
             url: conf.url.clone(),
             client_idle_timeout: state.conf.proxy.idle_pool_connection_timeout,
             request_id: state.request_id.as_ref().map(|r| r.to_string()),
-            event_emitter: std::sync::Arc::new(state.event_handler.clone()),
+            event_emitter: if state.conf.events.emit_external_service_call_events {
+                std::sync::Arc::new(state.event_handler.clone())
+            } else {
+                std::sync::Arc::new(common_utils::external_service::NoOpEventEmitter)
+            },
             #[cfg(feature = "keymanager_mtls")]
             cert: conf.cert.clone(),
             #[cfg(feature = "keymanager_mtls")]
             ca: conf.ca.clone(),
             infra_values: app::AppState::process_env_mappings(state.conf.infra_values.clone()),
             use_legacy_key_store_decryption: conf.use_legacy_key_store_decryption,
-            emit_external_service_call_events: conf.emit_external_service_call_events,
         }
     }
 }

@@ -44,9 +44,17 @@ pub enum EventType {
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]
+pub struct EventsConfig {
+    #[serde(flatten)]
+    pub source: EventsSource,
+    #[serde(default)]
+    pub emit_external_service_call_events: bool,
+}
+
+#[derive(Debug, Default, Deserialize, Clone)]
 #[serde(tag = "source")]
 #[serde(rename_all = "lowercase")]
-pub enum EventsConfig {
+pub enum EventsSource {
     Kafka {
         kafka: Box<KafkaSettings>,
     },
@@ -84,20 +92,20 @@ impl common_utils::external_service::ExternalServiceEventEmitter for EventsHandl
 
 impl EventsConfig {
     pub async fn get_event_handler(&self) -> StorageResult<EventsHandler> {
-        Ok(match self {
-            Self::Kafka { kafka } => EventsHandler::Kafka(
+        Ok(match &self.source {
+            EventsSource::Kafka { kafka } => EventsHandler::Kafka(
                 KafkaProducer::create(kafka)
                     .await
                     .change_context(StorageError::InitializationError)?,
             ),
-            Self::Logs => EventsHandler::Logs(event_logger::EventLogger::default()),
+            EventsSource::Logs => EventsHandler::Logs(event_logger::EventLogger::default()),
         })
     }
 
     pub fn validate(&self) -> Result<(), ApplicationError> {
-        match self {
-            Self::Kafka { kafka } => kafka.validate(),
-            Self::Logs => Ok(()),
+        match &self.source {
+            EventsSource::Kafka { kafka } => kafka.validate(),
+            EventsSource::Logs => Ok(()),
         }
     }
 }
