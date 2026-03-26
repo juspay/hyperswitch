@@ -169,6 +169,8 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         _processor: &domain::Processor,
         creds_identifier: Option<&str>,
         gateway_context: &payments::gateway::context::RouterGatewayContext,
+        _current_flow: Option<hyperswitch_domain_models::router_request_types::CurrentFlowInfo>,
+        feature_metadata: Option<serde_json::Value>,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(
             state,
@@ -176,6 +178,8 @@ impl Feature<api::PSync, types::PaymentsSyncData>
             self,
             creds_identifier,
             gateway_context,
+            None,
+            feature_metadata,
         ))
         .await
     }

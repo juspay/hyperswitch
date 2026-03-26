@@ -123,6 +123,8 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         _processor: &domain::Processor,
         creds_identifier: Option<&str>,
         gateway_context: &payments::gateway::context::RouterGatewayContext,
+        current_flow: Option<hyperswitch_domain_models::router_request_types::CurrentFlowInfo>,
+        feature_metadata: Option<serde_json::Value>,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(
             state,
@@ -130,6 +132,8 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             self,
             creds_identifier,
             gateway_context,
+            current_flow,
+            feature_metadata,
         ))
         .await
     }

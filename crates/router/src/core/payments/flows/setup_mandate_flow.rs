@@ -157,8 +157,8 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
     ) -> RouterResult<types::BalanceCheckResult> {
         if connector.connector.is_balance_check_flow_required(
             api_interface::CurrentFlowInfo::SetupMandate {
-                auth_type: &self.auth_type,
-                request_data: &self.request,
+                auth_type: self.auth_type,
+                request_data: Box::new(self.request.clone()),
             },
         ) {
             logger::info!(
@@ -266,6 +266,8 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         _processor: &domain::Processor,
         creds_identifier: Option<&str>,
         gateway_context: &gateway_context::RouterGatewayContext,
+        _current_flow: Option<router_request_types::CurrentFlowInfo>,
+        feature_metadata: Option<serde_json::Value>,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(
             state,
@@ -273,6 +275,8 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             self,
             creds_identifier,
             gateway_context,
+            None,
+            feature_metadata,
         ))
         .await
     }
@@ -335,8 +339,8 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
     {
         if connector.connector.is_pre_authentication_flow_required(
             api_interface::CurrentFlowInfo::SetupMandate {
-                auth_type: &self.auth_type,
-                request_data: &self.request,
+                auth_type: self.auth_type,
+                request_data: Box::new(self.request.clone()),
             },
         ) {
             logger::info!(
@@ -430,8 +434,8 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
     {
         if connector.connector.is_payment_trigger_flow_required(
             api_interface::CurrentFlowInfo::SetupMandate {
-                auth_type: &self.auth_type,
-                request_data: &self.request,
+                auth_type: self.auth_type,
+                request_data: Box::new(self.request.clone()),
             },
         ) {
             logger::info!(
@@ -439,8 +443,15 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 connector.connector_name
             );
             let setup_mandate_request_data = self.request.clone();
-            let payment_trigger_request_data =
+            let mut payment_trigger_request_data =
                 types::PaymentTriggerData::try_from(self.request.to_owned())?;
+
+            // Extract mandate_id from SetupMandate response and populate it in PaymentTriggerData
+            helpers::update_payments_trigger_router_request_data_with_mandate_id(
+                &mut payment_trigger_request_data,
+                &self.response,
+            );
+
             let payment_trigger_response_data: Result<
                 types::PaymentsResponseData,
                 types::ErrorResponse,

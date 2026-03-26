@@ -10,7 +10,7 @@ use api_models::payments::{
 use common_types::payments as common_payments_types;
 use common_utils::{
     consts, errors,
-    ext_traits::OptionExt,
+    ext_traits::{OptionExt, ValueExt},
     id_type, payout_method_utils, pii,
     types::{MinorUnit, SemanticVersion},
 };
@@ -1423,6 +1423,9 @@ pub struct AccessTokenRequestData {
     pub app_id: Secret<String>,
     pub id: Option<Secret<String>>,
     pub authentication_token: Option<AccessTokenAuthenticationResponse>,
+    pub current_flow: Option<CurrentFlowInfo>,
+    // check if it can be added in RouterData instead of req data
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
     // Add more keys if required
 }
 
@@ -1435,21 +1438,29 @@ impl TryFrom<router_data::ConnectorAuthType> for AccessTokenRequestData {
                 app_id: api_key,
                 id: None,
                 authentication_token: None,
+                current_flow: None,
+                feature_metadata: None,
             }),
             router_data::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 app_id: api_key,
                 id: Some(key1),
                 authentication_token: None,
+                current_flow: None,
+                feature_metadata: None,
             }),
             router_data::ConnectorAuthType::SignatureKey { api_key, key1, .. } => Ok(Self {
                 app_id: api_key,
                 id: Some(key1),
                 authentication_token: None,
+                current_flow: None,
+                feature_metadata: None,
             }),
             router_data::ConnectorAuthType::MultiAuthKey { api_key, key1, .. } => Ok(Self {
                 app_id: api_key,
                 id: Some(key1),
                 authentication_token: None,
+                current_flow: None,
+                feature_metadata: None,
             }),
             router_data::ConnectorAuthType::CertificateAuth {
                 certificate,
@@ -1459,6 +1470,8 @@ impl TryFrom<router_data::ConnectorAuthType> for AccessTokenRequestData {
                 app_id: certificate,
                 id: Some(private_key),
                 authentication_token: None,
+                current_flow: None,
+                feature_metadata: None,
             }),
 
             _ => Err(ApiErrorResponse::InvalidDataValue {
@@ -1472,17 +1485,24 @@ impl
     TryFrom<(
         router_data::ConnectorAuthType,
         Option<AccessTokenAuthenticationResponse>,
+        Option<CurrentFlowInfo>,
+        Option<serde_json::Value>,
     )> for AccessTokenRequestData
 {
     type Error = ApiErrorResponse;
     fn try_from(
-        (connector_auth, authentication_token): (
+        (connector_auth, authentication_token, current_flow, feature_metadata): (
             router_data::ConnectorAuthType,
             Option<AccessTokenAuthenticationResponse>,
+            Option<CurrentFlowInfo>,
+            Option<serde_json::Value>,
         ),
     ) -> Result<Self, Self::Error> {
         let mut access_token_request_data = Self::try_from(connector_auth)?;
         access_token_request_data.authentication_token = authentication_token;
+        access_token_request_data.current_flow = current_flow;
+        access_token_request_data.feature_metadata =
+            feature_metadata.and_then(|v| v.parse_value("FeatureMetadata").ok());
         Ok(access_token_request_data)
     }
 }
@@ -1803,4 +1823,33 @@ impl PaymentTriggerData {
                 | None => None,
             })
     }
+}
+
+/// Current flow information passed to the connector specifications trait
+/// In order to make some decision about the preprocessing or alternate flow
+#[derive(Clone, Debug, Serialize)]
+pub enum CurrentFlowInfo {
+    /// Authorize flow information
+    Authorize {
+        /// The authentication type being used
+        auth_type: storage_enums::AuthenticationType,
+        /// The payment authorize request data
+        request_data: Box<PaymentsAuthorizeData>,
+    },
+    /// CompleteAuthorize flow information
+    CompleteAuthorize {
+        /// The authentication type being used
+        auth_type: storage_enums::AuthenticationType,
+        /// The payment authorize request data
+        request_data: Box<CompleteAuthorizeData>,
+        /// The payment method that is used
+        payment_method: Option<common_enums::PaymentMethod>,
+    },
+    /// SetupMandate flow information
+    SetupMandate {
+        /// The authentication type being used
+        auth_type: storage_enums::AuthenticationType,
+        /// The payment setup mandate request data
+        request_data: Box<SetupMandateRequestData>,
+    },
 }

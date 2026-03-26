@@ -43,6 +43,7 @@ use common_utils::{
     request::{Method, Request, RequestContent},
 };
 use error_stack::ResultExt;
+pub use hyperswitch_domain_models::router_request_types::CurrentFlowInfo;
 use hyperswitch_domain_models::{
     connector_endpoints::Connectors,
     errors::api_error_response::ApiErrorResponse,
@@ -413,36 +414,6 @@ impl ConnectorAccessTokenSuffix for BoxedConnector {
     }
 }
 
-/// Current flow information passed to the connector specifications trait
-///
-/// In order to make some desicion about the preprocessing or alternate flow
-#[derive(Clone, Debug)]
-pub enum CurrentFlowInfo<'a> {
-    /// Authorize flow information
-    Authorize {
-        /// The authentication type being used
-        auth_type: &'a enums::AuthenticationType,
-        /// The payment authorize request data
-        request_data: &'a router_request_types::PaymentsAuthorizeData,
-    },
-    /// CompleteAuthorize flow information
-    CompleteAuthorize {
-        /// The authentication type being used
-        auth_type: &'a enums::AuthenticationType,
-        /// The payment authorize request data
-        request_data: &'a router_request_types::CompleteAuthorizeData,
-        /// The payment method that is used
-        payment_method: Option<PaymentMethod>,
-    },
-    /// SetupMandate flow information
-    SetupMandate {
-        /// The authentication type being used
-        auth_type: &'a enums::AuthenticationType,
-        /// The payment setup mandate request data
-        request_data: &'a router_request_types::SetupMandateRequestData,
-    },
-}
-
 /// Alternate API flow that must be made instead of the current flow.
 /// For example, PreAuthenticate flow must be made instead of Authorize flow.
 #[derive(Debug, Clone, Copy)]
@@ -475,44 +446,44 @@ pub struct PreProcessingFlowResponse<'a> {
 /// The trait that provides specifications about the connector
 pub trait ConnectorSpecifications {
     /// Check if pre-authentication flow is required
-    fn is_balance_check_flow_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
+    fn is_balance_check_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
     }
     /// Check if pre-authentication flow is required
-    fn is_order_create_flow_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
+    fn is_order_create_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
     }
     /// Check if pre-authentication flow is required
-    fn is_pre_authentication_flow_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
+    fn is_pre_authentication_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
     }
     /// Check if authentication flow is required
-    fn is_authentication_flow_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
+    fn is_authentication_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
     }
     /// Check if post-authentication flow is required
-    fn is_post_authentication_flow_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
+    fn is_post_authentication_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
     }
-    /// Check if settlement split flow is required
-    fn is_settlement_split_call_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
+    /// Check if pre-authentication flow is required
+    fn is_settlement_split_call_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
     }
     /// Check if payment trigger flow is required
-    fn is_payment_trigger_flow_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
+    fn is_payment_trigger_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
     }
     /// Preprocessing flow name if any, that must be made before the current flow.
     fn get_preprocessing_flow_if_needed(
         &self,
-        _current_flow: CurrentFlowInfo<'_>,
+        _current_flow: CurrentFlowInfo,
     ) -> Option<PreProcessingFlowName> {
         None
     }
     /// If Some is returned, the returned api flow must be made instead of the current flow.
     fn get_alternate_flow_if_needed(
         &self,
-        _current_flow: CurrentFlowInfo<'_>,
+        _current_flow: CurrentFlowInfo,
     ) -> Option<AlternateFlow> {
         None
     }

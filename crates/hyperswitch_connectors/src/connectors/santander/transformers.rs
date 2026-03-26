@@ -68,7 +68,9 @@ use crate::{
         },
     },
     types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
-    utils::{self as connector_utils, QrImage, RouterData as RouterDataExt, PaymentsAuthorizeRequestData},
+    utils::{
+        self as connector_utils, PaymentsAuthorizeRequestData, QrImage, RouterData as RouterDataExt,
+    },
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -253,7 +255,7 @@ impl
                         .ok_or(errors::ConnectorError::MissingRequiredField {
                             field_name: "response.dadosQR.jornada",
                         })?;
-                    let expiry_type = journey.and_then(|j| Option::<ExpiryType>::from(j));
+                    let expiry_type = journey.and_then(Option::<ExpiryType>::from);
                     let connector_metadata = match response
                         .dados_qr
                         .as_ref()
@@ -599,9 +601,15 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>> for SantanderPa
         value: &SantanderRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         // Check if this is a MIT (Merchant Initiated Transaction) for PixAutomaticoPush or PixAutomaticoQr
-        if matches!(true, value.router_data.request.is_mit_payment()) && matches!(value.router_data.request.payment_method_type, Some(enums::PaymentMethodType::PixAutomaticoPush) | Some(enums::PaymentMethodType::PixAutomaticoQr)) {
+        if value.router_data.request.is_mit_payment()
+            && matches!(
+                value.router_data.request.payment_method_type,
+                Some(enums::PaymentMethodType::PixAutomaticoPush)
+                    | Some(enums::PaymentMethodType::PixAutomaticoQr)
+            )
+        {
             // Handle MIT recurring charge creation via cobr endpoint
-            return Ok(SantanderPaymentRequest::PixAutomaticoCobr(Box::new(
+            return Ok(Self::PixAutomaticoCobr(Box::new(
                 SantanderPixAutomaticoCobrRequest::try_from(value)?,
             )));
         }
@@ -982,12 +990,12 @@ impl
     }
 }
 
-impl
-    TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>> for SantanderPixAutomaticoCobrRequest
+impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>>
+    for SantanderPixAutomaticoCobrRequest
 {
     type Error = Error;
     fn try_from(
-        value: &SantanderRouterData<&PaymentsAuthorizeRouterData>
+        value: &SantanderRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let receiver_details = value
             .router_data
@@ -1090,13 +1098,14 @@ impl From<SantanderPaymentStatus> for AttemptStatus {
 }
 
 // Helper function to convert SantanderPixAutomaticoCobrStatus to AttemptStatus with MIT flag
-fn cobr_status_to_attempt_status(status: SantanderPixAutomaticoCobrStatus, is_mit: bool) -> AttemptStatus {
+fn cobr_status_to_attempt_status(
+    status: SantanderPixAutomaticoCobrStatus,
+    is_mit: bool,
+) -> AttemptStatus {
     match status {
-        SantanderPixAutomaticoCobrStatus::Criada => {
-            match is_mit {
-                false => AttemptStatus::AuthenticationPending,
-                true => AttemptStatus::Pending,
-            }
+        SantanderPixAutomaticoCobrStatus::Criada => match is_mit {
+            false => AttemptStatus::AuthenticationPending,
+            true => AttemptStatus::Pending,
         },
         SantanderPixAutomaticoCobrStatus::Ativa => AttemptStatus::AuthenticationPending,
         SantanderPixAutomaticoCobrStatus::Concluida => AttemptStatus::Charged,
@@ -1417,7 +1426,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
                 // passing is_mit as true since this struct comes only when MITs are triggered
                 let attempt_status = cobr_status_to_attempt_status(cobr_data.status.clone(), true);
                 Ok(Self {
-                    status: attempt_status.clone(),
+                    status: attempt_status,
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::ConnectorTransactionId(cobr_data.txid.clone()),
                         redirection_data: Box::new(None),

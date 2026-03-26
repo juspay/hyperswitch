@@ -1721,7 +1721,7 @@ impl ConnectorSpecifications for Nuvei {
         Some(&NUVEI_CONNECTOR_INFO)
     }
 
-    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize {
                 auth_type,

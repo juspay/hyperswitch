@@ -563,43 +563,43 @@ impl ConnectorValidation for ConnectorEnum {
 }
 
 impl ConnectorSpecifications for ConnectorEnum {
-    fn is_balance_check_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn is_balance_check_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match self {
             Self::Old(connector) => connector.is_balance_check_flow_required(current_flow),
             Self::New(connector) => connector.is_balance_check_flow_required(current_flow),
         }
     }
-    fn is_order_create_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn is_order_create_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match self {
             Self::Old(connector) => connector.is_order_create_flow_required(current_flow),
             Self::New(connector) => connector.is_order_create_flow_required(current_flow),
         }
     }
-    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match self {
             Self::Old(connector) => connector.is_pre_authentication_flow_required(current_flow),
             Self::New(connector) => connector.is_pre_authentication_flow_required(current_flow),
         }
     }
-    fn is_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn is_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match self {
             Self::Old(connector) => connector.is_authentication_flow_required(current_flow),
             Self::New(connector) => connector.is_authentication_flow_required(current_flow),
         }
     }
-    fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match self {
             Self::Old(connector) => connector.is_post_authentication_flow_required(current_flow),
             Self::New(connector) => connector.is_post_authentication_flow_required(current_flow),
         }
     }
-    fn is_settlement_split_call_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn is_settlement_split_call_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match self {
             Self::Old(connector) => connector.is_settlement_split_call_required(current_flow),
             Self::New(connector) => connector.is_settlement_split_call_required(current_flow),
         }
     }
-    fn is_payment_trigger_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn is_payment_trigger_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match self {
             Self::Old(connector) => connector.is_payment_trigger_flow_required(current_flow),
             Self::New(connector) => connector.is_payment_trigger_flow_required(current_flow),
@@ -607,7 +607,7 @@ impl ConnectorSpecifications for ConnectorEnum {
     }
     fn get_preprocessing_flow_if_needed(
         &self,
-        current_flow_info: api::CurrentFlowInfo<'_>,
+        current_flow_info: api::CurrentFlowInfo,
     ) -> Option<api::PreProcessingFlowName> {
         match self {
             Self::Old(connector) => connector.get_preprocessing_flow_if_needed(current_flow_info),
@@ -616,7 +616,7 @@ impl ConnectorSpecifications for ConnectorEnum {
     }
     fn get_alternate_flow_if_needed(
         &self,
-        current_flow: api::CurrentFlowInfo<'_>,
+        current_flow: api::CurrentFlowInfo,
     ) -> Option<api::AlternateFlow> {
         match self {
             Self::Old(connector) => connector.get_alternate_flow_if_needed(current_flow),

@@ -286,8 +286,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
     ) -> RouterResult<types::BalanceCheckResult> {
         if connector.connector.is_balance_check_flow_required(
             api_interface::CurrentFlowInfo::Authorize {
-                auth_type: &self.auth_type,
-                request_data: &self.request,
+                auth_type: self.auth_type,
+                request_data: Box::new(self.request.clone()),
             },
         ) {
             logger::info!(
@@ -395,6 +395,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         _processor: &domain::Processor,
         creds_identifier: Option<&str>,
         gateway_context: &gateway_context::RouterGatewayContext,
+        current_flow: Option<router_request_types::CurrentFlowInfo>,
+        feature_metadata: Option<serde_json::Value>,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(
             state,
@@ -402,6 +404,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             self,
             creds_identifier,
             gateway_context,
+            current_flow,
+            feature_metadata,
         ))
         .await
     }
@@ -453,8 +457,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
     {
         if connector.connector.is_pre_authentication_flow_required(
             api_interface::CurrentFlowInfo::Authorize {
-                auth_type: &self.auth_type,
-                request_data: &self.request,
+                auth_type: self.auth_type,
+                request_data: Box::new(self.request.clone()),
             },
         ) {
             logger::info!(
@@ -568,8 +572,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
     {
         if connector.connector.is_authentication_flow_required(
             api_interface::CurrentFlowInfo::Authorize {
-                auth_type: &self.auth_type,
-                request_data: &self.request,
+                auth_type: self.auth_type,
+                request_data: Box::new(self.request.clone()),
             },
         ) {
             logger::info!(
@@ -715,8 +719,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
     {
         if connector.connector.is_payment_trigger_flow_required(
             api_interface::CurrentFlowInfo::Authorize {
-                auth_type: &self.auth_type,
-                request_data: &self.request,
+                auth_type: self.auth_type,
+                request_data: Box::new(self.request.clone()),
             },
         ) {
             logger::info!(
@@ -884,8 +888,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
     ) -> RouterResult<(Self, bool)> {
         if connector.connector.is_settlement_split_call_required(
             api_interface::CurrentFlowInfo::Authorize {
-                auth_type: &self.auth_type,
-                request_data: &self.request,
+                auth_type: self.auth_type,
+                request_data: Box::new(self.request.clone()),
             },
         ) {
             logger::info!(
@@ -955,8 +959,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
     ) -> RouterResult<Option<types::CreateOrderResult>> {
         let is_order_create_bloated_connector = connector.connector.is_order_create_flow_required(
             api_interface::CurrentFlowInfo::Authorize {
-                auth_type: &self.auth_type,
-                request_data: &self.request,
+                auth_type: self.auth_type,
+                request_data: Box::new(self.request.clone()),
             },
         );
         if (connector

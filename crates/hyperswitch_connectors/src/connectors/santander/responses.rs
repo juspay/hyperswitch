@@ -96,6 +96,14 @@ pub enum SantanderVoidStatus {
 pub enum SantanderPaymentsResponse {
     PixQRCode(Box<SantanderPixQRCodePaymentsResponse>),
     Boleto(Box<SantanderBoletoPaymentsResponse>),
+    PixAutomaticoCobr(Box<SantanderPixAutomaticoCobrResponse>),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SantanderCreatePixPayloadLocationResponse {
+    pub id: i64,
+    pub location: String,
+    pub criacao: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -124,6 +132,62 @@ pub struct SantanderPixQRCodePaymentsResponse {
     pub pix: Option<Vec<SantanderPix>>,
     // pix_qr_code_data
     pub pix_copia_e_cola: Option<String>,
+}
+
+/// Response for Pix Automático recurring charge (cobr endpoint)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoCobrResponse {
+    /// Recurring charge ID
+    pub id_rec: String,
+    /// Transaction ID
+    pub txid: String,
+    /// Additional information
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub info_adicional: Option<String>,
+    /// Calendar information (due date)
+    pub calendario: SantanderPixAutomaticoCobrCalendarResponse,
+    /// Amount information
+    pub valor: requests::SantanderPixAutomaticoCobrValor,
+    /// Status of the recurring charge
+    pub status: SantanderPixAutomaticoCobrStatus,
+    /// Retry policy
+    pub politica_retentativa: String,
+    /// Adjustment for business days
+    pub ajuste_dia_util: bool,
+    /// Receiver details
+    pub recebedor: requests::SantanderPixAutomaticoRecebedor,
+    /// Optional debtor information
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub devedor: Option<requests::SantanderDebtor>,
+}
+
+/// Calendar information in cobr response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoCobrCalendarResponse {
+    /// Due date in YYYY-MM-DD format
+    pub data_de_vencimento: String,
+    /// Creation date in YYYY-MM-DD format
+    pub criacao: String,
+}
+
+/// Status of Pix Automático recurring charge
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum SantanderPixAutomaticoCobrStatus {
+    /// Created
+    Criada,
+    /// Active
+    Ativa,
+    /// Completed
+    Concluida,
+    /// Expired
+    Expirada,
+    /// Rejected
+    Rejeitada,
+    /// Cancelled
+    Cancelada,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -323,6 +387,8 @@ pub struct SantanderCalendarResponse {
 pub enum SantanderPaymentsSyncResponse {
     PixQRCode(Box<SantanderPixQRCodeSyncResponse>),
     Boleto(Box<SantanderBoletoPSyncResponse>),
+    PixAutomaticoConsultAndActivateJourney(Box<SantanderPixAutomaticRecResponse>),
+    // PixAutomaticoSolicRec(Box<SantanderPixAutomaticSolicitationResponse>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -385,11 +451,21 @@ pub struct SantanderTime {
     pub liquidacao: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SantanderPixAutomaticoErrorResponse {
+    pub code: i32,
+    pub message: String,
+    pub level: String,
+    pub description: String,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum SantanderErrorResponse {
     PixQrCode(SantanderPixQRCodeErrorResponse),
     Boleto(SantanderBoletoErrorResponse),
+    // Pix Automatico API returns 401 Unauthorized when access token is expired
+    PixAutomatico(SantanderPixAutomaticoErrorResponse),
     Generic(SantanderGenericErrorResponse),
 }
 
@@ -487,8 +563,8 @@ pub struct SantanderPixQRCodeErrorResponse {
     pub status: String,
     pub detail: Option<String>,
     pub correlation_id: Option<String>,
-    // Violations
-    pub violacoes: Option<Vec<SantanderViolations>>,
+    // Violations - required to distinguish from Pattern1ErrorResponse
+    pub violacoes: Vec<SantanderViolations>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -585,7 +661,7 @@ pub enum SanatanderAccessTokenResponse {
 #[serde(untagged)]
 pub enum SanatanderTokenResponse {
     Pix(SanatanderPixAccessTokenResponse),
-    Boleto(SanatanderBoletoAccessTokenResponse),
+    PixAutomaticoBoleto(SantanderPixAutomaticoOrBoletoAccessTokenResponse),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -600,7 +676,7 @@ pub struct SanatanderPixAccessTokenResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct SanatanderBoletoAccessTokenResponse {
+pub struct SantanderPixAutomaticoOrBoletoAccessTokenResponse {
     pub access_token: Secret<String>,
     pub expires_in: i64,
     pub token_type: String,
@@ -1093,22 +1169,6 @@ pub struct RecurrenceReceiver {
     pub convenio: String,
 }
 
-/// Status of the recurring payment mandate
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum RecurrenceStatus {
-    /// Created (awaiting approval)
-    Criada,
-    /// Approved (active)
-    Aprovada,
-    /// Rejected
-    Rejeitada,
-    /// Expired
-    Expirada,
-    /// Cancelled
-    Cancelada,
-}
-
 /// Location information for QR code
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -1128,7 +1188,7 @@ pub struct LocationResponse {
 #[serde(rename_all = "camelCase")]
 pub struct RecurrenceStatusUpdate {
     /// Status of the recurrence
-    pub status: RecurrenceStatus,
+    pub status: Option<RecurrenceStatus>,
     /// Date/time of this status update
     pub data: String,
 }
