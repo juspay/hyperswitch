@@ -684,6 +684,8 @@ pub struct AuthenticationSyncResponse {
     /// The tokens for vaulted data
     pub vault_token_data: Option<AuthenticationVaultTokenData>,
 
+    pub authentication_details: Option<AuthenticationDetails>,
+
     /// Billing address.
     #[schema(value_type = Option<Address>)]
     pub billing: Option<Address>,
@@ -743,51 +745,29 @@ pub struct AuthenticationSyncResponse {
     pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
 }
 
-#[cfg(feature = "v1")]
 #[derive(Debug, Clone, Serialize, ToSchema)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum AuthenticationPaymentMethodDataResponse {
-    CardData {
-        /// card expiry year
-        #[schema(value_type = Option<String>)]
-        #[serde(skip_serializing_if = "Option::is_none")]
-        card_expiry_year: Option<hyperswitch_masking::Secret<String>>,
+pub struct AuthenticationDetails {
+    // Three Ds Data after external authentication
+    pub three_ds_data: Option<ExternalThreeDsData>,
+}
 
-        /// card expiry month
-        #[schema(value_type = Option<String>)]
-        #[serde(skip_serializing_if = "Option::is_none")]
-        card_expiry_month: Option<hyperswitch_masking::Secret<String>>,
-    },
-    NetworkTokenData {
-        /// network token expiry month
-        #[schema(value_type = Option<String>)]
-        #[serde(skip_serializing_if = "Option::is_none")]
-        network_token_expiry_month: Option<hyperswitch_masking::Secret<String>>,
-
-        /// network token expiry year
-        #[schema(value_type = Option<String>)]
-        #[serde(skip_serializing_if = "Option::is_none")]
-        network_token_expiry_year: Option<hyperswitch_masking::Secret<String>>,
-    },
-    ThreeDsData {
-        /// Authentication value for Mpi data, only available when auth tokenization is disabled
-        #[serde(skip_serializing_if = "Option::is_none")]
-        authentication_cryptogram: Option<Cryptogram>,
-
-        /// ECI value for Mpi data, only available when auth tokenization is disabled
-        #[serde(skip_serializing_if = "Option::is_none")]
-        eci: Option<String>,
-
-        /// Unique identifier for the 3DS server transaction
-        ds_trans_id: Option<String>,
-
-        /// Transaction status for Mpi data
-        transaction_status: common_enums::TransactionStatus,
-
-        /// The version of the 3DS protocol used (e.g., "2.1.0" or "2.2.0").
-        #[schema(value_type = Option<String>)]
-        version: Option<common_utils::types::SemanticVersion>,
-    },
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct ExternalThreeDsData {
+    /// Contains the authentication cryptogram data (CAVV or TAVV).
+    #[schema(value_type = Cryptogram)]
+    pub authentication_cryptogram: Option<Cryptogram>,
+    /// Directory Server Transaction ID generated during the 3DS process.
+    #[schema(value_type = String)]
+    pub ds_trans_id: Option<String>,
+    /// The version of the 3DS protocol used (e.g., "2.1.0" or "2.2.0").
+    #[schema(value_type = String)]
+    pub version: Option<common_utils::types::SemanticVersion>,
+    /// Electronic Commerce Indicator (ECI) value representing the 3DS authentication result.
+    #[schema(value_type = String)]
+    pub eci: Option<String>,
+    /// Indicates the transaction status from the 3DS authentication flow.
+    #[schema(value_type = TransactionStatus)]
+    pub transaction_status: common_enums::TransactionStatus,
 }
 
 /// Represents the 3DS cryptogram data returned after authentication.
@@ -799,6 +779,30 @@ pub enum Cryptogram {
         /// The authentication cryptogram provided by the issuer or ACS.
         #[schema(value_type = Option<String>)]
         authentication_cryptogram: hyperswitch_masking::Secret<String>,
+    },
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Serialize, ToSchema)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum AuthenticationPaymentMethodDataResponse {
+    CardData {
+        /// card expiry year
+        #[schema(value_type = Option<String>)]
+        card_expiry_year: Option<hyperswitch_masking::Secret<String>>,
+
+        /// card expiry month
+        #[schema(value_type = Option<String>)]
+        card_expiry_month: Option<hyperswitch_masking::Secret<String>>,
+    },
+    NetworkTokenData {
+        /// network token expiry month
+        #[schema(value_type = Option<String>)]
+        network_token_expiry_month: Option<hyperswitch_masking::Secret<String>>,
+
+        /// network token expiry year
+        #[schema(value_type = Option<String>)]
+        network_token_expiry_year: Option<hyperswitch_masking::Secret<String>>,
     },
 }
 

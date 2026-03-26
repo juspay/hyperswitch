@@ -5,8 +5,6 @@ use common_utils::types::MinorUnit;
 use hyperswitch_masking::Secret;
 
 use crate::address::Address;
-#[cfg(feature = "v1")]
-use crate::{authentication::Authentication, errors::api_error_response::ApiErrorResponse};
 
 #[derive(Clone, Debug)]
 pub struct UasPreAuthenticationRequestData {
@@ -222,39 +220,8 @@ pub struct ThreeDsMetaData {
 impl PostAuthenticationDetails {
     pub fn to_authentication_payment_method_data_response(
         self,
-        should_disable_auth_tokenization: bool,
-        authentication: &Authentication,
-    ) -> Result<
-        Option<api_models::authentication::AuthenticationPaymentMethodDataResponse>,
-        ApiErrorResponse,
-    > {
-        // Determine if we can populate MpiData based on the flag and available data
-        let mpi_data = (should_disable_auth_tokenization)
-            .then_some((self.dynamic_data_details.as_ref(), self.trans_status))
-            .and_then(|(dynamic_data_opt, trans_status_opt)| {
-                dynamic_data_opt.zip(trans_status_opt).map(
-                    |(dynamic_data, trans_status)| -> Result<api_models::authentication::AuthenticationPaymentMethodDataResponse, ApiErrorResponse> {
-                        let authentication_cryptogram = dynamic_data.dynamic_data_value.clone().ok_or(ApiErrorResponse::MissingRequiredField {
-                            field_name: "dynamic_data_value",
-                        })?;
-                        Ok(api_models::authentication::AuthenticationPaymentMethodDataResponse::ThreeDsData {
-                            authentication_cryptogram: Some(api_models::authentication::Cryptogram::Cavv {
-                                authentication_cryptogram,
-                            }),
-                            eci: self.eci.clone(),
-                            ds_trans_id: dynamic_data.ds_trans_id.clone(),
-                            transaction_status: trans_status,
-                            version: authentication.maximum_supported_version.clone(),
-                        })
-                    },
-                )
-            })
-            .transpose();
-
-        // Return MpiData if available, otherwise fall back to CardData or NetworkTokenData
-        match mpi_data {
-            Ok(Some(data)) => Ok(Some(data)),
-            _ => Ok(match (self.raw_card_details, self.token_details) {
+    ) -> Option<api_models::authentication::AuthenticationPaymentMethodDataResponse> {
+        match (self.raw_card_details, self.token_details) {
                 (Some(card_data), _) => Some(
                     api_models::authentication::AuthenticationPaymentMethodDataResponse::CardData {
                         card_expiry_year: Some(card_data.expiration_year),
@@ -268,8 +235,7 @@ impl PostAuthenticationDetails {
                     },
                 ),
                 (None, None) => None,
-            }),
-        }
+            }
     }
 
     pub fn get_post_authentication_details(&self) -> Self {

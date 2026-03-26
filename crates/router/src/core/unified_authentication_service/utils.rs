@@ -612,22 +612,14 @@ fn get_vault_details(
 #[cfg(feature = "v1")]
 pub fn get_authentication_payment_method_data<F, Req>(
     router_data: &RouterData<F, Req, UasAuthenticationResponseData>,
-    should_disable_auth_tokenization: bool,
-    authentication: &hyperswitch_domain_models::authentication::Authentication,
-) -> Result<
-    Option<api_models::authentication::AuthenticationPaymentMethodDataResponse>,
-    ApiErrorResponse,
-> {
+) -> Option<api_models::authentication::AuthenticationPaymentMethodDataResponse> {
     if let Ok(UasAuthenticationResponseData::PostAuthentication {
         authentication_details,
     }) = router_data.response.clone()
     {
-        authentication_details.to_authentication_payment_method_data_response(
-            should_disable_auth_tokenization,
-            authentication,
-        )
+        authentication_details.to_authentication_payment_method_data_response()
     } else {
-        Ok(None)
+        None
     }
 }
 

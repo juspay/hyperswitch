@@ -201,9 +201,9 @@ impl MerchantId {
     }
 
     /// get should call auth tokenization for modular authentication
-    pub fn get_should_disable_auth_tokenization(&self) -> String {
+    pub fn get_should_disable_vault_tokenization(&self) -> String {
         format!(
-            "should_disable_auth_tokenization_{}",
+            "should_disable_vault_tokenization_{}",
             self.get_string_repr()
         )
     }
