@@ -26724,6 +26724,21 @@
           }
         }
       },
+      "RawCardWithNTDetails": {
+        "type": "object",
+        "required": [
+          "card_details",
+          "network_token_details"
+        ],
+        "properties": {
+          "card_details": {
+            "$ref": "#/components/schemas/CardDetail"
+          },
+          "network_token_details": {
+            "$ref": "#/components/schemas/CardDetail"
+          }
+        }
+      },
       "RawPaymentMethodData": {
         "oneOf": [
           {
