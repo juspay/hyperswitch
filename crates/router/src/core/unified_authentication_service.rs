@@ -2104,20 +2104,9 @@ pub async fn authentication_sync_core(
         .await?;
     }
 
-    let config = db
-        .find_config_by_key_unwrap_or(
-            &merchant_id.get_should_disable_vault_tokenization(), // vault tokenization
-            Some("false".to_string()),
-        )
-        .await;
-
-    let should_disable_vault_tokenization = match config {
-        Ok(conf) => conf.config == "true",
-        Err(error) => {
-            router_env::logger::error!(?error);
-            false
-        }
-    };
+    // Determine whether to tokenise or not
+    let should_disable_vault_tokenization =
+        utils::should_disable_vault_tokenization(&state, &authentication.merchant_id).await;
 
     // Determine the authentication sync strategy based on current state
     let strategy = determine_auth_sync_strategy(
