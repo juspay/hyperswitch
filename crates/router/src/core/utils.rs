@@ -90,14 +90,14 @@ where
     E: From<errors::ApiErrorResponse> + error_stack::Context,
 {
     let feature_config = get_feature_config(state, platform).await;
-    if feature_config.is_payment_method_modular_allowed {
-        let api_error = errors::ApiErrorResponse::AccessForbidden {
-            resource: "Deprecated route".to_string(),
-        };
-        Err(error_stack::report!(E::from(api_error)))
-    } else {
-        Ok(())
-    }
+    common_utils::fp_utils::when(feature_config.is_payment_method_modular_allowed, || {
+        Err(error_stack::report!(E::from(
+            errors::ApiErrorResponse::AccessForbidden {
+                resource: "Deprecated route".to_string(),
+            },
+        )))
+    })?;
+    Ok(())
 }
 
 pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW: &str =
