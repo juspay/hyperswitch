@@ -149,7 +149,11 @@ pub async fn add_access_token<
 
         let key = connector
             .connector
-            .get_access_token_key(router_data, merchant_connector_id_or_connector_name.clone())
+            .get_access_token_key(
+                router_data,
+                merchant_connector_id_or_connector_name.clone(),
+                current_flow.clone(),
+            )
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(format!(
                 "Failed to get access token key for connector: {:?}",

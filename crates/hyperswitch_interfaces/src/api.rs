@@ -406,11 +406,15 @@ impl ConnectorAccessTokenSuffix for BoxedConnector {
         &self,
         router_data: &dyn AccessTokenData,
         merchant_connector_id_or_connector_name: String,
+        current_flow: Option<CurrentFlowInfo>,
     ) -> CustomResult<String, errors::ConnectorError> {
         // 'self' is the BoxedConnector (the Box)
         // We dereference it to get the 'dyn Connector' and call the method
-        self.as_ref()
-            .get_access_token_key(router_data, merchant_connector_id_or_connector_name)
+        self.as_ref().get_access_token_key(
+            router_data,
+            merchant_connector_id_or_connector_name,
+            current_flow,
+        )
     }
 }
 
@@ -465,7 +469,7 @@ pub trait ConnectorSpecifications {
     fn is_post_authentication_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
     }
-    /// Check if pre-authentication flow is required
+    /// Check if settlement split flow is required
     fn is_settlement_split_call_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
     }
@@ -571,7 +575,10 @@ pub trait ConnectorSpecifications {
     }
 
     /// Is Authorize session token required before authorize
-    fn is_authorize_session_token_call_required(&self) -> bool {
+    fn is_authorize_session_token_call_required(
+        &self,
+        _current_flow: Option<CurrentFlowInfo>,
+    ) -> bool {
         false
     }
 
@@ -1000,6 +1007,7 @@ pub trait ConnectorAccessTokenSuffix {
         &self,
         router_data: &dyn AccessTokenData,
         merchant_connector_id_or_connector_name: String,
+        _current_flow: Option<CurrentFlowInfo>,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(common_utils::access_token::get_default_access_token_key(
             &router_data.get_merchant_id(),

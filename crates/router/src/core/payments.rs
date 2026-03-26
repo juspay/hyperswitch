@@ -4489,7 +4489,6 @@ where
             processor,
             payment_data.get_creds_identifier(),
             &context,
-            None,
             payment_data.get_payment_intent().feature_metadata.clone(),
         )
         .await?;
@@ -5092,7 +5091,6 @@ where
             processor,
             payment_data.get_creds_identifier(),
             &gateway_context,
-            None,
             None,
         )
         .await?;
@@ -5913,7 +5911,6 @@ where
             platform.get_processor(),
             payment_data.get_creds_identifier(),
             &gateway_context,
-            None,
             payment_data.get_payment_intent().feature_metadata.clone(),
         )
         .await?;
@@ -6082,7 +6079,6 @@ where
             platform.get_processor(),
             payment_data.get_creds_identifier(),
             &default_gateway_context,
-            None,
             None,
         )
         .await?;

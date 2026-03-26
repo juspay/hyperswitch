@@ -84,6 +84,36 @@ impl<T> From<(StringMajorUnit, T)> for SantanderRouterData<T> {
     }
 }
 
+impl
+    TryFrom<
+        ResponseRouterData<
+            AuthorizeSessionToken,
+            SantanderCreatePixPayloadLocationResponse,
+            AuthorizeSessionTokenData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<AuthorizeSessionToken, AuthorizeSessionTokenData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<
+            AuthorizeSessionToken,
+            SantanderCreatePixPayloadLocationResponse,
+            AuthorizeSessionTokenData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            session_token: Some(item.response.id.to_string()),
+            response: Ok(PaymentsResponseData::SessionTokenResponse {
+                session_token: item.response.id.to_string(),
+            }),
+            ..item.data
+        })
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderPixAutomaticMetadata {
@@ -214,77 +244,88 @@ impl
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let (resource_id, connector_response_reference_id, mandate_reference, connector_metadata) =
-            match item.response {
-                SantanderPaymentTriggerResponse::PixAutomaticoSolicRec(response) => {
-                    let expires_in_secs = item
-                        .data
-                        .request
-                        .feature_metadata
-                        .as_ref()
-                        .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "feature_metadata",
-                        })?
-                        .get_pix_automatico_push_expiry_time()
-                        .change_context(errors::ConnectorError::ParsingFailed)
-                        .attach_printable("Failed to get pix_automatico_push expiry time")?;
+        let (
+            status,
+            resource_id,
+            connector_response_reference_id,
+            mandate_reference,
+            connector_metadata,
+        ) = match item.response {
+            SantanderPaymentTriggerResponse::PixAutomaticoSolicRec(response) => {
+                let expires_in_secs = item
+                    .data
+                    .request
+                    .feature_metadata
+                    .as_ref()
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "feature_metadata",
+                    })?
+                    .get_pix_automatico_push_expiry_time()
+                    .change_context(errors::ConnectorError::ParsingFailed)
+                    .attach_printable("Failed to get pix_automatico_push expiry time")?;
 
-                    let metadata = get_wait_screen_metadata(u64::from(expires_in_secs))?;
+                let metadata = get_wait_screen_metadata(u64::from(expires_in_secs))?;
 
-                    (
-                        ResponseId::ConnectorTransactionId(
-                            item.data.connector_request_reference_id.clone(),
-                        ),
-                        Some(response.id_rec.clone()),
-                        Some(MandateReference {
-                            connector_mandate_id: Some(response.id_rec.clone()),
-                            payment_method_id: None,
-                            mandate_metadata: None,
-                            connector_mandate_request_reference_id: Some(response.id_solic_rec),
-                        }),
-                        metadata,
-                    )
-                }
-                SantanderPaymentTriggerResponse::PixAutomaticoConsultAndActivateJourney(
-                    response,
-                ) => {
-                    let journey = response
-                        .dados_qr
-                        .as_ref()
-                        .map(|qr_data| qr_data.jornada.clone())
-                        .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "response.dadosQR.jornada",
-                        })?;
-                    let expiry_type = journey.and_then(Option::<ExpiryType>::from);
-                    let connector_metadata = match response
-                        .dados_qr
-                        .as_ref()
-                        .and_then(|dados_qr| dados_qr.pix_copia_e_cola.clone())
-                    {
-                        Some(pix_copia_e_cola) => {
-                            convert_pix_data_to_value(pix_copia_e_cola, expiry_type)?
-                        }
-                        None => None,
-                    };
+                let status = response
+                    .status
+                    .map(AttemptStatus::from)
+                    .unwrap_or(AttemptStatus::Pending);
 
-                    (
-                        ResponseId::ConnectorTransactionId(
-                            item.data.connector_request_reference_id.clone(),
-                        ),
-                        Some(response.id_rec.clone()),
-                        Some(MandateReference {
-                            connector_mandate_id: Some(response.id_rec.clone()),
-                            payment_method_id: None,
-                            mandate_metadata: None,
-                            connector_mandate_request_reference_id: None,
-                        }),
-                        connector_metadata,
-                    )
-                }
-            };
+                (
+                    status,
+                    ResponseId::ConnectorTransactionId(
+                        item.data.connector_request_reference_id.clone(),
+                    ),
+                    Some(response.id_rec.clone()),
+                    Some(MandateReference {
+                        connector_mandate_id: Some(response.id_rec.clone()),
+                        payment_method_id: None,
+                        mandate_metadata: None,
+                        connector_mandate_request_reference_id: Some(response.id_solic_rec),
+                    }),
+                    metadata,
+                )
+            }
+            SantanderPaymentTriggerResponse::PixAutomaticoConsultAndActivateJourney(response) => {
+                let journey = response
+                    .dados_qr
+                    .as_ref()
+                    .map(|qr_data| qr_data.jornada.clone())
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "response.dadosQR.jornada",
+                    })?;
+                let expiry_type = journey.and_then(Option::<ExpiryType>::from);
+                let connector_metadata = match response
+                    .dados_qr
+                    .as_ref()
+                    .and_then(|dados_qr| dados_qr.pix_copia_e_cola.clone())
+                {
+                    Some(pix_copia_e_cola) => {
+                        convert_pix_data_to_value(pix_copia_e_cola, expiry_type)?
+                    }
+                    None => None,
+                };
+
+                let status = AttemptStatus::from(response.status);
+                (
+                    status,
+                    ResponseId::ConnectorTransactionId(
+                        item.data.connector_request_reference_id.clone(),
+                    ),
+                    Some(response.id_rec.clone()),
+                    Some(MandateReference {
+                        connector_mandate_id: Some(response.id_rec.clone()),
+                        payment_method_id: None,
+                        mandate_metadata: None,
+                        connector_mandate_request_reference_id: None,
+                    }),
+                    connector_metadata,
+                )
+            }
+        };
 
         Ok(Self {
-            status: AttemptStatus::AuthenticationPending,
+            status,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id,
                 redirection_data: Box::new(None),
@@ -295,36 +336,6 @@ impl
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
-            }),
-            ..item.data
-        })
-    }
-}
-
-impl
-    TryFrom<
-        ResponseRouterData<
-            AuthorizeSessionToken,
-            SantanderCreatePixPayloadLocationResponse,
-            AuthorizeSessionTokenData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<AuthorizeSessionToken, AuthorizeSessionTokenData, PaymentsResponseData>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-
-    fn try_from(
-        item: ResponseRouterData<
-            AuthorizeSessionToken,
-            SantanderCreatePixPayloadLocationResponse,
-            AuthorizeSessionTokenData,
-            PaymentsResponseData,
-        >,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            session_token: Some(item.response.id.to_string()),
-            response: Ok(PaymentsResponseData::SessionTokenResponse {
-                session_token: item.response.id.to_string(),
             }),
             ..item.data
         })

@@ -1934,15 +1934,23 @@ impl ConnectorSpecifications for Santander {
         }
     }
 
+    fn is_authorize_session_token_call_required(
+        &self,
+        current_flow: Option<CurrentFlowInfo>,
+    ) -> bool {
+        match current_flow {
+            // Journey 1/2/3/4 CIT
+            Some(CurrentFlowInfo::SetupMandate { .. }) => true,
+            Some(CurrentFlowInfo::CompleteAuthorize { .. })
+            | Some(CurrentFlowInfo::Authorize { .. })
+            | None => false,
+        }
+    }
     fn is_payment_trigger_flow_required(&self, current_flow: CurrentFlowInfo) -> bool {
         match current_flow {
             CurrentFlowInfo::SetupMandate { .. } => true,
             CurrentFlowInfo::Authorize { .. } | CurrentFlowInfo::CompleteAuthorize { .. } => false,
         }
-    }
-
-    fn is_authorize_session_token_call_required(&self) -> bool {
-        true
     }
 }
 
@@ -1951,6 +1959,7 @@ impl ConnectorAccessTokenSuffix for Santander {
         &self,
         router_data: &dyn api::AccessTokenData,
         merchant_connector_id_or_connector_name: String,
+        _current_flow: Option<CurrentFlowInfo>,
     ) -> CustomResult<String, errors::ConnectorError> {
         let merchant_id = &router_data.get_merchant_id();
 

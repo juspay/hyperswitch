@@ -266,16 +266,19 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         _processor: &domain::Processor,
         creds_identifier: Option<&str>,
         gateway_context: &gateway_context::RouterGatewayContext,
-        _current_flow: Option<router_request_types::CurrentFlowInfo>,
         feature_metadata: Option<serde_json::Value>,
     ) -> RouterResult<types::AddAccessTokenResult> {
+        let current_flow = Some(api_interface::CurrentFlowInfo::SetupMandate {
+            auth_type: self.auth_type,
+            request_data: Box::new(self.request.clone()),
+        });
         Box::pin(access_token::add_access_token(
             state,
             connector,
             self,
             creds_identifier,
             gateway_context,
-            None,
+            current_flow,
             feature_metadata,
         ))
         .await
@@ -290,9 +293,18 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
     where
         Self: Sized,
     {
-        self.session_token =
-            session_token::add_session_token_if_needed(self, state, connector, gateway_context)
-                .await?;
+        let current_flow = api_interface::CurrentFlowInfo::SetupMandate {
+            auth_type: self.auth_type,
+            request_data: Box::new(self.request.clone()),
+        };
+        self.session_token = session_token::add_session_token_if_needed(
+            self,
+            state,
+            connector,
+            gateway_context,
+            Some(current_flow),
+        )
+        .await?;
         Ok(())
     }
 

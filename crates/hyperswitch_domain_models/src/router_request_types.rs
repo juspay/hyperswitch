@@ -7,6 +7,7 @@ pub mod unified_authentication_service;
 use api_models::payments::{
     AdditionalPaymentData, AddressDetails, ConnectorMetadata, RequestSurchargeDetails,
 };
+use common_enums;
 use common_types::payments as common_payments_types;
 use common_utils::{
     consts, errors,
@@ -31,6 +32,7 @@ use crate::{
     router_flow_types as flows, router_response_types as response_types,
     vault::PaymentMethodCustomVaultingData,
 };
+
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentsAuthorizeData {
     pub payment_method_data: PaymentMethodData,

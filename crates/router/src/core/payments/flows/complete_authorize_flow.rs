@@ -282,7 +282,6 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         _processor: &domain::Processor,
         creds_identifier: Option<&str>,
         gateway_context: &gateway_context::RouterGatewayContext,
-        _current_flow: Option<router_request_types::CurrentFlowInfo>,
         feature_metadata: Option<serde_json::Value>,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(
