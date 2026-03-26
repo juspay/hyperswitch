@@ -4489,15 +4489,16 @@ where
         )
         .await?;
 
-    router_data
-        .add_session_token(state, &connector, &context)
-        .await?;
-
     let should_continue_further = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
         &mut router_data,
         &call_connector_action,
     );
+
+    // AuthorizeSessionTokenFlow needs access token to be added in router data before creating session token, as the session token creation might require access token in headers for some connectors (like Santander)
+    router_data
+        .add_session_token(state, &connector, &context)
+        .await?;
 
     // Balance check flow for payment methods like Giftcard, Voucher etc.
     let should_continue_further = if should_continue_further {
@@ -4866,7 +4867,14 @@ where
     routing_decision.map(|decision| decision.apply_routing_decision(payment_data));
 
     // Validating the blocklist guard and generate the fingerprint
-    blocklist_guard(state, platform.get_processor(), operation, payment_data).await?;
+    blocklist_guard(
+        state,
+        platform.get_processor(),
+        operation,
+        payment_data,
+        business_profile,
+    )
+    .await?;
 
     let merchant_recipient_data = payment_data
         .get_merchant_recipient_data(
@@ -5060,15 +5068,16 @@ where
         )
         .await?;
 
-    router_data
-        .add_session_token(state, &connector, &gateway_context)
-        .await?;
-
     let should_continue_further = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
         &mut router_data,
         &call_connector_action,
     );
+
+    router_data
+        .add_session_token(state, &connector, &gateway_context)
+        .await?;
+
     let payment_method_token_response = router_data
         .add_payment_method_token(
             state,
@@ -6030,15 +6039,15 @@ where
         )
         .await?;
 
-    router_data
-        .add_session_token(state, &connector, &default_gateway_context)
-        .await?;
-
     let mut should_continue_further = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
         &mut router_data,
         &call_connector_action,
     );
+
+    router_data
+        .add_session_token(state, &connector, &default_gateway_context)
+        .await?;
 
     let (connector_request, should_continue_further) = if should_continue_further {
         router_data
@@ -6657,6 +6666,7 @@ async fn blocklist_guard<F, ApiRequest, D>(
     processor: &domain::Processor,
     operation: &BoxedOperation<'_, F, ApiRequest, D>,
     payment_data: &mut D,
+    business_profile: &domain::Profile,
 ) -> CustomResult<bool, errors::ApiErrorResponse>
 where
     F: Send + Clone + Sync,
@@ -6684,7 +6694,7 @@ where
     if blocklist_guard_enabled {
         Ok(operation
             .to_domain()?
-            .guard_payment_against_blocklist(state, processor, payment_data)
+            .guard_payment_against_blocklist(state, processor, payment_data, business_profile)
             .await?)
     } else {
         Ok(false)

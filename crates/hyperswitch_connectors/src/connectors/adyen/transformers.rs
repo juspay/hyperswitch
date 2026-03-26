@@ -130,6 +130,7 @@ pub enum AdyenShopperInteraction {
 pub enum AdyenRecurringModel {
     UnscheduledCardOnFile,
     CardOnFile,
+    Subscription,
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
