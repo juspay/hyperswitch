@@ -83,10 +83,7 @@ where
     let url = reqwest::Url::parse(&url)
         .change_context(errors::KeyManagerClientError::UrlEncodingFailed)?;
 
-    // Capture method string before it's consumed
     let method_str = method.to_string();
-
-    // Start timing
     let start_time = std::time::Instant::now();
 
     let response = client
@@ -94,53 +91,32 @@ where
         .json(&ConvertRaw::convert_raw(request_body)?)
         .headers(headers)
         .send()
-        .await;
+        .await
+        .change_context(errors::KeyManagerClientError::RequestNotSent(
+            "Unable to send request to encryption service".to_string(),
+        ))?;
 
-    let latency_ms = start_time.elapsed().as_millis();
-    let created_at_timestamp = OffsetDateTime::now_utc().unix_timestamp_nanos();
+    if state.emit_external_service_call_events {
+        let latency_ms = start_time.elapsed().as_millis();
+        let created_at_timestamp = OffsetDateTime::now_utc().unix_timestamp_nanos();
 
-    // Handle request_id and event emission
-    match &state.request_id {
-        None => {
+        if let Some(request_id) = &state.request_id {
+            state.event_emitter.emit_external_service_call(ExternalServiceCall {
+                service_name: "keymanager".to_string(),
+                endpoint: endpoint.to_string(),
+                method: method_str,
+                request_id: request_id.clone(),
+                status_code: response.status().as_u16(),
+                success: response.status().is_success(),
+                latency_ms,
+                created_at_timestamp,
+            });
+        } else {
             logger::warn!("KeyManager call made without emitting event: request_id missing");
-        }
-        Some(request_id) => {
-            let request_id = request_id.clone();
-            match &response {
-                Ok(resp) => {
-                    let status_code = resp.status().as_u16();
-                    let success = resp.status().is_success();
-                    state.event_emitter.emit_external_service_call(ExternalServiceCall {
-                        service_name: "keymanager".to_string(),
-                        endpoint: endpoint.to_string(),
-                        method: method_str,
-                        request_id,
-                        status_code,
-                        success,
-                        latency_ms,
-                        created_at_timestamp,
-                    });
-                }
-                Err(_) => {
-                    // Network failure - emit with status_code: 0, success: false
-                    state.event_emitter.emit_external_service_call(ExternalServiceCall {
-                        service_name: "keymanager".to_string(),
-                        endpoint: endpoint.to_string(),
-                        method: method_str,
-                        request_id,
-                        status_code: 0,
-                        success: false,
-                        latency_ms,
-                        created_at_timestamp,
-                    });
-                }
-            }
         }
     }
 
-    response.change_context(errors::KeyManagerClientError::RequestNotSent(
-        "Unable to send request to encryption service".to_string(),
-    ))
+    Ok(response)
 }
 
 /// Generic function to call the Keymanager and parse the response back

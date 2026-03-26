@@ -387,6 +387,8 @@ pub struct KeyManagerConfig {
     pub ca: Secret<String>,
     #[serde(default = "default_key_store_decryption_behavior")]
     pub use_legacy_key_store_decryption: bool,
+    #[serde(default)]
+    pub emit_external_service_call_events: bool,
 }
 
 fn default_key_store_decryption_behavior() -> bool {
