@@ -24,6 +24,9 @@ pub enum AuthInfo {
         org_id: id_type::OrganizationId,
         /// merchant_ids: Vec<MerchantId>
         merchant_ids: Vec<id_type::MerchantId>,
+        /// processor_merchant_ids: Optional Vec of processor merchant IDs for platform use cases
+        /// For Connected merchants, this contains the connected merchant's ID
+        processor_merchant_ids: Option<Vec<id_type::MerchantId>>,
     },
     /// ProfileLevel: Authentication at the profile level
     ProfileLevel {
@@ -33,6 +36,9 @@ pub enum AuthInfo {
         merchant_id: id_type::MerchantId,
         /// profile_ids: Vec<ProfileId>
         profile_ids: Vec<id_type::ProfileId>,
+        /// processor_merchant_id: Optional processor merchant ID for platform use cases
+        /// For Connected merchants, this is the connected merchant's ID
+        processor_merchant_id: Option<id_type::MerchantId>,
     },
 }
 
