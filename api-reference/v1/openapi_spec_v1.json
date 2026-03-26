@@ -35168,27 +35168,6 @@
                 }
               }
             ]
-          },
-          {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PixAutomaticoQrDetails"
-              },
-              {
-                "type": "object",
-                "required": [
-                  "type"
-                ],
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "pix_automatico_qr"
-                    ]
-                  }
-                }
-              }
-            ]
           }
         ],
         "discriminator": {
@@ -35228,21 +35207,6 @@
             "type": "integer",
             "format": "int32",
             "description": "Time in seconds until which the push notification is valid",
-            "example": 3600,
-            "minimum": 0
-          }
-        }
-      },
-      "PixAutomaticoQrDetails": {
-        "type": "object",
-        "required": [
-          "time"
-        ],
-        "properties": {
-          "time": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Time in seconds until which the QR code is valid",
             "example": 3600,
             "minimum": 0
           }
