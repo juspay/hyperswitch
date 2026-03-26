@@ -4037,3 +4037,113 @@ pub async fn list_users_internal(
         },
     ))
 }
+
+pub async fn list_members_for_entity(
+    state: SessionState,
+    auth: auth::AuthenticationData,
+    access_level: EntityType,
+) -> UserResponse<user_api::ListUsersInternalResponse> {
+    let merchant_id = auth.platform.get_processor().get_account().get_id().clone();
+
+    let profile_id = {
+        #[cfg(feature = "v1")]
+        {
+            auth.profile
+                .ok_or(report!(UserErrors::InternalServerError))
+                .attach_printable("Profile is required for list_members_for_entity")?
+                .get_id()
+                .clone()
+        }
+        #[cfg(feature = "v2")]
+        {
+            auth.profile.get_id().clone()
+        }
+    };
+
+    let org_id = auth.platform.get_processor().get_account().get_org_id();
+    let tenant_id = &state.tenant.tenant_id;
+
+    let entity_types_to_query: Vec<EntityType> = match access_level {
+        EntityType::Profile => {
+            vec![
+                EntityType::Organization,
+                EntityType::Merchant,
+                EntityType::Profile,
+            ]
+        }
+        EntityType::Merchant => {
+            vec![EntityType::Organization, EntityType::Merchant]
+        }
+        EntityType::Organization => {
+            vec![EntityType::Organization]
+        }
+        EntityType::Tenant => {
+            return Err(report!(UserErrors::InternalServerError))
+                .attach_printable("Tenant-level access is not supported for this endpoint");
+        }
+    };
+
+    let user_ids =
+        futures::future::try_join_all(entity_types_to_query.into_iter().map(|entity_type| {
+            let state = &state;
+            let merchant_id = &merchant_id;
+            let profile_id = &profile_id;
+            async move {
+                let (merchant_id_filter, profile_id_filter) = match entity_type {
+                    EntityType::Organization => (None, None),
+                    EntityType::Merchant => (Some(merchant_id), None),
+                    EntityType::Profile => (Some(merchant_id), Some(profile_id)),
+                    EntityType::Tenant => {
+                        return Err(report!(UserErrors::InternalServerError)).attach_printable(
+                            "Tenant-level access is not supported for this endpoint",
+                        );
+                    }
+                };
+
+                state
+                    .global_store
+                    .list_user_roles_by_org_id(crate::db::user_role::ListUserRolesByOrgIdPayload {
+                        user_id: None,
+                        tenant_id,
+                        org_id,
+                        merchant_id: merchant_id_filter,
+                        profile_id: profile_id_filter,
+                        entity_type: Some(entity_type),
+                        version: None,
+                        limit: None,
+                    })
+                    .await
+                    .change_context(UserErrors::InternalServerError)
+                    .attach_printable(format!("Failed to fetch user roles for {:?}", entity_type))
+            }
+        }))
+        .await?
+        .into_iter()
+        .flatten()
+        .map(|user_role| user_role.user_id)
+        .collect::<HashSet<_>>();
+
+    let users = state
+        .global_store
+        .find_active_users_by_user_ids(user_ids.into_iter().collect())
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to fetch users from database")?;
+
+    let users_minimal_details = users
+        .into_iter()
+        .map(domain::UserFromStorage::from)
+        .map(|user| user_api::GetUserInternalDetailsResponse {
+            user_id: user.get_user_id().to_string(),
+            name: user.get_name(),
+            email: user.get_email(),
+            is_active: user.is_active(),
+        })
+        .collect();
+
+    Ok(ApplicationResponse::Json(
+        user_api::ListUsersInternalResponse {
+            users: users_minimal_details,
+        },
+    ))
+}

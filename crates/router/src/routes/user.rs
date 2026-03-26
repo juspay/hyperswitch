@@ -1214,3 +1214,28 @@ pub async fn list_users_internal(
     ))
     .await
 }
+
+pub async fn list_members_for_entity(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<user_api::ListMembersRequest>,
+) -> HttpResponse {
+    let flow = Flow::ListMembersForEntity;
+    let access_level = query.into_inner().access_level;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth: auth::AuthenticationData, _, _| {
+            user_core::list_members_for_entity(state, auth, access_level)
+        },
+        &auth::InternalMerchantIdProfileIdAuth(auth::DashboardNoPermissionAuth {
+            allow_connected: true,
+            allow_platform: true,
+        }),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

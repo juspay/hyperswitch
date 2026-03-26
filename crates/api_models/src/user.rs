@@ -451,6 +451,11 @@ pub struct ListUsersInternalRequest {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct ListMembersRequest {
+    pub access_level: EntityType,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct UserTransferKeyResponse {
     pub total_transferred: usize,
 }
