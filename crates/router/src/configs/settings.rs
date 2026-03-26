@@ -614,6 +614,7 @@ pub struct NetworkTokenizationService {
     pub delete_token_url: url::Url,
     pub check_token_status_url: url::Url,
     pub webhook_source_verification_key: Secret<String>,
+    pub fetch_altid_url: Option<url::Url>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

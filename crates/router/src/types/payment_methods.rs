@@ -456,6 +456,98 @@ pub struct PanMetadataUpdateBody {
     pub card: NetworkTokenRequestorData,
 }
 
+// ==================== ALT-ID TYPES (Guest Checkout Tokenization) ====================
+
+/// Card data for Alt-ID request (to be JWE encrypted)
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct AltIdCardData {
+    pub card_number: CardNumber,
+    pub exp_month: Secret<String>,
+    pub exp_year: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_security_code: Option<Secret<String>>,
+}
+
+/// Order data for Alt-ID request
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct AltIdOrderData {
+    pub amount: f64,
+    pub currency: String,
+    /// Required for RuPay cards (post-3DS authentication reference)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auth_ref_number: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub submerchant_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub correlation_id: Option<String>,
+}
+
+/// Alt-ID API request payload
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct FetchAltIdRequest {
+    /// JWE encrypted card data
+    pub card_data: Secret<String>,
+    pub order_data: AltIdOrderData,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub key_id: Option<String>,
+    /// Set to true for international cards where Alt-ID is not applicable
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub should_send_raw_card: Option<bool>,
+}
+
+/// Decrypted Alt-ID details (after JWE decryption of altIdDetails field)
+#[derive(Debug, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct AltIdDetails {
+    /// The Alt-ID token (network token for this transaction)
+    pub alt_id: NetworkToken,
+    /// Token expiry month (MM format)
+    pub exp_month: Secret<String>,
+    /// Token expiry year (YYYY format)
+    pub exp_year: Secret<String>,
+    /// TAVV (Token Authentication Verification Value) - the cryptogram
+    pub tavv: Secret<String>,
+    /// PAR (Payment Account Reference)
+    pub par: Option<Secret<String>>,
+}
+
+/// Raw Alt-ID response payload from API (before altIdDetails decryption)
+#[derive(Debug, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct AltIdResponsePayloadRaw {
+    pub card_issuer_country: Option<String>,
+    pub correlation_id: String,
+    pub card_issuer_bank: Option<String>,
+    /// JWE encrypted Alt-ID details - needs decryption
+    pub alt_id_details: Secret<String>,
+    pub card_brand: api_enums::CardNetwork,
+    pub provider: Option<String>,
+    pub provider_category: Option<String>,
+}
+
+/// Full Alt-ID response payload (with decrypted altIdDetails)
+#[derive(Debug, Clone)]
+pub struct AltIdResponsePayload {
+    pub card_issuer_country: Option<String>,
+    pub correlation_id: String,
+    pub card_issuer_bank: Option<String>,
+    /// Decrypted Alt-ID details
+    pub alt_id_details: AltIdDetails,
+    pub card_brand: api_enums::CardNetwork,
+    pub provider: Option<String>,
+    pub provider_category: Option<String>,
+}
+
+/// Alt-ID API response wrapper (raw, before decryption)
+#[derive(Debug, Deserialize, Clone)]
+pub struct AltIdResponse {
+    pub status: String,
+    pub payload: AltIdResponsePayloadRaw,
+}
+
 #[cfg(feature = "v2")]
 pub struct PaymentMethodUpdateHandler<'a> {
     pub platform: &'a hyperswitch_domain_models::platform::Platform,

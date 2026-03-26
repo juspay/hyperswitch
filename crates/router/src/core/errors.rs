@@ -400,6 +400,18 @@ pub enum NetworkTokenizationError {
     NotSupported { message: String },
     #[error("Failed to encrypt the NetworkToken payment method details")]
     NetworkTokenDetailsEncryptionFailed,
+    #[error("Failed to fetch Alt-ID from network token service")]
+    FetchAltIdFailed,
+    #[error("Alt-ID service URL not configured")]
+    AltIdServiceNotConfigured,
+    #[error("Failed to encrypt card data for Alt-ID request")]
+    AltIdCardDataEncryptionFailed,
+    #[error("Failed to decrypt Alt-ID response")]
+    AltIdResponseDecryptionFailed,
+    #[error("Alt-ID not supported for network: {network}")]
+    AltIdNotSupportedForNetwork { network: String },
+    #[error("Missing required field for Alt-ID: {field}")]
+    AltIdMissingRequiredField { field: String },
 }
 
 #[derive(Debug, thiserror::Error)]

@@ -115,7 +115,33 @@ pub async fn retrieve_payment_method_core(
     business_profile: Option<&domain::Profile>,
 ) -> RouterResult<(Option<domain::PaymentMethodData>, Option<String>)> {
     match pm_data {
-        pm_opt @ Some(pm @ domain::PaymentMethodData::Card(_)) => {
+        pm_opt @ Some(pm @ domain::PaymentMethodData::Card(card)) => {
+            // Try to fetch Alt-ID for guest checkout if applicable (Indian merchant + domestic card)
+            if let (Some(profile), Some(currency)) =
+                (business_profile, payment_intent.currency.as_ref())
+            {
+                println!("Attempting to fetch Alt-ID for guest checkout");
+                if let Some(network_token_data) =
+                    payment_helpers::try_get_altid_for_guest_checkout(
+                        state,
+                        card,
+                        profile,
+                        payment_intent.amount.get_amount_as_i64(),
+                        currency,
+                        None, // auth_ref_number - will be populated for RuPay post-3DS
+                    )
+                    .await
+                {
+                    // Alt-ID successfully fetched, return NetworkTokenData instead of raw card
+                    logger::info!("Using Alt-ID for guest checkout payment");
+                    return Ok((
+                        Some(domain::PaymentMethodData::NetworkToken(network_token_data)),
+                        None,
+                    ));
+                }
+            }
+
+            // Fallback: store raw card in vault and return
             let payment_token = payment_helpers::store_payment_method_data_in_vault(
                 state,
                 payment_attempt,
