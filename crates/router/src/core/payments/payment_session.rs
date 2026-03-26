@@ -207,13 +207,12 @@ impl PaymentSessionManager {
                 logger::debug!(
                     processor_merchant_id = %processor_merchant_id.get_string_repr(),
                     payment_id = %payment_id.get_string_repr(),
-                    is_valid,
                     "Validated payment session"
                 );
                 Ok(is_valid)
             }
             None => {
-                logger::debug!(
+                logger::error!(
                     processor_merchant_id = %processor_merchant_id.get_string_repr(),
                     payment_id = %payment_id.get_string_repr(),
                     "Payment session not found for validation"
