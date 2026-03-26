@@ -1139,8 +1139,9 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                         "Payment method created in PM Modular service successfully"
                                     );
                                     //set payment_data.payment_method_info
-                                    payment_data.payment_attempt.payment_method_id =
-                                        Some(pm_info.get_id().clone());
+                                    payment_data.set_payment_method_id_in_attempt(Some(
+                                        pm_info.get_id().clone(),
+                                    ));
                                     payment_data.set_payment_method_info(Some(pm_info));
                                 }
                                 Err(err) => {
