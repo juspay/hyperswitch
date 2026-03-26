@@ -209,6 +209,7 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type,
+        raw_connector_request: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
         l2_l3_data: None,

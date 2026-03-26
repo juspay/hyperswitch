@@ -271,3 +271,13 @@ creds.json
 # Nix services data
 /data
 .pre-commit-config.yaml
+
+# devex — auto-generated files
+.devex-tasks/
+.devex-reviews/
+.devex-kb.md
+.devex-stats.json
+.devex-guardrails.md
+.devex-requirements.md
+.devex-devplan.md
+.devex-build.json

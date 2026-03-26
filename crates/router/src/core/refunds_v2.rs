@@ -1347,6 +1347,7 @@ impl ForeignTryFrom<diesel_refund::Refund> for api::RefundResponse {
                 message: refund.refund_error_message.unwrap_or_default(),
             }),
             connector_refund_reference_id: None,
+            raw_connector_request: None,
             raw_connector_response: None,
         })
     }

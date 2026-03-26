@@ -149,6 +149,8 @@ pub struct MerchantConnectorAuthDetails {
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug)]
 pub struct ConnectorResponseData {
+    /// Stringified connector raw request body
+    pub raw_connector_request: Option<Secret<String>>,
     /// Stringified connector raw response body
     pub raw_connector_response: Option<Secret<String>>,
 }

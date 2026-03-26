@@ -1516,6 +1516,7 @@ mod tests {
             issuer_error_code: None,
             issuer_error_message: None,
             is_iframe_redirection_enabled: None,
+            whole_connector_request: None,
             whole_connector_response: None,
             payment_channel: None,
             network_transaction_id: None,

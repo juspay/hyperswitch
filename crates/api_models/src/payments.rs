@@ -7688,6 +7688,11 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<bool>")]
     pub is_iframe_redirection_enabled: Option<bool>,
 
+    /// Contains whole connector request. Only returned if `all_keys_required` is true
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub whole_connector_request: Option<Secret<String>>,
+
     /// Contains whole connector response
     #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
@@ -8632,6 +8637,10 @@ pub struct PaymentsResponse {
         example = "pay_mbabizu24mvu3mela5njyhpit4"
     )]
     pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
+
+    /// Stringified connector raw request body. Only returned if `return_raw_connector_response` is true
+    #[schema(value_type = Option<String>)]
+    pub raw_connector_request: Option<Secret<String>>,
 
     /// Stringified connector raw response body. Only returned if `return_raw_connector_response` is true
     #[schema(value_type = Option<String>)]

@@ -322,6 +322,7 @@ where
             .await?;
 
             let connector_response_data = common_types::domain::ConnectorResponseData {
+                raw_connector_request: router_data.raw_connector_request.clone(),
                 raw_connector_response: router_data.raw_connector_response.clone(),
             };
 
@@ -425,6 +426,7 @@ where
             .await?;
 
             let connector_response_data = common_types::domain::ConnectorResponseData {
+                raw_connector_request: router_data.raw_connector_request.clone(),
                 raw_connector_response: router_data.raw_connector_response.clone(),
             };
 
@@ -455,6 +457,8 @@ where
         ConnectorCallType::Skip => (
             payment_data,
             common_types::domain::ConnectorResponseData {
+                raw_connector_request: None,
+                raw_connector_request: None,
                 raw_connector_response: None,
             },
         ),
@@ -586,6 +590,7 @@ where
     .await?;
 
     let connector_response_data = common_types::domain::ConnectorResponseData {
+        raw_connector_request: router_data.raw_connector_request.clone(),
         raw_connector_response: router_data.raw_connector_response.clone(),
     };
 
@@ -8322,6 +8327,7 @@ where
         Option<hyperswitch_domain_models::card_testing_guard_data::CardTestingGuardData>,
     pub vault_operation: Option<domain_payments::VaultOperation>,
     pub threeds_method_comp_ind: Option<api_models::payments::ThreeDsCompletionIndicator>,
+    pub whole_connector_request: Option<Secret<String>>,
     pub whole_connector_response: Option<Secret<String>>,
     pub is_manual_retry_enabled: Option<bool>,
     pub is_l2_l3_enabled: bool,
@@ -11775,6 +11781,9 @@ pub trait OperationSessionGetters<F> {
     fn get_connector_customer_id(&self) -> Option<String>;
 
     #[cfg(feature = "v1")]
+    fn get_whole_connector_request(&self) -> Option<Secret<String>>;
+
+    #[cfg(feature = "v1")]
     fn get_whole_connector_response(&self) -> Option<Secret<String>>;
 
     #[cfg(feature = "v1")]
@@ -12013,6 +12022,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
 
     fn get_all_keys_required(&self) -> Option<bool> {
         self.all_keys_required
+    }
+
+    fn get_whole_connector_request(&self) -> Option<Secret<String>> {
+        self.whole_connector_request.clone()
     }
 
     fn get_whole_connector_response(&self) -> Option<Secret<String>> {

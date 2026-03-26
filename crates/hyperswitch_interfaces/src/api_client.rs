@@ -276,6 +276,11 @@ where
                             .await;
                     let external_latency = current_time.elapsed().as_millis();
                     logger::info!(raw_connector_request=?masked_request_body);
+                    store_raw_connector_request_if_required(
+                        return_raw_connector_response,
+                        &mut router_data,
+                        &masked_request_body,
+                    )?;
                     let status_code = response
                         .as_ref()
                         .map(|i| {
@@ -586,6 +591,23 @@ where
             decoded = decoded.trim_start_matches('\u{feff}').to_string();
         }
         router_data.raw_connector_response = Some(masking::Secret::new(decoded));
+    }
+    Ok(())
+}
+
+/// Store the raw connector request in the router data if required
+pub fn store_raw_connector_request_if_required<T, Req, Resp>(
+    return_raw_connector_response: Option<bool>,
+    router_data: &mut RouterData<T, Req, Resp>,
+    request_body: &serde_json::Value,
+) -> CustomResult<(), ConnectorError>
+where
+    T: Clone + Debug + 'static,
+    Req: Debug + Clone + 'static,
+    Resp: Debug + Clone + 'static,
+{
+    if return_raw_connector_response == Some(true) {
+        router_data.raw_connector_request = Some(masking::Secret::new(request_body.to_string()));
     }
     Ok(())
 }

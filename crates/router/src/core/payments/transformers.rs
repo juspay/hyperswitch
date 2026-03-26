@@ -216,6 +216,7 @@ where
         connector_mandate_request_reference_id,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        raw_connector_request: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
         l2_l3_data: None,
@@ -575,6 +576,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         connector_mandate_request_reference_id,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        raw_connector_request: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
         l2_l3_data: None,
@@ -922,6 +924,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         connector_mandate_request_reference_id,
         psd2_sca_exemption_type: None,
         authentication_id: None,
+        raw_connector_request: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
@@ -1058,6 +1061,7 @@ pub async fn construct_router_data_for_psync<'a>(
         connector_mandate_request_reference_id: None,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        raw_connector_request: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
@@ -1429,6 +1433,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         connector_mandate_request_reference_id: None,
         psd2_sca_exemption_type: None,
         authentication_id: None,
+        raw_connector_request: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
@@ -1657,6 +1662,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         connector_mandate_request_reference_id,
         authentication_id: None,
         psd2_sca_exemption_type: None,
+        raw_connector_request: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
         l2_l3_data: None,
@@ -1977,6 +1983,7 @@ where
         connector_mandate_request_reference_id,
         authentication_id: None,
         psd2_sca_exemption_type: payment_data.payment_intent.psd2_sca_exemption_type,
+        raw_connector_request: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
         l2_l3_data,
@@ -2193,6 +2200,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         connector_mandate_request_reference_id,
         authentication_id: None,
         psd2_sca_exemption_type: payment_data.payment_intent.psd2_sca_exemption_type,
+        raw_connector_request: None,
         raw_connector_response: None,
         is_payment_id_from_merchant: payment_data.payment_intent.is_payment_id_from_merchant,
         l2_l3_data: None,
@@ -2790,6 +2798,9 @@ where
 
         let payment_address = self.payment_address;
 
+        let raw_connector_request = connector_response_data
+            .as_ref()
+            .and_then(|data| data.raw_connector_request.clone());
         let raw_connector_response =
             connector_response_data.and_then(|data| data.raw_connector_response);
 
@@ -2883,6 +2894,7 @@ where
             shipping: None, //TODO: add this
             is_iframe_redirection_enabled: None,
             merchant_reference_id: payment_intent.merchant_reference_id.clone(),
+            raw_connector_request,
             raw_connector_response,
             feature_metadata: payment_intent
                 .feature_metadata
@@ -2949,6 +2961,9 @@ impl GenerateResponse<api_models::payments::PaymentsResponse>
 
         let payment_address = self.primary_payment_response_data.payment_address;
 
+        let raw_connector_request = connector_response_data
+            .as_ref()
+            .and_then(|data| data.raw_connector_request.clone());
         let raw_connector_response =
             connector_response_data.and_then(|data| data.raw_connector_response);
 
@@ -3039,6 +3054,7 @@ impl GenerateResponse<api_models::payments::PaymentsResponse>
             shipping: None, //TODO: add this
             is_iframe_redirection_enabled: None,
             merchant_reference_id: payment_intent.merchant_reference_id.clone(),
+            raw_connector_request,
             raw_connector_response,
             feature_metadata: payment_intent
                 .feature_metadata
@@ -3110,6 +3126,9 @@ where
                 .map(From::from),
         });
 
+        let raw_connector_request = connector_response_data
+            .as_ref()
+            .and_then(|data| data.raw_connector_request.clone());
         let raw_connector_response =
             connector_response_data.and_then(|data| data.raw_connector_response);
 
@@ -4128,6 +4147,7 @@ where
             issuer_error_code: payment_attempt.issuer_error_code,
             issuer_error_message: payment_attempt.issuer_error_message,
             is_iframe_redirection_enabled: payment_intent.is_iframe_redirection_enabled,
+            whole_connector_request: payment_data.get_whole_connector_request(),
             whole_connector_response: payment_data.get_whole_connector_response(),
             payment_channel: payment_intent.payment_channel,
             enable_partial_authorization: payment_intent.enable_partial_authorization,
@@ -4444,6 +4464,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             tokenization:pi.tokenization,
             force_3ds_challenge: pi.force_3ds_challenge,
             force_3ds_challenge_trigger: pi.force_3ds_challenge_trigger,
+            whole_connector_request: None,
             whole_connector_response: None,
             issuer_error_code: pa.issuer_error_code,
             issuer_error_message: pa.issuer_error_message,

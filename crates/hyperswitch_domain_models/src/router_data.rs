@@ -117,6 +117,9 @@ pub struct RouterData<Flow, Request, Response> {
     /// Contains stringified connector raw response body
     pub raw_connector_response: Option<Secret<String>>,
 
+    /// Contains stringified connector raw request body
+    pub raw_connector_request: Option<Secret<String>>,
+
     /// Indicates whether the payment ID was provided by the merchant (true),
     /// or generated internally by Hyperswitch (false)
     pub is_payment_id_from_merchant: Option<bool>,
