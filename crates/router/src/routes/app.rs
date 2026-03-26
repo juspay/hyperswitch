@@ -67,8 +67,8 @@ use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_ve
 #[cfg(feature = "oltp")]
 use super::webhooks::*;
 use super::{
-    admin, api_keys, cache::*, chat, connector_onboarding, disputes, files, gsm, health::*, oidc,
-    profiles, relay, user, user_role,
+    admin, api_keys, cache::*, card_issuer, chat, connector_onboarding, disputes, files, gsm,
+    health::*, oidc, profiles, relay, user, user_role,
 };
 #[cfg(feature = "v1")]
 use super::{
@@ -1887,6 +1887,22 @@ impl Blocklist {
     }
 }
 
+pub struct CardIssuers;
+
+#[cfg(feature = "v1")]
+impl CardIssuers {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/card_issuers")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("")
+                    .route(web::post().to(card_issuer::add_card_issuer))
+                    .route(web::get().to(card_issuer::list_card_issuers)),
+            )
+            .service(web::resource("/{id}").route(web::put().to(card_issuer::update_card_issuer)))
+    }
+}
+
 #[cfg(feature = "olap")]
 pub struct Organization;
 
@@ -3339,5 +3355,18 @@ impl RecoveryDataBackfill {
                     super::revenue_recovery_data_backfill::update_revenue_recovery_additional_redis_data,
                 ),
             ))
+    }
+}
+
+pub struct SdkConfig;
+#[cfg(feature = "v1")]
+impl SdkConfig {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/v1/sdk/configs")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("{profile_id}/{platform}/{sdk_config.json}")
+                    .route(web::get().to(super::superposition_sdk_config::get_sdk_config)),
+            )
     }
 }

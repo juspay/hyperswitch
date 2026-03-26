@@ -5580,7 +5580,7 @@ pub fn transform_ucs_webhook_response(
 
     let webhook_transformation_status = if matches!(
         response.event_status(),
-        payments_grpc::WebhookEventStatus::Incomplete
+        payments_grpc::EventStatus::Incomplete
     ) {
         WebhookTransformationStatus::Incomplete
     } else {
@@ -5590,7 +5590,7 @@ pub fn transform_ucs_webhook_response(
     Ok(WebhookTransformData {
         event_type,
         source_verified: response.source_verified,
-        webhook_content: response.event_response,
+        webhook_content: response.event_content,
         response_ref_id: response.merchant_event_id,
         webhook_transformation_status,
     })

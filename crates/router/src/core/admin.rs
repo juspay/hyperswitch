@@ -216,6 +216,7 @@ fn create_platform_merchant_account_request(
         payout_routing_algorithm: None,
         pm_collect_link_config: None,
         product_type: Some(consts::user::DEFAULT_PRODUCT_TYPE),
+        network_tokenization_credentials: None,
     }
 }
 
@@ -567,6 +568,14 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         let key = key_store.key.clone().into_inner();
         let key_manager_state = state.into();
 
+        let network_tokenization_credentials = self
+            .network_tokenization_credentials
+            .async_map(|value| cards::create_encrypted_data(&key_manager_state, &key_store, value))
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt network_tokenization_credentials")?;
+
         let merchant_account = async {
             Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(
                 domain::MerchantAccountSetter {
@@ -634,6 +643,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     is_platform_account: false,
                     product_type: self.product_type,
                     merchant_account_type,
+                    network_tokenization_credentials,
                 },
             )
         }
@@ -1188,6 +1198,14 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
             })
             .await;
 
+        let network_tokenization_credentials = self
+            .network_tokenization_credentials
+            .async_map(|value| cards::create_encrypted_data(key_manager_state, key_store, value))
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt network_tokenization_credentials")?;
+
         let identifier = km_types::Identifier::Merchant(key_store.merchant_id.clone());
         Ok(storage::MerchantAccountUpdate::Update {
             merchant_name: self
@@ -1243,6 +1261,7 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
             payment_link_config: None,
             pm_collect_link_config,
             routing_algorithm: self.routing_algorithm,
+            network_tokenization_credentials,
         })
     }
 }
@@ -3383,6 +3402,16 @@ impl ProfileCreateBridge for api::ProfileCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt outgoing webhook custom HTTP headers")?;
 
+        let network_tokenization_credentials = self
+            .network_tokenization_credentials
+            .async_map(|headers| {
+                cards::create_encrypted_data(&key_manager_state, processor.get_key_store(), headers)
+            })
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt network_tokenization_credentials")?;
+
         let payout_link_config = self
             .payout_link_config
             .map(|payout_conf| match payout_conf.config.validate() {
@@ -3543,6 +3572,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             .attach_printable("error while generating external vault details")?,
             billing_processor_id: self.billing_processor_id,
             is_l2_l3_enabled: self.is_l2_l3_enabled.unwrap_or(false),
+            network_tokenization_credentials,
             payment_method_blocking: self.payment_method_blocking.map(ForeignInto::foreign_into),
         }))
     }
@@ -3904,6 +3934,14 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt outgoing webhook custom HTTP headers")?;
 
+        let network_tokenization_credentials = self
+            .network_tokenization_credentials
+            .async_map(|value| cards::create_encrypted_data(&key_manager_state, key_store, value))
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt network_tokenization_credentials")?;
+
         let payout_link_config = self
             .payout_link_config
             .map(|payout_conf| match payout_conf.config.validate() {
@@ -4047,6 +4085,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .map(ForeignInto::foreign_into),
                 billing_processor_id: self.billing_processor_id,
                 is_l2_l3_enabled: self.is_l2_l3_enabled,
+                network_tokenization_credentials,
                 payment_method_blocking: self
                     .payment_method_blocking
                     .map(ForeignInto::foreign_into),

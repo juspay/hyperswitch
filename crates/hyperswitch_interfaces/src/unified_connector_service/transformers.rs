@@ -182,7 +182,7 @@ pub enum WebhookTransformationStatus {
 pub struct WebhookTransformData {
     pub event_type: api_models::webhooks::IncomingWebhookEvent,
     pub source_verified: bool,
-    pub webhook_content: Option<payments_grpc::EventResponse>,
+    pub webhook_content: Option<payments_grpc::EventContent>,
     pub response_ref_id: Option<String>,
     pub webhook_transformation_status: WebhookTransformationStatus,
 }

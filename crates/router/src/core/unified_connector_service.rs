@@ -2278,7 +2278,7 @@ pub async fn call_unified_connector_service_for_webhook(
 /// This provides a helper function to extract specific data from UCS responses
 pub fn extract_webhook_content_from_ucs_response(
     transform_data: &WebhookTransformData,
-) -> Option<&unified_connector_service_client::payments::EventResponse> {
+) -> Option<&unified_connector_service_client::payments::EventContent> {
     transform_data.webhook_content.as_ref()
 }
 
