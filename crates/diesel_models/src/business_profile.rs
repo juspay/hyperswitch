@@ -84,6 +84,7 @@ pub struct Profile {
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub is_l2_l3_enabled: Option<bool>,
+    pub network_tokenization_credentials: Option<Encryption>,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
 }
 
@@ -148,6 +149,7 @@ pub struct ProfileNew {
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub is_l2_l3_enabled: Option<bool>,
+    pub network_tokenization_credentials: Option<Encryption>,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
 }
 
@@ -213,6 +215,7 @@ pub struct ProfileUpdateInternal {
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+    pub network_tokenization_credentials: Option<Encryption>,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
 }
 
@@ -275,6 +278,7 @@ impl ProfileUpdateInternal {
             is_external_vault_enabled,
             external_vault_connector_details,
             billing_processor_id,
+            network_tokenization_credentials,
             payment_method_blocking,
         } = self;
         Profile {
@@ -371,6 +375,8 @@ impl ProfileUpdateInternal {
             external_vault_connector_details: external_vault_connector_details
                 .or(source.external_vault_connector_details),
             billing_processor_id: billing_processor_id.or(source.billing_processor_id),
+            network_tokenization_credentials: network_tokenization_credentials
+                .or(source.network_tokenization_credentials),
             payment_method_blocking: payment_method_blocking.or(source.payment_method_blocking),
         }
     }
@@ -442,6 +448,7 @@ pub struct Profile {
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub is_l2_l3_enabled: Option<bool>,
+    pub network_tokenization_credentials: Option<Encryption>,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
@@ -756,6 +763,7 @@ impl ProfileUpdateInternal {
             always_enable_overcapture: None,
             is_l2_l3_enabled: None,
             billing_processor_id: billing_processor_id.or(source.billing_processor_id),
+            network_tokenization_credentials: source.network_tokenization_credentials,
             payment_method_blocking: None,
         }
     }

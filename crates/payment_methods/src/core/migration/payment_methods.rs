@@ -727,6 +727,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
                 customer_details: None,
                 locker_fingerprint_id: None,
+                network_tokenization_data: None,
             },
             provider.get_account().storage_scheme,
         )
