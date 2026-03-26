@@ -4563,6 +4563,10 @@ pub fn bank_transfer_next_steps_check(
         payment_attempt.payment_method
     {
         if payment_attempt.payment_method_type != Some(diesel_models::enums::PaymentMethodType::Pix)
+            && payment_attempt.payment_method_type
+                != Some(diesel_models::enums::PaymentMethodType::PixAutomaticoQr)
+            && payment_attempt.payment_method_type
+                != Some(diesel_models::enums::PaymentMethodType::PixAutomaticoPush)
         {
             let bank_transfer_next_steps: Option<api_models::payments::BankTransferNextStepsData> =
                 payment_attempt
@@ -6181,7 +6185,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                     .transpose()?),
             connector_intent_metadata: payment_data
                 .payment_intent
-                .metadata
+                .connector_metadata
                 .clone()
                 .map(|metadata| {
                     metadata

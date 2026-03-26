@@ -4488,11 +4488,8 @@ where
             processor,
             payment_data.get_creds_identifier(),
             &context,
+            payment_data.get_payment_intent().feature_metadata.clone(),
         )
-        .await?;
-
-    router_data
-        .add_session_token(state, &connector, &context)
         .await?;
 
     let should_continue_further = access_token::update_router_data_with_access_token_result(
@@ -4500,6 +4497,11 @@ where
         &mut router_data,
         &call_connector_action,
     );
+
+    // AuthorizeSessionTokenFlow needs access token to be added in router data before creating session token, as the session token creation might require access token in headers for some connectors(like Santander)
+    router_data
+        .add_session_token(state, &connector, &context)
+        .await?;
 
     // Balance check flow for payment methods like Giftcard, Voucher etc.
     let should_continue_further = if should_continue_further {
@@ -4656,14 +4658,6 @@ where
             .ok();
     }
 
-    let (router_data, should_continue_further) = if should_continue_further {
-        router_data
-            .payment_trigger_step(state, &connector, &context)
-            .await?
-    } else {
-        (router_data, false)
-    };
-
     let connector_request = if should_continue_further {
         connector_request
     } else {
@@ -4752,15 +4746,20 @@ where
     } else {
         Ok(router_data)
     }?;
+    let should_continue_payment = router_data.response.is_ok();
 
     // Call payment trigger step after the authorize/setup mandate flow completes
-    let (router_data, _should_continue_trigger) = router_data
-        .payment_trigger_step(
-            state,
-            connector,
-            &call_connector_service_response.gateway_context,
-        )
-        .await?;
+    let (router_data, _should_continue_trigger) = if should_continue_payment {
+        router_data
+            .payment_trigger_step(
+                state,
+                connector,
+                &call_connector_service_response.gateway_context,
+            )
+            .await?
+    } else {
+        (router_data, false)
+    };
 
     Ok((router_data, merchant_connector_account))
 }
@@ -5093,15 +5092,16 @@ where
         )
         .await?;
 
-    router_data
-        .add_session_token(state, &connector, &gateway_context)
-        .await?;
-
     let should_continue_further = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
         &mut router_data,
         &call_connector_action,
     );
+
+    router_data
+        .add_session_token(state, &connector, &gateway_context)
+        .await?;
+
     let payment_method_token_response = router_data
         .add_payment_method_token(
             state,
@@ -5902,6 +5902,7 @@ where
             platform.get_processor(),
             payment_data.get_creds_identifier(),
             &gateway_context,
+            payment_data.get_payment_intent().feature_metadata.clone(),
         )
         .await?;
 
@@ -6072,15 +6073,15 @@ where
         )
         .await?;
 
-    router_data
-        .add_session_token(state, &connector, &default_gateway_context)
-        .await?;
-
     let mut should_continue_further = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
         &mut router_data,
         &call_connector_action,
     );
+
+    router_data
+        .add_session_token(state, &connector, &default_gateway_context)
+        .await?;
 
     let (connector_request, should_continue_further) = if should_continue_further {
         router_data

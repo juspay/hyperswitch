@@ -56,7 +56,8 @@ pub enum SantanderDiscountType {
 pub struct SantanderMetadataObject {
     pub pix: Option<PixMetadataObject>,
     pub boleto: Option<BoletoMetadataObject>,
-    pub pix_automatico: Option<PixAutomaticoMetadataObject>,
+    pub pix_automatico_push: Option<PixAutomaticoMetadataObject>,
+    pub pix_automatico_qr: Option<PixAutomaticoMetadataObject>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -83,7 +84,9 @@ pub struct PixMetadataObject {
 pub struct PixAutomaticoMetadataObject {
     pub client_id: Secret<String>,
     pub client_secret: Secret<String>,
+    // might not be req for J1/J2, cross check
     pub pix_key_value: Secret<String>,
+    // might not be req for J1/J2, cross check
     pub pix_key_type: responses::SantanderPixKeyType,
 }
 
@@ -131,8 +134,8 @@ pub struct SantanderDebtor {
     pub cnpj: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cpf: Option<Secret<String>>,
-    // Name
-    pub nome: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nome: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     // Street
     pub logradouro: Option<Secret<String>>,
@@ -253,6 +256,7 @@ pub struct SantanderRefundRequest {
 pub enum SantanderPaymentRequest {
     PixQR(Box<SantanderPixQRPaymentRequest>),
     Boleto(Box<SantanderBoletoPaymentRequest>),
+    PixAutomaticoCobr(Box<SantanderPixAutomaticoCobrRequest>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -501,10 +505,80 @@ pub enum Periodicidade {
 
 /// Retry policy for failed recurring payments
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum RetryPolicy {
     /// Does not allow retries
+    #[serde(rename = "NAO_PERMITE")]
     NaoPermite,
     /// Allows 3 retries over 7 days
+    #[serde(rename = "PERMITE_3R_7D")]
     Permite3r7d,
+}
+
+/// Represents receiver details for Pix Automático recurring charge (cobr endpoint)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoRecebedor {
+    /// Branch code (agencia) of the receiver's account
+    pub agencia: Secret<String>,
+    /// Account number (conta) of the receiver
+    pub conta: Secret<String>,
+    /// Account type (tipoConta) - CORRENTE, POUPANCA, or PAGAMENTO
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "tipoConta")]
+    pub tipo_conta: Option<SantanderAccountType>,
+}
+
+/// Represents calendar information for recurring charge (cobr endpoint)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoCobrCalendario {
+    /// Due date in YYYY-MM-DD format
+    pub data_de_vencimento: String,
+}
+
+/// Represents value information for recurring charge (cobr endpoint)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoCobrValor {
+    /// The amount to be charged
+    pub original: StringMajorUnit,
+}
+
+/// Request for creating a recurring Pix Automático charge (cobr endpoint)
+/// This is used when a MIT (Merchant Initiated Transaction) mandate is active
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoCobrRequest {
+    /// Recurring charge ID - must be 29 alphanumeric characters (RR + 27 chars)
+    pub id_rec: String,
+    /// Additional information about the charge
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub info_adicional: Option<String>,
+    /// Calendar information (due date)
+    pub calendario: SantanderPixAutomaticoCobrCalendario,
+    /// Amount to be charged
+    pub valor: SantanderPixAutomaticoCobrValor,
+    /// Whether to adjust due date to next business day if due date falls on non-business day
+    pub ajuste_dia_util: bool,
+    /// Receiver/beneficiary details
+    pub recebedor: SantanderPixAutomaticoRecebedor,
+    /// Optional debtor information
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub devedor: Option<SantanderDebtor>,
+}
+
+impl hyperswitch_masking::SerializableSecret for SantanderAccountType {}
+
+/// Portuguese equivalents for account types used in Santander API
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum SantanderAccountType {
+    /// Checking account
+    #[serde(rename = "CORRENTE")]
+    Corrente,
+    /// Savings account
+    #[serde(rename = "POUPANCA")]
+    Poupanca,
+    /// Payment account
+    #[serde(rename = "PAGAMENTO")]
+    Pagamento,
 }

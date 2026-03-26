@@ -6884,6 +6884,7 @@ pub struct PollConfigResponse {
 pub enum QrCodeInformation {
     QrCodeUrl {
         image_data_url: Url,
+        // can we not make this Optional since FE consumes image_data_url
         qr_code_url: Url,
         display_to_timestamp: Option<i64>,
         expiry_type: Option<common_enums::enums::ExpiryType>,
@@ -11587,6 +11588,20 @@ impl FeatureMetadata {
 
         (pix_key, value)
     }
+    /// Checks if this is a Pix Automatico Journey 3 (Immediate expiration variant)
+    pub fn is_pix_automatico_journey_3(&self) -> bool {
+        self.pix_additional_details
+            .as_ref()
+            .map(|details| matches!(details, PixAdditionalDetails::Immediate(_)))
+            .unwrap_or(false)
+    }
+    /// Checks if this is a Pix Automatico Journey 4 (Scheduled expiration variant)
+    pub fn is_pix_automatico_journey_4(&self) -> bool {
+        self.pix_additional_details
+            .as_ref()
+            .map(|details| matches!(details, PixAdditionalDetails::Scheduled(_)))
+            .unwrap_or(false)
+    }
 }
 
 #[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize, ToSchema, PartialEq)]
@@ -13105,6 +13120,49 @@ pub struct SantanderBoletoData {
     pub document_kind: Option<common_enums::BoletoDocumentKind>,
 }
 
+impl hyperswitch_masking::SerializableSecret for AccountType {}
+
+/// Account type for Santander Pix Automatico recurring charges
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum AccountType {
+    /// Checking account (Conta Corrente)
+    Current,
+    /// Savings account (Conta Poupança)
+    Savings,
+    /// Payment account (Conta Pagamento)
+    Payment,
+}
+
+/// Represents the receiver details for Santander Pix Automatico recurring charges
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct SantanderPixAutomaticoReceiverDetails {
+    /// Branch code (agencia) of the receiver's bank account
+    #[smithy(value_type = "Option<String>")]
+    #[schema(value_type = Option<String>, example = "0001")]
+    pub branch_code: Option<Secret<String>>,
+    /// Account number (conta) of the receiver
+    #[smithy(value_type = "Option<String>")]
+    #[schema(value_type = Option<String>, example = "130333323")]
+    pub account_number: Option<Secret<String>>,
+    /// Account type (tipoConta) - CORRENTE, POUPANCA, or PAGAMENTO
+    #[smithy(value_type = "Option<AccountType>")]
+    #[schema(value_type = Option<AccountType>)]
+    pub account_type: Option<AccountType>,
+}
+
+/// Represents the mandate details for Santander Pix Automatico recurring charges
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct SantanderPixAutomaticoMandateDetails {
+    /// Receiver details for the recurring charge
+    #[smithy(value_type = "Option<SantanderPixAutomaticoReceiverDetails>")]
+    #[schema(value_type = Option<SantanderPixAutomaticoReceiverDetails>)]
+    pub receiver_details: Option<SantanderPixAutomaticoReceiverDetails>,
+}
+
 /// Represents the specific data for Santander Pix Automatico (recurring PIX payments)
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -13117,6 +13175,10 @@ pub struct SantanderPixAutomaticoData {
     #[smithy(value_type = "Option<bool>")]
     #[schema(value_type = Option<bool>, example = true)]
     pub retry_policy: Option<bool>,
+    /// Mandate details for recurring charges
+    #[smithy(value_type = "Option<SantanderPixAutomaticoMandateDetails>")]
+    #[schema(value_type = Option<SantanderPixAutomaticoMandateDetails>)]
+    pub mandate_details: Option<SantanderPixAutomaticoMandateDetails>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]

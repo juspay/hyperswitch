@@ -282,6 +282,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         _processor: &domain::Processor,
         creds_identifier: Option<&str>,
         gateway_context: &gateway_context::RouterGatewayContext,
+        feature_metadata: Option<serde_json::Value>,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(
             state,
@@ -290,6 +291,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
             creds_identifier,
             gateway_context,
             None,
+            feature_metadata,
         ))
         .await
     }
@@ -537,8 +539,8 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
     {
         if connector.connector.is_payment_trigger_flow_required(
             api_interface::CurrentFlowInfo::CompleteAuthorize {
-                auth_type: &self.auth_type,
-                request_data: &self.request,
+                auth_type: self.auth_type,
+                request_data: Box::new(self.request.clone()),
                 payment_method: Some(self.payment_method),
             },
         ) {

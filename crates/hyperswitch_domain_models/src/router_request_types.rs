@@ -11,7 +11,7 @@ use common_enums;
 use common_types::payments as common_payments_types;
 use common_utils::{
     consts, errors,
-    ext_traits::OptionExt,
+    ext_traits::{OptionExt, ValueExt},
     id_type, payout_method_utils, pii,
     types::{MinorUnit, SemanticVersion},
 };
@@ -418,6 +418,8 @@ impl TryFrom<SetupMandateRequestData> for PaymentTriggerData {
         Ok(Self {
             payment_method_data: Some(data.payment_method_data),
             feature_metadata: data.feature_metadata,
+            mandate_id: data.mandate_id,
+            amount: Some(data.amount),
         })
     }
 }
@@ -429,6 +431,8 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentTriggerData {
         Ok(Self {
             payment_method_data: Some(data.payment_method_data),
             feature_metadata: None,
+            mandate_id: None,
+            amount: None,
         })
     }
 }
@@ -440,6 +444,8 @@ impl TryFrom<PaymentsAuthenticateData> for PaymentTriggerData {
         Ok(Self {
             payment_method_data: data.payment_method_data,
             feature_metadata: None,
+            mandate_id: None,
+            amount: None,
         })
     }
 }
@@ -451,6 +457,8 @@ impl TryFrom<CompleteAuthorizeData> for PaymentTriggerData {
         Ok(Self {
             payment_method_data: data.payment_method_data,
             feature_metadata: None,
+            mandate_id: None,
+            amount: None,
         })
     }
 }
@@ -733,6 +741,24 @@ pub struct PaymentsPreProcessingData {
 pub struct PaymentTriggerData {
     pub payment_method_data: Option<PaymentMethodData>,
     pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
+    pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub amount: Option<i64>,
+}
+
+impl PaymentTriggerData {
+    pub fn get_connector_mandate_id(&self) -> Option<String> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+                    connector_mandate_ids,
+                )) => connector_mandate_ids.get_connector_mandate_id(),
+                Some(api_models::payments::MandateReferenceId::NetworkMandateId(_))
+                | Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_))
+                | Some(api_models::payments::MandateReferenceId::CardWithLimitedData)
+                | None => None,
+            })
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1453,24 +1479,9 @@ pub struct AccessTokenRequestData {
     pub id: Option<Secret<String>>,
     pub authentication_token: Option<AccessTokenAuthenticationResponse>,
     pub current_flow: Option<CurrentFlowInfo>,
+    // check if it can be added in RouterData instead of req data
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
     // Add more keys if required
-}
-
-impl AccessTokenRequestData {
-    pub fn is_mit_payment(self, current_flow: Option<CurrentFlowInfo>) -> bool {
-        match current_flow {
-            Some(CurrentFlowInfo::Authorize { request_data, .. }) => {
-                request_data.mandate_id.is_some()
-            }
-            Some(CurrentFlowInfo::SetupMandate { request_data, .. }) => {
-                request_data.mandate_id.is_some()
-            }
-            Some(CurrentFlowInfo::CompleteAuthorize { request_data, .. }) => {
-                request_data.mandate_id.is_some()
-            }
-            None => false,
-        }
-    }
 }
 
 // This is for backward compatibility
@@ -1483,24 +1494,28 @@ impl TryFrom<router_data::ConnectorAuthType> for AccessTokenRequestData {
                 id: None,
                 authentication_token: None,
                 current_flow: None,
+                feature_metadata: None,
             }),
             router_data::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 app_id: api_key,
                 id: Some(key1),
                 authentication_token: None,
                 current_flow: None,
+                feature_metadata: None,
             }),
             router_data::ConnectorAuthType::SignatureKey { api_key, key1, .. } => Ok(Self {
                 app_id: api_key,
                 id: Some(key1),
                 authentication_token: None,
                 current_flow: None,
+                feature_metadata: None,
             }),
             router_data::ConnectorAuthType::MultiAuthKey { api_key, key1, .. } => Ok(Self {
                 app_id: api_key,
                 id: Some(key1),
                 authentication_token: None,
                 current_flow: None,
+                feature_metadata: None,
             }),
             router_data::ConnectorAuthType::CertificateAuth {
                 certificate,
@@ -1511,6 +1526,7 @@ impl TryFrom<router_data::ConnectorAuthType> for AccessTokenRequestData {
                 id: Some(private_key),
                 authentication_token: None,
                 current_flow: None,
+                feature_metadata: None,
             }),
 
             _ => Err(ApiErrorResponse::InvalidDataValue {
@@ -1525,19 +1541,23 @@ impl
         router_data::ConnectorAuthType,
         Option<AccessTokenAuthenticationResponse>,
         Option<CurrentFlowInfo>,
+        Option<serde_json::Value>,
     )> for AccessTokenRequestData
 {
     type Error = ApiErrorResponse;
     fn try_from(
-        (connector_auth, authentication_token, current_flow): (
+        (connector_auth, authentication_token, current_flow, feature_metadata): (
             router_data::ConnectorAuthType,
             Option<AccessTokenAuthenticationResponse>,
             Option<CurrentFlowInfo>,
+            Option<serde_json::Value>,
         ),
     ) -> Result<Self, Self::Error> {
         let mut access_token_request_data = Self::try_from(connector_auth)?;
         access_token_request_data.authentication_token = authentication_token;
         access_token_request_data.current_flow = current_flow;
+        access_token_request_data.feature_metadata =
+            feature_metadata.and_then(|v| v.parse_value("FeatureMetadata").ok());
         Ok(access_token_request_data)
     }
 }

@@ -125,6 +125,7 @@ pub async fn add_access_token<
     creds_identifier: Option<&str>,
     gateway_context: &gateway_context::RouterGatewayContext,
     current_flow: Option<hyperswitch_domain_models::router_request_types::CurrentFlowInfo>,
+    feature_metadata: Option<serde_json::Value>,
 ) -> RouterResult<types::AddAccessTokenResult> {
     if connector
         .connector_name
@@ -203,6 +204,7 @@ pub async fn add_access_token<
                     router_data.connector_auth_type.clone(),
                     authentication_token,
                     current_flow,
+                    feature_metadata,
                 ))
                 .attach_printable(
                     "Could not create access token request, invalid connector account credentials",

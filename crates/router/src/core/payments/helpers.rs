@@ -111,8 +111,8 @@ use crate::{
         storage::{self, enums as storage_enums, ephemeral_key, CardTokenData},
         transformers::{ForeignFrom, ForeignTryFrom},
         AdditionalMerchantData, AdditionalPaymentMethodConnectorResponse, ErrorResponse,
-        MandateReference, MerchantAccountData, MerchantRecipientData, PaymentsResponseData,
-        RecipientIdType, RecurringMandatePaymentData, RouterData,
+        MandateReference, MerchantAccountData, MerchantRecipientData, PaymentTriggerData,
+        PaymentsResponseData, RecipientIdType, RecurringMandatePaymentData, RouterData,
     },
     utils::{
         self,
@@ -8779,5 +8779,37 @@ pub fn get_merchant_advice_code_recommended_action(
                 None
             }),
         _ => None,
+    }
+}
+
+// Update PaymentsTriggerData with mandate_id received from SetupMandate router response
+// Mandate information needed in the consecutive flow - PaymentTrigger which is triggered after successful completion of SetupMandate flow
+pub fn update_payments_trigger_router_request_data_with_mandate_id(
+    payment_trigger_request_data: &mut PaymentTriggerData,
+    setup_mandate_response: &Result<PaymentsResponseData, ErrorResponse>,
+) {
+    if let Ok(PaymentsResponseData::TransactionResponse {
+        mandate_reference, ..
+    }) = setup_mandate_response
+    {
+        if let Some(mandate_ref) = mandate_reference.as_ref() {
+            if let Some(connector_mandate_id) = &mandate_ref.connector_mandate_id {
+                payment_trigger_request_data.mandate_id = Some(api_models::payments::MandateIds {
+                    mandate_id: Some(connector_mandate_id.clone()),
+                    mandate_reference_id: Some(
+                        api_models::payments::MandateReferenceId::ConnectorMandateId(
+                            api_models::payments::ConnectorMandateReferenceId::new(
+                                Some(connector_mandate_id.clone()),
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                            ),
+                        ),
+                    ),
+                });
+            }
+        }
     }
 }

@@ -474,7 +474,7 @@ pub trait ConnectorSpecifications {
         false
     }
     /// Check if payment trigger flow is required
-    fn is_payment_trigger_flow_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
+    fn is_payment_trigger_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
     }
     /// Preprocessing flow name if any, that must be made before the current flow.
