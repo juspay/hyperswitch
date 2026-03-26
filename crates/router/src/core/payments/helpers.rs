@@ -3268,10 +3268,11 @@ impl<'a>
                 )),
                 Some(&api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_)),
             ) => Some(domain::PaymentMethodData::NetworkToken(
-                card_with_network_token_details
-                    .network_token_details
-                    .clone()
-                    .into(),
+                domain::NetworkTokenData::from(
+                    card_with_network_token_details
+                        .network_token_details
+                        .clone(),
+                ),
             )),
             // Card + NTI flow when NetworkMandateId is selected for modular CardWithNetworkTokenDetails.
             (
