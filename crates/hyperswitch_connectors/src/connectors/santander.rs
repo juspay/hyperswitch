@@ -64,7 +64,7 @@ use crate::{
     },
     constants::headers,
     types::{RefreshTokenRouterData, ResponseRouterData},
-    utils::{self as connector_utils, convert_amount, PaymentsAuthorizeRequestData},
+    utils::{self as connector_utils, convert_amount},
 };
 
 #[derive(Clone)]
