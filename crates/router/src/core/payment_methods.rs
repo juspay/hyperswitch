@@ -4166,7 +4166,7 @@ impl RawPaymentMethodFetchAccess {
             Self::Denied => Err(report!(errors::ApiErrorResponse::AccessForbidden {
                 resource: "raw network token data".to_string()
             }))
-                .attach_printable("Raw network token fetch access denied"),
+            .attach_printable("Raw network token fetch access denied"),
             Self::Allowed => {
                 let network_token_locker_id = payment_method
                     .network_token_locker_id
@@ -4207,7 +4207,10 @@ impl RawPaymentMethodFetchAccess {
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed to check network token status")?;
 
-                match (check_token_status_response.payload.token_status, network_token_vault_data) {
+                match (
+                    check_token_status_response.payload.token_status,
+                    network_token_vault_data,
+                ) {
                     (
                         pm_types::TokenStatus::Active,
                         hyperswitch_domain_models::vault::PaymentMethodVaultingData::NetworkToken(
