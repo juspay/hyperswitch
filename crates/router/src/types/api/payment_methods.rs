@@ -146,9 +146,7 @@ pub(crate) trait PaymentMethodSessionExt {
 }
 
 #[cfg(feature = "v2")]
-impl PaymentMethodSessionExt
-    for api_models::payment_methods::PaymentMethodSessionConfirmRequest
-{
+impl PaymentMethodSessionExt for api_models::payment_methods::PaymentMethodSessionConfirmRequest {
     fn validate(
         &self,
         payment_method_session: &hyperswitch_domain_models::payment_methods::PaymentMethodSession,
