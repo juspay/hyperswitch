@@ -86,6 +86,7 @@ pub struct ConnectorTokenDetails {
     pub original_payment_authorized_amount: Option<common_utils::types::MinorUnit>,
     pub original_payment_authorized_currency: Option<common_enums::Currency>,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub connector_customer_id: Option<String>,
     pub token: hyperswitch_masking::Secret<String>,
 }
 
