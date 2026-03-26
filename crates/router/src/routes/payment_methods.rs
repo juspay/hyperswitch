@@ -664,14 +664,14 @@ pub async fn list_payment_method_api(
     };
 
     let (auth_type, _auth_flow) = if auth::is_jwt_auth(req.headers()) {
-        (
+        let jwt_auth: Box<dyn auth::AuthenticateAndFetch<auth::AuthenticationData, _>> =
             Box::new(auth::JWTAuth {
                 permission: Permission::MerchantPaymentRead,
                 allow_connected: true,
                 allow_platform: true,
-            }) as Box<dyn auth::AuthenticateAndFetch<auth::AuthenticationData, _>>,
-            api::AuthFlow::Merchant,
-        )
+            });
+
+        (jwt_auth, api::AuthFlow::Merchant)
     } else {
         match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth) {
             Ok(auth) => auth,
