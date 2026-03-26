@@ -7003,10 +7003,10 @@
             "$ref": "#/components/schemas/SepaBankTransfer"
           },
           {
-            "$ref": "#/components/schemas/TrustlyBankTransfer"
+            "$ref": "#/components/schemas/PixBankTransfer"
           },
           {
-            "$ref": "#/components/schemas/PixBankTransfer"
+            "$ref": "#/components/schemas/TrustlyBankTransfer"
           }
         ]
       },

@@ -283,8 +283,8 @@ pub enum Bank {
     Ach(AchBankTransfer),
     Bacs(BacsBankTransfer),
     Sepa(SepaBankTransfer),
-    Trustly(TrustlyBankTransfer),
     Pix(PixBankTransfer),
+    Trustly(TrustlyBankTransfer),
 }
 
 // Shadow enum — only used internally to break recursion
@@ -294,8 +294,8 @@ enum BankInner {
     Ach(AchBankTransfer),
     Bacs(BacsBankTransfer),
     Sepa(SepaBankTransfer),
-    Trustly(TrustlyBankTransfer),
     Pix(PixBankTransfer),
+    Trustly(TrustlyBankTransfer),
 }
 
 impl<'de> Deserialize<'de> for Bank {
@@ -323,12 +323,12 @@ impl<'de> Deserialize<'de> for Bank {
             Some("sepa") => {
                 Self::Sepa(SepaBankTransfer::deserialize(&value).map_err(serde::de::Error::custom)?)
             }
-            Some("trustly") => Self::Trustly(
-                TrustlyBankTransfer::deserialize(&value).map_err(serde::de::Error::custom)?,
-            ),
             Some("pix") => {
                 Self::Pix(PixBankTransfer::deserialize(&value).map_err(serde::de::Error::custom)?)
             }
+            Some("trustly") => Self::Trustly(
+                TrustlyBankTransfer::deserialize(&value).map_err(serde::de::Error::custom)?,
+            ),
             // No tag — fallback to untagged shape matching via BankInner
             Some(_) | None => {
                 match wrapper.data {
