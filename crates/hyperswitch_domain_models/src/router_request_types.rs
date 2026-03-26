@@ -1405,23 +1405,6 @@ pub struct AccessTokenRequestData {
     // Add more keys if required
 }
 
-impl AccessTokenRequestData {
-    pub fn is_mit_payment(self, current_flow: Option<CurrentFlowInfo>) -> bool {
-        match current_flow {
-            Some(CurrentFlowInfo::Authorize { request_data, .. }) => {
-                request_data.mandate_id.is_some()
-            }
-            Some(CurrentFlowInfo::SetupMandate { request_data, .. }) => {
-                request_data.mandate_id.is_some()
-            }
-            Some(CurrentFlowInfo::CompleteAuthorize { request_data, .. }) => {
-                request_data.mandate_id.is_some()
-            }
-            None => false,
-        }
-    }
-}
-
 // This is for backward compatibility
 impl TryFrom<router_data::ConnectorAuthType> for AccessTokenRequestData {
     type Error = ApiErrorResponse;
