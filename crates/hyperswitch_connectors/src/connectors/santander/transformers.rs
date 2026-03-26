@@ -54,7 +54,7 @@ use crate::{
             SantanderPaymentsSyncResponse, SantanderPixKeyType, SantanderPixQRCodePaymentsResponse,
             SantanderPixQRCodeSyncResponse, SantanderRefundResponse, SantanderRefundStatus,
             SantanderUpdateMetadataResponse, SantanderVoidResponse, SantanderVoidStatus,
-            WaitScreenData,
+            WaitScreenData, RecurrenceStatus,
         },
     },
     types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
@@ -126,7 +126,7 @@ impl TryFrom<&SantanderRouterData<&PaymentsTriggerRouterData>>
             }
         };
 
-        let expiry_time_seconds = item
+        let expiry_time_seconds = item.router_data.
             .request
             .feature_metadata
             .as_ref()
@@ -152,7 +152,7 @@ impl TryFrom<&SantanderRouterData<&PaymentsTriggerRouterData>>
         Ok(Self {
             id_rec: item.router_data.connector_request_reference_id.clone(),
             calendario: SantanderPixAutomaticCalendarRequest {
-                data_expiracao_solicitacao: data_expiracao_solicitacao,
+                data_expiracao_solicitacao,
             },
             destinatario: SantanderPixAutomaticDestinationRequest {
                 agencia: bank_transfer_data
@@ -253,7 +253,7 @@ impl
                     .ok_or(errors::ConnectorError::MissingRequiredField {
                         field_name: "response.dadosQR.jornada",
                     })?;
-                let expiry_type = journey.and_then(|j| Option::<ExpiryType>::from(j));
+                let expiry_type = journey.and_then(Option::<ExpiryType>::from);
                 let connector_metadata = match response
                     .dados_qr
                     .as_ref()
@@ -952,6 +952,32 @@ impl From<SantanderBoletoStatus> for AttemptStatus {
             SantanderBoletoStatus::Baixado => Self::Voided,
             SantanderBoletoStatus::Liquidado => Self::Charged,
             SantanderBoletoStatus::LiquidadoParcialmente => Self::PartialChargedAndChargeable,
+        }
+    }
+}
+
+impl From<RecurrenceStatus> for AttemptStatus {
+    fn from(item: RecurrenceStatus) -> Self {
+        match item {
+            RecurrenceStatus::Criada => Self::AuthenticationPending,
+            RecurrenceStatus::Aprovada => Self::Charged,
+            RecurrenceStatus::Rejeitada => Self::Failure,
+            RecurrenceStatus::Expirada => Self::Failure,
+            RecurrenceStatus::Cancelada => Self::Voided,
+            RecurrenceStatus::Recebida | RecurrenceStatus::Aceita | RecurrenceStatus::Enviada => {
+                Self::Pending
+            }
+            RecurrenceStatus::Unknown => Self::Pending,
+        }
+    }
+}
+
+impl From<SantanderJourneyType> for Option<ExpiryType> {
+    fn from(item: SantanderJourneyType) -> Self {
+        match item {
+            SantanderJourneyType::Jornada3 => Some(ExpiryType::Immediate),
+            SantanderJourneyType::Jornada4 => Some(ExpiryType::Scheduled),
+            _ => None,
         }
     }
 }
