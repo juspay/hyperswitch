@@ -7,7 +7,8 @@ use std::collections::HashMap;
 
 use common_utils::{errors::CustomResult, id_type::TargetingKey};
 use error_stack::report;
-use masking::ExposeInterface;
+use hyperswitch_masking::ExposeInterface;
+use serde_json::Map;
 
 pub use self::types::{ConfigContext, SuperpositionClientConfig, SuperpositionError};
 use crate::config_metrics;
@@ -98,6 +99,8 @@ impl GetValue<serde_json::Value> for open_feature::Client {
 #[allow(missing_debug_implementations)]
 pub struct SuperpositionClient {
     client: open_feature::Client,
+    /// Provider for Superposition
+    provider: superposition_provider::SuperpositionProvider,
 }
 
 impl SuperpositionClient {
@@ -133,14 +136,14 @@ impl SuperpositionClient {
 
         // Initialize OpenFeature API and set provider
         let mut api = open_feature::OpenFeature::singleton_mut().await;
-        api.set_provider(provider).await;
+        api.set_provider(provider.clone()).await;
 
         // Create client
         let client = api.create_client();
 
         router_env::logger::info!("Superposition client initialized successfully");
 
-        Ok(Self { client })
+        Ok(Self { client, provider })
     }
 
     /// Build evaluation context for Superposition requests
@@ -194,6 +197,52 @@ impl SuperpositionClient {
             .map_err(|e| {
                 report!(SuperpositionError::ClientError(format!(
                     "Failed to get {type_name} value for key '{key}': {e:?}"
+                )))
+            })
+    }
+
+    /// Resolve full configuration from Superposition
+    ///
+    /// # Arguments
+    /// * `context` - Evaluation context
+    ///
+    /// # Returns
+    /// * `CustomResult<Map<String, serde_json::Value>, SuperpositionError>` - The full configuration or error
+    pub async fn resolve_full_config(
+        &self,
+        context: Option<&ConfigContext>,
+        targeting_key: Option<&String>,
+    ) -> CustomResult<Map<String, serde_json::Value>, SuperpositionError> {
+        let evaluation_context = self.build_evaluation_context(context, targeting_key);
+        self.provider
+            .resolve_full_config(&evaluation_context)
+            .await
+            .map_err(|e| {
+                report!(SuperpositionError::ProviderError(format!(
+                    "Failed to resolve full config: {e:?}"
+                )))
+            })
+    }
+
+    /// Get cached configuration from Superposition
+    ///
+    /// # Arguments
+    /// * `prefix_filter` - Optional prefix filter for configuration keys
+    /// * `dimension_filter` - Optional dimension filter for configuration values
+    ///
+    /// # Returns
+    /// * `CustomResult<Config, SuperpositionError>` - The cached configuration or error
+    pub async fn get_cached_config(
+        &self,
+        prefix_filter: Option<Vec<String>>,
+        dimension_filter: Option<Map<String, serde_json::Value>>,
+    ) -> CustomResult<superposition_types::Config, SuperpositionError> {
+        self.provider
+            .get_cached_config(dimension_filter, prefix_filter)
+            .await
+            .map_err(|e| {
+                report!(SuperpositionError::ProviderError(format!(
+                    "Failed to get cached config: {e:?}"
                 )))
             })
     }
