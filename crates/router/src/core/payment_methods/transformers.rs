@@ -1631,17 +1631,15 @@ impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
 
 #[cfg(feature = "v1")]
 impl<'a>
-    crate::types::transformers::ForeignTryFrom<(
+    crate::types::transformers::ForeignTryFrom<
         &'a hyperswitch_domain_models::payment_method_data::CardWithOptionalCVC,
-    )> for domain::CardDetailsForNetworkTransactionId
+    > for domain::CardDetailsForNetworkTransactionId
 {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn foreign_try_from(
-        value: (&'a hyperswitch_domain_models::payment_method_data::CardWithOptionalCVC,),
+        card_data: &'a hyperswitch_domain_models::payment_method_data::CardWithOptionalCVC,
     ) -> Result<Self, Self::Error> {
-        let (card_data,) = value;
-
         Ok(Self {
             card_number: card_data.card_number.clone(),
             card_exp_month: card_data.card_exp_month.clone(),
@@ -1660,17 +1658,15 @@ impl<'a>
 
 #[cfg(feature = "v1")]
 impl<'a>
-    crate::types::transformers::ForeignTryFrom<(
+    crate::types::transformers::ForeignTryFrom<
         &'a hyperswitch_domain_models::payment_method_data::CardWithOptionalCVC,
-    )> for domain::PaymentMethodData
+    > for domain::PaymentMethodData
 {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn foreign_try_from(
-        value: (&'a hyperswitch_domain_models::payment_method_data::CardWithOptionalCVC,),
+        card_data: &'a hyperswitch_domain_models::payment_method_data::CardWithOptionalCVC,
     ) -> Result<Self, Self::Error> {
-        let (card_data,) = value;
-
         let card_cvc =
             card_data
                 .card_cvc
