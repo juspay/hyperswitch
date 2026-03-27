@@ -359,6 +359,8 @@ pub mod superposition {
     pub const IMPLICIT_CUSTOMER_UPDATE: &str = "implicit_customer_update";
     /// payout sync tracker configuration key
     pub const PAYOUT_TRACKER_MAPPING: &str = "payout_tracker_mapping";
+    /// payment session validation enabled configuration key
+    pub const PAYMENT_SESSION_VALIDATION_ENABLED: &str = "payment_session_validation_enabled";
 }
 
 #[cfg(test)]

@@ -31,7 +31,7 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     consts,
     core::{
-        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
+        configs::dimension_state::{Dimensions, DimensionsWithMerchantIdAndProfileId},
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payment_link,
@@ -628,16 +628,34 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let unified_address = address.unify_with_payment_method_data_billing(add);
 
-        // Generate payment session for the payment
-        let payment_session_id = PaymentSessionManager::create_session(
-            state,
-            platform.get_processor().get_account().get_id(),
-            &payment_id,
-            Some(session_expiry),
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to create payment session")?;
+        // Check if payment session validation is enabled
+        let dimensions = Dimensions::new()
+            .with_merchant_id(platform.get_processor().get_account().get_id().clone());
+
+        let session_validation_enabled = dimensions
+            .get_payment_session_validation_enabled(
+                state.store.as_ref(),
+                state.superposition_service.as_deref(),
+                None,
+            )
+            .await;
+
+        // Generate payment session for the payment only if validation is enabled
+        let payment_session_id = if session_validation_enabled {
+            Some(
+                PaymentSessionManager::create_session(
+                    state,
+                    platform.get_processor().get_account().get_id(),
+                    &payment_id,
+                    Some(session_expiry),
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to create payment session")?,
+            )
+        } else {
+            None
+        };
 
         let payment_data = PaymentData {
             flow: PhantomData,
@@ -687,7 +705,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             is_manual_retry_enabled: None,
             is_l2_l3_enabled: business_profile.is_l2_l3_enabled,
             external_authentication_data: request.three_ds_data.clone(),
-            payment_session_id: Some(payment_session_id),
+            payment_session_id,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

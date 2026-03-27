@@ -49,6 +49,7 @@ impl From<SdkAuthorizationContext> for Option<SdkAuthorization> {
                     client_secret: input.client_secret,
                     customer_id: input.customer_id,
                     payment_method_session_id: input.payment_method_session_id,
+                    payment_session_id: None,
                 })
             }
             Initiator::Admin | Initiator::Jwt { .. } | Initiator::EmbeddedToken { .. } => None, // SDK authorization is only applicable for API initiators

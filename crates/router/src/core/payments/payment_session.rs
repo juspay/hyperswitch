@@ -94,7 +94,7 @@ impl PaymentSessionManager {
             .into());
         }
 
-        // Create session data structure (PR 1: simplified, no session_entries)
+        // Create session data structure
         let session_data = PaymentSessionData {
             payment_session_id: payment_session_id.clone(),
             created_at: now,

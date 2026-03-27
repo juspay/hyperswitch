@@ -19,7 +19,7 @@ use router_env::{instrument, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
-        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
+        configs::dimension_state::{Dimensions, DimensionsWithMerchantIdAndProfileId},
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payment_methods::cards::create_encrypted_data,
@@ -1082,29 +1082,42 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        let merchant_id = processor.get_account().get_id().clone();
+        let processor_merchant_id = processor.get_account().get_id().clone();
         let payment_id = payment_data.payment_intent.payment_id.clone();
 
-        // Recreate session (Overwrite old session)
-        let (new_payment_session_id, invalidation_report) =
-            PaymentSessionManager::recreate_session(
-                state,
-                &merchant_id,
-                &payment_id,
-                payment_data.payment_intent.session_expiry,
+        // Check if payment session validation is enabled
+        let dimensions = Dimensions::new().with_merchant_id(processor_merchant_id.clone());
+
+        let session_validation_enabled = dimensions
+            .get_payment_session_validation_enabled(
+                state.store.as_ref(),
+                state.superposition_service.as_deref(),
+                None,
             )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to refresh payment session during payment update")?;
+            .await;
 
-        services::logger::debug!(
-            payment_id = %payment_id.get_string_repr(),
-            session_existed = invalidation_report.session_existed,
-            "Payment session recreated during update"
-        );
+        // Recreate session only if validation is enabled
+        if session_validation_enabled {
+            let (new_payment_session_id, invalidation_report) =
+                PaymentSessionManager::recreate_session(
+                    state,
+                    &processor_merchant_id,
+                    &payment_id,
+                    payment_data.payment_intent.session_expiry,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to refresh payment session during payment update")?;
 
-        // Update payment_data with new session_id
-        payment_data.payment_session_id = Some(new_payment_session_id);
+            services::logger::debug!(
+                payment_id = %payment_id.get_string_repr(),
+                session_existed = invalidation_report.session_existed,
+                "Payment session recreated during update"
+            );
+
+            // Update payment_data with new session_id
+            payment_data.payment_session_id = Some(new_payment_session_id);
+        }
 
         let amount = payment_data.amount;
         req_state
