@@ -20859,6 +20859,11 @@
             "type": "boolean",
             "description": "Whether assurance details are required",
             "nullable": true
+          },
+          "allow_credit_cards": {
+            "type": "boolean",
+            "description": "Set to false if you don't support credit cards",
+            "nullable": true
           }
         }
       },
