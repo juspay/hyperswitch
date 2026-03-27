@@ -1985,6 +1985,77 @@ export const connectorDetails = {
         `,
       },
     }),
+    PaymentIntentWithInstallments: getCustomExchange({
+      Request: {
+        currency: "BRL",
+        installment_options: [
+          {
+            payment_method: "card",
+            installments: [
+              {
+                number_of_installments: [3, 6, 12],
+                billing_frequency: "month",
+                interest_rate: 5.0,
+              },
+            ],
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    CardInstallmentConfirm: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        installment_data: {
+          number_of_installments: 3,
+          billing_frequency: "month",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    PaymentIntentWithInstallmentsAndConfirmTrue: getCustomExchange({
+      Request: {
+        currency: "BRL",
+        confirm: true,
+        installment_options: [
+          {
+            payment_method: "card",
+            installments: [
+              {
+                number_of_installments: [3, 6, 12],
+                billing_frequency: "month",
+                interest_rate: 5.0,
+              },
+            ],
+          },
+        ],
+      },
+      Response: {
+        status: 422,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "installment_options and installment_data are not supported when confirm is true.",
+            code: "IR_06",
+          },
+        },
+      },
+    }),
   },
   upi_pm: {
     PaymentIntent: getCustomExchange({

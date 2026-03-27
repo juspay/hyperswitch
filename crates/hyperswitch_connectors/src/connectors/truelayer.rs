@@ -53,7 +53,7 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask};
+use hyperswitch_masking::{ExposeInterface, Mask};
 use transformers as truelayer;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
@@ -100,7 +100,8 @@ where
         &self,
         req: &RouterData<Flow, Request, Response>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let idempotency_key = uuid::Uuid::new_v4().to_string();
         let truelayer_req = self
             .get_request_body(req, connectors)
@@ -170,7 +171,8 @@ impl ConnectorCommon for Truelayer {
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let auth = truelayer::TruelayerAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
@@ -344,7 +346,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -431,7 +434,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Tru
         &self,
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -495,7 +499,8 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         &self,
         req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -574,7 +579,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Truelay
         &self,
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -658,7 +664,8 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Truelayer
         &self,
         req: &RefundSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -745,7 +752,8 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Truel
         &self,
         req: &PayoutsRouterData<PoFulfill>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -843,7 +851,8 @@ impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Truelaye
         &self,
         req: &PayoutsRouterData<PoSync>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let access_token = req
             .access_token
             .clone()
@@ -986,18 +995,43 @@ impl webhooks::IncomingWebhook for Truelayer {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let webhook_body: truelayer::TruelayerPayoutsWebhookBody = request
+        let details: truelayer::TruelayerWebhookEventBody = request
             .body
-            .parse_struct("TruelayerPayoutsWebhookBody")
+            .parse_struct("TruelayerWebhookBody")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        if truelayer::is_payout_webhook_event(&webhook_body._type) {
-            Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
-                api_models::webhooks::PayoutIdType::ConnectorPayoutId(webhook_body.payout_id),
-            ))
-        } else {
-            Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        if details._type.clone().is_payment_webhook_event() {
+            return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(
+                    details
+                        .payment_id
+                        .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?
+                        .to_string(),
+                ),
+            ));
         }
+        if details._type.clone().is_refund_webhook_event() {
+            return Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                api_models::webhooks::RefundIdType::ConnectorRefundId(
+                    details
+                        .refund_id
+                        .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?
+                        .to_string(),
+                ),
+            ));
+        }
+        #[cfg(feature = "payouts")]
+        if details._type.clone().is_payout_webhook_event() {
+            return Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
+                api_models::webhooks::PayoutIdType::ConnectorPayoutId(
+                    details
+                        .payout_id
+                        .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?
+                        .to_string(),
+                ),
+            ));
+        }
+        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_event_type(
@@ -1016,7 +1050,8 @@ impl webhooks::IncomingWebhook for Truelayer {
     fn get_webhook_resource_object(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         let webhook_body: truelayer::TruelayerPayoutsWebhookBody = request
             .body
             .parse_struct("TruelayerPayoutsWebhookBody")
@@ -1065,5 +1100,15 @@ impl ConnectorSpecifications for Truelayer {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&TRUELAYER_SUPPORTED_WEBHOOK_FLOWS)
+    }
+
+    #[cfg(feature = "v1")]
+    fn generate_connector_customer_id(
+        &self,
+        _customer_id: &Option<common_utils::id_type::CustomerId>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+    ) -> Option<String> {
+        let connector_customer_id = uuid::Uuid::new_v4().to_string();
+        Some(connector_customer_id)
     }
 }
