@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.03.25.0-hotfix1
+
+### Features
+
+- **connector:** Add required_fields for fiservcommercehub ([#11618](https://github.com/juspay/hyperswitch/pull/11618)) ([`b703dd2`](https://github.com/juspay/hyperswitch/commit/b703dd2c9ed48b484f4efefb586a9064935fa8d4))
+
+**Full Changelog:** [`2026.03.25.0...2026.03.25.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.03.25.0...2026.03.25.0-hotfix1)
+
+- - -
+
 ## 2026.03.25.0
 
 ### Features
