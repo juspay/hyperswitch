@@ -11241,12 +11241,13 @@ impl EligibilityCheck for BlockListCheck {
         state: &SessionState,
         platform: &domain::Platform,
         payment_elgibility_data: &PaymentEligibilityData,
-        _business_profile: &domain::Profile,
+        business_profile: &domain::Profile,
     ) -> CustomResult<CheckResult, errors::ApiErrorResponse> {
         let should_payment_be_blocked = blocklist_utils::should_payment_be_blocked(
             state,
             platform.get_processor(),
             &payment_elgibility_data.payment_method_data,
+            business_profile,
         )
         .await?;
         if should_payment_be_blocked {
