@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.02.0-hotfix13
+
+### Features
+
+- **connector:** [Nmi] googlepay decryptedflow with mandates ([#11629](https://github.com/juspay/hyperswitch/pull/11629)) ([`696cfcf`](https://github.com/juspay/hyperswitch/commit/696cfcf8e68df89b329e40118a40a7482ef26960))
+
+**Full Changelog:** [`2026.02.02.0-hotfix12...2026.02.02.0-hotfix13`](https://github.com/juspay/hyperswitch/compare/2026.02.02.0-hotfix12...2026.02.02.0-hotfix13)
+
+- - -
+
 ## 2026.02.02.0-hotfix12
 
 ### Bug Fixes
