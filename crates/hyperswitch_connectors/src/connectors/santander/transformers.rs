@@ -16,8 +16,8 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{payments::PaymentTrigger, AuthorizeSessionToken, SetupMandate},
     router_request_types::{
-        AuthorizeSessionTokenData, PaymentTriggerData, PaymentsUpdateMetadataData, ResponseId,
-        SetupMandateRequestData,
+        AuthorizeSessionTokenData, CurrentFlowInfo, PaymentTriggerData, PaymentsUpdateMetadataData,
+        ResponseId, SetupMandateRequestData,
     },
     router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
     types::{
@@ -37,8 +37,8 @@ use url::Url;
 use crate::{
     connectors::santander::{
         requests::{
-            BoletoAdditionalFields, Discount, DiscountObject, Environment, JourneyData,
-            Periodicidade, RecurrenceActivation, RecurrenceCalendar, RecurrenceDebtor,
+            AccessTokenUrlPath, BoletoAdditionalFields, Discount, DiscountObject, Environment,
+            JourneyData, Periodicidade, RecurrenceActivation, RecurrenceCalendar, RecurrenceDebtor,
             RecurrenceLink, RecurrenceValue, RetryPolicy, SantanderAccountType,
             SantanderAuthRequest, SantanderAuthType, SantanderBoletoCancelOperation,
             SantanderBoletoCancelRequest, SantanderBoletoPaymentRequest,
@@ -294,14 +294,13 @@ impl
                     .ok_or(errors::ConnectorError::MissingRequiredField {
                         field_name: "response.dadosQR.jornada",
                     })?;
-                let expiry_type = journey.and_then(Option::<ExpiryType>::from);
                 let connector_metadata = match response
                     .dados_qr
                     .as_ref()
                     .and_then(|dados_qr| dados_qr.pix_copia_e_cola.clone())
                 {
                     Some(pix_copia_e_cola) => {
-                        convert_pix_data_to_value(pix_copia_e_cola, expiry_type)?
+                        convert_pix_data_to_value(pix_copia_e_cola, None)?
                     }
                     None => None,
                 };
@@ -1153,16 +1152,6 @@ impl From<RecurrenceStatus> for AttemptStatus {
     }
 }
 
-impl From<SantanderJourneyType> for Option<ExpiryType> {
-    fn from(item: SantanderJourneyType) -> Self {
-        match item {
-            SantanderJourneyType::Jornada3 => Some(ExpiryType::Immediate),
-            SantanderJourneyType::Jornada4 => Some(ExpiryType::Scheduled),
-            _ => None,
-        }
-    }
-}
-
 impl From<common_types::customers::DocumentKind> for SantanderDocumentKind {
     fn from(item: common_types::customers::DocumentKind) -> Self {
         match item {
@@ -1224,6 +1213,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
         let response = item.response.clone();
 
         match response {
+            // Journey 3/4
             SantanderPaymentsSyncResponse::PixQRCode(pix_data) => {
                 let attempt_status = AttemptStatus::from(pix_data.status.clone());
                 match attempt_status {
@@ -1271,18 +1261,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                     }
                 }
             }
-            // Journey 1
-            // SantanderPaymentsSyncResponse::PixAutomaticoSolicRec(res) => {
-            //     let status = AttemptStatus::from(res.status);
-            //     Ok(Self {
-            //         status,
-            //         response: item.data.response,
-            //         ..item.data
-            //     })
-            // }
-            // Journey 2
+            // Journey 1/2
             SantanderPaymentsSyncResponse::PixAutomaticoConsultAndActivateJourney(res) => {
                 let status = AttemptStatus::from(res.status);
+                // TODO : Make a write on connector_metadata to modify the ExpiryType as it may chance after approval of Recurrence
                 Ok(Self {
                     status,
                     response: item.data.response,
@@ -2336,6 +2318,97 @@ impl From<AccountType> for SantanderAccountType {
             AccountType::Current => Self::Corrente,
             AccountType::Savings => Self::Poupanca,
             AccountType::Payment => Self::Pagamento,
+        }
+    }
+}
+
+pub fn decide_access_token_key_suffix(
+    current_flow_info: Option<CurrentFlowInfo>,
+    payment_method_type: Option<enums::PaymentMethodType>,
+    is_mit: bool,
+    amount: i64,
+) -> Option<AccessTokenUrlPath> {
+    match is_mit {
+        true => Some(AccessTokenUrlPath::Leg2),
+        false => {
+            match (current_flow_info, payment_method_type) {
+                // Authorize flow
+                (
+                    Some(CurrentFlowInfo::Authorize { .. }),
+                    Some(enums::PaymentMethodType::Boleto),
+                ) => Some(AccessTokenUrlPath::Boleto),
+                (Some(CurrentFlowInfo::Authorize { .. }), Some(enums::PaymentMethodType::Pix)) => {
+                    Some(AccessTokenUrlPath::Leg1)
+                }
+                (
+                    Some(CurrentFlowInfo::Authorize { .. }),
+                    Some(enums::PaymentMethodType::PixAutomaticoPush),
+                ) => {
+                    // redundant case
+                    Some(AccessTokenUrlPath::Leg2)
+                }
+                (
+                    Some(CurrentFlowInfo::Authorize { .. }),
+                    Some(enums::PaymentMethodType::PixAutomaticoQr),
+                ) => Some(AccessTokenUrlPath::Leg1),
+                // CompleteAuthorize flow
+                (
+                    Some(CurrentFlowInfo::CompleteAuthorize { .. }),
+                    Some(enums::PaymentMethodType::Boleto),
+                ) => Some(AccessTokenUrlPath::Boleto),
+                (
+                    Some(CurrentFlowInfo::CompleteAuthorize { .. }),
+                    Some(enums::PaymentMethodType::Pix),
+                ) => Some(AccessTokenUrlPath::Leg1),
+                (
+                    Some(CurrentFlowInfo::CompleteAuthorize { .. }),
+                    Some(enums::PaymentMethodType::PixAutomaticoPush),
+                ) => {
+                    // redundant case
+                    Some(AccessTokenUrlPath::Leg2)
+                }
+                (
+                    Some(CurrentFlowInfo::CompleteAuthorize { .. }),
+                    Some(enums::PaymentMethodType::PixAutomaticoQr),
+                ) => {
+                    // redundant case
+                    Some(AccessTokenUrlPath::Leg2)
+                }
+                // SetupMandate flow
+                (
+                    Some(CurrentFlowInfo::SetupMandate { .. }),
+                    Some(enums::PaymentMethodType::Boleto),
+                ) => Some(AccessTokenUrlPath::Boleto),
+                (
+                    Some(CurrentFlowInfo::SetupMandate { .. }),
+                    Some(enums::PaymentMethodType::Pix),
+                ) => Some(AccessTokenUrlPath::Leg1),
+                (
+                    Some(CurrentFlowInfo::SetupMandate { .. }),
+                    Some(enums::PaymentMethodType::PixAutomaticoPush),
+                ) => Some(AccessTokenUrlPath::Leg2),
+                (
+                    Some(CurrentFlowInfo::SetupMandate { .. }),
+                    Some(enums::PaymentMethodType::PixAutomaticoQr),
+                ) => Some(AccessTokenUrlPath::Leg2),
+
+                (None, Some(enums::PaymentMethodType::Boleto)) => Some(AccessTokenUrlPath::Boleto),
+                (None, Some(enums::PaymentMethodType::Pix)) => Some(AccessTokenUrlPath::Leg1),
+                (None, Some(enums::PaymentMethodType::PixAutomaticoPush)) => {
+                    Some(AccessTokenUrlPath::Leg2)
+                }
+                (None, Some(enums::PaymentMethodType::PixAutomaticoQr)) => {
+                    // psync
+                    if amount > 0 {
+                        Some(AccessTokenUrlPath::Leg1)
+                    } else {
+                        Some(AccessTokenUrlPath::Leg2)
+                    }
+                }
+                // No payment method type or unsupported payment method type
+                (_, None) => None,
+                (_, Some(_)) => None,
+            }
         }
     }
 }

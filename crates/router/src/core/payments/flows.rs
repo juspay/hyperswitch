@@ -134,7 +134,6 @@ pub trait Feature<F, T> {
         processor: &domain::Processor,
         creds_identifier: Option<&str>,
         gateway_context: &gateway_context::RouterGatewayContext,
-        feature_metadata: Option<serde_json::Value>,
     ) -> RouterResult<types::AddAccessTokenResult>
     where
         F: Clone,

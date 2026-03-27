@@ -267,7 +267,6 @@ pub async fn trigger_refund_to_gateway(
         creds_identifier.as_deref(),
         &gateway_context,
         None,
-        None,
     ))
     .await?;
 
@@ -955,7 +954,6 @@ pub async fn sync_refund_with_gateway(
         &router_data,
         creds_identifier.as_deref(),
         &gateway_context,
-        None,
         None,
     ))
     .await?;

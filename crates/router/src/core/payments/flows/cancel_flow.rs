@@ -112,7 +112,6 @@ impl Feature<api::Void, types::PaymentsCancelData>
         _processor: &domain::Processor,
         creds_identifier: Option<&str>,
         gateway_context: &payments::gateway::context::RouterGatewayContext,
-        feature_metadata: Option<serde_json::Value>,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(
             state,
@@ -121,7 +120,6 @@ impl Feature<api::Void, types::PaymentsCancelData>
             creds_identifier,
             gateway_context,
             None,
-            feature_metadata,
         ))
         .await
     }

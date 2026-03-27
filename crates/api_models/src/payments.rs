@@ -11491,14 +11491,14 @@ impl FeatureMetadata {
         (pix_key, value)
     }
     /// Checks if this is a Pix Automatico Journey 3 (Immediate expiration variant)
-    pub fn is_pix_automatico_journey_3(&self) -> bool {
+    pub fn is_pix_immediate(&self) -> bool {
         self.pix_additional_details
             .as_ref()
             .map(|details| matches!(details, PixAdditionalDetails::Immediate(_)))
             .unwrap_or(false)
     }
     /// Checks if this is a Pix Automatico Journey 4 (Scheduled expiration variant)
-    pub fn is_pix_automatico_journey_4(&self) -> bool {
+    pub fn is_pix_scheduled(&self) -> bool {
         self.pix_additional_details
             .as_ref()
             .map(|details| matches!(details, PixAdditionalDetails::Scheduled(_)))
@@ -11600,14 +11600,14 @@ impl FeatureMetadata {
         (pix_key, value)
     }
     /// Checks if this is a Pix Automatico Journey 3 (Immediate expiration variant)
-    pub fn is_pix_automatico_journey_3(&self) -> bool {
+    pub fn is_pix_immediate(&self) -> bool {
         self.pix_additional_details
             .as_ref()
             .map(|details| matches!(details, PixAdditionalDetails::Immediate(_)))
             .unwrap_or(false)
     }
     /// Checks if this is a Pix Automatico Journey 4 (Scheduled expiration variant)
-    pub fn is_pix_automatico_journey_4(&self) -> bool {
+    pub fn is_pix_scheduled(&self) -> bool {
         self.pix_additional_details
             .as_ref()
             .map(|details| matches!(details, PixAdditionalDetails::Scheduled(_)))

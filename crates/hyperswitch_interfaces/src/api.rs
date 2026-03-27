@@ -989,6 +989,8 @@ pub trait AccessTokenData {
     fn get_payment_method_type(&self) -> Option<PaymentMethodType>;
     /// Get the merchant id from RouterData
     fn get_merchant_id(&self) -> common_utils::id_type::MerchantId;
+    /// Check if the payment is a MIT payment
+    fn is_mit_payment(&self) -> bool;
 }
 
 impl<F, Req, Res> AccessTokenData for RouterData<F, Req, Res> {
@@ -997,6 +999,9 @@ impl<F, Req, Res> AccessTokenData for RouterData<F, Req, Res> {
     }
     fn get_merchant_id(&self) -> common_utils::id_type::MerchantId {
         self.merchant_id.clone()
+    }
+    fn is_mit_payment(&self) -> bool {
+        self.recurring_mandate_payment_data.is_some()
     }
 }
 

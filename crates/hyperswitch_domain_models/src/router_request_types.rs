@@ -11,7 +11,7 @@ use common_enums;
 use common_types::payments as common_payments_types;
 use common_utils::{
     consts, errors,
-    ext_traits::{OptionExt, ValueExt},
+    ext_traits::OptionExt,
     id_type, payout_method_utils, pii,
     types::{MinorUnit, SemanticVersion},
 };
@@ -1426,8 +1426,6 @@ pub struct AccessTokenRequestData {
     pub id: Option<Secret<String>>,
     pub authentication_token: Option<AccessTokenAuthenticationResponse>,
     pub current_flow: Option<CurrentFlowInfo>,
-    // check if it can be added in RouterData instead of req data
-    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
     // Add more keys if required
 }
 
@@ -1441,28 +1439,24 @@ impl TryFrom<router_data::ConnectorAuthType> for AccessTokenRequestData {
                 id: None,
                 authentication_token: None,
                 current_flow: None,
-                feature_metadata: None,
             }),
             router_data::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 app_id: api_key,
                 id: Some(key1),
                 authentication_token: None,
                 current_flow: None,
-                feature_metadata: None,
             }),
             router_data::ConnectorAuthType::SignatureKey { api_key, key1, .. } => Ok(Self {
                 app_id: api_key,
                 id: Some(key1),
                 authentication_token: None,
                 current_flow: None,
-                feature_metadata: None,
             }),
             router_data::ConnectorAuthType::MultiAuthKey { api_key, key1, .. } => Ok(Self {
                 app_id: api_key,
                 id: Some(key1),
                 authentication_token: None,
                 current_flow: None,
-                feature_metadata: None,
             }),
             router_data::ConnectorAuthType::CertificateAuth {
                 certificate,
@@ -1473,7 +1467,6 @@ impl TryFrom<router_data::ConnectorAuthType> for AccessTokenRequestData {
                 id: Some(private_key),
                 authentication_token: None,
                 current_flow: None,
-                feature_metadata: None,
             }),
 
             _ => Err(ApiErrorResponse::InvalidDataValue {
@@ -1488,23 +1481,19 @@ impl
         router_data::ConnectorAuthType,
         Option<AccessTokenAuthenticationResponse>,
         Option<CurrentFlowInfo>,
-        Option<serde_json::Value>,
     )> for AccessTokenRequestData
 {
     type Error = ApiErrorResponse;
     fn try_from(
-        (connector_auth, authentication_token, current_flow, feature_metadata): (
+        (connector_auth, authentication_token, current_flow): (
             router_data::ConnectorAuthType,
             Option<AccessTokenAuthenticationResponse>,
             Option<CurrentFlowInfo>,
-            Option<serde_json::Value>,
         ),
     ) -> Result<Self, Self::Error> {
         let mut access_token_request_data = Self::try_from(connector_auth)?;
         access_token_request_data.authentication_token = authentication_token;
         access_token_request_data.current_flow = current_flow;
-        access_token_request_data.feature_metadata =
-            feature_metadata.and_then(|v| v.parse_value("FeatureMetadata").ok());
         Ok(access_token_request_data)
     }
 }
@@ -1854,4 +1843,21 @@ pub enum CurrentFlowInfo {
         /// The payment setup mandate request data
         request_data: Box<SetupMandateRequestData>,
     },
+}
+
+impl CurrentFlowInfo {
+    pub fn get_amount_as_i64(&self) -> Option<i64> {
+        match self {
+            Self::Authorize { request_data, .. } => Some(request_data.amount),
+            Self::CompleteAuthorize { request_data, .. } => Some(request_data.amount),
+            Self::SetupMandate { request_data, .. } => Some(request_data.amount),
+        }
+    }
+    pub fn get_feature_metadata(&self) -> Option<api_models::payments::FeatureMetadata> {
+        match self {
+            Self::Authorize { request_data, .. } => request_data.feature_metadata.clone(),
+            Self::CompleteAuthorize { .. } => None,
+            Self::SetupMandate { .. } => None,
+        }
+    }
 }

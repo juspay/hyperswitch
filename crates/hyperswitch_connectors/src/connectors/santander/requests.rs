@@ -582,3 +582,9 @@ pub enum SantanderAccountType {
     #[serde(rename = "PAGAMENTO")]
     Pagamento,
 }
+
+pub enum AccessTokenUrlPath {
+    Leg1,
+    Leg2,
+    Boleto,
+}

@@ -57,7 +57,7 @@ use hyperswitch_masking::{Maskable, PeekInterface};
 use crate::{
     connectors::santander::{
         requests::{
-            SantanderAuthRequest, SantanderAuthType, SantanderMetadataObject,
+            AccessTokenUrlPath, SantanderAuthRequest, SantanderAuthType, SantanderMetadataObject,
             SantanderPaymentRequest, SantanderPostProcessingStepRequest, SantanderRefundRequest,
             SantanderRouterData, SantanderSetupMandateRequest,
         },
@@ -249,6 +249,11 @@ impl ConnectorIntegration<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsRe
                             self.base_url(connectors),
                             req.request.connector_transaction_id
                         )),
+                        _ => Err(errors::ConnectorError::NotSupported {
+                            message: "ExpiryType variant for UpdateMetadata".to_string(),
+                            connector: "Santander",
+                        }
+                        .into()),
                     }
                 }
                 _ => Err(errors::ConnectorError::NotSupported {
@@ -612,83 +617,37 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
         req: &RefreshTokenRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        match req.recurring_mandate_payment_data.is_some() {
-            // Journey 1/2/3/4 MITs
-            true => Ok(format!(
+        let path = transformers::decide_access_token_key_suffix(
+            req.request.current_flow.clone(),
+            req.payment_method_type,
+            req.recurring_mandate_payment_data.is_some(),
+            req.request
+                .current_flow
+                .as_ref()
+                .and_then(|cf| cf.get_amount_as_i64())
+                .unwrap_or(0),
+        )
+        .ok_or(errors::ConnectorError::GenericError {
+            error_message: "AccessToken URL decision".to_string(),
+            error_object: Value::Null,
+        })?;
+
+        match path {
+            AccessTokenUrlPath::Leg1 => Ok(format!(
+                "{}oauth/token?grant_type=client_credentials",
+                connectors.santander.base_url
+            )),
+            AccessTokenUrlPath::Leg2 => Ok(format!(
                 "{}auth/oauth/v2/token",
                 connectors.santander.base_url
             )),
-            false => {
-                match req.payment_method_type {
-                    // One-off payments
-                    Some(enums::PaymentMethodType::Pix) => Ok(format!(
-                        "{}oauth/token?grant_type=client_credentials",
-                        connectors.santander.base_url
-                    )),
-                    // Journey 1 CIT
-                    Some(enums::PaymentMethodType::PixAutomaticoPush) => Ok(format!(
-                        "{}auth/oauth/v2/token",
-                        connectors.santander.base_url
-                    )),
-                    // Journey 2, 3, 4 CIT
-                    Some(enums::PaymentMethodType::PixAutomaticoQr) => {
-                        match req.request.current_flow {
-                            // Journey 3 & 4 CIT - Leg 1
-                            Some(CurrentFlowInfo::Authorize { .. }) => Ok(format!(
-                                "{}oauth/token?grant_type=client_credentials",
-                                connectors.santander.base_url
-                            )),
-                            // Journey 3 & 4 CIT - Leg 2 & Journey 2
-                            Some(CurrentFlowInfo::SetupMandate { .. }) => Ok(format!(
-                                "{}auth/oauth/v2/token",
-                                connectors.santander.base_url
-                            )),
-                            _ => {
-                                // Check feature_metadata for Journey 3 or 4 determination
-                                if let Some(feature_metadata) = &req.request.feature_metadata {
-                                    if feature_metadata.is_pix_automatico_journey_3()
-                                        || feature_metadata.is_pix_automatico_journey_4()
-                                    {
-                                        Ok(format!(
-                                            "{}oauth/token?grant_type=client_credentials",
-                                            connectors.santander.base_url
-                                        ))
-                                    } else {
-                                        // Err(errors::ConnectorError::NotSupported {
-                                        //     message: req.payment_method.to_string(),
-                                        //     connector: "Santander",
-                                        // }
-                                        // .into())
-                                        Ok(format!(
-                                            "{}auth/oauth/v2/token",
-                                            connectors.santander.base_url
-                                        ))
-                                    }
-                                } else {
-                                    Err(errors::ConnectorError::NotSupported {
-                                        message: req.payment_method.to_string(),
-                                        connector: "Santander",
-                                    }
-                                    .into())
-                                }
-                            }
-                        }
-                    }
-                    Some(enums::PaymentMethodType::Boleto) => {
-                        let secondary_base_url =
-                            connectors.santander.secondary_base_url.clone().ok_or(
-                                errors::ConnectorError::MissingRequiredField {
-                                    field_name: "secondary_base_url for Santander",
-                                },
-                            )?;
-                        Ok(format!("{}auth/oauth/v2/token", secondary_base_url))
-                    }
-                    _ => Err(errors::ConnectorError::NotSupported {
-                        message: req.payment_method.to_string(),
-                        connector: "Santander",
-                    }
-                    .into()),
-                }
+            AccessTokenUrlPath::Boleto => {
+                let secondary_base_url = connectors.santander.secondary_base_url.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "secondary_base_url for Santander",
+                    },
+                )?;
+                Ok(format!("{}auth/oauth/v2/token", secondary_base_url))
             }
         }
     }
@@ -1137,6 +1096,11 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
                                     }
                                 )?
                             )),
+                            _ => Err(errors::ConnectorError::NotSupported {
+                                message: "ExpiryType variant for PSync".to_string(),
+                                connector: "Santander",
+                            }
+                            .into()),
                         }
                     }
                     // Journey 1 CIT flow
@@ -1266,12 +1230,6 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
                 data.request.amount,
                 data.request.currency,
             )?,
-            // // Amount is 0 for Journey 1 because it is SetupMandate
-            // SantanderPaymentsSyncResponse::PixAutomaticoSolicRec(_) => convert_amount(
-            //     self.amount_converter,
-            //     data.request.amount,
-            //     data.request.currency,
-            // )?,
             SantanderPaymentsSyncResponse::PixAutomaticoConsultAndActivateJourney(_) => {
                 convert_amount(
                     self.amount_converter,
@@ -1959,14 +1917,37 @@ impl ConnectorAccessTokenSuffix for Santander {
         &self,
         router_data: &dyn api::AccessTokenData,
         merchant_connector_id_or_connector_name: String,
-        _current_flow: Option<CurrentFlowInfo>,
+        current_flow: Option<CurrentFlowInfo>,
     ) -> CustomResult<String, errors::ConnectorError> {
         let merchant_id = &router_data.get_merchant_id();
+        let url_path = transformers::decide_access_token_key_suffix(
+            current_flow.clone(),
+            router_data.get_payment_method_type(),
+            router_data.is_mit_payment(),
+            current_flow
+                .as_ref()
+                .and_then(|cf| cf.get_amount_as_i64())
+                .unwrap_or(0),
+        );
 
-        Ok(common_utils::access_token::get_default_access_token_key(
-            merchant_id,
-            merchant_connector_id_or_connector_name,
-        ))
+        let suffix = url_path.map(|path| match path {
+            AccessTokenUrlPath::Leg1 => "pix",
+            AccessTokenUrlPath::Leg2 => "pix_automatico",
+            AccessTokenUrlPath::Boleto => "boleto",
+        });
+
+        match suffix {
+            Some(suffix) => Ok(format!(
+                "access_token_{}_{}_{}",
+                merchant_id.get_string_repr(),
+                merchant_connector_id_or_connector_name,
+                suffix,
+            )),
+            None => Ok(common_utils::access_token::get_default_access_token_key(
+                merchant_id,
+                merchant_connector_id_or_connector_name,
+            )),
+        }
     }
 }
 
