@@ -165,6 +165,7 @@ pub struct ConfigMetadata {
     pub three_ds_requestor_id: Option<InputData>,
     pub pull_mechanism_for_external_3ds_enabled: Option<InputData>,
     pub klarna_region: Option<InputData>,
+    pub region: Option<InputData>,
     pub pricing_type: Option<InputData>,
     pub source_balance_account: Option<InputData>,
     pub brand_id: Option<InputData>,
@@ -290,6 +291,8 @@ pub struct ConnectorConfig {
     pub ebanx_payout: Option<ConnectorTomlConfig>,
     pub elavon: Option<ConnectorTomlConfig>,
     pub envoy: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "payouts")]
+    pub envoy_payout: Option<ConnectorTomlConfig>,
     pub facilitapay: Option<ConnectorTomlConfig>,
     pub finix: Option<ConnectorTomlConfig>,
     pub fiserv: Option<ConnectorTomlConfig>,
@@ -373,6 +376,8 @@ pub struct ConnectorConfig {
     pub trustly: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub truelayer_payout: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "payouts")]
+    pub trustly_payout: Option<ConnectorTomlConfig>,
     pub trustpay: Option<ConnectorTomlConfig>,
     pub trustpayments: Option<ConnectorTomlConfig>,
     pub threedsecureio: Option<ConnectorTomlConfig>,
@@ -441,10 +446,11 @@ impl ConnectorConfig {
             PayoutConnectors::Paypal => Ok(connector_data.paypal_payout),
             PayoutConnectors::Stripe => Ok(connector_data.stripe_payout),
             PayoutConnectors::Truelayer => Ok(connector_data.truelayer_payout),
+            PayoutConnectors::Trustly => Ok(connector_data.trustly_payout),
             PayoutConnectors::Wise => Ok(connector_data.wise_payout),
             PayoutConnectors::Worldpay => Ok(connector_data.worldpay_payout),
             PayoutConnectors::Worldpayxml => Ok(connector_data.worldpayxml_payout),
-            PayoutConnectors::Envoy => Ok(connector_data.envoy),
+            PayoutConnectors::Envoy => Ok(connector_data.envoy_payout),
         }
     }
 
@@ -616,6 +622,7 @@ impl ConnectorConfig {
             Connector::Tokenex => Ok(connector_data.tokenex),
             Connector::Tokenio => Ok(connector_data.tokenio),
             Connector::Truelayer => Ok(connector_data.truelayer),
+            Connector::Trustly => Ok(connector_data.trustly),
             Connector::Trustpay => Ok(connector_data.trustpay),
             Connector::Trustpayments => Ok(connector_data.trustpayments),
             Connector::Threedsecureio => Ok(connector_data.threedsecureio),
