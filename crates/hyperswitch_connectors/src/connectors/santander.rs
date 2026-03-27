@@ -249,11 +249,6 @@ impl ConnectorIntegration<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsRe
                             self.base_url(connectors),
                             req.request.connector_transaction_id
                         )),
-                        _ => Err(errors::ConnectorError::NotSupported {
-                            message: "ExpiryType variant for UpdateMetadata".to_string(),
-                            connector: "Santander",
-                        }
-                        .into()),
                     }
                 }
                 _ => Err(errors::ConnectorError::NotSupported {
@@ -629,7 +624,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
         )
         .ok_or(errors::ConnectorError::GenericError {
             error_message: "AccessToken URL decision".to_string(),
-            error_object: Value::Null,
+            error_object: serde_json::Value::Null,
         })?;
 
         match path {
@@ -1050,6 +1045,21 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
             _ => None,
         };
 
+        // MIT recurring charge sync - use cobr endpoint
+        if req.request.connector_meta.is_none()
+            && matches!(
+                req.payment_method_type,
+                Some(enums::PaymentMethodType::PixAutomaticoPush)
+                    | Some(enums::PaymentMethodType::PixAutomaticoQr)
+            )
+        {
+            let txid =
+                connector_transaction_id.ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "connector_transaction_id",
+                })?;
+            return Ok(format!("{}api/v1/cobr/{}", self.base_url(connectors), txid,));
+        }
+
         let is_journey_2_cit = req.request.amount.get_amount_as_i64() == 0
             && matches!(
                 req.payment_method_type,
@@ -1096,11 +1106,6 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
                                     }
                                 )?
                             )),
-                            _ => Err(errors::ConnectorError::NotSupported {
-                                message: "ExpiryType variant for PSync".to_string(),
-                                connector: "Santander",
-                            }
-                            .into()),
                         }
                     }
                     // Journey 1 CIT flow
@@ -1236,6 +1241,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
                     data.request.amount,
                     data.request.currency,
                 )?
+            }
+            SantanderPaymentsSyncResponse::PixAutomaticoCobrSync(ref cobr_data) => {
+                cobr_data.valor.original.clone()
             }
         };
 

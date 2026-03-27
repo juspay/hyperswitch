@@ -1,7 +1,7 @@
 use api_models::payments::{
     AccountType, BeneficiaryDetails, BoletoPaymentTypeConstraints, CalculationType,
     ConnectorMetadata, DiscountTier, DiscountType, PollConfig, ProtestType, QrCodeInformation,
-    SantanderData, SantanderPaymentDiscountRules, VoucherNextStepData,
+    SantanderData, SantanderMandatePeriodicity, SantanderPaymentDiscountRules, VoucherNextStepData,
 };
 use common_enums::{enums, AttemptStatus, BoletoDocumentKind, ExpiryType, PixKey};
 use common_utils::{
@@ -58,9 +58,10 @@ use crate::{
             Beneficiary, Key, NsuComposite, Payer, RecurrenceStatus, SanatanderAccessTokenResponse,
             SanatanderTokenResponse, SantanderAdditionalInfo, SantanderBoletoDocumentKind,
             SantanderBoletoPaymentType, SantanderBoletoStatus,
-            SantanderCreatePixPayloadLocationResponse, SantanderDocumentKind, SantanderJourneyType,
+            SantanderCreatePixPayloadLocationResponse, SantanderDocumentKind,
             SantanderPaymentStatus, SantanderPaymentTriggerResponse, SantanderPaymentsResponse,
-            SantanderPaymentsSyncResponse, SantanderPixAutomaticoCobrStatus, SantanderPixKeyType,
+            SantanderPaymentsSyncResponse, SantanderPixAutomaticoCobrStatus,
+            SantanderPixAutomaticoCobrSyncResponse, SantanderPixKeyType,
             SantanderPixQRCodePaymentsResponse, SantanderPixQRCodeSyncResponse,
             SantanderRefundResponse, SantanderRefundStatus, SantanderSetupMandateResponse,
             SantanderUpdateMetadataResponse, SantanderVoidResponse, SantanderVoidStatus,
@@ -287,7 +288,7 @@ impl
                 )
             }
             SantanderPaymentTriggerResponse::PixAutomaticoConsultAndActivateJourney(response) => {
-                let journey = response
+                let _journey = response
                     .dados_qr
                     .as_ref()
                     .map(|qr_data| qr_data.jornada.clone())
@@ -299,9 +300,7 @@ impl
                     .as_ref()
                     .and_then(|dados_qr| dados_qr.pix_copia_e_cola.clone())
                 {
-                    Some(pix_copia_e_cola) => {
-                        convert_pix_data_to_value(pix_copia_e_cola, None)?
-                    }
+                    Some(pix_copia_e_cola) => convert_pix_data_to_value(pix_copia_e_cola, None)?,
                     None => None,
                 };
 
@@ -1007,38 +1006,51 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>>
     fn try_from(
         value: &SantanderRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        let receiver_details = value
+        let mit_data = value
             .router_data
             .request
             .connector_intent_metadata
             .clone()
             .and_then(|m| m.santander)
             .and_then(|santander| santander.pix_automatico)
-            .and_then(|pix_automatico| pix_automatico.mandate_details)
-            .and_then(|mandate_details| mandate_details.receiver_details)
+            .and_then(|pix_automatico| match pix_automatico {
+                api_models::payments::SantanderPixAutomaticoData::Mit(mit) => Some(mit),
+                _ => None,
+            })
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name:
-                    "connector_metadata.santander.pix_automatico.mandate_details.receiver_details",
+                field_name: "connector_metadata.santander.pix_automatico.mit",
             })?;
 
-        let branch_code = receiver_details
-            .branch_code
-            .clone()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_metadata.santander.pix_automatico.mandate_details.receiver_details.branch_code",
+        let receiver_details =
+            mit_data
+                .receiver_details
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "connector_metadata.santander.pix_automatico.mit.receiver_details",
+                })?;
+
+        let branch_code =
+            receiver_details
+                .branch_code
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name:
+                    "connector_metadata.santander.pix_automatico.mit.receiver_details.branch_code",
             })?;
 
         let account_number = receiver_details
             .account_number
             .clone()
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_metadata.santander.pix_automatico.mandate_details.receiver_details.account_number",
-            })?;
+            field_name:
+                "connector_metadata.santander.pix_automatico.mit.receiver_details.account_number",
+        })?;
 
-        let account_type = receiver_details
-            .account_type
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_metadata.santander.pix_automatico.mandate_details.receiver_details.account_type",
+        let account_type =
+            receiver_details
+                .account_type
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name:
+                    "connector_metadata.santander.pix_automatico.mit.receiver_details.account_type",
             })?;
 
         let recebedor = SantanderPixAutomaticoRecebedor {
@@ -1049,17 +1061,22 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>>
 
         let id_rec = value.router_data.request.get_connector_mandate_id()?;
 
-        // Calculate due date: current date + 1 day
-        let due_date = time::OffsetDateTime::now_utc()
-            .checked_add(time::Duration::days(1))
-            .ok_or(errors::ConnectorError::DateFormattingFailed)?
-            .date()
-            .format(&time::macros::format_description!("[year]-[month]-[day]"))
-            .change_context(errors::ConnectorError::DateFormattingFailed)?;
+        // Use exec_date from MIT data if provided, otherwise default to current date + 1 day
+        let due_date = match mit_data.exec_date {
+            Some(exec_date) => format_as_date_only(Some(exec_date))?,
+            None => time::OffsetDateTime::now_utc()
+                .checked_add(time::Duration::days(1))
+                .ok_or(errors::ConnectorError::DateFormattingFailed)?
+                .date()
+                .format(&time::macros::format_description!("[year]-[month]-[day]"))
+                .change_context(errors::ConnectorError::DateFormattingFailed)?,
+        };
 
         let calendario = SantanderPixAutomaticoCobrCalendario {
             data_de_vencimento: due_date,
         };
+
+        let ajuste_dia_util = mit_data.auto_adjust_date.unwrap_or(true);
 
         let valor = SantanderPixAutomaticoCobrValor {
             original: value.amount.to_owned(),
@@ -1089,7 +1106,7 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>>
             info_adicional,
             calendario,
             valor,
-            ajuste_dia_util: true,
+            ajuste_dia_util,
             recebedor,
             devedor,
         })
@@ -1119,6 +1136,34 @@ fn cobr_status_to_attempt_status(
         },
         SantanderPixAutomaticoCobrStatus::Ativa => AttemptStatus::AuthenticationPending,
         SantanderPixAutomaticoCobrStatus::Concluida => AttemptStatus::Charged,
+        SantanderPixAutomaticoCobrStatus::Expirada => AttemptStatus::Failure,
+        SantanderPixAutomaticoCobrStatus::Rejeitada => AttemptStatus::Failure,
+        SantanderPixAutomaticoCobrStatus::Cancelada => AttemptStatus::Voided,
+    }
+}
+
+/// Helper function to determine AttemptStatus from cobr sync response.
+/// For CONCLUIDA status, only marks as Charged if endToEndId is present in the pix array.
+fn cobr_sync_status_to_attempt_status(
+    cobr_data: &SantanderPixAutomaticoCobrSyncResponse,
+) -> AttemptStatus {
+    match cobr_data.status {
+        SantanderPixAutomaticoCobrStatus::Criada => AttemptStatus::Pending,
+        SantanderPixAutomaticoCobrStatus::Ativa => AttemptStatus::Pending,
+        SantanderPixAutomaticoCobrStatus::Concluida => {
+            // Only mark as Charged if endToEndId is present in the pix object
+            let has_end_to_end_id = cobr_data
+                .pix
+                .as_ref()
+                .and_then(|pix_list| pix_list.first())
+                .map(|pix| !pix.end_to_end_id.clone().expose().is_empty())
+                .unwrap_or(false);
+            if has_end_to_end_id {
+                AttemptStatus::Charged
+            } else {
+                AttemptStatus::Failure
+            }
+        }
         SantanderPixAutomaticoCobrStatus::Expirada => AttemptStatus::Failure,
         SantanderPixAutomaticoCobrStatus::Rejeitada => AttemptStatus::Failure,
         SantanderPixAutomaticoCobrStatus::Cancelada => AttemptStatus::Voided,
@@ -1280,6 +1325,37 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                 Ok(Self {
                     status: AttemptStatus::from(status),
                     response: item.data.response,
+                    ..item.data
+                })
+            }
+            // MIT recurring charge sync (cobr endpoint consultation)
+            SantanderPaymentsSyncResponse::PixAutomaticoCobrSync(cobr_data) => {
+                let attempt_status = cobr_sync_status_to_attempt_status(&cobr_data);
+                let connector_metadata = cobr_data
+                    .pix
+                    .as_ref()
+                    .and_then(|pix_list| pix_list.first())
+                    .map(|pix| {
+                        let data = SantanderData {
+                            end_to_end_id: Some(pix.end_to_end_id.clone().expose()),
+                        };
+                        serde_json::to_value(data)
+                            .change_context(errors::ConnectorError::ParsingFailed)
+                    })
+                    .transpose()?;
+                Ok(Self {
+                    status: attempt_status,
+                    response: Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(cobr_data.txid.clone()),
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
+                        connector_metadata,
+                        network_txn_id: None,
+                        connector_response_reference_id: Some(cobr_data.id_rec.clone()),
+                        incremental_authorization_allowed: None,
+                        authentication_data: None,
+                        charges: None,
+                    }),
                     ..item.data
                 })
             }
@@ -2106,12 +2182,21 @@ impl
             },
         )?;
 
-        let contrato = pix_automatico_meta
+        let cit_data = match pix_automatico_meta {
+            api_models::payments::SantanderPixAutomaticoData::Cit(cit) => cit,
+            _ => {
+                return Err(errors::ConnectorError::MissingRequiredField {
+                    field_name: "connector_metadata.santander.pix_automatico.cit",
+                })?;
+            }
+        };
+
+        let contrato = cit_data
             .contract_id
             .clone()
             .unwrap_or_else(|| item.payment_id.clone());
 
-        let politica_retentativa = if pix_automatico_meta.retry_policy.unwrap_or(false) {
+        let politica_retentativa = if cit_data.retry_policy.unwrap_or(false) {
             RetryPolicy::Permite3r7d
         } else {
             RetryPolicy::NaoPermite
@@ -2151,15 +2236,32 @@ impl
             .as_ref()
             .and_then(|token| token.parse::<i64>().ok());
 
-        // TODO: Get this field from request
-        let data_inicial = time::OffsetDateTime::now_utc()
-            .date()
-            .format(&time::macros::format_description!("[year]-[month]-[day]"))
-            .change_context(errors::ConnectorError::DateFormattingFailed)?;
+        let mandate_details = cit_data.mandate_details.as_ref();
+
+        let data_inicial = match mandate_details.and_then(|md| md.start_date) {
+            Some(start_date) => format_as_date_only(Some(start_date))?,
+            None => time::OffsetDateTime::now_utc()
+                .date()
+                .format(&time::macros::format_description!("[year]-[month]-[day]"))
+                .change_context(errors::ConnectorError::DateFormattingFailed)?,
+        };
+
+        let data_final = mandate_details
+            .and_then(|md| md.end_date)
+            .map(|end_date| format_as_date_only(Some(end_date)))
+            .transpose()?;
+
+        let periodicidade = mandate_details
+            .and_then(|md| md.periodicity.as_ref())
+            .map(|p| Periodicidade::from(p.clone()))
+            .unwrap_or(Periodicidade::Semanal);
 
         let valor = if item.request.amount > 0 {
+            let valor_rec = mandate_details
+                .and_then(|md| md.amount.clone())
+                .or_else(|| Some(value.amount.clone()));
             Some(RecurrenceValue {
-                valor_rec: Some(value.amount.clone()),
+                valor_rec,
                 valor_minimo_recebedor: None,
             })
         } else {
@@ -2209,9 +2311,8 @@ impl
             },
             calendario: RecurrenceCalendar {
                 data_inicial,
-                // TODO: Get the periodicity from request, for now keeping it as weekly as default
-                periodicidade: Periodicidade::Semanal,
-                data_final: None,
+                periodicidade,
+                data_final,
             },
             politica_retentativa,
             loc,
@@ -2318,6 +2419,18 @@ impl From<AccountType> for SantanderAccountType {
             AccountType::Current => Self::Corrente,
             AccountType::Savings => Self::Poupanca,
             AccountType::Payment => Self::Pagamento,
+        }
+    }
+}
+
+impl From<SantanderMandatePeriodicity> for Periodicidade {
+    fn from(item: SantanderMandatePeriodicity) -> Self {
+        match item {
+            SantanderMandatePeriodicity::Weekly => Self::Semanal,
+            SantanderMandatePeriodicity::Monthly => Self::Mensal,
+            SantanderMandatePeriodicity::Quarterly => Self::Trimestral,
+            SantanderMandatePeriodicity::Semiannually => Self::Semestral,
+            SantanderMandatePeriodicity::Annually => Self::Anual,
         }
     }
 }

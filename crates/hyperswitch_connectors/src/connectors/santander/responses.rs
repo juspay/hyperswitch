@@ -388,6 +388,7 @@ pub enum SantanderPaymentsSyncResponse {
     PixQRCode(Box<SantanderPixQRCodeSyncResponse>),
     Boleto(Box<SantanderBoletoPSyncResponse>),
     PixAutomaticoConsultAndActivateJourney(Box<SantanderPixAutomaticRecResponse>),
+    PixAutomaticoCobrSync(Box<SantanderPixAutomaticoCobrSyncResponse>),
     // PixAutomaticoSolicRec(Box<SantanderPixAutomaticSolicitationResponse>),
 }
 
@@ -404,6 +405,87 @@ pub struct SantanderPix {
     pub horario: String,
     // Optional information provided by the payer
     pub info_pagador: Option<String>,
+}
+
+/// Response for consulting a recurring charge via cobr endpoint (GET /api/v1/cobr/{txid})
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoCobrSyncResponse {
+    /// Recurring charge ID (idRec)
+    pub id_rec: String,
+    /// Transaction ID
+    pub txid: String,
+    /// Additional information
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub info_adicional: Option<String>,
+    /// Calendar information (due date, creation date)
+    pub calendario: SantanderPixAutomaticoCobrCalendarResponse,
+    /// Amount information
+    pub valor: requests::SantanderPixAutomaticoCobrValor,
+    /// Adjustment for business days
+    pub ajuste_dia_util: bool,
+    /// Receiver details
+    pub recebedor: serde_json::Value,
+    /// Status of the recurring charge
+    pub status: SantanderPixAutomaticoCobrStatus,
+    /// Retry policy
+    pub politica_retentativa: String,
+    /// Optional debtor information
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub devedor: Option<serde_json::Value>,
+    /// Pix transaction details (present when payment is completed)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pix: Option<Vec<SantanderCobrSyncPix>>,
+    /// Status update history
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub atualizacao: Option<Vec<SantanderCobrSyncStatusUpdate>>,
+    /// Attempt history
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tentativas: Option<Vec<SantanderCobrSyncTentativa>>,
+}
+
+/// Pix transaction detail inside cobr sync response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderCobrSyncPix {
+    /// EndToEndIdentification from PACS messages
+    pub end_to_end_id: Secret<String>,
+    /// Transaction ID
+    pub txid: String,
+    /// Value information
+    pub valor: serde_json::Value,
+    /// Timestamp when the Pix was processed
+    pub horario: String,
+    /// Optional payer info
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub info_pagador: Option<String>,
+}
+
+/// Status update entry in cobr sync response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderCobrSyncStatusUpdate {
+    /// Status of the charge
+    pub status: String,
+    /// Date/time of the status update (RFC 3339)
+    pub data: String,
+}
+
+/// Attempt history entry in cobr sync response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderCobrSyncTentativa {
+    /// Liquidation date (YYYY-MM-DD)
+    pub data_liquidacao: Option<String>,
+    /// Attempt type (AGND, NTAG, RIFL)
+    pub tipo: String,
+    /// Attempt status
+    pub status: String,
+    /// EndToEndIdentification
+    pub end_to_end_id: Option<Secret<String>>,
+    /// Status update history for this attempt
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub atualizacao: Option<Vec<SantanderCobrSyncStatusUpdate>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
