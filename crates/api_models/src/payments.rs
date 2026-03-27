@@ -1782,19 +1782,6 @@ impl PaymentsRequest {
         }
     }
 
-    pub fn validate_mit_request(&self) -> common_utils::errors::CustomResult<(), ValidationError> {
-        if self.mit_category.is_some()
-            && (!matches!(self.off_session, Some(true)) || self.recurring_details.is_none())
-        {
-            return Err(ValidationError::InvalidValue {
-                message: "`mit_category` requires both: (1) `off_session = true`, and (2) `recurring_details`.".to_string(),
-            }
-            .into());
-        }
-
-        Ok(())
-    }
-
     pub fn validate_installment_options(
         &self,
     ) -> common_utils::errors::CustomResult<(), ValidationError> {
