@@ -253,13 +253,19 @@ impl RedisConnectionPool {
         F: std::future::Future<Output = Result<T, fred::error::RedisError>>,
     {
         match self.config.command_timeout() {
-            Some(timeout) => match tokio::time::timeout(timeout, operation).await {
-                Ok(result) => result,
-                Err(_) => Err(fred::error::RedisError::new(
-                    fred::error::RedisErrorKind::Timeout,
-                    "Redis command timed out",
-                )),
-            },
+            Some(timeout) => {
+                tracing::debug!(
+                    "applying application redis timeout of {:?} seconds",
+                    timeout
+                );
+                match tokio::time::timeout(timeout, operation).await {
+                    Ok(result) => result,
+                    Err(_) => Err(fred::error::RedisError::new(
+                        fred::error::RedisErrorKind::Timeout,
+                        "Redis command timed out",
+                    )),
+                }
+            }
             None => operation.await,
         }
     }
