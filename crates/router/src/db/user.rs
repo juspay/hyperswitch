@@ -1,6 +1,6 @@
 use diesel_models::{enums::TotpStatus, user as storage};
 use error_stack::report;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router_env::{instrument, tracing};
 
 use super::{domain, MockDb};
@@ -34,6 +34,11 @@ pub trait UserInterface {
         user_id: &str,
     ) -> CustomResult<storage::User, errors::StorageError>;
 
+    async fn find_user_by_user_id(
+        &self,
+        user_id: &str,
+    ) -> CustomResult<storage::User, errors::StorageError>;
+
     async fn update_active_user_by_user_id(
         &self,
         user_id: &str,
@@ -47,6 +52,11 @@ pub trait UserInterface {
     ) -> CustomResult<storage::User, errors::StorageError>;
 
     async fn find_active_users_by_user_ids(
+        &self,
+        user_ids: Vec<String>,
+    ) -> CustomResult<Vec<storage::User>, errors::StorageError>;
+
+    async fn list_users_by_user_ids(
         &self,
         user_ids: Vec<String>,
     ) -> CustomResult<Vec<storage::User>, errors::StorageError>;
@@ -106,6 +116,17 @@ impl UserInterface for Store {
     }
 
     #[instrument(skip_all)]
+    async fn find_user_by_user_id(
+        &self,
+        user_id: &str,
+    ) -> CustomResult<storage::User, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::User::find_by_user_id(&conn, user_id)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    #[instrument(skip_all)]
     async fn update_active_user_by_user_id(
         &self,
         user_id: &str,
@@ -137,6 +158,16 @@ impl UserInterface for Store {
     ) -> CustomResult<Vec<storage::User>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::User::find_active_users_by_user_ids(&conn, user_ids)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    async fn list_users_by_user_ids(
+        &self,
+        user_ids: Vec<String>,
+    ) -> CustomResult<Vec<storage::User>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::User::list_users_by_user_ids(&conn, user_ids)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -242,6 +273,23 @@ impl UserInterface for MockDb {
             )
     }
 
+    async fn find_user_by_user_id(
+        &self,
+        user_id: &str,
+    ) -> CustomResult<storage::User, errors::StorageError> {
+        let users = self.users.lock().await;
+        users
+            .iter()
+            .find(|user| user.user_id == user_id)
+            .cloned()
+            .ok_or(
+                errors::StorageError::ValueNotFound(format!(
+                    "No user available for user_id = {user_id}"
+                ))
+                .into(),
+            )
+    }
+
     async fn update_active_user_by_user_id(
         &self,
         user_id: &str,
@@ -281,8 +329,9 @@ impl UserInterface for MockDb {
             } => storage::User {
                 last_modified_at,
                 totp_status: totp_status.unwrap_or(user.totp_status),
-                totp_secret: totp_secret.or(user.totp_secret.clone()),
-                totp_recovery_codes: totp_recovery_codes.or(user.totp_recovery_codes.clone()),
+                totp_secret: totp_secret.unwrap_or(user.totp_secret.clone()),
+                totp_recovery_codes: totp_recovery_codes
+                    .unwrap_or(user.totp_recovery_codes.clone()),
                 ..user.to_owned()
             },
 
@@ -354,9 +403,9 @@ impl UserInterface for MockDb {
             } => storage::User {
                 last_modified_at,
                 totp_status: totp_status.unwrap_or(user.totp_status),
-                totp_secret: totp_secret.or_else(|| user.totp_secret.clone()),
+                totp_secret: totp_secret.unwrap_or(user.totp_secret.clone()),
                 totp_recovery_codes: totp_recovery_codes
-                    .or_else(|| user.totp_recovery_codes.clone()),
+                    .unwrap_or(user.totp_recovery_codes.clone()),
                 ..user.to_owned()
             },
 
@@ -390,6 +439,13 @@ impl UserInterface for MockDb {
     }
 
     async fn find_active_users_by_user_ids(
+        &self,
+        _user_ids: Vec<String>,
+    ) -> CustomResult<Vec<storage::User>, errors::StorageError> {
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn list_users_by_user_ids(
         &self,
         _user_ids: Vec<String>,
     ) -> CustomResult<Vec<storage::User>, errors::StorageError> {

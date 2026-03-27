@@ -25,7 +25,7 @@ use diesel_models::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::api::ApplicationResponse;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use rand::distributions::{Alphanumeric, DistString};
 use time::PrimitiveDateTime;
 use unicode_segmentation::UnicodeSegmentation;
@@ -513,6 +513,7 @@ impl NewUserMerchant {
             pm_collect_link_config: None,
             product_type: self.get_product_type(),
             merchant_account_type: self.merchant_account_type,
+            network_tokenization_credentials: None,
         })
     }
 
@@ -861,11 +862,14 @@ impl NewUser {
                         password::generate_password_hash(user_password.get_secret())
                     })
                     .transpose()?;
+                let last_password_modified_at =
+                    hashed_password.is_some().then(common_utils::date_time::now);
                 db.reactivate_user_by_user_id(
                     user_from_db.get_user_id(),
                     storage_user::ReactivateUserUpdate {
                         new_name: Some(self.get_name().expose()),
                         new_password: hashed_password,
+                        last_password_modified_at,
                     },
                 )
                 .await
@@ -1210,6 +1214,9 @@ impl UserFromStorage {
     }
 
     pub fn is_password_rotate_required(&self, state: &SessionState) -> UserResult<bool> {
+        if self.0.password.is_none() {
+            return Ok(true);
+        }
         let last_password_modified_at =
             if let Some(last_password_modified_at) = self.0.last_password_modified_at {
                 last_password_modified_at.date()
@@ -1253,7 +1260,7 @@ impl UserFromStorage {
                 key_manager_state,
                 EncryptionTransferRequest {
                     identifier: Identifier::User(self.get_user_id().to_string()),
-                    key: masking::StrongSecret::new(consts::BASE64_ENGINE.encode(key)),
+                    key: hyperswitch_masking::StrongSecret::new(consts::BASE64_ENGINE.encode(key)),
                 },
             )
             .await
@@ -1316,17 +1323,19 @@ impl UserFromStorage {
             .await
             .change_context(UserErrors::InternalServerError)?;
 
-        Ok(domain_types::crypto_operation::<String, masking::WithType>(
-            key_manager_state,
-            type_name!(storage_user::User),
-            domain_types::CryptoOperation::DecryptOptional(self.0.totp_secret.clone()),
-            Identifier::User(user_key_store.user_id.clone()),
-            user_key_store.key.peek(),
+        Ok(
+            domain_types::crypto_operation::<String, hyperswitch_masking::WithType>(
+                key_manager_state,
+                type_name!(storage_user::User),
+                domain_types::CryptoOperation::DecryptOptional(self.0.totp_secret.clone()),
+                Identifier::User(user_key_store.user_id.clone()),
+                user_key_store.key.peek(),
+            )
+            .await
+            .and_then(|val| val.try_into_optionaloperation())
+            .change_context(UserErrors::InternalServerError)?
+            .map(Encryptable::into_inner),
         )
-        .await
-        .and_then(|val| val.try_into_optionaloperation())
-        .change_context(UserErrors::InternalServerError)?
-        .map(Encryptable::into_inner))
     }
 }
 

@@ -4,7 +4,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use common_utils::{errors::CustomResult, fp_utils::when};
 use error_stack::ResultExt;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 
 use super::SuperpositionClient;
 
@@ -84,6 +84,9 @@ pub enum SuperpositionError {
     /// Invalid configuration provided
     #[error("Invalid configuration: {0}")]
     InvalidConfiguration(String),
+    /// Error from the Superposition provider
+    #[error("Superposition provider error: {0}")]
+    ProviderError(String),
 }
 
 /// Context for configuration requests

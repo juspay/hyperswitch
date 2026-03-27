@@ -44,8 +44,8 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
+use hyperswitch_masking::{Mask, Maskable, PeekInterface};
 use lazy_static::lazy_static;
-use masking::{Mask, Maskable, PeekInterface};
 use transformers as dlocal;
 
 use crate::{
@@ -709,7 +709,8 @@ impl webhooks::IncomingWebhook for Dlocal {
     fn get_webhook_resource_object(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }

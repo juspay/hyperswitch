@@ -21,7 +21,7 @@ use hyperswitch_domain_models::{
     payment_method_data::RecurringDetails as domain_recurring_details,
     payments::{payment_attempt::PaymentAttempt, FromRequestEncryptablePaymentIntent},
 };
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
 use storage_impl::platform_wrapper;
@@ -742,7 +742,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         payment_data: &mut PaymentData<F>,
         _connector_call_type: &ConnectorCallType,
         business_profile: &domain::Profile,
-        platform: &domain::Platform,
+        processor: &domain::Processor,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         let is_tax_connector_enabled = business_profile.get_is_tax_connector_enabled();
         let skip_external_tax_calculation = payment_data
@@ -762,7 +762,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                     &business_profile.merchant_id,
                     merchant_connector_id,
-                    platform.get_processor().get_key_store(),
+                    processor.get_key_store(),
                 )
                 .await
                 .to_not_found_response(
@@ -786,7 +786,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
             let router_data = core_utils::construct_payments_dynamic_tax_calculation_router_data(
                 state,
-                platform,
+                processor,
                 payment_data,
                 &mca,
             )
@@ -843,6 +843,16 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         match feature_config.is_payment_method_modular_allowed {
             true => {
                 logger::info!("Organization is eligible for PM Modular Service, fetching payment method if payment_token is provided.");
+                utils::when(
+                    req.off_session == Some(true) && req.recurring_details.is_none(),
+                    || {
+                        Err(error_stack::report!(
+                            errors::ApiErrorResponse::PreconditionFailed {
+                                message: "off_session requires recurring_details".into(),
+                            }
+                        ))
+                    },
+                )?;
 
                 let profile_id = req
                     .profile_id
@@ -854,17 +864,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .clone())
                     .get_required_value("profile_id")?;
 
-                let (payment_method_reference, is_off_session_payment) =
-                    if req.off_session == Some(true) {
-                        match req.recurring_details.as_ref() {
-                            Some(RecurringDetails::PaymentMethodId(payment_method_id)) => {
-                                (Some(payment_method_id), true)
-                            }
-                            _ => (None, true),
-                        }
-                    } else {
-                        (req.payment_token.as_ref(), false)
-                    };
+                let payment_method_reference = self.get_payment_method_reference(req);
 
                 let pm_info = if let Some(payment_method_ref) = payment_method_reference {
                     // Fetch payment method using PM Modular Service
@@ -874,7 +874,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         &profile_id,
                         payment_method_ref,
                         None, // CVC token data is not passed in create api
-                        is_off_session_payment,
                     )
                     .await?;
                     logger::info!("Payment method fetched from PM Modular Service.");
@@ -958,6 +957,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         _state: &SessionState,
         _processor: &domain::Processor,
         _payment_data: &mut PaymentData<F>,
+        _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
     }
@@ -1231,6 +1231,18 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
 }
 
 impl PaymentCreate {
+    /// Determines the payment method reference for modular payment flows.
+    fn get_payment_method_reference(self, req: &api::PaymentsRequest) -> Option<&String> {
+        match (req.off_session, req.recurring_details.as_ref()) {
+            // Payment using off_session MITs using PM ID
+            (Some(true), Some(RecurringDetails::PaymentMethodId(payment_method_id))) => {
+                Some(payment_method_id)
+            }
+            // All other cases
+            _ => req.payment_token.as_ref(),
+        }
+    }
+
     #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     #[allow(clippy::too_many_arguments)]

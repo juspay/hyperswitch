@@ -9,8 +9,8 @@ use common_utils::{
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use error_stack::ResultExt;
 #[cfg(feature = "v1")]
-use masking::ExposeInterface;
-use masking::Secret;
+use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -67,6 +67,7 @@ pub struct PaymentMethod {
     pub last_modified_by: Option<String>,
     pub customer_details: Option<Encryption>,
     pub locker_fingerprint_id: Option<String>,
+    pub network_tokenization_data: Option<Encryption>,
 }
 
 #[cfg(feature = "v2")]
@@ -97,6 +98,7 @@ pub struct PaymentMethod {
     pub last_modified_by: Option<String>,
     pub customer_details: Option<Encryption>,
     pub locker_fingerprint_id: Option<String>,
+    pub network_tokenization_data: Option<Encryption>,
     pub payment_method_type_v2: Option<storage_enums::PaymentMethod>,
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     pub id: common_utils::id_type::GlobalPaymentMethodId,
@@ -161,6 +163,7 @@ pub struct PaymentMethodNew {
     pub last_modified_by: Option<String>,
     pub customer_details: Option<Encryption>,
     pub locker_fingerprint_id: Option<String>,
+    pub network_tokenization_data: Option<Encryption>,
 }
 
 #[cfg(feature = "v2")]
@@ -261,7 +264,8 @@ pub enum PaymentMethodUpdate {
         last_modified_by: Option<String>,
         metadata: Option<serde_json::Value>,
         last_used_at: Option<PrimitiveDateTime>,
-        connector_mandate_details: Option<serde_json::Value>,
+        connector_mandate_details: Option<Box<serde_json::Value>>,
+        network_tokenization_data: Option<Encryption>,
     },
     ConnectorMandateDetailsUpdate {
         connector_mandate_details: Option<serde_json::Value>,
@@ -271,6 +275,7 @@ pub enum PaymentMethodUpdate {
         network_token_requestor_reference_id: Option<String>,
         network_token_locker_id: Option<String>,
         network_token_payment_method_data: Option<Encryption>,
+        network_tokenization_data: Option<Encryption>,
         last_modified_by: Option<String>,
     },
     ConnectorNetworkTransactionIdAndMandateDetailsUpdate {
@@ -427,6 +432,7 @@ impl PaymentMethodUpdateInternal {
             created_by: source.created_by,
             last_modified_by: last_modified_by.or(source.last_modified_by),
             customer_details: customer_details.or(source.customer_details),
+            network_tokenization_data: source.network_tokenization_data,
         }
     }
 }
@@ -453,6 +459,7 @@ pub struct PaymentMethodUpdateInternal {
     scheme: Option<String>,
     last_modified_by: Option<String>,
     customer_details: Option<Encryption>,
+    network_tokenization_data: Option<Encryption>,
 }
 
 #[cfg(feature = "v1")]
@@ -477,6 +484,7 @@ impl PaymentMethodUpdateInternal {
             scheme,
             last_modified_by,
             customer_details,
+            network_tokenization_data,
         } = self;
 
         PaymentMethod {
@@ -523,6 +531,8 @@ impl PaymentMethodUpdateInternal {
             created_by: source.created_by,
             last_modified_by: last_modified_by.or(source.last_modified_by),
             customer_details: customer_details.or(source.customer_details),
+            network_tokenization_data: network_tokenization_data
+                .or(source.network_tokenization_data),
         }
     }
 }
@@ -554,6 +564,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 scheme: None,
                 last_modified_by,
                 customer_details: None,
+                network_tokenization_data: None,
             },
             PaymentMethodUpdate::PaymentMethodDataUpdate {
                 payment_method_data,
@@ -577,6 +588,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 scheme: None,
                 last_modified_by,
                 customer_details: None,
+                network_tokenization_data: None,
             },
             PaymentMethodUpdate::LastUsedUpdate { last_used_at } => Self {
                 metadata: None,
@@ -597,6 +609,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 scheme: None,
                 last_modified_by: None,
                 customer_details: None,
+                network_tokenization_data: None,
             },
             PaymentMethodUpdate::UpdatePaymentMethodDataAndLastUsed {
                 payment_method_data,
@@ -622,6 +635,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 scheme,
                 last_modified_by,
                 customer_details: None,
+                network_tokenization_data: None,
             },
             PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
                 network_transaction_id,
@@ -646,6 +660,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 scheme: None,
                 last_modified_by,
                 customer_details: None,
+                network_tokenization_data: None,
             },
             PaymentMethodUpdate::StatusUpdate {
                 status,
@@ -669,6 +684,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 scheme: None,
                 last_modified_by,
                 customer_details: None,
+                network_tokenization_data: None,
             },
             PaymentMethodUpdate::AdditionalDataUpdate {
                 payment_method_data,
@@ -684,6 +700,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 metadata,
                 last_used_at,
                 connector_mandate_details,
+                network_tokenization_data,
             } => Self {
                 metadata,
                 payment_method_data,
@@ -693,7 +710,8 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 locker_id,
                 network_token_requestor_reference_id,
                 payment_method,
-                connector_mandate_details,
+                connector_mandate_details: connector_mandate_details
+                    .map(|mandate_details| *mandate_details),
                 updated_by: None,
                 payment_method_issuer,
                 payment_method_type,
@@ -703,6 +721,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 scheme: None,
                 last_modified_by,
                 customer_details: None,
+                network_tokenization_data,
             },
             PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
                 connector_mandate_details,
@@ -726,11 +745,13 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 scheme: None,
                 last_modified_by,
                 customer_details: None,
+                network_tokenization_data: None,
             },
             PaymentMethodUpdate::NetworkTokenDataUpdate {
                 network_token_requestor_reference_id,
                 network_token_locker_id,
                 network_token_payment_method_data,
+                network_tokenization_data,
                 last_modified_by,
             } => Self {
                 metadata: None,
@@ -751,6 +772,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 scheme: None,
                 last_modified_by,
                 customer_details: None,
+                network_tokenization_data,
             },
             PaymentMethodUpdate::ConnectorNetworkTransactionIdAndMandateDetailsUpdate {
                 connector_mandate_details,
@@ -776,6 +798,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 scheme: None,
                 last_modified_by,
                 customer_details: None,
+                network_tokenization_data: None,
             },
             PaymentMethodUpdate::PaymentMethodBatchUpdate {
                 connector_mandate_details,
@@ -803,6 +826,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 payment_method_data,
                 last_modified_by,
                 customer_details: None,
+                network_tokenization_data: None,
             },
         }
     }
@@ -1054,6 +1078,7 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             last_modified_by: payment_method_new.last_modified_by.clone(),
             customer_details: payment_method_new.customer_details.clone(),
             locker_fingerprint_id: payment_method_new.locker_fingerprint_id.clone(),
+            network_tokenization_data: payment_method_new.network_tokenization_data.clone(),
         }
     }
 }
@@ -1099,6 +1124,7 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             created_by: payment_method_new.created_by.clone(),
             last_modified_by: payment_method_new.last_modified_by.clone(),
             customer_details: payment_method_new.customer_details.clone(),
+            network_tokenization_data: None,
         }
     }
 }
@@ -1126,6 +1152,7 @@ pub struct ConnectorTokenReferenceRecord {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_token_status: common_enums::ConnectorTokenStatus,
     pub connector_token_request_reference_id: Option<String>,
+    pub connector_customer_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]

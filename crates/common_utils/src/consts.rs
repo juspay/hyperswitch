@@ -127,6 +127,9 @@ pub const WILDCARD_DOMAIN_REGEX: &str = r"^((\*|https?)?://)?((\*\.|[A-Za-z0-9][
 /// Maximum allowed length for MerchantName
 pub const MAX_ALLOWED_MERCHANT_NAME_LENGTH: usize = 64;
 
+/// Maximum allowed length for CardIssuerName
+pub const MAX_ALLOWED_CARD_ISSUER_NAME_LENGTH: usize = 255;
+
 /// Default locale
 pub const DEFAULT_LOCALE: &str = "en";
 
@@ -230,8 +233,8 @@ pub const DEFAULT_LIST_LIMIT: i64 = 100;
 /// Default offset for list operations (can be used across different entities)
 pub const DEFAULT_LIST_OFFSET: i64 = 0;
 
-/// Length of CPF document number, used in Brazil commonly
-pub const CPF_LENGTH: usize = 11;
+/// Default number of card issuers returned in a list request
+pub const DEFAULT_CARD_ISSUER_LIST_LIMIT: u8 = 30;
 
-/// Length of CNPJ document number, used in Brazil commonly
-pub const CNPJ_LENGTH: usize = 14;
+/// Length of a generated card issuer ID
+pub const CARD_ISSUER_ID_LENGTH: u8 = 5;

@@ -1,5 +1,5 @@
 use common_utils::types::StringMajorUnit;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -29,7 +29,7 @@ pub enum SantanderDocumentKind {
 #[serde(rename_all = "camelCase")]
 pub struct Beneficiary {
     pub name: Option<Secret<String>>,
-    pub document_type: Option<String>,
+    pub document_type: Option<SantanderDocumentKind>,
     pub document_number: Option<Secret<String>>,
 }
 
@@ -147,7 +147,7 @@ pub struct SantanderBoletoPaymentsResponse {
     pub fine_quantity_days: Option<String>,
     pub interest_percentage: Option<String>,
     pub deduction_value: Option<String>,
-    pub protest_type: Option<requests::ProtestType>,
+    pub protest_type: Option<requests::SantanderProtestType>,
     pub protest_quantity_days: Option<String>,
     pub write_off_quantity_days: Option<String>,
     pub payment_type: SantanderBoletoPaymentType,
@@ -160,7 +160,7 @@ pub struct SantanderBoletoPaymentsResponse {
     pub key: Option<Key>,
     pub tx_id: Option<String>,
     pub messages: Option<Vec<String>>,
-    pub barcode: Option<Secret<String>>,
+    pub bar_code: Option<Secret<String>>,
     pub digitable_line: Option<Secret<String>>,
     pub entry_date: Option<String>,
     pub qr_code_pix: Option<String>,

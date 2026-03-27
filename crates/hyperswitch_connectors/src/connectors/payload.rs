@@ -55,7 +55,7 @@ use hyperswitch_interfaces::{
     types::{self, ConnectorCustomerType, PaymentsVoidType, Response, SetupMandateType},
     webhooks,
 };
-use masking::{ExposeInterface, Mask};
+use hyperswitch_masking::{ExposeInterface, Mask};
 use transformers as payload;
 
 use crate::{
@@ -98,7 +98,8 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
         &self,
         req: &ConnectorCustomerRouterData,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
             "application/json".to_string().into(),
@@ -186,7 +187,8 @@ where
         &self,
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
             Self::common_get_content_type(self).to_string().into(),
@@ -207,7 +209,7 @@ impl ConnectorCommon for Payload {
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        "application/x-www-form-urlencoded"
+        "application/json"
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
@@ -217,7 +219,8 @@ impl ConnectorCommon for Payload {
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let auth = payload::PayloadAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         // The API key is the same for all currencies, so we can take any.
@@ -252,11 +255,8 @@ impl ConnectorCommon for Payload {
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error_type,
-            message: response.error_description,
-            reason: response
-                .details
-                .as_ref()
-                .map(|details_value| details_value.to_string()),
+            message: response.error_description.clone(),
+            reason: Some(response.error_description),
             attempt_status: None,
             connector_transaction_id: None,
             connector_response_reference_id: None,
@@ -291,7 +291,8 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         &self,
         req: &SetupMandateRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -328,11 +329,11 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
                 },
             ) => {
                 let connector_req = requests::PayloadPaymentMethodRequest::try_from(req)?;
-                Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+                Ok(RequestContent::Json(Box::new(connector_req)))
             }
             _ => {
                 let connector_req = requests::PayloadPaymentRequestData::try_from(req)?;
-                Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+                Ok(RequestContent::Json(Box::new(connector_req)))
             }
         }
     }
@@ -410,7 +411,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -440,7 +442,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         let connector_router_data = payload::PayloadRouterData::from((amount, req));
         let connector_req = requests::PayloadPaymentsRequest::try_from(&connector_router_data)?;
 
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -500,7 +502,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pay
         &self,
         req: &PaymentsSyncRouterData,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut header = Vec::new();
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -572,7 +575,8 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         &self,
         req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -607,7 +611,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         let connector_router_data = payload::PayloadRouterData::from((amount, req));
         let connector_req = requests::PayloadCaptureRequest::try_from(&connector_router_data)?;
 
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -663,7 +667,8 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Pa
         &self,
         req: &PaymentsCancelRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -691,7 +696,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Pa
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = payload::PayloadRouterData::from((Default::default(), req));
         let connector_req = requests::PayloadCancelRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -748,7 +753,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Payload
         &self,
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -777,7 +783,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Payload
 
         let connector_router_data = payload::PayloadRouterData::from((refund_amount, req));
         let connector_req = requests::PayloadRefundRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -834,7 +840,8 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Payload {
         &self,
         req: &RefundSyncRouterData,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.get_auth_header(&req.connector_auth_type)
     }
 
@@ -1051,7 +1058,8 @@ impl webhooks::IncomingWebhook for Payload {
     fn get_webhook_resource_object(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         let webhook_body: responses::PayloadWebhookEvent = request
             .body
             .parse_struct("PayloadWebhookEvent")
