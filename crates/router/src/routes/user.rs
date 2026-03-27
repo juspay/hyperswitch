@@ -1231,7 +1231,8 @@ pub async fn list_members_for_entity(
         |state, auth: auth::AuthenticationData, _, _| {
             user_core::list_members_for_entity(state, auth, access_level)
         },
-        &auth::InternalMerchantIdProfileIdAuth(auth::DashboardNoPermissionAuth {
+        &auth::InternalMerchantIdProfileIdAuth(auth::JWTAuth {
+            permission: Permission::OrganizationAccountRead,
             allow_connected: true,
             allow_platform: true,
         }),
