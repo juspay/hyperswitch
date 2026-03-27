@@ -2991,12 +2991,6 @@ Cypress.Commands.add("refundCallTest", (requestBody, data, globalState) => {
     Response: resData,
   } = data || {};
 
-  // Check if TRIGGER_SKIP is set and skip the API call if true
-  if (configs?.TRIGGER_SKIP) {
-    cy.task("cli_log", "Skipping refund call due to TRIGGER_SKIP config");
-    return cy.wrap(null);
-  }
-
   const payment_id = globalState.get("paymentID");
 
   // we only need this to set the delay. We don't need the return value
