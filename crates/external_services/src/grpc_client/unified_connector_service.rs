@@ -11,18 +11,7 @@ use tonic::{
     metadata::{MetadataMap, MetadataValue},
     transport::Uri,
 };
-use unified_connector_service_client::payments::{
-    self as payments_grpc, customer_service_client::CustomerServiceClient,
-    dispute_service_client::DisputeServiceClient, event_service_client::EventServiceClient,
-    merchant_authentication_service_client::MerchantAuthenticationServiceClient,
-    payment_method_authentication_service_client::PaymentMethodAuthenticationServiceClient,
-    payment_method_service_client::PaymentMethodServiceClient,
-    payment_service_client::PaymentServiceClient,
-    recurring_payment_service_client::RecurringPaymentServiceClient,
-    refund_service_client::RefundServiceClient, EventServiceHandleRequest,
-    EventServiceHandleResponse, PaymentServiceAuthorizeResponse, PaymentServiceRefundRequest,
-    RefundResponse, RefundServiceGetRequest,
-};
+use unified_connector_service_client::payments as payments_grpc;
 
 use crate::{
     consts,
@@ -36,25 +25,25 @@ pub type UnifiedConnectorServiceResult<T> = CustomResult<T, UnifiedConnectorServ
 #[derive(Debug, Clone)]
 pub struct UnifiedConnectorServiceClient {
     /// The Payment Service Client
-    pub payment_service_client: PaymentServiceClient<tonic::transport::Channel>,
+    pub payment_service_client: payments_grpc::payment_service_client::PaymentServiceClient<tonic::transport::Channel>,
     /// The Refund Service Client
-    pub refund_service_client: RefundServiceClient<tonic::transport::Channel>,
+    pub refund_service_client: payments_grpc::refund_service_client::RefundServiceClient<tonic::transport::Channel>,
     /// The Event Service Client
-    pub event_service_client: EventServiceClient<tonic::transport::Channel>,
+    pub event_service_client: payments_grpc::event_service_client::EventServiceClient<tonic::transport::Channel>,
     /// The Recurring Payment Service Client
-    pub recurring_payment_service_client: RecurringPaymentServiceClient<tonic::transport::Channel>,
+    pub recurring_payment_service_client: payments_grpc::recurring_payment_service_client::RecurringPaymentServiceClient<tonic::transport::Channel>,
     /// The Dispute Service Client
-    pub dispute_service_client: DisputeServiceClient<tonic::transport::Channel>,
+    pub dispute_service_client: payments_grpc::dispute_service_client::DisputeServiceClient<tonic::transport::Channel>,
     /// The Payment Method Service Client
-    pub payment_method_service_client: PaymentMethodServiceClient<tonic::transport::Channel>,
+    pub payment_method_service_client: payments_grpc::payment_method_service_client::PaymentMethodServiceClient<tonic::transport::Channel>,
     /// The Customer Service Client
-    pub customer_service_client: CustomerServiceClient<tonic::transport::Channel>,
+    pub customer_service_client: payments_grpc::customer_service_client::CustomerServiceClient<tonic::transport::Channel>,
     /// The Merchant Authentication Service Client
     pub merchant_authentication_service_client:
-        MerchantAuthenticationServiceClient<tonic::transport::Channel>,
+        payments_grpc::merchant_authentication_service_client::MerchantAuthenticationServiceClient<tonic::transport::Channel>,
     /// The Payment Method Authentication Service Client
     pub payment_method_authentication_service_client:
-        PaymentMethodAuthenticationServiceClient<tonic::transport::Channel>,
+        payments_grpc::payment_method_authentication_service_client::PaymentMethodAuthenticationServiceClient<tonic::transport::Channel>,
 }
 
 /// Contains the Unified Connector Service Client config
@@ -175,63 +164,77 @@ impl UnifiedConnectorServiceClient {
                 let timeout = unified_connector_service_client_config.connection_timeout;
 
                 let payment_service_client = build_grpc_client!(
-                    PaymentServiceClient<tonic::transport::Channel>,
+                    payments_grpc::payment_service_client::PaymentServiceClient<
+                        tonic::transport::Channel,
+                    >,
                     "payment_service_client",
                     uri,
                     timeout
                 );
 
                 let refund_service_client = build_grpc_client!(
-                    RefundServiceClient<tonic::transport::Channel>,
+                    payments_grpc::refund_service_client::RefundServiceClient<
+                        tonic::transport::Channel,
+                    >,
                     "refund_service_client",
                     uri,
                     timeout
                 );
 
                 let event_service_client = build_grpc_client!(
-                    EventServiceClient<tonic::transport::Channel>,
+                    payments_grpc::event_service_client::EventServiceClient<
+                        tonic::transport::Channel,
+                    >,
                     "event_service_client",
                     uri,
                     timeout
                 );
 
                 let recurring_payment_service_client = build_grpc_client!(
-                    RecurringPaymentServiceClient<tonic::transport::Channel>,
+                    payments_grpc::recurring_payment_service_client::RecurringPaymentServiceClient<
+                        tonic::transport::Channel,
+                    >,
                     "recurring_payment_service_client",
                     uri,
                     timeout
                 );
 
                 let dispute_service_client = build_grpc_client!(
-                    DisputeServiceClient<tonic::transport::Channel>,
+                    payments_grpc::dispute_service_client::DisputeServiceClient<
+                        tonic::transport::Channel,
+                    >,
                     "dispute_service_client",
                     uri,
                     timeout
                 );
 
                 let payment_method_service_client = build_grpc_client!(
-                    PaymentMethodServiceClient<tonic::transport::Channel>,
+                    payments_grpc::payment_method_service_client::PaymentMethodServiceClient<
+                        tonic::transport::Channel,
+                    >,
                     "payment_method_service_client",
                     uri,
                     timeout
                 );
 
                 let customer_service_client = build_grpc_client!(
-                    CustomerServiceClient<tonic::transport::Channel>,
+                    payments_grpc::customer_service_client::CustomerServiceClient<
+                        tonic::transport::Channel,
+                    >,
                     "customer_service_client",
                     uri,
                     timeout
                 );
 
                 let merchant_authentication_service_client = build_grpc_client!(
-                    MerchantAuthenticationServiceClient<tonic::transport::Channel>,
+                    payments_grpc::merchant_authentication_service_client::MerchantAuthenticationServiceClient<tonic::transport::Channel>,
                     "merchant_authentication_service_client",
                     uri,
                     timeout
                 );
 
                 let payment_method_authentication_service_client = build_grpc_client!(
-                    PaymentMethodAuthenticationServiceClient<tonic::transport::Channel>,
+                    payments_grpc::payment_method_authentication_service_client::PaymentMethodAuthenticationServiceClient<tonic::transport::Channel>,
                     "payment_method_authentication_service_client",
                     uri,
                     timeout
@@ -545,7 +548,9 @@ impl UnifiedConnectorServiceClient {
         payment_authorize_request: payments_grpc::PaymentServiceAuthorizeRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
-    ) -> UnifiedConnectorServiceResult<tonic::Response<PaymentServiceAuthorizeResponse>> {
+    ) -> UnifiedConnectorServiceResult<
+        tonic::Response<payments_grpc::PaymentServiceAuthorizeResponse>,
+    > {
         let mut request = tonic::Request::new(payment_authorize_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
@@ -724,10 +729,11 @@ impl UnifiedConnectorServiceClient {
     /// Incoming webhook handle
     pub async fn incoming_webhook_handle_event(
         &self,
-        incoming_webhook_handle_event_request: EventServiceHandleRequest,
+        incoming_webhook_handle_event_request: payments_grpc::EventServiceHandleRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
-    ) -> UnifiedConnectorServiceResult<tonic::Response<EventServiceHandleResponse>> {
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::EventServiceHandleResponse>>
+    {
         let mut request = tonic::Request::new(incoming_webhook_handle_event_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
@@ -753,10 +759,10 @@ impl UnifiedConnectorServiceClient {
     /// Performs Payment Refund
     pub async fn payment_refund(
         &self,
-        payment_refund_request: PaymentServiceRefundRequest,
+        payment_refund_request: payments_grpc::PaymentServiceRefundRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
-    ) -> UnifiedConnectorServiceResult<tonic::Response<RefundResponse>> {
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::RefundResponse>> {
         let mut request = tonic::Request::new(payment_refund_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
@@ -782,10 +788,10 @@ impl UnifiedConnectorServiceClient {
     /// Performs Refund Sync/Get
     pub async fn refund_get(
         &self,
-        refund_get_request: RefundServiceGetRequest,
+        refund_get_request: payments_grpc::RefundServiceGetRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
-    ) -> UnifiedConnectorServiceResult<tonic::Response<RefundResponse>> {
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::RefundResponse>> {
         let mut request = tonic::Request::new(refund_get_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
