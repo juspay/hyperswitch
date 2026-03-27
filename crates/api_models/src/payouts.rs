@@ -294,6 +294,18 @@ pub enum Bank {
     Trustly(TrustlyBankTransfer),
 }
 
+impl Bank {
+    pub fn payout_method_type(&self) -> PaymentMethodType {
+        match self {
+            Self::Ach(_) => PaymentMethodType::Ach,
+            Self::Bacs(_) => PaymentMethodType::Bacs,
+            Self::Sepa(_) => PaymentMethodType::Sepa,
+            Self::Pix(_) => PaymentMethodType::Pix,
+            Self::Trustly(_) => PaymentMethodType::Trustly,
+        }
+    }
+}
+
 impl<'de> Deserialize<'de> for BankWrapper {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -487,7 +499,7 @@ pub struct Passthrough {
 
     /// Payout method type of the token
     #[schema(value_type = PaymentMethodType, example = "paypal")]
-    pub token_type: api_enums::PaymentMethodType,
+    pub token_type: PaymentMethodType,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -769,7 +781,7 @@ pub struct PayoutAttemptResponse {
     pub payment_method: Option<api_enums::PayoutType>,
     /// Payment Method Type
     #[schema(value_type = Option<PaymentMethodType>, example = "bacs")]
-    pub payout_method_type: Option<api_enums::PaymentMethodType>,
+    pub payout_method_type: Option<PaymentMethodType>,
     /// A unique identifier for a payout provided by the connector
     pub connector_transaction_id: Option<String>,
     /// If the payout was cancelled the reason provided here

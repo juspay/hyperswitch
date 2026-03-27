@@ -852,42 +852,26 @@ impl Vaultable for api::BankPayout {
             bank_sensitive_data.tax_id,
             // TRUSTLY
             bank_insensitive_data.bank_country_code,
-            bank_insensitive_data.payout_method_type, //ALL
+            bank_insensitive_data.payout_method_type,
         ) {
-            (
-                Some(ban),
-                Some(brn),
-                None,
-                None,
-                None,
-                None,
-                None,
-                _,
-                Some(PaymentMethodType::Ach),
-            ) => Self::Ach(payouts::AchBankTransfer {
-                bank_account_number: ban,
-                bank_routing_number: brn,
-                bank_name: bank_insensitive_data.bank_name,
-                bank_country_code: bank_insensitive_data.bank_country_code,
-                bank_city: bank_insensitive_data.bank_city,
-            }),
-            (
-                Some(ban),
-                None,
-                Some(bsc),
-                None,
-                None,
-                None,
-                None,
-                _,
-                Some(PaymentMethodType::Bacs),
-            ) => Self::Bacs(payouts::BacsBankTransfer {
-                bank_account_number: ban,
-                bank_sort_code: bsc,
-                bank_name: bank_insensitive_data.bank_name,
-                bank_country_code: bank_insensitive_data.bank_country_code,
-                bank_city: bank_insensitive_data.bank_city,
-            }),
+            (Some(ban), Some(brn), None, None, None, None, None, _, _) => {
+                Self::Ach(payouts::AchBankTransfer {
+                    bank_account_number: ban,
+                    bank_routing_number: brn,
+                    bank_name: bank_insensitive_data.bank_name,
+                    bank_country_code: bank_insensitive_data.bank_country_code,
+                    bank_city: bank_insensitive_data.bank_city,
+                })
+            }
+            (Some(ban), None, Some(bsc), None, None, None, None, _, _) => {
+                Self::Bacs(payouts::BacsBankTransfer {
+                    bank_account_number: ban,
+                    bank_sort_code: bsc,
+                    bank_name: bank_insensitive_data.bank_name,
+                    bank_country_code: bank_insensitive_data.bank_country_code,
+                    bank_city: bank_insensitive_data.bank_city,
+                })
+            }
             (None, None, None, Some(iban), bic, None, None, _, Some(PaymentMethodType::Sepa)) => {
                 Self::Sepa(payouts::SepaBankTransfer {
                     iban,
@@ -897,23 +881,15 @@ impl Vaultable for api::BankPayout {
                     bank_city: bank_insensitive_data.bank_city,
                 })
             }
-            (
-                Some(ban),
-                None,
-                None,
-                None,
-                None,
-                Some(pix_key),
-                tax_id,
-                _,
-                Some(PaymentMethodType::Pix),
-            ) => Self::Pix(payouts::PixBankTransfer {
-                bank_account_number: ban,
-                bank_branch: bank_insensitive_data.bank_branch,
-                bank_name: bank_insensitive_data.bank_name,
-                pix_key,
-                tax_id,
-            }),
+            (Some(ban), None, None, None, None, Some(pix_key), tax_id, _, _) => {
+                Self::Pix(payouts::PixBankTransfer {
+                    bank_account_number: ban,
+                    bank_branch: bank_insensitive_data.bank_branch,
+                    bank_name: bank_insensitive_data.bank_name,
+                    pix_key,
+                    tax_id,
+                })
+            }
             (
                 ban,
                 None,
@@ -1022,7 +998,7 @@ impl Vaultable for api::PayoutMethodData {
                 let (bank, supp_data) = api::BankPayout::from_values(mvalue1, mvalue2)?;
                 Ok((
                     Self::Bank(api_models::payouts::BankWrapper {
-                        payout_method_type: None,
+                        payout_method_type: Some(bank.payout_method_type()),
                         data: bank.to_owned(),
                     }),
                     supp_data,
