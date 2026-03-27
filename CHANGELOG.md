@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.03.25.0-hotfix2
+
+### Refactors
+
+- **connector:** [Noon] rename a metadata field ([#11636](https://github.com/juspay/hyperswitch/pull/11636)) ([`e6a1c8f`](https://github.com/juspay/hyperswitch/commit/e6a1c8fcef745fcb2e35aa964fc3545f1f1015bd))
+
+**Full Changelog:** [`2026.03.25.0-hotfix1...2026.03.25.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2026.03.25.0-hotfix1...2026.03.25.0-hotfix2)
+
+- - -
+
 ## 2026.03.25.0-hotfix1
 
 ### Features
