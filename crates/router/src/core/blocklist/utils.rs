@@ -294,6 +294,7 @@ pub async fn should_payment_be_blocked(
     state: &SessionState,
     processor: &domain::Processor,
     payment_method_data: &Option<domain::PaymentMethodData>,
+    business_profile: &domain::Profile,
 ) -> CustomResult<bool, errors::ApiErrorResponse> {
     let db = &state.store;
     let merchant_id = processor.get_account().get_id();
@@ -378,6 +379,16 @@ pub async fn should_payment_be_blocked(
             }
         }
     }
+
+    if !should_payment_be_blocked {
+        should_payment_be_blocked = should_payment_be_blocked_by_profile_config(
+            state,
+            payment_method_data,
+            business_profile,
+        )
+        .await?;
+    }
+
     Ok(should_payment_be_blocked)
 }
 
@@ -391,17 +402,13 @@ where
     F: Send + Clone,
 {
     let db = &state.store;
-    let mut should_block =
-        should_payment_be_blocked(state, processor, &payment_data.payment_method_data).await?;
-
-    if !should_block {
-        should_block = should_payment_be_blocked_by_profile_config(
-            state,
-            &payment_data.payment_method_data,
-            business_profile,
-        )
-        .await?;
-    }
+    let should_block = should_payment_be_blocked(
+        state,
+        processor,
+        &payment_data.payment_method_data,
+        business_profile,
+    )
+    .await?;
 
     if should_block {
         db.update_payment_intent(
