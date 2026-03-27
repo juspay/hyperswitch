@@ -1288,11 +1288,7 @@ impl DomainPaymentMethodWrapper {
             .attach_printable("Failed to serialize connector mandate details")?;
 
         Ok(Self(domain::PaymentMethod {
-            //for guest checkout, where customer id, this will fail.
-            customer_id: response
-                .customer_id
-                .clone()
-                .get_required_value("CustomerId")?,
+            customer_id: response.customer_id.clone(),
             merchant_id: response.merchant_id.clone(),
             payment_method_id: response.payment_method_id.clone(),
             accepted_currency: None,
@@ -1342,6 +1338,7 @@ impl DomainPaymentMethodWrapper {
             customer_details: None,
             locker_fingerprint_id: None,
             network_tokenization_data: None,
+            storage_type: response.storage_type,
         }))
     }
 
@@ -1413,11 +1410,7 @@ impl DomainPaymentMethodWrapper {
             .attach_printable("Failed to serialize connector mandate details")?;
 
         Ok(Self(domain::PaymentMethod {
-            //for guest checkout, where customer id, this will fail.
-            customer_id: response
-                .customer_id
-                .clone()
-                .get_required_value("CustomerId")?,
+            customer_id: response.customer_id.clone(),
             merchant_id: response.merchant_id.clone(),
             payment_method_id: response.payment_method_id.clone(),
             accepted_currency: None,
@@ -1467,6 +1460,7 @@ impl DomainPaymentMethodWrapper {
             customer_details: None,
             locker_fingerprint_id: None,
             network_tokenization_data: None,
+            storage_type: response.storage_type,
         }))
     }
 }
@@ -1524,8 +1518,7 @@ impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn try_from(response: CreatePaymentMethodResponse) -> Result<Self, Self::Error> {
         Ok(Self(domain::PaymentMethod {
-            //for guest checkout, where customer id, this will fail.
-            customer_id: response.customer_id.get_required_value("CustomerId")?,
+            customer_id: response.customer_id,
             merchant_id: response.merchant_id,
             payment_method_id: response.payment_method_id,
             accepted_currency: None,
@@ -1571,7 +1564,37 @@ impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
             customer_details: None,
             locker_fingerprint_id: None,
             network_tokenization_data: None,
+            storage_type: response.storage_type,
         }))
+    }
+}
+
+#[cfg(feature = "v1")]
+impl<'a>
+    crate::types::transformers::ForeignTryFrom<(
+        &'a hyperswitch_domain_models::payment_method_data::CardWithOptionalCVC,
+    )> for domain::CardDetailsForNetworkTransactionId
+{
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn foreign_try_from(
+        value: (&'a hyperswitch_domain_models::payment_method_data::CardWithOptionalCVC,),
+    ) -> Result<Self, Self::Error> {
+        let (card_data,) = value;
+
+        Ok(Self {
+            card_number: card_data.card_number.clone(),
+            card_exp_month: card_data.card_exp_month.clone(),
+            card_exp_year: card_data.card_exp_year.clone(),
+            card_issuer: card_data.card_issuer.clone(),
+            card_network: card_data.card_network.clone(),
+            card_type: card_data.card_type.clone(),
+            card_issuing_country: card_data.card_issuing_country.clone(),
+            card_issuing_country_code: card_data.card_issuing_country_code.clone(),
+            bank_code: card_data.bank_code.clone(),
+            nick_name: card_data.nick_name.clone(),
+            card_holder_name: card_data.card_holder_name.clone(),
+        })
     }
 }
 

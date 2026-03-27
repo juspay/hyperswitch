@@ -4,6 +4,23 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.03.27.0
+
+### Features
+
+- **payments:** Extend MIT via card + NTI flows for modular merchants ([#11436](https://github.com/juspay/hyperswitch/pull/11436)) ([`4679501`](https://github.com/juspay/hyperswitch/commit/46795015c431dfdfcaaa4b38d69d4ed5f4a20850))
+- **platform:** Platform payment cypress tests ([#11509](https://github.com/juspay/hyperswitch/pull/11509)) ([`df2f096`](https://github.com/juspay/hyperswitch/commit/df2f0962cbaa7ce0927c9df2ed03b76e6d0b6453))
+
+### Bug Fixes
+
+- **payment_methods:**
+  - Block deprecated routes for modular merchants ([#11592](https://github.com/juspay/hyperswitch/pull/11592)) ([`04a5c53`](https://github.com/juspay/hyperswitch/commit/04a5c53f4297719326df8805f23fcdb15c3fda3e))
+  - Resolve PSP tokenization issue in modular payment methods ([#11588](https://github.com/juspay/hyperswitch/pull/11588)) ([`8c96aa5`](https://github.com/juspay/hyperswitch/commit/8c96aa513a2223d9a38535fc00df25c59230d923))
+
+**Full Changelog:** [`2026.03.26.0...2026.03.27.0`](https://github.com/juspay/hyperswitch/compare/2026.03.26.0...2026.03.27.0)
+
+- - -
+
 ## 2026.03.26.0
 
 ### Features
