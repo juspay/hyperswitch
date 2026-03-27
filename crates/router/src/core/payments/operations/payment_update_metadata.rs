@@ -4,7 +4,7 @@ use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
-use masking::ExposeInterface;
+use hyperswitch_masking::ExposeInterface;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
@@ -257,6 +257,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsUpdateMetadataRequest, Payme
         _state: &SessionState,
         _processor: &domain::Processor,
         _payment_data: &mut PaymentData<F>,
+        _business_profile: &domain::Profile,
     ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
     }
@@ -286,7 +287,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsUpdateMetada
             .payment_intent
             .feature_metadata
             .clone()
-            .map(masking::Secret::new);
+            .map(hyperswitch_masking::Secret::new);
 
         payment_data.payment_intent = state
             .store

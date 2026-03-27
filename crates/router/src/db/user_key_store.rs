@@ -1,6 +1,6 @@
 use common_utils::{errors::CustomResult, types::keymanager};
 use error_stack::{report, ResultExt};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router_env::{instrument, tracing};
 use storage_impl::MockDb;
 

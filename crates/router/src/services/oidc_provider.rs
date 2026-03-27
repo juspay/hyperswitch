@@ -5,7 +5,7 @@ use api_models::oidc::{
     OidcTokenRequest, OidcTokenResponse, Scope, SigningAlgorithm,
 };
 use error_stack::{report, ResultExt};
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 use once_cell::sync::OnceCell;
 use router_env::logger;
 

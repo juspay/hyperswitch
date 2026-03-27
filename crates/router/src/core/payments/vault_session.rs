@@ -17,7 +17,7 @@ use hyperswitch_interfaces::{
     api::Connector as ConnectorTrait,
     connector_integration_v2::{ConnectorIntegrationV2, ConnectorV2},
 };
-use masking::ExposeInterface;
+use hyperswitch_masking::ExposeInterface;
 use router_env::{env::Env, instrument, tracing};
 
 use crate::{
@@ -302,8 +302,8 @@ async fn generate_hyperswitch_vault_session_details(
     merchant_connector_account_type: &domain::MerchantConnectorAccountTypeDetails,
     connector_customer_id: Option<String>,
     connector_name: String,
-    vault_publishable_key: masking::Secret<String>,
-    vault_profile_id: masking::Secret<String>,
+    vault_publishable_key: hyperswitch_masking::Secret<String>,
+    vault_profile_id: hyperswitch_masking::Secret<String>,
 ) -> RouterResult<Option<api::VaultSessionDetails>> {
     let connector_response = call_external_vault_create(
         state,
