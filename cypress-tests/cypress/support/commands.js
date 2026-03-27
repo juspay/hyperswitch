@@ -488,6 +488,7 @@ Cypress.Commands.add(
       expectedMerchantAccountType = null,
       merchantIdStateKey = "merchantId",
       profileIdStateKey = "profileId",
+      publishableKeyStateKey = "publishableKey",
     } = options;
 
     const merchantId = RequestBodyUtils.generateRandomString();
@@ -515,7 +516,7 @@ Cypress.Commands.add(
         }
 
         globalState.set(profileIdStateKey, response.body.default_profile);
-        globalState.set("publishableKey", response.body.publishable_key);
+        globalState.set(publishableKeyStateKey, response.body.publishable_key);
         globalState.set("merchantDetails", response.body.merchant_details);
         globalState.set("organizationId", response.body.organization_id);
       });
@@ -1784,7 +1785,8 @@ Cypress.Commands.add(
     data,
     authentication_type,
     capture_method,
-    globalState
+    globalState,
+    connectedMerchantId
   ) => {
     const {
       Configs: configs = {},
@@ -1813,16 +1815,22 @@ Cypress.Commands.add(
     createPaymentBody.customer_id = globalState.get("customerId");
     createPaymentBody.profile_id = profile_id;
 
+    const headers = {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "api-key": globalState.get("apiKey"),
+    };
+
+    if (connectedMerchantId) {
+      headers["x-connected-merchant-id"] = connectedMerchantId;
+    }
+
     globalState.set("paymentAmount", createPaymentBody.amount);
     globalState.set("setupFutureUsage", createPaymentBody.setup_future_usage);
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payments`,
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        "api-key": globalState.get("apiKey"),
-      },
+      headers,
       failOnStatusCode: false,
       body: createPaymentBody,
     }).then((response) => {
@@ -2113,7 +2121,7 @@ Cypress.Commands.add("setDefaultPaymentMethodTest", (globalState) => {
 
 Cypress.Commands.add(
   "confirmCallTest",
-  (confirmBody, data, confirm, globalState) => {
+  (confirmBody, data, confirm, globalState, connectedMerchantId) => {
     const {
       Configs: configs = {},
       Request: reqData,
@@ -2150,13 +2158,19 @@ Cypress.Commands.add(
       confirmBody.split_payments = reqData.split_payments;
     }
 
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    };
+
+    if (connectedMerchantId) {
+      headers["x-connected-merchant-id"] = connectedMerchantId;
+    }
+
     cy.request({
       method: "POST",
       url: url,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": apiKey,
-      },
+      headers: headers,
       failOnStatusCode: false,
       body: confirmBody,
     }).then((response) => {
@@ -2580,7 +2594,8 @@ Cypress.Commands.add(
     data,
     authentication_type,
     capture_method,
-    globalState
+    globalState,
+    connectedMerchantId
   ) => {
     const {
       Configs: configs = {},
@@ -2611,13 +2626,19 @@ Cypress.Commands.add(
       createConfirmPaymentBody.split_payments = reqData.split_payments;
     }
 
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    };
+
+    if (connectedMerchantId) {
+      headers["x-connected-merchant-id"] = connectedMerchantId;
+    }
+
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payments`,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": globalState.get("apiKey"),
-      },
+      headers: headers,
       failOnStatusCode: false,
       body: createConfirmPaymentBody,
     }).then((response) => {
@@ -2893,92 +2914,110 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add("captureCallTest", (requestBody, data, globalState) => {
-  const {
-    Configs: configs = {},
-    Request: reqData,
-    Response: resData,
-  } = data || {};
+Cypress.Commands.add(
+  "captureCallTest",
+  (requestBody, data, globalState, connectedMerchantId) => {
+    const {
+      Configs: configs = {},
+      Request: reqData,
+      Response: resData,
+    } = data || {};
 
-  const configInfo = execConfig(validateConfig(configs));
-  const paymentId = globalState.get("paymentID");
-  const profileId = globalState.get(`${configInfo.profilePrefix}Id`);
+    const configInfo = execConfig(validateConfig(configs));
+    const paymentId = globalState.get("paymentID");
+    const profileId = globalState.get(`${configInfo.profilePrefix}Id`);
 
-  requestBody.profile_id = profileId;
+    requestBody.profile_id = profileId;
 
-  for (const key in reqData) {
-    requestBody[key] = reqData[key];
-  }
+    for (const key in reqData) {
+      requestBody[key] = reqData[key];
+    }
 
-  cy.request({
-    method: "POST",
-    url: `${globalState.get("baseUrl")}/payments/${paymentId}/capture`,
-    headers: {
+    const headers = {
       "Content-Type": "application/json",
       "api-key": globalState.get("apiKey"),
-    },
-    failOnStatusCode: false,
-    body: requestBody,
-  }).then((response) => {
-    logRequestId(response.headers["x-request-id"]);
-    storeRequestId(response.headers["x-request-id"], globalState);
-    cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
-      if (response.body.capture_method !== undefined) {
-        expect(response.body.payment_id).to.equal(paymentId);
-        for (const key in resData.body) {
-          expect(resData.body[key]).to.equal(response.body[key]);
+    };
+
+    if (connectedMerchantId) {
+      headers["x-connected-merchant-id"] = connectedMerchantId;
+    }
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payments/${paymentId}/capture`,
+      headers,
+      failOnStatusCode: false,
+      body: requestBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      storeRequestId(response.headers["x-request-id"], globalState);
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+        if (response.body.capture_method !== undefined) {
+          expect(response.body.payment_id).to.equal(paymentId);
+          for (const key in resData.body) {
+            expect(resData.body[key]).to.equal(response.body[key]);
+          }
+        } else {
+          defaultErrorHandler(response, resData);
         }
-      } else {
-        defaultErrorHandler(response, resData);
-      }
+      });
     });
-  });
-});
-
-Cypress.Commands.add("voidCallTest", (requestBody, data, globalState) => {
-  const {
-    Configs: configs = {},
-    Response: resData,
-    Request: reqData,
-  } = data || {};
-
-  const configInfo = execConfig(validateConfig(configs));
-  const payment_id = globalState.get("paymentID");
-  const profile_id = globalState.get(`${configInfo.profilePrefix}Id`);
-
-  requestBody.profile_id = profile_id;
-
-  // Apply connector-specific request data (including cancellation_reason)
-  for (const key in reqData) {
-    requestBody[key] = reqData[key];
   }
+);
 
-  cy.request({
-    method: "POST",
-    url: `${globalState.get("baseUrl")}/payments/${payment_id}/cancel`,
-    headers: {
+Cypress.Commands.add(
+  "voidCallTest",
+  (requestBody, data, globalState, connectedMerchantId) => {
+    const {
+      Configs: configs = {},
+      Response: resData,
+      Request: reqData,
+    } = data || {};
+
+    const configInfo = execConfig(validateConfig(configs));
+    const payment_id = globalState.get("paymentID");
+    const profile_id = globalState.get(`${configInfo.profilePrefix}Id`);
+
+    requestBody.profile_id = profile_id;
+
+    // Apply connector-specific request data (including cancellation_reason)
+    for (const key in reqData) {
+      requestBody[key] = reqData[key];
+    }
+
+    const headers = {
       "Content-Type": "application/json",
       "api-key": globalState.get("apiKey"),
-    },
-    failOnStatusCode: false,
-    body: requestBody,
-  }).then((response) => {
-    logRequestId(response.headers["x-request-id"]);
-    storeRequestId(response.headers["x-request-id"], globalState);
+    };
 
-    cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
-      if (response.status === 200) {
-        for (const key in resData.body) {
-          expect(resData.body[key]).to.equal(response.body[key]);
+    if (connectedMerchantId) {
+      headers["x-connected-merchant-id"] = connectedMerchantId;
+    }
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payments/${payment_id}/cancel`,
+      headers,
+      failOnStatusCode: false,
+      body: requestBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      storeRequestId(response.headers["x-request-id"], globalState);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+        if (response.status === 200) {
+          for (const key in resData.body) {
+            expect(resData.body[key]).to.equal(response.body[key]);
+          }
+        } else {
+          defaultErrorHandler(response, resData);
         }
-      } else {
-        defaultErrorHandler(response, resData);
-      }
+      });
     });
-  });
-});
+  }
+);
 
 Cypress.Commands.add(
   "retrievePaymentCallTest",
@@ -2988,6 +3027,7 @@ Cypress.Commands.add(
     autoretries = false,
     attempt = 1,
     expectedIntentStatus,
+    connectedMerchantId,
   }) => {
     const { Configs: configs = {} } = data || {};
 
@@ -2997,13 +3037,19 @@ Cypress.Commands.add(
     );
     const payment_id = globalState.get("paymentID");
 
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    };
+
+    if (connectedMerchantId) {
+      headers["x-connected-merchant-id"] = connectedMerchantId;
+    }
+
     cy.request({
       method: "GET",
       url: `${globalState.get("baseUrl")}/payments/${payment_id}?force_sync=true&expand_attempts=true`,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": globalState.get("apiKey"),
-      },
+      headers: headers,
       failOnStatusCode: false,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);

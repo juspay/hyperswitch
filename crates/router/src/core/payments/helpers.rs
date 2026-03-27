@@ -577,7 +577,10 @@ pub async fn get_token_pm_type_mandate_details(
                         verify_mandate_details_for_recurring_payments(
                             &payment_method_info.merchant_id,
                             platform.get_provider().get_account().get_id(),
-                            &payment_method_info.customer_id,
+                            &payment_method_info
+                                .customer_id
+                                .clone()
+                                .get_required_value("customer_id")?,
                             customer_id,
                         )?;
 
@@ -3215,37 +3218,72 @@ pub fn make_modular_pm_data<F: Clone, D>(
 where
     D: OperationSessionGetters<F> + Send + Sync + Clone,
 {
-    let is_connector_mandate_selected = payment_data
+    let selected_mandate_reference = payment_data
         .get_mandate_id()
-        .and_then(|mandate_id| mandate_id.mandate_reference_id.as_ref())
-        .is_some_and(|mandate_reference_id| {
-            matches!(
-                mandate_reference_id,
-                api_models::payments::MandateReferenceId::ConnectorMandateId(_)
-            )
-        });
+        .and_then(|mandate_id| mandate_id.mandate_reference_id.as_ref());
 
-    let payment_method_data = match payment_data.get_payment_method_data() {
-        Some(domain::PaymentMethodData::CardWithOptionalCVC(_card_data))
-            if is_connector_mandate_selected =>
-        {
-            Some(domain::PaymentMethodData::MandatePayment)
-        }
-        Some(domain::PaymentMethodData::CardWithOptionalCVC(card_data)) => {
-            Some(domain::PaymentMethodData::foreign_try_from((card_data,))?)
-        }
-        Some(domain::PaymentMethodData::Card(_)) if is_connector_mandate_selected => {
-            Some(domain::PaymentMethodData::MandatePayment)
-        }
-        Some(payment_method_data) => Some(payment_method_data.clone()),
-        None => None,
-    };
+    let payment_method_data = PmModTransformedData::try_from((
+        payment_data.get_payment_method_data(),
+        selected_mandate_reference,
+    ))
+    .map(|data| data.0)?;
 
     let pm_id = payment_data
         .get_payment_method_info()
         .map(|payment_method_info| payment_method_info.payment_method_id.clone());
 
     Ok((payment_method_data, pm_id))
+}
+
+#[cfg(feature = "v1")]
+struct PmModTransformedData(Option<domain::PaymentMethodData>);
+
+#[cfg(feature = "v1")]
+impl<'a>
+    TryFrom<(
+        Option<&'a domain::PaymentMethodData>,
+        Option<&'a api_models::payments::MandateReferenceId>,
+    )> for PmModTransformedData
+{
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(
+        value: (
+            Option<&'a domain::PaymentMethodData>,
+            Option<&'a api_models::payments::MandateReferenceId>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let (payment_method_data, selected_mandate_reference) = value;
+        let payment_method_data = match (payment_method_data, selected_mandate_reference) {
+            // PSP tokens when it's ConnectorMandateId and card data is available
+            (
+                Some(
+                    domain::PaymentMethodData::CardWithOptionalCVC(_)
+                    | domain::PaymentMethodData::Card(_),
+                ),
+                Some(&api_models::payments::MandateReferenceId::ConnectorMandateId(_)),
+            ) => Some(domain::PaymentMethodData::MandatePayment),
+            // Card + NTI when Network Transaction ID is present
+            (
+                Some(domain::PaymentMethodData::CardWithOptionalCVC(card_data)),
+                Some(&api_models::payments::MandateReferenceId::NetworkMandateId(_)),
+            ) => Some(
+                domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
+                    domain::CardDetailsForNetworkTransactionId::foreign_try_from((card_data,))?,
+                ),
+            ),
+            // Raw card as last preference
+            (Some(domain::PaymentMethodData::CardWithOptionalCVC(card_data)), _) => {
+                Some(domain::PaymentMethodData::foreign_try_from((card_data,))?)
+            }
+
+            // Keep data as is, otherwise
+            (Some(payment_method_data), _) => Some(payment_method_data.clone()),
+            (None, _) => None,
+        };
+
+        Ok(Self(payment_method_data))
+    }
 }
 
 #[cfg(feature = "v1")]

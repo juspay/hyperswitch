@@ -301,6 +301,7 @@ diesel::table! {
         is_l2_l3_enabled -> Nullable<Bool>,
         network_tokenization_credentials -> Nullable<Bytea>,
         payment_method_blocking -> Nullable<Jsonb>,
+        default_fallback_routing -> Nullable<Jsonb>,
     }
 }
 
