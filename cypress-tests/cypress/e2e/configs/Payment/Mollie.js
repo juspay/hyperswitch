@@ -299,9 +299,6 @@ export const connectorDetails = {
       },
     },
     Refund: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         amount: 6000,
       },
@@ -327,9 +324,6 @@ export const connectorDetails = {
       },
     },
     manualPaymentRefund: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         amount: 6000,
       },
