@@ -558,6 +558,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
                 Default::default(),
                 None,
                 None,
+                None,
                 initiator,
             )
             .await?;

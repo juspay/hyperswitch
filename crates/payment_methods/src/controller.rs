@@ -59,6 +59,7 @@ pub trait PaymentMethodsController {
         vault_source_details: Option<PaymentMethodVaultSourceDetails>,
         payment_method_customer_details_encrypted: crypto::OptionalEncryptableValue,
         locker_fingerprint_id: Option<String>,
+        network_tokenization_data: crypto::OptionalEncryptableValue,
         initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
     ) -> errors::PmResult<payment_methods::PaymentMethod>;
 
@@ -82,6 +83,7 @@ pub trait PaymentMethodsController {
         network_token_payment_method_data: crypto::OptionalEncryptableValue,
         vault_source_details: Option<PaymentMethodVaultSourceDetails>,
         locker_fingerprint_id: Option<String>,
+        network_tokenization_data: crypto::OptionalEncryptableValue,
         initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
     ) -> errors::PmResult<payment_methods::PaymentMethod>;
 

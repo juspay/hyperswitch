@@ -464,3 +464,17 @@ pub struct PaymentMethodUpdateHandler<'a> {
     pub payment_method: hyperswitch_domain_models::payment_methods::PaymentMethod,
     pub state: &'a crate::routes::app::SessionState,
 }
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct NetworkTokenizationConfig {
+    pub generate_token_url: url::Url,
+    pub fetch_token_url: url::Url,
+    pub check_tokenize_eligibility_url: url::Url,
+    pub token_service_api_key: Secret<String>,
+    pub public_key: Secret<String>,
+    pub private_key: Secret<String>,
+    pub key_id: String,
+    pub delete_token_url: url::Url,
+    pub check_token_status_url: url::Url,
+    pub webhook_source_verification_key: Secret<String>,
+}

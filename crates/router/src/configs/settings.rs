@@ -166,7 +166,7 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "v2")]
     pub cell_information: CellInformation,
     pub network_tokenization_supported_card_networks: NetworkTokenizationSupportedCardNetworks,
-    pub network_tokenization_service: Option<SecretStateContainer<NetworkTokenizationService, S>>,
+    pub network_tokenization_service: Option<NetworkTokenizationService>,
     pub network_tokenization_supported_connectors: NetworkTokenizationSupportedConnectors,
     pub theme: ThemeSettings,
     pub platform: Platform,
@@ -607,13 +607,8 @@ pub struct NetworkTokenizationService {
     pub generate_token_url: url::Url,
     pub fetch_token_url: url::Url,
     pub check_tokenize_eligibility_url: url::Url,
-    pub token_service_api_key: Secret<String>,
-    pub public_key: Secret<String>,
-    pub private_key: Secret<String>,
-    pub key_id: String,
     pub delete_token_url: url::Url,
     pub check_token_status_url: url::Url,
-    pub webhook_source_verification_key: Secret<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -1235,10 +1230,6 @@ impl Settings<SecuredSecret> {
 
         #[cfg(feature = "v2")]
         self.cell_information.validate()?;
-        self.network_tokenization_service
-            .as_ref()
-            .map(|x| x.get_inner().validate())
-            .transpose()?;
 
         self.paze_decrypt_keys
             .as_ref()

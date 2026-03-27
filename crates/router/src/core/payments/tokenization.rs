@@ -23,7 +23,7 @@ use hyperswitch_domain_models::{
     payment_method_data,
 };
 use hyperswitch_interfaces::api::gateway;
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, tracing};
 
 use super::helpers;
@@ -287,6 +287,9 @@ where
                 let customer_id = customer_id.to_owned().get_required_value("customer_id")?;
                 let is_network_tokenization_enabled =
                     business_profile.is_network_tokenization_enabled;
+                let nt_data = payment_method_info
+                    .as_ref()
+                    .and_then(|info| info.network_tokenization_data.clone());
                 let (
                     (mut resp, duplication_check, network_token_requestor_ref_id),
                     network_token_resp,
@@ -366,7 +369,7 @@ where
 
                 let pm_network_token_data_encrypted: Option<
                     Encryptable<Secret<serde_json::Value>>,
-                > = match network_token_resp {
+                > = match network_token_resp.as_ref() {
                     Some(token_resp) => {
                         let pm_token_details = token_resp.card.as_ref().map(|card| {
                             domain::PaymentMethodsData::Card(
@@ -389,6 +392,29 @@ where
                     }
                     None => None,
                 };
+
+                let network_tokenization_data = generate_network_token_data_for_payment_methods(
+                    platform,
+                    network_token_resp,
+                    network_token_locker_id.clone(),
+                    network_token_requestor_ref_id.clone(),
+                    nt_data,
+                )
+                .await
+                .attach_printable("Failed to generate network_tokenization_data")?;
+
+                let encrypted_network_tokenization_data = network_tokenization_data
+                    .async_map(|pm_card| {
+                        create_encrypted_data(
+                            &key_manager_state,
+                            platform.get_provider().get_key_store(),
+                            pm_card,
+                        )
+                    })
+                    .await
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to encrypt payment method data")?;
 
                 let encrypted_payment_method_billing_address: Option<
                     Encryptable<Secret<serde_json::Value>>,
@@ -498,6 +524,7 @@ where
                                         network_token_requestor_ref_id.clone(),
                                         network_token_locker_id,
                                         pm_network_token_data_encrypted,
+                                        encrypted_network_tokenization_data,
                                         platform.get_provider().get_account().storage_scheme,
                                         platform.get_initiator(),
                                     )
@@ -549,6 +576,7 @@ where
                                                 Some(vault_source_details),
                                                 payment_method_customer_details_encrypted,
                                                 resp.locker_fingerprint_id,
+                                                encrypted_network_tokenization_data,
                                                 platform.get_initiator(),
                                             )
                                             .await
@@ -641,6 +669,7 @@ where
                                             network_token_requestor_ref_id.clone(),
                                             network_token_locker_id,
                                             pm_network_token_data_encrypted,
+                                            encrypted_network_tokenization_data,
                                             platform.get_provider().get_account().storage_scheme,
                                             platform.get_initiator(),
                                         )
@@ -695,6 +724,7 @@ where
                                                     Some(vault_source_details),
                                                     payment_method_customer_details_encrypted,
                                                     resp.locker_fingerprint_id,
+                                                    encrypted_network_tokenization_data,
                                                     platform.get_initiator(),
                                                 )
                                                 .await
@@ -922,6 +952,7 @@ where
                                     Some(vault_source_details),
                                     payment_method_customer_details_encrypted,
                                     resp.locker_fingerprint_id,
+                                    encrypted_network_tokenization_data,
                                     platform.get_initiator(),
                                 )
                                 .await?;
@@ -958,7 +989,7 @@ where
                 let is_payment_method_saved = payment_method_info.is_some();
 
                 if is_network_tokenization_enabled && is_payment_method_saved {
-                    generate_network_token_and_update_payment_method(
+                    Box::pin(generate_network_token_and_update_payment_method(
                         state,
                         platform,
                         &save_payment_method_data.request.get_payment_method_data(),
@@ -968,7 +999,8 @@ where
                         billing_name,
                         payment_method_billing_address,
                         payment_method_info,
-                    )
+                        business_profile,
+                    ))
                     .await
                     .inspect_err(|err| {
                         logger::error!("Failed to process network tokenization: {:?}", err);
@@ -1044,6 +1076,8 @@ pub async fn pre_payment_tokenization(
     state: &SessionState,
     customer_id: id_type::CustomerId,
     card: &payment_method_data::Card,
+    merchant_account: &domain::MerchantAccount,
+    _business_profile: &domain::Profile,
 ) -> RouterResult<(Option<pm_types::TokenResponse>, Option<String>)> {
     let network_tokenization_supported_card_networks = &state
         .conf
@@ -1063,6 +1097,7 @@ pub async fn pre_payment_tokenization(
             &card_detail,
             optional_card_cvc,
             &customer_id,
+            merchant_account,
         )
         .await
         {
@@ -1072,14 +1107,14 @@ pub async fn pre_payment_tokenization(
                     network_token_requestor_ref_id.clone(),
                     network_tokenization_service,
                 ) {
-                    (Some(token_ref), Some(network_tokenization_service)) => {
+                    (Some(token_ref), Some(_)) => {
                         let network_token = record_operation_time(
                             async {
                                 network_tokenization::get_network_token(
                                     state,
                                     customer_id,
                                     token_ref,
-                                    network_tokenization_service.get_inner(),
+                                    merchant_account,
                                 )
                                 .await
                             },
@@ -1422,6 +1457,7 @@ pub async fn save_network_token_in_locker(
     card_data: &payment_method_data::Card,
     network_token_data: Option<api::CardDetail>,
     payment_method_request: api::PaymentMethodCreate,
+    _business_profile: &domain::Profile,
 ) -> RouterResult<(
     Option<domain::PaymentMethodResponse>,
     Option<payment_methods::transformers::DataDuplicationCheck>,
@@ -1469,6 +1505,7 @@ pub async fn save_network_token_in_locker(
                     &domain::CardDetail::from(card_data),
                     optional_card_cvc,
                     &customer_id,
+                    platform.get_processor().get_account(),
                 )
                 .await
                 {
@@ -1914,7 +1951,7 @@ pub async fn save_card_and_network_token_in_locker(
     match vault_operation {
         Some(hyperswitch_domain_models::payments::VaultOperation::SaveCardData(card)) => {
             let card_data = api::CardDetail::from(card.card_data.clone());
-            if let (Some(nt_ref_id), Some(tokenization_service)) = (
+            if let (Some(nt_ref_id), Some(_tokenization_service)) = (
                 card.network_token_req_ref_id.clone(),
                 &state.conf.network_tokenization_service,
             ) {
@@ -1924,7 +1961,7 @@ pub async fn save_card_and_network_token_in_locker(
                             state,
                             nt_ref_id.clone(),
                             &customer_id,
-                            tokenization_service.get_inner(),
+                            platform.get_processor().get_account(),
                         )
                         .await
                     },
@@ -1976,6 +2013,7 @@ pub async fn save_card_and_network_token_in_locker(
                     &save_card_and_network_token_data.card_data,
                     Some(network_token_data),
                     payment_method_create_request.clone(),
+                    business_profile,
                 ))
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1986,7 +2024,7 @@ pub async fn save_card_and_network_token_in_locker(
                     network_token_resp,
                 ))
             } else {
-                if let (Some(nt_ref_id), Some(tokenization_service)) = (
+                if let (Some(nt_ref_id), Some(_)) = (
                     network_token_requestor_reference_id.clone(),
                     &state.conf.network_tokenization_service,
                 ) {
@@ -1996,7 +2034,7 @@ pub async fn save_card_and_network_token_in_locker(
                                 state,
                                 nt_ref_id.clone(),
                                 &customer_id,
-                                tokenization_service.get_inner(),
+                                platform.get_processor().get_account(),
                             )
                             .await
                         },
@@ -2044,6 +2082,7 @@ pub async fn save_card_and_network_token_in_locker(
                             card,
                             None,
                             payment_method_create_request.clone(),
+                            business_profile,
                         ))
                         .await?;
 
@@ -2062,6 +2101,211 @@ pub async fn save_card_and_network_token_in_locker(
 }
 
 #[cfg(feature = "v1")]
+async fn store_network_tokenization_data_for_merchant_in_payment_methods(
+    state: &SessionState,
+    platform: &domain::Platform,
+    merchant_id: &id_type::MerchantId,
+    payment_method_info: Option<domain::PaymentMethod>,
+) -> RouterResult<Option<domain::PaymentMethodNetworkTokenData>> {
+    let payment_method = payment_method_info // based on parent controller, this should ideally always be Some
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Payment method info is required to store network tokenization data")?;
+    let network_token_data = payment_method
+        .network_token_payment_method_data
+        .clone()
+        .as_ref()
+        .map(|data| data.get_inner().peek().clone())
+        .and_then(|decrypted_val| {
+            serde_json::from_value::<domain::PaymentMethodsData>(decrypted_val)
+                .map_err(|_| errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Failed to deserialize network tokenization credentials from merchant_account",
+                )
+                .ok()
+        });
+
+    let network_token_locker_id = payment_method.network_token_locker_id.clone();
+    let network_token_requestor_ref_id =
+        payment_method.network_token_requestor_reference_id.clone();
+
+    if let Some(((nt_card_data, nt_locker_id), nt_ref_id)) = network_token_data
+        .as_ref()
+        .and_then(|nt_resp| match nt_resp {
+            domain::PaymentMethodsData::Card(_) => Some(nt_resp),
+            _ => None,
+        })
+        .zip(network_token_locker_id)
+        .zip(network_token_requestor_ref_id)
+    {
+        let new_token_data = domain::PaymentMethodNetworkTokenData {
+            network_token_requestor_reference_id: Secret::new(nt_ref_id),
+            network_token_locker_id: Secret::new(nt_locker_id),
+            network_token_payment_method_data: nt_card_data.to_owned(),
+        };
+
+        let mut network_token_merchant_map = HashMap::new();
+        network_token_merchant_map.insert(merchant_id.to_owned(), new_token_data.clone());
+        let network_token_data_domain = domain::PaymentMethodNetworkTokenizationDataDomainType {
+            merchant_map: Some(network_token_merchant_map),
+            profile_map: None,
+        };
+        let key_manager_state = state.into();
+
+        let encrypted_network_tokenization_data = create_encrypted_data(
+            &key_manager_state,
+            platform.get_provider().get_key_store(),
+            network_token_data_domain.clone(),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to encrypt network tokenization data")
+        .ok();
+
+        // Update the payment method with network token details
+        let db = &*state.store;
+        payment_methods::cards::update_payment_method_network_token_data(
+            platform.get_provider().get_key_store(),
+            db,
+            payment_method,
+            None,
+            None,
+            None,
+            encrypted_network_tokenization_data,
+            platform.get_provider().get_account().storage_scheme,
+            platform.get_initiator(),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update payment method with network token details")
+        .inspect_err(|e| {
+            logger::error!(
+                "Failed to store network tokenization data for merchant in payment methods: {:?}",
+                e
+            );
+        })
+        .ok();
+
+        Ok(Some(new_token_data))
+    } else {
+        Ok(None)
+    }
+}
+
+#[cfg(feature = "v1")]
+async fn get_network_token_data_for_merchant(
+    state: &SessionState,
+    platform: &domain::Platform,
+    merchant_id: &id_type::MerchantId,
+    payment_method_info: Option<domain::PaymentMethod>,
+) -> RouterResult<Option<domain::PaymentMethodNetworkTokenData>> {
+    let network_token_data = payment_method_info
+        .as_ref()
+        .and_then(|pm_info| pm_info.network_tokenization_data.clone())
+        .as_ref()
+        .map(|data| data.get_inner().peek().clone())
+        .and_then(|decrypted_val| {
+            serde_json::from_value::<domain::PaymentMethodNetworkTokenizationDataDomainType>(
+                decrypted_val,
+            )
+            .map_err(|_| errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Failed to deserialize network tokenization credentials from merchant_account",
+            )
+            .ok()
+        })
+        .and_then(|nt_data_domain| {
+            nt_data_domain.merchant_map.and_then(
+                |merchant_map: HashMap<
+                    id_type::MerchantId,
+                    domain::PaymentMethodNetworkTokenData,
+                >| merchant_map.get(merchant_id).cloned(),
+            )
+        });
+
+    let nt_ref_id = payment_method_info
+        .as_ref()
+        .and_then(|pm_info| pm_info.network_token_requestor_reference_id.clone());
+
+    match (network_token_data, nt_ref_id) {
+        (Some(nt_data), _) => Ok(Some(nt_data)),
+        (None, Some(_nt_ref)) => {
+            store_network_tokenization_data_for_merchant_in_payment_methods(
+                state,
+                platform,
+                merchant_id,
+                payment_method_info,
+            )
+            .await
+        }
+        (None, None) => Ok(None), //None will be returned in case of no existing network token data and no request reference id, which means the payment method is not network tokenized
+    }
+}
+
+#[cfg(feature = "v1")]
+async fn generate_network_token_data_for_payment_methods(
+    platform: &domain::Platform,
+    network_token_response: Option<domain::PaymentMethodResponse>,
+    network_token_locker_id: Option<String>,
+    network_token_requestor_ref_id: Option<String>,
+    existing_network_token_data: Option<Encryptable<Secret<serde_json::Value>>>,
+) -> RouterResult<Option<domain::PaymentMethodNetworkTokenizationDataDomainType>> {
+    let network_token_data = existing_network_token_data
+        .as_ref()
+        .map(|data| data.get_inner().peek().clone())
+        .and_then(|decrypted_val| {
+            serde_json::from_value::<domain::PaymentMethodNetworkTokenizationDataDomainType>(
+                decrypted_val,
+            )
+            .map_err(|_| errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Failed to deserialize network tokenization credentials from merchant_account",
+            )
+            .ok()
+        });
+    if let Some(((nt_resp, nt_locker_id), nt_ref_id)) = network_token_response
+        .as_ref()
+        .and_then(|nt_resp| nt_resp.card.as_ref())
+        .zip(network_token_locker_id)
+        .zip(network_token_requestor_ref_id)
+    {
+        let card_data = domain::PaymentMethodsData::Card(domain::CardDetailsPaymentMethod::from((
+            nt_resp.clone(),
+            None,
+        )));
+
+        let new_token_data = domain::PaymentMethodNetworkTokenData {
+            network_token_requestor_reference_id: Secret::new(nt_ref_id),
+            network_token_locker_id: Secret::new(nt_locker_id),
+            network_token_payment_method_data: card_data,
+        };
+
+        let merchant_id_key = platform.get_processor().get_account().get_id().to_owned();
+
+        if let Some(existing_nt_data) = network_token_data {
+            let mut new_network_token_data: domain::PaymentMethodNetworkTokenizationDataDomainType =
+                existing_nt_data.clone();
+            let mut map = new_network_token_data.merchant_map.unwrap_or_default();
+            map.insert(merchant_id_key, new_token_data);
+            new_network_token_data.merchant_map = Some(map);
+
+            Ok(Some(new_network_token_data))
+        } else {
+            let mut map = HashMap::new();
+            map.insert(merchant_id_key, new_token_data);
+
+            Ok(Some(
+                domain::PaymentMethodNetworkTokenizationDataDomainType {
+                    merchant_map: Some(map),
+                    profile_map: None,
+                },
+            ))
+        }
+    } else {
+        Ok(network_token_data)
+    }
+}
+
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 async fn generate_network_token_and_update_payment_method(
     state: &SessionState,
@@ -2073,10 +2317,20 @@ async fn generate_network_token_and_update_payment_method(
     billing_name: Option<Secret<String>>,
     payment_method_billing_address: Option<&hyperswitch_domain_models::address::Address>,
     payment_method_info: Option<domain::PaymentMethod>,
+    business_profile: &domain::Profile,
 ) -> RouterResult<()> {
     // check if payment method already has a network token associated
+    let network_tokenization_data = get_network_token_data_for_merchant(
+        state,
+        platform,
+        platform.get_processor().get_account().get_id(),
+        payment_method_info.clone(),
+    )
+    .await
+    .attach_printable("Failed to get network_tokenization_data for merchant")?;
+
     if let Some(true) = payment_method_info.as_ref().map(|pm| {
-        pm.network_token_requestor_reference_id.is_some()
+        network_tokenization_data.is_some()
             || pm.status != common_enums::PaymentMethodStatus::Active
     }) {
         logger::info!(
@@ -2104,6 +2358,7 @@ async fn generate_network_token_and_update_payment_method(
                     card_data,
                     None,
                     payment_method_create_request.clone(),
+                    business_profile,
                 ))
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2141,6 +2396,29 @@ async fn generate_network_token_and_update_payment_method(
                         .attach_printable("Unable to encrypt payment method data")?
                 };
 
+                let network_tokenization_data = generate_network_token_data_for_payment_methods(
+                    platform,
+                    Some(token_resp),
+                    network_token_locker_id.clone(),
+                    network_token_requestor_ref_id.clone(),
+                    pm_info.network_tokenization_data.clone(),
+                )
+                .await
+                .attach_printable("Failed to generate network token data for payment method")?;
+
+                let encrypted_network_tokenization_data = network_tokenization_data
+                    .async_map(|pm_card| {
+                        create_encrypted_data(
+                            &key_manager_state,
+                            platform.get_provider().get_key_store(),
+                            pm_card,
+                        )
+                    })
+                    .await
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to encrypt payment method data")?;
+
                 // Update the payment method with network token details
                 let db = &*state.store;
                 payment_methods::cards::update_payment_method_network_token_data(
@@ -2150,6 +2428,7 @@ async fn generate_network_token_and_update_payment_method(
                     network_token_requestor_ref_id.clone(),
                     network_token_locker_id,
                     pm_network_token_data_encrypted,
+                    encrypted_network_tokenization_data,
                     platform.get_provider().get_account().storage_scheme,
                     platform.get_initiator(),
                 )

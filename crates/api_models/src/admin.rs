@@ -743,6 +743,10 @@ pub struct InternalNetworkTokenizationCredentials {
     /// The key_id used in encryption
     #[schema(value_type = String, max_length = 255, example = "key_1ac9895a6d85414897213gahdac838a8")]
     pub key_id: Secret<String>,
+
+    /// The key_id used in encryption
+    #[schema(value_type = String, max_length = 255, example = "1ac9895a6d85414897213gahdac838a8")]
+    pub webhook_source_verification_key: Secret<String>,
 }
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
