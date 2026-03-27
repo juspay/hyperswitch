@@ -1,5 +1,3 @@
-#[cfg(feature = "v2")]
-use common_utils::ext_traits::AsyncExt;
 use common_utils::ext_traits::{OptionExt, StringExt, ValueExt};
 use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;
@@ -9,8 +7,6 @@ use scheduler::{
     errors as sch_errors, utils as scheduler_utils,
 };
 
-#[cfg(feature = "v2")]
-use crate::workflows::revenue_recovery::update_token_expiry_based_on_schedule_time;
 use crate::{
     core::{
         configs,
@@ -116,7 +112,11 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsPostCaptureVoidSyncWorkflo
             payment_data.payment_intent.is_post_capture_void_applied();
 
         if is_post_capture_void_successful {
-            // already applied, nothing more to process
+            state
+                .store
+                .as_scheduler()
+                .finish_process_with_business_status(process, business_status::COMPLETED_BY_PT)
+                .await?;
         } else if terminal_status.contains(&payment_data.payment_attempt.status)
             || !payment_data.payment_intent.is_post_capture_void_pending()
         {

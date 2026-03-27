@@ -82,7 +82,7 @@ impl Feature<api::PostCaptureVoidSync, types::PaymentsCancelPostCaptureSyncData>
         _return_raw_connector_response: Option<bool>,
         _gateway_context: payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<Self> {
-        metrics::PAYMENT_CANCEL_COUNT.add(
+        metrics::PAYMENT_COUNT.add(
             1,
             router_env::metric_attributes!(("connector", connector.connector_name.to_string())),
         );

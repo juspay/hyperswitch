@@ -2580,15 +2580,16 @@ pub async fn payments_retrieve_core(
             .as_ref()
             .map(|metadata| metadata.is_post_capture_void_pending())
             .unwrap_or(false),
-        Err(_) => return Err(errors::ApiErrorResponse::PaymentNotFound.into()),
+        Err(err) => {
+            return Err(err
+                .change_context(errors::ApiErrorResponse::PaymentNotFound)
+                .into())
+        }
     };
 
     if should_call_void_sync {
         let payload = api::PaymentsCancelPostCaptureSyncBody {
-            payment_id: match payment_id {
-                api::PaymentIdType::PaymentIntentId(id) => id.clone(),
-                _ => return Err(errors::ApiErrorResponse::PaymentNotFound.into()),
-            },
+            payment_id: payment_intent_id,
             merchant_id: None,
         };
 
@@ -14226,7 +14227,7 @@ impl PaymentIntentStateMetadataExt {
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to update payment intent with total_refunded_amount")?;
+        .attach_printable("Failed to update payment intent with post capture void state metadata")?;
 
         Ok(())
     }
