@@ -1282,7 +1282,7 @@ diesel::table! {
 
     payment_methods (id) {
         #[max_length = 64]
-        customer_id -> Varchar,
+        customer_id -> Nullable<Varchar>,
         #[max_length = 64]
         merchant_id -> Varchar,
         created_at -> Timestamp,

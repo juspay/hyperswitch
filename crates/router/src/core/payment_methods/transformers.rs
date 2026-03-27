@@ -1288,11 +1288,7 @@ impl DomainPaymentMethodWrapper {
             .attach_printable("Failed to serialize connector mandate details")?;
 
         Ok(Self(domain::PaymentMethod {
-            //for guest checkout, where customer id, this will fail.
-            customer_id: response
-                .customer_id
-                .clone()
-                .get_required_value("CustomerId")?,
+            customer_id: response.customer_id.clone(),
             merchant_id: response.merchant_id.clone(),
             payment_method_id: response.payment_method_id.clone(),
             accepted_currency: None,
@@ -1342,6 +1338,7 @@ impl DomainPaymentMethodWrapper {
             customer_details: None,
             locker_fingerprint_id: None,
             network_tokenization_data: None,
+            storage_type: response.storage_type,
         }))
     }
 
@@ -1413,11 +1410,7 @@ impl DomainPaymentMethodWrapper {
             .attach_printable("Failed to serialize connector mandate details")?;
 
         Ok(Self(domain::PaymentMethod {
-            //for guest checkout, where customer id, this will fail.
-            customer_id: response
-                .customer_id
-                .clone()
-                .get_required_value("CustomerId")?,
+            customer_id: response.customer_id.clone(),
             merchant_id: response.merchant_id.clone(),
             payment_method_id: response.payment_method_id.clone(),
             accepted_currency: None,
@@ -1467,6 +1460,7 @@ impl DomainPaymentMethodWrapper {
             customer_details: None,
             locker_fingerprint_id: None,
             network_tokenization_data: None,
+            storage_type: response.storage_type,
         }))
     }
 }
@@ -1524,8 +1518,7 @@ impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn try_from(response: CreatePaymentMethodResponse) -> Result<Self, Self::Error> {
         Ok(Self(domain::PaymentMethod {
-            //for guest checkout, where customer id, this will fail.
-            customer_id: response.customer_id.get_required_value("CustomerId")?,
+            customer_id: response.customer_id,
             merchant_id: response.merchant_id,
             payment_method_id: response.payment_method_id,
             accepted_currency: None,
@@ -1571,6 +1564,7 @@ impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
             customer_details: None,
             locker_fingerprint_id: None,
             network_tokenization_data: None,
+            storage_type: response.storage_type,
         }))
     }
 }

@@ -1093,7 +1093,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 if req.customer_acceptance.is_some() {
                     logger::info!("Organization is eligible for PM Modular Service, proceeding to create payment method using PM Modular Service.");
                     //check for req.payment_method_data, if card, create payment method with pm service
-                    let payment_method_info = match req
+                    match req
                         .payment_method_data
                         .as_ref()
                         .and_then(|pmd| pmd.payment_method_data.as_ref())
@@ -1139,27 +1139,24 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                     logger::info!(
                                         "Payment method created in PM Modular service successfully"
                                     );
-                                    Some(pm_info)
+                                    //set payment_data.payment_method_info
+                                    payment_data.set_payment_method_id_in_attempt(Some(
+                                        pm_info.get_id().clone(),
+                                    ));
+                                    payment_data.set_payment_method_info(Some(pm_info));
                                 }
                                 Err(err) => {
                                     logger::error!(
                                         "Error creating payment method in PM Modular service: {:?}",
                                         err
                                     );
-                                    None
                                 }
                             }
                         }
                         _ => {
                             logger::info!("No supported payment method data found for creating payment method in PM Modular service.");
-                            None
                         }
                     };
-                    //set payment_data.payment_method_info
-                    payment_data.payment_attempt.payment_method_id = payment_method_info
-                        .as_ref()
-                        .map(|pm_info| pm_info.get_id().clone());
-                    payment_data.set_payment_method_info(payment_method_info);
 
                     Ok(())
                 } else {
@@ -1231,11 +1228,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     logger::info!("Payment method fetched from PM Modular Service.");
 
                     utils::when(
-                        pm_info.payment_method.0.customer_id
-                            != req
-                                .get_customer_id()
-                                .get_required_value("customer_id")?
-                                .clone(),
+                        pm_info.payment_method.0.customer_id.as_ref() != req.get_customer_id(),
                         || {
                             logger::info!("Payment method id does not belong to the customer id provided in the request.");
                             Err(errors::ApiErrorResponse::PaymentMethodNotFound)

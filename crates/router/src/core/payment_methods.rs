@@ -2851,13 +2851,7 @@ pub async fn construct_payment_method_object(
         .attach_printable("Unable to parse Payment method data")?;
 
     Ok(domain::PaymentMethod {
-        customer_id: Some(
-            customer_id
-                .clone()
-                .unwrap_or(id_type::GlobalCustomerId::generate(
-                    &state.conf.cell_information.id,
-                )),
-        ), //for guest checkout flow where customer id is not present, generated a temporary customer id to handle to conversion to diesel model.
+        customer_id: customer_id.clone(),
         merchant_id: merchant_id.to_owned(),
         id: payment_method_id,
         locker_id,
