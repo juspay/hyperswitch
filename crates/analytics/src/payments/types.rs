@@ -143,6 +143,39 @@ where
                 .attach_printable("Error adding is debit routed filter")?;
         }
 
+        if !self.standardised_code.is_empty() {
+            builder
+                .add_filter_in_range_clause(
+                    PaymentDimensions::StandardisedCode,
+                    &self.standardised_code,
+                )
+                .attach_printable("Error adding standardised code filter")?;
+        }
+
+        if !self.error_category.is_empty() {
+            builder
+                .add_filter_in_range_clause(
+                    PaymentDimensions::ErrorCategory,
+                    &self.error_category,
+                )
+                .attach_printable("Error adding error category filter")?;
+        }
+
+        if !self.unified_code.is_empty() {
+            builder
+                .add_filter_in_range_clause(PaymentDimensions::UnifiedCode, &self.unified_code)
+                .attach_printable("Error adding unified code filter")?;
+        }
+
+        if !self.unified_message.is_empty() {
+            builder
+                .add_filter_in_range_clause(
+                    PaymentDimensions::UnifiedMessage,
+                    &self.unified_message,
+                )
+                .attach_printable("Error adding unified message filter")?;
+        }
+
         Ok(())
     }
 }

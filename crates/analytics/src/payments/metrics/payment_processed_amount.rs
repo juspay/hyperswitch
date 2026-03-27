@@ -126,6 +126,10 @@ where
                         i.signature_network.clone(),
                         i.is_issuer_regulated,
                         i.is_debit_routed,
+                        i.standardised_code.clone(),
+                        i.error_category.clone(),
+                        i.unified_code.clone(),
+                        i.unified_message.clone(),
                         TimeRange {
                             start_time: match (granularity, i.start_bucket) {
                                 (Some(g), Some(st)) => g.clip_to_start(st)?,

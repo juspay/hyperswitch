@@ -49,6 +49,10 @@ pub struct PaymentMetricRow {
     pub card_last_4: Option<String>,
     pub card_issuer: Option<String>,
     pub error_reason: Option<String>,
+    pub standardised_code: Option<String>,
+    pub error_category: Option<String>,
+    pub unified_code: Option<String>,
+    pub unified_message: Option<String>,
     pub first_attempt: Option<bool>,
     pub total: Option<bigdecimal::BigDecimal>,
     pub count: Option<i64>,
@@ -185,8 +189,23 @@ where
                     .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }
+            Self::NormalizedFailureReasons => {
+                sessionized_metrics::NormalizedFailureReasons
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
             Self::SessionizedDebitRouting => {
                 sessionized_metrics::DebitRouting
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::RetrySuccessRateByErrorType => {
+                sessionized_metrics::RetrySuccessRateByErrorType
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::RetrySuccessRateByConnector => {
+                sessionized_metrics::RetrySuccessRateByConnector
                     .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }

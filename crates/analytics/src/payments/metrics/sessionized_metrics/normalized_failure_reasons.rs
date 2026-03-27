@@ -20,10 +20,10 @@ use crate::{
 };
 
 #[derive(Default)]
-pub(crate) struct FailureReasons;
+pub(crate) struct NormalizedFailureReasons;
 
 #[async_trait::async_trait]
-impl<T> super::PaymentMetric<T> for FailureReasons
+impl<T> super::PaymentMetric<T> for NormalizedFailureReasons
 where
     T: AnalyticsDataSource + super::PaymentMetricAnalytics,
     PrimitiveDateTime: ToSql<T>,
@@ -49,7 +49,7 @@ where
 
         inner_query_builder
             .add_custom_filter_clause(
-                PaymentDimensions::ErrorReason,
+                PaymentDimensions::StandardisedCode,
                 "NULL",
                 FilterTypes::IsNotNull,
             )
@@ -82,6 +82,10 @@ where
 
         outer_query_builder
             .add_select_column("first_attempt")
+            .switch()?;
+
+        outer_query_builder
+            .add_select_column(PaymentDimensions::ErrorCategory)
             .switch()?;
 
         outer_query_builder
@@ -118,7 +122,7 @@ where
 
         outer_query_builder
             .add_custom_filter_clause(
-                PaymentDimensions::ErrorReason,
+                PaymentDimensions::StandardisedCode,
                 "NULL",
                 FilterTypes::IsNotNull,
             )
@@ -136,6 +140,11 @@ where
             .attach_printable("Error grouping by first_attempt")
             .switch()?;
 
+        outer_query_builder
+            .add_group_by_clause(PaymentDimensions::ErrorCategory)
+            .attach_printable("Error grouping by error_category")
+            .switch()?;
+
         if let Some(granularity) = granularity {
             granularity
                 .set_group_by_clause(&mut outer_query_builder)
@@ -150,7 +159,7 @@ where
 
         let filtered_dimensions: Vec<&PaymentDimensions> = dimensions
             .iter()
-            .filter(|&&dim| dim != PaymentDimensions::ErrorReason)
+            .filter(|&&dim| dim != PaymentDimensions::StandardisedCode)
             .collect();
 
         for dim in &filtered_dimensions {

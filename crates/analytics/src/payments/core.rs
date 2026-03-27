@@ -179,7 +179,10 @@ pub async fn get_metrics(
                                 .payments_distribution
                                 .add_metrics_bucket(&value);
                         }
-                        PaymentMetrics::FailureReasons => {
+                        PaymentMetrics::FailureReasons
+                        | PaymentMetrics::NormalizedFailureReasons
+                        | PaymentMetrics::RetrySuccessRateByErrorType
+                        | PaymentMetrics::RetrySuccessRateByConnector => {
                             metrics_builder
                                 .failure_reasons_distribution
                                 .add_metrics_bucket(&value);
@@ -443,7 +446,11 @@ pub async fn get_filters(
             PaymentDimensions::RoutingApproach => fil.routing_approach.map(|i| i.as_ref().to_string()),
             PaymentDimensions::SignatureNetwork => fil.signature_network,
             PaymentDimensions::IsIssuerRegulated => fil.is_issuer_regulated.map(|b| b.to_string()),
-            PaymentDimensions::IsDebitRouted => fil.is_debit_routed.map(|b| b.to_string())
+            PaymentDimensions::IsDebitRouted => fil.is_debit_routed.map(|b| b.to_string()),
+            PaymentDimensions::StandardisedCode => fil.standardised_code,
+            PaymentDimensions::ErrorCategory => fil.error_category,
+            PaymentDimensions::UnifiedCode => fil.unified_code,
+            PaymentDimensions::UnifiedMessage => fil.unified_message
         })
         .collect::<Vec<String>>();
         res.query_data.push(FilterValue {

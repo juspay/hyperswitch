@@ -51,6 +51,14 @@ pub struct PaymentFilters {
     pub is_issuer_regulated: Vec<bool>,
     #[serde(default)]
     pub is_debit_routed: Vec<bool>,
+    #[serde(default)]
+    pub standardised_code: Vec<String>,
+    #[serde(default)]
+    pub error_category: Vec<String>,
+    #[serde(default)]
+    pub unified_code: Vec<String>,
+    #[serde(default)]
+    pub unified_message: Vec<String>,
 }
 
 #[derive(
@@ -96,6 +104,10 @@ pub enum PaymentDimensions {
     SignatureNetwork,
     IsIssuerRegulated,
     IsDebitRouted,
+    StandardisedCode,
+    ErrorCategory,
+    UnifiedCode,
+    UnifiedMessage,
 }
 
 #[derive(
@@ -131,6 +143,9 @@ pub enum PaymentMetrics {
     SessionizedDebitRouting,
     PaymentsDistribution,
     FailureReasons,
+    NormalizedFailureReasons,
+    RetrySuccessRateByErrorType,
+    RetrySuccessRateByConnector,
 }
 
 impl ForexMetric for PaymentMetrics {
@@ -220,6 +235,10 @@ pub struct PaymentMetricsBucketIdentifier {
     pub signature_network: Option<String>,
     pub is_issuer_regulated: Option<bool>,
     pub is_debit_routed: Option<bool>,
+    pub standardised_code: Option<String>,
+    pub error_category: Option<String>,
+    pub unified_code: Option<String>,
+    pub unified_message: Option<String>,
     #[serde(rename = "time_range")]
     pub time_bucket: TimeRange,
     // Coz FE sucks
@@ -249,6 +268,10 @@ impl PaymentMetricsBucketIdentifier {
         signature_network: Option<String>,
         is_issuer_regulated: Option<bool>,
         is_debit_routed: Option<bool>,
+        standardised_code: Option<String>,
+        error_category: Option<String>,
+        unified_code: Option<String>,
+        unified_message: Option<String>,
         normalized_time_range: TimeRange,
     ) -> Self {
         Self {
@@ -270,6 +293,10 @@ impl PaymentMetricsBucketIdentifier {
             signature_network,
             is_issuer_regulated,
             is_debit_routed,
+            standardised_code,
+            error_category,
+            unified_code,
+            unified_message,
             time_bucket: normalized_time_range,
             start_time: normalized_time_range.start_time,
         }
@@ -299,6 +326,10 @@ impl Hash for PaymentMetricsBucketIdentifier {
         self.signature_network.hash(state);
         self.is_issuer_regulated.hash(state);
         self.is_debit_routed.hash(state);
+        self.standardised_code.hash(state);
+        self.error_category.hash(state);
+        self.unified_code.hash(state);
+        self.unified_message.hash(state);
         self.time_bucket.hash(state);
     }
 }

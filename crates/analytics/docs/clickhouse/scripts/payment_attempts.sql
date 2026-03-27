@@ -48,6 +48,8 @@ CREATE TABLE payment_attempt_queue (
     `signature_network` Nullable(String),
     `is_issuer_regulated` Nullable(Bool),
     `processor_merchant_id` Nullable(String),
+    `standardised_code` LowCardinality(Nullable(String)),
+    `error_category` LowCardinality(Nullable(String)),
     `sign_flag` Int8
 ) ENGINE = Kafka SETTINGS kafka_broker_list = 'kafka0:29092',
 kafka_topic_list = 'hyperswitch-payment-attempt-events',
@@ -106,12 +108,16 @@ CREATE TABLE payment_attempts (
     `signature_network` Nullable(String),
     `is_issuer_regulated` Nullable(Bool),
     `processor_merchant_id` Nullable(String),
+    `standardised_code` LowCardinality(Nullable(String)),
+    `error_category` LowCardinality(Nullable(String)),
     `sign_flag` Int8,
     INDEX connectorIndex connector TYPE bloom_filter GRANULARITY 1,
     INDEX paymentMethodIndex payment_method TYPE bloom_filter GRANULARITY 1,
     INDEX authenticationTypeIndex authentication_type TYPE bloom_filter GRANULARITY 1,
     INDEX currencyIndex currency TYPE bloom_filter GRANULARITY 1,
-    INDEX statusIndex status TYPE bloom_filter GRANULARITY 1
+    INDEX statusIndex status TYPE bloom_filter GRANULARITY 1,
+    INDEX standardisedCodeIndex standardised_code TYPE bloom_filter GRANULARITY 1,
+    INDEX errorCategoryIndex error_category TYPE bloom_filter GRANULARITY 1
 ) ENGINE = CollapsingMergeTree(sign_flag) PARTITION BY toStartOfDay(created_at)
 ORDER BY
     (created_at, merchant_id, attempt_id) TTL created_at + toIntervalMonth(18) SETTINGS index_granularity = 8192;
@@ -167,6 +173,8 @@ CREATE MATERIALIZED VIEW payment_attempt_mv TO payment_attempts (
     `signature_network` Nullable(String),
     `is_issuer_regulated` Nullable(Bool),
     `processor_merchant_id` Nullable(String),
+    `standardised_code` LowCardinality(Nullable(String)),
+    `error_category` LowCardinality(Nullable(String)),
     `sign_flag` Int8
 ) AS
 SELECT
@@ -220,6 +228,8 @@ SELECT
     signature_network,
     is_issuer_regulated,
     processor_merchant_id,
+    standardised_code,
+    error_category,
     sign_flag
 FROM
     payment_attempt_queue

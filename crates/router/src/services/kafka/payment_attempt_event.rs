@@ -75,6 +75,8 @@ pub struct KafkaPaymentAttemptEvent<'a> {
     pub signature_network: Option<common_enums::CardNetwork>,
     pub is_issuer_regulated: Option<bool>,
     pub processor_merchant_id: &'a id_type::MerchantId,
+    pub standardised_code: Option<String>,
+    pub error_category: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -146,6 +148,13 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
                 .and_then(|data| data.signature_network.clone()),
             is_issuer_regulated: card_payment_method_data.and_then(|data| data.is_regulated),
             processor_merchant_id: &attempt.processor_merchant_id,
+            standardised_code: attempt.error_details.as_ref()
+                .and_then(|d| d.unified_details.as_ref())
+                .and_then(|u| u.standardised_code.as_ref())
+                .map(|c| c.to_string()),
+            error_category: attempt.error_details.as_ref()
+                .and_then(|d| d.unified_details.as_ref())
+                .and_then(|u| u.category.clone()),
         }
     }
 }
@@ -212,6 +221,8 @@ pub struct KafkaPaymentAttemptEvent<'a> {
     pub order_tax_amount: Option<MinorUnit>,
     pub charges: Option<payments::ConnectorChargeResponseData>,
     pub processor_merchant_id: &'a id_type::MerchantId,
+    pub standardised_code: Option<String>,
+    pub error_category: Option<String>,
     pub created_by: Option<&'a types::CreatedBy>,
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
@@ -363,6 +374,13 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
             order_tax_amount: amount_details.get_order_tax_amount(),
             charges: charges.clone(),
             processor_merchant_id,
+            standardised_code: attempt.error_details.as_ref()
+                .and_then(|d| d.unified_details.as_ref())
+                .and_then(|u| u.standardised_code.as_ref())
+                .map(|c| c.to_string()),
+            error_category: attempt.error_details.as_ref()
+                .and_then(|d| d.unified_details.as_ref())
+                .and_then(|u| u.category.clone()),
             created_by: created_by.as_ref(),
             payment_method_type_v2: *payment_method_type,
             connector_payment_id: connector_payment_id.as_ref().cloned(),
