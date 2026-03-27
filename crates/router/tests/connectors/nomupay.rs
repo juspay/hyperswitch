@@ -59,7 +59,7 @@ impl NomupayTest {
             )),
             payout_method_data: Some(api::PayoutMethodData::Bank(
                 api_models::payouts::BankWrapper {
-                    payout_method_type: Some(common_enums::PaymentMethodType::Sepa),
+                    payout_method_type: common_enums::PaymentMethodType::Sepa,
                     data: api::payouts::BankPayout::Sepa(api::SepaBankTransfer {
                         bank_name: Some("Deutsche Bank".to_string()),
                         bank_country_code: Some(enums::CountryAlpha2::DE),

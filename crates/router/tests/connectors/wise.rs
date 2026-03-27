@@ -71,7 +71,7 @@ impl WiseTest {
             )),
             payout_method_data: Some(api::PayoutMethodData::Bank(
                 api_models::payouts::BankWrapper {
-                    payout_method_type: Some(common_enums::PaymentMethodType::Sepa),
+                    payout_method_type: common_enums::PaymentMethodType::Sepa,
                     data: api::payouts::BankPayout::Bacs(api::BacsBankTransfer {
                         bank_sort_code: "231470".to_string().into(),
                         bank_account_number: "28821822".to_string().into(),
