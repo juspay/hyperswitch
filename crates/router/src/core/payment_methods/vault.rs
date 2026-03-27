@@ -872,7 +872,23 @@ impl Vaultable for api::BankPayout {
                     bank_city: bank_insensitive_data.bank_city,
                 })
             }
-            (None, None, None, Some(iban), bic, None, None, _, Some(PaymentMethodType::Sepa)) => {
+            (
+                ban,
+                None,
+                None,
+                iban,
+                None,
+                None,
+                None,
+                Some(country_code),
+                Some(PaymentMethodType::Trustly),
+            ) => Self::Trustly(payouts::TrustlyBankTransfer {
+                iban,
+                bank_account_number: ban,
+                bank_number: bank_sensitive_data.bank_number,
+                bank_country_code: country_code,
+            }),
+            (None, None, None, Some(iban), bic, None, None, _, _) => {
                 Self::Sepa(payouts::SepaBankTransfer {
                     iban,
                     bic,
@@ -890,22 +906,6 @@ impl Vaultable for api::BankPayout {
                     tax_id,
                 })
             }
-            (
-                ban,
-                None,
-                None,
-                iban,
-                None,
-                None,
-                None,
-                Some(country_code),
-                Some(PaymentMethodType::Trustly),
-            ) => Self::Trustly(payouts::TrustlyBankTransfer {
-                iban,
-                bank_account_number: ban,
-                bank_number: bank_sensitive_data.bank_number,
-                bank_country_code: country_code,
-            }),
             _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
         };
 
