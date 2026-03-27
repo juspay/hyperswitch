@@ -1601,7 +1601,7 @@ pub struct VerifyWebhookSourceRequestData {
     pub webhook_uri: http::Uri,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct MandateRevokeRequestData {
     pub mandate_id: String,
     pub connector_mandate_id: Option<String>,
