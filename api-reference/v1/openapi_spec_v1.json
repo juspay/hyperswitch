@@ -13022,14 +13022,12 @@
           },
           {
             "type": "object",
+            "required": [
+              "payout_method_type"
+            ],
             "properties": {
               "payout_method_type": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/PaymentMethodType"
-                  }
-                ],
-                "nullable": true
+                "$ref": "#/components/schemas/PaymentMethodType"
               }
             }
           }

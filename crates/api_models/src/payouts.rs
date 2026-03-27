@@ -279,7 +279,7 @@ pub struct CardPayout {
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, ToSchema)]
 pub struct BankWrapper {
-    pub payout_method_type: Option<PaymentMethodType>,
+    pub payout_method_type: PaymentMethodType,
     #[serde(flatten)]
     pub data: Bank,
 }
@@ -317,29 +317,30 @@ impl<'de> Deserialize<'de> for BankWrapper {
         // Step 2: Extract payout_method_type if present
         let payout_method_type = value
             .get("payout_method_type")
-            .and_then(|v| serde_json::from_value(v.clone()).ok());
+            .ok_or_else(|| serde::de::Error::missing_field("payout_method_type"))
+            .and_then(|v| serde_json::from_value(v.clone()).map_err(serde::de::Error::custom))?;
 
         // Step 3: Deserialize Bank based on payout_method_type OR fallback
         let data = match payout_method_type {
-            Some(PaymentMethodType::Ach) => {
+            PaymentMethodType::Ach => {
                 Bank::Ach(serde_json::from_value(value.clone()).map_err(serde::de::Error::custom)?)
             }
-            Some(PaymentMethodType::Bacs) => {
+            PaymentMethodType::Bacs => {
                 Bank::Bacs(serde_json::from_value(value.clone()).map_err(serde::de::Error::custom)?)
             }
-            Some(PaymentMethodType::Sepa) => {
+            PaymentMethodType::Sepa => {
                 Bank::Sepa(serde_json::from_value(value.clone()).map_err(serde::de::Error::custom)?)
             }
-            Some(PaymentMethodType::Pix) => {
+            PaymentMethodType::Pix => {
                 Bank::Pix(serde_json::from_value(value.clone()).map_err(serde::de::Error::custom)?)
             }
-            Some(PaymentMethodType::Trustly) => Bank::Trustly(
+            PaymentMethodType::Trustly => Bank::Trustly(
                 serde_json::from_value(value.clone()).map_err(serde::de::Error::custom)?,
             ),
-            _ => {
-                // Step 4: Fallback to untagged matching
-                serde_json::from_value::<Bank>(value.clone()).map_err(serde::de::Error::custom)?
-            }
+            _ => Err(serde::de::Error::custom(format!(
+                "Unsupported Payout Method Type: {:?}",
+                payout_method_type
+            )))?,
         };
 
         Ok(Self {

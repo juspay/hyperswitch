@@ -590,7 +590,7 @@ impl PaymentMethodsController for PmCards<'_> {
     > {
         let key = key_store.key.get_inner().peek();
         let payout_method_data = api::PayoutMethodData::Bank(api_models::payouts::BankWrapper {
-            payout_method_type: None,
+            payout_method_type: bank.payout_method_type(),
             data: bank.to_owned(),
         });
         let key_manager_state: KeyManagerState = self.state.into();

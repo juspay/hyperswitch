@@ -998,7 +998,7 @@ impl Vaultable for api::PayoutMethodData {
                 let (bank, supp_data) = api::BankPayout::from_values(mvalue1, mvalue2)?;
                 Ok((
                     Self::Bank(api_models::payouts::BankWrapper {
-                        payout_method_type: Some(bank.payout_method_type()),
+                        payout_method_type: bank.payout_method_type(),
                         data: bank.to_owned(),
                     }),
                     supp_data,
