@@ -2256,17 +2256,16 @@ impl
             .map(|p| Periodicidade::from(p.clone()))
             .unwrap_or(Periodicidade::Semanal);
 
-        let valor = if item.request.amount > 0 {
-            let valor_rec = mandate_details
+        let valor = Some(RecurrenceValue {
+            valor_rec: mandate_details
                 .and_then(|md| md.amount.clone())
-                .or_else(|| Some(value.amount.clone()));
-            Some(RecurrenceValue {
-                valor_rec,
-                valor_minimo_recebedor: None,
-            })
-        } else {
-            None
-        };
+                .or_else(|| Some(value.amount.clone())),
+            valor_minimo_recebedor: if value.router_data.request.amount > 0 {
+                Some(value.amount.clone())
+            } else {
+                None
+            },
+        });
 
         let is_immediate = item
             .request
