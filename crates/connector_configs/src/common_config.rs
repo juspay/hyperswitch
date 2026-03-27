@@ -99,6 +99,7 @@ pub struct ApiModelMetaData {
     pub three_ds_requestor_id: Option<String>,
     pub pull_mechanism_for_external_3ds_enabled: Option<bool>,
     pub klarna_region: Option<KlarnaEndpoint>,
+    pub region: Option<NoonRegion>,
     pub source_balance_account: Option<String>,
     pub brand_id: Option<String>,
     pub destination_account_number: Option<String>,
@@ -120,6 +121,14 @@ pub enum KlarnaEndpoint {
     Europe,
     NorthAmerica,
     Oceania,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub enum NoonRegion {
+    Global,
+    Ksa,
+    Egypt,
 }
 
 #[serde_with::skip_serializing_none]

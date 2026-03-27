@@ -75,7 +75,7 @@ use crate::{
     routes::{self, payment_methods as pm_routes},
     services::encryption,
     types::{
-        api::PaymentMethodCreateExt,
+        api::{PaymentMethodCreateExt, PaymentMethodSessionExt},
         domain::types as domain_types,
         storage::{ephemeral_key, PaymentMethodListContext},
         transformers::{ForeignFrom, ForeignTryFrom},
@@ -2797,6 +2797,7 @@ pub async fn create_payment_method_for_intent(
                 created_by: initiator.and_then(|initiator| initiator.to_created_by()),
                 last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
                 customer_details: None,
+                network_tokenization_data: None,
             },
             storage_scheme,
         )
@@ -2850,13 +2851,7 @@ pub async fn construct_payment_method_object(
         .attach_printable("Unable to parse Payment method data")?;
 
     Ok(domain::PaymentMethod {
-        customer_id: Some(
-            customer_id
-                .clone()
-                .unwrap_or(id_type::GlobalCustomerId::generate(
-                    &state.conf.cell_information.id,
-                )),
-        ), //for guest checkout flow where customer id is not present, generated a temporary customer id to handle to conversion to diesel model.
+        customer_id: customer_id.clone(),
         merchant_id: merchant_id.to_owned(),
         id: payment_method_id,
         locker_id,
@@ -2884,6 +2879,7 @@ pub async fn construct_payment_method_object(
         created_by: initiator.and_then(|initiator| initiator.to_created_by()),
         last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
         customer_details: None,
+        network_tokenization_data: None,
     })
 }
 
@@ -2945,6 +2941,7 @@ pub async fn create_payment_method_for_confirm(
                 created_by: initiator.and_then(|initiator| initiator.to_created_by()),
                 last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
                 customer_details: None,
+                network_tokenization_data: None,
             },
             storage_scheme,
         )
@@ -4943,8 +4940,7 @@ fn construct_zero_auth_payments_request(
         ),
         payment_method_data: confirm_request.payment_method_data.clone(),
         payment_method_type: confirm_request.payment_method_type,
-        payment_method_subtype: payment_method_subtype
-            .get_required_value("payment_method_subtype")?,
+        payment_method_subtype,
         customer_id: payment_method_session.customer_id.clone(),
         customer_present: Some(enums::PresenceOfCustomerDuringPayment::Present),
         setup_future_usage: Some(common_enums::FutureUsage::OffSession),
@@ -4971,7 +4967,7 @@ fn construct_zero_auth_payments_request(
         session_expiry: None,
         frm_metadata: None,
         request_external_three_ds_authentication: None,
-        customer_acceptance: None,
+        customer_acceptance: confirm_request.customer_acceptance.clone(),
         browser_info: None,
         force_3ds_challenge: None,
         is_iframe_redirection_enabled: None,
@@ -5018,7 +5014,6 @@ pub async fn payment_methods_session_confirm(
     request: payment_methods::PaymentMethodSessionConfirmRequest,
 ) -> RouterResponse<payment_methods::PaymentMethodSessionResponse> {
     let db: &dyn StorageInterface = state.store.as_ref();
-    request.validate()?;
 
     // Validate if the session still exists
     let payment_method_session = db
@@ -5031,6 +5026,8 @@ pub async fn payment_methods_session_confirm(
             message: "payment methods session does not exist or has expired".to_string(),
         })
         .attach_printable("Failed to retrieve payment methods session from db")?;
+
+    request.validate(&payment_method_session)?;
 
     let payment_method_session_billing = payment_method_session
         .billing
@@ -5145,6 +5142,7 @@ pub async fn payment_methods_session_confirm(
                 &create_payment_method_request.clone(),
                 &payment_method_response,
                 &payment_method_session,
+                request.customer_acceptance.clone(),
             ))
             .await?;
             None
@@ -5260,6 +5258,7 @@ async fn create_single_use_tokenization_flow(
     payment_method_create_request: &payment_methods::PaymentMethodCreate,
     payment_method: &api::PaymentMethodResponse,
     payment_method_session: &domain::payment_methods::PaymentMethodSession,
+    customer_acceptance: Option<common_types::payments::CustomerAcceptance>,
 ) -> RouterResult<()> {
     let customer_id = payment_method_create_request.customer_id.to_owned();
     let connector_id = payment_method_create_request
@@ -5302,7 +5301,7 @@ async fn create_single_use_tokenization_flow(
         split_payments: None,
         mandate_id: None,
         setup_future_usage: None,
-        customer_acceptance: None,
+        customer_acceptance,
         setup_mandate_details: None,
         payment_method_type: None,
         capture_method: None,
