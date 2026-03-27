@@ -1568,7 +1568,7 @@ pub struct PaymentsRequest {
     pub is_stored_credential: Option<bool>,
 
     /// Specifies the category of a Merchant Initiated Transaction (MIT). In the case of MIT, `mit_category` tells what kind of MIT is being processed. In the case of CIT, it tells the future intended MIT type.
-    #[schema(value_type = Option<MitCategory>, example = "recurring", description = "Specifies the category of a Merchant Initiated Transaction (MIT). In the case of MIT, mit_category tells what kind of MIT is being processed. In the case of CIT, it tells the future intended MIT type.")]
+    #[schema(value_type = Option<MitCategory>, example = "recurring")]
     #[smithy(value_type = "Option<MitCategory>")]
     pub mit_category: Option<api_enums::MitCategory>,
 
@@ -7719,7 +7719,7 @@ pub struct PaymentsResponse {
     pub is_stored_credential: Option<bool>,
 
     /// Specifies the category of a Merchant Initiated Transaction (MIT). In the case of MIT, `mit_category` tells what kind of MIT is being processed. In the case of CIT, it tells the future intended MIT type.
-    #[schema(value_type = Option<MitCategory>, example = "recurring", description = "Specifies the category of a Merchant Initiated Transaction (MIT). In the case of MIT, mit_category tells what kind of MIT is being processed. In the case of CIT, it tells the future intended MIT type.")]
+    #[schema(value_type = Option<MitCategory>, example = "recurring")]
     #[smithy(value_type = "Option<MitCategory>")]
     pub mit_category: Option<api_enums::MitCategory>,
 
