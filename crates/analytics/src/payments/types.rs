@@ -154,10 +154,7 @@ where
 
         if !self.error_category.is_empty() {
             builder
-                .add_filter_in_range_clause(
-                    PaymentDimensions::ErrorCategory,
-                    &self.error_category,
-                )
+                .add_filter_in_range_clause(PaymentDimensions::ErrorCategory, &self.error_category)
                 .attach_printable("Error adding error category filter")?;
         }
 

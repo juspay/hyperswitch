@@ -76,8 +76,7 @@ where
             .attach_printable("Error filtering time range for inner query")
             .switch()?;
 
-        auth.set_filter_clause(&mut inner_query_builder)
-            .switch()?;
+        auth.set_filter_clause(&mut inner_query_builder).switch()?;
 
         let inner_query_string = inner_query_builder
             .build_query()
@@ -305,8 +304,7 @@ where
             .attach_printable("Error filtering time range for inner query")
             .switch()?;
 
-        auth.set_filter_clause(&mut inner_query_builder)
-            .switch()?;
+        auth.set_filter_clause(&mut inner_query_builder).switch()?;
 
         let inner_query_string = inner_query_builder
             .build_query()

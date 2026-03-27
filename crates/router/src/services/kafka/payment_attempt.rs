@@ -147,14 +147,18 @@ impl<'a> KafkaPaymentAttempt<'a> {
                 .and_then(|data| data.signature_network.clone()),
             is_issuer_regulated: card_payment_method_data.and_then(|data| data.is_regulated),
             processor_merchant_id: &attempt.processor_merchant_id,
-            standardised_code: attempt.error_details.as_ref()
+            standardised_code: attempt
+                .error_details
+                .as_ref()
                 .and_then(|d| d.unified_details.as_ref())
                 .and_then(|u| u.standardised_code.as_ref())
                 .map(|c| c.to_string()),
             // error_category from GSM is not persisted on PaymentAttempt in v1.
             // Derive from standardised_code using the official mapping table.
             // NOTE: For production, this should come from GSM cache or be persisted on PaymentAttempt.
-            error_category: attempt.error_details.as_ref()
+            error_category: attempt
+                .error_details
+                .as_ref()
                 .and_then(|d| d.unified_details.as_ref())
                 .and_then(|u| u.standardised_code.as_ref())
                 .map(|code| match code {
@@ -172,15 +176,17 @@ impl<'a> KafkaPaymentAttempt<'a> {
                     | storage_enums::StandardisedCode::AuthenticationFailed
                     | storage_enums::StandardisedCode::PaymentCancelledByUser
                     | storage_enums::StandardisedCode::TransactionNotPermitted
-                    | storage_enums::StandardisedCode::WalletOrTokenConfigIssue
-                    => "issue_with_payment_method".to_string(),
+                    | storage_enums::StandardisedCode::WalletOrTokenConfigIssue => {
+                        "issue_with_payment_method".to_string()
+                    }
 
                     // UE_1000: Soft declines (retryable fund issues)
                     storage_enums::StandardisedCode::InsufficientFunds
                     | storage_enums::StandardisedCode::CreditLimitExceeded
                     | storage_enums::StandardisedCode::VelocityLimitExceeded
-                    | storage_enums::StandardisedCode::PaymentSessionTimeout
-                    => "soft_decline".to_string(),
+                    | storage_enums::StandardisedCode::PaymentSessionTimeout => {
+                        "soft_decline".to_string()
+                    }
 
                     // UE_2000: Configuration issues
                     storage_enums::StandardisedCode::ConfigurationIssue
@@ -189,8 +195,9 @@ impl<'a> KafkaPaymentAttempt<'a> {
                     | storage_enums::StandardisedCode::CurrencyOrCorridorNotEnabled
                     | storage_enums::StandardisedCode::StoredCredentialOrMitNotEnabled
                     | storage_enums::StandardisedCode::ThreeDsConfigurationIssue
-                    | storage_enums::StandardisedCode::SubscriptionPlanInactive
-                    => "processor_decline_incorrect_data".to_string(),
+                    | storage_enums::StandardisedCode::SubscriptionPlanInactive => {
+                        "processor_decline_incorrect_data".to_string()
+                    }
 
                     // UE_3000: Downstream/PSP technical issues (retryable on different PSP)
                     storage_enums::StandardisedCode::DownstreamTechnicalIssue
@@ -198,18 +205,19 @@ impl<'a> KafkaPaymentAttempt<'a> {
                     | storage_enums::StandardisedCode::TransactionTimedOut
                     | storage_enums::StandardisedCode::PspAcquirerError
                     | storage_enums::StandardisedCode::ThreeDsAuthenticationServiceIssue
-                    | storage_enums::StandardisedCode::AuthenticationRequired
-                    => "processor_downtime".to_string(),
+                    | storage_enums::StandardisedCode::AuthenticationRequired => {
+                        "processor_downtime".to_string()
+                    }
 
                     // UE_3000: Fraud-related declines
                     storage_enums::StandardisedCode::SuspectedFraud
                     | storage_enums::StandardisedCode::PspFraudEngineDecline
-                    | storage_enums::StandardisedCode::ComplianceOrSanctionsRestriction
-                    => "frm_decline".to_string(),
+                    | storage_enums::StandardisedCode::ComplianceOrSanctionsRestriction => {
+                        "frm_decline".to_string()
+                    }
 
                     // UE_3000: Do not honor (soft decline, retryable)
-                    storage_enums::StandardisedCode::DoNotHonor
-                    => "soft_decline".to_string(),
+                    storage_enums::StandardisedCode::DoNotHonor => "soft_decline".to_string(),
 
                     // UE_4000: Integration issues
                     storage_enums::StandardisedCode::IntegrationIssue
@@ -220,12 +228,14 @@ impl<'a> KafkaPaymentAttempt<'a> {
                     | storage_enums::StandardisedCode::InvalidState
                     | storage_enums::StandardisedCode::ThreeDsDataOrProtocolInvalid
                     | storage_enums::StandardisedCode::RateLimit
-                    | storage_enums::StandardisedCode::IntegCryptographicIssue
-                    => "processor_decline_incorrect_data".to_string(),
+                    | storage_enums::StandardisedCode::IntegCryptographicIssue => {
+                        "processor_decline_incorrect_data".to_string()
+                    }
 
                     // UE_9000: Generic unknown
-                    storage_enums::StandardisedCode::GenericUnknownError
-                    => "soft_decline".to_string(),
+                    storage_enums::StandardisedCode::GenericUnknownError => {
+                        "soft_decline".to_string()
+                    }
                 }),
         }
     }

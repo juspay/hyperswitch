@@ -148,11 +148,15 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
                 .and_then(|data| data.signature_network.clone()),
             is_issuer_regulated: card_payment_method_data.and_then(|data| data.is_regulated),
             processor_merchant_id: &attempt.processor_merchant_id,
-            standardised_code: attempt.error_details.as_ref()
+            standardised_code: attempt
+                .error_details
+                .as_ref()
                 .and_then(|d| d.unified_details.as_ref())
                 .and_then(|u| u.standardised_code.as_ref())
                 .map(|c| c.to_string()),
-            error_category: attempt.error_details.as_ref()
+            error_category: attempt
+                .error_details
+                .as_ref()
                 .and_then(|d| d.unified_details.as_ref())
                 .and_then(|u| u.category.clone()),
         }
@@ -374,11 +378,15 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
             order_tax_amount: amount_details.get_order_tax_amount(),
             charges: charges.clone(),
             processor_merchant_id,
-            standardised_code: attempt.error_details.as_ref()
+            standardised_code: attempt
+                .error_details
+                .as_ref()
                 .and_then(|d| d.unified_details.as_ref())
                 .and_then(|u| u.standardised_code.as_ref())
                 .map(|c| c.to_string()),
-            error_category: attempt.error_details.as_ref()
+            error_category: attempt
+                .error_details
+                .as_ref()
                 .and_then(|d| d.unified_details.as_ref())
                 .and_then(|u| u.category.clone()),
             created_by: created_by.as_ref(),
