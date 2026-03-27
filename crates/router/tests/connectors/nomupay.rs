@@ -57,15 +57,18 @@ impl NomupayTest {
                 None,
                 None,
             )),
-            payout_method_data: Some(api::PayoutMethodData::Bank(api::payouts::BankPayout::Sepa(
-                api::SepaBankTransfer {
-                    bank_name: Some("Deutsche Bank".to_string()),
-                    bank_country_code: Some(enums::CountryAlpha2::DE),
-                    bank_city: Some("Munich".to_string()),
-                    iban: Secret::new("DE57331060435647542639".to_string()),
-                    bic: Some(Secret::new("DEUTDE5M551".to_string())),
+            payout_method_data: Some(api::PayoutMethodData::Bank(
+                api_models::payouts::BankWrapper {
+                    payout_method_type: Some(common_enums::PaymentMethodType::Sepa),
+                    data: api::payouts::BankPayout::Sepa(api::SepaBankTransfer {
+                        bank_name: Some("Deutsche Bank".to_string()),
+                        bank_country_code: Some(enums::CountryAlpha2::DE),
+                        bank_city: Some("Munich".to_string()),
+                        iban: Secret::new("DE57331060435647542639".to_string()),
+                        bic: Some(Secret::new("DEUTDE5M551".to_string())),
+                    }),
                 },
-            ))),
+            )),
             ..Default::default()
         })
     }

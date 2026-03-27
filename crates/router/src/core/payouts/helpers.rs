@@ -374,9 +374,9 @@ pub async fn save_payout_data_to_locker(
                     payouts::PayoutMethodData::Bank(bank) => (
                         payload,
                         None,
-                        Some(bank.to_owned()),
+                        Some(bank.data.to_owned()),
                         None,
-                        api_enums::PaymentMethodType::foreign_from(bank),
+                        api_enums::PaymentMethodType::foreign_from(&bank.data),
                     ),
                     payouts::PayoutMethodData::Wallet(wallet) => (
                         payload,
@@ -1567,7 +1567,7 @@ pub async fn get_additional_payout_data(
         }
         api::PayoutMethodData::Bank(bank_data) => {
             Some(payout_additional::AdditionalPayoutMethodData::Bank(
-                Box::new(bank_data.to_owned().into()),
+                Box::new(bank_data.data.to_owned().into()),
             ))
         }
         api::PayoutMethodData::Wallet(wallet_data) => {

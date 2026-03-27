@@ -6240,7 +6240,7 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                 connector: "Adyen",
             })?,
             PayoutMethodData::Bank(bd) => {
-                let bank_details = match bd {
+                let bank_details = match bd.data {
                     payouts::Bank::Sepa(b) => PayoutBankDetails {
                         bank_name: b.bank_name,
                         country_code: b.bank_country_code,

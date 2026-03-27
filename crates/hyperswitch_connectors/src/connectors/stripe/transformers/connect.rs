@@ -406,7 +406,7 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectRecipientAccountCreateRe
                     external_account: "tok_visa_debit".to_string(),
                 }))
             }
-            api_models::payouts::PayoutMethodData::Bank(bank) => match bank {
+            api_models::payouts::PayoutMethodData::Bank(bank) => match bank.data {
                 api_models::payouts::Bank::Ach(bank_details) => {
                     Ok(Self::Bank(RecipientBankAccountRequest {
                         external_account_object: "bank_account".to_string(),

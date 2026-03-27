@@ -704,7 +704,7 @@ pub struct TokenizedBankInsensitiveValues {
     pub bank_country_code: Option<api::enums::CountryAlpha2>,
     pub bank_city: Option<String>,
     pub bank_branch: Option<String>,
-    pub country_code: Option<api::enums::CountryAlpha2>,
+    pub payout_method_type: Option<PaymentMethodType>,
 }
 
 #[cfg(feature = "payouts")]
@@ -755,7 +755,7 @@ impl Vaultable for api::BankPayout {
                 bank_number: None,
             },
             Self::Trustly(bank_details) => TokenizedBankSensitiveValues {
-                bank_account_number: bank_details.account_number.to_owned(),
+                bank_account_number: bank_details.bank_account_number.to_owned(),
                 bank_routing_number: None,
                 bic: None,
                 bank_sort_code: None,
@@ -783,7 +783,7 @@ impl Vaultable for api::BankPayout {
                 bank_country_code: b.bank_country_code.to_owned(),
                 bank_city: b.bank_city.to_owned(),
                 bank_branch: None,
-                country_code: None,
+                payout_method_type: Some(PaymentMethodType::Ach),
             },
             Self::Bacs(b) => TokenizedBankInsensitiveValues {
                 customer_id,
@@ -791,7 +791,7 @@ impl Vaultable for api::BankPayout {
                 bank_country_code: b.bank_country_code.to_owned(),
                 bank_city: b.bank_city.to_owned(),
                 bank_branch: None,
-                country_code: None,
+                payout_method_type: Some(PaymentMethodType::Bacs),
             },
             Self::Sepa(bank_details) => TokenizedBankInsensitiveValues {
                 customer_id,
@@ -799,7 +799,7 @@ impl Vaultable for api::BankPayout {
                 bank_country_code: bank_details.bank_country_code.to_owned(),
                 bank_city: bank_details.bank_city.to_owned(),
                 bank_branch: None,
-                country_code: None,
+                payout_method_type: Some(PaymentMethodType::Sepa),
             },
             Self::Pix(bank_details) => TokenizedBankInsensitiveValues {
                 customer_id,
@@ -807,15 +807,15 @@ impl Vaultable for api::BankPayout {
                 bank_country_code: None,
                 bank_city: None,
                 bank_branch: bank_details.bank_branch.to_owned(),
-                country_code: None,
+                payout_method_type: Some(PaymentMethodType::Pix),
             },
             Self::Trustly(bank_details) => TokenizedBankInsensitiveValues {
                 customer_id,
                 bank_name: None,
-                bank_country_code: None,
                 bank_city: None,
                 bank_branch: None,
-                country_code: Some(bank_details.country_code.to_owned()),
+                bank_country_code: Some(bank_details.bank_country_code.to_owned()),
+                payout_method_type: Some(PaymentMethodType::Trustly),
             },
         };
 
@@ -851,27 +851,44 @@ impl Vaultable for api::BankPayout {
             bank_sensitive_data.pix_key,
             bank_sensitive_data.tax_id,
             // TRUSTLY
-            bank_insensitive_data.country_code,
+            bank_insensitive_data.bank_country_code,
+            bank_insensitive_data.payout_method_type, //ALL
         ) {
-            (Some(ban), Some(brn), None, None, None, None, None, None) => {
-                Self::Ach(payouts::AchBankTransfer {
-                    bank_account_number: ban,
-                    bank_routing_number: brn,
-                    bank_name: bank_insensitive_data.bank_name,
-                    bank_country_code: bank_insensitive_data.bank_country_code,
-                    bank_city: bank_insensitive_data.bank_city,
-                })
-            }
-            (Some(ban), None, Some(bsc), None, None, None, None, None) => {
-                Self::Bacs(payouts::BacsBankTransfer {
-                    bank_account_number: ban,
-                    bank_sort_code: bsc,
-                    bank_name: bank_insensitive_data.bank_name,
-                    bank_country_code: bank_insensitive_data.bank_country_code,
-                    bank_city: bank_insensitive_data.bank_city,
-                })
-            }
-            (None, None, None, Some(iban), bic, None, None, None) => {
+            (
+                Some(ban),
+                Some(brn),
+                None,
+                None,
+                None,
+                None,
+                None,
+                _,
+                Some(PaymentMethodType::Ach),
+            ) => Self::Ach(payouts::AchBankTransfer {
+                bank_account_number: ban,
+                bank_routing_number: brn,
+                bank_name: bank_insensitive_data.bank_name,
+                bank_country_code: bank_insensitive_data.bank_country_code,
+                bank_city: bank_insensitive_data.bank_city,
+            }),
+            (
+                Some(ban),
+                None,
+                Some(bsc),
+                None,
+                None,
+                None,
+                None,
+                _,
+                Some(PaymentMethodType::Bacs),
+            ) => Self::Bacs(payouts::BacsBankTransfer {
+                bank_account_number: ban,
+                bank_sort_code: bsc,
+                bank_name: bank_insensitive_data.bank_name,
+                bank_country_code: bank_insensitive_data.bank_country_code,
+                bank_city: bank_insensitive_data.bank_city,
+            }),
+            (None, None, None, Some(iban), bic, None, None, _, Some(PaymentMethodType::Sepa)) => {
                 Self::Sepa(payouts::SepaBankTransfer {
                     iban,
                     bic,
@@ -880,23 +897,39 @@ impl Vaultable for api::BankPayout {
                     bank_city: bank_insensitive_data.bank_city,
                 })
             }
-            (Some(ban), None, None, None, None, Some(pix_key), tax_id, None) => {
-                Self::Pix(payouts::PixBankTransfer {
-                    bank_account_number: ban,
-                    bank_branch: bank_insensitive_data.bank_branch,
-                    bank_name: bank_insensitive_data.bank_name,
-                    pix_key,
-                    tax_id,
-                })
-            }
-            (account_number, None, None, iban, None, None, None, Some(country_code)) => {
-                Self::Trustly(payouts::TrustlyBankTransfer {
-                    iban,
-                    account_number,
-                    bank_number: bank_sensitive_data.bank_number,
-                    country_code,
-                })
-            }
+            (
+                Some(ban),
+                None,
+                None,
+                None,
+                None,
+                Some(pix_key),
+                tax_id,
+                _,
+                Some(PaymentMethodType::Pix),
+            ) => Self::Pix(payouts::PixBankTransfer {
+                bank_account_number: ban,
+                bank_branch: bank_insensitive_data.bank_branch,
+                bank_name: bank_insensitive_data.bank_name,
+                pix_key,
+                tax_id,
+            }),
+            (
+                ban,
+                None,
+                None,
+                iban,
+                None,
+                None,
+                None,
+                Some(country_code),
+                Some(PaymentMethodType::Trustly),
+            ) => Self::Trustly(payouts::TrustlyBankTransfer {
+                iban,
+                bank_account_number: ban,
+                bank_number: bank_sensitive_data.bank_number,
+                bank_country_code: country_code,
+            }),
             _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
         };
 
@@ -928,7 +961,7 @@ impl Vaultable for api::PayoutMethodData {
     ) -> CustomResult<String, errors::VaultError> {
         let value1 = match self {
             Self::Card(card) => VaultPayoutMethod::Card(card.get_value1(customer_id)?),
-            Self::Bank(bank) => VaultPayoutMethod::Bank(bank.get_value1(customer_id)?),
+            Self::Bank(bank) => VaultPayoutMethod::Bank(bank.data.get_value1(customer_id)?),
             Self::Wallet(wallet) => VaultPayoutMethod::Wallet(wallet.get_value1(customer_id)?),
             Self::BankRedirect(bank_redirect) => {
                 VaultPayoutMethod::BankRedirect(bank_redirect.get_value1(customer_id)?)
@@ -950,7 +983,7 @@ impl Vaultable for api::PayoutMethodData {
     ) -> CustomResult<String, errors::VaultError> {
         let value2 = match self {
             Self::Card(card) => VaultPayoutMethod::Card(card.get_value2(customer_id)?),
-            Self::Bank(bank) => VaultPayoutMethod::Bank(bank.get_value2(customer_id)?),
+            Self::Bank(bank) => VaultPayoutMethod::Bank(bank.data.get_value2(customer_id)?),
             Self::Wallet(wallet) => VaultPayoutMethod::Wallet(wallet.get_value2(customer_id)?),
             Self::BankRedirect(bank_redirect) => {
                 VaultPayoutMethod::BankRedirect(bank_redirect.get_value2(customer_id)?)
@@ -987,7 +1020,13 @@ impl Vaultable for api::PayoutMethodData {
             }
             (VaultPayoutMethod::Bank(mvalue1), VaultPayoutMethod::Bank(mvalue2)) => {
                 let (bank, supp_data) = api::BankPayout::from_values(mvalue1, mvalue2)?;
-                Ok((Self::Bank(bank), supp_data))
+                Ok((
+                    Self::Bank(api_models::payouts::BankWrapper {
+                        payout_method_type: None,
+                        data: bank.to_owned(),
+                    }),
+                    supp_data,
+                ))
             }
             (VaultPayoutMethod::Wallet(mvalue1), VaultPayoutMethod::Wallet(mvalue2)) => {
                 let (wallet, supp_data) = api::WalletPayout::from_values(mvalue1, mvalue2)?;

@@ -13015,6 +13015,26 @@
           "savings"
         ]
       },
+      "BankWrapper": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Bank"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "payout_method_type": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PaymentMethodType"
+                  }
+                ],
+                "nullable": true
+              }
+            }
+          }
+        ]
+      },
       "BecsBankDebitAdditionalData": {
         "type": "object",
         "required": [
@@ -33579,7 +33599,7 @@
             ],
             "properties": {
               "bank": {
-                "$ref": "#/components/schemas/Bank"
+                "$ref": "#/components/schemas/BankWrapper"
               }
             }
           },
@@ -40038,8 +40058,8 @@
         "type": "object",
         "required": [
           "iban",
-          "country_code",
-          "account_number",
+          "bank_country_code",
+          "bank_account_number",
           "bank_number"
         ],
         "properties": {
@@ -40048,10 +40068,10 @@
             "description": "International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.",
             "example": "token_12345"
           },
-          "country_code": {
+          "bank_country_code": {
             "$ref": "#/components/schemas/CountryAlpha2"
           },
-          "account_number": {
+          "bank_account_number": {
             "type": "string",
             "description": "The account number, identifying the end-user's account in the bank.",
             "example": "69706212"
@@ -40068,8 +40088,8 @@
         "description": "Masked payout method details for Trustly bank transfer payout method",
         "required": [
           "iban",
-          "country_code",
-          "account_number",
+          "bank_country_code",
+          "bank_account_number",
           "bank_number"
         ],
         "properties": {
@@ -40078,10 +40098,10 @@
             "description": "International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.",
             "example": "token_12345"
           },
-          "country_code": {
+          "bank_country_code": {
             "$ref": "#/components/schemas/CountryAlpha2"
           },
-          "account_number": {
+          "bank_account_number": {
             "type": "string",
             "description": "The account number, identifying the end-user's account in the bank.",
             "example": "69706212"

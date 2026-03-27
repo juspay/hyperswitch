@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use cards::CardNumber;
-use common_enums::CardNetwork;
+use common_enums::{CardNetwork, PaymentMethodType};
 #[cfg(feature = "v2")]
 use common_utils::types::BrowserInformation;
 use common_utils::{
@@ -242,7 +242,7 @@ pub struct PayoutCreatePayoutLinkConfig {
 #[serde(rename_all = "snake_case")]
 pub enum PayoutMethodData {
     Card(CardPayout),
-    Bank(Bank),
+    Bank(BankWrapper),
     Wallet(Wallet),
     BankRedirect(BankRedirect),
     Passthrough(Passthrough),
@@ -278,6 +278,13 @@ pub struct CardPayout {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, ToSchema)]
+pub struct BankWrapper {
+    pub payout_method_type: Option<PaymentMethodType>,
+    #[serde(flatten)]
+    pub data: Bank,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, ToSchema)]
 #[serde(untagged)]
 pub enum Bank {
     Ach(AchBankTransfer),
@@ -287,59 +294,46 @@ pub enum Bank {
     Trustly(TrustlyBankTransfer),
 }
 
-// Shadow enum — only used internally to break recursion
-#[derive(Deserialize, Debug)]
-#[serde(untagged)]
-enum BankInner {
-    Ach(AchBankTransfer),
-    Bacs(BacsBankTransfer),
-    Sepa(SepaBankTransfer),
-    Pix(PixBankTransfer),
-    Trustly(TrustlyBankTransfer),
-}
-
-impl<'de> Deserialize<'de> for Bank {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        #[derive(Deserialize)]
-        struct Wrapper<'a> {
-            payout_method_type: Option<&'a str>,
-            #[serde(flatten)]
-            data: BankInner,
-        }
-
-        // First deserialize into raw Value so we can use it twice:
-        // once for the Wrapper (to extract payout_method_type + BankInner)
-        // once for re-deserializing into the correct specific struct when tag is present
+impl<'de> Deserialize<'de> for BankWrapper {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        // Step 1: Deserialize into Value for inspection
         let value = serde_json::Value::deserialize(deserializer)?;
-        let wrapper = Wrapper::deserialize(&value).map_err(serde::de::Error::custom)?;
-        let bank = match wrapper.payout_method_type {
-            // Tag present — use it to explicitly route to correct variant
-            Some("ach") => {
-                Self::Ach(AchBankTransfer::deserialize(&value).map_err(serde::de::Error::custom)?)
+
+        // Step 2: Extract payout_method_type if present
+        let payout_method_type = value
+            .get("payout_method_type")
+            .and_then(|v| serde_json::from_value(v.clone()).ok());
+
+        // Step 3: Deserialize Bank based on payout_method_type OR fallback
+        let data = match payout_method_type {
+            Some(PaymentMethodType::Ach) => {
+                Bank::Ach(serde_json::from_value(value.clone()).map_err(serde::de::Error::custom)?)
             }
-            Some("bacs") => {
-                Self::Bacs(BacsBankTransfer::deserialize(&value).map_err(serde::de::Error::custom)?)
+            Some(PaymentMethodType::Bacs) => {
+                Bank::Bacs(serde_json::from_value(value.clone()).map_err(serde::de::Error::custom)?)
             }
-            Some("sepa") => {
-                Self::Sepa(SepaBankTransfer::deserialize(&value).map_err(serde::de::Error::custom)?)
+            Some(PaymentMethodType::Sepa) => {
+                Bank::Sepa(serde_json::from_value(value.clone()).map_err(serde::de::Error::custom)?)
             }
-            Some("pix") => {
-                Self::Pix(PixBankTransfer::deserialize(&value).map_err(serde::de::Error::custom)?)
+            Some(PaymentMethodType::Pix) => {
+                Bank::Pix(serde_json::from_value(value.clone()).map_err(serde::de::Error::custom)?)
             }
-            Some("trustly") => Self::Trustly(
-                TrustlyBankTransfer::deserialize(&value).map_err(serde::de::Error::custom)?,
+            Some(PaymentMethodType::Trustly) => Bank::Trustly(
+                serde_json::from_value(value.clone()).map_err(serde::de::Error::custom)?,
             ),
-            // No tag — fallback to untagged shape matching via BankInner
-            Some(_) | None => match wrapper.data {
-                BankInner::Ach(v) => Self::Ach(v),
-                BankInner::Bacs(v) => Self::Bacs(v),
-                BankInner::Sepa(v) => Self::Sepa(v),
-                BankInner::Trustly(v) => Self::Trustly(v),
-                BankInner::Pix(v) => Self::Pix(v),
-            },
+            _ => {
+                // Step 4: Fallback to untagged matching
+                serde_json::from_value::<Bank>(value.clone()).map_err(serde::de::Error::custom)?
+            }
         };
 
-        Ok(bank)
+        Ok(Self {
+            payout_method_type,
+            data,
+        })
     }
 }
 
@@ -475,10 +469,10 @@ pub struct TrustlyBankTransfer {
     pub iban: Option<Secret<String>>,
     /// country code of the customer's bank account.
     #[schema(value_type = CountryAlpha2, example = "US")]
-    pub country_code: api_enums::CountryAlpha2,
+    pub bank_country_code: api_enums::CountryAlpha2,
     /// The account number, identifying the end-user's account in the bank.
     #[schema(value_type = String, example = "69706212")]
-    pub account_number: Option<Secret<String>>,
+    pub bank_account_number: Option<Secret<String>>,
     /// The bank number identifying the end-user's bank in the given clearing house.
     #[schema(value_type = String, example = "6112")]
     pub bank_number: Option<Secret<String>>,
@@ -1036,7 +1030,7 @@ pub struct PayoutEnabledPaymentMethodsInfo {
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentMethodTypeInfo {
-    pub payment_method_type: common_enums::PaymentMethodType,
+    pub payment_method_type: PaymentMethodType,
     pub required_fields: Option<HashMap<String, RequiredFieldInfo>>,
 }
 
@@ -1126,14 +1120,14 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
             )),
             Bank::Trustly(TrustlyBankTransfer {
                 iban,
-                country_code,
-                account_number,
+                bank_country_code,
+                bank_account_number,
                 bank_number,
             }) => Self::Trustly(Box::new(
                 payout_method_utils::TrustlyBankTransferAdditionalData {
                     iban,
-                    country_code,
-                    account_number,
+                    bank_country_code,
+                    bank_account_number,
                     bank_number,
                 },
             )),
