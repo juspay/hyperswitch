@@ -2134,7 +2134,7 @@ async fn refunds_incoming_webhook_flow(
     } else {
         Box::pin(refunds::refund_retrieve_core_with_refund_id(
             state.clone(),
-            platform.clone(),
+            platform.get_processor().clone(),
             None,
             api_models::refunds::RefundsRetrieveRequest {
                 refund_id: refund_id.to_owned(),

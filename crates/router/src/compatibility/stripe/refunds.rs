@@ -99,7 +99,7 @@ pub async fn refund_retrieve_with_gateway_creds(
         |state, auth: auth::AuthenticationData, refund_request, _| {
             refunds::refund_response_wrapper(
                 state,
-                auth.platform,
+                auth.platform.get_processor().clone(),
                 None,
                 refund_request,
                 refunds::refund_retrieve_core_with_refund_id,
@@ -145,7 +145,7 @@ pub async fn refund_retrieve(
         |state, auth: auth::AuthenticationData, refund_request, _| {
             refunds::refund_response_wrapper(
                 state,
-                auth.platform,
+                auth.platform.get_processor().clone(),
                 None,
                 refund_request,
                 refunds::refund_retrieve_core_with_refund_id,

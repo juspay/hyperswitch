@@ -1270,7 +1270,7 @@ pub async fn flatten_join_error<T>(handle: Handle<T>) -> RouterResult<T> {
 #[cfg(feature = "v1")]
 pub async fn trigger_refund_outgoing_webhook(
     state: &SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     refund: &diesel_models::Refund,
     profile_id: id_type::ProfileId,
 ) -> RouterResult<()> {
@@ -1278,7 +1278,7 @@ pub async fn trigger_refund_outgoing_webhook(
 
     let business_profile = state
         .store
-        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
+        .find_business_profile_by_profile_id(processor.get_key_store(), &profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -1297,7 +1297,7 @@ pub async fn trigger_refund_outgoing_webhook(
         let cloned_state = state.clone();
         let primary_object_created_at = refund_response.created_at;
         if let Some(outgoing_event_type) = event_type {
-            let processor = platform.get_processor().clone();
+            let processor = processor.clone();
             tokio::spawn(
                 async move {
                     Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
