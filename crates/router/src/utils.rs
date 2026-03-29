@@ -1462,9 +1462,10 @@ pub async fn trigger_subscriptions_outgoing_webhook(
         None,
     );
 
-    let webhook_recipient =
-        webhooks_core::utils::resolve_webhook_recipient_from_created_by(state, &platform, profile, None)
-            .await?;
+    let webhook_recipient = webhooks_core::utils::resolve_webhook_recipient_from_created_by(
+        state, &platform, profile, None,
+    )
+    .await?;
 
     let cloned_state = state.clone();
     let invoice_id = invoice.id.get_string_repr().to_owned();
