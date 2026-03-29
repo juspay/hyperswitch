@@ -237,26 +237,6 @@ pub(crate) struct WebhookRecipientContext {
     pub profile: domain::Profile,
 }
 
-/// Resolves the webhook recipient from the Platform's initiator.
-///
-/// Used in direct flows (payment create, refund, payout, etc.) where the
-/// Platform struct carries an initiator.
-///
-/// - Platform-initiated: webhook goes to platform merchant's default profile.
-/// - Connected/Standard-initiated: webhook goes to the processor's profile.
-pub(crate) async fn resolve_webhook_recipient_from_initiator(
-    state: &SessionState,
-    platform: &domain::Platform,
-    profile: &domain::Profile,
-) -> CustomResult<WebhookRecipientContext, errors::ApiErrorResponse> {
-    let is_platform_initiated = platform
-        .get_initiator()
-        .map(|initiator| initiator.is_platform())
-        .unwrap_or_default();
-
-    resolve_webhook_recipient_inner(state, platform, profile, is_platform_initiated).await
-}
-
 /// Resolves the webhook recipient from the `created_by` field on the resource.
 ///
 /// Used in the incoming webhook flow where the Platform struct has no initiator populated.
@@ -283,6 +263,13 @@ pub(crate) async fn resolve_webhook_recipient_from_created_by(
             .unwrap_or_default()
     };
 
+    logger::debug!(
+        ?created_by,
+        provider_merchant_id=?provider_merchant_id,
+        processor_merchant_id=?processor_merchant_id,
+        is_platform_initiated,
+        "Resolving webhook recipient context from created_by field"
+    );
     resolve_webhook_recipient_inner(state, platform, profile, is_platform_initiated).await
 }
 

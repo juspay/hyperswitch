@@ -933,10 +933,15 @@ pub async fn update_dispute_data(
     let disputes_response: dispute_models::DisputeResponse = dispute_object.clone().foreign_into();
     let event_type: storage_enums::EventType = dispute_details.dispute_status.into();
 
-    let webhook_recipient = webhooks::utils::resolve_webhook_recipient_from_initiator(
+    let created_by = dispute_object
+        .created_by
+        .as_deref()
+        .and_then(|s| s.parse::<common_utils::types::CreatedBy>().ok());
+    let webhook_recipient = webhooks::utils::resolve_webhook_recipient_from_created_by(
         state,
         &platform,
         &business_profile,
+        created_by.as_ref(),
     )
     .await?;
 

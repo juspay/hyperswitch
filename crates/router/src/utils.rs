@@ -1221,11 +1221,13 @@ where
             // So when server shutdown won't wait for this thread's completion.
 
             if let Some(event_type) = event_type {
+                let created_by = payment_data.get_payment_attempt().created_by.as_ref();
                 let webhook_recipient =
-                    webhooks_core::utils::resolve_webhook_recipient_from_initiator(
+                    webhooks_core::utils::resolve_webhook_recipient_from_created_by(
                         state,
                         platform,
                         &business_profile,
+                        created_by,
                     )
                     .await?;
                 let cloned_platform = platform.clone();
@@ -1302,12 +1304,18 @@ pub async fn trigger_refund_outgoing_webhook(
         let cloned_state = state.clone();
         let primary_object_created_at = refund_response.created_at;
         if let Some(outgoing_event_type) = event_type {
-            let webhook_recipient = webhooks_core::utils::resolve_webhook_recipient_from_initiator(
-                state,
-                platform,
-                &business_profile,
-            )
-            .await?;
+            let created_by = refund
+                .created_by
+                .as_deref()
+                .and_then(|s| s.parse::<common_utils::types::CreatedBy>().ok());
+            let webhook_recipient =
+                webhooks_core::utils::resolve_webhook_recipient_from_created_by(
+                    state,
+                    platform,
+                    &business_profile,
+                    created_by.as_ref(),
+                )
+                .await?;
             let cloned_platform = platform.clone();
             tokio::spawn(
                 async move {
@@ -1356,6 +1364,7 @@ pub async fn trigger_payouts_webhook(
     state: &SessionState,
     platform: &domain::Platform,
     payout_response: &api_models::payouts::PayoutCreateResponse,
+    created_by: Option<&common_utils::types::CreatedBy>,
 ) -> RouterResult<()> {
     let profile_id = &payout_response.profile_id;
     let business_profile = state
@@ -1380,12 +1389,14 @@ pub async fn trigger_payouts_webhook(
             let cloned_state = state.clone();
             let cloned_response = payout_response.clone();
 
-            let webhook_recipient = webhooks_core::utils::resolve_webhook_recipient_from_initiator(
-                state,
-                platform,
-                &business_profile,
-            )
-            .await?;
+            let webhook_recipient =
+                webhooks_core::utils::resolve_webhook_recipient_from_created_by(
+                    state,
+                    platform,
+                    &business_profile,
+                    created_by,
+                )
+                .await?;
             let cloned_platform = platform.clone();
 
             // This spawns this futures in a background thread, the exception inside this future won't affect
@@ -1421,6 +1432,7 @@ pub async fn trigger_payouts_webhook(
     state: &SessionState,
     platform: &domain::Platform,
     payout_response: &api_models::payouts::PayoutCreateResponse,
+    created_by: Option<&common_utils::types::CreatedBy>,
 ) -> RouterResult<()> {
     todo!()
 }
@@ -1451,7 +1463,7 @@ pub async fn trigger_subscriptions_outgoing_webhook(
     );
 
     let webhook_recipient =
-        webhooks_core::utils::resolve_webhook_recipient_from_initiator(state, &platform, profile)
+        webhooks_core::utils::resolve_webhook_recipient_from_created_by(state, &platform, profile, None)
             .await?;
 
     let cloned_state = state.clone();

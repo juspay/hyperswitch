@@ -1554,10 +1554,11 @@ mod tests {
 
             let handle = tokio::spawn(async move {
                 let webhook_recipient =
-                    webhooks_core::utils::resolve_webhook_recipient_from_initiator(
+                    webhooks_core::utils::resolve_webhook_recipient_from_created_by(
                         &state_clone,
                         &cloned_platform,
                         &business_profile_clone,
+                        None,
                     )
                     .await
                     .map_err(|e| format!("resolve_webhook_recipient failed: {e}"))?;

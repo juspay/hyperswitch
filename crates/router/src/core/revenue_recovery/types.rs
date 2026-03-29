@@ -1593,8 +1593,11 @@ impl RevenueRecoveryOutgoingWebhook {
                         response,
                     ));
                 let webhook_recipient =
-                    crate::core::webhooks::utils::resolve_webhook_recipient_from_initiator(
-                        state, platform, profile,
+                    crate::core::webhooks::utils::resolve_webhook_recipient_from_created_by(
+                        state,
+                        platform,
+                        profile,
+                        payment_intent.created_by.as_ref(),
                     )
                     .await
                     .change_context(errors::RecoveryError::InvalidTask)

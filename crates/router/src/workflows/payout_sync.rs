@@ -266,10 +266,11 @@ impl PayoutSyncWorkFlow {
         if let Some(outgoing_event_type) = event_type {
             let payout_response = payouts::response_handler(state, platform, payout_data).await?;
 
-            let webhook_recipient = webhooks::utils::resolve_webhook_recipient_from_initiator(
+            let webhook_recipient = webhooks::utils::resolve_webhook_recipient_from_created_by(
                 state,
                 platform,
                 &business_profile,
+                payout_data.payouts.created_by.as_ref(),
             )
             .await?;
 
