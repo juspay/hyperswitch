@@ -1361,8 +1361,8 @@ async fn network_token_incoming_webhooks_core<W: types::OutgoingWebhookType>(
     let payment_method =
         network_tokenization_incoming::fetch_payment_method_for_network_token_webhooks(
             state,
-            platform.get_processor().get_account(),
-            platform.get_processor().get_key_store(),
+            platform.get_provider().get_account(),
+            platform.get_provider().get_key_store(),
             &payment_method_id,
         )
         .await?;
@@ -3254,9 +3254,9 @@ async fn update_additional_payment_method_data(
 
     let pm = db
         .find_payment_method(
-            platform.get_processor().get_key_store(),
+            platform.get_provider().get_key_store(),
             payment_method_id.as_str(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_provider().get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
@@ -3313,9 +3313,9 @@ async fn update_connector_mandate_details(
             let payment_method_info = state
                 .store
                 .find_payment_method(
-                    platform.get_processor().get_key_store(),
+                    platform.get_provider().get_key_store(),
                     payment_method_id,
-                    platform.get_processor().get_account().storage_scheme,
+                    platform.get_provider().get_account().storage_scheme,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
@@ -3420,10 +3420,10 @@ async fn update_connector_mandate_details(
             state
                 .store
                 .update_payment_method(
-                    platform.get_processor().get_key_store(),
+                    platform.get_provider().get_key_store(),
                     payment_method_info,
                     pm_update,
-                    platform.get_processor().get_account().storage_scheme,
+                    platform.get_provider().get_account().storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
