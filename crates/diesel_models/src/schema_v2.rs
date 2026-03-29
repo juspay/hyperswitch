@@ -294,7 +294,9 @@ diesel::table! {
         is_external_vault_enabled -> Nullable<Bool>,
         external_vault_connector_details -> Nullable<Jsonb>,
         is_l2_l3_enabled -> Nullable<Bool>,
+        network_tokenization_credentials -> Nullable<Bytea>,
         payment_method_blocking -> Nullable<Jsonb>,
+        default_fallback_routing -> Nullable<Jsonb>,
         #[max_length = 64]
         routing_algorithm_id -> Nullable<Varchar>,
         order_fulfillment_time -> Nullable<Int8>,
@@ -303,7 +305,6 @@ diesel::table! {
         frm_routing_algorithm_id -> Nullable<Varchar>,
         #[max_length = 64]
         payout_routing_algorithm_id -> Nullable<Varchar>,
-        default_fallback_routing -> Nullable<Jsonb>,
         three_ds_decision_manager_config -> Nullable<Jsonb>,
         should_collect_cvv_during_payment -> Nullable<Bool>,
         revenue_recovery_retry_algorithm_type -> Nullable<RevenueRecoveryAlgorithmType>,
@@ -946,6 +947,7 @@ diesel::table! {
         product_type -> Nullable<Varchar>,
         #[max_length = 64]
         merchant_account_type -> Nullable<Varchar>,
+        network_tokenization_credentials -> Nullable<Bytea>,
     }
 }
 
@@ -1113,7 +1115,7 @@ diesel::table! {
         #[max_length = 128]
         connector_payment_id -> Nullable<Varchar>,
         #[max_length = 64]
-        payment_method_subtype -> Varchar,
+        payment_method_subtype -> Nullable<Varchar>,
         routing_result -> Nullable<Jsonb>,
         authentication_applied -> Nullable<AuthenticationType>,
         #[max_length = 128]
@@ -1280,7 +1282,7 @@ diesel::table! {
 
     payment_methods (id) {
         #[max_length = 64]
-        customer_id -> Varchar,
+        customer_id -> Nullable<Varchar>,
         #[max_length = 64]
         merchant_id -> Varchar,
         created_at -> Timestamp,
@@ -1317,6 +1319,7 @@ diesel::table! {
         customer_details -> Nullable<Bytea>,
         #[max_length = 64]
         locker_fingerprint_id -> Nullable<Varchar>,
+        network_tokenization_data -> Nullable<Bytea>,
         #[max_length = 64]
         payment_method_type_v2 -> Nullable<Varchar>,
         #[max_length = 64]
