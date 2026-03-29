@@ -196,6 +196,7 @@ pub(crate) async fn trigger_webhook_and_raise_event(
         state.clone(),
         business_profile,
         merchant_key_store,
+        &provider_merchant_id,
         event.clone(),
         request_content,
         delivery_attempt,
@@ -217,6 +218,7 @@ async fn trigger_webhook_to_merchant(
     state: SessionState,
     business_profile: domain::Profile,
     merchant_key_store: &domain::MerchantKeyStore,
+    provider_merchant_id: &common_utils::id_type::MerchantId,
     event: domain::Event,
     request_content: webhook_events::OutgoingWebhookRequestContent,
     delivery_attempt: enums::WebhookDeliveryAttempt,
@@ -242,7 +244,7 @@ async fn trigger_webhook_to_merchant(
                 .handle_success_response(
                     state,
                     merchant_key_store.clone(),
-                    &business_profile.merchant_id,
+                    provider_merchant_id,
                     &event.event_id,
                     None,
                     response,
@@ -254,7 +256,7 @@ async fn trigger_webhook_to_merchant(
                 .handle_error_response(
                     state,
                     merchant_key_store.clone(),
-                    &business_profile.merchant_id,
+                    provider_merchant_id,
                     &event.event_id,
                     client_error,
                 )
