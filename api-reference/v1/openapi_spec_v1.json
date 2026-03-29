@@ -25577,7 +25577,7 @@
         "properties": {
           "merchant_id": {
             "type": "string",
-            "description": "The merchant id of the merchant"
+            "description": "The provider merchant id (platform/business owner)"
           },
           "event_id": {
             "type": "string",
@@ -25593,6 +25593,11 @@
             "type": "string",
             "format": "date-time",
             "description": "The time at which webhook was sent"
+          },
+          "processor_merchant_id": {
+            "type": "string",
+            "description": "The processor merchant id whose credentials are used for payment processing",
+            "nullable": true
           }
         }
       },
