@@ -337,7 +337,7 @@ pub mod core {
         logger::info!("Starting injector_core processing");
 
         // Extract values for metrics before moving request
-        let vault_connector_str = format!("{:?}", request.token_data.vault_connector);
+        let vault_connector_str = format!("{:?}", request.connection_config.vault_connector_id);
         let http_method_str = format!("{:?}", request.connection_config.http_method);
 
         // Track total number of invocations with vault connector dimension
@@ -470,13 +470,13 @@ pub mod core {
             Self
         }
 
-        /// Processes a string template and replaces token references with vault data
+        /// Processes a string template by replacing {{$field_name}} placeholders with
+        /// corresponding values from vault data (token aliases).
         #[instrument(skip_all)]
-        fn interpolate_string_template_with_vault_data(
+        pub(crate) fn interpolate_string_template_with_vault_data(
             &self,
             template: String,
             vault_data: &Value,
-            vault_connector: &injector_types::VaultConnectors,
         ) -> error_stack::Result<String, InjectorError> {
             let token_replacement_start = std::time::Instant::now();
             // Find all tokens using nom parser
@@ -484,11 +484,8 @@ pub mod core {
             let mut result = template;
 
             for token_ref in tokens.into_iter() {
-                let extracted_field_value = self.extract_field_from_vault_data(
-                    vault_data,
-                    &token_ref.field,
-                    vault_connector,
-                )?;
+                let extracted_field_value =
+                    self.extract_field_from_vault_data(vault_data, &token_ref.field)?;
                 let token_str = match extracted_field_value {
                     Value::String(token_value) => token_value,
                     _ => serde_json::to_string(&extracted_field_value).unwrap_or_default(),
@@ -499,12 +496,11 @@ pub mod core {
                 result = result.replace(&token_pattern, &token_str);
             }
 
-            // Record token replacement time with vault connector dimension
+            // Record token replacement time
             let token_replacement_duration = token_replacement_start.elapsed();
-            let vault_connector_str = format!("{:?}", vault_connector);
             metrics::INJECTOR_TOKEN_REPLACEMENT_TIME.record(
                 token_replacement_duration.as_secs_f64(),
-                router_env::metric_attributes!(("vault_connector", vault_connector_str)),
+                router_env::metric_attributes!(("operation", "interpolation")),
             );
 
             Ok(result)
@@ -515,29 +511,21 @@ pub mod core {
             &self,
             value: Value,
             vault_data: &Value,
-            vault_connector: &injector_types::VaultConnectors,
         ) -> error_stack::Result<Value, InjectorError> {
             match value {
                 Value::Object(obj) => {
                     let new_obj = obj
                         .into_iter()
                         .map(|(key, val)| {
-                            self.interpolate_token_references_with_vault_data(
-                                val,
-                                vault_data,
-                                vault_connector,
-                            )
-                            .map(|processed| (key, processed))
+                            self.interpolate_token_references_with_vault_data(val, vault_data)
+                                .map(|processed| (key, processed))
                         })
                         .collect::<error_stack::Result<serde_json::Map<_, _>, InjectorError>>()?;
                     Ok(Value::Object(new_obj))
                 }
                 Value::String(s) => {
-                    let processed_string = self.interpolate_string_template_with_vault_data(
-                        s,
-                        vault_data,
-                        vault_connector,
-                    )?;
+                    let processed_string =
+                        self.interpolate_string_template_with_vault_data(s, vault_data)?;
                     Ok(Value::String(processed_string))
                 }
                 _ => Ok(value),
@@ -549,49 +537,21 @@ pub mod core {
             &self,
             vault_data: &Value,
             field_name: &str,
-            vault_connector: &injector_types::VaultConnectors,
         ) -> error_stack::Result<Value, InjectorError> {
-            logger::debug!(
-                "Extracting field '{}' from vault data using vault type {:?}",
-                field_name,
-                vault_connector
-            );
+            logger::debug!("Extracting field '{}' from vault data", field_name,);
 
             match vault_data {
-                Value::Object(obj) => {
-                    let raw_value = find_field_recursively_in_vault_data(obj, field_name)
-                        .ok_or_else(|| {
-                            error_stack::Report::new(InjectorError::TokenReplacementFailed(
-                                format!("Field '{field_name}' not found"),
-                            ))
-                        })?;
-
-                    // Apply vault-specific token transformation
-                    self.apply_vault_specific_transformation(raw_value, vault_connector, field_name)
-                }
+                Value::Object(obj) => find_field_recursively_in_vault_data(obj, field_name)
+                    .ok_or_else(|| {
+                        error_stack::Report::new(InjectorError::TokenReplacementFailed(format!(
+                            "Field '{field_name}' not found"
+                        )))
+                    }),
                 _ => Err(error_stack::Report::new(
                     InjectorError::TokenReplacementFailed(
                         "Vault data is not a valid JSON object".to_string(),
                     ),
                 )),
-            }
-        }
-
-        #[instrument(skip_all)]
-        fn apply_vault_specific_transformation(
-            &self,
-            extracted_field_value: Value,
-            vault_connector: &injector_types::VaultConnectors,
-            field_name: &str,
-        ) -> error_stack::Result<Value, InjectorError> {
-            match vault_connector {
-                injector_types::VaultConnectors::VGS => {
-                    logger::debug!(
-                        "VGS vault: Using direct token replacement for field '{}'",
-                        field_name
-                    );
-                    Ok(extracted_field_value)
-                }
             }
         }
 
@@ -768,6 +728,125 @@ pub mod core {
                 .await
                 .map_err(|e| error_stack::Report::new(e))
         }
+
+        /// Constructs and sends a request to the HyperswitchVault proxy endpoint.
+        ///
+        /// Unlike `make_http_request` (which sends the processed payload directly to the connector),
+        /// this method wraps the template (with {{$field_name}} placeholders intact) into the
+        /// HyperswitchVault proxy request format and sends it to the vault endpoint.
+        /// The vault resolves placeholders with actual card data and forwards to the connector.
+        #[instrument(skip_all)]
+        async fn make_hyperswitch_vault_request(
+            &self,
+            request: &InjectorRequest,
+            processed_payload: &str,
+        ) -> error_stack::Result<InjectorResponse, InjectorError> {
+            let vault_endpoint = request
+                .connection_config
+                .vault_endpoint
+                .as_ref()
+                .ok_or_else(|| {
+                    error_stack::Report::new(InjectorError::InvalidTemplate(
+                        "vault_endpoint is required for HyperswitchVault proxy request".to_string(),
+                    ))
+                })?;
+
+            let vault_auth = request
+                .connection_config
+                .vault_auth_data
+                .as_ref()
+                .ok_or_else(|| {
+                    error_stack::Report::new(InjectorError::InvalidTemplate(
+                        "vault_auth_data is required for HyperswitchVault proxy request"
+                            .to_string(),
+                    ))
+                })?;
+
+            // Build the HS Vault proxy request body from injector request components
+            let vault_proxy_request =
+                injector_types::HyperswitchVaultProxyRequest::try_from_injector_request(
+                    processed_payload,
+                    &request.connection_config,
+                    &request.token_data,
+                )
+                .map_err(error_stack::Report::new)?;
+
+            let vault_request_body = serde_json::to_string(&vault_proxy_request).map_err(|e| {
+                error_stack::Report::new(InjectorError::SerializationError(format!(
+                    "Failed to serialize HyperswitchVault proxy request: {e}"
+                )))
+            })?;
+
+            logger::info!(
+                vault_endpoint = %vault_endpoint,
+                destination_url = %vault_proxy_request.destination_url,
+                method = %vault_proxy_request.method,
+                "Sending request to HyperswitchVault proxy"
+            );
+
+            // Build headers for the vault endpoint request
+            let vault_headers: Vec<(String, hyperswitch_masking::Maskable<String>)> = vec![
+                (
+                    "Content-Type".to_string(),
+                    hyperswitch_masking::Maskable::new_normal("application/json".to_string()),
+                ),
+                (
+                    "Accept".to_string(),
+                    hyperswitch_masking::Maskable::new_normal("application/json".to_string()),
+                ),
+                (
+                    "Authorization".to_string(),
+                    hyperswitch_masking::Maskable::Masked(
+                        format!("api-key={}", vault_auth.api_key.clone().expose()).into(),
+                    ),
+                ),
+                (
+                    "x-profile-id".to_string(),
+                    hyperswitch_masking::Maskable::Masked(vault_auth.api_secret.clone()),
+                ),
+            ];
+
+            // Build the HTTP request to the vault endpoint
+            let vault_url = reqwest::Url::parse(vault_endpoint).map_err(|e| {
+                logger::error!("Failed to parse vault endpoint URL: {}", e);
+                error_stack::Report::new(InjectorError::InvalidTemplate(format!(
+                    "Invalid vault endpoint URL: {e}"
+                )))
+            })?;
+
+            let request_builder = RequestBuilder::new()
+                .method(Method::Post)
+                .url(vault_url.as_str())
+                .headers(vault_headers)
+                .set_body(RequestContent::Json(Box::new(
+                    serde_json::from_str::<Value>(&vault_request_body).map_err(|e| {
+                        error_stack::Report::new(InjectorError::SerializationError(format!(
+                            "Failed to parse vault request body as JSON: {e}"
+                        )))
+                    })?,
+                )));
+
+            let http_request = request_builder.build();
+
+            // Track outgoing call to vault
+            let vault_host = vault_url.host_str().unwrap_or("unknown").to_string();
+
+            metrics::INJECTOR_OUTGOING_CALLS_COUNT.add(
+                1,
+                router_env::metric_attributes!(
+                    ("http_method", "POST".to_string()),
+                    ("endpoint_host", vault_host)
+                ),
+            );
+
+            // Send to vault using default proxy (no VGS proxy needed)
+            let response = send_request(&Proxy::default(), http_request, None).await?;
+
+            response
+                .into_injector_response()
+                .await
+                .map_err(|e| error_stack::Report::new(e))
+        }
     }
 
     impl Default for Injector {
@@ -786,20 +865,67 @@ pub mod core {
             let start_time = std::time::Instant::now();
 
             // Extract token data from SecretSerdeValue for vault data lookup
-            let vault_data = request.token_data.specific_token_data.expose().clone();
+            let vault_data = request.token_data.specific_token_data.clone().expose();
+
+            let vault_connector_type = &request.connection_config.vault_connector_type;
 
             logger::debug!(
                 template_length = request.connector_payload.template.len(),
-                vault_connector = ?request.token_data.vault_connector,
+                vault_connector_type = ?vault_connector_type,
                 "Processing token injection request"
             );
 
-            // Process template string directly with vault-specific logic
-            let processed_payload = self.interpolate_string_template_with_vault_data(
-                request.connector_payload.template,
-                &vault_data,
-                &request.token_data.vault_connector,
-            )?;
+            // Process template based on vault connector type:
+            //
+            // Template arrives with {{$field_name}} placeholders, e.g.:
+            //   "card_number={{$card_number}}&cvv={{$cvv}}"
+            //
+            // specific_token_data contains token aliases from the vault, e.g.:
+            //   VGS:              {"card_number": "tok_sandbox_abc", "cvv": "tok_sandbox_xyz"}
+            //   HyperswitchVault:  {"card_number": "token_1", "cvv": "token_1"}
+            //
+            // Proxy | None (e.g. VGS):
+            //   Interpolate placeholders with token aliases directly.
+            //   Output: "card_number=tok_sandbox_abc&cvv=tok_sandbox_xyz"
+            //   VGS forward proxy then detokenizes the aliases to real card data on the wire.
+            //
+            // Transformation (e.g. HyperswitchVault):
+            //   Return template as-is with {{$field_name}} placeholders intact.
+            //   Output: "card_number={{$card_number}}&cvv={{$cvv}}"
+            //   HyperswitchVault resolves placeholders downstream with actual card data.
+            let processed_payload = match vault_connector_type {
+                Some(injector_types::VaultConnectorType::Proxy) | None => {
+                    // Proxy vault: interpolate {{$field_name}} placeholders with token aliases
+                    // The forward proxy (e.g. VGS) detokenizes the aliases on the wire
+                    logger::debug!("Proxy vault: interpolating template with token aliases");
+                    self.interpolate_string_template_with_vault_data(
+                        request.connector_payload.template.clone(),
+                        &vault_data,
+                    )?
+                }
+                Some(injector_types::VaultConnectorType::Transformation) => {
+                    let vault_connector_id = &request.connection_config.vault_connector_id;
+                    match vault_connector_id {
+                        Some(injector_types::VaultConnectors::HyperswitchVault) => {
+                            // HyperswitchVault: return template as-is with {{$field_name}} placeholders
+                            // HS Vault resolves these downstream with actual card data
+                            logger::debug!(
+                                "HyperswitchVault transformation: skipping interpolation, keeping placeholders"
+                            );
+                            request.connector_payload.template.clone()
+                        }
+                        _ => {
+                            // Future transformation connectors: placeholder for additional logic
+                            // For now, return template as-is
+                            logger::debug!(
+                                vault_connector_id = ?vault_connector_id,
+                                "Transformation vault (non-HyperswitchVault): no transformation implemented yet, keeping placeholders"
+                            );
+                            request.connector_payload.template.clone()
+                        }
+                    }
+                }
+            };
 
             logger::debug!(
                 processed_payload_length = processed_payload.len(),
@@ -823,14 +949,47 @@ pub mod core {
                 })
                 .unwrap_or(ContentType::ApplicationXWwwFormUrlencoded);
 
-            // Make HTTP request to connector and return enhanced response
-            let response = self
-                .make_http_request(
-                    &request.connection_config,
-                    &processed_payload,
-                    &content_type,
-                )
-                .await?;
+            // Make HTTP request — routing depends on vault connector type:
+            //
+            // Proxy | None (e.g. VGS):
+            //   Send processed payload (with token aliases) directly to the connector endpoint.
+            //   The forward proxy detokenizes the aliases to real card data on the wire.
+            //
+            // Transformation + HyperswitchVault:
+            //   Wrap the template (with {{$field_name}} placeholders intact) into the HS Vault
+            //   proxy request format and send to the vault endpoint. The vault resolves
+            //   placeholders with actual card data and forwards to the connector.
+            let response = match vault_connector_type {
+                Some(injector_types::VaultConnectorType::Transformation) => {
+                    match &request.connection_config.vault_connector_id {
+                        Some(injector_types::VaultConnectors::HyperswitchVault) => {
+                            logger::debug!("Routing request through HyperswitchVault proxy");
+                            self.make_hyperswitch_vault_request(&request, &processed_payload)
+                                .await?
+                        }
+                        other => {
+                            logger::debug!(
+                                vault_connector_id = ?other,
+                                "Transformation vault (non-HyperswitchVault): falling back to direct HTTP request"
+                            );
+                            self.make_http_request(
+                                &request.connection_config,
+                                &processed_payload,
+                                &content_type,
+                            )
+                            .await?
+                        }
+                    }
+                }
+                Some(injector_types::VaultConnectorType::Proxy) | None => {
+                    self.make_http_request(
+                        &request.connection_config,
+                        &processed_payload,
+                        &content_type,
+                    )
+                    .await?
+                }
+            };
 
             let elapsed = start_time.elapsed();
             logger::info!(
@@ -851,7 +1010,7 @@ pub mod core {
                 .map(|url| url.host_str().unwrap_or("unknown").to_string())
                 .unwrap_or_else(|_| "invalid_url".to_string());
 
-            let vault_connector_str = format!("{:?}", request.token_data.vault_connector);
+            let vault_connector_str = format!("{:?}", request.connection_config.vault_connector_id);
             let http_method_str = format!("{:?}", request.connection_config.http_method);
 
             metrics::INJECTOR_SUCCESSFUL_TOKEN_REPLACEMENTS_COUNT.add(
@@ -906,7 +1065,6 @@ mod tests {
                 template: "card_number={{$card_number}}&cvv={{$cvv}}&expiry={{$exp_month}}/{{$exp_year}}&amount=50&currency=USD&transaction_type=purchase".to_string(),
             },
             token_data: TokenData {
-                vault_connector: VaultConnectors::VGS,
                 specific_token_data,
             },
             connection_config: ConnectionConfig {
@@ -923,6 +1081,11 @@ mod tests {
                 cert_password: None,
                 cert_format: None,
                 max_response_size: None, // Use default
+                vault_auth_data: None,
+                vault_connector_id: Some(VaultConnectors::VGS), // Use VGS as example vault connector
+                vault_connector_type: Some(VaultConnectorType::Proxy), // Use Proxy type for direct interpolation
+                vault_endpoint: None, // No vault endpoint needed for proxy test
+
             },
         };
 
@@ -986,7 +1149,6 @@ mod tests {
                 template: "card_number={{$card_number}}&cvv={{$cvv}}&expiry={{$exp_month}}/{{$exp_year}}&amount=50&currency=USD&transaction_type=purchase".to_string(),
             },
             token_data: TokenData {
-                vault_connector: VaultConnectors::VGS,
                 specific_token_data,
             },
             connection_config: ConnectionConfig {
@@ -1003,6 +1165,10 @@ mod tests {
                 cert_password: None,
                 cert_format: None,
                 max_response_size: None,
+                vault_auth_data: None,
+                vault_connector_id: Some(VaultConnectors::VGS), // Use VGS as example vault connector
+                vault_connector_type: Some(VaultConnectorType::Proxy), // Use Proxy type for direct interpolation
+                vault_endpoint: None, // No vault endpoint needed for proxy test
             },
         };
 

@@ -3939,7 +3939,7 @@ pub async fn retrieve_payment_method(
 
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
-async fn fetch_payment_method_by_storage(
+pub async fn fetch_payment_method_by_storage(
     state: &SessionState,
     platform: &domain::Platform,
     pm_incoming: &api::PaymentMethodId,
@@ -4062,7 +4062,7 @@ async fn fetch_volatile_payment_method_record(
 }
 
 #[cfg(feature = "v2")]
-async fn resolve_storage_type_from_token(
+pub async fn resolve_storage_type_from_token(
     state: &SessionState,
     token: &String,
 ) -> RouterResult<(common_enums::StorageType, Option<storage::CardTokenData>)> {

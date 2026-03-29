@@ -977,6 +977,7 @@ impl ConnectorSpecifications for Facilitapay {
 
     fn should_call_connector_customer(
         &self,
+        #[cfg(feature = "v1")]
         _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> bool {
         true

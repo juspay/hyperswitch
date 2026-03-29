@@ -176,7 +176,6 @@ where
                 customers::should_call_connector_create_customer(
                     &connector,
                     customer,
-                    payment_data.get_payment_attempt(),
                     merchant_connector_account_type,
                 );
 
