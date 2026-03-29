@@ -1196,6 +1196,7 @@ where
                     .collect()
             });
         let payment_id = payment_data.get_payment_intent().get_id().to_owned();
+        let created_by = payment_data.get_payment_attempt().created_by.clone();
         let payments_response = crate::core::payments::transformers::payments_to_payments_response(
             payment_data,
             captures,
@@ -1221,13 +1222,12 @@ where
             // So when server shutdown won't wait for this thread's completion.
 
             if let Some(event_type) = event_type {
-                let created_by = payment_data.get_payment_attempt().created_by.as_ref();
                 let webhook_recipient =
                     webhooks_core::utils::resolve_webhook_recipient_from_created_by(
                         state,
                         platform,
                         &business_profile,
-                        created_by,
+                        created_by.as_ref(),
                     )
                     .await?;
                 let cloned_platform = platform.clone();
