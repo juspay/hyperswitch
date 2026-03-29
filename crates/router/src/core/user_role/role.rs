@@ -93,10 +93,6 @@ pub async fn create_role(
 
     let role_entity_type = req.entity_type.unwrap_or(EntityType::Merchant);
 
-    if matches!(role_entity_type, EntityType::Organization) {
-        return Err(report!(UserErrors::InvalidRoleOperation))
-            .attach_printable("User trying to create org level custom role");
-    }
     let requestor_entity_from_role_scope = EntityType::from(req.role_scope);
 
     if requestor_entity_from_role_scope < role_entity_type {
@@ -191,11 +187,6 @@ pub async fn create_role_v2(
         .get_entity_type();
 
     let role_entity_type = req.entity_type.unwrap_or(EntityType::Merchant);
-
-    if matches!(role_entity_type, EntityType::Organization) {
-        return Err(report!(UserErrors::InvalidRoleOperation))
-            .attach_printable("User trying to create org level custom role");
-    }
 
     let requestor_entity_from_role_scope = EntityType::from(req.role_scope);
 
