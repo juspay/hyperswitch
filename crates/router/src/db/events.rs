@@ -1080,6 +1080,7 @@ mod tests {
                         .unwrap(),
                     }),
                     is_overall_delivery_successful: Some(false),
+                    processor_merchant_id: Some(merchant_id.to_owned()),
                 },
                 &merchant_key_store,
             )
@@ -1193,6 +1194,7 @@ mod tests {
                         .unwrap(),
                     }),
                     is_overall_delivery_successful: Some(false),
+                    processor_merchant_id: Some(merchant_id.to_owned()),
                 },
                 &merchant_key_store,
             )
@@ -1545,22 +1547,30 @@ mod tests {
         let mut handles = vec![];
         for _ in 0..10 {
             let state_clone = state.clone();
-            let cloned_processor = platform.get_processor().clone();
+            let cloned_platform = platform.clone();
             let business_profile_clone = business_profile.clone();
             let content_clone = content.clone();
             let primary_object_id_clone = primary_object_id.clone();
 
             let handle = tokio::spawn(async move {
+                let webhook_recipient =
+                    webhooks_core::utils::resolve_webhook_recipient_from_initiator(
+                        &state_clone,
+                        &cloned_platform,
+                        &business_profile_clone,
+                    )
+                    .await
+                    .map_err(|e| format!("resolve_webhook_recipient failed: {e}"))?;
                 webhooks_core::create_event_and_trigger_outgoing_webhook(
                     state_clone,
-                    cloned_processor,
-                    business_profile_clone,
+                    cloned_platform,
                     event_type,
                     event_class,
                     (*primary_object_id_clone).to_string(),
                     primary_object_type,
                     content_clone,
                     primary_object_created_at,
+                    webhook_recipient,
                 )
                 .await
                 .map_err(|e| format!("create_event_and_trigger_outgoing_webhook failed: {e}"))

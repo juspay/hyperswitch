@@ -49,28 +49,28 @@ use crate::{
 #[instrument(skip_all)]
 pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     state: SessionState,
-    processor: domain::Processor,
-    business_profile: domain::Profile,
+    platform: domain::Platform,
     event_type: enums::EventType,
     event_class: enums::EventClass,
     primary_object_id: String,
     primary_object_type: enums::EventObjectType,
     content: api::OutgoingWebhookContent,
     primary_object_created_at: Option<time::PrimitiveDateTime>,
+    webhook_recipient: utils::WebhookRecipientContext,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let delivery_attempt = enums::WebhookDeliveryAttempt::InitialAttempt;
     let idempotent_event_id =
         utils::get_idempotent_event_id(&primary_object_id, event_type, delivery_attempt)
             .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
             .attach_printable("Failed to generate idempotent event ID")?;
-    let webhook_url_result = get_webhook_url_from_business_profile(&business_profile);
+    let webhook_url_result = get_webhook_url_from_business_profile(&webhook_recipient.profile);
 
     if !state.conf.webhooks.outgoing_enabled
         || webhook_url_result.is_err()
         || webhook_url_result.as_ref().is_ok_and(String::is_empty)
     {
         logger::debug!(
-            business_profile_id=?business_profile.get_id(),
+            business_profile_id=?webhook_recipient.profile.get_id(),
             %idempotent_event_id,
             "Outgoing webhooks are disabled in application configuration, or merchant webhook URL \
              could not be obtained; skipping outgoing webhooks for event"
@@ -79,21 +79,26 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     }
 
     let event_id = utils::generate_event_id();
-    let merchant_id = business_profile.merchant_id.clone();
+    let provider_merchant_id = platform.get_provider().get_account().get_id().clone();
+    let processor_merchant_id = platform.get_processor().get_account().get_id().clone();
     let now = common_utils::date_time::now();
 
     let outgoing_webhook = api::OutgoingWebhook {
-        merchant_id: merchant_id.clone(),
+        merchant_id: provider_merchant_id.clone(),
         event_id: event_id.clone(),
         event_type,
         content: content.clone(),
         timestamp: now,
+        processor_merchant_id: Some(processor_merchant_id.clone()),
     };
 
-    let request_content =
-        get_outgoing_webhook_request(&processor, outgoing_webhook, &business_profile)
-            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-            .attach_printable("Failed to construct outgoing webhook request content")?;
+    let request_content = get_outgoing_webhook_request(
+        &webhook_recipient.merchant_account,
+        outgoing_webhook,
+        &webhook_recipient.profile,
+    )
+    .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+    .attach_printable("Failed to construct outgoing webhook request content")?;
 
     let event_metadata = storage::EventMetadata::foreign_from(&content);
     let key_manager_state = &(&state).into();
@@ -105,8 +110,8 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         primary_object_id,
         primary_object_type,
         created_at: now,
-        merchant_id: Some(business_profile.merchant_id.clone()),
-        business_profile_id: Some(business_profile.get_id().to_owned()),
+        merchant_id: Some(provider_merchant_id.clone()),
+        business_profile_id: Some(webhook_recipient.profile.get_id().to_owned()),
         primary_object_created_at,
         idempotent_event_id: Some(idempotent_event_id.clone()),
         initial_attempt_id: Some(event_id.clone()),
@@ -121,8 +126,8 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
                         .attach_printable("Failed to encode outgoing webhook request content")
                         .map(Secret::new)?,
                 ),
-                Identifier::Merchant(processor.get_key_store().merchant_id.clone()),
-                processor.get_key_store().key.get_inner().peek(),
+                Identifier::Merchant(webhook_recipient.key_store.merchant_id.clone()),
+                webhook_recipient.key_store.key.get_inner().peek(),
             )
             .await
             .and_then(|val| val.try_into_operation())
@@ -133,12 +138,13 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         delivery_attempt: Some(delivery_attempt),
         metadata: Some(event_metadata),
         is_overall_delivery_successful: Some(false),
+        processor_merchant_id: Some(processor_merchant_id.clone()),
     };
 
     let lock_value = utils::perform_redis_lock(
         &state,
         &idempotent_event_id,
-        processor.get_account().get_id().to_owned(),
+        webhook_recipient.key_store.merchant_id.clone(),
     )
     .await?;
 
@@ -149,9 +155,9 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     if (state
         .store
         .find_event_by_merchant_id_idempotent_event_id(
-            &merchant_id,
+            &provider_merchant_id,
             &idempotent_event_id,
-            processor.get_key_store(),
+            &webhook_recipient.key_store,
         )
         .await)
         .is_ok()
@@ -162,7 +168,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         utils::free_redis_lock(
             &state,
             &idempotent_event_id,
-            processor.get_account().get_id().to_owned(),
+            webhook_recipient.key_store.merchant_id.clone(),
             lock_value,
         )
         .await?;
@@ -171,7 +177,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
 
     let event_insert_result = state
         .store
-        .insert_event(new_event, processor.get_key_store())
+        .insert_event(new_event, &webhook_recipient.key_store)
         .await;
 
     let event = match event_insert_result {
@@ -187,14 +193,15 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     utils::free_redis_lock(
         &state,
         &idempotent_event_id,
-        processor.get_account().get_id().to_owned(),
+        webhook_recipient.key_store.merchant_id.clone(),
         lock_value,
     )
     .await?;
 
     let process_tracker = add_outgoing_webhook_retry_task_to_process_tracker(
         &*state.store,
-        &business_profile,
+        &platform,
+        &webhook_recipient,
         &event,
         state.conf.application_source,
     )
@@ -207,15 +214,19 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     })
     .ok();
 
-    let cloned_key_store = processor.get_key_store().clone();
+    let cloned_key_store = webhook_recipient.key_store.clone();
+    let cloned_provider_merchant_id = provider_merchant_id.clone();
+    let cloned_processor_merchant_id = processor_merchant_id.clone();
     // Using a tokio spawn here and not arbiter because not all caller of this function
     // may have an actix arbiter
     tokio::spawn(
         async move {
             Box::pin(trigger_webhook_and_raise_event(
                 state,
-                business_profile,
+                webhook_recipient.profile,
                 &cloned_key_store,
+                cloned_provider_merchant_id,
+                cloned_processor_merchant_id,
                 event,
                 request_content,
                 delivery_attempt,
@@ -236,6 +247,8 @@ pub(crate) async fn trigger_webhook_and_raise_event(
     state: SessionState,
     business_profile: domain::Profile,
     merchant_key_store: &domain::MerchantKeyStore,
+    provider_merchant_id: common_utils::id_type::MerchantId,
+    processor_merchant_id: common_utils::id_type::MerchantId,
     event: domain::Event,
     request_content: OutgoingWebhookRequestContent,
     delivery_attempt: enums::WebhookDeliveryAttempt,
@@ -249,7 +262,6 @@ pub(crate) async fn trigger_webhook_and_raise_event(
         "Attempting to send webhook"
     );
 
-    let merchant_id = business_profile.merchant_id.clone();
     let trigger_webhook_result = trigger_webhook_to_merchant(
         state.clone(),
         business_profile,
@@ -265,7 +277,8 @@ pub(crate) async fn trigger_webhook_and_raise_event(
         state,
         trigger_webhook_result,
         content,
-        merchant_id,
+        provider_merchant_id,
+        processor_merchant_id,
         event,
         merchant_key_store,
     )
@@ -495,7 +508,8 @@ async fn raise_webhooks_analytics_event(
     state: SessionState,
     trigger_webhook_result: CustomResult<(), errors::WebhooksFlowError>,
     content: Option<api::OutgoingWebhookContent>,
-    merchant_id: common_utils::id_type::MerchantId,
+    provider_merchant_id: common_utils::id_type::MerchantId,
+    processor_merchant_id: common_utils::id_type::MerchantId,
     event: domain::Event,
     merchant_key_store: &domain::MerchantKeyStore,
 ) {
@@ -522,7 +536,7 @@ async fn raise_webhooks_analytics_event(
     // Fetch updated_event from db
     let updated_event = state
         .store
-        .find_event_by_merchant_id_event_id(&merchant_id, &event_id, merchant_key_store)
+        .find_event_by_merchant_id_event_id(&provider_merchant_id, &event_id, merchant_key_store)
         .await
         .attach_printable_lazy(|| format!("event not found for id: {}", &event_id))
         .map_err(|error| {
@@ -548,7 +562,8 @@ async fn raise_webhooks_analytics_event(
 
     let webhook_event = OutgoingWebhookEvent::new(
         state.tenant.tenant_id.clone(),
-        merchant_id,
+        provider_merchant_id,
+        Some(processor_merchant_id),
         event_id,
         event.event_type,
         outgoing_webhook_event_content,
@@ -562,24 +577,30 @@ async fn raise_webhooks_analytics_event(
 
 pub(crate) async fn add_outgoing_webhook_retry_task_to_process_tracker(
     db: &dyn StorageInterface,
-    business_profile: &domain::Profile,
+    platform: &domain::Platform,
+    webhook_recipient: &utils::WebhookRecipientContext,
     event: &domain::Event,
     application_source: common_enums::ApplicationSource,
 ) -> CustomResult<storage::ProcessTracker, errors::StorageError> {
+    let provider_merchant_id = platform.get_provider().get_account().get_id().clone();
+    let processor_merchant_id = platform.get_processor().get_account().get_id().clone();
+
     let schedule_time = outgoing_webhook_retry::get_webhook_delivery_retry_schedule_time(
         db,
-        &business_profile.merchant_id,
+        &webhook_recipient.profile.merchant_id,
         0,
     )
     .await
     .ok_or(errors::StorageError::ValueNotFound(
-        "Process tracker schedule time".into(), // Can raise a better error here
+        "Process tracker schedule time".into(),
     ))
     .attach_printable("Failed to obtain initial process tracker schedule time")?;
 
     let tracking_data = types::OutgoingWebhookTrackingData {
-        merchant_id: business_profile.merchant_id.clone(),
-        business_profile_id: business_profile.get_id().to_owned(),
+        merchant_id: provider_merchant_id,
+        business_profile_id: webhook_recipient.profile.get_id().to_owned(),
+        processor_merchant_id: Some(processor_merchant_id),
+        is_platform_initiated: Some(webhook_recipient.is_platform_initiated),
         event_type: event.event_type,
         event_class: event.event_class,
         primary_object_id: event.primary_object_id.clone(),
@@ -594,7 +615,7 @@ pub(crate) async fn add_outgoing_webhook_retry_task_to_process_tracker(
         runner,
         task,
         &event.event_id,
-        &business_profile.merchant_id,
+        &webhook_recipient.profile.merchant_id,
     );
     let process_tracker_entry = storage::ProcessTrackerNew::new(
         process_tracker_id,
@@ -639,7 +660,7 @@ fn get_webhook_url_from_business_profile(
 }
 
 pub(crate) fn get_outgoing_webhook_request(
-    processor: &domain::Processor,
+    webhook_recipient_account: &domain::MerchantAccount,
     outgoing_webhook: api::OutgoingWebhook,
     business_profile: &domain::Profile,
 ) -> CustomResult<OutgoingWebhookRequestContent, errors::WebhooksFlowError> {
@@ -695,7 +716,7 @@ pub(crate) fn get_outgoing_webhook_request(
         })
     }
 
-    match processor.get_account().get_compatible_connector() {
+    match webhook_recipient_account.get_compatible_connector() {
         #[cfg(feature = "stripe")]
         Some(api_models::enums::Connector::Stripe) => get_outgoing_webhook_request_inner::<
             stripe_webhooks::StripeOutgoingWebhook,

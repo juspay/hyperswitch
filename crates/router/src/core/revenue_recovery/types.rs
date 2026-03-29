@@ -1592,16 +1592,24 @@ impl RevenueRecoveryOutgoingWebhook {
                     api_models::webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(
                         response,
                     ));
+                let webhook_recipient =
+                    crate::core::webhooks::utils::resolve_webhook_recipient_from_initiator(
+                        state, platform, profile,
+                    )
+                    .await
+                    .change_context(errors::RecoveryError::InvalidTask)
+                    .attach_printable("Failed to resolve webhook recipient for revenue recovery")?;
+
                 create_event_and_trigger_outgoing_webhook(
                     state.clone(),
-                    profile.clone(),
-                    platform.get_processor().get_key_store(),
+                    platform.clone(),
                     event_status,
                     event_class,
                     payment_attempt_id,
                     common_enums::EventObjectType::PaymentDetails,
                     outgoing_webhook_content,
                     payment_intent.created_at,
+                    webhook_recipient,
                 )
                 .await
                 .change_context(errors::RecoveryError::InvalidTask)

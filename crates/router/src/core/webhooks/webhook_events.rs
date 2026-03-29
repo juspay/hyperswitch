@@ -8,7 +8,7 @@ use router_env::{instrument, tracing};
 use crate::{
     core::errors::{self, RouterResponse, StorageErrorExt},
     routes::SessionState,
-    services::ApplicationResponse,
+    services::{authentication::get_platform_account_and_key_store, ApplicationResponse},
     types::{api, domain, storage, transformers::ForeignTryFrom},
     utils::{OptionExt, StringExt},
 };
@@ -34,8 +34,50 @@ pub async fn list_initial_delivery_attempts(
     )?;
 
     let store = state.store.as_ref();
-    let (account, key_store) =
-        get_account_and_key_store(state.clone(), merchant_id.clone(), profile_id.clone()).await?;
+    let master_key = &store.get_master_key().to_vec().into();
+
+    let key_store = store
+        .get_merchant_key_store_by_merchant_id(&merchant_id, master_key)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let merchant_account = store
+        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    // Events are stored under the provider merchant's merchant_id.
+    // Resolve the provider so event queries use the correct merchant_id.
+    let provider_merchant_account = match merchant_account.merchant_account_type {
+        common_enums::MerchantAccountType::Connected => {
+            let (platform_account, _) =
+                get_platform_account_and_key_store(&state, &merchant_account)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to fetch platform account for connected merchant")?;
+            platform_account
+        }
+        common_enums::MerchantAccountType::Standard
+        | common_enums::MerchantAccountType::Platform => merchant_account,
+    };
+    let provider_merchant_id = provider_merchant_account.get_id().clone();
+
+    let account = match profile_id.clone() {
+        Some(profile_id) => {
+            let business_profile = store
+                .find_business_profile_by_merchant_id_profile_id(
+                    &key_store,
+                    &merchant_id,
+                    &profile_id,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                    id: profile_id.get_string_repr().to_owned(),
+                })?;
+            MerchantAccountOrProfile::Profile(Box::new(business_profile))
+        }
+        None => MerchantAccountOrProfile::MerchantAccount(Box::new(provider_merchant_account)),
+    };
 
     let now = common_utils::date_time::now();
     let events_list_begin_time =
@@ -44,10 +86,10 @@ pub async fn list_initial_delivery_attempts(
     let (events, total_count) = match constraints {
         api_models::webhook_events::EventListConstraintsInternal::ObjectIdFilter { object_id } => {
             let events = match account {
-                MerchantAccountOrProfile::MerchantAccount(merchant_account) => {
+                MerchantAccountOrProfile::MerchantAccount(provider_merchant_account) => {
                     store
                         .list_initial_events_by_merchant_id_primary_object_id(
-                            merchant_account.get_id(),
+                            provider_merchant_account.get_id(),
                             object_id.as_str(),
                             &key_store,
                         )
@@ -73,10 +115,10 @@ pub async fn list_initial_delivery_attempts(
         }
         api_models::webhook_events::EventListConstraintsInternal::EventIdFilter { event_id } => {
             let event_opt = match account {
-                MerchantAccountOrProfile::MerchantAccount(merchant_account) => {
+                MerchantAccountOrProfile::MerchantAccount(provider_merchant_account) => {
                     store
                         .find_initial_event_by_merchant_id_initial_attempt_id(
-                            merchant_account.get_id(),
+                            provider_merchant_account.get_id(),
                             event_id.as_str(),
                             &key_store,
                         )
@@ -160,10 +202,10 @@ pub async fn list_initial_delivery_attempts(
             }?;
 
             let events = match account {
-                MerchantAccountOrProfile::MerchantAccount(merchant_account) => {
+                MerchantAccountOrProfile::MerchantAccount(provider_merchant_account) => {
                     store
                         .list_initial_events_by_merchant_id_constraints(
-                            merchant_account.get_id(),
+                            provider_merchant_account.get_id(),
                             created_after,
                             created_before,
                             limit,
@@ -194,7 +236,7 @@ pub async fn list_initial_delivery_attempts(
 
             let total_count = store
                 .count_initial_events_by_constraints(
-                    &merchant_id,
+                    &provider_merchant_id,
                     profile_id,
                     created_after,
                     created_before,
@@ -226,18 +268,37 @@ pub async fn list_delivery_attempts(
     initial_attempt_id: String,
 ) -> RouterResponse<Vec<api::webhook_events::EventRetrieveResponse>> {
     let store = state.store.as_ref();
+    let master_key = &store.get_master_key().to_vec().into();
 
     let key_store = store
-        .get_merchant_key_store_by_merchant_id(
-            &merchant_id,
-            &store.get_master_key().to_vec().into(),
-        )
+        .get_merchant_key_store_by_merchant_id(&merchant_id, master_key)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
+    let merchant_account = store
+        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    // Events are stored under the provider's merchant_id. Resolve the provider
+    // based on the authenticated merchant's account type. The authenticated
+    // merchant's keystore is used for decryption (they are the webhook recipient).
+    let provider_merchant_id = match merchant_account.merchant_account_type {
+        common_enums::MerchantAccountType::Connected => {
+            let (platform_account, _) =
+                get_platform_account_and_key_store(&state, &merchant_account)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to fetch platform account for connected merchant")?;
+            platform_account.get_id().clone()
+        }
+        common_enums::MerchantAccountType::Standard
+        | common_enums::MerchantAccountType::Platform => merchant_id.clone(),
+    };
+
     let events = store
         .list_events_by_merchant_id_initial_attempt_id(
-            &merchant_id,
+            &provider_merchant_id,
             &initial_attempt_id,
             &key_store,
         )
@@ -268,19 +329,90 @@ pub async fn retry_delivery_attempt(
     event_id: String,
 ) -> RouterResponse<api::webhook_events::EventRetrieveResponse> {
     let store = state.store.as_ref();
+    let master_key = &store.get_master_key().to_vec().into();
 
+    // merchant_id from auth can be a standard, connected, or platform merchant.
     let key_store = store
-        .get_merchant_key_store_by_merchant_id(
-            &merchant_id,
-            &store.get_master_key().to_vec().into(),
-        )
+        .get_merchant_key_store_by_merchant_id(&merchant_id, master_key)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    let event_to_retry = store
-        .find_event_by_merchant_id_event_id(&key_store.merchant_id, &event_id, &key_store)
+    let merchant_account = store
+        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::EventNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    // Resolve provider and processor merchant IDs and key stores based on
+    // the authenticated merchant's account type.
+    //
+    // Standard:  provider = processor = merchant_id
+    // Connected: processor = merchant_id, provider = platform merchant
+    // Platform:  provider = merchant_id, processor unknown until event is read
+    let (provider_merchant_id, provider_key_store, processor_merchant_id, processor_key_store) =
+        match merchant_account.merchant_account_type {
+            common_enums::MerchantAccountType::Connected => {
+                let (platform_account, platform_key_store) =
+                    get_platform_account_and_key_store(&state, &merchant_account)
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Failed to fetch platform account for connected merchant",
+                        )?;
+                (
+                    platform_account.get_id().clone(),
+                    platform_key_store,
+                    merchant_id.clone(),
+                    key_store.clone(),
+                )
+            }
+            common_enums::MerchantAccountType::Standard => (
+                merchant_id.clone(),
+                key_store.clone(),
+                merchant_id.clone(),
+                key_store.clone(),
+            ),
+            common_enums::MerchantAccountType::Platform => {
+                // Platform merchant = provider. The processor is unknown until
+                // we read the event, so both default to the platform's credentials.
+                (
+                    merchant_id.clone(),
+                    key_store.clone(),
+                    merchant_id.clone(),
+                    key_store.clone(),
+                )
+            }
+        };
+
+    // Try fetching the event with the processor's key store first (covers processor-targeted
+    // webhooks and standard merchant flows). If that fails, fall back to the provider's
+    // key store (covers platform-initiated webhooks where encryption used the provider's key).
+    let (event_to_retry, webhook_key_store) = match store
+        .find_event_by_merchant_id_event_id(&provider_merchant_id, &event_id, &processor_key_store)
+        .await
+    {
+        Ok(event) => (event, processor_key_store.clone()),
+        Err(_) if provider_merchant_id != processor_merchant_id => {
+            let event = store
+                .find_event_by_merchant_id_event_id(
+                    &provider_merchant_id,
+                    &event_id,
+                    &provider_key_store,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::EventNotFound)?;
+            (event, provider_key_store.clone())
+        }
+        Err(error) => {
+            return Err(error).to_not_found_response(errors::ApiErrorResponse::EventNotFound)?;
+        }
+    };
+
+    // Resolve the actual processor_merchant_id from the event (may differ from the
+    // authenticated merchant when the caller is the platform).
+    let processor_merchant_id = event_to_retry
+        .processor_merchant_id
+        .clone()
+        .unwrap_or(processor_merchant_id);
 
     let business_profile_id = event_to_retry
         .business_profile_id
@@ -288,7 +420,7 @@ pub async fn retry_delivery_attempt(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to read business profile ID from event to retry")?;
     let business_profile = store
-        .find_business_profile_by_profile_id(&key_store, &business_profile_id)
+        .find_business_profile_by_profile_id(&webhook_key_store, &business_profile_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to find business profile")?;
@@ -312,7 +444,7 @@ pub async fn retry_delivery_attempt(
         primary_object_id: event_to_retry.primary_object_id,
         primary_object_type: event_to_retry.primary_object_type,
         created_at: now,
-        merchant_id: Some(business_profile.merchant_id.clone()),
+        merchant_id: Some(provider_merchant_id.clone()),
         business_profile_id: Some(business_profile.get_id().to_owned()),
         primary_object_created_at: event_to_retry.primary_object_created_at,
         idempotent_event_id: Some(idempotent_event_id),
@@ -322,10 +454,13 @@ pub async fn retry_delivery_attempt(
         delivery_attempt: Some(delivery_attempt),
         metadata: event_to_retry.metadata,
         is_overall_delivery_successful: Some(false),
+        processor_merchant_id: event_to_retry
+            .processor_merchant_id
+            .or(Some(processor_merchant_id.clone())),
     };
 
     let event = store
-        .insert_event(new_event, &key_store)
+        .insert_event(new_event, &webhook_key_store)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to insert event")?;
@@ -344,7 +479,9 @@ pub async fn retry_delivery_attempt(
     Box::pin(super::outgoing::trigger_webhook_and_raise_event(
         state.clone(),
         business_profile,
-        &key_store,
+        &webhook_key_store,
+        provider_merchant_id.clone(),
+        processor_merchant_id.clone(),
         event,
         request_content,
         delivery_attempt,
@@ -354,70 +491,17 @@ pub async fn retry_delivery_attempt(
     .await;
 
     let updated_event = store
-        .find_event_by_merchant_id_event_id(&key_store.merchant_id, &new_event_id, &key_store)
+        .find_event_by_merchant_id_event_id(
+            &provider_merchant_id,
+            &new_event_id,
+            &webhook_key_store,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::EventNotFound)?;
 
     Ok(ApplicationResponse::Json(
         api::webhook_events::EventRetrieveResponse::try_from(updated_event)?,
     ))
-}
-
-async fn get_account_and_key_store(
-    state: SessionState,
-    merchant_id: common_utils::id_type::MerchantId,
-    profile_id: Option<common_utils::id_type::ProfileId>,
-) -> errors::RouterResult<(MerchantAccountOrProfile, domain::MerchantKeyStore)> {
-    let store = state.store.as_ref();
-
-    let merchant_key_store = store
-        .get_merchant_key_store_by_merchant_id(
-            &merchant_id,
-            &store.get_master_key().to_vec().into(),
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-
-    match profile_id {
-        // If profile ID is specified, return business profile, since a business profile is more
-        // specific than a merchant account.
-        Some(profile_id) => {
-            let business_profile = store
-                .find_business_profile_by_merchant_id_profile_id(
-                    &merchant_key_store,
-                    &merchant_id,
-                    &profile_id,
-                )
-                .await
-                .attach_printable_lazy(|| {
-                    format!(
-                        "Failed to find business profile by merchant_id `{merchant_id:?}` and profile_id `{profile_id:?}`. \
-                        The merchant_id associated with the business profile `{profile_id:?}` may be \
-                        different than the merchant_id specified (`{merchant_id:?}`)."
-                    )
-                })
-                .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
-                    id: profile_id.get_string_repr().to_owned(),
-                })?;
-
-            Ok((
-                MerchantAccountOrProfile::Profile(Box::new(business_profile)),
-                merchant_key_store,
-            ))
-        }
-
-        None => {
-            let merchant_account = store
-                .find_merchant_account_by_merchant_id(&merchant_id, &merchant_key_store)
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-
-            Ok((
-                MerchantAccountOrProfile::MerchantAccount(Box::new(merchant_account)),
-                merchant_key_store,
-            ))
-        }
-    }
 }
 
 async fn finalize_event_types(
