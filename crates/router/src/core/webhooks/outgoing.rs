@@ -286,6 +286,7 @@ pub(crate) async fn trigger_webhook_and_raise_event(
     .await;
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn trigger_webhook_to_merchant(
     state: SessionState,
     business_profile: domain::Profile,
