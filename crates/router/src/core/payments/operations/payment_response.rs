@@ -2098,12 +2098,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
                         // Translate user_guidance_message using standardised_code as the lookup key
                         // in unified_translations table: (standardised_code, user_guidance_message, locale) -> translation
-                        let translated_user_guidance_message = match (
-                            &gsm_standardised_code,
-                            &gsm_user_guidance_message,
-                        ) {
-                            (Some(code), Some(guidance_msg)) => {
-                                locale
+                        let translated_user_guidance_message =
+                            match (&gsm_standardised_code, &gsm_user_guidance_message) {
+                                (Some(code), Some(guidance_msg)) => locale
                                     .as_ref()
                                     .async_and_then(|locale_str| async {
                                         payments_helpers::get_unified_translation(
@@ -2115,10 +2112,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         .await
                                     })
                                     .await
-                                    .or(gsm_user_guidance_message.clone())
-                            }
-                            _ => gsm_user_guidance_message.clone(),
-                        };
+                                    .or(gsm_user_guidance_message.clone()),
+                                _ => gsm_user_guidance_message.clone(),
+                            };
 
                         let status = match err.attempt_status {
                             // Use the status sent by connector in error_response if it's present
