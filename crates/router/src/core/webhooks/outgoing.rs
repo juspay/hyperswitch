@@ -266,6 +266,7 @@ pub(crate) async fn trigger_webhook_and_raise_event(
         state.clone(),
         business_profile,
         merchant_key_store,
+        &provider_merchant_id,
         event.clone(),
         request_content,
         delivery_attempt,
@@ -289,6 +290,7 @@ async fn trigger_webhook_to_merchant(
     state: SessionState,
     business_profile: domain::Profile,
     merchant_key_store: &domain::MerchantKeyStore,
+    provider_merchant_id: &common_utils::id_type::MerchantId,
     event: domain::Event,
     request_content: OutgoingWebhookRequestContent,
     delivery_attempt: enums::WebhookDeliveryAttempt,
@@ -353,7 +355,7 @@ async fn trigger_webhook_to_merchant(
                 api_client_error_handler(
                     state.clone(),
                     merchant_key_store.clone(),
-                    &business_profile.merchant_id,
+                    provider_merchant_id,
                     &event_id,
                     client_error,
                     delivery_attempt,
@@ -366,7 +368,7 @@ async fn trigger_webhook_to_merchant(
                 let updated_event = update_event_in_storage(
                     state.clone(),
                     merchant_key_store.clone(),
-                    &business_profile.merchant_id,
+                    provider_merchant_id,
                     &event_id,
                     response,
                 )
@@ -376,14 +378,14 @@ async fn trigger_webhook_to_merchant(
                     update_overall_delivery_status_in_storage(
                         state.clone(),
                         merchant_key_store.clone(),
-                        &business_profile.merchant_id,
+                        provider_merchant_id,
                         updated_event,
                     )
                     .await?;
 
                     success_response_handler(
                         state.clone(),
-                        &business_profile.merchant_id,
+                        provider_merchant_id,
                         process_tracker,
                         business_status::INITIAL_DELIVERY_ATTEMPT_SUCCESSFUL,
                     )
@@ -391,7 +393,7 @@ async fn trigger_webhook_to_merchant(
                 } else {
                     error_response_handler(
                         state.clone(),
-                        &business_profile.merchant_id,
+                        provider_merchant_id,
                         delivery_attempt,
                         status_code.as_u16(),
                         "Ignoring error when sending webhook to merchant",
@@ -411,7 +413,7 @@ async fn trigger_webhook_to_merchant(
                     api_client_error_handler(
                         state.clone(),
                         merchant_key_store.clone(),
-                        &business_profile.merchant_id,
+                        provider_merchant_id,
                         &event_id,
                         client_error,
                         delivery_attempt,
@@ -424,7 +426,7 @@ async fn trigger_webhook_to_merchant(
                     let updated_event = update_event_in_storage(
                         state.clone(),
                         merchant_key_store.clone(),
-                        &business_profile.merchant_id,
+                        provider_merchant_id,
                         &event_id,
                         response,
                     )
@@ -434,14 +436,14 @@ async fn trigger_webhook_to_merchant(
                         update_overall_delivery_status_in_storage(
                             state.clone(),
                             merchant_key_store.clone(),
-                            &business_profile.merchant_id,
+                            provider_merchant_id,
                             updated_event,
                         )
                         .await?;
 
                         success_response_handler(
                             state.clone(),
-                            &business_profile.merchant_id,
+                            provider_merchant_id,
                             Some(process_tracker),
                             "COMPLETED_BY_PT",
                         )
@@ -449,7 +451,7 @@ async fn trigger_webhook_to_merchant(
                     } else {
                         error_response_handler(
                             state.clone(),
-                            &business_profile.merchant_id,
+                            provider_merchant_id,
                             delivery_attempt,
                             status_code.as_u16(),
                             "An error occurred when sending webhook to merchant",
@@ -465,7 +467,7 @@ async fn trigger_webhook_to_merchant(
                 api_client_error_handler(
                     state.clone(),
                     merchant_key_store.clone(),
-                    &business_profile.merchant_id,
+                    provider_merchant_id,
                     &event_id,
                     client_error,
                     delivery_attempt,
@@ -478,7 +480,7 @@ async fn trigger_webhook_to_merchant(
                 let _updated_event = update_event_in_storage(
                     state.clone(),
                     merchant_key_store.clone(),
-                    &business_profile.merchant_id,
+                    provider_merchant_id,
                     &event_id,
                     response,
                 )
@@ -489,7 +491,7 @@ async fn trigger_webhook_to_merchant(
                 } else {
                     error_response_handler(
                         state,
-                        &business_profile.merchant_id,
+                        provider_merchant_id,
                         delivery_attempt,
                         status_code.as_u16(),
                         "Ignoring error when sending webhook to merchant",
