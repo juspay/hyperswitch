@@ -4,6 +4,27 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.03.30.0
+
+### Features
+
+- **payment-methods:** Guest customer support in payments for modular pm ([#11534](https://github.com/juspay/hyperswitch/pull/11534)) ([`dc96818`](https://github.com/juspay/hyperswitch/commit/dc96818f468d0db590fb7b8a0a0883b376c1f834))
+- **payments:** Extend MIT via network token + NTI flows for modular merchants ([#11464](https://github.com/juspay/hyperswitch/pull/11464)) ([`2e1e7bd`](https://github.com/juspay/hyperswitch/commit/2e1e7bd63a8614fce68fbd1f0780dd83b79c703f))
+
+### Bug Fixes
+
+- **connectors:** [paypal] handle optional vault fields in 3DS CIT responses ([#11580](https://github.com/juspay/hyperswitch/pull/11580)) ([`8fd8e3a`](https://github.com/juspay/hyperswitch/commit/8fd8e3a329e45dfb9e528d7f0c61c0b38e5af2af))
+
+### Refactors
+
+- **blocking:** Consolidate profile-based blocklist check into should_payment_be_blocked ([#11621](https://github.com/juspay/hyperswitch/pull/11621)) ([`2542b61`](https://github.com/juspay/hyperswitch/commit/2542b6197e88408a3e7a83dfda593b0ba8f0f500))
+- **connector:** [Noon] rename a metadata field ([#11633](https://github.com/juspay/hyperswitch/pull/11633)) ([`00362f1`](https://github.com/juspay/hyperswitch/commit/00362f1a19587dcc11fcc55a683009287c90c9c2))
+- **router:** Handle dispute webhook validation failure with 4xx response ([#11607](https://github.com/juspay/hyperswitch/pull/11607)) ([`40a0389`](https://github.com/juspay/hyperswitch/commit/40a0389c248f2d3ffe91907a133ee3954ee32026))
+
+**Full Changelog:** [`2026.03.27.0...2026.03.30.0`](https://github.com/juspay/hyperswitch/compare/2026.03.27.0...2026.03.30.0)
+
+- - -
+
 ## 2026.03.27.0
 
 ### Features
