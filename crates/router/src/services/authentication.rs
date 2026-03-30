@@ -2703,6 +2703,56 @@ where
 }
 
 #[async_trait]
+impl<A, F> AuthenticateAndFetch<UserFromToken, A> for InternalMerchantIdProfileIdAuth<F>
+where
+    A: SessionStateInfo + Sync + Send,
+    F: AuthenticateAndFetch<UserFromToken, A> + Sync + Send,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(UserFromToken, AuthenticationType)> {
+        if !state.conf().internal_merchant_id_profile_id_auth.enabled {
+            return self.0.authenticate_and_fetch(request_headers, state).await;
+        }
+
+        match Box::pin(Self::validate_internal_auth(request_headers, state)).await? {
+            Some(validated_data) => {
+                let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+
+                if payload.check_in_blacklist(state).await? {
+                    return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+                }
+
+                authorization::check_tenant(
+                    payload.tenant_id.clone(),
+                    &state.session_state().tenant.tenant_id,
+                )?;
+
+                let _role_info = authorization::get_role_info(state, &payload).await?;
+
+                Ok((
+                    UserFromToken {
+                        user_id: payload.user_id,
+                        merchant_id: payload.merchant_id,
+                        org_id: payload.org_id,
+                        role_id: payload.role_id,
+                        profile_id: payload.profile_id,
+                        tenant_id: payload.tenant_id,
+                    },
+                    AuthenticationType::InternalMerchantIdProfileId {
+                        merchant_id: validated_data.initiator_merchant.get_id().clone(),
+                        profile_id: Some(validated_data.profile.get_id().clone()),
+                    },
+                ))
+            }
+            None => self.0.authenticate_and_fetch(request_headers, state).await,
+        }
+    }
+}
+
+#[async_trait]
 impl<A, F> AuthenticateAndFetch<(), A> for InternalMerchantIdProfileIdAuth<F>
 where
     A: SessionStateInfo + Sync + Send,

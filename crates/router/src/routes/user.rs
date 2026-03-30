@@ -1228,8 +1228,8 @@ pub async fn list_members_for_entity(
         state,
         &req,
         (),
-        |state, auth: auth::AuthenticationData, _, _| {
-            user_core::list_members_for_entity(state, auth, access_level)
+        |state, user_from_token: auth::UserFromToken, _, _| {
+            user_core::list_members_for_entity(state, user_from_token, access_level)
         },
         &auth::InternalMerchantIdProfileIdAuth(auth::JWTAuth {
             permission: Permission::OrganizationAccountRead,
