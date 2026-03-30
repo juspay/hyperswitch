@@ -4040,9 +4040,29 @@ pub async fn list_users_internal(
 
 pub async fn list_members_for_entity(
     state: SessionState,
-    user_from_token: auth::UserFromToken,
+    auth: auth::AuthenticationData,
     access_level: EntityType,
 ) -> UserResponse<user_api::ListUsersInternalResponse> {
+    let merchant_id = auth.platform.get_processor().get_account().get_id().clone();
+
+    let profile_id = {
+        #[cfg(feature = "v1")]
+        {
+            auth.profile
+                .ok_or(report!(UserErrors::InternalServerError))
+                .attach_printable("Profile is required for list_members_for_entity")?
+                .get_id()
+                .clone()
+        }
+        #[cfg(feature = "v2")]
+        {
+            auth.profile.get_id().clone()
+        }
+    };
+
+    let org_id = auth.platform.get_processor().get_account().get_org_id();
+    let tenant_id = &state.tenant.tenant_id;
+
     let entity_types_to_query: Vec<EntityType> = match access_level {
         EntityType::Profile => {
             vec![
@@ -4066,13 +4086,8 @@ pub async fn list_members_for_entity(
     let user_ids =
         futures::future::try_join_all(entity_types_to_query.into_iter().map(|entity_type| {
             let state = &state;
-            let merchant_id = &user_from_token.merchant_id;
-            let profile_id = &user_from_token.profile_id;
-            let org_id = &user_from_token.org_id;
-            let tenant_id = user_from_token
-                .tenant_id
-                .clone()
-                .unwrap_or(state.tenant.tenant_id.clone());
+            let merchant_id = &merchant_id;
+            let profile_id = &profile_id;
             async move {
                 let (merchant_id_filter, profile_id_filter) = match entity_type {
                     EntityType::Organization => (None, None),
@@ -4089,7 +4104,7 @@ pub async fn list_members_for_entity(
                     .global_store
                     .list_user_roles_by_org_id(crate::db::user_role::ListUserRolesByOrgIdPayload {
                         user_id: None,
-                        tenant_id: &tenant_id,
+                        tenant_id,
                         org_id,
                         merchant_id: merchant_id_filter,
                         profile_id: profile_id_filter,
