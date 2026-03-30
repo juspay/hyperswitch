@@ -3894,6 +3894,28 @@ pub async fn retrieve_payment_method(
         .await
         .attach_printable("Failed to get raw payment method data")?
         .and_then(|data| data.convert_to_raw_payment_method_data());
+
+    let raw_network_token_details = raw_payment_method_fetch_access
+        .get_raw_network_token_data(&state, &platform, &profile, &payment_method, storage_type)
+        .await
+        .inspect_err(|err| {
+            logger::warn!(?err, "Failed to fetch raw network token details");
+        })
+        .ok();
+
+    let raw_payment_method_data = match (raw_payment_method_data, raw_network_token_details) {
+        (
+            Some(payment_methods::RawPaymentMethodData::Card(card_details)),
+            Some(network_token_details),
+        ) => Some(payment_methods::RawPaymentMethodData::CardWithNT(
+            payment_methods::RawCardWithNTDetails {
+                card_details,
+                network_token_details,
+            },
+        )),
+        (raw_payment_method_data, _) => raw_payment_method_data,
+    };
+
     let billing = payment_method
         .payment_method_billing_address
         .clone()
@@ -4125,6 +4147,88 @@ impl RawPaymentMethodFetchAccess {
                         "Failed to get card details for payment method vaulting data",
                     )?;
                 Ok(Some(payment_method_vault_data))
+            }
+        }
+    }
+
+    pub async fn get_raw_network_token_data(
+        &self,
+        state: &SessionState,
+        platform: &domain::Platform,
+        profile: &domain::Profile,
+        payment_method: &domain::PaymentMethod,
+        storage_type: common_enums::StorageType,
+    ) -> RouterResult<payment_methods::CardDetail> {
+        match self {
+            Self::Denied => Err(report!(errors::ApiErrorResponse::AccessForbidden {
+                resource: "raw network token data".to_string()
+            }))
+            .attach_printable("Raw network token fetch access denied"),
+            Self::Allowed => {
+                let network_token_locker_id = payment_method
+                    .network_token_locker_id
+                    .clone()
+                    .ok_or(report!(errors::ApiErrorResponse::MissingRequiredField {
+                        field_name: "network_token_locker_id"
+                    }))?;
+
+                let customer_id = payment_method.customer_id.clone().ok_or(report!(
+                    errors::ApiErrorResponse::MissingRequiredField {
+                        field_name: "customer_id"
+                    }
+                ))?;
+
+                // Wrap network_token_locker_id with VaultId for type adaptation.
+                // The vault retrieval helper consumes domain::PaymentMethod and reads pm.locker_id: Option<VaultId>,
+                // while network token id is stored separately as network_token_locker_id: Option<String>.
+                let mut network_token_payment_method = payment_method.clone();
+                network_token_payment_method.locker_id =
+                    Some(domain::VaultId::generate(network_token_locker_id));
+                network_token_payment_method.customer_id = Some(customer_id);
+
+                let network_token_vault_data = vault::retrieve_payment_method_data_from_storage(
+                    state,
+                    platform,
+                    profile,
+                    &network_token_payment_method,
+                    storage_type,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to retrieve network token from vault")?
+                .data;
+
+                let check_token_status_response =
+                    network_tokenization::do_status_check_for_network_token(state, payment_method)
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to check network token status")?;
+
+                match (
+                    check_token_status_response.payload.token_status,
+                    network_token_vault_data,
+                ) {
+                    (
+                        pm_types::TokenStatus::Active,
+                        hyperswitch_domain_models::vault::PaymentMethodVaultingData::NetworkToken(
+                            network_token_details,
+                        ),
+                    ) => Ok(payment_methods::CardDetail {
+                        card_number: network_token_details.network_token.into(),
+                        card_exp_month: network_token_details.network_token_exp_month,
+                        card_exp_year: network_token_details.network_token_exp_year,
+                        card_holder_name: network_token_details.card_holder_name,
+                        nick_name: network_token_details.nick_name,
+                        card_issuing_country: network_token_details.card_issuing_country,
+                        card_network: network_token_details.card_network,
+                        card_issuer: network_token_details.card_issuer,
+                        card_type: network_token_details.card_type,
+                        card_cvc: None,
+                    }),
+                    _ => Err(report!(errors::ApiErrorResponse::GenericNotFoundError {
+                        message: "Network token not found or not active".to_string()
+                    })),
+                }
             }
         }
     }
