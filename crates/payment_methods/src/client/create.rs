@@ -106,6 +106,7 @@ pub struct CreatePaymentMethodResponse {
     pub connector_tokens: Option<Vec<ConnectorTokenDetails>>,
     pub network_token: Option<api_models::payment_methods::NetworkTokenResponse>,
     pub billing: Option<hyperswitch_domain_models::address::Address>,
+    pub storage_type: Option<common_enums::StorageType>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -191,6 +192,7 @@ impl TryFrom<ModularPaymentMethodResponse> for CreatePaymentMethodResponse {
             connector_tokens: response.connector_tokens,
             network_token: response.network_token,
             billing: response.billing,
+            storage_type: response.storage_type,
         })
     }
 }
