@@ -278,13 +278,13 @@ pub struct CardPayout {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
-#[serde(tag = "payout_method_type", rename_all = "snake_case")]
+#[serde(untagged)]
 pub enum Bank {
     Ach(AchBankTransfer),
     Bacs(BacsBankTransfer),
+    Trustly(TrustlyBankTransfer),
     Sepa(SepaBankTransfer),
     Pix(PixBankTransfer),
-    Trustly(TrustlyBankTransfer),
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
