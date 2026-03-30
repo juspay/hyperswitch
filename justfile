@@ -285,8 +285,8 @@ superposition-seed:
     #! /usr/bin/env bash
     set -euo pipefail
 
-    if [ ! -f "./config/superposition_seed.json" ]; then
-        echo "Error: Seed file not found at ./config/superposition_seed.json"
+    if [ ! -f "./config/superposition_seed.toml" ]; then
+        echo "Error: Seed file not found at ./config/superposition_seed.toml"
         exit 1
     fi
 

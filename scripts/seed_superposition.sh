@@ -4,7 +4,7 @@
 set -euo pipefail
 
 SUPERPOSITION_URL="${SUPERPOSITION_URL:-http://localhost:8081}"
-SEED_FILE="${SEED_FILE:-./config/superposition_seed.json}"
+SEED_FILE="${SEED_FILE:-./config/superposition_seed.toml}"
 WORKSPACE_ID="${WORKSPACE_ID:-dev}"
 ORG_ID="${ORG_ID:-localorg}"
 
@@ -29,13 +29,16 @@ if [ ! -f "$SEED_FILE" ]; then
     exit 1
 fi
 
+# Convert TOML seed file to JSON for processing
+SEED_JSON=$(yq -p toml -o json '.' "$SEED_FILE")
+
 # Seed dimensions
 echo "Seeding dimensions..."
-jq -c '.dimensions[]' "$SEED_FILE" | while read -r dimension; do
+echo "$SEED_JSON" | jq -c '.dimensions[]' | while read -r dimension; do
     dim_name=$(echo "$dimension" | jq -r '.dimension')
-    
+
     echo "Creating dimension: $dim_name"
-    
+
     curl -s -X POST "$SUPERPOSITION_URL/dimension" \
         -H "Content-Type: application/json" \
         -H "x-org-id: $ORG_ID" \
@@ -45,11 +48,11 @@ done
 
 # Seed default configs
 echo "Seeding default configurations..."
-jq -c '.default_configs[]' "$SEED_FILE" 2>/dev/null | while read -r config; do
+echo "$SEED_JSON" | jq -c '.default_configs[]' 2>/dev/null | while read -r config; do
     key=$(echo "$config" | jq -r '.key')
-    
+
     echo "Setting default config: $key"
-    
+
     curl -s -X POST "$SUPERPOSITION_URL/default-config" \
         -H "Content-Type: application/json" \
         -H "x-org-id: $ORG_ID" \
