@@ -295,7 +295,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e89da841a80418a9b391ebaea17f5c112ffaaa96f621d2c285b5174da76b9011"
 dependencies = [
  "cfg-if 1.0.0",
+ "getrandom 0.2.16",
  "once_cell",
+ "serde",
  "version_check",
  "zerocopy 0.7.35",
 ]
@@ -477,6 +479,7 @@ dependencies = [
  "smithy",
  "smithy-core",
  "strum 0.26.3",
+ "superposition_types",
  "tempfile",
  "time",
  "url",
@@ -1516,12 +1519,27 @@ dependencies = [
 
 [[package]]
 name = "bit-set"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0700ddab506f33b20a03b13996eccd309a48e5ff77d0d95926aa0210fb4e95f1"
+dependencies = [
+ "bit-vec 0.6.3",
+]
+
+[[package]]
+name = "bit-set"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "08807e080ed7f9d5433fa9b275196cfc35414f66a0c79d864dc51a0d825231a3"
 dependencies = [
- "bit-vec",
+ "bit-vec 0.8.0",
 ]
+
+[[package]]
+name = "bit-vec"
+version = "0.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "349f9b6a179ed607305526ca489b34ad0a41aed5f7980fa90eb03160b69598fb"
 
 [[package]]
 name = "bit-vec"
@@ -2184,7 +2202,7 @@ dependencies = [
 [[package]]
 name = "config_patch_derive"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.03.04.0-hotfix1#1e9287e60753e247c8ea584fbe5fde28e0563b1a"
+source = "git+https://github.com/juspay/connector-service?tag=2026.03.04.0-hotfix2#48fb46ed0f60fae824751a6569fc9024c20dc3fc"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3344,6 +3362,7 @@ dependencies = [
  "serde_json",
  "serde_urlencoded",
  "superposition_provider",
+ "superposition_types",
  "thiserror 1.0.69",
  "time",
  "tokio 1.48.0",
@@ -3365,6 +3384,16 @@ checksum = "2d391ba4af7f1d93f01fcf7b2f29e2bc9348e109dfdbf4dcbdc51dfa38dab0b6"
 dependencies = [
  "deunicode",
  "rand 0.8.5",
+]
+
+[[package]]
+name = "fancy-regex"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b95f7c0680e4142284cf8b22c14a476e87d61b004a3a0861872b32ef7ead40a2"
+dependencies = [
+ "bit-set 0.5.3",
+ "regex",
 ]
 
 [[package]]
@@ -3506,6 +3535,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e13624c2627564efccf4934284bdd98cbaa14e79b0b5a141218e507b3a823456"
 dependencies = [
  "percent-encoding",
+]
+
+[[package]]
+name = "fraction"
+version = "0.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3027ae1df8d41b4bed2241c8fdad4acc1e7af60c8e17743534b545e77182d678"
+dependencies = [
+ "lazy_static",
+ "num",
 ]
 
 [[package]]
@@ -3878,7 +3917,7 @@ dependencies = [
 [[package]]
 name = "grpc-api-types"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.03.04.0-hotfix1#1e9287e60753e247c8ea584fbe5fde28e0563b1a"
+source = "git+https://github.com/juspay/connector-service?tag=2026.03.04.0-hotfix2#48fb46ed0f60fae824751a6569fc9024c20dc3fc"
 dependencies = [
  "axum 0.8.4",
  "error-stack 0.5.0",
@@ -4851,6 +4890,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7943c866cc5cd64cbc25b2e01621d07fa8eb2a1a23160ee81ce38704e97b8ecf"
 
 [[package]]
+name = "iso8601"
+version = "0.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e1082f0c48f143442a1ac6122f67e360ceee130b967af4d50996e5154a45df46"
+dependencies = [
+ "nom 8.0.0",
+]
+
+[[package]]
 name = "iso_country"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4958,6 +5006,36 @@ dependencies = [
  "pest",
  "pest_derive",
  "serde",
+]
+
+[[package]]
+name = "jsonschema"
+version = "0.17.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2a071f4f7efc9a9118dfb627a0a94ef247986e1ab8606a4c806ae2b3aa3b6978"
+dependencies = [
+ "ahash 0.8.11",
+ "anyhow",
+ "base64 0.21.7",
+ "bytecount",
+ "clap 4.5.38",
+ "fancy-regex",
+ "fraction",
+ "getrandom 0.2.16",
+ "iso8601",
+ "itoa",
+ "memchr",
+ "num-cmp",
+ "once_cell",
+ "parking_lot 0.12.3",
+ "percent-encoding",
+ "regex",
+ "reqwest 0.11.27",
+ "serde",
+ "serde_json",
+ "time",
+ "url",
+ "uuid",
 ]
 
 [[package]]
@@ -5633,6 +5711,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "num"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "35bd024e8b2ff75562e5f34e7f4905839deb4b22955ef5e73d2fea1b9813cb23"
+dependencies = [
+ "num-bigint",
+ "num-complex",
+ "num-integer",
+ "num-iter",
+ "num-rational",
+ "num-traits",
+]
+
+[[package]]
 name = "num-bigint"
 version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5660,6 +5752,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "num-cmp"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "63335b2e2c34fae2fb0aa2cecfd9f0832a1e24b3b32ecec612c3426d46dc8aaa"
+
+[[package]]
+name = "num-complex"
+version = "0.4.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "73f88a1307638156682bada9d7604135552957b7818057dcef22705b4d509495"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "num-conv"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5681,6 +5788,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1429034a0490724d0075ebb2bc9e875d6503c3cf69e235a8941aa757d83ef5bf"
 dependencies = [
  "autocfg",
+ "num-integer",
+ "num-traits",
+]
+
+[[package]]
+name = "num-rational"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f83d14da390562dca69fc84082e73e548e1ad308d24accdedd2720017cb37824"
+dependencies = [
+ "num-bigint",
  "num-integer",
  "num-traits",
 ]
@@ -6687,8 +6805,8 @@ version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "14cae93065090804185d3b75f0bf93b8eeda30c7a9b4a33d3bdb3988d6229e50"
 dependencies = [
- "bit-set",
- "bit-vec",
+ "bit-set 0.8.0",
+ "bit-vec 0.8.0",
  "bitflags 2.9.0",
  "lazy_static",
  "num-traits",
@@ -6735,7 +6853,7 @@ dependencies = [
  "prettyplease",
  "prost 0.14.3",
  "prost-types 0.14.3",
- "pulldown-cmark 0.13.1",
+ "pulldown-cmark 0.13.3",
  "pulldown-cmark-to-cmark",
  "regex",
  "syn 2.0.101",
@@ -6828,9 +6946,9 @@ dependencies = [
 
 [[package]]
 name = "pulldown-cmark"
-version = "0.13.1"
+version = "0.13.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "83c41efbf8f90ac44de7f3a868f0867851d261b56291732d0cbf7cceaaeb55a6"
+checksum = "7c3a14896dfa883796f1cb410461aef38810ea05f2b2c33c5aded3649095fdad"
 dependencies = [
  "bitflags 2.9.0",
  "memchr",
@@ -6843,7 +6961,7 @@ version = "22.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "50793def1b900256624a709439404384204a5dc3a6ec580281bfaac35e882e90"
 dependencies = [
- "pulldown-cmark 0.13.1",
+ "pulldown-cmark 0.13.3",
 ]
 
 [[package]]
@@ -7610,7 +7728,7 @@ dependencies = [
 [[package]]
 name = "rust-grpc-client"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.03.04.0-hotfix1#1e9287e60753e247c8ea584fbe5fde28e0563b1a"
+source = "git+https://github.com/juspay/connector-service?tag=2026.03.04.0-hotfix2#48fb46ed0f60fae824751a6569fc9024c20dc3fc"
 dependencies = [
  "grpc-api-types",
 ]
@@ -9017,20 +9135,25 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "superposition_core"
-version = "0.97.4"
+version = "0.99.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d175b1f122c71bed5ee46d673913fa9da1bbc3209215c633fcaa02959a67396d"
+checksum = "5ce785d9bcadebf9cccdbf1962513daaf2522df0e83d70f5a2bb746f12904125"
 dependencies = [
  "actix-web",
  "anyhow",
+ "bigdecimal 0.3.1",
+ "blake3",
  "cbindgen",
  "cfg-if 1.0.0",
  "chrono",
  "derive_more 0.99.19",
  "itertools 0.10.5",
+ "jsonschema",
  "log",
  "mini-moka",
+ "num-bigint",
  "once_cell",
+ "percent-encoding",
  "rand 0.9.2",
  "reqwest 0.11.27",
  "serde",
@@ -9040,14 +9163,15 @@ dependencies = [
  "superposition_types",
  "thiserror 1.0.69",
  "tokio 1.48.0",
+ "toml 0.8.22",
  "uniffi",
 ]
 
 [[package]]
 name = "superposition_derives"
-version = "0.97.4"
+version = "0.99.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69975e8279bf31a5d6d7a2e1b5ed58ee3654293fbead0bcbd8c9c1cb579c1f68"
+checksum = "b7babb30f4056937c5be0d93c67694c01a180e5ad4fa60519ffbe06182d96596"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -9056,9 +9180,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_provider"
-version = "0.97.4"
+version = "0.99.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd6a040632a384bd5ab0929f89c826fe745038a7df79551f9b7d798f810718d5"
+checksum = "16120fe041ac9457f27caebb78aee364a454ef74802e91415ea91801b3eb4efd"
 dependencies = [
  "async-trait",
  "aws-smithy-types",
@@ -9073,14 +9197,15 @@ dependencies = [
  "superposition_types",
  "thiserror 1.0.69",
  "tokio 1.48.0",
+ "tokio-util",
  "uuid",
 ]
 
 [[package]]
 name = "superposition_sdk"
-version = "0.97.4"
+version = "0.99.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a34a90239b55a3466651d2b952da2a2b82dde69ce3ea8cee156cc314d0b0d62d"
+checksum = "dda16fe320a6a04943eb5ecc9f5477ec64d6ff556ec4802a6c18c6b7de9dce5d"
 dependencies = [
  "aws-smithy-async",
  "aws-smithy-http 0.62.1",
@@ -9096,9 +9221,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_types"
-version = "0.97.4"
+version = "0.99.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "372c30ac54dded10c9981719d3d7cbd83a7d06744f13c73517512625b890fd69"
+checksum = "4bdc5d336f7ce4a9d78ab431b333bfc5ec49b5bbd9c82719b5c22db2c672c4ab"
 dependencies = [
  "bigdecimal 0.3.1",
  "chrono",
@@ -10391,7 +10516,7 @@ checksum = "ed646292ffc8188ef8ea4d1e0e0150fb15a5c2e12ad9b8fc191ae7a8a7f3c4b9"
 [[package]]
 name = "ucs_cards"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.03.04.0-hotfix1#1e9287e60753e247c8ea584fbe5fde28e0563b1a"
+source = "git+https://github.com/juspay/connector-service?tag=2026.03.04.0-hotfix2#48fb46ed0f60fae824751a6569fc9024c20dc3fc"
 dependencies = [
  "bytes 1.10.1",
  "error-stack 0.4.1",
@@ -10407,7 +10532,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_enums"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.03.04.0-hotfix1#1e9287e60753e247c8ea584fbe5fde28e0563b1a"
+source = "git+https://github.com/juspay/connector-service?tag=2026.03.04.0-hotfix2#48fb46ed0f60fae824751a6569fc9024c20dc3fc"
 dependencies = [
  "serde",
  "strum 0.26.3",
@@ -10418,7 +10543,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_utils"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.03.04.0-hotfix1#1e9287e60753e247c8ea584fbe5fde28e0563b1a"
+source = "git+https://github.com/juspay/connector-service?tag=2026.03.04.0-hotfix2#48fb46ed0f60fae824751a6569fc9024c20dc3fc"
 dependencies = [
  "anyhow",
  "base64 0.21.7",

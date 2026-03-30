@@ -26,6 +26,10 @@ describe("Platform Setup & Connected Merchant Onboarding", () => {
       });
       cy.then(() => {
         globalState.set("platformMerchantId", globalState.get("merchantId"));
+        globalState.set(
+          "platformPublishableKey",
+          globalState.get("publishableKey")
+        );
       });
     });
 
@@ -34,7 +38,15 @@ describe("Platform Setup & Connected Merchant Onboarding", () => {
     });
 
     it("create-api-key-for-platform-merchant", () => {
+      const savedMerchantId = globalState.get("merchantId");
+      globalState.set("merchantId", globalState.get("platformMerchantId"));
+
       cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
+
+      cy.then(() => {
+        globalState.set("platformApiKey", globalState.get("apiKey"));
+        globalState.set("merchantId", savedMerchantId);
+      });
     });
   });
 
@@ -52,6 +64,7 @@ describe("Platform Setup & Connected Merchant Onboarding", () => {
         expectedMerchantAccountType: "connected",
         merchantIdStateKey: "connectedMerchantId1",
         profileIdStateKey: "profileIdCm1",
+        publishableKeyStateKey: "publishableKeyCm1",
       });
     });
 
@@ -87,6 +100,7 @@ describe("Platform Setup & Connected Merchant Onboarding", () => {
         expectedMerchantAccountType: "connected",
         merchantIdStateKey: "connectedMerchantId2",
         profileIdStateKey: "profileIdCm2",
+        publishableKeyStateKey: "publishableKeyCm2",
       });
 
       cy.then(() => {

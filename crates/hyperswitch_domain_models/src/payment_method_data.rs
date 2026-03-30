@@ -29,6 +29,8 @@ use crate::router_data::PaymentMethodToken;
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum PaymentMethodData {
     Card(Card),
+    CardWithOptionalCVC(CardWithOptionalCVC),
+    CardWithNetworkTokenDetails(Box<CardWithNetworkTokenDetails>),
     CardDetailsForNetworkTransactionId(CardDetailsForNetworkTransactionId),
     CardWithLimitedDetails(CardWithLimitedDetails),
     NetworkTokenDetailsForNetworkTransactionId(NetworkTokenDetailsForNetworkTransactionId),
@@ -206,6 +208,15 @@ impl PaymentMethodData {
                 Self::Card(card) => {
                     Self::Card(card.apply_additional_card_info(*additional_card_info))
                 }
+                Self::CardWithOptionalCVC(card_with_optional_cvc) => Self::CardWithOptionalCVC(
+                    card_with_optional_cvc.apply_additional_card_info(*additional_card_info),
+                ),
+                Self::CardWithNetworkTokenDetails(card_with_network_token_details) => {
+                    Self::CardWithNetworkTokenDetails(Box::new(
+                        card_with_network_token_details
+                            .apply_additional_card_info(*additional_card_info),
+                    ))
+                }
                 Self::CardWithLimitedDetails(card_with_limited_details) => {
                     Self::CardWithLimitedDetails(
                         card_with_limited_details.apply_additional_card_info(*additional_card_info),
@@ -227,6 +238,8 @@ impl PaymentMethodData {
     pub fn get_payment_method(&self) -> Option<common_enums::PaymentMethod> {
         match self {
             Self::Card(_)
+            | Self::CardWithOptionalCVC(_)
+            | Self::CardWithNetworkTokenDetails(_)
             | Self::NetworkToken(_)
             | Self::CardDetailsForNetworkTransactionId(_)
             | Self::NetworkTokenDetailsForNetworkTransactionId(_)
@@ -263,10 +276,13 @@ impl PaymentMethodData {
     }
 
     pub fn get_co_badged_card_data(&self) -> Option<&payment_methods::CoBadgedCardData> {
-        if let Self::Card(card) = self {
-            card.co_badged_card_data.as_ref()
-        } else {
-            None
+        match self {
+            Self::Card(card) => card.co_badged_card_data.as_ref(),
+            Self::CardWithOptionalCVC(card) => card.co_badged_card_data.as_ref(),
+            Self::CardWithNetworkTokenDetails(card) => {
+                card.card_details.co_badged_card_data.as_ref()
+            }
+            _ => None,
         }
     }
 
@@ -339,6 +355,78 @@ impl Card {
             bank_code: self.bank_code.clone().or(additional_card_info.bank_code),
             nick_name: self.nick_name.clone(),
             co_badged_card_data: self.co_badged_card_data.clone(),
+        }
+    }
+}
+
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
+pub struct CardWithOptionalCVC {
+    pub card_number: cards::CardNumber,
+    pub card_exp_month: Secret<String>,
+    pub card_exp_year: Secret<String>,
+    pub card_cvc: Option<Secret<String>>,
+    pub card_issuer: Option<String>,
+    pub card_network: Option<common_enums::CardNetwork>,
+    pub card_type: Option<String>,
+    pub card_issuing_country: Option<String>,
+    pub card_issuing_country_code: Option<String>,
+    pub bank_code: Option<String>,
+    pub nick_name: Option<Secret<String>>,
+    pub card_holder_name: Option<Secret<String>>,
+    pub co_badged_card_data: Option<payment_methods::CoBadgedCardData>,
+}
+
+impl CardWithOptionalCVC {
+    fn apply_additional_card_info(
+        &self,
+        additional_card_info: api_models::payments::AdditionalCardInfo,
+    ) -> Self {
+        Self {
+            card_number: self.card_number.clone(),
+            card_exp_month: self.card_exp_month.clone(),
+            card_exp_year: self.card_exp_year.clone(),
+            card_holder_name: self.card_holder_name.clone(),
+            card_cvc: self.card_cvc.clone(),
+            card_issuer: self
+                .card_issuer
+                .clone()
+                .or(additional_card_info.card_issuer),
+            card_network: self
+                .card_network
+                .clone()
+                .or(additional_card_info.card_network.clone()),
+            card_type: self.card_type.clone().or(additional_card_info.card_type),
+            card_issuing_country: self
+                .card_issuing_country
+                .clone()
+                .or(additional_card_info.card_issuing_country),
+            card_issuing_country_code: self
+                .card_issuing_country_code
+                .clone()
+                .or(additional_card_info.card_issuing_country_code),
+            bank_code: self.bank_code.clone().or(additional_card_info.bank_code),
+            nick_name: self.nick_name.clone(),
+            co_badged_card_data: self.co_badged_card_data.clone(),
+        }
+    }
+}
+
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
+pub struct CardWithNetworkTokenDetails {
+    pub card_details: CardWithOptionalCVC,
+    pub network_token_details: NetworkTokenDetailsForNetworkTransactionId,
+}
+
+impl CardWithNetworkTokenDetails {
+    fn apply_additional_card_info(
+        &self,
+        additional_card_info: api_models::payments::AdditionalCardInfo,
+    ) -> Self {
+        Self {
+            card_details: self
+                .card_details
+                .apply_additional_card_info(additional_card_info.clone()),
+            network_token_details: self.network_token_details.clone(),
         }
     }
 }

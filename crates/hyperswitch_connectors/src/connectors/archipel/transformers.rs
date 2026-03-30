@@ -795,6 +795,8 @@ impl TryFrom<ArchipelRouterData<&PaymentsAuthorizeRouterData>>
             | PaymentMethodData::OpenBanking(..)
             | PaymentMethodData::NetworkToken(..)
             | PaymentMethodData::MobilePayment(..)
+            | PaymentMethodData::CardWithOptionalCVC(..)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(..)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(..)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(..) => {
@@ -850,6 +852,8 @@ impl TryFrom<ArchipelRouterData<&PaymentsAuthorizeRouterData>>
                 TokenizedCardData::try_from((wallet_data, &item.router_data.payment_method_token))?
             }
             PaymentMethodData::Card(..)
+            | PaymentMethodData::CardWithOptionalCVC(..)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(..)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)

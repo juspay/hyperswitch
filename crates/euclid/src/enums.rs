@@ -1,7 +1,7 @@
 use common_enums::connector_enums::Connector;
 pub use common_enums::{
-    AuthenticationType, CaptureMethod, CardNetwork, Country, CountryAlpha2, Currency,
-    FutureUsage as SetupFutureUsage, PaymentMethod, PaymentMethodType,
+    AuthenticationType, CaptureMethod, CardDiscovery, CardNetwork, Country, CountryAlpha2,
+    Currency, FutureUsage as SetupFutureUsage, PaymentMethod, PaymentMethodType,
 };
 use strum::VariantNames;
 use utoipa::ToSchema;
@@ -36,6 +36,7 @@ collect_variants!(CaptureMethod);
 collect_variants!(Currency);
 collect_variants!(Country);
 collect_variants!(SetupFutureUsage);
+collect_variants!(CardDiscovery);
 #[cfg(feature = "payouts")]
 collect_variants!(PayoutType);
 #[cfg(feature = "payouts")]
