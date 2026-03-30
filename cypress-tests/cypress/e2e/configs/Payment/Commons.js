@@ -2362,38 +2362,6 @@ export const connectorDetails = {
     },
   }),
   payment_method_blocking_pm: {
-    BlockCardNetwork: getCustomExchange({
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: {
-            card_number: "4000000000000002",
-            card_exp_month: "03",
-            card_exp_year: "30",
-            card_holder_name: "joseph Doeeee",
-            card_cvc: "737",
-            card_network: "Visa",
-          },
-        },
-      },
-      Response: blockedPaymentErrorBody,
-    }),
-    BlockIssuers: getCustomExchange({
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: {
-            card_number: "4000000000000002",
-            card_exp_month: "03",
-            card_exp_year: "30",
-            card_holder_name: "joseph Doeeee",
-            card_cvc: "737",
-            card_network: "Visa",
-          },
-        },
-      },
-      Response: blockedPaymentErrorBody,
-    }),
     BlockIssuingCountry: getCustomExchange({
       Request: {
         payment_method: "card",
