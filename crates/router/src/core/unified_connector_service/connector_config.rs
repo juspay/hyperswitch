@@ -62,6 +62,33 @@ pub struct TruelayerMetadata {
     kid: Option<Secret<String>>,
 }
 
+/// Paysafe payment method details for account_id configuration.
+/// Contains card and ACH account IDs grouped by currency.
+/// This struct is compatible with the UCS Paysafe connector expectations.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaysafePaymentMethodDetails {
+    /// Card account IDs by currency
+    pub card: Option<HashMap<Currency, PaysafeCardAccountId>>,
+    /// ACH account IDs by currency
+    pub ach: Option<HashMap<Currency, PaysafeAchAccountId>>,
+}
+
+/// Paysafe card account ID configuration for a specific currency
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaysafeCardAccountId {
+    /// Non-3DS account ID
+    pub no_three_ds: Option<Secret<String>>,
+    /// 3DS account ID
+    pub three_ds: Option<Secret<String>>,
+}
+
+/// Paysafe ACH account ID configuration for a specific currency
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaysafeAchAccountId {
+    /// ACH account ID
+    pub account_id: Option<Secret<String>>,
+}
+
 /// Connector-specific configuration enum for all supported connectors
 #[derive(Debug, Clone, serde::Serialize)]
 pub enum ConnectorSpecificConfig {
