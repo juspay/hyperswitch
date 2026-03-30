@@ -379,7 +379,7 @@ pub async fn construct_refund_router_data<'a, F>(
         attempt_id: payment_attempt.id.get_string_repr().to_string().clone(),
         status,
         payment_method: payment_method_type,
-        payment_method_type: Some(payment_attempt.payment_method_subtype),
+        payment_method_type: payment_attempt.payment_method_subtype,
         connector_auth_type: auth_type,
         description: None,
         // Does refund need shipping/billing address ?
