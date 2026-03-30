@@ -1,5 +1,4 @@
 use api_models::superposition_sdk_config::SuperPositionConfigResponse;
-use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 use serde_json::Map;
 
@@ -43,21 +42,17 @@ pub async fn get_superposition_sdk_config(
 
     let cached_configs = state
         .superposition_service
-        .as_ref()
-        .async_map(|sp| {
-            sp.as_ref().get_cached_config(
-                Some(vec![DYNAMIC_FIELDS.to_string()]),
-                Some(dimension_filter.clone()),
-            )
-        })
+        .get_cached_config(
+            Some(vec![DYNAMIC_FIELDS.to_string()]),
+            Some(dimension_filter.clone()),
+        )
         .await
-        .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get cached superposition sdk config")?;
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         SuperPositionConfigResponse {
-            raw_configs: cached_configs,
+            raw_configs: Some(cached_configs),
             resolved_configs: None,
             context_used: dimension_filter,
         },

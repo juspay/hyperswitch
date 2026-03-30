@@ -56,6 +56,9 @@ pub struct SuperpositionClientConfig {
     pub polling_interval: u64,
     /// Request timeout in seconds for Superposition API calls (None = no timeout)
     pub request_timeout: Option<u64>,
+    /// Path to a TOML backup config file on PVC/EFS.
+    /// Used as fallback if the primary HTTP init fails at startup.
+    pub backup_file_path: Option<std::path::PathBuf>,
 }
 
 impl Default for SuperpositionClientConfig {
@@ -68,6 +71,7 @@ impl Default for SuperpositionClientConfig {
             workspace_id: String::new(),
             polling_interval: 15,
             request_timeout: None,
+            backup_file_path: None,
         }
     }
 }
