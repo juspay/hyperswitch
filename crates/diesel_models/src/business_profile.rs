@@ -4,7 +4,7 @@ use common_enums::{AuthenticationConnectors, UIWidgetFormLayout, VaultSdk};
 use common_types::primitive_wrappers;
 use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use time::Duration;
 
 #[cfg(feature = "v1")]
@@ -84,6 +84,9 @@ pub struct Profile {
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub is_l2_l3_enabled: Option<bool>,
+    pub network_tokenization_credentials: Option<Encryption>,
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
+    pub default_fallback_routing: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(feature = "v1")]
@@ -147,6 +150,9 @@ pub struct ProfileNew {
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub is_l2_l3_enabled: Option<bool>,
+    pub network_tokenization_credentials: Option<Encryption>,
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
+    pub default_fallback_routing: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(feature = "v1")]
@@ -211,6 +217,9 @@ pub struct ProfileUpdateInternal {
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
+    pub network_tokenization_credentials: Option<Encryption>,
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
+    pub default_fallback_routing: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(feature = "v1")]
@@ -272,6 +281,9 @@ impl ProfileUpdateInternal {
             is_external_vault_enabled,
             external_vault_connector_details,
             billing_processor_id,
+            network_tokenization_credentials,
+            payment_method_blocking,
+            default_fallback_routing,
         } = self;
         Profile {
             profile_id: source.profile_id,
@@ -367,6 +379,10 @@ impl ProfileUpdateInternal {
             external_vault_connector_details: external_vault_connector_details
                 .or(source.external_vault_connector_details),
             billing_processor_id: billing_processor_id.or(source.billing_processor_id),
+            network_tokenization_credentials: network_tokenization_credentials
+                .or(source.network_tokenization_credentials),
+            payment_method_blocking: payment_method_blocking.or(source.payment_method_blocking),
+            default_fallback_routing: default_fallback_routing.or(source.default_fallback_routing),
         }
     }
 }
@@ -437,12 +453,14 @@ pub struct Profile {
     pub is_external_vault_enabled: Option<bool>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub is_l2_l3_enabled: Option<bool>,
+    pub network_tokenization_credentials: Option<Encryption>,
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
+    pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
-    pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub should_collect_cvv_during_payment:
         Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
@@ -511,11 +529,11 @@ pub struct ProfileNew {
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
+    pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
-    pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub should_collect_cvv_during_payment:
         Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
@@ -527,6 +545,7 @@ pub struct ProfileNew {
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub is_l2_l3_enabled: Option<bool>,
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
+    pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
 }
 
 #[cfg(feature = "v2")]
@@ -749,6 +768,8 @@ impl ProfileUpdateInternal {
             always_enable_overcapture: None,
             is_l2_l3_enabled: None,
             billing_processor_id: billing_processor_id.or(source.billing_processor_id),
+            network_tokenization_credentials: source.network_tokenization_credentials,
+            payment_method_blocking: None,
         }
     }
 }
@@ -922,3 +943,45 @@ impl RevenueRecoveryAlgorithmData {
 }
 
 common_utils::impl_to_sql_from_sql_json!(RevenueRecoveryAlgorithmData);
+
+/// Configuration for payment method blocking based on card attributes
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub struct PaymentMethodBlockingConfig {
+    pub card: Option<CardBlockingConfig>,
+}
+
+/// Card-specific blocking configuration
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct CardBlockingConfig {
+    /// Set of issuing countries to block using ISO 3166-1 alpha-2 codes (e.g., ["IN", "US"])
+    pub issuing_country: Option<HashSet<common_enums::CountryAlpha2>>,
+    /// Set of card types to block (e.g., ["Credit", "Debit"])
+    pub card_types: Option<HashSet<common_enums::CardType>>,
+    /// Set of card subtypes to block
+    pub card_subtypes: Option<HashSet<common_enums::CardSubtype>>,
+    /// Set of card issuers to block (e.g., ["HDFC Bank", "ICICI Bank"])
+    pub issuers: Option<HashSet<String>>,
+    /// Whether to block if BIN is provided but no matching record found in cards_info table.
+    /// Defaults to false (allow payment if BIN not found in database).
+    pub block_if_bin_info_unavailable: Option<bool>,
+}
+
+impl CardBlockingConfig {
+    pub fn should_block_if_bin_info_unavailable(&self) -> bool {
+        self.block_if_bin_info_unavailable.unwrap_or(false)
+    }
+
+    pub fn should_block_by_attribute<T>(blocked: &Option<HashSet<T>>, value: Option<&str>) -> bool
+    where
+        T: std::str::FromStr + std::hash::Hash + Eq,
+    {
+        blocked
+            .as_ref()
+            .zip(value)
+            .and_then(|(set, s)| s.parse::<T>().ok().map(|v| (set, v)))
+            .is_some_and(|(set, v)| set.contains(&v))
+    }
+}
+
+common_utils::impl_to_sql_from_sql_json!(PaymentMethodBlockingConfig);

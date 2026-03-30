@@ -4,7 +4,7 @@ use hyperswitch_domain_models::{
     authentication, router_data_v2::ExternalAuthenticationFlowData, router_request_types,
     type_encryption::AsyncLift,
 };
-use masking::{ExposeInterface, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, PeekInterface};
 
 use crate::{
     consts,
@@ -83,7 +83,7 @@ pub async fn update_trackers<F: Clone, Req>(
                     .clone()
                     .map(|billing| {
                         common_utils::ext_traits::Encode::encode_to_value(&billing)
-                            .map(masking::Secret::<serde_json::Value>::new)
+                            .map(hyperswitch_masking::Secret::<serde_json::Value>::new)
                     })
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -94,7 +94,7 @@ pub async fn update_trackers<F: Clone, Req>(
                     .clone()
                     .map(|shipping| {
                         common_utils::ext_traits::Encode::encode_to_value(&shipping)
-                            .map(masking::Secret::<serde_json::Value>::new)
+                            .map(hyperswitch_masking::Secret::<serde_json::Value>::new)
                     })
                     .transpose()
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -373,7 +373,8 @@ pub async fn create_new_authentication(
     organization_id: common_utils::id_type::OrganizationId,
     force_3ds_challenge: Option<bool>,
     psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
-    merchant_key_store: &domain::MerchantKeyStore,
+    processor: &domain::Processor,
+    initiator: Option<&domain::Initiator>,
 ) -> RouterResult<authentication::Authentication> {
     let authentication_id = common_utils::id_type::AuthenticationId::generate_authentication_id(
         consts::AUTHENTICATION_ID_PREFIX,
@@ -461,11 +462,17 @@ pub async fn create_new_authentication(
         challenge_request_key: None,
         customer_details: None,
         merchant_country_code: None,
+        processor_merchant_id: Some(processor.get_account().get_id().clone()),
+        created_by: initiator.and_then(|initiator| initiator.to_created_by()),
     };
 
     state
         .store
-        .insert_authentication(&key_manager_state, merchant_key_store, new_authentication)
+        .insert_authentication(
+            &key_manager_state,
+            processor.get_key_store(),
+            new_authentication,
+        )
         .await
         .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
             message: format!(

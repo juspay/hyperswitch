@@ -4,7 +4,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use common_utils::{errors::CustomResult, fp_utils::when};
 use error_stack::ResultExt;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 
 use super::SuperpositionClient;
 
@@ -56,6 +56,9 @@ pub struct SuperpositionClientConfig {
     pub polling_interval: u64,
     /// Request timeout in seconds for Superposition API calls (None = no timeout)
     pub request_timeout: Option<u64>,
+    /// Path to a TOML backup config file on PVC/EFS.
+    /// Used as fallback if the primary HTTP init fails at startup.
+    pub backup_file_path: Option<std::path::PathBuf>,
 }
 
 impl Default for SuperpositionClientConfig {
@@ -68,6 +71,7 @@ impl Default for SuperpositionClientConfig {
             workspace_id: String::new(),
             polling_interval: 15,
             request_timeout: None,
+            backup_file_path: None,
         }
     }
 }
@@ -84,6 +88,9 @@ pub enum SuperpositionError {
     /// Invalid configuration provided
     #[error("Invalid configuration: {0}")]
     InvalidConfiguration(String),
+    /// Error from the Superposition provider
+    #[error("Superposition provider error: {0}")]
+    ProviderError(String),
 }
 
 /// Context for configuration requests

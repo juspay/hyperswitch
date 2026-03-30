@@ -50,9 +50,9 @@ use hyperswitch_constraint_graph as cgraph;
 use hyperswitch_domain_models::customer::CustomerUpdate;
 use hyperswitch_domain_models::mandates::CommonMandateReference;
 use hyperswitch_interfaces::secrets_interface::secret_state::RawSecret;
+use hyperswitch_masking::Secret;
 #[cfg(feature = "v1")]
 use kgraph_utils::transformers::IntoDirValue;
-use masking::Secret;
 use router_env::{instrument, tracing};
 use scheduler::errors as sch_errors;
 use strum::IntoEnumIterator;
@@ -95,7 +95,7 @@ use crate::{
         utils as core_utils,
     },
     db, logger,
-    pii::prelude::*,
+    pii::{ExposeInterface, ExposeOptionInterface, PeekInterface},
     routes::{self, metrics, payment_methods::ParentPaymentMethodToken},
     services,
     types::{
@@ -206,6 +206,7 @@ impl PaymentMethodsController for PmCards<'_> {
                     last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
                     customer_details: payment_method_customer_details_encrypted,
                     locker_fingerprint_id,
+                    network_tokenization_data: None, // setting this to None as write path will be introduced in a later PR
                 },
                 self.provider.get_account().storage_scheme,
             )
@@ -437,6 +438,7 @@ impl PaymentMethodsController for PmCards<'_> {
                     last_modified_by: initiator
                         .and_then(|initiator| initiator.to_created_by())
                         .map(|last_modified_by| last_modified_by.to_string()),
+                    network_tokenization_data: None, // setting this to None as write path will be introduced in a later PR
                 };
                 let db = &*self.state.store;
                 let existing_pm = db
@@ -1761,6 +1763,7 @@ pub async fn add_payment_method_data(
                             metadata: None,
                             last_used_at: None,
                             connector_mandate_details: None,
+                            network_tokenization_data: None, // setting it to None as write path will be introduced in a later PR
                         };
 
                         db.update_payment_method(
@@ -2443,6 +2446,7 @@ pub async fn update_payment_method_metadata_and_network_token_data_and_last_used
         metadata: pm_metadata,
         last_used_at: Some(common_utils::date_time::now()),
         connector_mandate_details: None,
+        network_tokenization_data: None, // setting this to None as write path will be introduced in a later PR
     };
 
     db.update_payment_method(key_store, pm, pm_update, storage_scheme)
@@ -2470,6 +2474,7 @@ pub async fn update_payment_method_network_token_data(
         last_modified_by: initiator
             .and_then(|initiator| initiator.to_created_by())
             .map(|last_modified_by| last_modified_by.to_string()),
+        network_tokenization_data: None, // setting this to None as write path will be introduced in a later PR
     };
 
     db.update_payment_method(key_store, pm, pm_update, storage_scheme)
@@ -2591,7 +2596,8 @@ pub async fn update_payment_method_connector_mandate_details_and_network_token_d
             .map(|last_modified_by| last_modified_by.to_string()),
         metadata: None,
         last_used_at: None,
-        connector_mandate_details: connector_mandate_details_value,
+        connector_mandate_details: connector_mandate_details_value.map(Box::new),
+        network_tokenization_data: None, // setting this to None as write path will be introduced in a later PR
     };
 
     db.update_payment_method(key_store, pm, pm_update, storage_scheme)
@@ -3848,6 +3854,20 @@ pub async fn list_payment_methods(
         .as_ref()
         .map(|payment_intent| payment_intent.customer_id.is_none())
         .unwrap_or(true);
+    let connector_supports_installments = currency.is_some_and(|cur| {
+        filtered_mcas.iter().any(|mca| {
+            mca.connector_name
+                .parse::<api_enums::Connector>()
+                .ok()
+                .is_some_and(|connector| {
+                    state
+                        .conf
+                        .installment_config
+                        .is_connector_currency_supported(&connector, cur)
+                })
+        })
+    });
+
     let merchant_surcharge_configs = if let Some((payment_attempt, payment_intent)) =
         payment_attempt.as_ref().zip(payment_intent.clone())
     {
@@ -3892,7 +3912,7 @@ pub async fn list_payment_methods(
                 .as_ref()
                 .map(|pa| pa.net_amount.get_total_amount())
                 .unwrap_or(pi.amount);
-            pi.into_payment_method_list_intent_data(net_amount)
+            pi.into_payment_method_list_intent_data(net_amount, connector_supports_installments)
         })
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4948,18 +4968,19 @@ where
 {
     let key = key_store.key.get_inner().peek();
     let identifier = Identifier::Merchant(key_store.merchant_id.clone());
-    let decrypted_data = domain::types::crypto_operation::<serde_json::Value, masking::WithType>(
-        &state.into(),
-        type_name!(T),
-        domain::types::CryptoOperation::DecryptOptional(data),
-        identifier,
-        key,
-    )
-    .await
-    .and_then(|val| val.try_into_optionaloperation())
-    .change_context(errors::StorageError::DecryptionError)
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("unable to decrypt data")?;
+    let decrypted_data =
+        domain::types::crypto_operation::<serde_json::Value, hyperswitch_masking::WithType>(
+            &state.into(),
+            type_name!(T),
+            domain::types::CryptoOperation::DecryptOptional(data),
+            identifier,
+            key,
+        )
+        .await
+        .and_then(|val| val.try_into_optionaloperation())
+        .change_context(errors::StorageError::DecryptionError)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to decrypt data")?;
 
     decrypted_data
         .map(|decrypted_data| decrypted_data.into_inner().expose())
@@ -5395,7 +5416,7 @@ where
         .change_context(errors::StorageError::SerializationFailed)
         .attach_printable("Unable to encode data")?;
 
-    let secret_data = Secret::<_, masking::WithType>::new(encoded_data);
+    let secret_data = Secret::<_, hyperswitch_masking::WithType>::new(encoded_data);
 
     let encrypted_data = domain::types::crypto_operation(
         key_manager_state,

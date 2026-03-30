@@ -28,10 +28,10 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 #[cfg(feature = "v2")]
-use masking::ExposeOptionInterface;
-use masking::Secret;
+use hyperswitch_masking::ExposeOptionInterface;
+use hyperswitch_masking::Secret;
 #[cfg(feature = "payouts")]
-use masking::{ExposeInterface, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, PeekInterface};
 use maud::{html, PreEscaped};
 use regex::Regex;
 use router_env::{instrument, tracing};
@@ -79,6 +79,25 @@ pub async fn get_feature_config(
     FeatureConfig {
         is_payment_method_modular_allowed,
     }
+}
+
+#[cfg(feature = "v1")]
+pub async fn validate_legacy_endpoint_access<E>(
+    state: &SessionState,
+    platform: &domain::Platform,
+) -> error_stack::Result<(), E>
+where
+    E: From<errors::ApiErrorResponse> + error_stack::Context,
+{
+    let feature_config = get_feature_config(state, platform).await;
+    common_utils::fp_utils::when(feature_config.is_payment_method_modular_allowed, || {
+        Err(error_stack::report!(E::from(
+            errors::ApiErrorResponse::AccessForbidden {
+                resource: "Deprecated route".to_string(),
+            },
+        )))
+    })?;
+    Ok(())
 }
 
 pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW: &str =
@@ -360,7 +379,7 @@ pub async fn construct_refund_router_data<'a, F>(
         attempt_id: payment_attempt.id.get_string_repr().to_string().clone(),
         status,
         payment_method: payment_method_type,
-        payment_method_type: Some(payment_attempt.payment_method_subtype),
+        payment_method_type: payment_attempt.payment_method_subtype,
         connector_auth_type: auth_type,
         description: None,
         // Does refund need shipping/billing address ?
@@ -743,7 +762,21 @@ pub fn get_split_refunds(
                         Ok(None)
                     }
                 }
-                _ => Ok(None),
+                // If charges data is unavailable, pass through merchant-provided split refund data without validation
+                _ => {
+                    if let Some(common_types::refunds::SplitRefund::AdyenSplitRefund(
+                        split_refund_request,
+                    )) = split_refund_input.refund_request.clone()
+                    {
+                        Ok(Some(
+                            router_request_types::SplitRefundsRequest::AdyenSplitRefund(
+                                split_refund_request,
+                            ),
+                        ))
+                    } else {
+                        Ok(None)
+                    }
+                }
             }
         }
         Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(_)) => {
@@ -1506,7 +1539,7 @@ pub async fn construct_dispute_sync_router_data<'a>(
 #[cfg(feature = "v2")]
 pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
     state: &SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     payment_data: &mut PaymentData<F>,
     merchant_connector_account: &MerchantConnectorAccount,
 ) -> RouterResult<types::PaymentsTaxCalculationRouterData> {
@@ -1516,7 +1549,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
 #[cfg(feature = "v1")]
 pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
     state: &SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     payment_data: &mut PaymentData<F>,
     merchant_connector_account: &MerchantConnectorAccount,
 ) -> RouterResult<types::PaymentsTaxCalculationRouterData> {
@@ -1564,7 +1597,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
 
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: platform.get_processor().get_account().get_id().to_owned(),
+        merchant_id: processor.get_account().get_id().to_owned(),
         customer_id: None,
         connector_customer: None,
         connector: merchant_connector_account.connector_name.clone(),
@@ -1599,7 +1632,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
         response: Err(ErrorResponse::default()),
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
-            platform.get_processor(),
+            processor,
             payment_intent,
             payment_attempt,
             &merchant_connector_account.connector_name,

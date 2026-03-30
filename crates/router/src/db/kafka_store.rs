@@ -37,7 +37,7 @@ use hyperswitch_domain_models::{
 };
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use redis_interface::{errors::RedisError, RedisConnectionPool, RedisEntryId};
 use router_env::{instrument, logger, tracing};
 use scheduler::{
@@ -3379,6 +3379,13 @@ impl UserInterface for KafkaStore {
         self.diesel_store.find_active_user_by_user_id(user_id).await
     }
 
+    async fn find_user_by_user_id(
+        &self,
+        user_id: &str,
+    ) -> CustomResult<storage::User, errors::StorageError> {
+        self.diesel_store.find_user_by_user_id(user_id).await
+    }
+
     async fn update_active_user_by_user_id(
         &self,
         user_id: &str,
@@ -3406,6 +3413,13 @@ impl UserInterface for KafkaStore {
         self.diesel_store
             .find_active_users_by_user_ids(user_ids)
             .await
+    }
+
+    async fn list_users_by_user_ids(
+        &self,
+        user_ids: Vec<String>,
+    ) -> CustomResult<Vec<storage::User>, errors::StorageError> {
+        self.diesel_store.list_users_by_user_ids(user_ids).await
     }
 
     async fn reactivate_user_by_user_id(
