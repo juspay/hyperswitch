@@ -1108,6 +1108,19 @@ pub trait PaymentMethodInterface {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<PaymentMethod>, Self::Error>;
 
+    #[cfg(feature = "v1")]
+    #[allow(clippy::too_many_arguments)]
+    async fn find_payment_method_by_customer_id_merchant_id_status_pm_type(
+        &self,
+        key_store: &MerchantKeyStore,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        status: common_enums::PaymentMethodStatus,
+        payment_method_type: common_enums::PaymentMethodType,
+        limit: Option<i64>,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<PaymentMethod>, Self::Error>;
+
     #[cfg(feature = "v2")]
     #[allow(clippy::too_many_arguments)]
     async fn find_payment_method_by_global_customer_id_merchant_id_status(

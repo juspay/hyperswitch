@@ -7756,6 +7756,7 @@ fn is_google_pay_pre_decrypt_type_connector_tokenization(
 ///
 /// For non-PayPal or flows without a stored PayPal payment method, this
 /// function returns `None`.
+#[cfg(feature = "v1")]
 async fn get_feature_data(
     customer_id: Option<id_type::CustomerId>,
     payment_method_type: Option<enums::PaymentMethodType>,
@@ -7770,11 +7771,12 @@ async fn get_feature_data(
             let mca_id = merchant_connector_account.get_mca_id();
             let payment_methods = state
                 .store
-                .find_payment_method_by_customer_id_merchant_id_status(
+                .find_payment_method_by_customer_id_merchant_id_status_pm_type(
                     key_store,
                     &customer_id,
                     merchant_id,
                     storage_enums::PaymentMethodStatus::Active,
+                    enums::PaymentMethodType::Paypal,
                     None,
                     storage_scheme,
                 )
@@ -7800,12 +7802,9 @@ async fn get_feature_data(
 
             let paypal_payment_ref = payment_methods
                 .iter()
-                .filter(|pm| {
-                    pm.get_payment_method_subtype() == Some(enums::PaymentMethodType::Paypal)
-                        && get_payment_ref(pm).is_some()
-                })
-                .max_by_key(|pm| pm.created_at) // Sort by created_at descending, take latest
-                .and_then(get_payment_ref);
+                .map(|pm| get_payment_ref(pm).map(|payment_ref| (pm.created_at, payment_ref)))
+                .max_by_key(|(created_at, _)| *created_at)
+                .map(|(_, payment_ref)| payment_ref);
 
             paypal_payment_ref.map(|payment_ref| {
                 FeatureData::PaypalReturningCustomer(Box::new(
