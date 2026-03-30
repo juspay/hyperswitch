@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use cards::CardNumber;
-use common_enums::{CardNetwork, PaymentMethodType};
+use common_enums::CardNetwork;
 #[cfg(feature = "v2")]
 use common_utils::types::BrowserInformation;
 use common_utils::{
@@ -277,14 +277,7 @@ pub struct CardPayout {
     pub card_network: Option<CardNetwork>,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, Serialize, ToSchema)]
-pub struct BankWrapper {
-    pub payout_method_type: PaymentMethodType,
-    #[serde(flatten)]
-    pub data: Bank,
-}
-
-#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(tag = "payout_method_type", rename_all = "snake_case")]
 pub enum Bank {
     Ach(AchBankTransfer),
@@ -444,7 +437,7 @@ pub struct Passthrough {
 
     /// Payout method type of the token
     #[schema(value_type = PaymentMethodType, example = "paypal")]
-    pub token_type: PaymentMethodType,
+    pub token_type: api_enums::PaymentMethodType,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -726,7 +719,7 @@ pub struct PayoutAttemptResponse {
     pub payment_method: Option<api_enums::PayoutType>,
     /// Payment Method Type
     #[schema(value_type = Option<PaymentMethodType>, example = "bacs")]
-    pub payout_method_type: Option<PaymentMethodType>,
+    pub payout_method_type: Option<api_enums::PaymentMethodType>,
     /// A unique identifier for a payout provided by the connector
     pub connector_transaction_id: Option<String>,
     /// If the payout was cancelled the reason provided here
@@ -987,7 +980,7 @@ pub struct PayoutEnabledPaymentMethodsInfo {
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentMethodTypeInfo {
-    pub payment_method_type: PaymentMethodType,
+    pub payment_method_type: api_enums::PaymentMethodType,
     pub required_fields: Option<HashMap<String, RequiredFieldInfo>>,
 }
 

@@ -8927,24 +8927,6 @@
           "savings"
         ]
       },
-      "BankWrapper": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Bank"
-          },
-          {
-            "type": "object",
-            "required": [
-              "payout_method_type"
-            ],
-            "properties": {
-              "payout_method_type": {
-                "$ref": "#/components/schemas/PaymentMethodType"
-              }
-            }
-          }
-        ]
-      },
       "BecsBankDebitAdditionalData": {
         "type": "object",
         "required": [
