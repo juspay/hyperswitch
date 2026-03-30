@@ -4051,6 +4051,7 @@ pub async fn list_members_for_entity(
         .ok_or(report!(UserErrors::InternalServerError))
         .attach_printable("Profile is required for list_members_for_entity")?;
 
+    let profile_id = profile.get_id();
     let org_id = auth.platform.get_processor().get_account().get_org_id();
     let tenant_id = &state.tenant.tenant_id;
 
@@ -4077,8 +4078,6 @@ pub async fn list_members_for_entity(
     let user_ids =
         futures::future::try_join_all(entity_types_to_query.into_iter().map(|entity_type| {
             let state = &state;
-            let merchant_id = merchant_id;
-            let profile_id = profile.get_id();
             async move {
                 let (merchant_id_filter, profile_id_filter) = match entity_type {
                     EntityType::Organization => (None, None),
