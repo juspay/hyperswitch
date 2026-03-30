@@ -30,8 +30,6 @@ use user_api::dashboard_metadata::SetMetaDataRequest;
 #[cfg(feature = "v1")]
 use super::admin;
 use super::errors::{StorageErrorExt, UserErrors, UserResponse, UserResult};
-#[cfg(feature = "v1")]
-use crate::types::transformers::ForeignFrom;
 use crate::{
     consts,
     core::encryption::send_request_to_key_service_for_user,
@@ -47,6 +45,8 @@ use crate::{
         user::{theme as theme_utils, two_factor_auth as tfa_utils},
     },
 };
+#[cfg(feature = "v1")]
+use crate::{db::user_role::ListUserRolesByOrgIdPayload, types::transformers::ForeignFrom};
 #[cfg(feature = "email")]
 use crate::{services::email::types as email_types, utils::user as user_utils};
 
@@ -4038,27 +4038,18 @@ pub async fn list_users_internal(
     ))
 }
 
+#[cfg(feature = "v1")]
 pub async fn list_members_for_entity(
     state: SessionState,
     auth: auth::AuthenticationData,
     access_level: EntityType,
 ) -> UserResponse<user_api::ListUsersInternalResponse> {
-    let merchant_id = auth.platform.get_processor().get_account().get_id().clone();
+    let merchant_id = auth.platform.get_processor().get_account().get_id();
 
-    let profile_id = {
-        #[cfg(feature = "v1")]
-        {
-            auth.profile
-                .ok_or(report!(UserErrors::InternalServerError))
-                .attach_printable("Profile is required for list_members_for_entity")?
-                .get_id()
-                .clone()
-        }
-        #[cfg(feature = "v2")]
-        {
-            auth.profile.get_id().clone()
-        }
-    };
+    let profile = auth
+        .profile
+        .ok_or(report!(UserErrors::InternalServerError))
+        .attach_printable("Profile is required for list_members_for_entity")?;
 
     let org_id = auth.platform.get_processor().get_account().get_org_id();
     let tenant_id = &state.tenant.tenant_id;
@@ -4078,7 +4069,7 @@ pub async fn list_members_for_entity(
             vec![EntityType::Organization]
         }
         EntityType::Tenant => {
-            return Err(report!(UserErrors::InternalServerError))
+            return Err(report!(UserErrors::InvalidRoleOperation))
                 .attach_printable("Tenant-level access is not supported for this endpoint");
         }
     };
@@ -4086,23 +4077,22 @@ pub async fn list_members_for_entity(
     let user_ids =
         futures::future::try_join_all(entity_types_to_query.into_iter().map(|entity_type| {
             let state = &state;
-            let merchant_id = &merchant_id;
-            let profile_id = &profile_id;
+            let merchant_id = merchant_id;
+            let profile_id = profile.get_id();
             async move {
                 let (merchant_id_filter, profile_id_filter) = match entity_type {
                     EntityType::Organization => (None, None),
                     EntityType::Merchant => (Some(merchant_id), None),
                     EntityType::Profile => (Some(merchant_id), Some(profile_id)),
                     EntityType::Tenant => {
-                        return Err(report!(UserErrors::InternalServerError)).attach_printable(
-                            "Tenant-level access is not supported for this endpoint",
-                        );
+                        return Err(report!(UserErrors::InternalServerError))
+                            .attach_printable("Unexpected tenant entity type in query list");
                     }
                 };
 
                 state
                     .global_store
-                    .list_user_roles_by_org_id(crate::db::user_role::ListUserRolesByOrgIdPayload {
+                    .list_user_roles_by_org_id(ListUserRolesByOrgIdPayload {
                         user_id: None,
                         tenant_id,
                         org_id,

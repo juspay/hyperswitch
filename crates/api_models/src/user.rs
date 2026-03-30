@@ -450,8 +450,9 @@ pub struct ListUsersInternalRequest {
     pub user_ids: Vec<String>,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct ListMembersRequest {
+pub struct ListMembersQueryParam {
     pub access_level: EntityType,
 }
 

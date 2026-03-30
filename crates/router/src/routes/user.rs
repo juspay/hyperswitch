@@ -1215,10 +1215,11 @@ pub async fn list_users_internal(
     .await
 }
 
+#[cfg(feature = "v1")]
 pub async fn list_members_for_entity(
     state: web::Data<AppState>,
     req: HttpRequest,
-    query: web::Query<user_api::ListMembersRequest>,
+    query: web::Query<user_api::ListMembersQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::ListMembersForEntity;
     let access_level = query.into_inner().access_level;
