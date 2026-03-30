@@ -17,6 +17,7 @@
 
 pub mod commands;
 pub mod errors;
+pub mod metrics;
 pub mod types;
 
 use std::sync::{atomic, Arc};

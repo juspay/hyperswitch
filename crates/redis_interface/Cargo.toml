@@ -22,6 +22,7 @@ tracing = { workspace = true }
 
 # First party crates
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["async_ext"] }
+router_env = { version = "0.1.0", path = "../router_env" }
 
 [dev-dependencies]
 tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }
