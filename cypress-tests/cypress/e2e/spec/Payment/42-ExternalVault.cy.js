@@ -17,8 +17,6 @@ describe("External Vault (VGS) - Connector Integration Tests", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  // ── 1. VGS Vault Connector Setup ─────────────────────────────────────────
-
   context("1. VGS vault connector setup on existing profile", () => {
     it("Create VGS vault connector (vault_processor) on existing profile", () => {
       const vgsConnectorBody = Cypress._.cloneDeep(
@@ -52,8 +50,6 @@ describe("External Vault (VGS) - Connector Integration Tests", () => {
       );
     });
   });
-
-  // ── 2. Save Card Flow (on_session, auto capture) ─────────────────────────
 
   context(
     "Save card for NoThreeDS automatic capture payment - Create+Confirm [on_session]",
@@ -147,8 +143,6 @@ describe("External Vault (VGS) - Connector Integration Tests", () => {
       });
     }
   );
-
-  // ── 3. Save Card Flow (on_session, manual capture) ───────────────────────
 
   context(
     "Save card for NoThreeDS manual capture payment - Create+Confirm [on_session]",
@@ -291,8 +285,6 @@ describe("External Vault (VGS) - Connector Integration Tests", () => {
     }
   );
 
-  // ── 4. Save Card Flow (off_session, auto capture) ────────────────────────
-
   context(
     "Save card for NoThreeDS automatic capture payment [off_session]",
     () => {
@@ -386,31 +378,23 @@ describe("External Vault (VGS) - Connector Integration Tests", () => {
     }
   );
 
-  // ── 5. Teardown: Remove VGS from business profile ────────────────────────
-
   context(
-    "5. Teardown - remove VGS external vault from business profile",
+    "Remove VGS external vault from business profile",
     () => {
       it("Remove external_vault_connector_id from business profile", () => {
-        cy.request({
-          method: "POST",
-          url: `${globalState.get("baseUrl")}/account/${globalState.get("merchantId")}/business_profile/${globalState.get("profileId")}`,
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-            "api-key": globalState.get("apiKey"),
-          },
-          body: {
-            is_external_vault_enabled: "disable",
-          },
-          failOnStatusCode: false,
-        }).then((response) => {
-          expect(response.status).to.be.oneOf([200, 400, 422]);
-          cy.task(
-            "cli_log",
-            `Remove external vault from profile: HTTP ${response.status}`
-          );
-        });
+        const updateBusinessProfileBody = {
+          is_external_vault_enabled: "disable",
+        };
+
+        cy.UpdateBusinessProfileTest(
+          updateBusinessProfileBody,
+          false,
+          false,
+          false,
+          false,
+          false,
+          globalState
+        );
       });
     }
   );
