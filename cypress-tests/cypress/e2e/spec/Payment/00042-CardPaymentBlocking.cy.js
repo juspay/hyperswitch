@@ -250,7 +250,7 @@ describe("Business Profile Payment Method Blocking", () => {
             globalState
           );
         }
-      ); 
+      );
 
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[

@@ -2266,8 +2266,7 @@ Cypress.Commands.add(
         expect(response.headers["content-type"]).to.include("application/json");
 
         // Check if this is a blocklist / payment method blocking case
-        const expectBlockedPayment =
-          resData?.expectBlockedPayment || false;
+        const expectBlockedPayment = resData?.expectBlockedPayment || false;
 
         if (expectBlockedPayment && response.status === 200) {
           // Blocklist case: HTTP 200 with an error body instead of a success body
@@ -2280,9 +2279,7 @@ Cypress.Commands.add(
 
           // Validate response body against expected values from config (Commons.js)
           for (const key in resData.body) {
-            expect(resData.body[key], [key]).to.deep.equal(
-              response.body[key]
-            );
+            expect(resData.body[key], [key]).to.deep.equal(response.body[key]);
           }
         } else if (response.status === 200) {
           globalState.set("paymentID", paymentIntentID);
