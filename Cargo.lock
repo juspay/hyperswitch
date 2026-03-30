@@ -479,7 +479,7 @@ dependencies = [
  "smithy",
  "smithy-core",
  "strum 0.26.3",
- "superposition_types 0.99.1",
+ "superposition_types",
  "tempfile",
  "time 0.3.41",
  "url 2.5.4",
@@ -2243,7 +2243,7 @@ dependencies = [
 [[package]]
 name = "config_patch_derive"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=e849b7f366f8b2c9f35034289e97dd758cc87011#e849b7f366f8b2c9f35034289e97dd758cc87011"
+source = "git+https://github.com/juspay/connector-service?branch=superposition-featuregate#264ae780cea0bdc154dbe34d04c1683ae08eff2f"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3403,7 +3403,7 @@ dependencies = [
  "serde_json",
  "serde_urlencoded",
  "superposition_provider",
- "superposition_types 0.99.1",
+ "superposition_types",
  "thiserror 1.0.69",
  "time 0.3.41",
  "tokio 1.48.0",
@@ -3970,7 +3970,7 @@ checksum = "32619942b8be646939eaf3db0602b39f5229b74575b67efc897811ded1db4e57"
 [[package]]
 name = "grpc-api-types"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=e849b7f366f8b2c9f35034289e97dd758cc87011#e849b7f366f8b2c9f35034289e97dd758cc87011"
+source = "git+https://github.com/juspay/connector-service?branch=superposition-featuregate#264ae780cea0bdc154dbe34d04c1683ae08eff2f"
 dependencies = [
  "axum 0.8.4",
  "error-stack 0.5.0",
@@ -8097,7 +8097,7 @@ dependencies = [
 [[package]]
 name = "rust-grpc-client"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=e849b7f366f8b2c9f35034289e97dd758cc87011#e849b7f366f8b2c9f35034289e97dd758cc87011"
+source = "git+https://github.com/juspay/connector-service?branch=superposition-featuregate#264ae780cea0bdc154dbe34d04c1683ae08eff2f"
 dependencies = [
  "grpc-api-types",
 ]
@@ -9541,29 +9541,9 @@ dependencies = [
  "serde_json",
  "strum 0.25.0",
  "strum_macros 0.25.3",
- "superposition_types 0.99.1",
+ "superposition_types",
  "thiserror 1.0.69",
  "tokio 1.48.0",
- "toml 0.8.22",
- "uniffi",
-]
-
-[[package]]
-name = "superposition_core"
-version = "0.102.0"
-source = "git+https://github.com/juspay/superposition?branch=main#9f610ad89d69df4fb5189afbb5bc639cb23750b8"
-dependencies = [
- "bigdecimal 0.3.1",
- "blake3",
- "cbindgen",
- "itertools 0.10.5",
- "jsonschema",
- "log 0.4.27",
- "num-bigint",
- "serde",
- "serde_json",
- "superposition_types 0.102.0",
- "thiserror 1.0.69",
  "toml 0.8.22",
  "uniffi",
 ]
@@ -9575,16 +9555,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b7babb30f4056937c5be0d93c67694c01a180e5ad4fa60519ffbe06182d96596"
 dependencies = [
  "proc-macro2",
- "quote",
- "syn 2.0.101",
-]
-
-[[package]]
-name = "superposition_derives"
-version = "0.102.0"
-source = "git+https://github.com/juspay/superposition?branch=main#9f610ad89d69df4fb5189afbb5bc639cb23750b8"
-dependencies = [
- "proc-macro-crate 3.2.0",
  "quote",
  "syn 2.0.101",
 ]
@@ -9603,9 +9573,9 @@ dependencies = [
  "reqwest 0.11.27",
  "serde",
  "serde_json",
- "superposition_core 0.99.1",
+ "superposition_core",
  "superposition_sdk",
- "superposition_types 0.99.1",
+ "superposition_types",
  "thiserror 1.0.69",
  "tokio 1.48.0",
  "tokio-util",
@@ -9647,28 +9617,7 @@ dependencies = [
  "serde_urlencoded",
  "strum 0.25.0",
  "strum_macros 0.25.3",
- "superposition_derives 0.99.1",
- "uniffi",
- "uuid",
-]
-
-[[package]]
-name = "superposition_types"
-version = "0.102.0"
-source = "git+https://github.com/juspay/superposition?branch=main#9f610ad89d69df4fb5189afbb5bc639cb23750b8"
-dependencies = [
- "bigdecimal 0.3.1",
- "chrono",
- "derive_more 0.99.19",
- "juspay_jsonlogic",
- "log 0.4.27",
- "regex",
- "serde",
- "serde_json",
- "serde_urlencoded",
- "strum 0.25.0",
- "strum_macros 0.25.3",
- "superposition_derives 0.102.0",
+ "superposition_derives",
  "uniffi",
  "uuid",
 ]
@@ -11002,7 +10951,7 @@ checksum = "ed646292ffc8188ef8ea4d1e0e0150fb15a5c2e12ad9b8fc191ae7a8a7f3c4b9"
 [[package]]
 name = "ucs_cards"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=e849b7f366f8b2c9f35034289e97dd758cc87011#e849b7f366f8b2c9f35034289e97dd758cc87011"
+source = "git+https://github.com/juspay/connector-service?branch=superposition-featuregate#264ae780cea0bdc154dbe34d04c1683ae08eff2f"
 dependencies = [
  "bytes 1.10.1",
  "error-stack 0.4.1",
@@ -11018,7 +10967,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_enums"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=e849b7f366f8b2c9f35034289e97dd758cc87011#e849b7f366f8b2c9f35034289e97dd758cc87011"
+source = "git+https://github.com/juspay/connector-service?branch=superposition-featuregate#264ae780cea0bdc154dbe34d04c1683ae08eff2f"
 dependencies = [
  "serde",
  "strum 0.26.3",
@@ -11029,7 +10978,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_utils"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=e849b7f366f8b2c9f35034289e97dd758cc87011#e849b7f366f8b2c9f35034289e97dd758cc87011"
+source = "git+https://github.com/juspay/connector-service?branch=superposition-featuregate#264ae780cea0bdc154dbe34d04c1683ae08eff2f"
 dependencies = [
  "anyhow",
  "base64 0.21.7",
@@ -11057,8 +11006,6 @@ dependencies = [
  "serde_json",
  "serde_urlencoded",
  "strum 0.26.3",
- "superposition_core 0.102.0",
- "superposition_types 0.102.0",
  "thiserror 1.0.69",
  "time 0.3.41",
  "tonic 0.14.5",
