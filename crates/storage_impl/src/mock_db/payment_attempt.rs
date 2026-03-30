@@ -4,11 +4,12 @@ use common_utils::id_type;
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 #[cfg(feature = "v1")]
-use hyperswitch_domain_models::behaviour::Conversion;
 use hyperswitch_domain_models::{
     merchant_key_store::MerchantKeyStore,
     payments::payment_attempt::{PaymentAttempt, PaymentAttemptInterface, PaymentAttemptUpdate},
 };
+
+use crate::behaviour::Conversion;
 
 use super::MockDb;
 use crate::errors::StorageError;

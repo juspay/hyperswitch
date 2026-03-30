@@ -14,14 +14,12 @@ use diesel_models::kv;
 use diesel_models::payment_method::{PaymentMethodUpdate, PaymentMethodUpdateInternal};
 use error_stack::ResultExt;
 #[cfg(feature = "v1")]
-use hyperswitch_domain_models::behaviour::ReverseConversion;
-#[cfg(feature = "v2")]
-use hyperswitch_domain_models::platform::Initiator;
 use hyperswitch_domain_models::{
-    behaviour::Conversion,
     merchant_key_store::MerchantKeyStore,
     payment_methods::{PaymentMethod as DomainPaymentMethod, PaymentMethodInterface},
 };
+
+use crate::behaviour::{Conversion, ReverseConversion};
 use router_env::{instrument, tracing};
 
 use super::MockDb;

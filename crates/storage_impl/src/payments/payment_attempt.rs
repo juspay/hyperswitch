@@ -13,14 +13,13 @@ use diesel_models::{
 use error_stack::ResultExt;
 #[cfg(all(feature = "v1", feature = "olap"))]
 use futures::future::{try_join_all, FutureExt};
-#[cfg(feature = "v2")]
-use hyperswitch_domain_models::behaviour::ReverseConversion;
 use hyperswitch_domain_models::{
-    behaviour::Conversion,
     mandates::{MandateAmountData, MandateDataType, MandateDetails},
     merchant_key_store::MerchantKeyStore,
     payments::payment_attempt::{PaymentAttempt, PaymentAttemptInterface, PaymentAttemptUpdate},
 };
+
+use crate::behaviour::Conversion;
 #[cfg(all(feature = "v1", feature = "olap"))]
 use hyperswitch_domain_models::{
     payments::payment_attempt::PaymentListFilters, payments::PaymentIntent,
@@ -427,7 +426,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         processor_merchant_id: &common_utils::id_type::MerchantId,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentListFilters, errors::StorageError> {
-        use hyperswitch_domain_models::behaviour::Conversion;
+        use crate::behaviour::Conversion;
 
         let conn = pg_connection_read(self).await?;
         let intents = try_join_all(pi.iter().map(|pi| async {

@@ -3,7 +3,7 @@ use diesel_models::enums as storage_enums;
 #[cfg(feature = "v1")]
 use error_stack::ResultExt;
 #[cfg(feature = "v1")]
-use hyperswitch_domain_models::behaviour::Conversion;
+use crate::behaviour::Conversion;
 use hyperswitch_domain_models::{
     merchant_key_store::MerchantKeyStore,
     payments::{

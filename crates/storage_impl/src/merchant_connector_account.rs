@@ -2,8 +2,8 @@ use async_bb8_diesel::AsyncConnection;
 use common_utils::{encryption::Encryption, ext_traits::AsyncExt};
 use diesel_models::merchant_connector_account as storage;
 use error_stack::{report, ResultExt};
+use crate::behaviour::{Conversion, ReverseConversion};
 use hyperswitch_domain_models::{
-    behaviour::{Conversion, ReverseConversion},
     merchant_connector_account::{self as domain, MerchantConnectorAccountInterface},
     merchant_key_store::MerchantKeyStore,
 };

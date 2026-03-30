@@ -35,8 +35,8 @@ use futures::future::try_join_all;
 use hyperswitch_domain_models::payments::{
     payment_attempt::PaymentAttempt, payment_intent::PaymentIntentFetchConstraints,
 };
+use crate::behaviour::Conversion;
 use hyperswitch_domain_models::{
-    behaviour::Conversion,
     merchant_key_store::MerchantKeyStore,
     payments::{
         payment_intent::{PaymentIntentInterface, PaymentIntentUpdate},

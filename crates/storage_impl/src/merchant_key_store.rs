@@ -1,6 +1,6 @@
 use error_stack::{report, ResultExt};
+use crate::behaviour::{Conversion, ReverseConversion};
 use hyperswitch_domain_models::{
-    behaviour::{Conversion, ReverseConversion},
     merchant_key_store as domain,
     merchant_key_store::MerchantKeyStoreInterface,
 };

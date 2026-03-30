@@ -5,6 +5,7 @@
 pub mod consts;
 pub mod customers;
 pub mod domain;
+pub mod payment_intent_types;
 pub mod payment_methods;
 pub mod payments;
 /// types that are wrappers around primitive types

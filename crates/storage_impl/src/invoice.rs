@@ -1,8 +1,8 @@
 use common_utils::errors::CustomResult;
 pub use diesel_models::invoice::Invoice;
 use error_stack::{report, ResultExt};
+use crate::behaviour::Conversion;
 pub use hyperswitch_domain_models::{
-    behaviour::Conversion,
     invoice::{Invoice as DomainInvoice, InvoiceInterface, InvoiceUpdate as DomainInvoiceUpdate},
     merchant_key_store::MerchantKeyStore,
 };

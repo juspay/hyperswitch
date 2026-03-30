@@ -3,10 +3,10 @@ use std::{fmt::Debug, sync::Arc};
 use common_utils::types::TenantConfig;
 use diesel_models as store;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{
-    behaviour::{Conversion, ReverseConversion},
-    merchant_key_store::MerchantKeyStore,
-};
+use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
+
+pub mod behaviour;
+pub use behaviour::{Conversion, ReverseConversion};
 use hyperswitch_masking::StrongSecret;
 use redis::{kv_store::RedisConnInterface, pub_sub::PubSubInterface, RedisStore};
 mod address;
@@ -38,7 +38,10 @@ pub mod redis;
 pub mod refund;
 mod reverse_lookup;
 pub mod subscription;
+pub mod transformers;
 pub mod utils;
+
+pub mod conversions;
 
 use common_utils::{errors::CustomResult, types::keymanager::KeyManagerState};
 use database::store::PgPool;

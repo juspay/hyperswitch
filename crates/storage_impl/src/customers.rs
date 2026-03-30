@@ -2,8 +2,8 @@ use common_utils::{id_type, pii};
 use diesel_models::{customers, kv};
 use error_stack::ResultExt;
 use futures::future::try_join_all;
+use crate::behaviour::{Conversion, ReverseConversion};
 use hyperswitch_domain_models::{
-    behaviour::{Conversion, ReverseConversion},
     customer as domain,
     merchant_key_store::MerchantKeyStore,
 };
@@ -163,7 +163,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
         let conn = pg_connection_write(self).await?;
-        let customer = Conversion::convert(customer)
+        let customer = crate::behaviour::Conversion::convert(customer)
             .await
             .change_context(StorageError::EncryptionError)?;
         let updated_customer = diesel_models::CustomerUpdateInternal::from(customer_update.clone())

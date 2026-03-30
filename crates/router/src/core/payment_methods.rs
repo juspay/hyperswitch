@@ -44,7 +44,7 @@ use futures::TryStreamExt;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
 #[cfg(feature = "v2")]
-use hyperswitch_domain_models::behaviour::Conversion;
+use storage_impl::behaviour::Conversion;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payment_methods::PaymentMethodUpdate as DomainPaymentMethodUpdate;
 use hyperswitch_domain_models::{

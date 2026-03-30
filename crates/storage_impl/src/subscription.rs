@@ -2,7 +2,6 @@ use common_utils::errors::CustomResult;
 pub use diesel_models::subscription::Subscription;
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::{
-    behaviour::Conversion,
     merchant_key_store::MerchantKeyStore,
     subscription::{
         Subscription as DomainSubscription, SubscriptionInterface,
@@ -12,6 +11,7 @@ pub use hyperswitch_domain_models::{
 use router_env::{instrument, tracing};
 
 use crate::{
+    behaviour::Conversion,
     connection, errors::StorageError, kv_router_store::KVRouterStore, DatabaseStore, MockDb,
     RouterStore,
 };

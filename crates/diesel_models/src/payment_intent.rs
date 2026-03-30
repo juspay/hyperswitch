@@ -287,53 +287,8 @@ pub struct TransactionDetailsUiConfiguration {
 
 common_utils::impl_to_sql_from_sql_json!(TransactionDetailsUiConfiguration);
 
-#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, diesel::AsExpression)]
-#[diesel(sql_type = diesel::sql_types::Jsonb)]
-pub struct TaxDetails {
-    /// This is the tax related information that is calculated irrespective of any payment method.
-    /// This is calculated when the order is created with shipping details
-    pub default: Option<DefaultTax>,
-
-    /// This is the tax related information that is calculated based on the payment method
-    /// This is calculated when calling the /calculate_tax API
-    pub payment_method_type: Option<PaymentMethodTypeTax>,
-}
-
-impl TaxDetails {
-    /// Get the tax amount
-    /// If default tax is present, return the default tax amount
-    /// If default tax is not present, return the tax amount based on the payment method if it matches the provided payment method type
-    pub fn get_tax_amount(&self, payment_method: Option<PaymentMethodType>) -> Option<MinorUnit> {
-        self.payment_method_type
-            .as_ref()
-            .zip(payment_method)
-            .filter(|(payment_method_type_tax, payment_method)| {
-                payment_method_type_tax.pmt == *payment_method
-            })
-            .map(|(payment_method_type_tax, _)| payment_method_type_tax.order_tax_amount)
-            .or_else(|| self.get_default_tax_amount())
-    }
-
-    /// Get the default tax amount
-    pub fn get_default_tax_amount(&self) -> Option<MinorUnit> {
-        self.default
-            .as_ref()
-            .map(|default_tax_details| default_tax_details.order_tax_amount)
-    }
-}
-
-common_utils::impl_to_sql_from_sql_json!(TaxDetails);
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct PaymentMethodTypeTax {
-    pub order_tax_amount: MinorUnit,
-    pub pmt: PaymentMethodType,
-}
-
-#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
-pub struct DefaultTax {
-    pub order_tax_amount: MinorUnit,
-}
+// Re-export TaxDetails and related types from common_types
+pub use common_types::payment_intent_types::{DefaultTax, PaymentMethodTypeTax, TaxDetails};
 
 #[cfg(feature = "v2")]
 #[derive(

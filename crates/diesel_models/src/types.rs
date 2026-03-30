@@ -10,54 +10,10 @@ use diesel::{
 use hyperswitch_masking::{Secret, WithType};
 use serde::{self, Deserialize, Serialize};
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, FromSqlRow, AsExpression)]
-#[diesel(sql_type = Jsonb)]
-pub struct OrderDetailsWithAmount {
-    /// Name of the product that is being purchased
-    pub product_name: String,
-    /// The quantity of the product to be purchased
-    pub quantity: u16,
-    /// the amount per quantity of product
-    pub amount: MinorUnit,
-    // Does the order includes shipping
-    pub requires_shipping: Option<bool>,
-    /// The image URL of the product
-    pub product_img_link: Option<String>,
-    /// ID of the product that is being purchased
-    pub product_id: Option<String>,
-    /// Category of the product that is being purchased
-    pub category: Option<String>,
-    /// Sub category of the product that is being purchased
-    pub sub_category: Option<String>,
-    /// Brand of the product that is being purchased
-    pub brand: Option<String>,
-    /// Type of the product that is being purchased
-    pub product_type: Option<common_enums::ProductType>,
-    /// The tax code for the product
-    pub product_tax_code: Option<String>,
-    /// tax rate applicable to the product
-    pub tax_rate: Option<f64>,
-    /// total tax amount applicable to the product
-    pub total_tax_amount: Option<MinorUnit>,
-    /// description of the product
-    pub description: Option<String>,
-    /// stock keeping unit of the product
-    pub sku: Option<String>,
-    /// universal product code of the product
-    pub upc: Option<String>,
-    /// commodity code of the product
-    pub commodity_code: Option<String>,
-    /// unit of measure of the product
-    pub unit_of_measure: Option<String>,
-    /// total amount of the product
-    pub total_amount: Option<MinorUnit>,
-    /// discount amount on the unit
-    pub unit_discount_amount: Option<MinorUnit>,
-}
-
-impl hyperswitch_masking::SerializableSecret for OrderDetailsWithAmount {}
-
-common_utils::impl_to_sql_from_sql_json!(OrderDetailsWithAmount);
+// Re-export types that have been moved to common_types
+pub use common_types::payment_intent_types::{
+    DefaultTax, OrderDetailsWithAmount, PaymentMethodTypeTax, TaxDetails,
+};
 
 #[cfg(feature = "v2")]
 #[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]

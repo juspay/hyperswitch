@@ -4,8 +4,8 @@ use common_utils::{errors::CustomResult, types::keymanager::KeyManagerState};
 use diesel_models as store;
 use error_stack::ResultExt;
 use futures::lock::{Mutex, MutexGuard};
+use crate::behaviour::{Conversion, ReverseConversion};
 use hyperswitch_domain_models::{
-    behaviour::{Conversion, ReverseConversion},
     merchant_key_store::MerchantKeyStore,
     payments::{payment_attempt::PaymentAttempt, PaymentIntent},
 };
