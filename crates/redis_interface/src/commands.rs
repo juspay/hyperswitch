@@ -13,13 +13,14 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use redis::{AsyncCommands, FromRedisValue};
+use router_env::{logger, tracing};
 use tracing::instrument;
 
 use crate::{
     errors,
     types::{
         DelReply, HsetnxReply, MsetnxReply, RedisEntryId, RedisKey, SaddReply, SetGetReply,
-        SetnxReply,
+        SetnxReply, StreamCapKind, StreamCapTrim,
     },
 };
 
@@ -39,15 +40,39 @@ impl super::RedisConnectionPool {
     where
         V: redis::ToRedisArgs + Debug + Send + Sync,
     {
+        let start = std::time::Instant::now();
+        let redis_key = key.tenant_aware_key(self);
+
+        logger::debug!(
+            key = %redis_key,
+            "Redis SET Started"
+        );
+
         let mut conn = self.pool.clone();
-        redis::cmd("SET")
-            .arg(key.tenant_aware_key(self))
+        let result = redis::cmd("SET")
+            .arg(&redis_key)
             .arg(value)
             .arg("EX")
             .arg(self.config.default_ttl)
             .query_async::<()>(&mut conn)
             .await
-            .change_context(errors::RedisError::SetFailed)
+            .change_context(errors::RedisError::SetFailed);
+
+        match &result {
+            Ok(()) => logger::debug!(
+                key = %redis_key,
+                elapsed_us = %start.elapsed().as_micros(),
+                "Redis SET completed successfully"
+            ),
+            Err(e) => logger::error!(
+                key = %redis_key,
+                elapsed_us = %start.elapsed().as_micros(),
+                error = ?e,
+                "Redis SET failed"
+            ),
+        }
+
+        result
     }
 
     pub async fn set_key_without_modifying_ttl<V>(
@@ -143,19 +168,47 @@ impl super::RedisConnectionPool {
     where
         V: serde::Serialize + Debug,
     {
-        let serialized = value
-            .encode_to_vec()
-            .change_context(errors::RedisError::JsonSerializationFailed)?;
+        let start = std::time::Instant::now();
+        let redis_key = key.tenant_aware_key(self);
 
-        let mut conn = self.pool.clone();
-        redis::cmd("SET")
-            .arg(key.tenant_aware_key(self))
-            .arg(serialized.as_slice())
-            .arg("EX")
-            .arg(seconds)
-            .query_async::<()>(&mut conn)
-            .await
-            .change_context(errors::RedisError::SetExFailed)
+        logger::debug!(
+            key = %redis_key,
+            ttl_seconds = seconds,
+            "Redis serialize and SET with expiry Started"
+        );
+
+        let result = async {
+            let serialized = value
+                .encode_to_vec()
+                .change_context(errors::RedisError::JsonSerializationFailed)?;
+
+            let mut conn = self.pool.clone();
+            redis::cmd("SET")
+                .arg(&redis_key)
+                .arg(serialized.as_slice())
+                .arg("EX")
+                .arg(seconds)
+                .query_async::<()>(&mut conn)
+                .await
+                .change_context(errors::RedisError::SetExFailed)
+        }
+        .await;
+
+        match &result {
+            Ok(()) => logger::debug!(
+                key = %redis_key,
+                elapsed_us = %start.elapsed().as_micros(),
+                "Redis serialize and SET with expiry completed successfully"
+            ),
+            Err(e) => logger::error!(
+                key = %redis_key,
+                elapsed_us = %start.elapsed().as_micros(),
+                error = ?e,
+                "Redis serialize and SET with expiry failed"
+            ),
+        }
+
+        result
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -163,17 +216,25 @@ impl super::RedisConnectionPool {
     where
         V: FromRedisValue + Send + 'static,
     {
+        let start = std::time::Instant::now();
+        let redis_key = key.tenant_aware_key(self);
+
+        logger::debug!(
+            key = %redis_key,
+            "Redis GET Started"
+        );
+
         let mut conn = self.pool.clone();
-        match conn
-            .get::<_, V>(key.tenant_aware_key(self))
+        let result = match conn
+            .get::<_, V>(&redis_key)
             .await
             .change_context(errors::RedisError::GetFailed)
         {
             Ok(v) => Ok(v),
-            Err(_err) => {
+            Err(err) => {
                 #[cfg(not(feature = "multitenancy_fallback"))]
                 {
-                    Err(_err)
+                    Err(err)
                 }
 
                 #[cfg(feature = "multitenancy_fallback")]
@@ -183,7 +244,23 @@ impl super::RedisConnectionPool {
                         .change_context(errors::RedisError::GetFailed)
                 }
             }
+        };
+
+        match &result {
+            Ok(_) => logger::debug!(
+                key = %redis_key,
+                elapsed_us = %start.elapsed().as_micros(),
+                "Redis GET completed successfully"
+            ),
+            Err(e) => logger::error!(
+                key = %redis_key,
+                elapsed_us = %start.elapsed().as_micros(),
+                error = ?e,
+                "Redis GET failed"
+            ),
         }
+
+        result
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -328,13 +405,41 @@ impl super::RedisConnectionPool {
     where
         T: serde::de::DeserializeOwned,
     {
-        let value_bytes = self.get_key::<Vec<u8>>(key).await?;
+        let start = std::time::Instant::now();
+        let redis_key = key.tenant_aware_key(self);
 
-        fp_utils::when(value_bytes.is_empty(), || Err(errors::RedisError::NotFound))?;
+        logger::debug!(
+            key = %redis_key,
+            type_name = %type_name,
+            "Redis GET and deserialize Started"
+        );
 
-        value_bytes
-            .parse_struct(type_name)
-            .change_context(errors::RedisError::JsonDeserializationFailed)
+        let result = async {
+            let value_bytes = self.get_key::<Vec<u8>>(key).await?;
+            fp_utils::when(value_bytes.is_empty(), || Err(errors::RedisError::NotFound))?;
+            value_bytes
+                .parse_struct(type_name)
+                .change_context(errors::RedisError::JsonDeserializationFailed)
+        }
+        .await;
+
+        match &result {
+            Ok(_) => logger::debug!(
+                key = %redis_key,
+                type_name = %type_name,
+                elapsed_us = %start.elapsed().as_micros(),
+                "Redis GET and deserialize completed successfully"
+            ),
+            Err(e) => logger::error!(
+                key = %redis_key,
+                type_name = %type_name,
+                elapsed_us = %start.elapsed().as_micros(),
+                error = ?e,
+                "Redis GET and deserialize failed"
+            ),
+        }
+
+        result
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -370,18 +475,26 @@ impl super::RedisConnectionPool {
 
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn delete_key(&self, key: &RedisKey) -> CustomResult<DelReply, errors::RedisError> {
+        let start = std::time::Instant::now();
+        let redis_key = key.tenant_aware_key(self);
+
+        logger::debug!(
+            key = %redis_key,
+            "Redis DELETE Started"
+        );
+
         let mut conn = self.pool.clone();
-        match redis::cmd("DEL")
-            .arg(key.tenant_aware_key(self))
+        let result = match redis::cmd("DEL")
+            .arg(&redis_key)
             .query_async::<DelReply>(&mut conn)
             .await
             .change_context(errors::RedisError::DeleteFailed)
         {
             Ok(v) => Ok(v),
-            Err(_err) => {
+            Err(err) => {
                 #[cfg(not(feature = "multitenancy_fallback"))]
                 {
-                    Err(_err)
+                    Err(err)
                 }
 
                 #[cfg(feature = "multitenancy_fallback")]
@@ -393,7 +506,24 @@ impl super::RedisConnectionPool {
                         .change_context(errors::RedisError::DeleteFailed)
                 }
             }
+        };
+
+        match &result {
+            Ok(reply) => logger::debug!(
+                key = %redis_key,
+                elapsed_us = %start.elapsed().as_micros(),
+                reply = ?reply,
+                "Redis DELETE completed successfully"
+            ),
+            Err(e) => logger::error!(
+                key = %redis_key,
+                elapsed_us = %start.elapsed().as_micros(),
+                error = ?e,
+                "Redis DELETE failed"
+            ),
         }
+
+        result
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -420,15 +550,40 @@ impl super::RedisConnectionPool {
     where
         V: redis::ToRedisArgs + Debug + Send + Sync,
     {
+        let start = std::time::Instant::now();
+        let redis_key = key.tenant_aware_key(self);
+
+        logger::debug!(
+            key = %redis_key,
+            ttl_seconds = seconds,
+            "Redis SET with expiry Started"
+        );
+
         let mut conn = self.pool.clone();
-        redis::cmd("SET")
-            .arg(key.tenant_aware_key(self))
+        let result = redis::cmd("SET")
+            .arg(&redis_key)
             .arg(value)
             .arg("EX")
             .arg(seconds)
             .query_async::<()>(&mut conn)
             .await
-            .change_context(errors::RedisError::SetExFailed)
+            .change_context(errors::RedisError::SetExFailed);
+
+        match &result {
+            Ok(()) => logger::debug!(
+                key = %redis_key,
+                elapsed_us = %start.elapsed().as_micros(),
+                "Redis SET with expiry completed successfully"
+            ),
+            Err(e) => logger::error!(
+                key = %redis_key,
+                elapsed_us = %start.elapsed().as_micros(),
+                error = ?e,
+                "Redis SET with expiry failed"
+            ),
+        }
+
+        result
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -441,16 +596,43 @@ impl super::RedisConnectionPool {
     where
         V: redis::ToRedisArgs + Debug + Send + Sync,
     {
+        let start = std::time::Instant::now();
+        let redis_key = key.tenant_aware_key(self);
+        let ttl = seconds.unwrap_or(self.config.default_ttl.into());
+
+        logger::debug!(
+            key = %redis_key,
+            ttl_seconds = ttl,
+            "Redis SET NX Started"
+        );
+
         let mut conn = self.pool.clone();
-        redis::cmd("SET")
-            .arg(key.tenant_aware_key(self))
+        let result = redis::cmd("SET")
+            .arg(&redis_key)
             .arg(value)
             .arg("EX")
-            .arg(seconds.unwrap_or(self.config.default_ttl.into()))
+            .arg(ttl)
             .arg("NX")
             .query_async::<SetnxReply>(&mut conn)
             .await
-            .change_context(errors::RedisError::SetFailed)
+            .change_context(errors::RedisError::SetFailed);
+
+        match &result {
+            Ok(reply) => logger::debug!(
+                key = %redis_key,
+                elapsed_us = %start.elapsed().as_micros(),
+                reply = ?reply,
+                "Redis SET NX completed successfully"
+            ),
+            Err(e) => logger::error!(
+                key = %redis_key,
+                elapsed_us = %start.elapsed().as_micros(),
+                error = ?e,
+                "Redis SET NX failed"
+            ),
+        }
+
+        result
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -842,16 +1024,31 @@ impl super::RedisConnectionPool {
     pub async fn stream_trim_entries(
         &self,
         stream: &RedisKey,
-        maxlen: usize,
-        approximate: bool,
+        cap_kind: StreamCapKind,
+        cap_trim: StreamCapTrim,
+        threshold: &str,
     ) -> CustomResult<usize, errors::RedisError> {
         let mut conn = self.pool.clone();
         let mut cmd = redis::cmd("XTRIM");
-        cmd.arg(stream.tenant_aware_key(self)).arg("MAXLEN");
-        if approximate {
-            cmd.arg("~");
-        }
-        cmd.arg(maxlen);
+        cmd.arg(stream.tenant_aware_key(self));
+
+        match cap_kind {
+            StreamCapKind::MaxLen => {
+                cmd.arg("MAXLEN");
+            }
+            StreamCapKind::MinID => {
+                cmd.arg("MINID");
+            }
+        };
+
+        match cap_trim {
+            StreamCapTrim::AlmostExact => {
+                cmd.arg("~");
+            }
+            StreamCapTrim::Exact => {}
+        };
+
+        cmd.arg(threshold);
         cmd.query_async::<usize>(&mut conn)
             .await
             .change_context(errors::RedisError::StreamTrimFailed)

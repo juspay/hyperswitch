@@ -136,7 +136,9 @@ impl SubscriberClient {
             // Hold the lock and process messages
             let result = {
                 let mut pubsub = self.pubsub.lock().await;
-                pubsub.on_message().next().await
+                let msg = pubsub.on_message().next().await;
+                drop(pubsub);
+                msg
             };
 
             match result {

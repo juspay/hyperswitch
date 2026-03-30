@@ -2,6 +2,7 @@
 //! from `redis`'s internal data-types to custom data-types
 
 use common_utils::errors::CustomResult;
+pub use redis::Value;
 use redis::Value as RedisCrateValue;
 
 use crate::{errors, RedisConnectionPool};
@@ -197,7 +198,7 @@ impl redis::ToRedisArgs for RedisEntryId {
     }
 }
 
-#[derive(Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum SetnxReply {
     KeySet,
     KeyNotSet, // Existing key
