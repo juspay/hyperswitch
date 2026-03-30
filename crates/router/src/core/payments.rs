@@ -7803,8 +7803,9 @@ async fn get_feature_data(
             let paypal_payment_ref = payment_methods
                 .iter()
                 .map(|pm| get_payment_ref(pm).map(|payment_ref| (pm.created_at, payment_ref)))
-                .max_by_key(|(created_at, _)| *created_at)
-                .map(|(_, payment_ref)| payment_ref);
+                .max_by_key(|opt| opt.as_ref().map(|(created_at, _)| *created_at))
+                .flatten()
+                .map(|(_, pm_data)| pm_data);
 
             paypal_payment_ref.map(|payment_ref| {
                 FeatureData::PaypalReturningCustomer(Box::new(

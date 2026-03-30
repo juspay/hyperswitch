@@ -2459,9 +2459,9 @@ where
                         .clone()
                     {
                         Some(paypal_source) => match paypal_source {
-                            PaymentSourceItemResponse::Paypal(paypal_source) => {
-                                paypal_source.attributes.map(|attr| attr.vault.customer.id)
-                            }
+                            PaymentSourceItemResponse::Paypal(paypal_source) => paypal_source
+                                .attributes
+                                .and_then(|attr| attr.vault.customer.map(|cus| cus.id)),
                             PaymentSourceItemResponse::Card(_)
                             | PaymentSourceItemResponse::Eps(_)
                             | PaymentSourceItemResponse::Ideal(_) => None,
