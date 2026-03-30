@@ -1903,7 +1903,7 @@ where
     let merchant_id = processor.get_account().get_id().clone();
     let feature_data = payments::get_feature_data(
         customer_id.clone(),
-        payment_method_type.clone(),
+        payment_method_type,
         merchant_connector_account,
         state,
         &merchant_id,
