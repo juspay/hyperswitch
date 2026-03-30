@@ -2752,7 +2752,11 @@ impl RefundInterface for KafkaStore {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<diesel_refund::Refund>, errors::StorageError> {
         self.diesel_store
-            .find_refund_by_payment_id_processor_merchant_id(payment_id, processor_merchant_id, storage_scheme)
+            .find_refund_by_payment_id_processor_merchant_id(
+                payment_id,
+                processor_merchant_id,
+                storage_scheme,
+            )
             .await
     }
 
@@ -2764,7 +2768,11 @@ impl RefundInterface for KafkaStore {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
         self.diesel_store
-            .find_refund_by_processor_merchant_id_refund_id(processor_merchant_id, refund_id, storage_scheme)
+            .find_refund_by_processor_merchant_id_refund_id(
+                processor_merchant_id,
+                refund_id,
+                storage_scheme,
+            )
             .await
     }
 
@@ -2898,7 +2906,11 @@ impl RefundInterface for KafkaStore {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError> {
         self.diesel_store
-            .filter_refund_by_meta_constraints(processor_merchant_id, refund_details, storage_scheme)
+            .filter_refund_by_meta_constraints(
+                processor_merchant_id,
+                refund_details,
+                storage_scheme,
+            )
             .await
     }
 
@@ -2911,7 +2923,12 @@ impl RefundInterface for KafkaStore {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<(common_enums::RefundStatus, i64)>, errors::StorageError> {
         self.diesel_store
-            .get_refund_status_with_count(processor_merchant_id, profile_id_list, constraints, storage_scheme)
+            .get_refund_status_with_count(
+                processor_merchant_id,
+                profile_id_list,
+                constraints,
+                storage_scheme,
+            )
             .await
     }
 
