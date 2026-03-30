@@ -363,33 +363,28 @@ fn get_payout_bank_details(
         }),
     }?;
     match payout_method_data {
-        PayoutMethodData::Bank(bank) => match bank.data {
-            Bank::Ach(b) => Ok(WiseBankDetails {
-                legal_type: LegalType::from(entity_type),
-                address: Some(wise_address_details),
-                account_number: Some(b.bank_account_number.to_owned()),
-                abartn: Some(b.bank_routing_number),
-                account_type: Some(AccountType::Checking),
-                ..WiseBankDetails::default()
-            }),
-            Bank::Bacs(b) => Ok(WiseBankDetails {
-                legal_type: LegalType::from(entity_type),
-                address: Some(wise_address_details),
-                account_number: Some(b.bank_account_number.to_owned()),
-                sort_code: Some(b.bank_sort_code),
-                ..WiseBankDetails::default()
-            }),
-            Bank::Sepa(b) => Ok(WiseBankDetails {
-                legal_type: LegalType::from(entity_type),
-                address: Some(wise_address_details),
-                iban: Some(b.iban.to_owned()),
-                bic: b.bic,
-                ..WiseBankDetails::default()
-            }),
-            _ => Err(ConnectorError::NotImplemented(
-                get_unimplemented_payment_method_error_message("Wise"),
-            ))?,
-        },
+        PayoutMethodData::Bank(Bank::Ach(b)) => Ok(WiseBankDetails {
+            legal_type: LegalType::from(entity_type),
+            address: Some(wise_address_details),
+            account_number: Some(b.bank_account_number.to_owned()),
+            abartn: Some(b.bank_routing_number),
+            account_type: Some(AccountType::Checking),
+            ..WiseBankDetails::default()
+        }),
+        PayoutMethodData::Bank(Bank::Bacs(b)) => Ok(WiseBankDetails {
+            legal_type: LegalType::from(entity_type),
+            address: Some(wise_address_details),
+            account_number: Some(b.bank_account_number.to_owned()),
+            sort_code: Some(b.bank_sort_code),
+            ..WiseBankDetails::default()
+        }),
+        PayoutMethodData::Bank(Bank::Sepa(b)) => Ok(WiseBankDetails {
+            legal_type: LegalType::from(entity_type),
+            address: Some(wise_address_details),
+            iban: Some(b.iban.to_owned()),
+            bic: b.bic,
+            ..WiseBankDetails::default()
+        }),
         _ => Err(ConnectorError::NotImplemented(
             get_unimplemented_payment_method_error_message("Wise"),
         ))?,
@@ -667,17 +662,13 @@ impl TryFrom<PayoutMethodData> for RecipientType {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(payout_method_type: PayoutMethodData) -> Result<Self, Self::Error> {
         match payout_method_type {
-            PayoutMethodData::Bank(bank) => match bank.data {
-                Bank::Ach(_) => Ok(Self::Aba),
-                Bank::Bacs(_) => Ok(Self::SortCode),
-                Bank::Sepa(_) => Ok(Self::Iban),
-                _ => Err(ConnectorError::NotImplemented(
-                    get_unimplemented_payment_method_error_message("Wise"),
-                ))?,
-            },
+            PayoutMethodData::Bank(Bank::Ach(_)) => Ok(Self::Aba),
+            PayoutMethodData::Bank(Bank::Bacs(_)) => Ok(Self::SortCode),
+            PayoutMethodData::Bank(Bank::Sepa(_)) => Ok(Self::Iban),
             _ => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("Wise"),
-            ))?,
+            )
+            .into()),
         }
     }
 }

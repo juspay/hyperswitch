@@ -525,8 +525,8 @@ impl<F> TryFrom<RawPaymentCounterparty<'_, F>>
             }
             payouts::PayoutMethodData::Bank(bd) => {
                 let account_holder: AdyenAccountHolder =
-                    (raw_payment.item.router_data, &bd.data).try_into()?;
-                let bank_details = match bd.data {
+                    (raw_payment.item.router_data, &bd).try_into()?;
+                let bank_details = match bd {
                     payouts::Bank::Sepa(b) => AdyenBankAccountIdentification {
                         bank_type: "iban".to_string(),
                         account_details: AdyenBankAccountIdentificationDetails::Sepa(SepaDetails {

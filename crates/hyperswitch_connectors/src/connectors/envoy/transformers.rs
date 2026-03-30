@@ -487,20 +487,14 @@ impl<F> TryFrom<&EnvoyRouterData<&PayoutsRouterData<F>>> for PayToBankAccountV3 
         let payout_data = &item.router_data.request;
         let customer_details = item.router_data.request.customer_details.to_owned();
         let payment_template = match item.router_data.get_payout_method_data()? {
-            PayoutMethodData::Bank(bank) => match bank.data {
-                payouts::Bank::Ach(bank) => PaymentTemplate {
-                    rows: get_template_for_ach(bank, customer_details.as_ref())?,
-                },
-                payouts::Bank::Sepa(bank) => PaymentTemplate {
-                    rows: get_template_for_sepa(bank, customer_details.as_ref())?,
-                },
-                payouts::Bank::Bacs(bank) => PaymentTemplate {
-                    rows: get_template_for_bacs(bank, customer_details.as_ref())?,
-                },
-                _ => Err(errors::ConnectorError::NotSupported {
-                    message: "payout creation is not supported".to_string(),
-                    connector: "Envoy",
-                })?,
+            PayoutMethodData::Bank(payouts::Bank::Ach(bank)) => PaymentTemplate {
+                rows: get_template_for_ach(bank, customer_details.as_ref())?,
+            },
+            PayoutMethodData::Bank(payouts::Bank::Sepa(bank)) => PaymentTemplate {
+                rows: get_template_for_sepa(bank, customer_details.as_ref())?,
+            },
+            PayoutMethodData::Bank(payouts::Bank::Bacs(bank)) => PaymentTemplate {
+                rows: get_template_for_bacs(bank, customer_details.as_ref())?,
             },
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "payout creation is not supported".to_string(),

@@ -478,13 +478,13 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for RegisterAccountRe
     fn try_from(item: &TrustlyRouterData<&PayoutsRouterData<F>>) -> Result<Self, Self::Error> {
         let payout_method_data = item.router_data.get_payout_method_data()?;
         match payout_method_data {
-            PayoutMethodData::Bank(bank) => match bank.data {
+            PayoutMethodData::Bank(bank) => match bank {
                 Bank::Trustly(trustly_data) => {
                     let (account_number, bank_number) = if let Some(iban) = trustly_data.iban {
                         (iban, Secret::new(String::new()))
                     } else {
                         (
-                            trustly_data.bank_account_number.ok_or(
+                            trustly_data.account_number.ok_or(
                                 ConnectorError::MissingRequiredField {
                                     field_name: "account_number",
                                 },
@@ -526,7 +526,7 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for RegisterAccountRe
                         account_number,
                         bank_number,
                         clearing_house: common_enums::Country::from_alpha2(
-                            trustly_data.bank_country_code,
+                            trustly_data.country_code,
                         )
                         .to_string()
                         .to_uppercase(),
@@ -678,7 +678,7 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for AccountPayoutRequ
     fn try_from(item: &TrustlyRouterData<&PayoutsRouterData<F>>) -> Result<Self, Self::Error> {
         let payout_method_data = item.router_data.get_payout_method_data()?;
         match payout_method_data {
-            PayoutMethodData::Bank(bank) => match bank.data {
+            PayoutMethodData::Bank(bank) => match bank {
                 Bank::Trustly(_trustly_data) => {
                     let notification_url = item.router_data.request.get_webhook_url()?;
 

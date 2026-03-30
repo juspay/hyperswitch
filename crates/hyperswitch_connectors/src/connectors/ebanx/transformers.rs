@@ -102,55 +102,45 @@ impl TryFrom<&EbanxRouterData<&PayoutsRouterData<PoCreate>>> for EbanxPayoutCrea
     fn try_from(item: &EbanxRouterData<&PayoutsRouterData<PoCreate>>) -> Result<Self, Self::Error> {
         let ebanx_auth_type = EbanxAuthType::try_from(&item.router_data.connector_auth_type)?;
         match item.router_data.get_payout_method_data()? {
-            PayoutMethodData::Bank(bank) => match bank.data {
-                Bank::Pix(pix_data) => {
-                    let bank_info = EbanxBankDetails {
-                        bank_account: Some(pix_data.bank_account_number),
-                        bank_branch: pix_data.bank_branch,
-                        bank_name: pix_data.bank_name,
-                        account_type: Some(EbanxBankAccountType::CheckingAccount),
-                    };
+            PayoutMethodData::Bank(Bank::Pix(pix_data)) => {
+                let bank_info = EbanxBankDetails {
+                    bank_account: Some(pix_data.bank_account_number),
+                    bank_branch: pix_data.bank_branch,
+                    bank_name: pix_data.bank_name,
+                    account_type: Some(EbanxBankAccountType::CheckingAccount),
+                };
 
-                    let billing_address = item.router_data.get_billing_address()?;
-                    let customer_details = item.router_data.request.get_customer_details()?;
+                let billing_address = item.router_data.get_billing_address()?;
+                let customer_details = item.router_data.request.get_customer_details()?;
 
-                    let document_type = pix_data.tax_id.clone().map(|tax_id| {
-                        if tax_id.clone().expose().len() == 11 {
-                            EbanxDocumentType::NaturalPersonsRegister
-                        } else {
-                            EbanxDocumentType::NationalRegistryOfLegalEntities
-                        }
-                    });
+                let document_type = pix_data.tax_id.clone().map(|tax_id| {
+                    if tax_id.clone().expose().len() == 11 {
+                        EbanxDocumentType::NaturalPersonsRegister
+                    } else {
+                        EbanxDocumentType::NationalRegistryOfLegalEntities
+                    }
+                });
 
-                    let payee = EbanxPayoutDetails {
-                        name: billing_address.get_full_name()?,
-                        email: customer_details.email.clone(),
-                        bank_info,
-                        document_type,
-                        document: pix_data.tax_id.to_owned(),
-                    };
-                    Ok(Self {
-                        amount: item.amount,
-                        integration_key: ebanx_auth_type.integration_key,
-                        country: customer_details.get_customer_phone_country_code()?,
-                        currency: item.router_data.request.source_currency,
-                        external_reference: item
-                            .router_data
-                            .connector_request_reference_id
-                            .to_owned(),
-                        target: EbanxPayoutType::PixKey,
-                        target_account: pix_data.pix_key,
-                        payee,
-                    })
-                }
-                Bank::Ach(_) | Bank::Bacs(_) | Bank::Sepa(_) | Bank::Trustly(_) => {
-                    Err(ConnectorError::NotSupported {
-                        message: "Payment Method Not Supported".to_string(),
-                        connector: "Ebanx",
-                    })?
-                }
-            },
+                let payee = EbanxPayoutDetails {
+                    name: billing_address.get_full_name()?,
+                    email: customer_details.email.clone(),
+                    bank_info,
+                    document_type,
+                    document: pix_data.tax_id.to_owned(),
+                };
+                Ok(Self {
+                    amount: item.amount,
+                    integration_key: ebanx_auth_type.integration_key,
+                    country: customer_details.get_customer_phone_country_code()?,
+                    currency: item.router_data.request.source_currency,
+                    external_reference: item.router_data.connector_request_reference_id.to_owned(),
+                    target: EbanxPayoutType::PixKey,
+                    target_account: pix_data.pix_key,
+                    payee,
+                })
+            }
             PayoutMethodData::Card(_)
+            | PayoutMethodData::Bank(_)
             | PayoutMethodData::Wallet(_)
             | PayoutMethodData::BankRedirect(_)
             | PayoutMethodData::Passthrough(_) => Err(ConnectorError::NotSupported {

@@ -589,10 +589,7 @@ impl PaymentMethodsController for PmCards<'_> {
         errors::VaultError,
     > {
         let key = key_store.key.get_inner().peek();
-        let payout_method_data = api::PayoutMethodData::Bank(api_models::payouts::BankWrapper {
-            payout_method_type: bank.payout_method_type(),
-            data: bank.to_owned(),
-        });
+        let payout_method_data = api::PayoutMethodData::Bank(bank.to_owned());
         let key_manager_state: KeyManagerState = self.state.into();
         let enc_data = async {
             serde_json::to_value(payout_method_data.to_owned())
@@ -5241,7 +5238,7 @@ pub async fn get_bank_from_vault(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error storing payout method data in temporary locker")?;
             }
-            Ok(bank.data.to_owned())
+            Ok(bank.to_owned())
         }
         api::PayoutMethodData::Card(_) => Err(errors::ApiErrorResponse::InvalidRequestData {
             message: "Expected bank details, found card details instead".to_string(),

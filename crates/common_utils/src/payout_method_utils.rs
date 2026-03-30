@@ -212,10 +212,10 @@ pub struct TrustlyBankTransferAdditionalData {
     pub iban: Option<Secret<String>>,
     /// country code of the customer's bank account.
     #[schema(value_type = CountryAlpha2, example = "US")]
-    pub bank_country_code: common_enums::CountryAlpha2,
+    pub country_code: common_enums::CountryAlpha2,
     /// The account number, identifying the end-user's account in the bank.
     #[schema(value_type = String, example = "69706212")]
-    pub bank_account_number: Option<Secret<String>>,
+    pub account_number: Option<Secret<String>>,
     /// The bank number identifying the end-user's bank in the given clearing house.
     #[schema(value_type = String, example = "6112")]
     pub bank_number: Option<Secret<String>>,

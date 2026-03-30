@@ -114,16 +114,13 @@ impl AdyenTest {
                     },
                 )),
                 enums::PayoutType::Bank => Some(types::api::PayoutMethodData::Bank(
-                    api_models::payouts::BankWrapper {
-                        payout_method_type: common_enums::PaymentMethodType::Sepa,
-                        data: types::api::payouts::BankPayout::Sepa(types::api::SepaBankTransfer {
-                            iban: "NL46TEST0136169112".to_string().into(),
-                            bic: Some("ABNANL2A".to_string().into()),
-                            bank_name: Some("Deutsche Bank".to_string()),
-                            bank_country_code: Some(enums::CountryAlpha2::NL),
-                            bank_city: Some("Amsterdam".to_string()),
-                        }),
-                    },
+                    types::api::payouts::BankPayout::Sepa(types::api::SepaBankTransfer {
+                        iban: "NL46TEST0136169112".to_string().into(),
+                        bic: Some("ABNANL2A".to_string().into()),
+                        bank_name: Some("Deutsche Bank".to_string()),
+                        bank_country_code: Some(enums::CountryAlpha2::NL),
+                        bank_city: Some("Amsterdam".to_string()),
+                    }),
                 )),
                 enums::PayoutType::Wallet => Some(types::api::PayoutMethodData::Wallet(
                     types::api::payouts::WalletPayout::Paypal(api_models::payouts::Paypal {

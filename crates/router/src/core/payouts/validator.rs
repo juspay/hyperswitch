@@ -263,12 +263,7 @@ pub async fn validate_create_request(
                                 card_network: card.card_network.clone(),
                             },
                         ))),
-                        (_, Some(bank)) => Ok(Some(payouts::PayoutMethodData::Bank(
-                            api_models::payouts::BankWrapper {
-                                payout_method_type: bank.payout_method_type(),
-                                data: bank,
-                            },
-                        ))),
+                        (_, Some(bank)) => Ok(Some(payouts::PayoutMethodData::Bank(bank))),
                         _ => Ok(None),
                     },
                     None => Ok(None),
