@@ -33,8 +33,10 @@ fi
 SEED_JSON=$(yq -p toml -o json '.' "$SEED_FILE")
 
 # Seed dimensions
+# dimensions are stored as a map keyed by dimension name:
+#   [dimensions.<name>] with position, schema, description, change_reason
 echo "Seeding dimensions..."
-echo "$SEED_JSON" | jq -c '.dimensions[]' | while read -r dimension; do
+echo "$SEED_JSON" | jq -c '.dimensions | to_entries[] | {dimension: .key, position: .value.position, schema: .value.schema, description: .value.description, change_reason: .value.change_reason}' | while read -r dimension; do
     dim_name=$(echo "$dimension" | jq -r '.dimension')
 
     echo "Creating dimension: $dim_name"
@@ -47,8 +49,10 @@ echo "$SEED_JSON" | jq -c '.dimensions[]' | while read -r dimension; do
 done
 
 # Seed default configs
+# default-configs are stored as a map keyed by config key:
+#   [default-configs.<key>] with value, schema, description, change_reason
 echo "Seeding default configurations..."
-echo "$SEED_JSON" | jq -c '.default_configs[]' 2>/dev/null | while read -r config; do
+echo "$SEED_JSON" | jq -c '."default-configs" | to_entries[] | {key: .key, value: .value.value, schema: .value.schema, description: .value.description, change_reason: .value.change_reason}' | while read -r config; do
     key=$(echo "$config" | jq -r '.key')
 
     echo "Setting default config: $key"
