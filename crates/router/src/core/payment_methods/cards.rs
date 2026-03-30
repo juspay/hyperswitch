@@ -2934,6 +2934,8 @@ fn get_val(str: String, val: &serde_json::Value) -> Option<String> {
 pub async fn list_payment_methods(
     state: routes::SessionState,
     platform: domain::Platform,
+    // Profile resolved during authentication (e.g. JWT auth). Used as a fallback to determine
+    // the business profile when no client_secret is provided and payment_intent is unavailable.
     auth_profile: Option<domain::Profile>,
     mut req: api::PaymentMethodListRequest,
 ) -> errors::RouterResponse<api::PaymentMethodListResponse> {
