@@ -279,3 +279,15 @@ superposition-down:
     elif command -v podman-compose &> /dev/null; then
         podman-compose -f docker-compose-development.yml down
     fi
+
+# Seed Superposition with default dimensions and configs
+superposition-seed:
+    #! /usr/bin/env bash
+    set -euo pipefail
+
+    if [ ! -f "./config/superposition_seed.toml" ]; then
+        echo "Error: Seed file not found at ./config/superposition_seed.toml"
+        exit 1
+    fi
+
+    bash ./scripts/seed_superposition.sh

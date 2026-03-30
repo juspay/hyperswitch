@@ -530,13 +530,23 @@ Once you're done with configuring the application, proceed with
 
 ### Run the application
 
-1. Start Superposition (configuration service) in Docker:
+1. Start Superposition (configuration service) in Docker and seed it:
 
    ```shell
    just superposition-up
+   just superposition-seed
    ```
 
+   This will start Superposition and seed it with default dimensions
+   (organization_id, merchant_id, profile_id, connector) and default configs
+   (requires_cvv, implicit_customer_update, payout_tracker_mapping).
+
    > **Note:** If you prefer to run Superposition locally instead of Docker, refer to the [Superposition setup guide](https://juspay.io/superposition/docs/setup).
+
+   Available Superposition commands:
+   - `just superposition-up` - Start Superposition in Docker
+   - `just superposition-down` - Stop Superposition
+   - `just superposition-seed` - Seed dimensions and configs
 
 2. Compile and run the application using `cargo`:
 
