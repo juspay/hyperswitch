@@ -64,17 +64,14 @@ impl PaymentSessionManager {
         processor_merchant_id: &MerchantId,
         payment_id: &PaymentId,
         session_expiry: Option<PrimitiveDateTime>,
-    ) -> CustomResult<id_type::PaymentSessionId, errors::StorageError>
+    ) -> CustomResult<id_type::PaymentSessionId, errors::ApiErrorResponse>
     where
         S: SessionStateInfo + Sync,
     {
-        let redis_conn =
-            state
-                .store()
-                .get_redis_conn()
-                .change_context(errors::StorageError::RedisError(
-                    errors::RedisError::RedisConnectionError.into(),
-                ))?;
+        let redis_conn = state
+            .store()
+            .get_redis_conn()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         let session_expiry = session_expiry.unwrap_or_else(Self::get_default_session_expiry);
 
@@ -87,12 +84,13 @@ impl PaymentSessionManager {
         let now = common_utils::date_time::now();
         let ttl_seconds = (session_expiry - now).whole_seconds();
 
-        if ttl_seconds <= 0 {
-            return Err(errors::StorageError::ValueNotFound(
-                "Session expiry is in the past".to_string(),
-            )
-            .into());
-        }
+        let ttl_seconds = if ttl_seconds > 0 {
+            Ok(ttl_seconds)
+        } else {
+            Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Session expiry is in the past".to_string(),
+            })
+        }?;
 
         // Create session data structure
         let session_data = PaymentSessionData {
@@ -105,9 +103,7 @@ impl PaymentSessionManager {
         redis_conn
             .serialize_and_set_key_with_expiry(&key.into(), &session_data, ttl_seconds)
             .await
-            .change_context(errors::StorageError::RedisError(
-                errors::RedisError::SetHashFieldFailed.into(),
-            ))?;
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         logger::debug!(
             processor_merchant_id = %processor_merchant_id.get_string_repr(),
@@ -133,17 +129,14 @@ impl PaymentSessionManager {
         state: &S,
         processor_merchant_id: &MerchantId,
         payment_id: &PaymentId,
-    ) -> CustomResult<Option<PaymentSessionData>, errors::StorageError>
+    ) -> CustomResult<Option<PaymentSessionData>, errors::ApiErrorResponse>
     where
         S: SessionStateInfo + Sync,
     {
-        let redis_conn =
-            state
-                .store()
-                .get_redis_conn()
-                .change_context(errors::StorageError::RedisError(
-                    errors::RedisError::RedisConnectionError.into(),
-                ))?;
+        let redis_conn = state
+            .store()
+            .get_redis_conn()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         let key = Self::get_session_key(processor_merchant_id, payment_id);
 
@@ -169,9 +162,7 @@ impl PaymentSessionManager {
                     );
                     Ok(None)
                 } else {
-                    Err(err).change_context(errors::StorageError::RedisError(
-                        errors::RedisError::GetHashFieldFailed.into(),
-                    ))
+                    Err(err).change_context(errors::ApiErrorResponse::InternalServerError)
                 }
             }
         }
@@ -193,7 +184,7 @@ impl PaymentSessionManager {
         processor_merchant_id: &MerchantId,
         payment_id: &PaymentId,
         payment_session_id: &id_type::PaymentSessionId,
-    ) -> CustomResult<bool, errors::StorageError>
+    ) -> CustomResult<bool, errors::ApiErrorResponse>
     where
         S: SessionStateInfo + Sync,
     {
@@ -241,7 +232,10 @@ impl PaymentSessionManager {
         processor_merchant_id: &MerchantId,
         payment_id: &PaymentId,
         session_expiry: Option<PrimitiveDateTime>,
-    ) -> CustomResult<(id_type::PaymentSessionId, SessionInvalidationReport), errors::StorageError>
+    ) -> CustomResult<
+        (id_type::PaymentSessionId, SessionInvalidationReport),
+        errors::ApiErrorResponse,
+    >
     where
         S: SessionStateInfo + Sync,
     {
