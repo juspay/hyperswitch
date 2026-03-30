@@ -2452,12 +2452,12 @@ impl IncomingWebhook for Stripe {
                 .unwrap_or(IncomingWebhookEvent::EventNotSupported),
             stripe::WebhookEventType::SourceChargeable => IncomingWebhookEvent::SourceChargeable,
             // Dispute events: prefer object.status, fall back to event type
-            stripe::WebhookEventType::DisputeCreated => {
-                status.map(Into::into).unwrap_or(IncomingWebhookEvent::DisputeOpened)
-            }
-            stripe::WebhookEventType::DisputeUpdated => {
-                status.map(Into::into).unwrap_or(IncomingWebhookEvent::EventNotSupported)
-            }
+            stripe::WebhookEventType::DisputeCreated => status
+                .map(Into::into)
+                .unwrap_or(IncomingWebhookEvent::DisputeOpened),
+            stripe::WebhookEventType::DisputeUpdated => status
+                .map(Into::into)
+                .unwrap_or(IncomingWebhookEvent::EventNotSupported),
             stripe::WebhookEventType::DisputeClosed => status
                 .map(Into::into)
                 .unwrap_or(IncomingWebhookEvent::DisputeCancelled),
