@@ -16,13 +16,7 @@ pub async fn proxy_core(
     req: proxy_api_models::ProxyRequest,
 ) -> RouterResponse<proxy_api_models::ProxyResponse> {
     let req_wrapper = utils::ProxyRequestWrapper(req.clone());
-    let proxy_record = req_wrapper
-        .get_proxy_record(
-            &state,
-            platform.get_provider().get_key_store(),
-            platform.get_provider().get_account().storage_scheme,
-        )
-        .await?;
+    let proxy_record = req_wrapper.get_proxy_record(&state, &platform).await?;
 
     let vault_data = proxy_record.get_vault_data(&state, platform).await?;
 
