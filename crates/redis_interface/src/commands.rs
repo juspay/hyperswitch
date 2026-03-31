@@ -20,7 +20,7 @@ use crate::{
     errors,
     types::{
         DelReply, HsetnxReply, MsetnxReply, RedisEntryId, RedisKey, SaddReply, SetGetReply,
-        SetnxReply, StreamCapKind, StreamCapTrim,
+        SetnxReply, StreamCapKind, StreamCapTrim, Value,
     },
 };
 
@@ -250,14 +250,17 @@ impl super::RedisConnectionPool {
             Ok(_) => logger::debug!(
                 key = %redis_key,
                 elapsed_us = %start.elapsed().as_micros(),
-                "Redis GET completed successfully"
+                "Redis GET completed"
             ),
-            Err(e) => logger::error!(
-                key = %redis_key,
-                elapsed_us = %start.elapsed().as_micros(),
-                error = ?e,
-                "Redis GET failed"
-            ),
+            Err(e) => {
+                // Key not found is not an error - it's a valid outcome
+                logger::debug!(
+                    key = %redis_key,
+                    elapsed_us = %start.elapsed().as_micros(),
+                    error = ?e,
+                    "Redis GET: key not found or error"
+                );
+            }
         }
 
         result
@@ -428,15 +431,26 @@ impl super::RedisConnectionPool {
                 key = %redis_key,
                 type_name = %type_name,
                 elapsed_us = %start.elapsed().as_micros(),
-                "Redis GET and deserialize completed successfully"
+                "Redis GET and deserialize completed"
             ),
-            Err(e) => logger::error!(
-                key = %redis_key,
-                type_name = %type_name,
-                elapsed_us = %start.elapsed().as_micros(),
-                error = ?e,
-                "Redis GET and deserialize failed"
-            ),
+            Err(e) => {
+                // NotFound is not an error - it's a valid outcome
+                match e.current_context() {
+                    errors::RedisError::NotFound => logger::debug!(
+                        key = %redis_key,
+                        type_name = %type_name,
+                        elapsed_us = %start.elapsed().as_micros(),
+                        "Redis GET and deserialize: key not found"
+                    ),
+                    _ => logger::error!(
+                        key = %redis_key,
+                        type_name = %type_name,
+                        elapsed_us = %start.elapsed().as_micros(),
+                        error = ?e,
+                        "Redis GET and deserialize failed"
+                    ),
+                }
+            }
         }
 
         result
@@ -509,11 +523,15 @@ impl super::RedisConnectionPool {
         };
 
         match &result {
-            Ok(reply) => logger::debug!(
+            Ok(DelReply::KeyDeleted) => logger::debug!(
                 key = %redis_key,
                 elapsed_us = %start.elapsed().as_micros(),
-                reply = ?reply,
-                "Redis DELETE completed successfully"
+                "Redis DELETE completed: key deleted"
+            ),
+            Ok(DelReply::KeyNotDeleted) => logger::debug!(
+                key = %redis_key,
+                elapsed_us = %start.elapsed().as_micros(),
+                "Redis DELETE completed: key not found"
             ),
             Err(e) => logger::error!(
                 key = %redis_key,
@@ -618,11 +636,15 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::SetFailed);
 
         match &result {
-            Ok(reply) => logger::debug!(
+            Ok(SetnxReply::KeySet) => logger::debug!(
                 key = %redis_key,
                 elapsed_us = %start.elapsed().as_micros(),
-                reply = ?reply,
-                "Redis SET NX completed successfully"
+                "Redis SET NX completed: key set"
+            ),
+            Ok(SetnxReply::KeyNotSet) => logger::debug!(
+                key = %redis_key,
+                elapsed_us = %start.elapsed().as_micros(),
+                "Redis SET NX completed: key already exists"
             ),
             Err(e) => logger::error!(
                 key = %redis_key,
@@ -1427,7 +1449,7 @@ impl super::RedisConnectionPool {
         pipe.cmd("GET").arg(&redis_key);
 
         // Execute the transaction
-        let results: Vec<redis::Value> = pipe
+        let results: Vec<Value> = pipe
             .query_async(&mut conn)
             .await
             .change_context(errors::RedisError::SetFailed)
@@ -1448,15 +1470,17 @@ impl super::RedisConnectionPool {
 
         // Check if SET NX succeeded or failed
         match set_result {
-            // SET NX returns "OK" if key was set
-            redis::Value::SimpleString(ref s) if s == "OK" => {
+            // SET NX returns Okay if key was set (newer redis crate)
+            Value::Okay => Ok(SetGetReply::ValueSet(actual_value)),
+            // SET NX returns "OK" if key was set (older format)
+            Value::SimpleString(ref s) if s == "OK" => {
                 Ok(SetGetReply::ValueSet(actual_value))
             }
-            redis::Value::BulkString(ref s) if s == b"OK" => {
+            Value::BulkString(ref s) if s == b"OK" => {
                 Ok(SetGetReply::ValueSet(actual_value))
             }
             // SET NX returns Nil if key already exists
-            redis::Value::Nil => Ok(SetGetReply::ValueExists(actual_value)),
+            Value::Nil => Ok(SetGetReply::ValueExists(actual_value)),
             _ => Err(report!(errors::RedisError::SetFailed))
                 .attach_printable("Unexpected result from SET NX operation"),
         }

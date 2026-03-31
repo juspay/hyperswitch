@@ -205,13 +205,15 @@ pub enum SetnxReply {
 }
 
 impl redis::FromRedisValue for SetnxReply {
-    fn from_redis_value(v: redis::Value) -> Result<Self, redis::ParsingError> {
+    fn from_redis_value(v: Value) -> Result<Self, redis::ParsingError> {
         match v {
-            // SET NX returns "OK" on success
-            redis::Value::SimpleString(ref s) if s == "OK" => Ok(Self::KeySet),
-            redis::Value::BulkString(ref s) if s == b"OK" => Ok(Self::KeySet),
+            // SET NX returns Okay on success (newer redis crate)
+            Value::Okay => Ok(Self::KeySet),
+            // SET NX returns "OK" on success (older format)
+            Value::SimpleString(ref s) if s == "OK" => Ok(Self::KeySet),
+            Value::BulkString(ref s) if s == b"OK" => Ok(Self::KeySet),
             // Returns Nil if key already exists
-            redis::Value::Nil => Ok(Self::KeyNotSet),
+            Value::Nil => Ok(Self::KeyNotSet),
             _ => Err(redis::ParsingError::from(
                 "Unexpected SETNX command reply".to_string(),
             )),
@@ -219,17 +221,17 @@ impl redis::FromRedisValue for SetnxReply {
     }
 }
 
-#[derive(Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum HsetnxReply {
     KeySet,
     KeyNotSet, // Existing key
 }
 
 impl redis::FromRedisValue for HsetnxReply {
-    fn from_redis_value(v: redis::Value) -> Result<Self, redis::ParsingError> {
+    fn from_redis_value(v: Value) -> Result<Self, redis::ParsingError> {
         match v {
-            redis::Value::Int(1) => Ok(Self::KeySet),
-            redis::Value::Int(0) => Ok(Self::KeyNotSet),
+            Value::Int(1) => Ok(Self::KeySet),
+            Value::Int(0) => Ok(Self::KeyNotSet),
             _ => Err(redis::ParsingError::from(
                 "Unexpected HSETNX command reply".to_string(),
             )),
@@ -237,17 +239,17 @@ impl redis::FromRedisValue for HsetnxReply {
     }
 }
 
-#[derive(Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum MsetnxReply {
     KeysSet,
     KeysNotSet, // At least one existing key
 }
 
 impl redis::FromRedisValue for MsetnxReply {
-    fn from_redis_value(v: redis::Value) -> Result<Self, redis::ParsingError> {
+    fn from_redis_value(v: Value) -> Result<Self, redis::ParsingError> {
         match v {
-            redis::Value::Int(1) => Ok(Self::KeysSet),
-            redis::Value::Int(0) => Ok(Self::KeysNotSet),
+            Value::Int(1) => Ok(Self::KeysSet),
+            Value::Int(0) => Ok(Self::KeysNotSet),
             _ => Err(redis::ParsingError::from(
                 "Unexpected MSETNX command reply".to_string(),
             )),
@@ -284,10 +286,10 @@ impl DelReply {
 }
 
 impl redis::FromRedisValue for DelReply {
-    fn from_redis_value(v: redis::Value) -> Result<Self, redis::ParsingError> {
+    fn from_redis_value(v: Value) -> Result<Self, redis::ParsingError> {
         match v {
-            redis::Value::Int(1) => Ok(Self::KeyDeleted),
-            redis::Value::Int(0) => Ok(Self::KeyNotDeleted),
+            Value::Int(1) => Ok(Self::KeyDeleted),
+            Value::Int(0) => Ok(Self::KeyNotDeleted),
             _ => Err(redis::ParsingError::from(
                 "Unexpected del command reply".to_string(),
             )),
@@ -302,10 +304,10 @@ pub enum SaddReply {
 }
 
 impl redis::FromRedisValue for SaddReply {
-    fn from_redis_value(v: redis::Value) -> Result<Self, redis::ParsingError> {
+    fn from_redis_value(v: Value) -> Result<Self, redis::ParsingError> {
         match v {
-            redis::Value::Int(1) => Ok(Self::KeySet),
-            redis::Value::Int(0) => Ok(Self::KeyNotSet),
+            Value::Int(1) => Ok(Self::KeySet),
+            Value::Int(0) => Ok(Self::KeyNotSet),
             _ => Err(redis::ParsingError::from(
                 "Unexpected sadd command reply".to_string(),
             )),

@@ -41,7 +41,7 @@ impl redis::aio::ConnectionLike for RedisConn {
     fn req_packed_command<'a>(
         &'a mut self,
         cmd: &'a redis::Cmd,
-    ) -> redis::RedisFuture<'a, redis::Value> {
+    ) -> redis::RedisFuture<'a, Value> {
         match self {
             Self::Standalone(c) => c.req_packed_command(cmd),
             Self::Cluster(c) => c.req_packed_command(cmd),
@@ -53,7 +53,7 @@ impl redis::aio::ConnectionLike for RedisConn {
         cmd: &'a redis::Pipeline,
         offset: usize,
         count: usize,
-    ) -> redis::RedisFuture<'a, Vec<redis::Value>> {
+    ) -> redis::RedisFuture<'a, Vec<Value>> {
         match self {
             Self::Standalone(c) => c.req_packed_commands(cmd, offset, count),
             Self::Cluster(c) => c.req_packed_commands(cmd, offset, count),
@@ -83,7 +83,7 @@ pub struct SubscriberClient {
 #[derive(Clone, Debug)]
 pub struct PubSubMessage {
     pub channel: String,
-    pub value: redis::Value,
+    pub value: Value,
 }
 
 impl SubscriberClient {
@@ -144,9 +144,9 @@ impl SubscriberClient {
             match result {
                 Some(msg) => {
                     let channel = msg.get_channel_name().to_string();
-                    let payload: redis::Value = msg
+                    let payload: Value = msg
                         .get_payload()
-                        .unwrap_or(redis::Value::Nil);
+                        .unwrap_or(Value::Nil);
                     let _ = tx.send(PubSubMessage {
                         channel,
                         value: payload,
