@@ -131,7 +131,6 @@ CREATE TABLE authentications (
     `scheme_name` Nullable(String),
     `exemption_requested` Nullable(Bool),
     `exemption_accepted` Nullable(Bool),
-    `created_by` Nullable(String),
     INDEX authenticationConnectorIndex authentication_connector TYPE bloom_filter GRANULARITY 1,
     INDEX transStatusIndex trans_status TYPE bloom_filter GRANULARITY 1,
     INDEX authenticationTypeIndex authentication_type TYPE bloom_filter GRANULARITY 1,
