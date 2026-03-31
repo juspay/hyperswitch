@@ -17,8 +17,8 @@ env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
   MANDATORY_PAYMENTS_CONNECTORS_BATCH_1: "cybersource stripe authorizedotnet"
-  MANDATORY_PAYMENTS_CONNECTORS_BATCH_2: "adyen fiuu nmi"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "cashtocode loonio nexixpay"
+  MANDATORY_PAYMENTS_CONNECTORS_BATCH_2: "adyen nexixpay nmi"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "cashtocode loonio fiuu"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "gigadat zift resys"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3: "worldpay braintree cryptopay"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_4: "finix airwallex checkout"
