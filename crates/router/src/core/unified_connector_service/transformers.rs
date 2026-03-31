@@ -6172,8 +6172,13 @@ impl
             })
             .map(i32::from);
 
-        // TODO: Implement payout method data transformation
-        let payout_method_data = None;
+        let payout_method_data = router_data
+            .payout_method_data
+            .as_ref()
+            .map(|payout_method_data| {
+                payments_grpc::PayoutMethod::foreign_try_from(payout_method_data)
+            })
+            .transpose()?;
 
         // TODO: Implement address transformation
         let address = None;
@@ -6276,5 +6281,285 @@ impl
         };
 
         Ok(router_response)
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
+    for payments_grpc::PayoutMethod
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(item: &api_models::payouts::PayoutMethodData) -> Result<Self, Self::Error> {
+        let payout_method_data = match item {
+            api_models::payouts::PayoutMethodData::Card(card) => {
+                payments_grpc::payout_method::PayoutMethodData::Card(
+                    payments_grpc::CardPayout::foreign_try_from(card)?,
+                )
+            }
+            api_models::payouts::PayoutMethodData::Bank(bank) => match bank {
+                api_models::payouts::Bank::Ach(ach) => {
+                    payments_grpc::payout_method::PayoutMethodData::Ach(
+                        payments_grpc::AchBankTransferPayout::foreign_try_from(ach)?,
+                    )
+                }
+                api_models::payouts::Bank::Bacs(bacs) => {
+                    payments_grpc::payout_method::PayoutMethodData::Bacs(
+                        payments_grpc::BacsBankTransferPayout::foreign_try_from(bacs)?,
+                    )
+                }
+                api_models::payouts::Bank::Sepa(sepa) => {
+                    payments_grpc::payout_method::PayoutMethodData::Sepa(
+                        payments_grpc::SepaBankTransferPayout::foreign_try_from(sepa)?,
+                    )
+                }
+                api_models::payouts::Bank::Pix(pix) => {
+                    payments_grpc::payout_method::PayoutMethodData::Pix(
+                        payments_grpc::PixBankTransferPayout::foreign_try_from(pix)?,
+                    )
+                }
+                api_models::payouts::Bank::Trustly(_) => Err(error_stack::Report::new(
+                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                        "Trustly bank transfer not supported for Unified Connector Service"
+                            .to_string(),
+                    ),
+                ))?,
+            },
+            api_models::payouts::PayoutMethodData::Wallet(wallet) => match wallet {
+                api_models::payouts::Wallet::ApplePayDecrypt(apple_pay) => {
+                    payments_grpc::payout_method::PayoutMethodData::ApplePayDecrypt(
+                        payments_grpc::ApplePayDecrypt::foreign_try_from(apple_pay)?,
+                    )
+                }
+                api_models::payouts::Wallet::Paypal(paypal) => {
+                    payments_grpc::payout_method::PayoutMethodData::Paypal(
+                        payments_grpc::Paypal::foreign_try_from(paypal)?,
+                    )
+                }
+                api_models::payouts::Wallet::Venmo(venmo) => {
+                    payments_grpc::payout_method::PayoutMethodData::Venmo(
+                        payments_grpc::Venmo::foreign_try_from(venmo)?,
+                    )
+                }
+            },
+            api_models::payouts::PayoutMethodData::BankRedirect(bank_redirect) => {
+                match bank_redirect {
+                    api_models::payouts::BankRedirect::Interac(interac) => {
+                        payments_grpc::payout_method::PayoutMethodData::Interac(
+                            payments_grpc::InteracPayout::foreign_try_from(interac)?,
+                        )
+                    }
+                    api_models::payouts::BankRedirect::OpenBankingUk(open_banking) => {
+                        payments_grpc::payout_method::PayoutMethodData::OpenBankingUk(
+                            payments_grpc::OpenBankingUkPayout::foreign_try_from(open_banking)?,
+                        )
+                    }
+                }
+            }
+            api_models::payouts::PayoutMethodData::Passthrough(passthrough) => {
+                payments_grpc::payout_method::PayoutMethodData::Passthrough(
+                    payments_grpc::Passthrough::foreign_try_from(passthrough)?,
+                )
+            }
+        };
+
+        Ok(Self {
+            payout_method_data: Some(payout_method_data),
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl transformers::ForeignTryFrom<&api_models::payouts::CardPayout> for payments_grpc::CardPayout {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(item: &api_models::payouts::CardPayout) -> Result<Self, Self::Error> {
+        Ok(Self {
+            card_number: Some(
+                CardNumber::from_str(&item.card_number.get_card_no()).change_context(
+                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                        "Failed to parse card number".to_string(),
+                    ),
+                )?,
+            ),
+            card_exp_month: Some(item.expiry_month.clone()),
+            card_exp_year: Some(item.expiry_year.clone()),
+            card_holder_name: item.card_holder_name.clone(),
+            card_network: item
+                .card_network
+                .clone()
+                .map(payments_grpc::CardNetwork::foreign_from)
+                .map(i32::from),
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl transformers::ForeignTryFrom<&api_models::payouts::AchBankTransfer>
+    for payments_grpc::AchBankTransferPayout
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(item: &api_models::payouts::AchBankTransfer) -> Result<Self, Self::Error> {
+        Ok(Self {
+            bank_name: None,
+            bank_country_code: item
+                .bank_country_code
+                .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
+                .map(|country| country.into()),
+            bank_city: item.bank_city.clone(),
+            bank_account_number: Some(item.bank_account_number.clone()),
+            bank_routing_number: Some(item.bank_routing_number.clone()),
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl transformers::ForeignTryFrom<&api_models::payouts::BacsBankTransfer>
+    for payments_grpc::BacsBankTransferPayout
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(item: &api_models::payouts::BacsBankTransfer) -> Result<Self, Self::Error> {
+        Ok(Self {
+            bank_name: None,
+            bank_country_code: item
+                .bank_country_code
+                .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
+                .map(|country| country.into()),
+            bank_city: item.bank_city.clone(),
+            bank_account_number: Some(item.bank_account_number.clone()),
+            bank_sort_code: Some(item.bank_sort_code.clone()),
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl transformers::ForeignTryFrom<&api_models::payouts::SepaBankTransfer>
+    for payments_grpc::SepaBankTransferPayout
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(item: &api_models::payouts::SepaBankTransfer) -> Result<Self, Self::Error> {
+        Ok(Self {
+            bank_name: None,
+            bank_country_code: item
+                .bank_country_code
+                .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
+                .map(|country| country.into()),
+            bank_city: item.bank_city.clone(),
+            iban: Some(item.iban.clone()),
+            bic: item.bic.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl transformers::ForeignTryFrom<&api_models::payouts::PixBankTransfer>
+    for payments_grpc::PixBankTransferPayout
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(item: &api_models::payouts::PixBankTransfer) -> Result<Self, Self::Error> {
+        Ok(Self {
+            bank_name: None,
+            bank_branch: item.bank_branch.clone(),
+            bank_account_number: Some(item.bank_account_number.clone()),
+            pix_key: Some(item.pix_key.clone()),
+            tax_id: item.tax_id.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl transformers::ForeignTryFrom<&api_models::payouts::ApplePayDecrypt>
+    for payments_grpc::ApplePayDecrypt
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(item: &api_models::payouts::ApplePayDecrypt) -> Result<Self, Self::Error> {
+        Ok(Self {
+            dpan: Some(
+                CardNumber::from_str(&item.dpan.get_card_no()).change_context(
+                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                        "Failed to parse card number".to_string(),
+                    ),
+                )?,
+            ),
+            expiry_month: Some(item.expiry_month.clone()),
+            expiry_year: Some(item.expiry_year.clone()),
+            card_holder_name: item.card_holder_name.clone(),
+            card_network: item
+                .card_network
+                .clone()
+                .map(payments_grpc::CardNetwork::foreign_from)
+                .map(i32::from),
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl transformers::ForeignTryFrom<&api_models::payouts::Paypal> for payments_grpc::Paypal {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(item: &api_models::payouts::Paypal) -> Result<Self, Self::Error> {
+        Ok(Self {
+            email: item
+                .email
+                .as_ref()
+                .map(|e| Secret::new(e.clone().expose().expose())),
+            telephone_number: item.telephone_number.clone(),
+            paypal_id: item.paypal_id.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl transformers::ForeignTryFrom<&api_models::payouts::Venmo> for payments_grpc::Venmo {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(item: &api_models::payouts::Venmo) -> Result<Self, Self::Error> {
+        Ok(Self {
+            telephone_number: item.telephone_number.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl transformers::ForeignTryFrom<&api_models::payouts::Interac> for payments_grpc::InteracPayout {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(item: &api_models::payouts::Interac) -> Result<Self, Self::Error> {
+        Ok(Self {
+            email: Some(Secret::new(item.email.clone().expose().expose())),
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl transformers::ForeignTryFrom<&api_models::payouts::OpenBankingUk>
+    for payments_grpc::OpenBankingUkPayout
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(item: &api_models::payouts::OpenBankingUk) -> Result<Self, Self::Error> {
+        Ok(Self {
+            account_holder_name: Some(item.account_holder_name.clone()),
+            iban: Some(item.iban.clone()),
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl transformers::ForeignTryFrom<&api_models::payouts::Passthrough>
+    for payments_grpc::Passthrough
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(item: &api_models::payouts::Passthrough) -> Result<Self, Self::Error> {
+        Ok(Self {
+            psp_token: item.psp_token.clone().expose(),
+            token_type: payments_grpc::PaymentMethodType::foreign_from(item.token_type).into(),
+        })
     }
 }
