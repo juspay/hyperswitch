@@ -309,7 +309,7 @@ async fn delete_card_bin_blocklist_entry(
 pub async fn should_payment_be_blocked(
     state: &SessionState,
     processor: &domain::Processor,
-    payment_method_data: &Option<domain::PaymentMethodData>,
+    payment_method_data: &Option<domain::EligibilityPaymentMethodData>,
     business_profile: &domain::Profile,
 ) -> CustomResult<bool, errors::ApiErrorResponse> {
     let db = &state.store;
@@ -318,7 +318,7 @@ pub async fn should_payment_be_blocked(
 
     // Hashed Fingerprint to check whether or not this payment should be blocked.
     let card_number_fingerprint =
-        if let Some(domain::PaymentMethodData::Card(card)) = payment_method_data {
+        if let Some(domain::EligibilityPaymentMethodData::Card(card)) = payment_method_data {
             generate_fingerprint(
                 state,
                 StrongSecret::new(card.card_number.get_card_no()),
@@ -342,7 +342,9 @@ pub async fn should_payment_be_blocked(
     let card_bin_fingerprint = payment_method_data
         .as_ref()
         .and_then(|pm_data| match pm_data {
-            domain::PaymentMethodData::Card(card) => Some(card.card_number.get_card_isin()),
+            domain::EligibilityPaymentMethodData::Card(card) => {
+                Some(card.card_number.get_card_isin())
+            }
             _ => None,
         });
 
@@ -351,7 +353,7 @@ pub async fn should_payment_be_blocked(
         payment_method_data
             .as_ref()
             .and_then(|pm_data| match pm_data {
-                domain::PaymentMethodData::Card(card) => {
+                domain::EligibilityPaymentMethodData::Card(card) => {
                     Some(card.card_number.get_extended_card_bin())
                 }
                 _ => None,
@@ -396,7 +398,12 @@ pub async fn should_payment_be_blocked(
         }
     }
 
-    if !should_payment_be_blocked {
+    if !should_payment_be_blocked
+        && matches!(
+            payment_method_data,
+            Some(domain::EligibilityPaymentMethodData::Card(_))
+        )
+    {
         should_payment_be_blocked = should_payment_be_blocked_by_profile_config(
             state,
             payment_method_data,
@@ -421,7 +428,10 @@ where
     let should_block = should_payment_be_blocked(
         state,
         processor,
-        &payment_data.payment_method_data,
+        &payment_data
+            .payment_method_data
+            .clone()
+            .map(domain::EligibilityPaymentMethodData::from),
         business_profile,
     )
     .await?;
@@ -482,7 +492,7 @@ where
 
 pub async fn should_payment_be_blocked_by_profile_config(
     state: &SessionState,
-    payment_method_data: &Option<domain::PaymentMethodData>,
+    payment_method_data: &Option<domain::EligibilityPaymentMethodData>,
     business_profile: &domain::Profile,
 ) -> CustomResult<bool, errors::ApiErrorResponse> {
     let mut should_block = false;
@@ -495,7 +505,9 @@ pub async fn should_payment_be_blocked_by_profile_config(
     let card_isin = payment_method_data
         .as_ref()
         .and_then(|pm_data| match pm_data {
-            domain::PaymentMethodData::Card(card) => Some(card.card_number.get_card_isin()),
+            domain::EligibilityPaymentMethodData::Card(card) => {
+                Some(card.card_number.get_card_isin())
+            }
             _ => None,
         });
 
