@@ -6248,12 +6248,21 @@ impl
             router_data.address.clone(),
         )?);
 
+        let browser_info = router_data
+            .request
+            .browser_info
+            .as_ref()
+            .map(|b| payments_grpc::BrowserInformation::foreign_try_from(b.clone()))
+            .transpose()?;
+
+        let access_token = router_data.access_token.as_ref().map(|t| t.token.clone());
+
         Ok(Self {
             merchant_payout_id: router_data.payout_id.clone(),
             address,
             connector_feature_data: None,
             payout_method_data,
-            connector_quote_id: None,
+            connector_quote_id: router_data.quote_id.clone(),
             connector_payout_id: router_data.request.connector_payout_id.clone(),
             amount: money,
             destination_currency: destination_currency.into(),
@@ -6261,8 +6270,8 @@ impl
             priority,
             connector_payout_method_id: router_data.request.connector_transfer_method_id.clone(),
             webhook_url: router_data.request.webhook_url.clone(),
-            browser_info: None,
-            access_token: None,
+            browser_info,
+            access_token,
         })
     }
 }
