@@ -72,8 +72,7 @@ use crate::{
     constants::headers,
     types::ResponseRouterData,
     utils::{
-        self, convert_amount,
-        PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
+        self, convert_amount, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
     },
 };
 

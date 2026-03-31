@@ -51,11 +51,7 @@ use transformers::{
     ArchipelPaymentsCancelRequest, ArchipelRefundRequest, ArchipelWalletAuthorizationRequest,
 };
 
-use crate::{
-    constants::headers,
-    types::ResponseRouterData,
-    utils::PaymentsAuthorizeRequestData,
-};
+use crate::{constants::headers, types::ResponseRouterData, utils::PaymentsAuthorizeRequestData};
 
 pub mod transformers;
 

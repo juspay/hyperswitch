@@ -48,11 +48,7 @@ use hyperswitch_masking::{Mask, PeekInterface};
 use lazy_static::lazy_static;
 use transformers as mollie;
 
-use crate::{
-    constants::headers,
-    types::ResponseRouterData,
-    utils::convert_amount,
-};
+use crate::{constants::headers, types::ResponseRouterData, utils::convert_amount};
 
 #[derive(Clone)]
 pub struct Mollie {
