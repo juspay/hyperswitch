@@ -48,7 +48,7 @@ use transformers as moneris;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, is_mandate_supported, PaymentMethodDataType, RefundsRequestData},
+    utils::{self, RefundsRequestData},
 };
 
 #[derive(Clone)]
@@ -190,16 +190,7 @@ impl ConnectorCommon for Moneris {
     }
 }
 
-impl ConnectorValidation for Moneris {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: hyperswitch_domain_models::payment_method_data::PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([PaymentMethodDataType::Card]);
-        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Moneris {}
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Moneris {
     //TODO: implement sessions flow

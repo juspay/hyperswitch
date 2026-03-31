@@ -13,7 +13,6 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -58,7 +57,7 @@ use crate::{
     connectors::bankofamerica::transformers::BankOfAmericaRouterData,
     constants::{self, headers},
     types::ResponseRouterData,
-    utils::{self, convert_amount, PaymentMethodDataType, RefundsRequestData},
+    utils::{convert_amount, RefundsRequestData},
 };
 
 pub const V_C_MERCHANT_ID: &str = "v-c-merchant-id";
@@ -317,20 +316,7 @@ impl ConnectorCommon for Bankofamerica {
     }
 }
 
-impl ConnectorValidation for Bankofamerica {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            PaymentMethodDataType::Card,
-            PaymentMethodDataType::ApplePay,
-            PaymentMethodDataType::GooglePay,
-        ]);
-        utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Bankofamerica {}
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Bankofamerica {
     //TODO: implement sessions flow

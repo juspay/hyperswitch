@@ -21,7 +21,6 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -82,8 +81,8 @@ use crate::{
     constants::headers,
     types::ResponseRouterData,
     utils::{
-        convert_amount, get_header_key_value, is_html_response_from_headers, is_mandate_supported,
-        ForeignTryFrom, PaymentMethodDataType, RefundsRequestData,
+        convert_amount, get_header_key_value, is_html_response_from_headers, ForeignTryFrom,
+        RefundsRequestData,
     },
 };
 
@@ -205,15 +204,6 @@ impl ConnectorCommon for Worldpay {
 }
 
 impl ConnectorValidation for Worldpay {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([PaymentMethodDataType::Card]);
-        is_mandate_supported(pm_data.clone(), pm_type, mandate_supported_pmd, self.id())
-    }
-
     fn is_webhook_source_verification_mandatory(&self) -> bool {
         true
     }

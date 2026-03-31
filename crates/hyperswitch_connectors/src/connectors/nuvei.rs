@@ -21,7 +21,6 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -71,10 +70,7 @@ use crate::{
     connectors::nuvei::transformers::{NuveiPaymentsResponse, NuveiTransactionSyncResponse},
     constants::headers,
     types::ResponseRouterData,
-    utils::{
-        self, is_mandate_supported, PaymentMethodDataType, PaymentsAuthorizeRequestData,
-        PaymentsSetupMandateRequestData, RouterData as _,
-    },
+    utils::{self, PaymentsAuthorizeRequestData, PaymentsSetupMandateRequestData, RouterData as _},
 };
 
 #[derive(Clone)]
@@ -135,21 +131,7 @@ impl ConnectorCommon for Nuvei {
     }
 }
 
-impl ConnectorValidation for Nuvei {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            PaymentMethodDataType::Card,
-            PaymentMethodDataType::GooglePay,
-            PaymentMethodDataType::ApplePay,
-            PaymentMethodDataType::NetworkTransactionIdAndCardDetails,
-        ]);
-        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Nuvei {}
 
 impl api::Payment for Nuvei {}
 
@@ -1686,16 +1668,6 @@ static NUVEI_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
     nuvei_supported_payment_methods.add(
         enums::PaymentMethod::Wallet,
         enums::PaymentMethodType::Paypal,
-        PaymentMethodDetails {
-            mandates: enums::FeatureStatus::NotSupported,
-            refunds: enums::FeatureStatus::Supported,
-            supported_capture_methods: supported_capture_methods.clone(),
-            specific_features: None,
-        },
-    );
-    nuvei_supported_payment_methods.add(
-        enums::PaymentMethod::NetworkToken,
-        enums::PaymentMethodType::NetworkToken,
         PaymentMethodDetails {
             mandates: enums::FeatureStatus::NotSupported,
             refunds: enums::FeatureStatus::Supported,

@@ -12,7 +12,6 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -47,11 +46,7 @@ use hyperswitch_interfaces::{
 use hyperswitch_masking::{ExposeInterface, Mask};
 use transformers as multisafepay;
 
-use crate::{
-    constants::headers,
-    types::ResponseRouterData,
-    utils::{convert_amount, is_mandate_supported, PaymentMethodDataType},
-};
+use crate::{constants::headers, types::ResponseRouterData, utils::convert_amount};
 
 #[derive(Clone)]
 pub struct Multisafepay {
@@ -136,19 +131,7 @@ impl ConnectorCommon for Multisafepay {
     }
 }
 
-impl ConnectorValidation for Multisafepay {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            PaymentMethodDataType::Card,
-            PaymentMethodDataType::GooglePay,
-        ]);
-        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Multisafepay {}
 
 impl api::Payment for Multisafepay {}
 
