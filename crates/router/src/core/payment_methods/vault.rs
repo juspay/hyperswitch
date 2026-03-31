@@ -809,7 +809,7 @@ impl Vaultable for api::BankPayout {
                 bank_city: bank_details.bank_city.to_owned(),
                 bank_branch: None,
                 country_code: None,
-                payout_method_type: Some(PaymentMethodType::Sepa),
+                payout_method_type: Some(PaymentMethodType::SepaBankTransfer),
             },
             Self::Pix(bank_details) => TokenizedBankInsensitiveValues {
                 customer_id,
@@ -851,73 +851,71 @@ impl Vaultable for api::BankPayout {
             .change_context(errors::VaultError::ResponseDeserializationFailed)
             .attach_printable("Could not deserialize into wallet data bank_insensitive_data")?;
 
-        let bank = match (
-            // ACH + BACS + PIX
-            bank_sensitive_data.bank_account_number.to_owned(),
-            bank_sensitive_data.bank_routing_number.to_owned(), // ACH
-            bank_sensitive_data.bank_sort_code.to_owned(),      // BACS
-            // SEPA
-            bank_sensitive_data.iban.to_owned(),
-            bank_sensitive_data.bic,
-            // PIX
-            bank_sensitive_data.pix_key,
-            bank_sensitive_data.tax_id,
-            // TRUSTLY
-            bank_insensitive_data.country_code,
-            bank_insensitive_data.payout_method_type,
-        ) {
-            (Some(ban), Some(brn), None, None, None, None, None, None, _) => {
-                Self::Ach(payouts::AchBankTransfer {
-                    bank_account_number: ban,
-                    bank_routing_number: brn,
-                    bank_name: bank_insensitive_data.bank_name,
-                    bank_country_code: bank_insensitive_data.bank_country_code,
-                    bank_city: bank_insensitive_data.bank_city,
-                })
-            }
-            (Some(ban), None, Some(bsc), None, None, None, None, None, _) => {
-                Self::Bacs(payouts::BacsBankTransfer {
-                    bank_account_number: ban,
-                    bank_sort_code: bsc,
-                    bank_name: bank_insensitive_data.bank_name,
-                    bank_country_code: bank_insensitive_data.bank_country_code,
-                    bank_city: bank_insensitive_data.bank_city,
-                })
-            }
-            (
-                None,
-                None,
-                None,
-                iban,
-                None,
-                None,
-                None,
-                Some(country_code),
-                Some(PaymentMethodType::Trustly),
-            ) => Self::Trustly(payouts::TrustlyBankTransfer {
-                iban,
+        let bank = match bank_insensitive_data.payout_method_type {
+            Some(PaymentMethodType::Ach) => Self::Ach(payouts::AchBankTransfer {
+                bank_account_number: bank_sensitive_data.bank_account_number.ok_or(
+                    errors::VaultError::MissingRequiredField {
+                        field_name: "bank_account_number",
+                    },
+                )?,
+                bank_routing_number: bank_sensitive_data.bank_routing_number.ok_or(
+                    errors::VaultError::MissingRequiredField {
+                        field_name: "bank_routing_number",
+                    },
+                )?,
+                bank_name: bank_insensitive_data.bank_name,
+                bank_country_code: bank_insensitive_data.bank_country_code,
+                bank_city: bank_insensitive_data.bank_city,
+            }),
+            Some(PaymentMethodType::Bacs) => Self::Bacs(payouts::BacsBankTransfer {
+                bank_account_number: bank_sensitive_data.bank_account_number.ok_or(
+                    errors::VaultError::MissingRequiredField {
+                        field_name: "bank_account_number",
+                    },
+                )?,
+                bank_sort_code: bank_sensitive_data.bank_sort_code.ok_or(
+                    errors::VaultError::MissingRequiredField {
+                        field_name: "bank_sort_code",
+                    },
+                )?,
+                bank_name: bank_insensitive_data.bank_name,
+                bank_country_code: bank_insensitive_data.bank_country_code,
+                bank_city: bank_insensitive_data.bank_city,
+            }),
+            Some(PaymentMethodType::Trustly) => Self::Trustly(payouts::TrustlyBankTransfer {
+                iban: bank_sensitive_data.iban,
                 account_number: bank_sensitive_data.account_number,
                 bank_number: bank_sensitive_data.bank_number,
-                country_code,
+                country_code: bank_insensitive_data.country_code.ok_or(
+                    errors::VaultError::MissingRequiredField {
+                        field_name: "country_code",
+                    },
+                )?,
             }),
-            (None, None, None, Some(iban), bic, None, None, None, _) => {
-                Self::Sepa(payouts::SepaBankTransfer {
-                    iban,
-                    bic,
-                    bank_name: bank_insensitive_data.bank_name,
-                    bank_country_code: bank_insensitive_data.bank_country_code,
-                    bank_city: bank_insensitive_data.bank_city,
-                })
-            }
-            (Some(ban), None, None, None, None, Some(pix_key), tax_id, None, _) => {
-                Self::Pix(payouts::PixBankTransfer {
-                    bank_account_number: ban,
-                    bank_branch: bank_insensitive_data.bank_branch,
-                    bank_name: bank_insensitive_data.bank_name,
-                    pix_key,
-                    tax_id,
-                })
-            }
+            Some(PaymentMethodType::SepaBankTransfer) => Self::Sepa(payouts::SepaBankTransfer {
+                iban: bank_sensitive_data
+                    .iban
+                    .ok_or(errors::VaultError::MissingRequiredField { field_name: "iban" })?,
+                bic: bank_sensitive_data.bic,
+                bank_name: bank_insensitive_data.bank_name,
+                bank_country_code: bank_insensitive_data.bank_country_code,
+                bank_city: bank_insensitive_data.bank_city,
+            }),
+            Some(PaymentMethodType::Pix) => Self::Pix(payouts::PixBankTransfer {
+                bank_account_number: bank_sensitive_data.bank_account_number.ok_or(
+                    errors::VaultError::MissingRequiredField {
+                        field_name: "bank_account_number",
+                    },
+                )?,
+                bank_branch: bank_insensitive_data.bank_branch,
+                bank_name: bank_insensitive_data.bank_name,
+                pix_key: bank_sensitive_data.pix_key.ok_or(
+                    errors::VaultError::MissingRequiredField {
+                        field_name: "pix_key",
+                    },
+                )?,
+                tax_id: bank_sensitive_data.tax_id,
+            }),
             _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
         };
 
