@@ -2583,7 +2583,7 @@ pub async fn payments_retrieve_core(
         Err(err) => {
             return Err(err
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)
-                .into())
+                )
         }
     };
 
