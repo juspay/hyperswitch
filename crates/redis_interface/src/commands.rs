@@ -1336,10 +1336,10 @@ impl super::RedisConnectionPool {
             "xgroup_create",
             &redis_key,
             async {
-            self.pool
+                self.pool
                     .xgroup_create(redis_key.clone(), group, id, true)
-                .await
-                .change_context(errors::RedisError::ConsumerGroupCreateFailed)
+                    .await
+                    .change_context(errors::RedisError::ConsumerGroupCreateFailed)
             },
         )
         .await
@@ -1357,10 +1357,10 @@ impl super::RedisConnectionPool {
             "xgroup_destroy",
             &redis_key,
             async {
-            self.pool
+                self.pool
                     .xgroup_destroy(redis_key.clone(), group)
-                .await
-                .change_context(errors::RedisError::ConsumerGroupDestroyFailed)
+                    .await
+                    .change_context(errors::RedisError::ConsumerGroupDestroyFailed)
             },
         )
         .await
@@ -1380,10 +1380,10 @@ impl super::RedisConnectionPool {
             "xgroup_delconsumer",
             &redis_key,
             async {
-            self.pool
+                self.pool
                     .xgroup_delconsumer(redis_key.clone(), group, consumer)
-                .await
-                .change_context(errors::RedisError::ConsumerGroupRemoveConsumerFailed)
+                    .await
+                    .change_context(errors::RedisError::ConsumerGroupRemoveConsumerFailed)
             },
         )
         .await
@@ -1402,10 +1402,10 @@ impl super::RedisConnectionPool {
             "xgroup_setid",
             &redis_key,
             async {
-            self.pool
+                self.pool
                     .xgroup_setid(redis_key.clone(), group, id)
-                .await
-                .change_context(errors::RedisError::ConsumerGroupSetIdFailed)
+                    .await
+                    .change_context(errors::RedisError::ConsumerGroupSetIdFailed)
             },
         )
         .await
@@ -1514,59 +1514,59 @@ impl super::RedisConnectionPool {
             "set_nx_get_transaction",
             &redis_key,
             async {
-            let ttl_seconds = ttl.unwrap_or(self.config.default_ttl.into());
+                let ttl_seconds = ttl.unwrap_or(self.config.default_ttl.into());
 
-            // Get a client from the pool and start transaction
-            let trx = self.get_transaction();
+                // Get a client from the pool and start transaction
+                let trx = self.get_transaction();
 
-            // Try to set if not exists with expiry - queue the command
-            trx.set::<(), _, _>(
-                &redis_key,
-                value,
-                Some(Expiration::EX(ttl_seconds)),
-                Some(SetOptions::NX),
-                false,
-            )
-            .await
-            .change_context(errors::RedisError::SetFailed)
-            .attach_printable("Failed to queue set command")?;
-
-            // Always get the value after the SET attempt - queue the command
-            trx.get::<V, _>(&redis_key)
-                .await
-                .change_context(errors::RedisError::GetFailed)
-                .attach_printable("Failed to queue get command")?;
-
-            // Execute transaction
-            let mut results: Vec<RedisValue> = trx
-                .exec(true)
+                // Try to set if not exists with expiry - queue the command
+                trx.set::<(), _, _>(
+                    &redis_key,
+                    value,
+                    Some(Expiration::EX(ttl_seconds)),
+                    Some(SetOptions::NX),
+                    false,
+                )
                 .await
                 .change_context(errors::RedisError::SetFailed)
-                .attach_printable("Failed to execute the redis transaction")?;
+                .attach_printable("Failed to queue set command")?;
 
-            let msg = "Got unexpected number of results from transaction";
-            let get_result = results
-                .pop()
-                .ok_or(errors::RedisError::SetFailed)
-                .attach_printable(msg)?;
-            let set_result = results
-                .pop()
-                .ok_or(errors::RedisError::SetFailed)
-                .attach_printable(msg)?;
-            // Parse the GET result to get the actual value
-            let actual_value: V = FromRedis::from_value(get_result)
-                .change_context(errors::RedisError::SetFailed)
-                .attach_printable("Failed to convert from redis value")?;
+                // Always get the value after the SET attempt - queue the command
+                trx.get::<V, _>(&redis_key)
+                    .await
+                    .change_context(errors::RedisError::GetFailed)
+                    .attach_printable("Failed to queue get command")?;
 
-            // Check if SET NX succeeded or failed
-            match set_result {
-                // SET NX returns "OK" if key was set
-                RedisValue::String(_) => Ok(SetGetReply::ValueSet(actual_value)),
-                // SET NX returns null if key already exists
-                RedisValue::Null => Ok(SetGetReply::ValueExists(actual_value)),
-                _ => Err(report!(errors::RedisError::SetFailed))
-                    .attach_printable("Unexpected result from SET NX operation"),
-            }
+                // Execute transaction
+                let mut results: Vec<RedisValue> = trx
+                    .exec(true)
+                    .await
+                    .change_context(errors::RedisError::SetFailed)
+                    .attach_printable("Failed to execute the redis transaction")?;
+
+                let msg = "Got unexpected number of results from transaction";
+                let get_result = results
+                    .pop()
+                    .ok_or(errors::RedisError::SetFailed)
+                    .attach_printable(msg)?;
+                let set_result = results
+                    .pop()
+                    .ok_or(errors::RedisError::SetFailed)
+                    .attach_printable(msg)?;
+                // Parse the GET result to get the actual value
+                let actual_value: V = FromRedis::from_value(get_result)
+                    .change_context(errors::RedisError::SetFailed)
+                    .attach_printable("Failed to convert from redis value")?;
+
+                // Check if SET NX succeeded or failed
+                match set_result {
+                    // SET NX returns "OK" if key was set
+                    RedisValue::String(_) => Ok(SetGetReply::ValueSet(actual_value)),
+                    // SET NX returns null if key already exists
+                    RedisValue::Null => Ok(SetGetReply::ValueExists(actual_value)),
+                    _ => Err(report!(errors::RedisError::SetFailed))
+                        .attach_printable("Unexpected result from SET NX operation"),
+                }
             },
         )
         .await
