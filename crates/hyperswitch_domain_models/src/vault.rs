@@ -3,6 +3,8 @@ use api_models::payment_methods;
 use common_utils::{crypto::Encryptable, errors::CustomResult, ext_traits::OptionExt};
 #[cfg(feature = "v2")]
 use error_stack::ResultExt;
+#[cfg(feature = "v2")]
+use hyperswitch_masking::PeekInterface;
 use serde::{Deserialize, Serialize};
 
 use crate::{errors, payment_method_data};
@@ -12,7 +14,6 @@ pub enum PaymentMethodVaultingData {
     Card(payment_methods::CardDetail),
     NetworkToken(payment_method_data::NetworkTokenDetails),
     CardNumber(cards::CardNumber),
-    #[cfg(feature = "v1")]
     BankDebit(payment_methods::BankDebitDetail),
 }
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -20,6 +21,13 @@ pub enum FingerprintData {
     Card(FingerprintCardData),
     NetworkToken(FingerprintNetworkTokenData),
     CardNumber(cards::CardNumber),
+    BankDebit(FingerprintBankDebitData),
+}
+
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
+pub struct FingerprintBankDebitData {
+    account_number: hyperswitch_masking::Secret<String>,
+    routing_number: hyperswitch_masking::Secret<String>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -41,8 +49,7 @@ impl PaymentMethodVaultingData {
     pub fn get_card(&self) -> Option<&payment_methods::CardDetail> {
         match self {
             Self::Card(card) => Some(card),
-            Self::NetworkToken(_) => None,
-            Self::CardNumber(_) => None,
+            Self::NetworkToken(_) | Self::CardNumber(_) | Self::BankDebit(_) => None,
         }
     }
 
@@ -52,8 +59,7 @@ impl PaymentMethodVaultingData {
             Self::Card(card_details) => {
                 card_details.card_cvc = Some(card_cvc);
             }
-            Self::NetworkToken(_) => {}
-            Self::CardNumber(_) => {}
+            Self::NetworkToken(_) | Self::CardNumber(_) | Self::BankDebit(_) => {}
         }
     }
 
@@ -64,10 +70,13 @@ impl PaymentMethodVaultingData {
         match self {
             Self::Card(card) => Some(payment_methods::RawPaymentMethodData::Card(card.clone())),
             // Raw payment methods data is not available for network tokens
-            Self::NetworkToken(network_token) => None,
+            Self::NetworkToken(_) => None,
             // When it is card number populated_payment_methods_data_and_get_payment_method_vaulting_data
             // will be called which will populated the payment methods data for card number and convert it to type CardDetail
-            Self::CardNumber(card_number) => None,
+            Self::CardNumber(_) => None,
+            Self::BankDebit(bank_debit) => Some(payment_methods::RawPaymentMethodData::BankDebit(
+                bank_debit.clone(),
+            )),
         }
     }
 
@@ -100,7 +109,7 @@ impl PaymentMethodVaultingData {
 
                 Ok(Self::Card(card_detail))
             }
-            Self::NetworkToken(_) => Ok(self.clone()),
+            Self::NetworkToken(_) | Self::BankDebit(_) => Ok(self.clone()),
             Self::CardNumber(card_number) => {
                 let payment_methods_data = payment_methods_data_optional
                     .get_required_value("payment methods data")
@@ -180,6 +189,9 @@ impl PaymentMethodVaultingData {
                     co_badged_card_data: None,
                 },
             ),
+            Self::BankDebit(bank_debit) => payment_method_data::PaymentMethodsData::BankDebit(
+                payment_method_data::BankDebitDetailsPaymentMethod::from(bank_debit.clone()),
+            ),
         }
     }
 
@@ -197,6 +209,19 @@ impl PaymentMethodVaultingData {
                 network_token_exp_year: nt.network_token_exp_year.clone(),
             }),
             Self::CardNumber(card_number) => FingerprintData::CardNumber(card_number.clone()),
+            Self::BankDebit(bank_debit) => {
+                let (account_number, routing_number) = match bank_debit {
+                    payment_methods::BankDebitDetail::Ach {
+                        account_number,
+                        routing_number,
+                        ..
+                    } => (account_number.clone(), routing_number.clone()),
+                };
+                FingerprintData::BankDebit(FingerprintBankDebitData {
+                    account_number,
+                    routing_number,
+                })
+            }
         }
     }
 }
@@ -309,6 +334,13 @@ impl VaultingDataInterface for PaymentMethodVaultingData {
             Self::Card(card) => card.card_number.get_card_no(),
             Self::NetworkToken(network_token) => network_token.network_token.get_card_no(),
             Self::CardNumber(card_number) => card_number.get_card_no(),
+            Self::BankDebit(bank_debit) => match bank_debit {
+                payment_methods::BankDebitDetail::Ach {
+                    account_number,
+                    routing_number,
+                    ..
+                } => format!("{}_{}", account_number.peek(), routing_number.peek()),
+            },
         }
     }
 }
@@ -319,6 +351,13 @@ impl VaultingDataInterface for FingerprintData {
             Self::Card(card) => card.card_number.get_card_no(),
             Self::NetworkToken(network_token) => network_token.network_token.get_card_no(),
             Self::CardNumber(card_number) => card_number.get_card_no(),
+            Self::BankDebit(bank_debit) => {
+                format!(
+                    "{}_{}",
+                    bank_debit.account_number.peek(),
+                    bank_debit.routing_number.peek()
+                )
+            }
         }
     }
 }
@@ -340,6 +379,9 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodVaulting
                 }
                 .into(),
             ),
+            payment_methods::PaymentMethodCreateData::BankDebit(bank_debit) => {
+                Ok(Self::BankDebit(bank_debit))
+            }
         }
     }
 }
@@ -388,7 +430,6 @@ impl TryFrom<PaymentMethodVaultingData> for PaymentMethodCustomVaultingData {
                     card_cvc: None,
                 }))
             }
-            #[cfg(feature = "v1")]
             PaymentMethodVaultingData::BankDebit(_) => Err(
                 errors::api_error_response::ApiErrorResponse::NotImplemented {
                     message: errors::api_error_response::NotImplementedMessage::Reason(

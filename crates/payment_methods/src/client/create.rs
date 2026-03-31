@@ -7,11 +7,13 @@ use common_utils::{
     request::{Method, RequestContent},
     types::MinorUnit,
 };
-use hyperswitch_domain_models::payment_method_data::PaymentMethodData;
+use hyperswitch_domain_models::payment_method_data::{BankDebitData, PaymentMethodData};
 use hyperswitch_interfaces::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind};
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
+
+use crate::types::BankDebitDetail;
 /// V1-facing create flow type.
 #[derive(Debug)]
 pub struct CreatePaymentMethod;
@@ -63,6 +65,7 @@ pub struct CardDetail {
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodCreateData {
     Card(CardDetail),
+    BankDebit(BankDebitDetail),
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -89,6 +92,7 @@ pub struct ModularPaymentMethodResponse {
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodResponseData {
     Card(api_models::payment_methods::CardDetailFromLocker),
+    BankDebit(api_models::payment_methods::BankDebitDetailsPaymentMethod),
 }
 
 #[derive(Clone, Debug)]
@@ -142,6 +146,31 @@ impl TryFrom<PaymentMethodData> for PaymentMethodCreateData {
                 };
                 Ok(Self::Card(card_detail))
             }
+            PaymentMethodData::BankDebit(bank_debit) => match bank_debit {
+                BankDebitData::AchBankDebit {
+                    account_number,
+                    routing_number,
+                    bank_account_holder_name,
+                    bank_type,
+                    bank_holder_type,
+                    ..
+                } => {
+                    let bank_debit_detail = BankDebitDetail::Ach {
+                        account_number,
+                        routing_number,
+                        bank_account_holder_name,
+                        bank_type,
+                        bank_holder_type,
+                    };
+                    Ok(Self::BankDebit(bank_debit_detail))
+                }
+                _ => Err(MicroserviceClientError {
+                    operation: "CreatePaymentMethodV1Request to ModularPMCreateRequest".to_string(),
+                    kind: MicroserviceClientErrorKind::InvalidRequest(
+                        "Only ACH bank debit is supported for modular PM creation".to_string(),
+                    ),
+                }),
+            },
             _ => Err(MicroserviceClientError {
                 operation: "CreatePaymentMethodV1Request to ModularPMCreateRequest".to_string(),
                 kind: MicroserviceClientErrorKind::InvalidRequest(

@@ -1155,7 +1155,7 @@ pub async fn create_persistent_payment_method_core(
             .attach_printable("Unable to generate GlobalPaymentMethodId")?;
 
     match &req.payment_method_data {
-        api::PaymentMethodCreateData::Card(_) => {
+        api::PaymentMethodCreateData::Card(_) | api::PaymentMethodCreateData::BankDebit(_) => {
             Box::pin(create_or_fetch_payment_method_core(
                 state,
                 req,
@@ -1257,6 +1257,20 @@ pub async fn create_volatile_payment_method_core(
             Err(report!(errors::ApiErrorResponse::UnprocessableEntity {
                 message: "Proxy card payment method cannot be created as volatile".to_string()
             }))
+        }
+        api::PaymentMethodCreateData::BankDebit(_) => {
+            logger::info!("Creating volatile bank_debit payment method");
+            Box::pin(create_volatile_payment_method_bank_debit_core(
+                state,
+                req,
+                platform,
+                profile,
+                merchant_id,
+                &customer_id,
+                payment_method_id,
+                payment_method_billing_address,
+            ))
+            .await
         }
     }
 }
@@ -1854,6 +1868,128 @@ pub async fn create_volatile_payment_method_card_core(
     Ok((response, payment_method))
 }
 
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
+#[instrument(skip_all)]
+pub async fn create_volatile_payment_method_bank_debit_core(
+    state: &SessionState,
+    req: api::PaymentMethodCreate,
+    platform: &domain::Platform,
+    _profile: &domain::Profile,
+    merchant_id: &id_type::MerchantId,
+    customer_id: &Option<id_type::GlobalCustomerId>,
+    payment_method_id: id_type::GlobalPaymentMethodId,
+    payment_method_billing_address: Option<
+        Encryptable<hyperswitch_domain_models::address::Address>,
+    >,
+) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
+    let db = &*state.store;
+    let keymanager_state = &(state).into();
+    let merchant_key_store = platform.get_provider().get_key_store();
+
+    let bin_enriched_payment_method_data =
+        domain::PaymentMethodVaultingData::try_from(req.payment_method_data.clone())?
+            .populate_bin_details_for_payment_method(state)
+            .await;
+    let payment_method_subtype = bin_enriched_payment_method_data
+        .payment_method_subtype
+        .or(req.payment_method_subtype);
+    let payment_method_data = bin_enriched_payment_method_data.data;
+
+    let vaulting_result = vault_payment_method_in_volatile_storage(
+        state,
+        &payment_method_data,
+        platform,
+        _profile,
+        None,
+        customer_id,
+    )
+    .await;
+
+    let (response, payment_method) = match vaulting_result {
+        Ok((
+            pm_types::AddVaultResponse {
+                vault_id,
+                fingerprint_id,
+                ..
+            },
+            external_vault_source,
+        )) => {
+            let locker_id = Some(vault_id.clone());
+            let payment_method = construct_payment_method_object(
+                req.metadata.clone(),
+                customer_id,
+                payment_method_id,
+                merchant_id,
+                payment_method_billing_address.clone(),
+                state,
+                platform.get_provider().get_key_store(),
+                Some(&payment_method_data),
+                Some(req.payment_method_type),
+                payment_method_subtype,
+                locker_id,
+                fingerprint_id,
+                external_vault_source,
+                platform.get_initiator(),
+            )
+            .await
+            .attach_printable("failed to construct payment method")?
+            .convert()
+            .await
+            .change_context(errors::StorageError::EncryptionError)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to convert payment method")?;
+
+            let redis_connection = state
+                .store
+                .get_redis_conn()
+                .map_err(Into::<errors::StorageError>::into)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to get redis connection")?;
+
+            logger::info!("Storing payment method id in redis");
+
+            redis_connection
+                .serialize_and_set_key_with_expiry(
+                    &payment_method.get_id().get_string_repr().to_string().into(),
+                    payment_method.clone(),
+                    consts::DEFAULT_PAYMENT_METHOD_STORE_TTL,
+                )
+                .await
+                .map_err(Into::<errors::StorageError>::into)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to insert payment method id in redis")?;
+
+            let domain_payment_method = domain::PaymentMethod::convert_back(
+                keymanager_state,
+                payment_method,
+                merchant_key_store.key.get_inner(),
+                merchant_key_store.merchant_id.clone().into(),
+            )
+            .await
+            .change_context(errors::StorageError::DecryptionError)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed to convert payment method")?;
+
+            let resp = pm_transforms::generate_payment_method_response(
+                &domain_payment_method,
+                &None,
+                req.storage_type,
+                None,
+                req.customer_id,
+                None,
+                None,
+                None,
+            )?;
+
+            Ok((resp, domain_payment_method))
+        }
+        Err(e) => Err(e),
+    }?;
+
+    Ok((response, payment_method))
+}
+
 // network tokenization and vaulting to locker is not required for proxy card since the card is already tokenized
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
@@ -2301,6 +2437,13 @@ impl PaymentMethodExt for payment_methods::PaymentMethodCreateData {
                     co_badged_card_data: None,
                 },
             )),
+            Self::BankDebit(bank_debit_details) => {
+                Ok(payment_methods::PaymentMethodsData::BankDebit(
+                    payment_methods::BankDebitDetailsPaymentMethod::from(
+                        bank_debit_details.clone(),
+                    ),
+                ))
+            }
         }
     }
 
@@ -2309,7 +2452,7 @@ impl PaymentMethodExt for payment_methods::PaymentMethodCreateData {
             Self::ProxyCard(card_details) => Some(payment_methods::ExternalVaultTokenData {
                 tokenized_card_number: card_details.card_number,
             }),
-            Self::Card(_) => None,
+            Self::Card(_) | Self::BankDebit(_) => None,
         }
     }
 }
@@ -3342,7 +3485,6 @@ pub fn get_payment_method_custom_data(
                         Err(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("Unexpected Behaviour, Card Number variant is not supported for Custom Tokenization")?
                     }
-                    #[cfg(feature = "v1")]
                     hyperswitch_domain_models::vault::PaymentMethodVaultingData::BankDebit(_) => {
                         Err(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("Unexpected Behaviour, Bank Debit variant is not supported for Custom Tokenization")?

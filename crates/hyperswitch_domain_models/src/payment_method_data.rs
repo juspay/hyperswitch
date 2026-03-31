@@ -1559,6 +1559,23 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodData {
                 }
                 .into(),
             ),
+            payment_methods::PaymentMethodCreateData::BankDebit(
+                payment_methods::BankDebitDetail::Ach {
+                    account_number,
+                    routing_number,
+                    bank_account_holder_name,
+                    bank_type,
+                    bank_holder_type,
+                },
+            ) => Ok(Self::BankDebit(BankDebitData::AchBankDebit {
+                account_number,
+                routing_number,
+                card_holder_name: None,
+                bank_account_holder_name,
+                bank_name: None,
+                bank_type,
+                bank_holder_type,
+            })),
         }
     }
 }
@@ -3165,6 +3182,25 @@ pub enum BankDebitDetailsPaymentMethod {
         bank_type: Option<common_enums::BankType>,
         bank_holder_type: Option<common_enums::BankHolderType>,
     },
+}
+
+impl From<payment_methods::BankDebitDetail> for BankDebitDetailsPaymentMethod {
+    fn from(bank_debit: payment_methods::BankDebitDetail) -> Self {
+        let masked_account_number = bank_debit.get_masked_account_number();
+        let masked_routing_number = bank_debit.get_masked_routing_number();
+        let bank_account_holder_name = bank_debit.get_bank_account_holder_name();
+        let bank_type = bank_debit.get_bank_type();
+        let bank_holder_type = bank_debit.get_bank_holder_type();
+        Self::AchBankDebit {
+            masked_account_number,
+            masked_routing_number,
+            card_holder_name: None,
+            bank_account_holder_name,
+            bank_name: None,
+            bank_type,
+            bank_holder_type,
+        }
+    }
 }
 
 #[cfg(feature = "v1")]

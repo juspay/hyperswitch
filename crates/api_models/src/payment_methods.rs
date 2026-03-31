@@ -508,6 +508,9 @@ impl PaymentMethodCreate {
                     PaymentMethodCreateData::Card(_) | PaymentMethodCreateData::ProxyCard(_)
                 )
             }
+            api_enums::PaymentMethod::BankDebit => {
+                matches!(payment_method_data, PaymentMethodCreateData::BankDebit(_))
+            }
             _ => false,
         }
     }
@@ -579,6 +582,7 @@ pub enum PaymentMethodUpdateData {
 pub enum PaymentMethodCreateData {
     Card(CardDetail),
     ProxyCard(ProxyCardDetails),
+    BankDebit(BankDebitDetail),
 }
 
 #[cfg(feature = "v2")]
@@ -1045,6 +1049,7 @@ impl CardDetailUpdate {
 #[serde(rename = "payment_method_data")]
 pub enum PaymentMethodResponseData {
     Card(CardDetailFromLocker),
+    BankDebit(BankDebitDetailsPaymentMethod),
 }
 
 #[cfg(feature = "v2")]
@@ -1066,6 +1071,7 @@ pub struct RawCardWithNTDetails {
 pub enum RawPaymentMethodData {
     Card(CardDetail),
     CardWithNT(RawCardWithNTDetails),
+    BankDebit(BankDebitDetail),
 }
 
 #[cfg(feature = "v1")]
@@ -1382,6 +1388,25 @@ pub enum BankDebitDetailsPaymentMethod {
         bank_type: Option<common_enums::BankType>,
         bank_holder_type: Option<common_enums::BankHolderType>,
     },
+}
+
+impl From<BankDebitDetail> for BankDebitDetailsPaymentMethod {
+    fn from(bank_debit: BankDebitDetail) -> Self {
+        let masked_account_number = bank_debit.get_masked_account_number();
+        let masked_routing_number = bank_debit.get_masked_routing_number();
+        let bank_account_holder_name = bank_debit.get_bank_account_holder_name();
+        let bank_type = bank_debit.get_bank_type();
+        let bank_holder_type = bank_debit.get_bank_holder_type();
+        Self::AchBankDebit {
+            masked_account_number,
+            masked_routing_number,
+            card_holder_name: None,
+            bank_account_holder_name,
+            bank_name: None,
+            bank_type,
+            bank_holder_type,
+        }
+    }
 }
 
 impl From<&CoBadgedCardData> for CoBadgedCardDataToBeSaved {

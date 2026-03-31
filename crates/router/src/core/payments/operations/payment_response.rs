@@ -82,7 +82,7 @@ where
 {
     if matches!(
         payment_data.payment_attempt.payment_method,
-        Some(enums::PaymentMethod::Card)
+        Some(enums::PaymentMethod::Card | enums::PaymentMethod::BankDebit)
     ) {
         let is_volatile = payment_data
             .get_payment_method_info()
@@ -96,8 +96,16 @@ where
         match (is_volatile, payment_method_id) {
             (Some(false), Some(pm_id)) => {
                 let should_update = resp.status.should_update_payment_method();
+
+                let payment_method_type = payment_data
+                    .payment_attempt
+                    .payment_method
+                    .map(|pm| pm.to_string())
+                    .unwrap_or_else(|| "unknown".to_string());
+
                 logger::info!(
-                    "Payment method is card; is eligible for modular update: {}",
+                    "Payment method is {}; is eligible for modular update: {}",
+                    payment_method_type,
                     should_update
                 );
 
@@ -191,7 +199,7 @@ where
                                 card_cvc: None,
                             }))
                         }
-                        _ => None,
+                        _ => None, // Bank debit details are not getting updated in the modular update call as of now only acknowledgement_status is getting updated for the bank debit payment methods
                     });
                 let acknowledgement_status = should_update
                     .then_some(common_enums::AcknowledgementStatus::Authenticated)

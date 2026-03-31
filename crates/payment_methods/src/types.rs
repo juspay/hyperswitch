@@ -1,6 +1,9 @@
-use api_models::payment_methods::{CardDetailFromLocker, NetworkTokenResponse};
+use api_models::payment_methods::{
+    BankDebitDetailsPaymentMethod, CardDetailFromLocker, NetworkTokenResponse,
+};
 use common_enums::{PaymentMethod, PaymentMethodType};
 use common_utils::{id_type, pii};
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -40,6 +43,7 @@ pub struct PaymentMethodResponseItem {
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodResponseData {
     Card(CardDetailFromLocker),
+    BankDebit(BankDebitDetailsPaymentMethod),
 }
 
 /// V2 modular service request payload.
@@ -75,12 +79,25 @@ pub struct ModularPMRetrieveResponse {
 pub enum RawPaymentMethodData {
     Card(CardDetail),
     CardWithNT(RawCardWithNTDetails),
+    BankDebit(BankDebitDetail),
 }
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct RawCardWithNTDetails {
     pub card_details: CardDetail,
     pub network_token_details: CardDetail,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BankDebitDetail {
+    Ach {
+        account_number: Secret<String>,
+        routing_number: Secret<String>,
+        bank_account_holder_name: Option<Secret<String>>,
+        bank_type: Option<common_enums::BankType>,
+        bank_holder_type: Option<common_enums::BankHolderType>,
+    },
 }
 
 /// V2 ConnectorTokenDetails (for deserialization, ignored in transformation)
@@ -94,7 +111,7 @@ pub struct ConnectorTokenDetails {
     pub original_payment_authorized_currency: Option<common_enums::Currency>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_customer_id: Option<String>,
-    pub token: hyperswitch_masking::Secret<String>,
+    pub token: Secret<String>,
 }
 
 /// V2 CardCVCTokenStorageDetails (for deserialization, ignored in transformation)

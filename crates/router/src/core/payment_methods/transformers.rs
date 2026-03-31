@@ -597,6 +597,9 @@ pub fn generate_payment_method_response(
             api::PaymentMethodsData::Card(card) => {
                 Some(api::PaymentMethodResponseData::Card(card.into()))
             }
+            api::PaymentMethodsData::BankDebit(bank_debit) => {
+                Some(api::PaymentMethodResponseData::BankDebit(bank_debit))
+            }
             _ => None,
         });
     let mut connector_tokens = payment_method
@@ -1562,6 +1565,27 @@ impl
                             },
                     }),
                 )))
+            }
+            payment_methods::types::RawPaymentMethodData::BankDebit(bank_debit_detail) => {
+                match bank_debit_detail {
+                    payment_methods::types::BankDebitDetail::Ach {
+                        account_number,
+                        routing_number,
+                        bank_account_holder_name,
+                        bank_type,
+                        bank_holder_type,
+                    } => Ok(Self(domain::PaymentMethodData::BankDebit(
+                        hyperswitch_domain_models::payment_method_data::BankDebitData::AchBankDebit {
+                            account_number,
+                            routing_number,
+                            card_holder_name: None,
+                            bank_account_holder_name,
+                            bank_name: None,
+                            bank_type,
+                            bank_holder_type,
+                        },
+                    ))),
+                }
             }
         }
     }
