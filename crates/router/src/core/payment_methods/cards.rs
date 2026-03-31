@@ -3074,7 +3074,7 @@ pub async fn list_payment_methods(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    let (profile_id_owned, business_profile) =
+    let (profile_id, business_profile) =
         match payment_intent.as_ref().and_then(|pi| pi.profile_id.clone()) {
             Some(profile_id) => {
                 let business_profile = db
@@ -3097,12 +3097,11 @@ pub async fn list_payment_methods(
                 (profile_id, profile)
             }
         };
-    let profile_id = &profile_id_owned;
 
     // filter out payment connectors based on profile_id
     let filtered_mcas = all_mcas
         .clone()
-        .filter_based_on_profile_and_connector_type(profile_id, ConnectorType::PaymentProcessor);
+        .filter_based_on_profile_and_connector_type(&profile_id, ConnectorType::PaymentProcessor);
 
     logger::debug!(mca_before_filtering=?filtered_mcas);
 
