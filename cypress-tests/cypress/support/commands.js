@@ -29,6 +29,7 @@ import {
   extractIntegerAtEnd,
   getOriginalConnectorName,
   getValueByKey,
+  setNormalizedValue,
 } from "../e2e/configs/Payment/Utils";
 import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
@@ -5403,33 +5404,78 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add("IncomingWebhookTest", (globalState, webhookPayload) => {
-  const connector = globalState.get("connectorId");
-  const merchantId = globalState.get("merchantId");
-  const completeUrl = `${Cypress.env("BASEURL")}/webhooks/${merchantId}/${connector}`;
+Cypress.Commands.add(
+  "IncomingWebhookTest",
+  (globalState, webhookBody, webhookConfig) => {
+    const connector = globalState.get("connectorId");
+    const merchantId = globalState.get("merchantId");
+    const completeUrl = `${Cypress.env("BASEURL")}/webhooks/${merchantId}/${connector}`;
 
-  // Send webhook POST request
-  return cy
-    .request({
-      method: "POST",
-      url: completeUrl,
-      headers: { "Content-Type": "application/json" },
-      body: webhookPayload,
-      failOnStatusCode: false,
-    })
-    .then((response) => {
-      logRequestId(response.headers["x-request-id"]);
+    // Normalize transaction ID
+    const txnConfig = webhookConfig.TransactionIdConfig;
+    const txnId =
+      txnConfig.source === "paymentAttemptID"
+        ? `${globalState.get("paymentID")}_1`
+        : globalState.get("connectorTransactionID");
 
-      return cy.wrap(response).then(() => {
-        // Throw for failed status
-        if (response.status !== 200) {
-          throw new Error(
-            `Webhook failed with error code "${response.body.error.code}" error message "${response.body.error.message}"`
-          );
-        }
-      });
-    });
-});
+    setNormalizedValue(webhookBody, txnConfig, txnId);
+
+    const contentType = webhookConfig.contentType || "application/json";
+
+    let body =
+      contentType === "application/x-www-form-urlencoded"
+        ? Object.entries(webhookBody)
+            .map(
+              ([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`
+            )
+            .join("&")
+        : webhookBody;
+
+    const headers = {
+      "Content-Type": contentType,
+    };
+
+    const sendRequest = () =>
+      cy
+        .request({
+          method: "POST",
+          url: completeUrl,
+          headers,
+          body,
+          failOnStatusCode: false,
+        })
+        .then((response) => {
+          logRequestId(response.headers["x-request-id"]);
+
+          if (response.status !== 200) {
+            throw new Error(
+              `Webhook failed with error code "${response.body?.error?.code}" error message "${response.body?.error?.message}"`
+            );
+          }
+
+          return cy.wrap(response);
+        });
+
+    // If signature required
+    if (webhookConfig.webhookSecret) {
+      const bodyString = JSON.stringify(webhookBody);
+      body = bodyString;
+
+      return cy
+        .task("hmac_sha256", {
+          secret: webhookConfig.webhookSecret,
+          message: bodyString,
+        })
+        .then((signature) => {
+          headers[webhookConfig.signatureHeader] =
+            `${webhookConfig.signaturePrefix}${signature}`;
+        })
+        .then(() => sendRequest());
+    }
+
+    return sendRequest();
+  }
+);
 
 Cypress.Commands.add(
   "customerCreateCall",
