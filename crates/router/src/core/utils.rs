@@ -207,7 +207,7 @@ pub async fn construct_payout_router_data<'a, F>(
         payment_id: common_utils::id_type::PaymentId::get_irrelevant_id("payout")
             .get_string_repr()
             .to_owned(),
-        attempt_id: "".to_string(),
+        attempt_id: payout_attempt.payout_attempt_id.clone(),
         status: enums::AttemptStatus::Failure,
         payment_method: enums::PaymentMethod::default(),
         payment_method_type: None,

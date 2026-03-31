@@ -779,7 +779,7 @@ pub struct PayoutActionRequest {
     pub payout_id: id_type::PayoutId,
 }
 
-#[derive(Default, Debug, ToSchema, Clone, Deserialize)]
+#[derive(Default, Debug, ToSchema, Clone, Serialize, Deserialize)]
 pub struct PayoutVendorAccountDetails {
     pub vendor_details: PayoutVendorDetails,
     pub individual_details: PayoutIndividualDetails,
@@ -1243,6 +1243,7 @@ impl From<&PayoutMethodData> for api_enums::PaymentMethodType {
                 Bank::Bacs(_) => Self::Bacs,
                 Bank::Sepa(_) => Self::SepaBankTransfer,
                 Bank::Pix(_) => Self::Pix,
+                Bank::Trustly(_) => Self::Trustly,
             },
             PayoutMethodData::Wallet(wallet) => match wallet {
                 Wallet::ApplePayDecrypt(_) => Self::ApplePay,

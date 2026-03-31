@@ -165,6 +165,10 @@ pub enum UnifiedConnectorServiceError {
     /// Failed to perform Payment Incremental Authorization from gRPC Server
     #[error("Failed to perform Payment Incremental Authorization from gRPC Server")]
     PaymentIncrementalAuthorizationFailure,
+
+    /// Failed to perform Payout Create from gRPC Server
+    #[error("Failed to perform Payout Create from gRPC Server")]
+    PayoutCreateFailure,
 }
 
 /// UCS Webhook transformation status

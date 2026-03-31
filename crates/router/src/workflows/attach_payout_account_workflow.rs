@@ -67,7 +67,16 @@ impl ProcessTrackerWorkflow<SessionState> for AttachPayoutAccountWorkflow {
         ))
         .await?;
 
-        payouts::payouts_core(state, &platform, HeaderPayload::default(), &mut payout_data, None, None, dimensions).await?;
+        payouts::payouts_core(
+            state,
+            &platform,
+            HeaderPayload::default(),
+            &mut payout_data,
+            None,
+            None,
+            dimensions,
+        )
+        .await?;
 
         Ok(())
     }

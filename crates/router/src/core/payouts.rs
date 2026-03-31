@@ -1,6 +1,7 @@
 #[cfg(feature = "olap")]
 use strum::IntoEnumIterator;
 pub mod access_token;
+pub mod gateway;
 pub mod helpers;
 #[cfg(feature = "payout_retry")]
 pub mod retry;
@@ -55,6 +56,7 @@ use crate::{
         },
         payments::{
             self, customers, gateway::context as gateway_context, helpers as payment_helpers,
+            HeaderPayload,
         },
         unified_connector_service::should_call_unified_connector_service,
         utils as core_utils,
@@ -1802,7 +1804,7 @@ pub async fn create_payout(
     )
     .await?;
 
-    // 3. Execute pretasks
+    // 4. Execute pretasks
     if helpers::should_continue_payout(&router_data) {
         complete_payout_quote_steps_if_required(&updated_state, connector_data, &mut router_data)
             .await?;
@@ -1810,22 +1812,24 @@ pub async fn create_payout(
 
     let connector_meta_data = router_data.connector_meta_data.clone();
 
-    // 4. Call connector service
+    // 5. Call connector service (UCS or Direct based on execution path)
     let router_data_resp = match helpers::should_continue_payout(&router_data) {
         true => {
+            use hyperswitch_interfaces::api::gateway as payout_gateway;
             let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
                 api::PoCreate,
                 types::PayoutsData,
                 types::PayoutsResponseData,
             > = connector_data.connector.get_connector_integration();
 
-            services::execute_connector_processing_step(
+            payout_gateway::execute_payout_gateway(
                 state,
                 connector_integration,
                 &router_data,
                 payments::CallConnectorAction::Trigger,
                 None,
                 None,
+                gateway_context.clone(),
             )
             .await
             .to_payout_failed_response()?

@@ -753,6 +753,12 @@ pub struct UcsPaymentSetupRecurringResponseData {
     pub minor_amount_captured: Option<MinorUnit>,
 }
 
+#[cfg(feature = "payouts")]
+pub struct UcsPayoutCreateResponseData {
+    pub router_data_response: Result<PayoutsResponseData, ErrorResponse>,
+    pub status_code: u16,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum Redirection {
     Redirect,

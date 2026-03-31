@@ -36,7 +36,7 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
     router_flow_types::refunds,
     router_request_types::RefundsData,
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{PaymentsResponseData, PayoutsResponseData, RefundsResponseData},
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
@@ -1804,6 +1804,17 @@ pub fn parse_merchant_reference_id(id: &str) -> Option<id_type::PaymentReference
         .ok()
 }
 
+pub fn parse_merchant_payout_reference_id(id: &str) -> Option<id_type::PayoutReferenceId> {
+    id_type::PayoutReferenceId::from_str(id)
+        .inspect_err(|err| {
+            logger::warn!(
+                error = ?err,
+                "Invalid Merchant Payout ReferenceId found"
+            )
+        })
+        .ok()
+}
+
 #[cfg(feature = "v2")]
 pub fn build_unified_connector_service_external_vault_proxy_metadata(
     external_vault_merchant_connector_account: MerchantConnectorAccountTypeDetails,
@@ -2143,6 +2154,26 @@ pub fn handle_unified_connector_service_response_for_create_access_token(
     let access_token_result = Result::<AccessToken, ErrorResponse>::foreign_try_from(response)?;
 
     Ok((access_token_result, status_code))
+}
+
+/// Handle UCS payout create response and transform it to router data format
+pub fn handle_unified_connector_service_response_for_payout_create(
+    response: payments_grpc::PayoutServiceCreateResponse,
+    prev_status: common_enums::PayoutStatus,
+) -> CustomResult<crate::types::UcsPayoutCreateResponseData, UnifiedConnectorServiceError> {
+    use crate::core::unified_connector_service::transformers::convert_connector_service_status_code;
+
+    let status_code = convert_connector_service_status_code(response.status_code)?;
+
+    let router_data_response = Result::<PayoutsResponseData, ErrorResponse>::foreign_try_from((
+        response.clone(),
+        prev_status,
+    ))?;
+
+    Ok(crate::types::UcsPayoutCreateResponseData {
+        router_data_response,
+        status_code,
+    })
 }
 
 pub fn build_webhook_secrets_from_merchant_connector_account(
