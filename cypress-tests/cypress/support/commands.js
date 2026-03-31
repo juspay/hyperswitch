@@ -29,6 +29,7 @@ import {
   extractIntegerAtEnd,
   getOriginalConnectorName,
   getValueByKey,
+  setNormalizedValue,
 } from "../e2e/configs/Payment/Utils";
 import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
@@ -5405,49 +5406,97 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "IncomingWebhookTest",
-  (globalState, webhookPayload, contentType, customHeaders = {}) => {
+  (globalState, webhookBody, webhookConfig) => {
     const connector = globalState.get("connectorId");
     const merchantId = globalState.get("merchantId");
     const completeUrl = `${Cypress.env("BASEURL")}/webhooks/${merchantId}/${connector}`;
 
+    // Normalize transaction ID
+    // Some connectors (e.g. NMI, WorldPay) use PaymentAttemptId for webhook lookup
+    // instead of ConnectorTransactionId, so allow config to specify the source
+    const data = webhookConfig["TransactionIdConfig"];
+    const idValue =
+      data.source === "paymentAttemptID"
+        ? `${globalState.get("paymentID")}_1`
+        : globalState.get("connectorTransactionID");
+    setNormalizedValue(webhookBody, data, idValue);
+
+    // Some connectors (e.g. Mollie) expect form-encoded bodies instead of JSON
+    const contentType = webhookConfig.contentType || "application/json";
+
     // Determine content type and encode body accordingly
-    const resolvedContentType = contentType || "application/json";
     let body;
-    if (resolvedContentType === "application/x-www-form-urlencoded") {
+    if (contentType === "application/x-www-form-urlencoded") {
       // Convert JSON object to URL-encoded form string
-      body = Object.entries(webhookPayload)
+      body = Object.entries(webhookBody)
         .map(
           ([key, value]) =>
             `${encodeURIComponent(key)}=${encodeURIComponent(value)}`
         )
         .join("&");
     } else {
-      body = webhookPayload;
+      body = webhookBody;
     }
 
-    const headers = { "Content-Type": resolvedContentType, ...customHeaders };
+    // If connector requires webhook signature verification (e.g. WorldPay),
+    // compute HMAC-SHA256 of the body and send the signature header
+    if (webhookConfig.webhookSecret) {
+      const bodyString = JSON.stringify(webhookBody);
+      cy.task("hmac_sha256", {
+        secret: webhookConfig.webhookSecret,
+        message: bodyString,
+      }).then((signature) => {
+        const customHeaders = {
+          [webhookConfig.signatureHeader]: `${webhookConfig.signaturePrefix}${signature}`,
+        };
+        const headers = { "Content-Type": contentType, ...customHeaders };
+        // Pass stringified body to ensure signed bytes match sent bytes
+        return cy
+          .request({
+            method: "POST",
+            url: completeUrl,
+            headers: headers,
+            body: bodyString,
+            failOnStatusCode: false,
+          })
+          .then((response) => {
+            logRequestId(response.headers["x-request-id"]);
 
-    // Send webhook POST request
-    return cy
-      .request({
-        method: "POST",
-        url: completeUrl,
-        headers: headers,
-        body: body,
-        failOnStatusCode: false,
-      })
-      .then((response) => {
-        logRequestId(response.headers["x-request-id"]);
-
-        return cy.wrap(response).then(() => {
-          // Throw for failed status
-          if (response.status !== 200) {
-            throw new Error(
-              `Webhook failed with error code "${response.body.error.code}" error message "${response.body.error.message}"`
-            );
-          }
-        });
+            return cy.wrap(response).then(() => {
+              // Throw for failed status
+              if (response.status !== 200) {
+                throw new Error(
+                  `Webhook failed with error code "${response.body.error.code}" error message "${response.body.error.message}"`
+                );
+              }
+            });
+          });
       });
+    } else {
+      const headers = { "Content-Type": contentType };
+
+      // Send webhook POST request
+      return cy
+        .request({
+          method: "POST",
+          url: completeUrl,
+          headers: headers,
+          body: body,
+          failOnStatusCode: false,
+        })
+        .then((response) => {
+          logRequestId(response.headers["x-request-id"]);
+
+          return cy.wrap(response).then(() => {
+            // Throw for failed status
+            if (response.status !== 200) {
+              throw new Error(
+                `Webhook failed with error code "${response.body.error.code}" error message "${response.body.error.message}"`
+              );
+            }
+          });
+        });
+    }
   }
 );
 

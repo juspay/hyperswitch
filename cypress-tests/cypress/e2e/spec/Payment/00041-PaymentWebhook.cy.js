@@ -130,42 +130,8 @@ describe("Payment Webhook Tests", () => {
 
       // Extract webhook configuration for the specified connector
       const webhookConfig = getConnectorDetails(connector)["webhook"];
-      const data = webhookConfig["TransactionIdConfig"];
 
-      // Normalize transaction ID
-      // Some connectors (e.g. NMI, WorldPay) use PaymentAttemptId for webhook lookup
-      // instead of ConnectorTransactionId, so allow config to specify the source
-      const idValue =
-        data.source === "paymentAttemptID"
-          ? `${globalState.get("paymentID")}_1`
-          : globalState.get("connectorTransactionID");
-      utils.setNormalizedValue(webhookBody, data, idValue);
-
-      // Some connectors (e.g. Mollie) expect form-encoded bodies instead of JSON
-      const contentType = webhookConfig.contentType || "application/json";
-
-      // If connector requires webhook signature verification (e.g. WorldPay),
-      // compute HMAC-SHA256 of the body and send the signature header
-      if (webhookConfig.webhookSecret) {
-        const bodyString = JSON.stringify(webhookBody);
-        cy.task("hmac_sha256", {
-          secret: webhookConfig.webhookSecret,
-          message: bodyString,
-        }).then((signature) => {
-          const customHeaders = {
-            [webhookConfig.signatureHeader]: `${webhookConfig.signaturePrefix}${signature}`,
-          };
-          // Pass stringified body to ensure signed bytes match sent bytes
-          cy.IncomingWebhookTest(
-            globalState,
-            bodyString,
-            contentType,
-            customHeaders
-          );
-        });
-      } else {
-        cy.IncomingWebhookTest(globalState, webhookBody, contentType);
-      }
+      cy.IncomingWebhookTest(globalState, webhookBody, webhookConfig);
     });
 
     it("Retrieve Payment Call Test", () => {
