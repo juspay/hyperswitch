@@ -355,6 +355,13 @@ pub enum DirKeyKind {
     )]
     #[serde(rename = "network_token")]
     NetworkTokenType,
+    #[strum(
+        serialize = "card_discovery",
+        detailed_message = "Method by which the card was discovered (manual entry, saved card, click to pay)",
+        props(Category = "3DS Decision")
+    )]
+    #[serde(rename = "card_discovery")]
+    CardDiscovery,
 }
 
 pub trait EuclidDirFilter: Sized
@@ -415,6 +422,7 @@ impl DirKeyKind {
             Self::AcquirerFraudRate => types::DataType::Number,
             Self::TransactionInitiator => types::DataType::EnumVariant,
             Self::NetworkTokenType => types::DataType::EnumVariant,
+            Self::CardDiscovery => types::DataType::EnumVariant,
         }
     }
     pub fn get_value_set(&self) -> Option<Vec<DirValue>> {
@@ -590,6 +598,11 @@ impl DirKeyKind {
                     .map(DirValue::NetworkTokenType)
                     .collect(),
             ),
+            Self::CardDiscovery => Some(
+                enums::CardDiscovery::iter()
+                    .map(DirValue::CardDiscovery)
+                    .collect(),
+            ),
         }
     }
 }
@@ -681,6 +694,8 @@ pub enum DirValue {
     TransactionInitiator(enums::TransactionInitiator),
     #[serde(rename = "network_token")]
     NetworkTokenType(enums::NetworkTokenType),
+    #[serde(rename = "card_discovery")]
+    CardDiscovery(enums::CardDiscovery),
 }
 
 impl DirValue {
@@ -727,6 +742,7 @@ impl DirValue {
             Self::AcquirerFraudRate(_) => (DirKeyKind::AcquirerFraudRate, None),
             Self::TransactionInitiator(_) => (DirKeyKind::TransactionInitiator, None),
             Self::NetworkTokenType(_) => (DirKeyKind::NetworkTokenType, None),
+            Self::CardDiscovery(_) => (DirKeyKind::CardDiscovery, None),
         };
 
         DirKey::new(kind, data)
@@ -774,6 +790,7 @@ impl DirValue {
             Self::AcquirerFraudRate(_) => None,
             Self::TransactionInitiator(_) => None,
             Self::NetworkTokenType(_) => None,
+            Self::CardDiscovery(_) => None,
         }
     }
 
