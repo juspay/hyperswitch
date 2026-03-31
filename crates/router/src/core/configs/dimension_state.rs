@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use common_enums::TransactionType;
 use common_utils::id_type;
 use external_services::superposition;
 
@@ -11,6 +12,8 @@ pub enum DimensionError {
     MissingOrganizationId,
     #[error("profile_id not available in dimension state")]
     MissingProfileId,
+    #[error("transaction_type not available in dimension state")]
+    MissingTransactionType,
 }
 
 /// Marker for state WITHOUT merchant_id
@@ -31,6 +34,12 @@ pub struct NoProfileId;
 /// Marker for state WITH profile_id
 pub struct HasProfileId;
 
+/// Marker for state WITHOUT transaction_type
+pub struct NoTransactionType;
+
+/// Marker for state WITH transaction_type
+pub struct HasTransactionType;
+
 // Dimensional State with type parameters
 
 /// Dimensional state with type-level guarantees about which dimensions are present.
@@ -41,62 +50,90 @@ pub struct HasProfileId;
 /// * `M` - Merchant ID type: `HasMerchantId` (present) or `NoMerchantId` (absent)
 /// * `O` - Organization ID type: `HasOrgId` (present) or `NoOrgId` (absent)
 /// * `P` - Profile ID type: `HasProfileId` (present) or `NoProfileId` (absent)
-pub struct Dimensions<M, O, P> {
+/// * `T` - Transaction Type: `HasTransactionType` (present) or `NoTransactionType` (absent)
+pub struct Dimensions<M, O, P, T> {
     merchant_id: Option<id_type::MerchantId>,
     organization_id: Option<id_type::OrganizationId>,
     profile_id: Option<id_type::ProfileId>,
-    _phantom: PhantomData<(M, O, P)>,
+    transaction_type: Option<TransactionType>,
+    _phantom: PhantomData<(M, O, P, T)>,
 }
 
-impl Dimensions<NoMerchantId, NoOrgId, NoProfileId> {
+impl Dimensions<NoMerchantId, NoOrgId, NoProfileId, NoTransactionType> {
     pub fn new() -> Self {
         Self {
             merchant_id: None,
             organization_id: None,
             profile_id: None,
+            transaction_type: None,
             _phantom: PhantomData,
         }
     }
 }
 
 /// Can only add merchant_id if not already present
-impl<O, P> Dimensions<NoMerchantId, O, P> {
-    pub fn with_merchant_id(self, id: id_type::MerchantId) -> Dimensions<HasMerchantId, O, P> {
+impl<O, P, T> Dimensions<NoMerchantId, O, P, T> {
+    pub fn with_merchant_id(
+        self,
+        id: id_type::MerchantId,
+    ) -> Dimensions<HasMerchantId, O, P, T> {
         Dimensions {
             merchant_id: Some(id),
             organization_id: self.organization_id,
             profile_id: self.profile_id,
+            transaction_type: self.transaction_type,
             _phantom: PhantomData,
         }
     }
 }
 
 /// Can only add organization_id if not already present
-impl<M, P> Dimensions<M, NoOrgId, P> {
-    pub fn with_organization_id(self, id: id_type::OrganizationId) -> Dimensions<M, HasOrgId, P> {
+impl<M, P, T> Dimensions<M, NoOrgId, P, T> {
+    pub fn with_organization_id(
+        self,
+        id: id_type::OrganizationId,
+    ) -> Dimensions<M, HasOrgId, P, T> {
         Dimensions {
             merchant_id: self.merchant_id,
             organization_id: Some(id),
             profile_id: self.profile_id,
+            transaction_type: self.transaction_type,
             _phantom: PhantomData,
         }
     }
 }
 
 /// Can only add profile_id if not already present
-impl<M, O> Dimensions<M, O, NoProfileId> {
-    pub fn with_profile_id(self, id: id_type::ProfileId) -> Dimensions<M, O, HasProfileId> {
+impl<M, O, T> Dimensions<M, O, NoProfileId, T> {
+    pub fn with_profile_id(self, id: id_type::ProfileId) -> Dimensions<M, O, HasProfileId, T> {
         Dimensions {
             merchant_id: self.merchant_id,
             organization_id: self.organization_id,
             profile_id: Some(id),
+            transaction_type: self.transaction_type,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+/// Can only add transaction_type if not already present
+impl<M, O, P> Dimensions<M, O, P, NoTransactionType> {
+    pub fn with_transaction_type(
+        self,
+        transaction_type: TransactionType,
+    ) -> Dimensions<M, O, P, HasTransactionType> {
+        Dimensions {
+            merchant_id: self.merchant_id,
+            organization_id: self.organization_id,
+            profile_id: self.profile_id,
+            transaction_type: Some(transaction_type),
             _phantom: PhantomData,
         }
     }
 }
 
 /// merchant_id getter - only available if HasMerchantId
-impl<O, P> Dimensions<HasMerchantId, O, P> {
+impl<O, P, T> Dimensions<HasMerchantId, O, P, T> {
     pub fn merchant_id(&self) -> Result<&id_type::MerchantId, DimensionError> {
         self.merchant_id
             .as_ref()
@@ -105,7 +142,7 @@ impl<O, P> Dimensions<HasMerchantId, O, P> {
 }
 
 /// organization_id getter - only available if HasOrgId
-impl<M, P> Dimensions<M, HasOrgId, P> {
+impl<M, P, T> Dimensions<M, HasOrgId, P, T> {
     pub fn organization_id(&self) -> Result<&id_type::OrganizationId, DimensionError> {
         self.organization_id
             .as_ref()
@@ -114,7 +151,7 @@ impl<M, P> Dimensions<M, HasOrgId, P> {
 }
 
 /// profile_id getter - only available if HasProfileId
-impl<M, O> Dimensions<M, O, HasProfileId> {
+impl<M, O, T> Dimensions<M, O, HasProfileId, T> {
     pub fn profile_id(&self) -> Result<&id_type::ProfileId, DimensionError> {
         self.profile_id
             .as_ref()
@@ -122,8 +159,16 @@ impl<M, O> Dimensions<M, O, HasProfileId> {
     }
 }
 
+/// transaction_type getter - only available if HasTransactionType
+impl<M, O, P> Dimensions<M, O, P, HasTransactionType> {
+    pub fn transaction_type(&self) -> Result<TransactionType, DimensionError> {
+        self.transaction_type
+            .ok_or(DimensionError::MissingTransactionType)
+    }
+}
+
 // Optional getters (available in any state)
-impl<M, O, P> Dimensions<M, O, P> {
+impl<M, O, P, T> Dimensions<M, O, P, T> {
     pub fn get_merchant_id(&self) -> Option<&id_type::MerchantId> {
         self.merchant_id.as_ref()
     }
@@ -135,10 +180,14 @@ impl<M, O, P> Dimensions<M, O, P> {
     pub fn get_profile_id(&self) -> Option<&id_type::ProfileId> {
         self.profile_id.as_ref()
     }
+
+    pub fn get_transaction_type(&self) -> Option<TransactionType> {
+        self.transaction_type
+    }
 }
 
 // Superposition context conversion
-impl<M, O, P> Dimensions<M, O, P> {
+impl<M, O, P, T> Dimensions<M, O, P, T> {
     /// Converts dimension state to Superposition config context
     pub fn to_superposition_context(&self) -> Option<superposition::ConfigContext> {
         let mut ctx = superposition::ConfigContext::new();
@@ -154,11 +203,16 @@ impl<M, O, P> Dimensions<M, O, P> {
         if let Some(ref pid) = &self.profile_id {
             ctx = ctx.with("profile_id", pid.get_string_repr());
         }
+
+        if let Some(tt) = self.transaction_type {
+            ctx = ctx.with("transaction_type", tt.to_string().as_str());
+        }
+
         Some(ctx)
     }
 }
 
-impl Default for Dimensions<NoMerchantId, NoOrgId, NoProfileId> {
+impl Default for Dimensions<NoMerchantId, NoOrgId, NoProfileId, NoTransactionType> {
     fn default() -> Self {
         Self::new()
     }
@@ -177,9 +231,12 @@ pub trait DimensionsBase {
 
     /// Get profile_id (if available)
     fn get_profile_id(&self) -> Option<&id_type::ProfileId>;
+
+    /// Get transaction_type (if available)
+    fn get_transaction_type(&self) -> Option<TransactionType>;
 }
 
-impl<M, O, P> DimensionsBase for Dimensions<M, O, P> {
+impl<M, O, P, T> DimensionsBase for Dimensions<M, O, P, T> {
     fn to_superposition_context(&self) -> Option<superposition::ConfigContext> {
         self.to_superposition_context()
     }
@@ -195,9 +252,14 @@ impl<M, O, P> DimensionsBase for Dimensions<M, O, P> {
     fn get_profile_id(&self) -> Option<&id_type::ProfileId> {
         self.get_profile_id()
     }
+
+    fn get_transaction_type(&self) -> Option<TransactionType> {
+        self.get_transaction_type()
+    }
 }
 
-pub type DimensionsWithMerchantId = Dimensions<HasMerchantId, NoOrgId, NoProfileId>;
+pub type DimensionsWithMerchantId =
+    Dimensions<HasMerchantId, NoOrgId, NoProfileId, NoTransactionType>;
 
 impl DimensionsWithMerchantId {
     /// Create a DimensionsWithMerchantId from a merchant_id
@@ -206,8 +268,12 @@ impl DimensionsWithMerchantId {
             merchant_id: Some(merchant_id),
             organization_id: None,
             profile_id: None,
+            transaction_type: None,
             _phantom: PhantomData,
         }
     }
 }
-pub type DimensionsWithMerchantIdAndProfileId = Dimensions<HasMerchantId, NoOrgId, HasProfileId>;
+pub type DimensionsWithMerchantIdAndProfileId =
+    Dimensions<HasMerchantId, NoOrgId, HasProfileId, NoTransactionType>;
+pub type DimensionsWithMerchantIdProfileIdAndTransactionType =
+    Dimensions<HasMerchantId, NoOrgId, HasProfileId, HasTransactionType>;

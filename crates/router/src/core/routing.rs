@@ -55,6 +55,7 @@ use crate::utils::ValueExt;
 use crate::{core::admin, db::StorageInterface, utils::ValueExt};
 use crate::{
     core::{
+        configs::dimension_state,
         errors::{self, CustomResult, RouterResponse},
         metrics, utils as core_utils,
     },
@@ -1202,6 +1203,25 @@ pub async fn update_default_fallback_routing(
         )
         .await?;
 
+    let merchant_id = platform.get_processor().get_account().get_id().clone();
+    let superposition_config = state.conf.superposition.get_inner().clone();
+    let dimensions = dimension_state::Dimensions::new()
+        .with_merchant_id(merchant_id)
+        .with_profile_id(profile_id)
+        .with_transaction_type(enums::TransactionType::Payment);
+    if let Err(e) = dimensions
+        .set_routing_default_config(
+            state.superposition_service.as_deref(),
+            &serde_json::to_value(&updated_list_of_connectors).unwrap_or_default(),
+            &superposition_config.org_id,
+            &superposition_config.workspace_id,
+            None,
+        )
+        .await
+    {
+        router_env::logger::warn!(error=?e, "Failed to write routing_default_config to superposition");
+    }
+
     metrics::ROUTING_UPDATE_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(
         updated_list_of_connectors,
@@ -1253,18 +1273,6 @@ pub async fn update_default_routing_config(
         })
     })?;
 
-    helpers::update_merchant_default_config(
-        db,
-        platform
-            .get_processor()
-            .get_account()
-            .get_id()
-            .get_string_repr(),
-        updated_config.clone(),
-        transaction_type,
-    )
-    .await?;
-
     metrics::ROUTING_UPDATE_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(updated_config))
 }
@@ -1301,23 +1309,24 @@ pub async fn retrieve_default_routing_config(
 ) -> RouterResponse<Vec<routing_types::RoutableConnectorChoice>> {
     metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG.add(1, &[]);
     let db = state.store.as_ref();
-    let id = profile_id
-        .map(|profile_id| profile_id.get_string_repr().to_owned())
-        .unwrap_or_else(|| {
-            platform
-                .get_processor()
-                .get_account()
-                .get_id()
-                .get_string_repr()
-                .to_string()
-        });
+    let merchant_id = platform.get_processor().get_account().get_id();
+    let pid = profile_id.get_required_value("profile_id")?;
 
-    helpers::get_merchant_default_config(db, &id, transaction_type)
-        .await
-        .map(|conn_choice| {
-            metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
-            service_api::ApplicationResponse::Json(conn_choice)
-        })
+    let dimensions = dimension_state::Dimensions::new()
+        .with_merchant_id(merchant_id.clone())
+        .with_profile_id(pid)
+        .with_transaction_type(*transaction_type);
+
+    let conn_choice = dimensions
+        .get_routing_default_config(
+            db,
+            state.superposition_service.as_deref(),
+            Some(merchant_id),
+        )
+        .await;
+
+    metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
+    Ok(service_api::ApplicationResponse::Json(conn_choice))
 }
 
 #[cfg(feature = "v2")]
@@ -1541,21 +1550,30 @@ pub async fn retrieve_default_routing_config_for_profiles(
         .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)
         .attach_printable("error retrieving all business profiles for merchant")?;
 
+    let merchant_id = platform.get_processor().get_account().get_id();
+
     let retrieve_config_futures = all_profiles
         .iter()
         .map(|prof| {
-            helpers::get_merchant_default_config(
-                db,
-                prof.get_id().get_string_repr(),
-                transaction_type,
-            )
+            let dimensions = dimension_state::Dimensions::new()
+                .with_merchant_id(merchant_id.clone())
+                .with_profile_id(prof.get_id().clone())
+                .with_transaction_type(*transaction_type);
+            let targeting_merchant_id = merchant_id.clone();
+            let superposition_service = state.superposition_service.clone();
+            async move {
+                dimensions
+                    .get_routing_default_config(
+                        db,
+                        superposition_service.as_deref(),
+                        Some(&targeting_merchant_id),
+                    )
+                    .await
+            }
         })
         .collect::<Vec<_>>();
 
-    let configs = futures::future::join_all(retrieve_config_futures)
-        .await
-        .into_iter()
-        .collect::<Result<Vec<_>, _>>()?;
+    let configs = futures::future::join_all(retrieve_config_futures).await;
 
     let default_configs = configs
         .into_iter()
@@ -1593,12 +1611,18 @@ pub async fn update_default_routing_config_for_profile(
     .change_context(errors::ApiErrorResponse::ProfileNotFound {
         id: profile_id.get_string_repr().to_owned(),
     })?;
-    let default_config = helpers::get_merchant_default_config(
-        db,
-        business_profile.get_id().get_string_repr(),
-        transaction_type,
-    )
-    .await?;
+    let merchant_id = platform.get_processor().get_account().get_id();
+    let dimensions = dimension_state::Dimensions::new()
+        .with_merchant_id(merchant_id.clone())
+        .with_profile_id(business_profile.get_id().clone())
+        .with_transaction_type(*transaction_type);
+    let default_config = dimensions
+        .get_routing_default_config(
+            db,
+            state.superposition_service.as_deref(),
+            Some(merchant_id),
+        )
+        .await;
 
     utils::when(default_config.len() != updated_config.len(), || {
         Err(errors::ApiErrorResponse::PreconditionFailed {
@@ -1640,8 +1664,24 @@ pub async fn update_default_routing_config_for_profile(
         business_profile.get_id().get_string_repr(),
         updated_config.clone(),
         transaction_type,
+        &dimensions,
+        &state,
     )
     .await?;
+
+    let superposition_config = state.conf.superposition.get_inner().clone();
+    if let Err(e) = dimensions
+        .set_routing_default_config(
+            state.superposition_service.as_deref(),
+            &serde_json::to_value(&updated_config).unwrap_or_default(),
+            &superposition_config.org_id,
+            &superposition_config.workspace_id,
+            None,
+        )
+        .await
+    {
+        router_env::logger::warn!(error=?e, "Failed to write routing_default_config to superposition");
+    }
 
     metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(

@@ -1,8 +1,12 @@
 use common_utils::errors::CustomResult;
+use api_models::routing as routing_types;
 use external_services::superposition;
 
 // Re-export dimension types for convenience
-pub use super::dimension_state::{DimensionsWithMerchantId, DimensionsWithMerchantIdAndProfileId};
+pub use super::dimension_state::{
+        DimensionsWithMerchantId, DimensionsWithMerchantIdAndProfileId,
+        DimensionsWithMerchantIdProfileIdAndTransactionType,
+    };
 use super::{fetch_db_config_for_dimensions, DatabaseBackedConfig};
 use crate::{consts::superposition as superposition_consts, db::StorageInterface, utils::id_type};
 
@@ -130,6 +134,52 @@ macro_rules! config {
         }
     };
 
+    // Object array config variant (with object_array = true)
+    // Use this when the config value is always a JSON array.
+    // Handles the case where the OpenFeature provider encodes an empty array as an empty
+    // StructValue (which would otherwise be mistaken for an empty object).
+    (
+        superposition_key = $key:ident,
+        output = $output:ty,
+        default = $default:expr,
+        object_array = true,
+        requires = $requirement:ty,
+        targeting_key = $targeting_type:ty
+    ) => {
+        paste::paste! {
+            pub struct [<$key:camel>];
+
+            impl superposition::Config for [<$key:camel>] {
+                type Output = serde_json::Value;
+                type TargetingKey = $targeting_type;
+                const SUPERPOSITION_KEY: &'static str = superposition_consts::$key;
+                fn default_value() -> Self::Output {
+                    serde_json::to_value(&$default).expect("Failed to serialize default")
+                }
+            }
+
+            impl $requirement {
+                pub async fn [<get_ $key:lower>](
+                    &self,
+                    storage: &dyn StorageInterface,
+                    superposition_client: Option<&superposition::SuperpositionClient>,
+                    targeting_key: Option<&$targeting_type>,
+                ) -> $output {
+                    crate::core::configs::fetch_db_config_for_object_array::<[<$key:camel>], $output>(
+                        storage, superposition_client, self, targeting_key
+                    ).await
+                }
+            }
+
+            impl DatabaseBackedConfig for [<$key:camel>] {
+                const KEY: &'static str = stringify!([<$key:snake>]);
+                fn db_key(_dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+                    None
+                }
+            }
+        }
+    };
+
     // Primitive config variant (no helper function - use get_{{key_name}}() directly on Dimensions)
     (
         superposition_key = $key:ident,
@@ -226,4 +276,19 @@ writable_config! {
     superposition_key = FINGERPRINT_SECRET,
     input = String,
     requires = DimensionsWithMerchantId
+}
+
+config! {
+    superposition_key = ROUTING_DEFAULT_CONFIG,
+    output = Vec<routing_types::RoutableConnectorChoice>,
+    default = Vec::<routing_types::RoutableConnectorChoice>::new(),
+    object_array = true,
+    requires = DimensionsWithMerchantIdProfileIdAndTransactionType,
+    targeting_key = id_type::MerchantId
+}
+
+writable_config! {
+    superposition_key = ROUTING_DEFAULT_CONFIG,
+    input = serde_json::Value,
+    requires = DimensionsWithMerchantIdProfileIdAndTransactionType
 }

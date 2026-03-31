@@ -249,27 +249,24 @@ pub async fn check_for_debit_routing_connector_in_profile<
         payment_data.get_currency(),
     );
 
-    let fallback_config_optional = super::routing::helpers::get_merchant_default_config(
-        &*state.clone().store,
-        business_profile_id.get_string_repr(),
-        &enums::TransactionType::from(&TransactionData::Payment(transaction_data)),
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .map_err(|error| {
-        logger::warn!(?error, "Failed to fetch default connector for a profile");
-    })
-    .ok();
+    let merchant_id = payment_data.get_payment_intent().merchant_id.clone();
+    let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+        .with_merchant_id(merchant_id.clone())
+        .with_profile_id(business_profile_id.clone())
+        .with_transaction_type(enums::TransactionType::Payment);
+    let fallback_config = dimensions
+        .get_routing_default_config(
+            &*state.clone().store,
+            state.superposition_service.as_deref(),
+            Some(&merchant_id),
+        )
+        .await;
 
-    let is_debit_routable_connector_present = fallback_config_optional
-        .map(|fallback_config| {
-            fallback_config.iter().any(|fallback_config_connector| {
-                debit_routing_supported_connectors.contains(&api_enums::Connector::from(
-                    fallback_config_connector.connector,
-                ))
-            })
-        })
-        .unwrap_or(false);
+    let is_debit_routable_connector_present = fallback_config.iter().any(|fallback_config_connector| {
+        debit_routing_supported_connectors.contains(&api_enums::Connector::from(
+            fallback_config_connector.connector,
+        ))
+    });
 
     is_debit_routable_connector_present
 }

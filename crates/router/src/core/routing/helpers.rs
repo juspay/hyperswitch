@@ -127,12 +127,15 @@ pub async fn get_merchant_default_config(
 }
 
 /// Merchant's already created config can be updated and this change will be reflected
-/// in DB as well for the particular updated config
+/// in DB as well for the particular updated config. Also writes to Superposition using
+/// the provided dimensions and state.
 pub async fn update_merchant_default_config(
     db: &dyn StorageInterface,
     merchant_id: &str,
     connectors: Vec<routing_types::RoutableConnectorChoice>,
     transaction_type: &storage::enums::TransactionType,
+    dimensions: &crate::core::configs::dimension_config::DimensionsWithMerchantIdProfileIdAndTransactionType,
+    state: &SessionState,
 ) -> RouterResult<()> {
     let key = get_default_config_key(merchant_id, transaction_type);
     let config_str = connectors
@@ -144,10 +147,22 @@ pub async fn update_merchant_default_config(
         config: Some(config_str),
     };
 
-    db.update_config_by_key(&key, config_update)
+    let superposition_config = state.conf.superposition.get_inner();
+    if let Err(e) = dimensions
+        .set_routing_default_config(
+            state.superposition_service.as_deref(),
+            &serde_json::to_value(&connectors).unwrap_or_default(),
+            &superposition_config.org_id,
+            &superposition_config.workspace_id,
+            None,
+        )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error updating the default routing config in DB")?;
+    {
+        router_env::logger::warn!(
+            error=?e,
+            "Failed to write routing_default_config to superposition"
+        );
+    }
 
     Ok(())
 }

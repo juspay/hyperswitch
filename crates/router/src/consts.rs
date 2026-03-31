@@ -356,6 +356,8 @@ pub mod superposition {
     pub const IMPLICIT_CUSTOMER_UPDATE: &str = "implicit_customer_update";
     /// Fingerprint secret configuration key
     pub const FINGERPRINT_SECRET: &str = "fingerprint_secret";
+    /// Routing default config key
+    pub const ROUTING_DEFAULT_CONFIG: &str = "routing_default_config";
 }
 
 #[cfg(test)]
