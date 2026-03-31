@@ -419,10 +419,10 @@ pub struct TrustlyBankTransfer {
     pub iban: Option<Secret<String>>,
     /// country code of the customer's bank account.
     #[schema(value_type = CountryAlpha2, example = "US")]
-    pub country_code: api_enums::CountryAlpha2,
+    pub bank_country_code: api_enums::CountryAlpha2,
     /// The account number, identifying the end-user's account in the bank.
     #[schema(value_type = String, example = "69706212")]
-    pub account_number: Option<Secret<String>>,
+    pub bank_account_number: Option<Secret<String>>,
     /// The bank number identifying the end-user's bank in the given clearing house.
     #[schema(value_type = String, example = "6112")]
     pub bank_number: Option<Secret<String>>,
@@ -1070,14 +1070,14 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
             )),
             Bank::Trustly(TrustlyBankTransfer {
                 iban,
-                country_code,
-                account_number,
+                bank_country_code,
+                bank_account_number,
                 bank_number,
             }) => Self::Trustly(Box::new(
                 payout_method_utils::TrustlyBankTransferAdditionalData {
                     iban,
-                    country_code,
-                    account_number,
+                    bank_country_code,
+                    bank_account_number,
                     bank_number,
                 },
             )),

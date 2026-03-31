@@ -484,7 +484,7 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for RegisterAccountRe
                         (iban, Secret::new(String::new()))
                     } else {
                         (
-                            trustly_data.account_number.ok_or(
+                            trustly_data.bank_account_number.ok_or(
                                 ConnectorError::MissingRequiredField {
                                     field_name: "account_number",
                                 },
@@ -526,7 +526,7 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for RegisterAccountRe
                         account_number,
                         bank_number,
                         clearing_house: common_enums::Country::from_alpha2(
-                            trustly_data.country_code,
+                            trustly_data.bank_country_code,
                         )
                         .to_string()
                         .to_uppercase(),
