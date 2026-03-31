@@ -792,7 +792,7 @@ pub struct RefundCoreWorkflow {
     pub refund_internal_reference_id: String,
     pub connector_transaction_id: ConnectorTransactionId,
     pub merchant_id: id_type::MerchantId,
-    pub processor_merchant_id: id_type::MerchantId,
+    pub processor_merchant_id: Option<id_type::MerchantId>,
     pub payment_id: id_type::PaymentId,
     pub processor_transaction_data: Option<String>,
 }

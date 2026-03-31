@@ -2134,7 +2134,7 @@ async fn refunds_incoming_webhook_flow(
     } else {
         Box::pin(refunds::refund_retrieve_core_with_refund_id(
             state.clone(),
-            platform.get_processor().clone(),
+            platform.clone(),
             None,
             api_models::refunds::RefundsRetrieveRequest {
                 refund_id: refund_id.to_owned(),
@@ -2164,7 +2164,7 @@ async fn refunds_incoming_webhook_flow(
             )
         })?;
     let state_task = state.clone();
-    let processor = platform.get_processor().clone();
+    let processor_task = platform.get_processor().clone();
     let payment_intent_task = payment_intent.clone();
     tokio::spawn(async move {
         if let Err(err) = PaymentIntentStateMetadataExt::from(
@@ -2173,7 +2173,7 @@ async fn refunds_incoming_webhook_flow(
                 .clone()
                 .unwrap_or_default(),
         )
-        .update_intent_state_metadata_for_refund(&state_task, &processor, payment_intent_task)
+        .update_intent_state_metadata_for_refund(&state_task, &processor_task, payment_intent_task)
         .await
         {
             tracing::error!(?err, "Failed to update intent state metadata for refund");

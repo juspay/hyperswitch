@@ -167,7 +167,7 @@ pub async fn refunds_retrieve(
             let profile_id = auth.profile.map(|profile| profile.get_id().clone());
             refund_response_wrapper(
                 state,
-                auth.platform.get_processor().clone(),
+                auth.platform,
                 profile_id,
                 refund_request,
                 refund_retrieve_core_with_refund_id,
@@ -326,7 +326,7 @@ pub async fn refunds_retrieve_with_body(
             let profile_id = auth.profile.map(|profile| profile.get_id().clone());
             refund_response_wrapper(
                 state,
-                auth.platform.get_processor().clone(),
+                auth.platform,
                 profile_id,
                 req,
                 refund_retrieve_core_with_refund_id,

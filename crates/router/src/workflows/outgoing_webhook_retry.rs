@@ -457,7 +457,7 @@ async fn get_outgoing_webhook_content_and_event_type(
 
             let (refund, _) = Box::pin(refund_retrieve_core_with_refund_id(
                 state,
-                platform.get_processor().clone(),
+                platform.clone(),
                 None,
                 request,
             ))
