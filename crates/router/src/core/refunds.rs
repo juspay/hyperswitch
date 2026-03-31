@@ -2000,50 +2000,6 @@ pub async fn schedule_refund_execution(
     Ok(result)
 }
 
-async fn build_platform_from_refund_core(
-    state: &SessionState,
-    refund_core: &diesel_refund::RefundCoreWorkflow,
-) -> RouterResult<domain::Platform> {
-    let provider_key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            &refund_core.merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
-        .await?;
-
-    let provider_account = state
-        .store
-        .find_merchant_account_by_merchant_id(&refund_core.merchant_id, &provider_key_store)
-        .await?;
-
-    let processor_merchant_id = refund_core
-        .processor_merchant_id
-        .as_ref()
-        .unwrap_or(&refund_core.merchant_id);
-
-    let processor_key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            processor_merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
-        .await?;
-
-    let processor_account = state
-        .store
-        .find_merchant_account_by_merchant_id(processor_merchant_id, &processor_key_store)
-        .await?;
-
-    Ok(domain::Platform::new(
-        provider_account,
-        provider_key_store,
-        processor_account,
-        processor_key_store,
-        None,
-    ))
-}
-
 #[instrument(skip_all)]
 pub async fn sync_refund_with_gateway_workflow(
     state: &SessionState,
@@ -2060,7 +2016,7 @@ pub async fn sync_refund_with_gateway_workflow(
         )
     })?;
 
-    let platform = build_platform_from_refund_core(state, &refund_core).await?;
+    let platform = core_utils::build_platform_from_refund_core(state, &refund_core).await?;
 
     let response = Box::pin(refund_retrieve_core_with_internal_reference_id(
         state.clone(),
@@ -2159,7 +2115,7 @@ pub async fn trigger_refund_execute_workflow(
             refund_tracker.tracking_data
         )
     })?;
-    let platform = build_platform_from_refund_core(state, &refund_core).await?;
+    let platform = core_utils::build_platform_from_refund_core(state, &refund_core).await?;
 
     let processor_storage_scheme = platform.get_processor().get_account().storage_scheme;
 
