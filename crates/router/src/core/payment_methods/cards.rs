@@ -2954,7 +2954,7 @@ pub async fn list_payment_methods(
     platform: domain::Platform,
     // Profile resolved during JWT authentication. Used as a fallback to determine
     // the business profile when no client_secret is provided and payment_intent is unavailable.
-    auth_profile: Option<domain::Profile>,
+    auth_profile: Option<Profile>,
     mut req: api::PaymentMethodListRequest,
 ) -> errors::RouterResponse<api::PaymentMethodListResponse> {
     let db = &*state.store;
