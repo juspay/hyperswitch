@@ -1045,13 +1045,6 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
             &request.enable_overcapture,
             &request.capture_method,
         )?;
-        request.validate_mit_request().change_context(
-            errors::ApiErrorResponse::InvalidRequestData {
-                message:
-                "`mit_category` requires both: (1) `off_session = true`, and (2) `recurring_details`."
-                        .to_string(),
-            },
-        )?;
 
         if request.confirm.unwrap_or(false) {
             helpers::validate_pm_or_token_given(
