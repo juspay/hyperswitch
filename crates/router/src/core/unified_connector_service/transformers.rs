@@ -3624,6 +3624,70 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_address::Pa
     }
 }
 
+#[cfg(feature = "payouts")]
+impl transformers::ForeignTryFrom<hyperswitch_domain_models::address::Address>
+    for payments_grpc::Address
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        address: hyperswitch_domain_models::address::Address,
+    ) -> Result<Self, Self::Error> {
+        let details = address.address.as_ref();
+        let country = details.and_then(|details| {
+            details
+                .country
+                .as_ref()
+                .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
+                .map(|country| country.into())
+        });
+
+        Ok(Self {
+            first_name: details
+                .and_then(|d| d.first_name.as_ref().map(|s| s.peek().to_string().into())),
+            last_name: details
+                .and_then(|d| d.last_name.as_ref().map(|s| s.peek().to_string().into())),
+            line1: details.and_then(|d| d.line1.as_ref().map(|s| s.peek().to_string().into())),
+            line2: details.and_then(|d| d.line2.as_ref().map(|s| s.peek().to_string().into())),
+            line3: details.and_then(|d| d.line3.as_ref().map(|s| s.peek().to_string().into())),
+            city: details.and_then(|d| d.city.as_ref().map(|s| s.clone().into())),
+            state: details.and_then(|d| d.state.as_ref().map(|s| s.peek().to_string().into())),
+            zip_code: details.and_then(|d| d.zip.as_ref().map(|s| s.peek().to_string().into())),
+            country_alpha2_code: country,
+            email: address.email.as_ref().map(|e| e.peek().to_string().into()),
+            phone_number: address
+                .phone
+                .as_ref()
+                .and_then(|phone| phone.number.as_ref().map(|n| n.peek().to_string().into())),
+            phone_country_code: address.phone.as_ref().and_then(|p| p.country_code.clone()),
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_address::PaymentAddress>
+    for payments_grpc::PayoutAddress
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        payment_address: hyperswitch_domain_models::payment_address::PaymentAddress,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            shipping_address: payment_address
+                .get_shipping()
+                .cloned()
+                .map(payments_grpc::Address::foreign_try_from)
+                .transpose()?,
+            billing_address: payment_address
+                .get_payment_method_billing()
+                .cloned()
+                .map(payments_grpc::Address::foreign_try_from)
+                .transpose()?,
+        })
+    }
+}
+
 impl transformers::ForeignTryFrom<AuthenticationType> for payments_grpc::AuthenticationType {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
@@ -6180,8 +6244,9 @@ impl
             })
             .transpose()?;
 
-        // TODO: Implement address transformation
-        let address = None;
+        let address = Some(payments_grpc::PayoutAddress::foreign_try_from(
+            router_data.address.clone(),
+        )?);
 
         Ok(Self {
             merchant_payout_id: router_data.payout_id.clone(),
