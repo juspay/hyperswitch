@@ -372,20 +372,29 @@ struct Order {
     shipping_address: Option<WorldpayxmlPayinAddress>,
     #[serde(skip_serializing_if = "Option::is_none")]
     billing_address: Option<WorldpayxmlPayinAddress>,
-    #[serde(skip_serializing_if = "Option::is_none", rename = "additional3DSData")]
-    additional_threeds_data: Option<AdditionalThreeDSData>,
     #[serde(skip_serializing_if = "Option::is_none", rename = "info3DSecure")]
     info_threed_secure: Option<Info3DSecure>,
     #[serde(skip_serializing_if = "Option::is_none")]
     session: Option<CompleteAuthSession>,
     #[serde(skip_serializing_if = "Option::is_none")]
     create_token: Option<CreateToken>,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "additional3DSData")]
+    additional_threeds_data: Option<AdditionalThreeDSData>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Info3DSecure {
-    completed_authentication: CompletedAuthentication,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    completed_authentication: Option<CompletedAuthentication>,
+    #[serde(rename = "threeDSVersion", skip_serializing_if = "Option::is_none")]
+    three_ds_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ds_transaction_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cavv: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    eci: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -508,9 +517,11 @@ struct PaymentDetails {
     #[serde(flatten)]
     payment_method: PaymentMethod,
     #[serde(skip_serializing_if = "Option::is_none")]
-    session: Option<Session>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     stored_credentials: Option<StoredCredentials>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    session: Option<Session>,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "info3DSecure")]
+    info_threed_secure: Option<Info3DSecure>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -743,6 +754,7 @@ impl TryFrom<(&Card, Option<enums::CaptureMethod>, Option<Session>)> for Payment
             }),
             session,
             stored_credentials: None,
+            info_threed_secure: None,
         })
     }
 }
@@ -767,6 +779,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentDetails {
             }),
             session: None,
             stored_credentials,
+            info_threed_secure: None,
         })
     }
 }
@@ -811,6 +824,7 @@ impl TryFrom<(&GooglePayWalletData, PaymentsAuthorizeData)> for PaymentDetails {
             }),
             session: None,
             stored_credentials,
+            info_threed_secure: None,
         })
     }
 }
@@ -859,6 +873,7 @@ impl TryFrom<(&ApplePayWalletData, PaymentsAuthorizeData)> for PaymentDetails {
             payment_method: PaymentMethod::PayWithAppleSSL(apple_pay_token),
             session: None,
             stored_credentials,
+            info_threed_secure: None,
         })
     }
 }
@@ -1090,6 +1105,38 @@ impl TryFrom<&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>> for PaymentSe
             None
         };
 
+        let info_threed_secure = item
+            .router_data
+            .request
+            .authentication_data
+            .as_ref()
+            .map(|auth_data| Info3DSecure {
+                completed_authentication: None,
+                eci: auth_data.eci.clone(),
+                cavv: Some(auth_data.cavv.clone()),
+                ds_transaction_id: auth_data.ds_trans_id.clone(),
+                three_ds_version: auth_data
+                    .message_version
+                    .as_ref()
+                    .map(|v| v.to_string()),
+            });
+
+        let mut payment_details = payment_details;
+        payment_details.info_threed_secure = info_threed_secure;
+
+        // additional3DSData is a child of <order>, not <paymentDetails> per WorldpayXML DTD.
+        // Skip it when external authentication data is present (pre-authenticated flow).
+        let additional_threeds_data = if item
+            .router_data
+            .request
+            .authentication_data
+            .is_some()
+        {
+            None
+        } else {
+            additional_threeds_data
+        };
+
         let submit = Some(Submit {
             order: Order {
                 order_code,
@@ -1100,10 +1147,10 @@ impl TryFrom<&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>> for PaymentSe
                 shopper,
                 shipping_address,
                 billing_address,
-                additional_threeds_data,
                 info_threed_secure: None,
                 session: None,
                 create_token,
+                additional_threeds_data,
             },
         });
 
@@ -1810,7 +1857,11 @@ impl TryFrom<&PaymentsCompleteAuthorizeRouterData> for PaymentService {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
 
         let info_threed_secure = Some(Info3DSecure {
-            completed_authentication: CompletedAuthentication {},
+            completed_authentication: Some(CompletedAuthentication {}),
+            eci: None,
+            cavv: None,
+            ds_transaction_id: None,
+            three_ds_version: None,
         });
 
         let code = item.request.connector_transaction_id.clone().ok_or(
@@ -1833,10 +1884,10 @@ impl TryFrom<&PaymentsCompleteAuthorizeRouterData> for PaymentService {
                 shopper: None,
                 shipping_address: None,
                 billing_address: None,
-                additional_threeds_data: None,
                 info_threed_secure,
                 session,
                 create_token: None,
+                additional_threeds_data: None,
             },
         });
 
@@ -2428,6 +2479,7 @@ impl TryFrom<&WorldpayxmlRouterData<&PayoutsRouterData<PoFulfill>>> for PaymentS
             }),
             session: None,
             stored_credentials: None,
+            info_threed_secure: None,
         };
 
         let order_code = item.router_data.connector_request_reference_id.to_owned();
@@ -2462,12 +2514,12 @@ impl TryFrom<&WorldpayxmlRouterData<&PayoutsRouterData<PoFulfill>>> for PaymentS
                 amount: Some(amount),
                 payment_details: Some(payment_details),
                 shopper: None,
-                additional_threeds_data: None,
                 info_threed_secure: None,
                 session: None,
                 billing_address: None,
                 shipping_address: None,
                 create_token: None,
+                additional_threeds_data: None,
             },
         });
 
