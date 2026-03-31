@@ -5426,8 +5426,7 @@ Cypress.Commands.add(
       contentType === "application/x-www-form-urlencoded"
         ? Object.entries(webhookBody)
             .map(
-              ([k, v]) =>
-                `${encodeURIComponent(k)}=${encodeURIComponent(v)}`
+              ([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`
             )
             .join("&")
         : webhookBody;
