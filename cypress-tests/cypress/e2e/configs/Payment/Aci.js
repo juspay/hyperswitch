@@ -755,8 +755,7 @@ export const connectorDetails = {
           },
           bank_redirect: {
             interac: {
-              billing_details: {
-              },
+              billing_details: {},
             },
           },
         },
@@ -771,6 +770,5 @@ export const connectorDetails = {
         },
       },
     },
-
   },
 };
