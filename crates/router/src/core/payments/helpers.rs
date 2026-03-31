@@ -577,7 +577,10 @@ pub async fn get_token_pm_type_mandate_details(
                         verify_mandate_details_for_recurring_payments(
                             &payment_method_info.merchant_id,
                             platform.get_provider().get_account().get_id(),
-                            &payment_method_info.customer_id,
+                            &payment_method_info
+                                .customer_id
+                                .clone()
+                                .get_required_value("customer_id")?,
                             customer_id,
                         )?;
 
@@ -3215,37 +3218,144 @@ pub fn make_modular_pm_data<F: Clone, D>(
 where
     D: OperationSessionGetters<F> + Send + Sync + Clone,
 {
-    let is_connector_mandate_selected = payment_data
+    let selected_mandate_reference = payment_data
         .get_mandate_id()
-        .and_then(|mandate_id| mandate_id.mandate_reference_id.as_ref())
-        .is_some_and(|mandate_reference_id| {
-            matches!(
-                mandate_reference_id,
-                api_models::payments::MandateReferenceId::ConnectorMandateId(_)
-            )
-        });
+        .and_then(|mandate_id| mandate_id.mandate_reference_id.as_ref());
 
-    let payment_method_data = match payment_data.get_payment_method_data() {
-        Some(domain::PaymentMethodData::CardWithOptionalCVC(_card_data))
-            if is_connector_mandate_selected =>
-        {
-            Some(domain::PaymentMethodData::MandatePayment)
-        }
-        Some(domain::PaymentMethodData::CardWithOptionalCVC(card_data)) => {
-            Some(domain::PaymentMethodData::foreign_try_from((card_data,))?)
-        }
-        Some(domain::PaymentMethodData::Card(_)) if is_connector_mandate_selected => {
-            Some(domain::PaymentMethodData::MandatePayment)
-        }
-        Some(payment_method_data) => Some(payment_method_data.clone()),
-        None => None,
-    };
+    let payment_method_data = PmModTransformedData::try_from((
+        payment_data.get_payment_method_data(),
+        selected_mandate_reference,
+    ))
+    .map(|data| data.0)?;
 
     let pm_id = payment_data
         .get_payment_method_info()
         .map(|payment_method_info| payment_method_info.payment_method_id.clone());
 
     Ok((payment_method_data, pm_id))
+}
+
+#[cfg(feature = "v1")]
+struct PmModTransformedData(Option<domain::PaymentMethodData>);
+
+#[cfg(feature = "v1")]
+impl<'a>
+    TryFrom<(
+        Option<&'a domain::PaymentMethodData>,
+        Option<&'a api_models::payments::MandateReferenceId>,
+    )> for PmModTransformedData
+{
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(
+        value: (
+            Option<&'a domain::PaymentMethodData>,
+            Option<&'a api_models::payments::MandateReferenceId>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let (payment_method_data, selected_mandate_reference) = value;
+        let payment_method_data = match (payment_method_data, selected_mandate_reference) {
+            // PSP tokens when it's ConnectorMandateId and card data is available.
+            (
+                Some(
+                    domain::PaymentMethodData::CardWithNetworkTokenDetails(_)
+                    | domain::PaymentMethodData::CardWithOptionalCVC(_)
+                    | domain::PaymentMethodData::Card(_),
+                ),
+                Some(&api_models::payments::MandateReferenceId::ConnectorMandateId(_)),
+            ) => Some(domain::PaymentMethodData::MandatePayment),
+            // NT + NTI flow when NetworkTokenWithNTI mandate reference is selected.
+            (
+                Some(domain::PaymentMethodData::CardWithNetworkTokenDetails(
+                    card_with_network_token_details,
+                )),
+                Some(&api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_)),
+            ) => Some(domain::PaymentMethodData::NetworkToken(
+                domain::NetworkTokenData::from(
+                    card_with_network_token_details
+                        .network_token_details
+                        .clone(),
+                ),
+            )),
+            // Card + NTI flow when NetworkMandateId is selected for modular CardWithNetworkTokenDetails.
+            (
+                Some(domain::PaymentMethodData::CardWithNetworkTokenDetails(
+                    card_with_network_token_details,
+                )),
+                Some(&api_models::payments::MandateReferenceId::NetworkMandateId(_)),
+            ) => {
+                let card_details = &card_with_network_token_details.card_details;
+                Some(
+                    domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
+                        domain::CardDetailsForNetworkTransactionId {
+                            card_number: card_details.card_number.clone(),
+                            card_exp_month: card_details.card_exp_month.clone(),
+                            card_exp_year: card_details.card_exp_year.clone(),
+                            card_issuer: card_details.card_issuer.clone(),
+                            card_network: card_details.card_network.clone(),
+                            card_type: card_details.card_type.clone(),
+                            card_issuing_country: card_details.card_issuing_country.clone(),
+                            card_issuing_country_code: card_details
+                                .card_issuing_country_code
+                                .clone(),
+                            bank_code: card_details.bank_code.clone(),
+                            nick_name: card_details.nick_name.clone(),
+                            card_holder_name: card_details.card_holder_name.clone(),
+                        },
+                    ),
+                )
+            }
+            // Card + NTI flow when NetworkMandateId is selected for CardWithOptionalCVC.
+            (
+                Some(domain::PaymentMethodData::CardWithOptionalCVC(card_data)),
+                Some(&api_models::payments::MandateReferenceId::NetworkMandateId(_)),
+            ) => Some(
+                domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
+                    domain::CardDetailsForNetworkTransactionId::foreign_try_from(card_data)?,
+                ),
+            ),
+            // Raw card as last preference for CardWithOptionalCVC.
+            (Some(domain::PaymentMethodData::CardWithOptionalCVC(card_data)), _) => {
+                Some(domain::PaymentMethodData::foreign_try_from(card_data)?)
+            }
+            // Raw card as fallback for CardWithNetworkTokenDetails when mandate-specific paths are not selected.
+            (
+                Some(domain::PaymentMethodData::CardWithNetworkTokenDetails(
+                    card_with_network_token_details,
+                )),
+                _,
+            ) => {
+                let card_details = &card_with_network_token_details.card_details;
+                let card_cvc = card_details.card_cvc.clone().ok_or(
+                    errors::ApiErrorResponse::UnprocessableEntity {
+                        message: "card_cvc is required for card payment path".to_string(),
+                    },
+                )?;
+
+                Some(domain::PaymentMethodData::Card(domain::Card {
+                    card_number: card_details.card_number.clone(),
+                    card_exp_month: card_details.card_exp_month.clone(),
+                    card_exp_year: card_details.card_exp_year.clone(),
+                    card_cvc,
+                    card_issuer: card_details.card_issuer.clone(),
+                    card_network: card_details.card_network.clone(),
+                    card_type: card_details.card_type.clone(),
+                    card_issuing_country: card_details.card_issuing_country.clone(),
+                    card_issuing_country_code: card_details.card_issuing_country_code.clone(),
+                    bank_code: card_details.bank_code.clone(),
+                    nick_name: card_details.nick_name.clone(),
+                    card_holder_name: card_details.card_holder_name.clone(),
+                    co_badged_card_data: card_details.co_badged_card_data.clone(),
+                }))
+            }
+            // Keep data as-is, otherwise.
+            (Some(payment_method_data), _) => Some(payment_method_data.clone()),
+            // Preserve empty input.
+            (None, _) => None,
+        };
+
+        Ok(Self(payment_method_data))
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -5737,6 +5847,17 @@ pub async fn get_additional_payment_data(
                 })))
             }
         }
+        domain::PaymentMethodData::CardWithNetworkTokenDetails(card_with_network_token_details) => {
+            Box::pin(get_additional_payment_data(
+                &domain::PaymentMethodData::CardWithOptionalCVC(
+                    card_with_network_token_details.card_details.clone(),
+                ),
+                db,
+                profile_id,
+                payment_method_token,
+            ))
+            .await
+        }
         domain::PaymentMethodData::BankRedirect(bank_redirect_data) => match bank_redirect_data {
             domain::BankRedirectData::Eps { bank_name, .. } => Ok(Some(
                 api_models::payments::AdditionalPaymentData::BankRedirect {
@@ -7407,6 +7528,16 @@ pub fn get_key_params_for_surcharge_details(
             common_enums::PaymentMethodType::Credit,
             card.card_network.clone(),
         )),
+        domain::PaymentMethodData::CardWithNetworkTokenDetails(card_with_network_token_details) => {
+            Some((
+                common_enums::PaymentMethod::Card,
+                common_enums::PaymentMethodType::Credit,
+                card_with_network_token_details
+                    .card_details
+                    .card_network
+                    .clone(),
+            ))
+        }
         domain::PaymentMethodData::CardRedirect(card_redirect_data) => Some((
             common_enums::PaymentMethod::CardRedirect,
             card_redirect_data.get_payment_method_type(),
