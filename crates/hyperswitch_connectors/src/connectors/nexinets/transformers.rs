@@ -45,6 +45,26 @@ pub struct NexinetsPaymentsRequest {
     #[serde(rename = "async")]
     nexinets_async: NexinetsAsyncDetails,
     merchant_order_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    meta: Option<NexinetsMeta>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NexinetsMeta {
+    three_ds_data: NexinetsThreeDsData,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NexinetsThreeDsData {
+    authentication_value: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    eci: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    transaction_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    version: Option<String>,
 }
 
 #[derive(Debug, Serialize, Default)]
@@ -207,6 +227,20 @@ impl TryFrom<&PaymentsAuthorizeRouterData> for NexinetsPaymentsRequest {
             }?,
             _ => None,
         };
+        let meta = item.request.authentication_data.as_ref().map(|auth_data| {
+            NexinetsMeta {
+                three_ds_data: NexinetsThreeDsData {
+                    authentication_value: auth_data.cavv.clone(),
+                    eci: auth_data.eci.clone(),
+                    transaction_id: auth_data.ds_trans_id.clone(),
+                    version: Some(auth_data
+                        .message_version
+                        .as_ref()
+                        .map(|v| v.to_string())
+                        .unwrap_or_else(|| "2.1.0".to_string())),
+                },
+            }
+        });
         Ok(Self {
             initial_amount: item.request.amount,
             currency: item.request.currency,
@@ -215,6 +249,7 @@ impl TryFrom<&PaymentsAuthorizeRouterData> for NexinetsPaymentsRequest {
             payment,
             nexinets_async,
             merchant_order_id,
+            meta,
         })
     }
 }
@@ -645,7 +680,6 @@ fn get_payment_details_and_product(
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
         | PaymentMethodData::CardWithOptionalCVC(_)
-        | PaymentMethodData::CardWithNetworkTokenDetails(_)
         | PaymentMethodData::CardWithLimitedDetails(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
