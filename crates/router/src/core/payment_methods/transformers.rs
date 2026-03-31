@@ -1288,11 +1288,7 @@ impl DomainPaymentMethodWrapper {
             .attach_printable("Failed to serialize connector mandate details")?;
 
         Ok(Self(domain::PaymentMethod {
-            //for guest checkout, where customer id, this will fail.
-            customer_id: response
-                .customer_id
-                .clone()
-                .get_required_value("CustomerId")?,
+            customer_id: response.customer_id.clone(),
             merchant_id: response.merchant_id.clone(),
             payment_method_id: response.payment_method_id.clone(),
             accepted_currency: None,
@@ -1342,6 +1338,7 @@ impl DomainPaymentMethodWrapper {
             customer_details: None,
             locker_fingerprint_id: None,
             network_tokenization_data: None,
+            storage_type: response.storage_type,
         }))
     }
 
@@ -1413,11 +1410,7 @@ impl DomainPaymentMethodWrapper {
             .attach_printable("Failed to serialize connector mandate details")?;
 
         Ok(Self(domain::PaymentMethod {
-            //for guest checkout, where customer id, this will fail.
-            customer_id: response
-                .customer_id
-                .clone()
-                .get_required_value("CustomerId")?,
+            customer_id: response.customer_id.clone(),
             merchant_id: response.merchant_id.clone(),
             payment_method_id: response.payment_method_id.clone(),
             accepted_currency: None,
@@ -1467,6 +1460,7 @@ impl DomainPaymentMethodWrapper {
             customer_details: None,
             locker_fingerprint_id: None,
             network_tokenization_data: None,
+            storage_type: response.storage_type,
         }))
     }
 }
@@ -1515,6 +1509,60 @@ impl
                     },
                 )))
             }
+            payment_methods::types::RawPaymentMethodData::CardWithNT(card_with_nt) => {
+                let card_cvc = card_token
+                    .as_ref()
+                    .and_then(|token| token.card_cvc.clone())
+                    .or(card_with_nt.card_details.card_cvc.clone());
+                let card_holder_name = card_token
+                    .and_then(|token| token.card_holder_name.clone())
+                    .or(card_with_nt.card_details.card_holder_name.clone());
+
+                Ok(Self(domain::PaymentMethodData::CardWithNetworkTokenDetails(
+                    Box::new(domain::CardWithNetworkTokenDetails {
+                        card_details:
+                            hyperswitch_domain_models::payment_method_data::CardWithOptionalCVC {
+                                card_number: card_with_nt.card_details.card_number,
+                                card_exp_month: card_with_nt.card_details.card_exp_month,
+                                card_exp_year: card_with_nt.card_details.card_exp_year,
+                                card_cvc,
+                                card_issuer: card_with_nt.card_details.card_issuer,
+                                card_network: card_with_nt.card_details.card_network,
+                                card_type: card_with_nt
+                                    .card_details
+                                    .card_type
+                                    .map(|card_type| card_type.to_string()),
+                                card_issuing_country: card_with_nt.card_details.card_issuing_country,
+                                card_issuing_country_code: None,
+                                bank_code: None,
+                                nick_name: card_with_nt.card_details.nick_name,
+                                card_holder_name,
+                                co_badged_card_data: None,
+                            },
+                        network_token_details:
+                            domain::NetworkTokenDetailsForNetworkTransactionId {
+                                network_token: card_with_nt.network_token_details.card_number.into(),
+                                token_exp_month: card_with_nt.network_token_details.card_exp_month,
+                                token_exp_year: card_with_nt.network_token_details.card_exp_year,
+                                card_issuer: card_with_nt.network_token_details.card_issuer,
+                                card_network: card_with_nt.network_token_details.card_network,
+                                card_type: card_with_nt
+                                    .network_token_details
+                                    .card_type
+                                    .map(|card_type| card_type.to_string()),
+                                card_issuing_country: card_with_nt
+                                    .network_token_details
+                                    .card_issuing_country,
+                                bank_code: None,
+                                nick_name: card_with_nt.network_token_details.nick_name,
+                                card_holder_name: card_with_nt
+                                    .network_token_details
+                                    .card_holder_name,
+                                eci: None,
+                            },
+                    }),
+                )))
+            }
         }
     }
 }
@@ -1524,8 +1572,7 @@ impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn try_from(response: CreatePaymentMethodResponse) -> Result<Self, Self::Error> {
         Ok(Self(domain::PaymentMethod {
-            //for guest checkout, where customer id, this will fail.
-            customer_id: response.customer_id.get_required_value("CustomerId")?,
+            customer_id: response.customer_id,
             merchant_id: response.merchant_id,
             payment_method_id: response.payment_method_id,
             accepted_currency: None,
@@ -1571,23 +1618,49 @@ impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
             customer_details: None,
             locker_fingerprint_id: None,
             network_tokenization_data: None,
+            storage_type: response.storage_type,
         }))
     }
 }
 
 #[cfg(feature = "v1")]
 impl<'a>
-    crate::types::transformers::ForeignTryFrom<(
+    crate::types::transformers::ForeignTryFrom<
         &'a hyperswitch_domain_models::payment_method_data::CardWithOptionalCVC,
-    )> for domain::PaymentMethodData
+    > for domain::CardDetailsForNetworkTransactionId
 {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn foreign_try_from(
-        value: (&'a hyperswitch_domain_models::payment_method_data::CardWithOptionalCVC,),
+        card_data: &'a hyperswitch_domain_models::payment_method_data::CardWithOptionalCVC,
     ) -> Result<Self, Self::Error> {
-        let (card_data,) = value;
+        Ok(Self {
+            card_number: card_data.card_number.clone(),
+            card_exp_month: card_data.card_exp_month.clone(),
+            card_exp_year: card_data.card_exp_year.clone(),
+            card_issuer: card_data.card_issuer.clone(),
+            card_network: card_data.card_network.clone(),
+            card_type: card_data.card_type.clone(),
+            card_issuing_country: card_data.card_issuing_country.clone(),
+            card_issuing_country_code: card_data.card_issuing_country_code.clone(),
+            bank_code: card_data.bank_code.clone(),
+            nick_name: card_data.nick_name.clone(),
+            card_holder_name: card_data.card_holder_name.clone(),
+        })
+    }
+}
 
+#[cfg(feature = "v1")]
+impl<'a>
+    crate::types::transformers::ForeignTryFrom<
+        &'a hyperswitch_domain_models::payment_method_data::CardWithOptionalCVC,
+    > for domain::PaymentMethodData
+{
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn foreign_try_from(
+        card_data: &'a hyperswitch_domain_models::payment_method_data::CardWithOptionalCVC,
+    ) -> Result<Self, Self::Error> {
         let card_cvc =
             card_data
                 .card_cvc

@@ -652,38 +652,39 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         //fetch for repeat cit using payment token
 
-        let (token_data, payment_method_info) =
-            if pm_utils::get_organization_eligibility_config_for_pm_modular_service(
+        let is_modular_payment_method_flow =
+            pm_utils::get_organization_eligibility_config_for_pm_modular_service(
                 &*state.store,
                 &platform.get_processor().get_account().organization_id,
             )
-            .await
-            {
-                (
-                    None,
-                    payment_method_with_raw_data
-                        .clone()
-                        .map(|pm| pm.payment_method.0),
-                )
-            } else if let Some(token) = token.clone() {
-                let token_data = helpers::retrieve_payment_token_data(
-                    state,
-                    token,
-                    payment_method.or(payment_attempt.payment_method),
-                )
-                .await?;
+            .await;
 
-                let payment_method_info = helpers::retrieve_payment_method_from_db_with_token_data(
-                    state,
-                    platform.get_provider().get_key_store(),
-                    &token_data,
-                    storage_scheme,
-                )
-                .await?;
-                (Some(token_data), payment_method_info)
-            } else {
-                (None, payment_method_info)
-            };
+        let (token_data, payment_method_info) = if is_modular_payment_method_flow {
+            (
+                None,
+                payment_method_with_raw_data
+                    .clone()
+                    .map(|pm| pm.payment_method.0),
+            )
+        } else if let Some(token) = token.clone() {
+            let token_data = helpers::retrieve_payment_token_data(
+                state,
+                token,
+                payment_method.or(payment_attempt.payment_method),
+            )
+            .await?;
+
+            let payment_method_info = helpers::retrieve_payment_method_from_db_with_token_data(
+                state,
+                platform.get_provider().get_key_store(),
+                &token_data,
+                storage_scheme,
+            )
+            .await?;
+            (Some(token_data), payment_method_info)
+        } else {
+            (None, payment_method_info)
+        };
         let additional_pm_data_from_locker = if let Some(ref pm) = payment_method_info {
             let card_detail_from_locker: Option<api::CardDetailFromLocker> = pm
                 .payment_method_data
@@ -1092,7 +1093,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 if req.customer_acceptance.is_some() {
                     logger::info!("Organization is eligible for PM Modular Service, proceeding to create payment method using PM Modular Service.");
                     //check for req.payment_method_data, if card, create payment method with pm service
-                    let payment_method_info = match req
+                    match req
                         .payment_method_data
                         .as_ref()
                         .and_then(|pmd| pmd.payment_method_data.as_ref())
@@ -1138,27 +1139,24 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                     logger::info!(
                                         "Payment method created in PM Modular service successfully"
                                     );
-                                    Some(pm_info)
+                                    //set payment_data.payment_method_info
+                                    payment_data.set_payment_method_id_in_attempt(Some(
+                                        pm_info.get_id().clone(),
+                                    ));
+                                    payment_data.set_payment_method_info(Some(pm_info));
                                 }
                                 Err(err) => {
                                     logger::error!(
                                         "Error creating payment method in PM Modular service: {:?}",
                                         err
                                     );
-                                    None
                                 }
                             }
                         }
                         _ => {
                             logger::info!("No supported payment method data found for creating payment method in PM Modular service.");
-                            None
                         }
                     };
-                    //set payment_data.payment_method_info
-                    payment_data.payment_attempt.payment_method_id = payment_method_info
-                        .as_ref()
-                        .map(|pm_info| pm_info.get_id().clone());
-                    payment_data.set_payment_method_info(payment_method_info);
 
                     Ok(())
                 } else {
@@ -1230,11 +1228,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     logger::info!("Payment method fetched from PM Modular Service.");
 
                     utils::when(
-                        pm_info.payment_method.0.customer_id
-                            != req
-                                .get_customer_id()
-                                .get_required_value("customer_id")?
-                                .clone(),
+                        pm_info.payment_method.0.customer_id.as_ref() != req.get_customer_id(),
                         || {
                             logger::info!("Payment method id does not belong to the customer id provided in the request.");
                             Err(errors::ApiErrorResponse::PaymentMethodNotFound)

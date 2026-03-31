@@ -74,6 +74,13 @@ pub struct ModularPMRetrieveResponse {
 #[serde(rename_all = "snake_case")]
 pub enum RawPaymentMethodData {
     Card(CardDetail),
+    CardWithNT(RawCardWithNTDetails),
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct RawCardWithNTDetails {
+    pub card_details: CardDetail,
+    pub network_token_details: CardDetail,
 }
 
 /// V2 ConnectorTokenDetails (for deserialization, ignored in transformation)
