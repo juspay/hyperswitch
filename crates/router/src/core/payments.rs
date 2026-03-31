@@ -7692,13 +7692,18 @@ fn is_apple_pay_pre_decrypt_type_connector_tokenization(
     payment_method_token: Option<&PaymentMethodToken>,
     apple_pay_pre_decrypt_flow_filter: Option<ApplePayPreDecryptFlow>,
 ) -> Option<bool> {
-    match (payment_method_type, payment_method_token) {
+    match (
+        payment_method_type,
+        payment_method_token,
+        apple_pay_pre_decrypt_flow_filter,
+    ) {
         (
             Some(storage::enums::PaymentMethodType::ApplePay),
             Some(PaymentMethodToken::ApplePayDecrypt(..)),
-        ) => Some(!matches!(
+            Some(apple_pay_pre_decrypt_flow_filter),
+        ) => Some(matches!(
             apple_pay_pre_decrypt_flow_filter,
-            Some(ApplePayPreDecryptFlow::NetworkTokenization)
+            ApplePayPreDecryptFlow::ConnectorTokenization
         )),
         // not applicable
         _ => None,
@@ -7710,18 +7715,21 @@ fn is_google_pay_pre_decrypt_type_connector_tokenization(
     payment_method_token: Option<&PaymentMethodToken>,
     google_pay_pre_decrypt_flow_filter: Option<GooglePayPreDecryptFlow>,
 ) -> Option<bool> {
-    if let (
-        Some(storage::enums::PaymentMethodType::GooglePay),
-        Some(PaymentMethodToken::GooglePayDecrypt(..)),
-    ) = (payment_method_type, payment_method_token)
-    {
-        Some(!matches!(
+    match (
+        payment_method_type,
+        payment_method_token,
+        google_pay_pre_decrypt_flow_filter,
+    ) {
+        (
+            Some(storage::enums::PaymentMethodType::GooglePay),
+            Some(PaymentMethodToken::GooglePayDecrypt(..)),
+            Some(google_pay_pre_decrypt_flow_filter),
+        ) => Some(matches!(
             google_pay_pre_decrypt_flow_filter,
-            Some(GooglePayPreDecryptFlow::NetworkTokenization)
-        ))
-    } else {
+            GooglePayPreDecryptFlow::ConnectorTokenization
+        )),
         // not applicable
-        None
+        _ => None,
     }
 }
 
