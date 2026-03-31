@@ -64,24 +64,74 @@ where
         RouterData<Self, types::PaymentsSyncData, types::PaymentsResponseData>,
         ConnectorError,
     > {
-        let connector_name = router_data.connector.clone();
-        let connector_enum = common_enums::connector_enums::Connector::from_str(&connector_name)
-            .change_context(ConnectorError::InvalidConnectorName)?;
-        let merchant_connector_account = context.merchant_connector_account;
-        let processor = &context.processor;
-        let lineage_ids = context.lineage_ids;
-        let header_payload = context.header_payload;
-        let unified_connector_service_execution_mode = context.execution_mode;
-        let is_ucs_psync_disabled = state
-            .conf
-            .grpc_client
-            .unified_connector_service
-            .as_ref()
-            .is_some_and(|config| {
-                config
-                    .ucs_psync_disabled_connectors
-                    .contains(&connector_enum)
-            });
+        match call_connector_action {
+            CallConnectorAction::UCSConsumeResponse(transform_data_bytes) => {
+                let webhook_content: payments_grpc::EventContent =
+                    serde_json::from_slice(&transform_data_bytes)
+                        .change_context(ConnectorError::ResponseHandlingFailed)
+                        .attach_printable("Failed to deserialize UCS webhook transform data")?;
+
+                let payment_get_response =
+                    get_payments_response_from_ucs_webhook_content(webhook_content)
+                        .change_context(ConnectorError::ResponseHandlingFailed)
+                        .attach_printable(
+                            "Failed to construct payments response from UCS webhook content",
+                        )?;
+                let mut router_data = router_data.clone();
+                let (router_data_response, status_code) =
+                    handle_unified_connector_service_response_for_payment_get(
+                        payment_get_response.clone(),
+                        router_data.status,
+                    )
+                    .change_context(ConnectorError::ResponseHandlingFailed)
+                    .attach_printable("Failed to deserialize UCS response")?;
+
+                let router_data_response = match router_data_response {
+                    Ok((response, status)) => {
+                        router_data.status = status;
+                        Ok(response)
+                    }
+                    Err(err) => {
+                        logger::debug!("Error in UCS router data response");
+                        if let Some(attempt_status) = err.attempt_status {
+                            router_data.status = attempt_status;
+                        }
+                        Err(err)
+                    }
+                };
+
+                router_data.response = router_data_response;
+                router_data.amount_captured = payment_get_response.captured_amount;
+                router_data.minor_amount_captured =
+                    payment_get_response.captured_amount.map(MinorUnit::new);
+                router_data.raw_connector_response = payment_get_response
+                    .raw_connector_response
+                    .clone()
+                    .map(|raw_connector_response| raw_connector_response.expose().into());
+                router_data.connector_http_status_code = Some(status_code);
+
+                Ok(router_data.clone())
+            }
+            CallConnectorAction::UCSHandleResponse(_) | CallConnectorAction::Trigger => {
+                let connector_name = router_data.connector.clone();
+                let connector_enum =
+                    common_enums::connector_enums::Connector::from_str(&connector_name)
+                        .change_context(ConnectorError::InvalidConnectorName)?;
+                let merchant_connector_account = context.merchant_connector_account;
+                let processor = &context.processor;
+                let lineage_ids = context.lineage_ids;
+                let header_payload = context.header_payload;
+                let unified_connector_service_execution_mode = context.execution_mode;
+                let is_ucs_psync_disabled = state
+                    .conf
+                    .grpc_client
+                    .unified_connector_service
+                    .as_ref()
+                    .is_some_and(|config| {
+                        config
+                            .ucs_psync_disabled_connectors
+                            .contains(&connector_enum)
+                    });
 
         if is_ucs_psync_disabled {
             logger::info!(
@@ -175,16 +225,15 @@ where
                     router_data.connector_response = Some(connector_response);
                 }
 
-                router_data.response = router_data_response;
-                router_data.amount_captured = payment_get_response.captured_amount;
-                router_data.minor_amount_captured = payment_get_response
-                    .minor_captured_amount
-                    .map(MinorUnit::new);
-                router_data.raw_connector_response = payment_get_response
-                    .raw_connector_response
-                    .clone()
-                    .map(|raw_connector_response| raw_connector_response.expose().into());
-                router_data.connector_http_status_code = Some(status_code);
+                        router_data.response = router_data_response;
+                        router_data.amount_captured = payment_get_response.captured_amount;
+                        router_data.minor_amount_captured =
+                            payment_get_response.captured_amount.map(MinorUnit::new);
+                        router_data.raw_connector_response = payment_get_response
+                            .raw_connector_response
+                            .clone()
+                            .map(|raw_connector_response| raw_connector_response.expose().into());
+                        router_data.connector_http_status_code = Some(status_code);
 
                 Ok((router_data, (), payment_get_response))
             },

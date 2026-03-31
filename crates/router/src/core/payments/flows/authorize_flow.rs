@@ -31,8 +31,8 @@ use super::{ConstructFlowSpecificData, Feature};
 use crate::core::unified_connector_service::{
     get_access_token_from_ucs_response,
     handle_unified_connector_service_response_for_payment_authorize,
-    handle_unified_connector_service_response_for_payment_repeat, set_access_token_for_ucs,
-    ucs_logging_wrapper,
+    handle_unified_connector_service_response_for_recurring_payment_charge,
+    set_access_token_for_ucs, ucs_logging_wrapper,
 };
 use crate::{
     core::{
@@ -1436,9 +1436,11 @@ pub async fn call_unified_connector_service_pre_authenticate(
         .attach_printable("Failed to fetch Unified Connector Service client")?;
 
     let payment_pre_authenticate_request =
-        payments_grpc::PaymentServicePreAuthenticateRequest::foreign_try_from(router_data)
-            .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
-            .attach_printable("Failed to construct Payment Authorize Request")?;
+        payments_grpc::PaymentMethodAuthenticationServicePreAuthenticateRequest::foreign_try_from(
+            router_data,
+        )
+        .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
+        .attach_printable("Failed to construct Payment Pre Authenticate Request")?;
 
     let connector_auth_metadata =
         unified_connector_service::build_unified_connector_service_auth_metadata(
@@ -1481,7 +1483,7 @@ pub async fn call_unified_connector_service_pre_authenticate(
                     grpc_headers,
                 )
                 .await
-                .attach_printable("Failed to authorize payment")?;
+                .attach_printable("Failed to pre authenticate payment")?;
 
             let payment_pre_authenticate_response = response.into_inner();
 
