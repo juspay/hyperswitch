@@ -13,7 +13,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use redis::{AsyncCommands, FromRedisValue};
-use router_env::{logger, tracing};
+use router_env::tracing;
 use tracing::instrument;
 
 use crate::{
@@ -35,44 +35,20 @@ impl super::RedisConnectionPool {
 
     // ─── Key Commands ────────────────────────────────────────────────────────
 
-    #[instrument(level = "DEBUG", skip(self))]
+    #[instrument(level = "DEBUG", skip(self, value), fields(key = %key.tenant_aware_key(self)))]
     pub async fn set_key<V>(&self, key: &RedisKey, value: V) -> CustomResult<(), errors::RedisError>
     where
         V: redis::ToRedisArgs + Debug + Send + Sync,
     {
-        let start = std::time::Instant::now();
-        let redis_key = key.tenant_aware_key(self);
-
-        logger::debug!(
-            key = %redis_key,
-            "Redis SET Started"
-        );
-
         let mut conn = self.pool.clone();
-        let result = redis::cmd("SET")
-            .arg(&redis_key)
+        redis::cmd("SET")
+            .arg(key.tenant_aware_key(self))
             .arg(value)
             .arg("EX")
             .arg(self.config.default_ttl)
             .query_async::<()>(&mut conn)
             .await
-            .change_context(errors::RedisError::SetFailed);
-
-        match &result {
-            Ok(()) => logger::debug!(
-                key = %redis_key,
-                elapsed_us = %start.elapsed().as_micros(),
-                "Redis SET completed successfully"
-            ),
-            Err(e) => logger::error!(
-                key = %redis_key,
-                elapsed_us = %start.elapsed().as_micros(),
-                error = ?e,
-                "Redis SET failed"
-            ),
-        }
-
-        result
+            .change_context(errors::RedisError::SetFailed)
     }
 
     pub async fn set_key_without_modifying_ttl<V>(
@@ -108,7 +84,7 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::SetFailed)
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    #[instrument(level = "DEBUG", skip(self, value), fields(key = %key.tenant_aware_key(self)))]
     pub async fn serialize_and_set_key_if_not_exist<V>(
         &self,
         key: &RedisKey,
@@ -125,7 +101,7 @@ impl super::RedisConnectionPool {
             .await
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    #[instrument(level = "DEBUG", skip(self, value), fields(key = %key.tenant_aware_key(self)))]
     pub async fn serialize_and_set_key<V>(
         &self,
         key: &RedisKey,
@@ -141,7 +117,7 @@ impl super::RedisConnectionPool {
         self.set_key(key, serialized.as_slice()).await
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    #[instrument(level = "DEBUG", skip(self, value), fields(key = %key.tenant_aware_key(self)))]
     pub async fn serialize_and_set_key_without_modifying_ttl<V>(
         &self,
         key: &RedisKey,
@@ -158,7 +134,7 @@ impl super::RedisConnectionPool {
             .await
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    #[instrument(level = "DEBUG", skip(self, value), fields(key = %key.tenant_aware_key(self), ttl_seconds = seconds))]
     pub async fn serialize_and_set_key_with_expiry<V>(
         &self,
         key: &RedisKey,
@@ -168,65 +144,29 @@ impl super::RedisConnectionPool {
     where
         V: serde::Serialize + Debug,
     {
-        let start = std::time::Instant::now();
-        let redis_key = key.tenant_aware_key(self);
+        let serialized = value
+            .encode_to_vec()
+            .change_context(errors::RedisError::JsonSerializationFailed)?;
 
-        logger::debug!(
-            key = %redis_key,
-            ttl_seconds = seconds,
-            "Redis serialize and SET with expiry Started"
-        );
-
-        let result = async {
-            let serialized = value
-                .encode_to_vec()
-                .change_context(errors::RedisError::JsonSerializationFailed)?;
-
-            let mut conn = self.pool.clone();
-            redis::cmd("SET")
-                .arg(&redis_key)
-                .arg(serialized.as_slice())
-                .arg("EX")
-                .arg(seconds)
-                .query_async::<()>(&mut conn)
-                .await
-                .change_context(errors::RedisError::SetExFailed)
-        }
-        .await;
-
-        match &result {
-            Ok(()) => logger::debug!(
-                key = %redis_key,
-                elapsed_us = %start.elapsed().as_micros(),
-                "Redis serialize and SET with expiry completed successfully"
-            ),
-            Err(e) => logger::error!(
-                key = %redis_key,
-                elapsed_us = %start.elapsed().as_micros(),
-                error = ?e,
-                "Redis serialize and SET with expiry failed"
-            ),
-        }
-
-        result
+        let mut conn = self.pool.clone();
+        redis::cmd("SET")
+            .arg(key.tenant_aware_key(self))
+            .arg(serialized.as_slice())
+            .arg("EX")
+            .arg(seconds)
+            .query_async::<()>(&mut conn)
+            .await
+            .change_context(errors::RedisError::SetExFailed)
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    #[instrument(level = "DEBUG", skip(self), fields(key = %key.tenant_aware_key(self)))]
     pub async fn get_key<V>(&self, key: &RedisKey) -> CustomResult<V, errors::RedisError>
     where
         V: FromRedisValue + Send + 'static,
     {
-        let start = std::time::Instant::now();
-        let redis_key = key.tenant_aware_key(self);
-
-        logger::debug!(
-            key = %redis_key,
-            "Redis GET Started"
-        );
-
         let mut conn = self.pool.clone();
-        let result = match conn
-            .get::<_, V>(&redis_key)
+        match conn
+            .get::<_, V>(key.tenant_aware_key(self))
             .await
             .change_context(errors::RedisError::GetFailed)
         {
@@ -244,26 +184,7 @@ impl super::RedisConnectionPool {
                         .change_context(errors::RedisError::GetFailed)
                 }
             }
-        };
-
-        match &result {
-            Ok(_) => logger::debug!(
-                key = %redis_key,
-                elapsed_us = %start.elapsed().as_micros(),
-                "Redis GET completed"
-            ),
-            Err(e) => {
-                // Key not found is not an error - it's a valid outcome
-                logger::debug!(
-                    key = %redis_key,
-                    elapsed_us = %start.elapsed().as_micros(),
-                    error = ?e,
-                    "Redis GET: key not found or error"
-                );
-            }
         }
-
-        result
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -399,7 +320,7 @@ impl super::RedisConnectionPool {
         }
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    #[instrument(level = "DEBUG", skip(self), fields(key = %key.tenant_aware_key(self), type_name = type_name))]
     pub async fn get_and_deserialize_key<T>(
         &self,
         key: &RedisKey,
@@ -408,52 +329,11 @@ impl super::RedisConnectionPool {
     where
         T: serde::de::DeserializeOwned,
     {
-        let start = std::time::Instant::now();
-        let redis_key = key.tenant_aware_key(self);
-
-        logger::debug!(
-            key = %redis_key,
-            type_name = %type_name,
-            "Redis GET and deserialize Started"
-        );
-
-        let result = async {
-            let value_bytes = self.get_key::<Vec<u8>>(key).await?;
-            fp_utils::when(value_bytes.is_empty(), || Err(errors::RedisError::NotFound))?;
-            value_bytes
-                .parse_struct(type_name)
-                .change_context(errors::RedisError::JsonDeserializationFailed)
-        }
-        .await;
-
-        match &result {
-            Ok(_) => logger::debug!(
-                key = %redis_key,
-                type_name = %type_name,
-                elapsed_us = %start.elapsed().as_micros(),
-                "Redis GET and deserialize completed"
-            ),
-            Err(e) => {
-                // NotFound is not an error - it's a valid outcome
-                match e.current_context() {
-                    errors::RedisError::NotFound => logger::debug!(
-                        key = %redis_key,
-                        type_name = %type_name,
-                        elapsed_us = %start.elapsed().as_micros(),
-                        "Redis GET and deserialize: key not found"
-                    ),
-                    _ => logger::error!(
-                        key = %redis_key,
-                        type_name = %type_name,
-                        elapsed_us = %start.elapsed().as_micros(),
-                        error = ?e,
-                        "Redis GET and deserialize failed"
-                    ),
-                }
-            }
-        }
-
-        result
+        let value_bytes = self.get_key::<Vec<u8>>(key).await?;
+        fp_utils::when(value_bytes.is_empty(), || Err(errors::RedisError::NotFound))?;
+        value_bytes
+            .parse_struct(type_name)
+            .change_context(errors::RedisError::JsonDeserializationFailed)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -487,19 +367,11 @@ impl super::RedisConnectionPool {
         Ok(results)
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    #[instrument(level = "DEBUG", skip(self), fields(key = %key.tenant_aware_key(self)))]
     pub async fn delete_key(&self, key: &RedisKey) -> CustomResult<DelReply, errors::RedisError> {
-        let start = std::time::Instant::now();
-        let redis_key = key.tenant_aware_key(self);
-
-        logger::debug!(
-            key = %redis_key,
-            "Redis DELETE Started"
-        );
-
         let mut conn = self.pool.clone();
-        let result = match redis::cmd("DEL")
-            .arg(&redis_key)
+        match redis::cmd("DEL")
+            .arg(key.tenant_aware_key(self))
             .query_async::<DelReply>(&mut conn)
             .await
             .change_context(errors::RedisError::DeleteFailed)
@@ -520,28 +392,7 @@ impl super::RedisConnectionPool {
                         .change_context(errors::RedisError::DeleteFailed)
                 }
             }
-        };
-
-        match &result {
-            Ok(DelReply::KeyDeleted) => logger::debug!(
-                key = %redis_key,
-                elapsed_us = %start.elapsed().as_micros(),
-                "Redis DELETE completed: key deleted"
-            ),
-            Ok(DelReply::KeyNotDeleted) => logger::debug!(
-                key = %redis_key,
-                elapsed_us = %start.elapsed().as_micros(),
-                "Redis DELETE completed: key not found"
-            ),
-            Err(e) => logger::error!(
-                key = %redis_key,
-                elapsed_us = %start.elapsed().as_micros(),
-                error = ?e,
-                "Redis DELETE failed"
-            ),
         }
-
-        result
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -558,7 +409,7 @@ impl super::RedisConnectionPool {
         Ok(del_result)
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    #[instrument(level = "DEBUG", skip(self, value), fields(key = %key.tenant_aware_key(self), ttl_seconds = seconds))]
     pub async fn set_key_with_expiry<V>(
         &self,
         key: &RedisKey,
@@ -568,43 +419,18 @@ impl super::RedisConnectionPool {
     where
         V: redis::ToRedisArgs + Debug + Send + Sync,
     {
-        let start = std::time::Instant::now();
-        let redis_key = key.tenant_aware_key(self);
-
-        logger::debug!(
-            key = %redis_key,
-            ttl_seconds = seconds,
-            "Redis SET with expiry Started"
-        );
-
         let mut conn = self.pool.clone();
-        let result = redis::cmd("SET")
-            .arg(&redis_key)
+        redis::cmd("SET")
+            .arg(key.tenant_aware_key(self))
             .arg(value)
             .arg("EX")
             .arg(seconds)
             .query_async::<()>(&mut conn)
             .await
-            .change_context(errors::RedisError::SetExFailed);
-
-        match &result {
-            Ok(()) => logger::debug!(
-                key = %redis_key,
-                elapsed_us = %start.elapsed().as_micros(),
-                "Redis SET with expiry completed successfully"
-            ),
-            Err(e) => logger::error!(
-                key = %redis_key,
-                elapsed_us = %start.elapsed().as_micros(),
-                error = ?e,
-                "Redis SET with expiry failed"
-            ),
-        }
-
-        result
+            .change_context(errors::RedisError::SetExFailed)
     }
 
-    #[instrument(level = "DEBUG", skip(self))]
+    #[instrument(level = "DEBUG", skip(self, value), fields(key = %key.tenant_aware_key(self), ttl_seconds = seconds.unwrap_or(self.config.default_ttl.into())))]
     pub async fn set_key_if_not_exists_with_expiry<V>(
         &self,
         key: &RedisKey,
@@ -614,47 +440,17 @@ impl super::RedisConnectionPool {
     where
         V: redis::ToRedisArgs + Debug + Send + Sync,
     {
-        let start = std::time::Instant::now();
-        let redis_key = key.tenant_aware_key(self);
         let ttl = seconds.unwrap_or(self.config.default_ttl.into());
-
-        logger::debug!(
-            key = %redis_key,
-            ttl_seconds = ttl,
-            "Redis SET NX Started"
-        );
-
         let mut conn = self.pool.clone();
-        let result = redis::cmd("SET")
-            .arg(&redis_key)
+        redis::cmd("SET")
+            .arg(key.tenant_aware_key(self))
             .arg(value)
             .arg("EX")
             .arg(ttl)
             .arg("NX")
             .query_async::<SetnxReply>(&mut conn)
             .await
-            .change_context(errors::RedisError::SetFailed);
-
-        match &result {
-            Ok(SetnxReply::KeySet) => logger::debug!(
-                key = %redis_key,
-                elapsed_us = %start.elapsed().as_micros(),
-                "Redis SET NX completed: key set"
-            ),
-            Ok(SetnxReply::KeyNotSet) => logger::debug!(
-                key = %redis_key,
-                elapsed_us = %start.elapsed().as_micros(),
-                "Redis SET NX completed: key already exists"
-            ),
-            Err(e) => logger::error!(
-                key = %redis_key,
-                elapsed_us = %start.elapsed().as_micros(),
-                error = ?e,
-                "Redis SET NX failed"
-            ),
-        }
-
-        result
+            .change_context(errors::RedisError::SetFailed)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
