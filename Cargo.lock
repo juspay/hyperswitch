@@ -3268,7 +3268,6 @@ dependencies = [
  "async-trait",
  "aws-config",
  "aws-sdk-kms",
- "aws-sdk-lambda",
  "aws-sdk-s3",
  "aws-sdk-sesv2",
  "aws-sdk-sts",
