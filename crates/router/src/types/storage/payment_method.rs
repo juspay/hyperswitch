@@ -56,6 +56,11 @@ pub struct WalletTokenData {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ModularServiceTokenData {
+    pub payment_method_id: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 #[cfg(feature = "v1")]
 pub enum PaymentTokenData {
@@ -68,6 +73,7 @@ pub enum PaymentTokenData {
     AuthBankDebit(payment_methods::BankAccountTokenData),
     WalletToken(WalletTokenData),
     BankDebit(BankDebitTokenData),
+    ModularServiceToken(ModularServiceTokenData),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

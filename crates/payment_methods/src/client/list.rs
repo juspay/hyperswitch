@@ -1,8 +1,4 @@
-use api_models::payment_methods::{
-    CustomerPaymentMethod,
-    CustomerPaymentMethodsListResponse as ListCustomerPaymentMethodsV1Response,
-    PaymentMethodListRequest,
-};
+use api_models::payment_methods::{CustomerPaymentMethod, PaymentMethodListRequest};
 use common_utils::{id_type, request::Method};
 use hyperswitch_interfaces::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind};
 
@@ -19,7 +15,13 @@ pub struct ListCustomerPaymentMethods;
 #[derive(Debug)]
 pub struct ListCustomerPaymentMethodsV1Request {
     pub customer_id: id_type::CustomerId,
-    pub query_params: PaymentMethodListRequest,
+    pub query_params: Option<PaymentMethodListRequest>,
+    pub modular_service_prefix: String,
+}
+#[derive(Debug)]
+pub struct ListCustomerPaymentMethodsV1Response {
+    pub customer_payment_methods: Vec<CustomerPaymentMethod>,
+    pub is_guest_customer: Option<bool>,
 }
 
 impl TryFrom<&ListCustomerPaymentMethodsV1Request> for ModularListCustomerPaymentMethodsRequest {
@@ -92,10 +94,13 @@ impl ListCustomerPaymentMethods {
         &self,
         request: &ListCustomerPaymentMethodsV1Request,
     ) -> Vec<(&'static str, String)> {
-        vec![(
-            "customer_id",
-            request.customer_id.get_string_repr().to_string(),
-        )]
+        vec![
+            ("prefix", request.modular_service_prefix.clone()),
+            (
+                "customer_id",
+                request.customer_id.get_string_repr().to_string(),
+            ),
+        ]
     }
 
     fn query_params(
@@ -104,42 +109,46 @@ impl ListCustomerPaymentMethods {
     ) -> Vec<(&'static str, String)> {
         let mut params = Vec::new();
 
+        // Always include new PMs in the list to ensure V1 clients get a complete list of payment methods.
+        params.push(("include_new", true.to_string()));
+
         let qp = &request.query_params;
 
-        if let Some(secret) = &qp.client_secret {
-            params.push(("client_secret", secret.clone()));
-        }
+        if let Some(qp) = qp {
+            if let Some(secret) = &qp.client_secret {
+                params.push(("client_secret", secret.clone()));
+            }
 
-        if let Some(amount) = qp.amount {
-            params.push(("amount", amount.to_string()));
-        }
+            if let Some(amount) = qp.amount {
+                params.push(("amount", amount.to_string()));
+            }
 
-        if let Some(recurring) = qp.recurring_enabled {
-            params.push(("recurring_enabled", recurring.to_string()));
-        }
+            if let Some(recurring) = qp.recurring_enabled {
+                params.push(("recurring_enabled", recurring.to_string()));
+            }
 
-        if let Some(limit) = qp.limit {
-            params.push(("limit", limit.to_string()));
-        }
+            if let Some(limit) = qp.limit {
+                params.push(("limit", limit.to_string()));
+            }
 
-        if let Some(countries) = &qp.accepted_countries {
-            if let Ok(serialized) = serde_json::to_string(countries) {
-                params.push(("accepted_countries", serialized));
+            if let Some(countries) = &qp.accepted_countries {
+                if let Ok(serialized) = serde_json::to_string(countries) {
+                    params.push(("accepted_countries", serialized));
+                }
+            }
+
+            if let Some(currencies) = &qp.accepted_currencies {
+                if let Ok(serialized) = serde_json::to_string(currencies) {
+                    params.push(("accepted_currencies", serialized));
+                }
+            }
+
+            if let Some(networks) = &qp.card_networks {
+                if let Ok(serialized) = serde_json::to_string(networks) {
+                    params.push(("card_networks", serialized));
+                }
             }
         }
-
-        if let Some(currencies) = &qp.accepted_currencies {
-            if let Ok(serialized) = serde_json::to_string(currencies) {
-                params.push(("accepted_currencies", serialized));
-            }
-        }
-
-        if let Some(networks) = &qp.card_networks {
-            if let Ok(serialized) = serde_json::to_string(networks) {
-                params.push(("card_networks", serialized));
-            }
-        }
-
         params
     }
 }
@@ -147,7 +156,7 @@ impl ListCustomerPaymentMethods {
 hyperswitch_interfaces::impl_microservice_flow!(
     ListCustomerPaymentMethods,
     method = Method::Get,
-    path = "/v2/customers/{customer_id}/saved-payment-methods",
+    path = "/{prefix}/customers/{customer_id}/saved-payment-methods",
     v1_request = ListCustomerPaymentMethodsV1Request,
     v2_request = ModularListCustomerPaymentMethodsRequest,
     v2_response = ModularListCustomerPaymentMethodsResponse,
