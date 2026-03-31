@@ -89,7 +89,8 @@ impl RedisSettings {
         })?;
 
         when(
-            self.default_command_timeout < self.unresponsive_timeout,
+            self.default_command_timeout != 0
+                && (self.default_command_timeout < self.unresponsive_timeout),
             || {
                 Err(errors::RedisError::InvalidConfiguration(
                     "Unresponsive timeout cannot be greater than the command timeout".into(),
