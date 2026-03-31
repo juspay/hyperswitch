@@ -5412,91 +5412,69 @@ Cypress.Commands.add(
     const completeUrl = `${Cypress.env("BASEURL")}/webhooks/${merchantId}/${connector}`;
 
     // Normalize transaction ID
-    // Some connectors (e.g. NMI, WorldPay) use PaymentAttemptId for webhook lookup
-    // instead of ConnectorTransactionId, so allow config to specify the source
-    const data = webhookConfig["TransactionIdConfig"];
-    const idValue =
-      data.source === "paymentAttemptID"
+    const txnConfig = webhookConfig.TransactionIdConfig;
+    const txnId =
+      txnConfig.source === "paymentAttemptID"
         ? `${globalState.get("paymentID")}_1`
         : globalState.get("connectorTransactionID");
-    setNormalizedValue(webhookBody, data, idValue);
 
-    // Some connectors (e.g. Mollie) expect form-encoded bodies instead of JSON
+    setNormalizedValue(webhookBody, txnConfig, txnId);
+
     const contentType = webhookConfig.contentType || "application/json";
 
-    // Determine content type and encode body accordingly
-    let body;
-    if (contentType === "application/x-www-form-urlencoded") {
-      // Convert JSON object to URL-encoded form string
-      body = Object.entries(webhookBody)
-        .map(
-          ([key, value]) =>
-            `${encodeURIComponent(key)}=${encodeURIComponent(value)}`
-        )
-        .join("&");
-    } else {
-      body = webhookBody;
-    }
+    let body =
+      contentType === "application/x-www-form-urlencoded"
+        ? Object.entries(webhookBody)
+            .map(
+              ([k, v]) =>
+                `${encodeURIComponent(k)}=${encodeURIComponent(v)}`
+            )
+            .join("&")
+        : webhookBody;
 
-    // If connector requires webhook signature verification (e.g. WorldPay),
-    // compute HMAC-SHA256 of the body and send the signature header
-    if (webhookConfig.webhookSecret) {
-      const bodyString = JSON.stringify(webhookBody);
-      cy.task("hmac_sha256", {
-        secret: webhookConfig.webhookSecret,
-        message: bodyString,
-      }).then((signature) => {
-        const customHeaders = {
-          [webhookConfig.signatureHeader]: `${webhookConfig.signaturePrefix}${signature}`,
-        };
-        const headers = { "Content-Type": contentType, ...customHeaders };
-        // Pass stringified body to ensure signed bytes match sent bytes
-        return cy
-          .request({
-            method: "POST",
-            url: completeUrl,
-            headers: headers,
-            body: bodyString,
-            failOnStatusCode: false,
-          })
-          .then((response) => {
-            logRequestId(response.headers["x-request-id"]);
+    const headers = {
+      "Content-Type": contentType,
+    };
 
-            return cy.wrap(response).then(() => {
-              // Throw for failed status
-              if (response.status !== 200) {
-                throw new Error(
-                  `Webhook failed with error code "${response.body.error.code}" error message "${response.body.error.message}"`
-                );
-              }
-            });
-          });
-      });
-    } else {
-      const headers = { "Content-Type": contentType };
-
-      // Send webhook POST request
-      return cy
+    const sendRequest = () =>
+      cy
         .request({
           method: "POST",
           url: completeUrl,
-          headers: headers,
-          body: body,
+          headers,
+          body,
           failOnStatusCode: false,
         })
         .then((response) => {
           logRequestId(response.headers["x-request-id"]);
 
-          return cy.wrap(response).then(() => {
-            // Throw for failed status
-            if (response.status !== 200) {
-              throw new Error(
-                `Webhook failed with error code "${response.body.error.code}" error message "${response.body.error.message}"`
-              );
-            }
-          });
+          if (response.status !== 200) {
+            throw new Error(
+              `Webhook failed with error code "${response.body?.error?.code}" error message "${response.body?.error?.message}"`
+            );
+          }
+
+          return cy.wrap(response);
         });
+
+    // If signature required
+    if (webhookConfig.webhookSecret) {
+      const bodyString = JSON.stringify(webhookBody);
+      body = bodyString;
+
+      return cy
+        .task("hmac_sha256", {
+          secret: webhookConfig.webhookSecret,
+          message: bodyString,
+        })
+        .then((signature) => {
+          headers[webhookConfig.signatureHeader] =
+            `${webhookConfig.signaturePrefix}${signature}`;
+        })
+        .then(() => sendRequest());
     }
+
+    return sendRequest();
   }
 );
 
