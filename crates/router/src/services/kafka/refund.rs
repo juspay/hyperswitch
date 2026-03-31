@@ -76,7 +76,7 @@ impl<'a> KafkaRefund<'a> {
             created_by: refund
                 .created_by
                 .as_ref()
-                .and_then(|s| s.parse::<CreatedBy>().ok()),
+                .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
         }
     }
 }

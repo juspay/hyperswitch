@@ -138,11 +138,7 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPost {
                     modified_at: common_utils::date_time::now(),
                     last_step: FraudCheckLastStep::Processing,
                     payment_capture_method: payment_data.payment_attempt.capture_method,
-                    created_by: payment_data
-                        .payment_intent
-                        .created_by
-                        .as_ref()
-                        .map(|created_by| created_by.to_string()),
+                    created_by: None,
                 })
                 .await
             }

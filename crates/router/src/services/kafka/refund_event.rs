@@ -77,7 +77,7 @@ impl<'a> KafkaRefundEvent<'a> {
             created_by: refund
                 .created_by
                 .as_ref()
-                .and_then(|s| s.parse::<CreatedBy>().ok()),
+                .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
         }
     }
 }
@@ -208,7 +208,7 @@ impl<'a> KafkaRefundEvent<'a> {
             processor_merchant_id: processor_merchant_id.as_ref(),
             created_by: created_by
                 .as_ref()
-                .and_then(|s| s.parse::<CreatedBy>().ok()),
+                .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
         }
     }
 }

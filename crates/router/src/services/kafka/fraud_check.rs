@@ -56,7 +56,7 @@ impl<'a> KafkaFraudCheck<'a> {
             created_by: check
                 .created_by
                 .as_ref()
-                .and_then(|s| s.parse::<CreatedBy>().ok()),
+                .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
         }
     }
 }
