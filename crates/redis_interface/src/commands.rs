@@ -1150,8 +1150,8 @@ impl super::RedisConnectionPool {
             .attach_printable("Failed to queue get command")?;
 
         // Execute transaction
-        let mut results: Vec<RedisValue> = trx
-            .exec(true)
+        let mut results: Vec<RedisValue> = self
+            .with_timeout(trx.exec(true))
             .await
             .change_context(errors::RedisError::SetFailed)
             .attach_printable("Failed to execute the redis transaction")?;
