@@ -99,6 +99,26 @@ generate_permissions! {
             scopes: [Read, Write],
             entities: [Merchant]
         },
+        ReconTransaction: {
+            scopes: [Read, Write],
+            entities: [Merchant]
+        },
+        ReconStagingEntry: {
+            scopes: [Read, Write],
+            entities: [Merchant]
+        },
+        ReconExceptionManagement: {
+            scopes: [Read, Write],
+            entities: [Merchant]
+        },
+        ReconRule: {
+            scopes: [Read, Write],
+            entities: [Merchant]
+        },
+        ReconAuditTrail: {
+            scopes: [Read],
+            entities: [Merchant]
+        },
         RevenueRecovery: {
             scopes: [Read],
             entities: [Profile]
@@ -142,6 +162,11 @@ pub fn get_resource_name(resource: Resource, entity_type: EntityType) -> Option<
         (Resource::ReconFiles, _) => Some("Reconciliation Process Manager"),
         (Resource::ReconReports, _) => Some("Reconciliation Reports"),
         (Resource::ReconAndSettlementAnalytics, _) => Some("Reconciliation Analytics"),
+        (Resource::ReconTransaction, _) => Some("Reconciliation Transactions"),
+        (Resource::ReconStagingEntry, _) => Some("Reconciliation Staging Entries"),
+        (Resource::ReconExceptionManagement, _) => Some("Reconciliation Exception Management"),
+        (Resource::ReconRule, _) => Some("Reconciliation Rules"),
+        (Resource::ReconAuditTrail, _) => Some("Reconciliation Audit Trail"),
         (Resource::Account, EntityType::Profile) => Some("Business Profile Account"),
         (Resource::Account, EntityType::Merchant) => Some("Merchant Account"),
         (Resource::Account, EntityType::Organization) => Some("Organization Account"),

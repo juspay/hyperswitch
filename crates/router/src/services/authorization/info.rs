@@ -47,6 +47,10 @@ fn get_group_description(group: PermissionGroup) -> Option<&'static str> {
         PermissionGroup::ReconReportsManage => Some("Manage reconciliation reports"),
         PermissionGroup::ReconOpsView => Some("View and access all reconciliation operations including reports and analytics"),
         PermissionGroup::ReconOpsManage => Some("Manage all reconciliation operations including reports and analytics"),
+        PermissionGroup::ReconDataView => Some("View reconciliation transactions, staging entries, rules, and audit trail"),
+        PermissionGroup::ReconDataManage => Some("Create, modify and void reconciliation transactions, staging entries, and rules"),
+        PermissionGroup::ReconExceptionsView => Some("View reconciliation exceptions and available resolutions"),
+        PermissionGroup::ReconExceptionsManage => Some("Resolve reconciliation exceptions via force reconcile, manual matching, and entry linking"),
         PermissionGroup::ThemeView => Some("View Themes"),
         PermissionGroup::ThemeManage => Some("Manage Themes"),
         PermissionGroup::InternalManage => None, // Internal group, no user-facing description
@@ -63,6 +67,8 @@ pub fn get_parent_group_description(group: ParentGroup) -> Option<&'static str> 
         ParentGroup::Account => Some("Create, modify and delete Merchant Details like api keys, webhooks, etc"),
         ParentGroup::ReconOps => Some("View, manage reconciliation operations like upload and process files, run reconciliation etc"),
         ParentGroup::ReconReports => Some("View, manage reconciliation reports and analytics"),
+        ParentGroup::ReconData => Some("View, create, modify and void reconciliation transactions, staging entries, and rules"),
+        ParentGroup::ReconExceptions => Some("View and resolve reconciliation exceptions, discrepancies, and mismatches"),
         ParentGroup::Theme => Some("Manage and view themes for the organization"),
         ParentGroup::Internal => None, // Internal group, no user-facing description
     }

@@ -8,7 +8,7 @@ use common_enums::{EntityType, PermissionGroup, Resource, RoleScope};
 use common_utils::{errors::CustomResult, id_type};
 
 #[cfg(feature = "recon")]
-use super::permission_groups::{RECON_OPS, RECON_REPORTS};
+use super::permission_groups::{RECON_DATA, RECON_EXCEPTIONS, RECON_OPS, RECON_REPORTS};
 use super::{permission_groups::PermissionGroupExt, permissions::Permission};
 use crate::{core::errors, routes::SessionState};
 
@@ -89,6 +89,8 @@ impl RoleInfo {
         let mut acl: HashMap<Resource, ReconPermissionScope> = HashMap::new();
         let mut recon_resources = RECON_OPS.to_vec();
         recon_resources.extend(RECON_REPORTS);
+        recon_resources.extend(RECON_DATA);
+        recon_resources.extend(RECON_EXCEPTIONS);
         let recon_internal_resources = [Resource::ReconToken];
         self.get_permission_groups()
             .iter()

@@ -23,6 +23,8 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::AccountView
             | Self::ReconOpsView
             | Self::ReconReportsView
+            | Self::ReconDataView
+            | Self::ReconExceptionsView
             | Self::ThemeView => PermissionScope::Read,
 
             Self::OperationsManage
@@ -32,6 +34,8 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::AccountManage
             | Self::ReconOpsManage
             | Self::ReconReportsManage
+            | Self::ReconDataManage
+            | Self::ReconExceptionsManage
             | Self::InternalManage
             | Self::ThemeManage => PermissionScope::Write,
         }
@@ -49,6 +53,8 @@ impl PermissionGroupExt for PermissionGroup {
             Self::ThemeView | Self::ThemeManage => ParentGroup::Theme,
             Self::ReconOpsView | Self::ReconOpsManage => ParentGroup::ReconOps,
             Self::ReconReportsView | Self::ReconReportsManage => ParentGroup::ReconReports,
+            Self::ReconDataView | Self::ReconDataManage => ParentGroup::ReconData,
+            Self::ReconExceptionsView | Self::ReconExceptionsManage => ParentGroup::ReconExceptions,
             Self::InternalManage => ParentGroup::Internal,
         }
     }
@@ -89,6 +95,16 @@ impl PermissionGroupExt for PermissionGroup {
             Self::ReconReportsView => vec![Self::ReconReportsView],
             Self::ReconReportsManage => vec![Self::ReconReportsView, Self::ReconReportsManage],
 
+            Self::ReconDataView => vec![Self::ReconDataView],
+            Self::ReconDataManage => vec![Self::ReconDataView, Self::ReconDataManage],
+
+            Self::ReconExceptionsView => vec![Self::ReconExceptionsView, Self::ReconDataView],
+            Self::ReconExceptionsManage => vec![
+                Self::ReconExceptionsView,
+                Self::ReconExceptionsManage,
+                Self::ReconDataView,
+            ],
+
             Self::AccountView => vec![Self::AccountView],
             Self::AccountManage => vec![Self::AccountView, Self::AccountManage],
 
@@ -119,6 +135,8 @@ impl ParentGroupExt for ParentGroup {
             Self::Account => ACCOUNT.to_vec(),
             Self::ReconOps => RECON_OPS.to_vec(),
             Self::ReconReports => RECON_REPORTS.to_vec(),
+            Self::ReconData => RECON_DATA.to_vec(),
+            Self::ReconExceptions => RECON_EXCEPTIONS.to_vec(),
             Self::Internal => INTERNAL.to_vec(),
             Self::Theme => THEME.to_vec(),
         }
@@ -204,6 +222,21 @@ pub static RECON_REPORTS: [Resource; 4] = [
     Resource::ReconToken,
     Resource::ReconAndSettlementAnalytics,
     Resource::ReconReports,
+    Resource::Account,
+];
+
+pub static RECON_DATA: [Resource; 5] = [
+    Resource::ReconTransaction,
+    Resource::ReconStagingEntry,
+    Resource::ReconRule,
+    Resource::ReconAuditTrail,
+    Resource::Account,
+];
+
+pub static RECON_EXCEPTIONS: [Resource; 4] = [
+    Resource::ReconExceptionManagement,
+    Resource::ReconTransaction,
+    Resource::ReconStagingEntry,
     Resource::Account,
 ];
 
