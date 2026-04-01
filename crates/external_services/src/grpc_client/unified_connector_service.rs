@@ -691,7 +691,6 @@ impl UnifiedConnectorServiceClient {
         let connector_name = connector_auth_metadata.connector_name.clone();
         let metadata =
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
-
         *request.metadata_mut() = metadata;
 
         self.recurring_payment_service_client
@@ -722,7 +721,6 @@ impl UnifiedConnectorServiceClient {
         let connector_name = connector_auth_metadata.connector_name.clone();
         let metadata =
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
-
         *request.metadata_mut() = metadata;
 
         self.payment_service_client
@@ -753,7 +751,6 @@ impl UnifiedConnectorServiceClient {
         let connector_name = connector_auth_metadata.connector_name.clone();
         let metadata =
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
-
         *request.metadata_mut() = metadata;
 
         self.event_service_client
@@ -783,20 +780,19 @@ impl UnifiedConnectorServiceClient {
         let connector_name = connector_auth_metadata.connector_name.clone();
         let metadata =
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
-
         *request.metadata_mut() = metadata;
 
         self.payment_service_client
             .clone()
             .refund(request)
             .await
-            .change_context(UnifiedConnectorServiceError::PayoutVoidFailure)
+            .change_context(UnifiedConnectorServiceError::PaymentRefundFailure)
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
-                    method="payout_void",
+                    method="payment_refund",
                     connector_name=?connector_name,
-                    "UCS payout void gRPC call failed"
+                    "UCS payment refund gRPC call failed"
                 )
             })
     }
@@ -813,7 +809,6 @@ impl UnifiedConnectorServiceClient {
         let connector_name = connector_auth_metadata.connector_name.clone();
         let metadata =
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
-
         *request.metadata_mut() = metadata;
 
         self.refund_service_client
