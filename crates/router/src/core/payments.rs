@@ -643,7 +643,10 @@ where
     tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
 
     // Create feature_set early to avoid passing entire payment_data to get_trackers
-    let feature_set = core_utils::get_feature_set(state, platform).await;
+    // let feature_set = core_utils::get_feature_set(state, platform).await;
+    let feature_set = core_utils::FeatureSet {
+        is_modular_merchant: false,
+    };
 
     // get profile from headers
     let operations::GetTrackerResponse {
