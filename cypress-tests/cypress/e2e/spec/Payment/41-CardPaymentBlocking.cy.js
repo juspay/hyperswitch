@@ -33,11 +33,11 @@ describe("Business Profile Payment Method Blocking", () => {
         };
         cy.UpdateBusinessProfileTest(
           updateBusinessProfileBody,
-          false,
-          false,
-          false,
-          false,
-          false,
+          false, // is_connector_agnostic_enabled
+          false, // collect_billing_address_from_wallet_connector
+          false, // collect_shipping_address_from_wallet_connector
+          false, // always_collect_billing_address_from_wallet_connector
+          false, // always_collect_shipping_address_from_wallet_connector
           globalState
         );
       });
@@ -77,20 +77,12 @@ describe("Business Profile Payment Method Blocking", () => {
           globalState
         );
       });
-
-      cy.step("Disable blocklist", () => {
-        cy.blocklistToggle("false", globalState);
-      });
     });
   });
 
   context("Card Type Blocking", () => {
     it("should block payment when debit cards are blocked", () => {
       let shouldContinue = true;
-
-      cy.step("Enable blocklist", () => {
-        cy.blocklistToggle("true", globalState);
-      });
 
       cy.step("Update business profile to block debit cards", () => {
         const updateBusinessProfileBody = {
@@ -102,11 +94,11 @@ describe("Business Profile Payment Method Blocking", () => {
         };
         cy.UpdateBusinessProfileTest(
           updateBusinessProfileBody,
-          false,
-          false,
-          false,
-          false,
-          false,
+          false, // is_connector_agnostic_enabled 
+          false, // collect_billing_address_from_wallet_connector
+          false, // collect_shipping_address_from_wallet_connector
+          false, // always_collect_billing_address_from_wallet_connector
+          false, // always_collect_shipping_address_from_wallet_connector
           globalState
         );
       });
@@ -146,20 +138,12 @@ describe("Business Profile Payment Method Blocking", () => {
           globalState
         );
       });
-
-      cy.step("Disable blocklist", () => {
-        cy.blocklistToggle("false", globalState);
-      });
     });
   });
 
   context("Card Subtype Blocking", () => {
     it("should block payment when card subtype is blocked", () => {
       let shouldContinue = true;
-
-      cy.step("Enable blocklist", () => {
-        cy.blocklistToggle("true", globalState);
-      });
 
       cy.step("Update business profile to block specific card subtype", () => {
         const updateBusinessProfileBody = {
@@ -171,11 +155,11 @@ describe("Business Profile Payment Method Blocking", () => {
         };
         cy.UpdateBusinessProfileTest(
           updateBusinessProfileBody,
-          false,
-          false,
-          false,
-          false,
-          false,
+          false, // is_connector_agnostic_enabled 
+          false, // collect_billing_address_from_wallet_connector
+          false, // collect_shipping_address_from_wallet_connector
+          false, // always_collect_billing_address_from_wallet_connector
+          false, // always_collect_shipping_address_from_wallet_connector
           globalState
         );
       });
@@ -215,20 +199,12 @@ describe("Business Profile Payment Method Blocking", () => {
           globalState
         );
       });
-
-      cy.step("Disable blocklist", () => {
-        cy.blocklistToggle("false", globalState);
-      });
     });
   });
 
   context("Block If BIN Info Unavailable", () => {
     it("should block payment when BIN info is unavailable and block_if_bin_info_unavailable is true", () => {
       let shouldContinue = true;
-
-      cy.step("Enable blocklist", () => {
-        cy.blocklistToggle("true", globalState);
-      });
 
       cy.step(
         "Update business profile to block when BIN info unavailable",
@@ -242,11 +218,11 @@ describe("Business Profile Payment Method Blocking", () => {
           };
           cy.UpdateBusinessProfileTest(
             updateBusinessProfileBody,
-            false,
-            false,
-            false,
-            false,
-            false,
+            false, // is_connector_agnostic_enabled 
+            false, // collect_billing_address_from_wallet_connector
+            false, // collect_shipping_address_from_wallet_connector
+            false, // always_collect_billing_address_from_wallet_connector
+            false, // always_collect_shipping_address_from_wallet_connector
             globalState
           );
         }

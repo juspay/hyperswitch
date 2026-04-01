@@ -2271,12 +2271,6 @@ Cypress.Commands.add(
         if (expectBlockedPayment && response.status === 200) {
           // Blocklist case: HTTP 200 with an error body instead of a success body
           expect(response.status, "status_code").to.equal(200);
-          globalState.set("paymentID", paymentIntentID);
-          globalState.set(
-            "paymentIntentStatus",
-            response.body.status || "failed"
-          );
-
           // Validate response body against expected values from config (Commons.js)
           for (const key in resData.body) {
             expect(resData.body[key], [key]).to.deep.equal(response.body[key]);
