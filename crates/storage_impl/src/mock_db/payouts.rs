@@ -112,7 +112,8 @@ impl PayoutsInterface for MockDb {
                     .map(|profiles| profiles.contains(&payout.profile_id))
                     .unwrap_or(true)
             })
-            .count() as i64;
+            .count();
+        let count = i64::try_from(count).unwrap_or(i64::MAX);
         Ok(count)
     }
 
