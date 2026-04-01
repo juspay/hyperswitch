@@ -7,8 +7,6 @@ enabled = false
 enabled = true
 level = "DEBUG"
 log_format = "default"
-filtering_directive = "hyperswitch_constraint_graph=debug,hyperswitch_domain_models=debug,hyperswitch_interfaces=debug,hyperswitch_connectors=debug,currency_conversion=debug,external_services=debug,connector_configs=debug,smithy-generator=debug,redis_interface=debug,payment_methods=debug,config_importer=debug,subscriptions=debug,router_derive=debug,euclid_macros=debug,diesel_models=debug,storage_impl=debug,payment_link=debug,kgraph_utils=debug,common_utils=debug,common_types=debug,common_enums=debug,actix_server=debug,smithy-core=debug,euclid_wasm=debug,test_utils=debug,router_env=debug,api_models=debug,scheduler=debug,analytics=debug,injector=debug,pm_auth=debug,openapi=debug,masking=debug,drainer=debug,smithy=debug,router=debug,events=debug,euclid=debug,hsdev=debug,cards=debug,warn,fred=trace,tokio_util=trace"
-
 
 [log.telemetry]
 traces_enabled = false
@@ -51,10 +49,10 @@ default_hash_ttl = 900
 use_legacy_version = false
 stream_read_count = 1
 auto_pipeline = true
-broadcast_channel_capacity = 32 
+broadcast_channel_capacity = 32
 disable_auto_backpressure = false
 max_in_flight_commands = 5000
-default_command_timeout = 1
+default_command_timeout = 30
 unresponsive_timeout = 10
 unresponsive_check_interval = 2
 max_feed_count = 200
