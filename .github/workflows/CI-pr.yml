@@ -143,8 +143,9 @@ jobs:
       RUSTFLAGS: "-D warnings"
 
     strategy:
-      fail-fast: false
-      matrix:
+    fail-fast: false
+    matrix:
+      include:
         - runner: ubuntu-latest
           cargo_jobs: 3
         - runner: hyperswitch-runners
