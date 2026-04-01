@@ -2342,7 +2342,7 @@ pub async fn get_or_update_dispute_object(
                 dispute_details.dispute_stage,
                 dispute_status,
             )
-            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+            .change_context(errors::ApiErrorResponse::WebhookBadRequest)
             .attach_printable("dispute stage and status validation failed")?;
             let update_dispute = diesel_models::dispute::DisputeUpdate::Update {
                 dispute_stage: dispute_details.dispute_stage,
