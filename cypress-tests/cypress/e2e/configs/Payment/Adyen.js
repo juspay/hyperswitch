@@ -163,10 +163,6 @@ export const connectorDetails = {
     No3DSAutoCapture: {
       Request: {
         payment_method: "card",
-<<<<<<< HEAD
-        payment_method_type: "debit",
-=======
->>>>>>> main
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },

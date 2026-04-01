@@ -910,7 +910,12 @@ export const connectorDetails = {
       },
     },
   },
-<<<<<<< HEAD
+  webhook: {
+    TransactionIdConfig: {
+      path: "sourceId",
+      type: "string",
+    },
+  },
   modular_pm: {
     PaymentMethodCreate: {
       Request: {
@@ -975,12 +980,6 @@ export const connectorDetails = {
           status: "succeeded",
         },
       },
-=======
-  webhook: {
-    TransactionIdConfig: {
-      path: "sourceId",
-      type: "string",
->>>>>>> main
     },
   },
 };

@@ -829,7 +829,16 @@ export const connectorDetails = {
       },
     },
   },
-<<<<<<< HEAD
+  webhook: {
+    TransactionIdConfig: {
+      // Defines how to locate and parse the payment reference ID from connector-specific webhook payloads
+      path: "id",
+      // Type of payment reference ID
+      type: "string",
+    },
+    // Mollie webhook handler uses serde_qs (form-encoded), not JSON
+    contentType: "application/x-www-form-urlencoded",
+  },
   modular_pm: {
     PaymentMethodCreate: {
       Request: {
@@ -895,16 +904,5 @@ export const connectorDetails = {
         },
       },
     },
-=======
-  webhook: {
-    TransactionIdConfig: {
-      // Defines how to locate and parse the payment reference ID from connector-specific webhook payloads
-      path: "id",
-      // Type of payment reference ID
-      type: "string",
-    },
-    // Mollie webhook handler uses serde_qs (form-encoded), not JSON
-    contentType: "application/x-www-form-urlencoded",
->>>>>>> main
   },
 };
