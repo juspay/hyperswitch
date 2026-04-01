@@ -7,7 +7,6 @@ pub enum PaymentLinkError {
     SerializationFailed,
 }
 
-/// Convert snake_case to camelCase
 fn camel_case_key(key: &str) -> String {
     let mut out = String::new();
     let mut uppercase = false;
@@ -26,7 +25,6 @@ fn camel_case_key(key: &str) -> String {
     out
 }
 
-/// Convert JSON keys to camelCase
 fn camel_case_json(value: &mut Value) {
     match value {
         Value::Object(map) => {
@@ -47,20 +45,19 @@ fn camel_case_json(value: &mut Value) {
     }
 }
 
-/// Only convert the `custom_message_for_payment_method_types` field to camelCase
 pub fn convert_custom_message_keys_to_camel(value: &mut Value) {
     if let Some(custom_msg) = value.get_mut("custom_message_for_payment_method_types") {
         camel_case_json(custom_msg);
     }
 }
 
-pub fn get_js_script(
-    payment_details: &api_models::payments::PaymentLinkData,
-) -> Result<String, PaymentLinkError> {
+pub fn get_js_script<T>(payment_details: &T) -> Result<String, PaymentLinkError>
+where
+    T: serde::Serialize,
+{
     let mut json =
         serde_json::to_value(payment_details).map_err(|_| PaymentLinkError::SerializationFailed)?;
 
-    // Apply camelCase only on the custom_message_for_payment_method_types field
     convert_custom_message_keys_to_camel(&mut json);
 
     let payment_details_str =
@@ -68,4 +65,135 @@ pub fn get_js_script(
     let url_encoded_str = urlencoding::encode(&payment_details_str);
 
     Ok(format!("window.__PAYMENT_DETAILS = '{}';", url_encoded_str))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_camel_case_key_conversion() {
+        assert_eq!(camel_case_key("test_mode"), "testMode");
+        assert_eq!(
+            camel_case_key("preload_sdk_with_params"),
+            "preloadSDKWithParams"
+        );
+        assert_eq!(camel_case_key("payment_methods_list"), "paymentMethodsList");
+        assert_eq!(camel_case_key("session_tokens"), "sessionTokens");
+        assert_eq!(camel_case_key("custom_message"), "customMessage");
+    }
+
+    #[test]
+    fn test_test_mode_converted_to_test_mode() {
+        let mut value = json!({
+            "test_mode": true,
+            "client_secret": "secret_123"
+        });
+
+        convert_custom_message_keys_to_camel(&mut value);
+
+        assert!(value.get("testMode").is_some());
+        assert!(value.get("test_mode").is_none());
+        assert_eq!(value["testMode"], json!(true));
+    }
+
+    #[test]
+    fn test_preload_sdk_with_params_converted_to_preload_sdk_with_params() {
+        let mut value = json!({
+            "preload_sdk_with_params": {
+                "payment_methods_list": ["card", "wallet"]
+            },
+            "client_secret": "secret_123"
+        });
+
+        convert_custom_message_keys_to_camel(&mut value);
+
+        assert!(value.get("preloadSDKWithParams").is_some());
+        assert!(value.get("preload_sdk_with_params").is_none());
+    }
+
+    #[test]
+    fn test_nested_keys_in_preload_sdk_with_params_are_converted() {
+        let mut value = json!({
+            "preload_sdk_with_params": {
+                "payment_methods_list": ["card", "wallet"],
+                "customer_methods_list": ["upi", "bank_transfer"],
+                "session_tokens": ["token1", "token2"],
+                "blocked_bins": ["411111", "555555"]
+            }
+        });
+
+        convert_custom_message_keys_to_camel(&mut value);
+
+        let preload = &value["preloadSDKWithParams"];
+        assert!(preload.get("paymentMethodsList").is_some());
+        assert!(preload.get("payment_methods_list").is_none());
+        assert!(preload.get("customerMethodsList").is_some());
+        assert!(preload.get("customer_methods_list").is_none());
+        assert!(preload.get("sessionTokens").is_some());
+        assert!(preload.get("session_tokens").is_none());
+        assert!(preload.get("blockedBins").is_some());
+        assert!(preload.get("blocked_bins").is_none());
+    }
+
+    #[test]
+    fn test_custom_message_for_payment_method_types_still_works() {
+        let mut value = json!({
+            "custom_message_for_payment_method_types": {
+                "card": {
+                    "message_for_customer": "Please enter your card details",
+                    "warning_message": "Test mode enabled"
+                }
+            }
+        });
+
+        convert_custom_message_keys_to_camel(&mut value);
+
+        let custom_msg = &value["custom_message_for_payment_method_types"]["card"];
+        assert!(custom_msg.get("messageForCustomer").is_some());
+        assert!(custom_msg.get("message_for_customer").is_none());
+        assert!(custom_msg.get("warningMessage").is_some());
+        assert!(custom_msg.get("warning_message").is_none());
+    }
+
+    #[test]
+    fn test_all_conversions_together() {
+        let mut value = json!({
+            "test_mode": false,
+            "preload_sdk_with_params": {
+                "payment_methods_list": ["card"]
+            },
+            "custom_message_for_payment_method_types": {
+                "wallet": {
+                    "warning_message": "Use wallet"
+                }
+            },
+            "client_secret": "secret_xyz"
+        });
+
+        convert_custom_message_keys_to_camel(&mut value);
+
+        // Check test_mode -> testMode
+        assert!(value.get("testMode").is_some());
+        assert!(value.get("test_mode").is_none());
+        assert_eq!(value["testMode"], json!(false));
+
+        // Check preload_sdk_with_params -> preloadSDKWithParams
+        assert!(value.get("preloadSDKWithParams").is_some());
+        assert!(value.get("preload_sdk_with_params").is_none());
+
+        // Check nested key in preload
+        assert!(value["preloadSDKWithParams"]
+            .get("paymentMethodsList")
+            .is_some());
+
+        // Check custom_message_for_payment_method_types nested keys
+        let wallet_msg = &value["custom_message_for_payment_method_types"]["wallet"];
+        assert!(wallet_msg.get("warningMessage").is_some());
+        assert!(wallet_msg.get("warning_message").is_none());
+
+        // Check other fields remain unchanged
+        assert!(value.get("client_secret").is_some());
+    }
 }

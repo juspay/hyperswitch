@@ -15,6 +15,8 @@ function initializeSDK() {
   var sdkUiRules = paymentDetails.sdk_ui_rules;
   var labelType = paymentDetails.payment_form_label_type;
   var colorIconCardCvcError = paymentDetails.color_icon_card_cvc_error;
+  var testMode = paymentDetails.test_mode;
+  var preloadSDKWithParams = paymentDetails.preload_sdk_with_params;
   var appearance = {
     variables: {
       colorPrimary: paymentDetails.theme || "rgb(0, 109, 249)",
@@ -37,9 +39,17 @@ function initializeSDK() {
   if (colorIconCardCvcError !== null && typeof colorIconCardCvcError === "string") {
     appearance.variables.colorIconCardCvcError = colorIconCardCvcError;
   }
+
+  var isPreloadEnabled = false;
+  if (testMode === true) {
+    isPreloadEnabled = true;
+  } else if (preloadSDKWithParams != null && typeof preloadSDKWithParams === 'object') {
+    isPreloadEnabled = true;
+  }
+
   // @ts-ignore
   hyper = window.Hyper(pub_key, {
-    isPreloadEnabled: false,
+    isPreloadEnabled: isPreloadEnabled,
     // TODO: Remove in next deployment
     shouldUseTopRedirection: true,
     redirectionFlags: {
@@ -47,12 +57,21 @@ function initializeSDK() {
       shouldUseTopRedirection: true,
     },
   });
-  // @ts-ignore
-  widgets = hyper.widgets({
+
+  // ES5 compatible widget options object
+  var widgetOptions = {
     appearance: appearance,
     clientSecret: clientSecret,
-    locale: paymentDetails.locale,
-  });
+    locale: paymentDetails.locale
+  };
+
+  if (preloadSDKWithParams != null && typeof preloadSDKWithParams === 'object') {
+  // @ts-ignore
+    widgetOptions.preloadSDKWithParams = preloadSDKWithParams;
+  }
+
+  // @ts-ignore
+  widgets = hyper.widgets(widgetOptions);
   var type =
     paymentDetails.sdk_layout === "spaced_accordion" ||
       paymentDetails.sdk_layout === "accordion"
