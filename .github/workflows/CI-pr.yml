@@ -145,9 +145,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner:
-          - ubuntu-latest
-          - hyperswitch-runners
+        - runner: ubuntu-latest
+          cargo_jobs: 3
+        - runner: hyperswitch-runners
+          cargo_jobs: 6
 
     steps:
       - name: Generate a token
@@ -201,7 +202,7 @@ jobs:
       - name: Run clippy
         shell: bash
         env:
-          CARGO_BUILD_JOBS: 3
+          CARGO_BUILD_JOBS: ${{ matrix.cargo_jobs }}
         run: just clippy
 
       - name: Check Cargo.lock changed
