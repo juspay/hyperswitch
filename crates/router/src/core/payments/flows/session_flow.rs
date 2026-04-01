@@ -142,6 +142,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
             self,
             creds_identifier,
             gateway_context,
+            None,
         ))
         .await
     }

@@ -130,6 +130,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             self,
             creds_identifier,
             gateway_context,
+            None,
         ))
         .await
     }
@@ -143,9 +144,14 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
     where
         Self: Sized,
     {
-        self.session_token =
-            session_token::add_session_token_if_needed(self, state, connector, gateway_context)
-                .await?;
+        self.session_token = session_token::add_session_token_if_needed(
+            self,
+            state,
+            connector,
+            gateway_context,
+            None,
+        )
+        .await?;
         Ok(())
     }
 
