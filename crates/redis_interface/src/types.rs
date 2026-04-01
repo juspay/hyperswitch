@@ -86,6 +86,22 @@ pub struct RedisSettings {
 }
 
 impl RedisSettings {
+    pub fn get_fred_command_timeout_duration(&self) -> std::time::Duration {
+        match self.timeout_strategy {
+            TimeoutStrategy::Library => {
+                std::time::Duration::from_secs(self.default_command_timeout)
+            }
+            TimeoutStrategy::Application => std::time::Duration::from_secs(0),
+        }
+    }
+    pub fn get_application_command_timeout_duration(&self) -> Option<std::time::Duration> {
+        match self.timeout_strategy {
+            TimeoutStrategy::Application => {
+                Some(std::time::Duration::from_secs(self.default_command_timeout))
+            }
+            TimeoutStrategy::Library => None,
+        }
+    }
     /// Validates the Redis configuration provided.
     pub fn validate(&self) -> CustomResult<(), errors::RedisError> {
         use common_utils::{ext_traits::ConfigExt, fp_utils::when};
