@@ -1,6 +1,7 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
+import reportErrors from "../../../utils/reportErrors";
 
 let globalState;
 
@@ -21,9 +22,10 @@ describe("Crypto Payment", () => {
 
   context("Crypto Currency Payment flow", () => {
     it("Create Payment Intent -> Payment Methods Call Test -> Confirm Crypto Currency Payment -> Handle redirection -> Retrieve Payment Call Test", () => {
+      const errorStack = [];
       let shouldContinue = true;
 
-      cy.step("Create Payment Intent", () => {
+      cy.step("Create Payment Intent", errorStack, () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "crypto_pm"
         ]["PaymentIntent"];
@@ -41,7 +43,7 @@ describe("Crypto Payment", () => {
         }
       });
 
-      cy.step("Payment Methods Call Test", () => {
+      cy.step("Payment Methods Call Test", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Payment Methods Call Test");
           return;
@@ -49,7 +51,7 @@ describe("Crypto Payment", () => {
         cy.paymentMethodsCallTest(globalState);
       });
 
-      cy.step("Confirm Crypto Currency Payment", () => {
+      cy.step("Confirm Crypto Currency Payment", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Confirm Crypto Currency Payment");
           return;
@@ -65,7 +67,7 @@ describe("Crypto Payment", () => {
         }
       });
 
-      cy.step("Handle redirection", () => {
+      cy.step("Handle redirection", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Handle redirection");
           return;
@@ -79,21 +81,28 @@ describe("Crypto Payment", () => {
         );
       });
 
-      cy.step("Retrieve Payment Call Test", () => {
+      cy.step("Retrieve Payment Call Test", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Retrieve Payment Call Test");
           return;
         }
         cy.retrievePaymentCallTest({ globalState });
       });
+
+      cy.then(() => {
+        if (errorStack.length > 0) {
+          reportErrors(errorStack);
+        }
+      });
     });
   });
 
   context("Crypto Currency manual capture flow", () => {
     it("Create Payment Intent -> Payment Methods Call Test -> Confirm Crypto Currency Payment -> Handle redirection -> Retrieve Payment Call Test", () => {
+      const errorStack = [];
       let shouldContinue = true;
 
-      cy.step("Create Payment Intent", () => {
+      cy.step("Create Payment Intent", errorStack, () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "crypto_pm"
         ]["PaymentIntent"];
@@ -111,7 +120,7 @@ describe("Crypto Payment", () => {
         }
       });
 
-      cy.step("Payment Methods Call Test", () => {
+      cy.step("Payment Methods Call Test", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Payment Methods Call Test");
           return;
@@ -119,7 +128,7 @@ describe("Crypto Payment", () => {
         cy.paymentMethodsCallTest(globalState);
       });
 
-      cy.step("Confirm Crypto Currency Payment", () => {
+      cy.step("Confirm Crypto Currency Payment", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Confirm Crypto Currency Payment");
           return;
@@ -135,7 +144,7 @@ describe("Crypto Payment", () => {
         }
       });
 
-      cy.step("Handle redirection", () => {
+      cy.step("Handle redirection", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Handle redirection");
           return;
@@ -149,12 +158,18 @@ describe("Crypto Payment", () => {
         );
       });
 
-      cy.step("Retrieve Payment Call Test", () => {
+      cy.step("Retrieve Payment Call Test", errorStack, () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Retrieve Payment Call Test");
           return;
         }
         cy.retrievePaymentCallTest({ globalState });
+      });
+
+      cy.then(() => {
+        if (errorStack.length > 0) {
+          reportErrors(errorStack);
+        }
       });
     });
   });

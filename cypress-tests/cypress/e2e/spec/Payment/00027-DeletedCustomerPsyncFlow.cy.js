@@ -1,6 +1,7 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
+import reportErrors from "../../../utils/reportErrors";
 
 let globalState;
 
@@ -18,13 +19,14 @@ describe("Card - Customer Deletion and Psync", () => {
   context("Card - Psync after Customer Deletion for Automatic Capture", () => {
     context("No3DS Card - Psync after Customer Deletion  ", () => {
       it("Create Customer -> Create Payment Intent -> Confirm Payment -> Retrieve Payment -> Delete Customer -> Retrieve Payment", () => {
+        const errorStack = [];
         let shouldContinue = true;
 
-        cy.step("Create Customer", () => {
+        cy.step("Create Customer", errorStack, () => {
           cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
         });
 
-        cy.step("Create Payment Intent", () => {
+        cy.step("Create Payment Intent", errorStack, () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["PaymentIntent"];
@@ -42,7 +44,7 @@ describe("Card - Customer Deletion and Psync", () => {
           }
         });
 
-        cy.step("Confirm Payment", () => {
+        cy.step("Confirm Payment", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Confirm Payment");
             return;
@@ -58,7 +60,7 @@ describe("Card - Customer Deletion and Psync", () => {
           }
         });
 
-        cy.step("Retrieve Payment", () => {
+        cy.step("Retrieve Payment", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Retrieve Payment");
             return;
@@ -74,7 +76,7 @@ describe("Card - Customer Deletion and Psync", () => {
           }
         });
 
-        cy.step("Delete Customer", () => {
+        cy.step("Delete Customer", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Delete Customer");
             return;
@@ -82,7 +84,7 @@ describe("Card - Customer Deletion and Psync", () => {
           cy.customerDeleteCall(globalState);
         });
 
-        cy.step("Retrieve Payment", () => {
+        cy.step("Retrieve Payment", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Retrieve Payment");
             return;
@@ -92,6 +94,12 @@ describe("Card - Customer Deletion and Psync", () => {
           ]["No3DSAutoCapture"];
 
           cy.retrievePaymentCallTest({ globalState, data });
+        });
+
+        cy.then(() => {
+          if (errorStack.length > 0) {
+            reportErrors(errorStack);
+          }
         });
       });
     });
@@ -108,13 +116,14 @@ describe("Card - Customer Deletion and Psync", () => {
       });
 
       it("Create Customer -> Create Payment Intent -> Confirm Payment -> Handle redirection -> Retrieve Payment -> Delete Customer -> Retrieve Payment", () => {
+        const errorStack = [];
         let shouldContinue = true;
 
-        cy.step("Create Customer", () => {
+        cy.step("Create Customer", errorStack, () => {
           cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
         });
 
-        cy.step("Create Payment Intent", () => {
+        cy.step("Create Payment Intent", errorStack, () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["PaymentIntent"];
@@ -132,7 +141,7 @@ describe("Card - Customer Deletion and Psync", () => {
           }
         });
 
-        cy.step("Confirm Payment", () => {
+        cy.step("Confirm Payment", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Confirm Payment");
             return;
@@ -148,7 +157,7 @@ describe("Card - Customer Deletion and Psync", () => {
           }
         });
 
-        cy.step("Handle redirection", () => {
+        cy.step("Handle redirection", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Handle redirection");
             return;
@@ -157,7 +166,7 @@ describe("Card - Customer Deletion and Psync", () => {
           cy.handleRedirection(globalState, expected_redirection);
         });
 
-        cy.step("Retrieve Payment", () => {
+        cy.step("Retrieve Payment", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Retrieve Payment");
             return;
@@ -173,7 +182,7 @@ describe("Card - Customer Deletion and Psync", () => {
           }
         });
 
-        cy.step("Delete Customer", () => {
+        cy.step("Delete Customer", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Delete Customer");
             return;
@@ -181,7 +190,7 @@ describe("Card - Customer Deletion and Psync", () => {
           cy.customerDeleteCall(globalState);
         });
 
-        cy.step("Retrieve Payment", () => {
+        cy.step("Retrieve Payment", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Retrieve Payment");
             return;
@@ -192,6 +201,12 @@ describe("Card - Customer Deletion and Psync", () => {
 
           cy.retrievePaymentCallTest({ globalState, data });
         });
+
+        cy.then(() => {
+          if (errorStack.length > 0) {
+            reportErrors(errorStack);
+          }
+        });
       });
     });
   });
@@ -199,13 +214,14 @@ describe("Card - Customer Deletion and Psync", () => {
   context("Card - Psync after Customer Deletion for Manual Capture", () => {
     context("No3DS Card - Psync after Customer Deletion  ", () => {
       it("Create Customer -> Create Payment Intent -> Confirm Payment -> Retrieve Payment -> Capture Payment -> Retrieve Payment -> Delete Customer -> Retrieve Payment", () => {
+        const errorStack = [];
         let shouldContinue = true;
 
-        cy.step("Create Customer", () => {
+        cy.step("Create Customer", errorStack, () => {
           cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
         });
 
-        cy.step("Create Payment Intent", () => {
+        cy.step("Create Payment Intent", errorStack, () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["PaymentIntent"];
@@ -223,7 +239,7 @@ describe("Card - Customer Deletion and Psync", () => {
           }
         });
 
-        cy.step("Confirm Payment", () => {
+        cy.step("Confirm Payment", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Confirm Payment");
             return;
@@ -239,7 +255,7 @@ describe("Card - Customer Deletion and Psync", () => {
           }
         });
 
-        cy.step("Retrieve Payment", () => {
+        cy.step("Retrieve Payment", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Retrieve Payment");
             return;
@@ -255,7 +271,7 @@ describe("Card - Customer Deletion and Psync", () => {
           }
         });
 
-        cy.step("Capture Payment", () => {
+        cy.step("Capture Payment", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Capture Payment");
             return;
@@ -271,7 +287,7 @@ describe("Card - Customer Deletion and Psync", () => {
           }
         });
 
-        cy.step("Retrieve Payment", () => {
+        cy.step("Retrieve Payment", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Retrieve Payment");
             return;
@@ -287,7 +303,7 @@ describe("Card - Customer Deletion and Psync", () => {
           }
         });
 
-        cy.step("Delete Customer", () => {
+        cy.step("Delete Customer", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Delete Customer");
             return;
@@ -295,7 +311,7 @@ describe("Card - Customer Deletion and Psync", () => {
           cy.customerDeleteCall(globalState);
         });
 
-        cy.step("Retrieve Payment", () => {
+        cy.step("Retrieve Payment", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Retrieve Payment");
             return;
@@ -305,6 +321,12 @@ describe("Card - Customer Deletion and Psync", () => {
           ]["No3DSManualCapture"];
 
           cy.retrievePaymentCallTest({ globalState, data });
+        });
+
+        cy.then(() => {
+          if (errorStack.length > 0) {
+            reportErrors(errorStack);
+          }
         });
       });
     });
@@ -321,13 +343,14 @@ describe("Card - Customer Deletion and Psync", () => {
       });
 
       it("Create Customer -> Create Payment Intent -> Confirm Payment -> Handle redirection -> Retrieve Payment -> Capture Payment -> Retrieve Payment -> Delete Customer -> Retrieve Payment", () => {
+        const errorStack = [];
         let shouldContinue = true;
 
-        cy.step("Create Customer", () => {
+        cy.step("Create Customer", errorStack, () => {
           cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
         });
 
-        cy.step("Create Payment Intent", () => {
+        cy.step("Create Payment Intent", errorStack, () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["PaymentIntent"];
@@ -345,7 +368,7 @@ describe("Card - Customer Deletion and Psync", () => {
           }
         });
 
-        cy.step("Confirm Payment", () => {
+        cy.step("Confirm Payment", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Confirm Payment");
             return;
@@ -361,7 +384,7 @@ describe("Card - Customer Deletion and Psync", () => {
           }
         });
 
-        cy.step("Handle redirection", () => {
+        cy.step("Handle redirection", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Handle redirection");
             return;
@@ -370,7 +393,7 @@ describe("Card - Customer Deletion and Psync", () => {
           cy.handleRedirection(globalState, expected_redirection);
         });
 
-        cy.step("Retrieve Payment", () => {
+        cy.step("Retrieve Payment", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Retrieve Payment");
             return;
@@ -386,7 +409,7 @@ describe("Card - Customer Deletion and Psync", () => {
           }
         });
 
-        cy.step("Capture Payment", () => {
+        cy.step("Capture Payment", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Capture Payment");
             return;
@@ -402,7 +425,7 @@ describe("Card - Customer Deletion and Psync", () => {
           }
         });
 
-        cy.step("Retrieve Payment", () => {
+        cy.step("Retrieve Payment", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Retrieve Payment");
             return;
@@ -418,7 +441,7 @@ describe("Card - Customer Deletion and Psync", () => {
           }
         });
 
-        cy.step("Delete Customer", () => {
+        cy.step("Delete Customer", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Delete Customer");
             return;
@@ -426,7 +449,7 @@ describe("Card - Customer Deletion and Psync", () => {
           cy.customerDeleteCall(globalState);
         });
 
-        cy.step("Retrieve Payment", () => {
+        cy.step("Retrieve Payment", errorStack, () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Retrieve Payment");
             return;
@@ -436,6 +459,12 @@ describe("Card - Customer Deletion and Psync", () => {
           ]["3DSManualCapture"];
 
           cy.retrievePaymentCallTest({ globalState, data });
+        });
+
+        cy.then(() => {
+          if (errorStack.length > 0) {
+            reportErrors(errorStack);
+          }
         });
       });
     });
