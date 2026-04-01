@@ -729,8 +729,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
     {
         if connector.connector.is_payment_trigger_flow_required(
             api_interface::CurrentFlowInfo::Authorize {
-                auth_type: &self.auth_type,
-                request_data: &self.request,
+                auth_type: self.auth_type,
+                request_data: Box::new(self.request.clone()),
             },
         ) {
             logger::info!(

@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, fmt::Write};
+use std::collections::BTreeMap;
 
 #[cfg(feature = "payouts")]
 use api_models::payouts::{Bank, PayoutMethodData};

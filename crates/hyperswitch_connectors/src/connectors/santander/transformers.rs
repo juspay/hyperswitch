@@ -14,13 +14,10 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankTransferData, BoletoVoucherData, PaymentMethodData, VoucherData},
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
-    router_flow_types::AuthorizeSessionToken,
-    router_flow_types::payments::PaymentTrigger,
-<<<<<<< HEAD
-    router_request_types::{AuthorizeSessionTokenData, PaymentsPreProcessingData, PaymentsUpdateMetadataData, ResponseId},
-=======
-    router_request_types::{PaymentTriggerData, PaymentsUpdateMetadataData, ResponseId},
->>>>>>> 8e8c5e55aa (fix: implemented payments trigger flow for santander)
+    router_flow_types::{payments::PaymentTrigger, AuthorizeSessionToken},
+    router_request_types::{
+        AuthorizeSessionTokenData, PaymentTriggerData, PaymentsUpdateMetadataData, ResponseId,
+    },
     router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsSyncRouterData,
@@ -47,31 +44,20 @@ use crate::{
             SantanderPixAutomaticCalendarRequest, SantanderPixAutomaticDestinationRequest,
             SantanderPixAutomaticSolicitationRequest, SantanderPixCancelRequest,
             SantanderPixDueDateCalendarRequest, SantanderPixImmediateCalendarRequest,
-<<<<<<< HEAD
-            SantanderPixQRPaymentRequest, SantanderPixRequestCalendar, SantanderProtestType,
-            SantanderRefundRequest, SantanderRouterData, SantanderValue, SantanderValueType, SantanderPixAutomaticCalendarRequest, 
-=======
             SantanderPixQRPaymentRequest, SantanderPixRequestCalendar,
             SantanderPostProcessingStepRequest, SantanderProtestType, SantanderRefundRequest,
             SantanderRouterData, SantanderValue, SantanderValueType,
->>>>>>> 8e8c5e55aa (fix: implemented payments trigger flow for santander)
         },
         responses::{
-            Beneficiary, Key, NsuComposite, Payer, SanatanderAccessTokenResponse,
+            Beneficiary, Key, NsuComposite, Payer, RecurrenceStatus, SanatanderAccessTokenResponse,
             SanatanderTokenResponse, SantanderAdditionalInfo, SantanderBoletoDocumentKind,
-<<<<<<< HEAD
             SantanderBoletoPaymentType, SantanderBoletoStatus,
-            SantanderCreatePixPayloadLocationResponse, SantanderDocumentKind,
-            SantanderPaymentStatus, SantanderPaymentsResponse, SantanderPaymentsSyncResponse,
-            SantanderPixKeyType, SantanderPixQRCodePaymentsResponse,
-=======
-            SantanderBoletoPaymentType, SantanderBoletoStatus, SantanderDocumentKind,
+            SantanderCreatePixPayloadLocationResponse, SantanderDocumentKind, SantanderJourneyType,
             SantanderPaymentStatus, SantanderPaymentTriggerResponse, SantanderPaymentsResponse,
             SantanderPaymentsSyncResponse, SantanderPixKeyType, SantanderPixQRCodePaymentsResponse,
->>>>>>> 8e8c5e55aa (fix: implemented payments trigger flow for santander)
             SantanderPixQRCodeSyncResponse, SantanderRefundResponse, SantanderRefundStatus,
             SantanderUpdateMetadataResponse, SantanderVoidResponse, SantanderVoidStatus,
-            WaitScreenData, RecurrenceStatus,
+            WaitScreenData,
         },
     },
     types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
@@ -173,7 +159,8 @@ impl TryFrom<&SantanderRouterData<&PaymentsTriggerRouterData>>
             }
         };
 
-        let expiry_time_seconds = item.router_data.
+        let expiry_time_seconds = item
+            .router_data
             .request
             .feature_metadata
             .as_ref()
@@ -274,7 +261,7 @@ impl
 
                 let status = response
                     .status
-                    .map(|status| AttemptStatus::from(status))
+                    .map(AttemptStatus::from)
                     .unwrap_or(AttemptStatus::Pending);
 
                 (
@@ -312,7 +299,7 @@ impl
                     None => None,
                 };
 
-                let status = RecurrenceStatus::from(response.status);
+                let status = AttemptStatus::from(response.status);
 
                 (
                     status,

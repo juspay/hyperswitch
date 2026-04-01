@@ -470,11 +470,11 @@ pub trait ConnectorSpecifications {
         false
     }
     /// Check if settlement split flow is required
-    fn is_settlement_split_call_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
+    fn is_settlement_split_call_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
     }
     /// Check if payment trigger flow is required
-    fn is_payment_trigger_flow_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
+    fn is_payment_trigger_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
     }
     /// Preprocessing flow name if any, that must be made before the current flow.

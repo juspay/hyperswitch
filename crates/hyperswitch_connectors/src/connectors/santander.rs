@@ -24,9 +24,10 @@ use hyperswitch_domain_models::{
         AuthorizeSessionToken, UpdateMetadata,
     },
     router_request_types::{
-        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        PaymentsUpdateMetadataData, RefundsData, SetupMandateRequestData, AuthorizeSessionTokenData, CurrentFlowInfo, ResponseId, PaymentTriggerData,
+        AccessTokenRequestData, AuthorizeSessionTokenData, PaymentMethodTokenizationData,
+        PaymentTriggerData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        PaymentsSessionData, PaymentsSyncData, PaymentsUpdateMetadataData, RefundsData, ResponseId,
+        SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
@@ -35,7 +36,8 @@ use hyperswitch_domain_models::{
     types::{
         PaymentsAuthorizeRouterData, PaymentsAuthorizeSessionTokenRouterData,
         PaymentsCancelRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        PaymentsUpdateMetadataRouterData, RefundSyncRouterData, RefundsRouterData, PaymentsPreProcessingRouterData, PaymentsTriggerRouterData,
+        PaymentsTriggerRouterData, PaymentsUpdateMetadataRouterData, RefundSyncRouterData,
+        RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -62,8 +64,7 @@ use crate::{
         responses::{
             SanatanderAccessTokenResponse, SantanderCreatePixPayloadLocationResponse,
             SantanderErrorResponse, SantanderGenericErrorResponse, SantanderPaymentTriggerResponse,
-            SantanderPaymentsResponse,
-            SantanderPaymentsSyncResponse, SantanderRefundResponse,
+            SantanderPaymentsResponse, SantanderPaymentsSyncResponse, SantanderRefundResponse,
             SantanderUpdateMetadataResponse, SantanderVoidResponse,
         },
     },
@@ -1833,7 +1834,7 @@ impl ConnectorSpecifications for Santander {
             | None => false,
         }
     }
-    fn is_payment_trigger_flow_required(&self, current_flow: CurrentFlowInfo<'_>) -> bool {
+    fn is_payment_trigger_flow_required(&self, current_flow: CurrentFlowInfo) -> bool {
         match current_flow {
             CurrentFlowInfo::SetupMandate { .. } => true,
             CurrentFlowInfo::Authorize { .. } | CurrentFlowInfo::CompleteAuthorize { .. } => false,
