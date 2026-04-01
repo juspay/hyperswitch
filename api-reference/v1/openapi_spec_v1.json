@@ -14566,7 +14566,7 @@
           "corporatepurchasing",
           "corporaterevolving",
           "corporatet",
-          "corporatet_and_e",
+          "corporate_t_and_e",
           "corporation",
           "credit",
           "ctslandcard",
@@ -14604,7 +14604,6 @@
           "globalpayment",
           "gmcard",
           "gold",
-          "gold_and_platinum",
           "gold_personal",
           "gold_platinum",
           "gold_prem",
@@ -14616,7 +14615,7 @@
           "governmentservicesloan",
           "green",
           "gsacard",
-          "gsacorporatet_and_e",
+          "gsacorporate_t_and_e",
           "gsapurchasing",
           "hsanon_substantiated",
           "icard",
@@ -18500,6 +18499,321 @@
             }
           }
         ]
+      },
+      "EligibilityCard": {
+        "type": "object",
+        "description": "Card data for eligibility check — only card_number is required, no CVV needed",
+        "required": [
+          "card_number"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "description": "The card number",
+            "example": "4242424242424242"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "24",
+            "nullable": true
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "24",
+            "nullable": true
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "The card's CVC/CVV",
+            "example": "123",
+            "nullable": true
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test",
+            "nullable": true
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "The name of the issuer of card",
+            "example": "chase",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "example": "CREDIT",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "card_issuing_country_code": {
+            "type": "string",
+            "example": "IN",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "example": "JP_AMEX",
+            "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "The card holder's nick name",
+            "example": "John Test",
+            "nullable": true
+          }
+        }
+      },
+      "EligibilityPaymentMethodData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "title": "EligibilityCard",
+            "required": [
+              "card"
+            ],
+            "properties": {
+              "card": {
+                "$ref": "#/components/schemas/EligibilityCard"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "CardRedirect",
+            "required": [
+              "card_redirect"
+            ],
+            "properties": {
+              "card_redirect": {
+                "$ref": "#/components/schemas/CardRedirectData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "Wallet",
+            "required": [
+              "wallet"
+            ],
+            "properties": {
+              "wallet": {
+                "$ref": "#/components/schemas/WalletData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "PayLater",
+            "required": [
+              "pay_later"
+            ],
+            "properties": {
+              "pay_later": {
+                "$ref": "#/components/schemas/PayLaterData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "BankRedirect",
+            "required": [
+              "bank_redirect"
+            ],
+            "properties": {
+              "bank_redirect": {
+                "$ref": "#/components/schemas/BankRedirectData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "BankDebit",
+            "required": [
+              "bank_debit"
+            ],
+            "properties": {
+              "bank_debit": {
+                "$ref": "#/components/schemas/BankDebitData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "BankTransfer",
+            "required": [
+              "bank_transfer"
+            ],
+            "properties": {
+              "bank_transfer": {
+                "$ref": "#/components/schemas/BankTransferData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "RealTimePayment",
+            "required": [
+              "real_time_payment"
+            ],
+            "properties": {
+              "real_time_payment": {
+                "$ref": "#/components/schemas/RealTimePaymentData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "Crypto",
+            "required": [
+              "crypto"
+            ],
+            "properties": {
+              "crypto": {
+                "$ref": "#/components/schemas/CryptoData"
+              }
+            }
+          },
+          {
+            "type": "string",
+            "title": "MandatePayment",
+            "enum": [
+              "mandate_payment"
+            ]
+          },
+          {
+            "type": "string",
+            "title": "Reward",
+            "enum": [
+              "reward"
+            ]
+          },
+          {
+            "type": "object",
+            "title": "Upi",
+            "required": [
+              "upi"
+            ],
+            "properties": {
+              "upi": {
+                "$ref": "#/components/schemas/UpiData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "Voucher",
+            "required": [
+              "voucher"
+            ],
+            "properties": {
+              "voucher": {
+                "$ref": "#/components/schemas/VoucherData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "GiftCard",
+            "required": [
+              "gift_card"
+            ],
+            "properties": {
+              "gift_card": {
+                "$ref": "#/components/schemas/GiftCardData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "CardToken",
+            "required": [
+              "card_token"
+            ],
+            "properties": {
+              "card_token": {
+                "$ref": "#/components/schemas/CardToken"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "OpenBanking",
+            "required": [
+              "open_banking"
+            ],
+            "properties": {
+              "open_banking": {
+                "$ref": "#/components/schemas/OpenBankingData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "MobilePayment",
+            "required": [
+              "mobile_payment"
+            ],
+            "properties": {
+              "mobile_payment": {
+                "$ref": "#/components/schemas/MobilePaymentData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "NetworkToken",
+            "required": [
+              "network_token"
+            ],
+            "properties": {
+              "network_token": {
+                "$ref": "#/components/schemas/NetworkTokenData"
+              }
+            }
+          }
+        ],
+        "description": "Payment method data for eligibility check"
+      },
+      "EligibilityPaymentMethodDataRequest": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EligibilityPaymentMethodData"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object",
+            "properties": {
+              "billing": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/Address"
+                  }
+                ],
+                "nullable": true
+              }
+            }
+          }
+        ],
+        "description": "Payment method data request for eligibility check"
       },
       "EligibilityResponseParams": {
         "oneOf": [
@@ -29693,7 +30007,7 @@
             "nullable": true
           },
           "payment_method_data": {
-            "$ref": "#/components/schemas/PaymentMethodDataRequest"
+            "$ref": "#/components/schemas/EligibilityPaymentMethodDataRequest"
           },
           "browser_info": {
             "allOf": [
