@@ -308,6 +308,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::PaymentMethodUpdateData,
         api_models::payment_methods::CardDetailFromLocker,
         api_models::payment_methods::PaymentMethodCreateData,
+        api_models::payment_methods::BankDebitDetail,
         api_models::payment_methods::ProxyCardDetails,
         api_models::payment_methods::CardDetail,
         api_models::payment_methods::CardDetailUpdate,

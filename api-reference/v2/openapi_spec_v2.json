@@ -7352,6 +7352,53 @@
           }
         ]
       },
+      "BankDebitDetail": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "ach"
+            ],
+            "properties": {
+              "ach": {
+                "type": "object",
+                "required": [
+                  "account_number",
+                  "routing_number"
+                ],
+                "properties": {
+                  "account_number": {
+                    "type": "string"
+                  },
+                  "routing_number": {
+                    "type": "string"
+                  },
+                  "bank_account_holder_name": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "bank_type": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankType"
+                      }
+                    ],
+                    "nullable": true
+                  },
+                  "bank_holder_type": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankHolderType"
+                      }
+                    ],
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
       "BankDebitResponse": {
         "allOf": [
           {
@@ -20890,6 +20937,17 @@
                 "$ref": "#/components/schemas/ProxyCardDetails"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_debit"
+            ],
+            "properties": {
+              "bank_debit": {
+                "$ref": "#/components/schemas/BankDebitDetail"
+              }
+            }
           }
         ]
       },
@@ -21675,6 +21733,17 @@
             "properties": {
               "card": {
                 "$ref": "#/components/schemas/CardDetailFromLocker"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_debit"
+            ],
+            "properties": {
+              "bank_debit": {
+                "$ref": "#/components/schemas/BankDebitDetailsPaymentMethod"
               }
             }
           }
@@ -26776,6 +26845,17 @@
             "properties": {
               "card_with_n_t": {
                 "$ref": "#/components/schemas/RawCardWithNTDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_debit"
+            ],
+            "properties": {
+              "bank_debit": {
+                "$ref": "#/components/schemas/BankDebitDetail"
               }
             }
           }
