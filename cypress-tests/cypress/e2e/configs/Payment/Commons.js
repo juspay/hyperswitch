@@ -2348,4 +2348,36 @@ export const connectorDetails = {
       },
     },
   }),
+  modular_pm: {
+    PaymentMethodCreate: getCustomExchange({
+      Request: {
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        payment_method_subtype: "debit",
+      },
+    }),
+    PaymentsWithPmId: getCustomExchange({
+      Request: {
+        currency: "USD",
+        payment_method: "card",
+      },
+    }),
+    PaymentsWithPmToken: getCustomExchange({
+      Request: {
+        currency: "USD",
+        payment_method: "card",
+      },
+    }),
+    PaymentMethodSessionCreate: getCustomExchange({
+      Request: {
+        currency: "USD",
+      },
+    }),
+    PaymentMethodSessionConfirm: getCustomExchange({
+      Request: {
+        payment_method: "card",
+      },
+    }),
+  },
 };

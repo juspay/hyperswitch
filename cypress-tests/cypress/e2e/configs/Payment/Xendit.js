@@ -588,4 +588,72 @@ export const connectorDetails = {
       },
     },
   },
+  modular_pm: {
+    PaymentMethodCreate: {
+      Request: {
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        payment_method_subtype: "credit",
+      },
+      Response: {
+        status: 200,
+        body: {
+          payment_method: "card",
+          payment_method_subtype: "credit",
+          status: "active",
+        },
+      },
+    },
+    PaymentsWithPmId: {
+      Request: {
+        currency: "IDR",
+        payment_method: "card",
+        billing: billingDetails,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 200,
+        },
+      },
+    },
+    PaymentsWithPmToken: {
+      Request: {
+        currency: "IDR",
+        payment_method: "card",
+        billing: billingDetails,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 200,
+        },
+      },
+    },
+    PaymentMethodSessionCreate: {
+      Request: {
+        currency: "IDR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "created",
+        },
+      },
+    },
+    PaymentMethodSessionConfirm: {
+      Request: {
+        payment_method: "card",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+  },
 };

@@ -839,4 +839,70 @@ export const connectorDetails = {
     // Mollie webhook handler uses serde_qs (form-encoded), not JSON
     contentType: "application/x-www-form-urlencoded",
   },
+  modular_pm: {
+    PaymentMethodCreate: {
+      Request: {
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        payment_method_subtype: "debit",
+      },
+      Response: {
+        status: 200,
+        body: {
+          payment_method: "card",
+          payment_method_subtype: "debit",
+          status: "active",
+        },
+      },
+    },
+    PaymentsWithPmId: {
+      Request: {
+        currency: "USD",
+        payment_method: "card",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 200,
+        },
+      },
+    },
+    PaymentsWithPmToken: {
+      Request: {
+        currency: "USD",
+        payment_method: "card",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 200,
+        },
+      },
+    },
+    PaymentMethodSessionCreate: {
+      Request: {
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "created",
+        },
+      },
+    },
+    PaymentMethodSessionConfirm: {
+      Request: {
+        payment_method: "card",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+  },
 };
