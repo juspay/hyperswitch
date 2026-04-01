@@ -77,15 +77,7 @@ pub struct Dimensions<Pm, M, O, P, Cn> {
     _phantom: PhantomData<(Pm, M, O, P, Cn)>,
 }
 
-impl
-    Dimensions<
-        NoPlatformMerchantId,
-        NoProcessorMerchantId,
-        NoOrgId,
-        NoProfileId,
-        NoConnector,
-    >
-{
+impl Dimensions<NoPlatformMerchantId, NoProcessorMerchantId, NoOrgId, NoProfileId, NoConnector> {
     pub fn new() -> Self {
         Self {
             platform_merchant_id: None,
@@ -168,10 +160,7 @@ impl<Pm, M, O, Cn> Dimensions<Pm, M, O, NoProfileId, Cn> {
 
 /// Can only add connector if not already present
 impl<Pm, M, O, P> Dimensions<Pm, M, O, P, NoConnector> {
-    pub fn with_connector(
-        &self,
-        connector: Connector,
-    ) -> Dimensions<Pm, M, O, P, HasConnector> {
+    pub fn with_connector(&self, connector: Connector) -> Dimensions<Pm, M, O, P, HasConnector> {
         Dimensions {
             platform_merchant_id: self.platform_merchant_id.clone(),
             processor_merchant_id: self.processor_merchant_id.clone(),
@@ -185,9 +174,7 @@ impl<Pm, M, O, P> Dimensions<Pm, M, O, P, NoConnector> {
 
 /// Can only remove platform_merchant_id if currently present
 impl<M, O, P, Cn> Dimensions<HasPlatformMerchantId, M, O, P, Cn> {
-    pub fn without_platform_merchant_id(
-        &self,
-    ) -> Dimensions<NoPlatformMerchantId, M, O, P, Cn> {
+    pub fn without_platform_merchant_id(&self) -> Dimensions<NoPlatformMerchantId, M, O, P, Cn> {
         Dimensions {
             platform_merchant_id: None,
             processor_merchant_id: self.processor_merchant_id.clone(),
@@ -201,9 +188,7 @@ impl<M, O, P, Cn> Dimensions<HasPlatformMerchantId, M, O, P, Cn> {
 
 /// Can only remove processor_merchant_id if currently present
 impl<Pm, O, P, Cn> Dimensions<Pm, HasProcessorMerchantId, O, P, Cn> {
-    pub fn without_processor_merchant_id(
-        &self,
-    ) -> Dimensions<Pm, NoProcessorMerchantId, O, P, Cn> {
+    pub fn without_processor_merchant_id(&self) -> Dimensions<Pm, NoProcessorMerchantId, O, P, Cn> {
         Dimensions {
             platform_merchant_id: self.platform_merchant_id.clone(),
             processor_merchant_id: None,
@@ -354,13 +339,7 @@ impl<Pm, M, O, P, Cn> Dimensions<Pm, M, O, P, Cn> {
 }
 
 impl Default
-    for Dimensions<
-        NoPlatformMerchantId,
-        NoProcessorMerchantId,
-        NoOrgId,
-        NoProfileId,
-        NoConnector,
-    >
+    for Dimensions<NoPlatformMerchantId, NoProcessorMerchantId, NoOrgId, NoProfileId, NoConnector>
 {
     fn default() -> Self {
         Self::new()
@@ -415,45 +394,15 @@ impl<Pm, M, O, P, Cn> DimensionsBase for Dimensions<Pm, M, O, P, Cn> {
 }
 
 // Type aliases - both platform and processor merchant IDs present
-pub type DimensionsWithProcessorAndPlatformMerchantId = Dimensions<
-    HasPlatformMerchantId,
-    HasProcessorMerchantId,
-    NoOrgId,
-    NoProfileId,
-    NoConnector,
->;
-pub type DimensionsWithProcessorAndPlatformMerchantIdAndProfileId = Dimensions<
-    HasPlatformMerchantId,
-    HasProcessorMerchantId,
-    NoOrgId,
-    HasProfileId,
-    NoConnector,
->;
-pub type DimensionsWithProcessorAndPlatformMerchantIdAndConnector = Dimensions<
-    HasPlatformMerchantId,
-    HasProcessorMerchantId,
-    NoOrgId,
-    NoProfileId,
-    HasConnector,
->;
-pub type DimensionsWithProcessorAndPlatformMerchantIdAndProfileIdAndConnector = Dimensions<
-    HasPlatformMerchantId,
-    HasProcessorMerchantId,
-    NoOrgId,
-    HasProfileId,
-    HasConnector,
->;
-pub type DimensionsWithProcessorAndPlatformMerchantIdAndOrgId = Dimensions<
-    HasPlatformMerchantId,
-    HasProcessorMerchantId,
-    HasOrgId,
-    NoProfileId,
-    NoConnector,
->;
-pub type DimensionsWithProcessorAndPlatformMerchantIdAndOrgIdAndProfileId = Dimensions<
-    HasPlatformMerchantId,
-    HasProcessorMerchantId,
-    HasOrgId,
-    HasProfileId,
-    NoConnector,
->;
+pub type DimensionsWithProcessorAndPlatformMerchantId =
+    Dimensions<HasPlatformMerchantId, HasProcessorMerchantId, NoOrgId, NoProfileId, NoConnector>;
+pub type DimensionsWithProcessorAndPlatformMerchantIdAndProfileId =
+    Dimensions<HasPlatformMerchantId, HasProcessorMerchantId, NoOrgId, HasProfileId, NoConnector>;
+pub type DimensionsWithProcessorAndPlatformMerchantIdAndConnector =
+    Dimensions<HasPlatformMerchantId, HasProcessorMerchantId, NoOrgId, NoProfileId, HasConnector>;
+pub type DimensionsWithProcessorAndPlatformMerchantIdAndProfileIdAndConnector =
+    Dimensions<HasPlatformMerchantId, HasProcessorMerchantId, NoOrgId, HasProfileId, HasConnector>;
+pub type DimensionsWithProcessorAndPlatformMerchantIdAndOrgId =
+    Dimensions<HasPlatformMerchantId, HasProcessorMerchantId, HasOrgId, NoProfileId, NoConnector>;
+pub type DimensionsWithProcessorAndPlatformMerchantIdAndOrgIdAndProfileId =
+    Dimensions<HasPlatformMerchantId, HasProcessorMerchantId, HasOrgId, HasProfileId, NoConnector>;

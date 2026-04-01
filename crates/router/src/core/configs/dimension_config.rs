@@ -11,8 +11,7 @@ use super::{
 use crate::{
     consts::superposition as superposition_consts,
     core::configs::dimension_state::DimensionsWithProcessorAndPlatformMerchantIdAndConnector,
-    db::StorageInterface,
-    utils::id_type,
+    db::StorageInterface, utils::id_type,
 };
 
 /// Macro to generate config struct and superposition::Config trait implementation.

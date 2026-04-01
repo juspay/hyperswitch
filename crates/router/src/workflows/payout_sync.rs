@@ -13,7 +13,9 @@ use scheduler::{
 
 use crate::{
     core::{
-        configs::{self, dimension_state::DimensionsWithProcessorAndPlatformMerchantIdAndConnector},
+        configs::{
+            self, dimension_state::DimensionsWithProcessorAndPlatformMerchantIdAndConnector,
+        },
         payouts, webhooks,
     },
     errors as core_errors,
