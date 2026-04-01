@@ -200,6 +200,8 @@ jobs:
 
       - name: Run clippy
         shell: bash
+        env:
+          CARGO_BUILD_JOBS: 3
         run: just clippy
 
       - name: Check Cargo.lock changed
