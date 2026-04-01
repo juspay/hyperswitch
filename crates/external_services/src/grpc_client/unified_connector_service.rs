@@ -11,12 +11,7 @@ use tonic::{
     metadata::{MetadataMap, MetadataValue},
     transport::Uri,
 };
-use unified_connector_service_client::payments::{
-    self as payments_grpc, payment_service_client::PaymentServiceClient,
-    refund_service_client::RefundServiceClient, PaymentServiceAuthorizeResponse,
-    PaymentServiceRefundRequest, PaymentServiceTransformRequest, PaymentServiceTransformResponse,
-    RefundResponse, RefundServiceGetRequest,
-};
+use unified_connector_service_client::payments as payments_grpc;
 
 use crate::{
     consts,
@@ -29,10 +24,26 @@ pub type UnifiedConnectorServiceResult<T> = CustomResult<T, UnifiedConnectorServ
 /// Contains the  Unified Connector Service client
 #[derive(Debug, Clone)]
 pub struct UnifiedConnectorServiceClient {
-    /// The Unified Connector Service Client
-    pub client: PaymentServiceClient<tonic::transport::Channel>,
+    /// The Payment Service Client
+    pub payment_service_client: payments_grpc::payment_service_client::PaymentServiceClient<tonic::transport::Channel>,
     /// The Refund Service Client
-    pub refund_client: RefundServiceClient<tonic::transport::Channel>,
+    pub refund_service_client: payments_grpc::refund_service_client::RefundServiceClient<tonic::transport::Channel>,
+    /// The Event Service Client
+    pub event_service_client: payments_grpc::event_service_client::EventServiceClient<tonic::transport::Channel>,
+    /// The Recurring Payment Service Client
+    pub recurring_payment_service_client: payments_grpc::recurring_payment_service_client::RecurringPaymentServiceClient<tonic::transport::Channel>,
+    /// The Dispute Service Client
+    pub dispute_service_client: payments_grpc::dispute_service_client::DisputeServiceClient<tonic::transport::Channel>,
+    /// The Payment Method Service Client
+    pub payment_method_service_client: payments_grpc::payment_method_service_client::PaymentMethodServiceClient<tonic::transport::Channel>,
+    /// The Customer Service Client
+    pub customer_service_client: payments_grpc::customer_service_client::CustomerServiceClient<tonic::transport::Channel>,
+    /// The Merchant Authentication Service Client
+    pub merchant_authentication_service_client:
+        payments_grpc::merchant_authentication_service_client::MerchantAuthenticationServiceClient<tonic::transport::Channel>,
+    /// The Payment Method Authentication Service Client
+    pub payment_method_authentication_service_client:
+        payments_grpc::payment_method_authentication_service_client::PaymentMethodAuthenticationServiceClient<tonic::transport::Channel>,
 }
 
 /// Contains the Unified Connector Service Client config
@@ -80,6 +91,9 @@ pub struct ConnectorAuthMetadata {
 
     /// Id of the merchant.
     pub merchant_id: Secret<String>,
+
+    /// Connector-specific configuration (JSON serialized) for UCS.
+    pub connector_config: Option<Secret<String>>,
 }
 
 /// External Vault Proxy Related Metadata
@@ -88,6 +102,37 @@ pub struct ConnectorAuthMetadata {
 pub enum ExternalVaultProxyMetadata {
     /// VGS proxy data variant
     VgsMetadata(VgsMetadata),
+}
+
+/// Builds a gRPC client with timeout handling
+#[macro_export]
+macro_rules! build_grpc_client {
+    ($client:ty, $name:expr, $uri:expr, $timeout:expr) => {{
+        match timeout(
+            Duration::from_secs($timeout),
+            <$client>::connect($uri.clone()),
+        )
+        .await
+        {
+            Ok(Ok(client)) => client,
+            Ok(Err(err)) => {
+                router_env::logger::error!(
+                    "Failed to connect to Unified Connector Service for {}: {:?}",
+                    $name,
+                    err
+                );
+                return None;
+            }
+            Err(err) => {
+                router_env::logger::error!(
+                    "Connection to Unified Connector Service timed out for {}: {:?}",
+                    $name,
+                    err
+                );
+                return None;
+            }
+        }
+    }};
 }
 
 /// VGS proxy data
@@ -116,35 +161,98 @@ impl UnifiedConnectorServiceClient {
                     }
                 };
 
-                let payment_client_result = timeout(
-                    Duration::from_secs(unified_connector_service_client_config.connection_timeout),
-                    PaymentServiceClient::connect(uri.clone()),
-                )
-                .await;
+                let timeout = unified_connector_service_client_config.connection_timeout;
 
-                let refund_client_result = timeout(
-                    Duration::from_secs(unified_connector_service_client_config.connection_timeout),
-                    RefundServiceClient::connect(uri),
-                )
-                .await;
+                let payment_service_client = build_grpc_client!(
+                    payments_grpc::payment_service_client::PaymentServiceClient<
+                        tonic::transport::Channel,
+                    >,
+                    "payment_service_client",
+                    uri,
+                    timeout
+                );
 
-                match (payment_client_result, refund_client_result) {
-                    (Ok(Ok(client)), Ok(Ok(refund_client))) => {
-                        logger::info!("Successfully connected to Unified Connector Service");
-                        Some(Self {
-                            client,
-                            refund_client,
-                        })
-                    }
-                    (Ok(Err(err)), _) | (_, Ok(Err(err))) => {
-                        logger::error!(error = ?err, "Failed to connect to Unified Connector Service");
-                        None
-                    }
-                    (Err(err), _) | (_, Err(err)) => {
-                        logger::error!(error = ?err, "Connection to Unified Connector Service timed out");
-                        None
-                    }
-                }
+                let refund_service_client = build_grpc_client!(
+                    payments_grpc::refund_service_client::RefundServiceClient<
+                        tonic::transport::Channel,
+                    >,
+                    "refund_service_client",
+                    uri,
+                    timeout
+                );
+
+                let event_service_client = build_grpc_client!(
+                    payments_grpc::event_service_client::EventServiceClient<
+                        tonic::transport::Channel,
+                    >,
+                    "event_service_client",
+                    uri,
+                    timeout
+                );
+
+                let recurring_payment_service_client = build_grpc_client!(
+                    payments_grpc::recurring_payment_service_client::RecurringPaymentServiceClient<
+                        tonic::transport::Channel,
+                    >,
+                    "recurring_payment_service_client",
+                    uri,
+                    timeout
+                );
+
+                let dispute_service_client = build_grpc_client!(
+                    payments_grpc::dispute_service_client::DisputeServiceClient<
+                        tonic::transport::Channel,
+                    >,
+                    "dispute_service_client",
+                    uri,
+                    timeout
+                );
+
+                let payment_method_service_client = build_grpc_client!(
+                    payments_grpc::payment_method_service_client::PaymentMethodServiceClient<
+                        tonic::transport::Channel,
+                    >,
+                    "payment_method_service_client",
+                    uri,
+                    timeout
+                );
+
+                let customer_service_client = build_grpc_client!(
+                    payments_grpc::customer_service_client::CustomerServiceClient<
+                        tonic::transport::Channel,
+                    >,
+                    "customer_service_client",
+                    uri,
+                    timeout
+                );
+
+                let merchant_authentication_service_client = build_grpc_client!(
+                    payments_grpc::merchant_authentication_service_client::MerchantAuthenticationServiceClient<tonic::transport::Channel>,
+                    "merchant_authentication_service_client",
+                    uri,
+                    timeout
+                );
+
+                let payment_method_authentication_service_client = build_grpc_client!(
+                    payments_grpc::payment_method_authentication_service_client::PaymentMethodAuthenticationServiceClient<tonic::transport::Channel>,
+                    "payment_method_authentication_service_client",
+                    uri,
+                    timeout
+                );
+
+                logger::info!("Successfully connected to Unified Connector Service");
+
+                Some(Self {
+                    payment_service_client,
+                    refund_service_client,
+                    event_service_client,
+                    recurring_payment_service_client,
+                    dispute_service_client,
+                    payment_method_service_client,
+                    customer_service_client,
+                    merchant_authentication_service_client,
+                    payment_method_authentication_service_client,
+                })
             }
             None => {
                 router_env::logger::error!(?config.unified_connector_service, "Unified Connector Service config is missing");
@@ -153,155 +261,125 @@ impl UnifiedConnectorServiceClient {
         }
     }
 
-    /// Performs Payment Method Token Create
-    pub async fn payment_method_token_create(
+    /// Performs Payment Method Tokenize
+    pub async fn payment_method_tokenize(
         &self,
-        pm_token_create_request: payments_grpc::PaymentServiceCreatePaymentMethodTokenRequest,
+        payment_method_tokenize_request: payments_grpc::PaymentMethodServiceTokenizeRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
     ) -> UnifiedConnectorServiceResult<
-        tonic::Response<payments_grpc::PaymentServiceCreatePaymentMethodTokenResponse>,
+        tonic::Response<payments_grpc::PaymentMethodServiceTokenizeResponse>,
     > {
-        let mut request = tonic::Request::new(pm_token_create_request);
+        let mut request = tonic::Request::new(payment_method_tokenize_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
         let metadata =
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
         *request.metadata_mut() = metadata;
 
-        self.client
+        self.payment_method_service_client
             .clone()
-            .create_payment_method_token(request)
+            .tokenize(request)
             .await
-            .change_context(UnifiedConnectorServiceError::PaymentMethodTokenCreateFailure)
+            .change_context(UnifiedConnectorServiceError::PaymentMethodTokenizeFailure)
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
-                    method="create_payment_method_token",
+                    method="payment_method_tokenize",
                     connector_name=?connector_name,
-                    "UCS create_payment_method_token gRPC call failed"
+                    "UCS payment_method_tokenize gRPC call failed"
                 )
             })
     }
 
     /// Performs SDK Session Token Create
-    pub async fn sdk_session_token(
+    pub async fn create_sdk_session_token(
         &self,
-        sdk_session_token_request: payments_grpc::PaymentServiceSdkSessionTokenRequest,
+        create_sdk_session_token_request: payments_grpc::MerchantAuthenticationServiceCreateSdkSessionTokenRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
     ) -> UnifiedConnectorServiceResult<
-        tonic::Response<payments_grpc::PaymentServiceSdkSessionTokenResponse>,
+        tonic::Response<payments_grpc::MerchantAuthenticationServiceCreateSdkSessionTokenResponse>,
     > {
-        let mut request = tonic::Request::new(sdk_session_token_request);
+        let mut request = tonic::Request::new(create_sdk_session_token_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
         let metadata =
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
         *request.metadata_mut() = metadata;
 
-        self.client
+        self.merchant_authentication_service_client
             .clone()
-            .sdk_session_token(request)
+            .create_sdk_session_token(request)
             .await
-            .change_context(UnifiedConnectorServiceError::SdkSessionTokenFailure)
+            .change_context(UnifiedConnectorServiceError::CreateSdkSessionTokenFailure)
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
-                    method="sdk_session_token",
+                    method="create_sdk_session_token",
                     connector_name=?connector_name,
-                    "UCS sdk_session_token gRPC call failed"
+                    "UCS create_sdk_session_token gRPC call failed"
                 )
             })
     }
 
-    /// Performs Incremental Authorization
-    pub async fn incremental_authorization(
+    /// Performs Payment Incremental Authorization
+    pub async fn payment_incremental_authorization(
         &self,
-        sdk_session_token_request: payments_grpc::PaymentServiceIncrementalAuthorizationRequest,
+        payment_incremental_authorization_request: payments_grpc::PaymentServiceIncrementalAuthorizationRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
     ) -> UnifiedConnectorServiceResult<
         tonic::Response<payments_grpc::PaymentServiceIncrementalAuthorizationResponse>,
     > {
-        let mut request = tonic::Request::new(sdk_session_token_request);
+        let mut request = tonic::Request::new(payment_incremental_authorization_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
         let metadata =
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
         *request.metadata_mut() = metadata;
 
-        self.client
+        self.payment_service_client
             .clone()
             .incremental_authorization(request)
             .await
-            .change_context(UnifiedConnectorServiceError::IncrementalAuthorizationFailure)
+            .change_context(UnifiedConnectorServiceError::PaymentIncrementalAuthorizationFailure)
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
-                    method="incremental_authorization",
+                    method="payment_incremental_authorization",
                     connector_name=?connector_name,
-                    "UCS incremental_authorization gRPC call failed"
+                    "UCS payment_incremental_authorization gRPC call failed"
                 )
             })
     }
 
-    /// Performs Payment Granular Authorize
-    pub async fn payment_authorize_granular(
-        &self,
-        payment_authorize_only_request: payments_grpc::PaymentServiceAuthorizeOnlyRequest,
-        connector_auth_metadata: ConnectorAuthMetadata,
-        grpc_headers: GrpcHeadersUcs,
-    ) -> UnifiedConnectorServiceResult<tonic::Response<PaymentServiceAuthorizeResponse>> {
-        let mut request = tonic::Request::new(payment_authorize_only_request);
-
-        let connector_name = connector_auth_metadata.connector_name.clone();
-        let metadata =
-            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
-        *request.metadata_mut() = metadata;
-
-        self.client
-            .clone()
-            .authorize_only(request)
-            .await
-            .change_context(UnifiedConnectorServiceError::PaymentAuthorizeGranularFailure)
-            .inspect_err(|error| {
-                logger::error!(
-                    grpc_error=?error,
-                    method="authorize_only",
-                    connector_name=?connector_name,
-                    "UCS authorize_only gRPC call failed"
-                )
-            })
-    }
-
-    /// Performs Create Connector Customer Granular
+    /// Performs Create Connector Customer
     pub async fn create_connector_customer(
         &self,
-        create_customer_request: payments_grpc::PaymentServiceCreateConnectorCustomerRequest,
+        create_connector_customer_request: payments_grpc::CustomerServiceCreateRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
-    ) -> UnifiedConnectorServiceResult<
-        tonic::Response<payments_grpc::PaymentServiceCreateConnectorCustomerResponse>,
-    > {
-        let mut request = tonic::Request::new(create_customer_request);
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::CustomerServiceCreateResponse>>
+    {
+        let mut request = tonic::Request::new(create_connector_customer_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
         let metadata =
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
         *request.metadata_mut() = metadata;
 
-        self.client
+        self.customer_service_client
             .clone()
-            .create_connector_customer(request)
+            .create(request)
             .await
-            .change_context(UnifiedConnectorServiceError::PaymentConnectorCustomerCreateFailure)
+            .change_context(UnifiedConnectorServiceError::CreateConnectorCustomerFailure)
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
-                    method="create_connector_customer_granular",
+                    method="create_connector_customer",
                     connector_name=?connector_name,
-                    "UCS create connector customer granular gRPC call failed"
+                    "UCS create connector customer gRPC call failed"
                 )
             })
     }
@@ -322,7 +400,7 @@ impl UnifiedConnectorServiceClient {
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
         *request.metadata_mut() = metadata;
 
-        self.client
+        self.payment_service_client
             .clone()
             .create_order(request)
             .await
@@ -330,9 +408,9 @@ impl UnifiedConnectorServiceClient {
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
-                    method="create_order",
+                    method="payment_create_order",
                     connector_name=?connector_name,
-                    "UCS create_order gRPC call failed"
+                    "UCS payment_create_order gRPC call failed"
                 )
             })
     }
@@ -340,11 +418,11 @@ impl UnifiedConnectorServiceClient {
     /// Performs Payment Pre Authenticate
     pub async fn payment_pre_authenticate(
         &self,
-        payment_pre_authenticate_request: payments_grpc::PaymentServicePreAuthenticateRequest,
+        payment_pre_authenticate_request: payments_grpc::PaymentMethodAuthenticationServicePreAuthenticateRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
     ) -> UnifiedConnectorServiceResult<
-        tonic::Response<payments_grpc::PaymentServicePreAuthenticateResponse>,
+        tonic::Response<payments_grpc::PaymentMethodAuthenticationServicePreAuthenticateResponse>,
     > {
         let mut request = tonic::Request::new(payment_pre_authenticate_request);
 
@@ -354,7 +432,7 @@ impl UnifiedConnectorServiceClient {
 
         *request.metadata_mut() = metadata;
 
-        self.client
+        self.payment_method_authentication_service_client
             .clone()
             .pre_authenticate(request)
             .await
@@ -372,11 +450,11 @@ impl UnifiedConnectorServiceClient {
     /// Performs Payment Authenticate
     pub async fn payment_authenticate(
         &self,
-        payment_authenticate_request: payments_grpc::PaymentServiceAuthenticateRequest,
+        payment_authenticate_request: payments_grpc::PaymentMethodAuthenticationServiceAuthenticateRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
     ) -> UnifiedConnectorServiceResult<
-        tonic::Response<payments_grpc::PaymentServiceAuthenticateResponse>,
+        tonic::Response<payments_grpc::PaymentMethodAuthenticationServiceAuthenticateResponse>,
     > {
         let mut request = tonic::Request::new(payment_authenticate_request);
 
@@ -386,7 +464,7 @@ impl UnifiedConnectorServiceClient {
 
         *request.metadata_mut() = metadata;
 
-        self.client
+        self.payment_method_authentication_service_client
             .clone()
             .authenticate(request)
             .await
@@ -394,40 +472,40 @@ impl UnifiedConnectorServiceClient {
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
-                    method="payment_pre_authenticate",
+                    method="payment_authenticate",
                     connector_name=?connector_name,
-                    "UCS payment pre authenticate gRPC call failed"
+                    "UCS payment authenticate gRPC call failed"
                 )
             })
     }
 
-    /// Performs Payment Session token create
-    pub async fn payment_session_token_create(
+    /// Performs Session token create
+    pub async fn create_session_token(
         &self,
-        payment_create_session_token_request: payments_grpc::PaymentServiceCreateSessionTokenRequest,
+        create_session_token_request: payments_grpc::MerchantAuthenticationServiceCreateSessionTokenRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
     ) -> UnifiedConnectorServiceResult<
-        tonic::Response<payments_grpc::PaymentServiceCreateSessionTokenResponse>,
+        tonic::Response<payments_grpc::MerchantAuthenticationServiceCreateSessionTokenResponse>,
     > {
-        let mut request = tonic::Request::new(payment_create_session_token_request);
+        let mut request = tonic::Request::new(create_session_token_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
         let metadata =
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
         *request.metadata_mut() = metadata;
 
-        self.client
+        self.merchant_authentication_service_client
             .clone()
             .create_session_token(request)
             .await
-            .change_context(UnifiedConnectorServiceError::PaymentCreateSessionTokenFailure)
+            .change_context(UnifiedConnectorServiceError::CreateSessionTokenFailure)
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
                     method="create_session_token",
                     connector_name=?connector_name,
-                    "UCS payment create_session_token gRPC call failed"
+                    "UCS create_session_token gRPC call failed"
                 )
             })
     }
@@ -435,11 +513,11 @@ impl UnifiedConnectorServiceClient {
     /// Performs Payment Post Authenticate
     pub async fn payment_post_authenticate(
         &self,
-        payment_post_authenticate_request: payments_grpc::PaymentServicePostAuthenticateRequest,
+        payment_post_authenticate_request: payments_grpc::PaymentMethodAuthenticationServicePostAuthenticateRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
     ) -> UnifiedConnectorServiceResult<
-        tonic::Response<payments_grpc::PaymentServicePostAuthenticateResponse>,
+        tonic::Response<payments_grpc::PaymentMethodAuthenticationServicePostAuthenticateResponse>,
     > {
         let mut request = tonic::Request::new(payment_post_authenticate_request);
 
@@ -449,7 +527,7 @@ impl UnifiedConnectorServiceClient {
 
         *request.metadata_mut() = metadata;
 
-        self.client
+        self.payment_method_authentication_service_client
             .clone()
             .post_authenticate(request)
             .await
@@ -470,7 +548,9 @@ impl UnifiedConnectorServiceClient {
         payment_authorize_request: payments_grpc::PaymentServiceAuthorizeRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
-    ) -> UnifiedConnectorServiceResult<tonic::Response<PaymentServiceAuthorizeResponse>> {
+    ) -> UnifiedConnectorServiceResult<
+        tonic::Response<payments_grpc::PaymentServiceAuthorizeResponse>,
+    > {
         let mut request = tonic::Request::new(payment_authorize_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
@@ -479,7 +559,7 @@ impl UnifiedConnectorServiceClient {
 
         *request.metadata_mut() = metadata;
 
-        self.client
+        self.payment_service_client
             .clone()
             .authorize(request)
             .await
@@ -509,7 +589,7 @@ impl UnifiedConnectorServiceClient {
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
         *request.metadata_mut() = metadata;
 
-        self.client
+        self.payment_service_client
             .clone()
             .get(request)
             .await
@@ -539,7 +619,7 @@ impl UnifiedConnectorServiceClient {
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
         *request.metadata_mut() = metadata;
 
-        self.client
+        self.payment_service_client
             .clone()
             .capture(request)
             .await
@@ -554,99 +634,70 @@ impl UnifiedConnectorServiceClient {
             })
     }
 
-    /// Performs Payment Setup Mandate
-    pub async fn payment_setup_mandate(
+    /// Performs Payment Setup Recurring/Mandate
+    pub async fn payment_setup_recurring(
         &self,
-        payment_register_request: payments_grpc::PaymentServiceRegisterRequest,
-        connector_auth_metadata: ConnectorAuthMetadata,
-        grpc_headers: GrpcHeadersUcs,
-    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::PaymentServiceRegisterResponse>>
-    {
-        let mut request = tonic::Request::new(payment_register_request);
-
-        let connector_name = connector_auth_metadata.connector_name.clone();
-        let metadata =
-            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
-        *request.metadata_mut() = metadata;
-
-        self.client
-            .clone()
-            .register(request)
-            .await
-            .change_context(UnifiedConnectorServiceError::PaymentRegisterFailure)
-            .inspect_err(|error| {
-                logger::error!(
-                    grpc_error=?error,
-                    method="payment_setup_mandate",
-                    connector_name=?connector_name,
-                    "UCS payment setup mandate gRPC call failed"
-                )
-            })
-    }
-
-    /// Performs Payment Setup Mandate
-    pub async fn payment_setup_mandate_granular(
-        &self,
-        payment_register_request: payments_grpc::PaymentServiceRegisterRequest,
-        connector_auth_metadata: ConnectorAuthMetadata,
-        grpc_headers: GrpcHeadersUcs,
-    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::PaymentServiceRegisterResponse>>
-    {
-        let mut request = tonic::Request::new(payment_register_request);
-
-        let connector_name = connector_auth_metadata.connector_name.clone();
-        let metadata =
-            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
-        *request.metadata_mut() = metadata;
-
-        self.client
-            .clone()
-            .register_only(request)
-            .await
-            .change_context(UnifiedConnectorServiceError::PaymentRegisterFailure)
-            .inspect_err(|error| {
-                logger::error!(
-                    grpc_error=?error,
-                    method="payment_setup_mandate_granular",
-                    connector_name=?connector_name,
-                    "UCS payment granular setup mandate gRPC call failed"
-                )
-            })
-    }
-
-    /// Performs Payment repeat (MIT - Merchant Initiated Transaction).
-    pub async fn payment_repeat(
-        &self,
-        payment_repeat_request: payments_grpc::PaymentServiceRepeatEverythingRequest,
+        payment_setup_recurring_request: payments_grpc::PaymentServiceSetupRecurringRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
     ) -> UnifiedConnectorServiceResult<
-        tonic::Response<payments_grpc::PaymentServiceRepeatEverythingResponse>,
+        tonic::Response<payments_grpc::PaymentServiceSetupRecurringResponse>,
     > {
-        let mut request = tonic::Request::new(payment_repeat_request);
+        let mut request = tonic::Request::new(payment_setup_recurring_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
         let metadata =
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
         *request.metadata_mut() = metadata;
 
-        self.client
+        self.payment_service_client
             .clone()
-            .repeat_everything(request)
+            .setup_recurring(request)
             .await
-            .change_context(UnifiedConnectorServiceError::PaymentRepeatEverythingFailure)
+            .change_context(UnifiedConnectorServiceError::PaymentSetupRecurringFailure)
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
-                    method="payment_repeat",
+                    method="payment_setup_recurring",
                     connector_name=?connector_name,
-                    "UCS payment repeat gRPC call failed"
+                    "UCS payment setup recurring gRPC call failed"
+                )
+            })
+    }
+
+    /// Performs recurring payment (MIT - Merchant Initiated Transaction).
+    pub async fn recurring_payment_charge(
+        &self,
+        recurring_payment_charge_request: payments_grpc::RecurringPaymentServiceChargeRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<
+        tonic::Response<payments_grpc::RecurringPaymentServiceChargeResponse>,
+    > {
+        let mut request = tonic::Request::new(recurring_payment_charge_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.recurring_payment_service_client
+            .clone()
+            .charge(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::RecurringPaymentChargeFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="recurring_payment_charge",
+                    connector_name=?connector_name,
+                    "UCS recurring payment charge gRPC call failed"
                 )
             })
     }
 
     /// Performs Payment Cancel/Void
-    pub async fn payment_cancel(
+    pub async fn payment_void(
         &self,
         payment_void_request: payments_grpc::PaymentServiceVoidRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
@@ -660,57 +711,58 @@ impl UnifiedConnectorServiceClient {
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
         *request.metadata_mut() = metadata;
 
-        self.client
+        self.payment_service_client
             .clone()
             .void(request)
             .await
-            .change_context(UnifiedConnectorServiceError::PaymentCancelFailure)
+            .change_context(UnifiedConnectorServiceError::PaymentVoidFailure)
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
-                    method="payment_cancel",
+                    method="payment_void",
                     connector_name=?connector_name,
-                    "UCS payment cancel gRPC call failed"
+                    "UCS payment void gRPC call failed"
                 )
             })
     }
 
-    /// Transforms incoming webhook through UCS
-    pub async fn transform_incoming_webhook(
+    /// Incoming webhook handle
+    pub async fn incoming_webhook_handle_event(
         &self,
-        webhook_transform_request: PaymentServiceTransformRequest,
+        incoming_webhook_handle_event_request: payments_grpc::EventServiceHandleRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
-    ) -> UnifiedConnectorServiceResult<tonic::Response<PaymentServiceTransformResponse>> {
-        let mut request = tonic::Request::new(webhook_transform_request);
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::EventServiceHandleResponse>>
+    {
+        let mut request = tonic::Request::new(incoming_webhook_handle_event_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
         let metadata =
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
         *request.metadata_mut() = metadata;
 
-        self.client
+        self.event_service_client
             .clone()
-            .transform(request)
+            .handle_event(request)
             .await
-            .change_context(UnifiedConnectorServiceError::WebhookTransformFailure)
+            .change_context(UnifiedConnectorServiceError::IncomingWebhookHandleEventFailure)
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
-                    method="transform_incoming_webhook",
+                    method="incoming_webhook_handle_event",
                     connector_name=?connector_name,
-                    "UCS webhook transform gRPC call failed"
+                    "UCS incoming webhook handle event gRPC call failed"
                 )
             })
     }
 
-    /// Performs Payment Refund through PaymentService.Refund
+    /// Performs Payment Refund
     pub async fn payment_refund(
         &self,
-        payment_refund_request: PaymentServiceRefundRequest,
+        payment_refund_request: payments_grpc::PaymentServiceRefundRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
-    ) -> UnifiedConnectorServiceResult<tonic::Response<RefundResponse>> {
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::RefundResponse>> {
         let mut request = tonic::Request::new(payment_refund_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
@@ -718,7 +770,7 @@ impl UnifiedConnectorServiceClient {
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
         *request.metadata_mut() = metadata;
 
-        self.client
+        self.payment_service_client
             .clone()
             .refund(request)
             .await
@@ -733,21 +785,21 @@ impl UnifiedConnectorServiceClient {
             })
     }
 
-    /// Performs Refund Sync through RefundService.Get
-    pub async fn refund_sync(
+    /// Performs Refund Sync/Get
+    pub async fn refund_get(
         &self,
-        refund_sync_request: RefundServiceGetRequest,
+        refund_get_request: payments_grpc::RefundServiceGetRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
-    ) -> UnifiedConnectorServiceResult<tonic::Response<RefundResponse>> {
-        let mut request = tonic::Request::new(refund_sync_request);
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::RefundResponse>> {
+        let mut request = tonic::Request::new(refund_get_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
         let metadata =
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
         *request.metadata_mut() = metadata;
 
-        self.refund_client
+        self.refund_service_client
             .clone()
             .get(request)
             .await
@@ -755,9 +807,9 @@ impl UnifiedConnectorServiceClient {
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
-                    method="refund_sync",
+                    method="refund_get",
                     connector_name=?connector_name,
-                    "UCS refund sync gRPC call failed"
+                    "UCS refund get gRPC call failed"
                 )
             })
     }
@@ -765,11 +817,11 @@ impl UnifiedConnectorServiceClient {
     /// Performs Create Access Token Granular
     pub async fn create_access_token(
         &self,
-        create_access_token_request: payments_grpc::PaymentServiceCreateAccessTokenRequest,
+        create_access_token_request: payments_grpc::MerchantAuthenticationServiceCreateAccessTokenRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
     ) -> UnifiedConnectorServiceResult<
-        tonic::Response<payments_grpc::PaymentServiceCreateAccessTokenResponse>,
+        tonic::Response<payments_grpc::MerchantAuthenticationServiceCreateAccessTokenResponse>,
     > {
         let mut request = tonic::Request::new(create_access_token_request);
         let connector_name = connector_auth_metadata.connector_name.clone();
@@ -777,17 +829,17 @@ impl UnifiedConnectorServiceClient {
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
         *request.metadata_mut() = metadata;
 
-        self.client
+        self.merchant_authentication_service_client
             .clone()
             .create_access_token(request)
             .await
-            .change_context(UnifiedConnectorServiceError::PaymentCreateAccessTokenFailure)
+            .change_context(UnifiedConnectorServiceError::CreateAccessTokenFailure)
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
                     method="create_access_token",
                     connector_name=?connector_name,
-                    "UCS create access token granular gRPC call failed"
+                    "UCS create access token gRPC call failed"
                 )
             })
     }
@@ -854,6 +906,14 @@ pub fn build_unified_connector_service_grpc_headers(
         metadata.append(
             consts::UCS_HEADER_AUTH_KEY_MAP,
             parse("auth_key_map", &auth_key_map_str)?,
+        );
+    }
+
+    // Add connector-specific config header if available
+    if let Some(connector_config) = meta.connector_config {
+        metadata.append(
+            consts::UCS_HEADER_CONNECTOR_CONFIG,
+            parse("connector_config", connector_config.peek())?,
         );
     }
 

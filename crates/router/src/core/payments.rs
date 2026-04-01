@@ -4490,15 +4490,16 @@ where
         )
         .await?;
 
-    router_data
-        .add_session_token(state, &connector, &context)
-        .await?;
-
     let should_continue_further = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
         &mut router_data,
         &call_connector_action,
     );
+
+    // AuthorizeSessionTokenFlow needs access token to be added in router data before creating session token, as the session token creation might require access token in headers for some connectors (like Santander)
+    router_data
+        .add_session_token(state, &connector, &context)
+        .await?;
 
     // Balance check flow for payment methods like Giftcard, Voucher etc.
     let should_continue_further = if should_continue_further {
@@ -5068,15 +5069,16 @@ where
         )
         .await?;
 
-    router_data
-        .add_session_token(state, &connector, &gateway_context)
-        .await?;
-
     let should_continue_further = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
         &mut router_data,
         &call_connector_action,
     );
+
+    router_data
+        .add_session_token(state, &connector, &gateway_context)
+        .await?;
+
     let payment_method_token_response = router_data
         .add_payment_method_token(
             state,
@@ -6038,15 +6040,15 @@ where
         )
         .await?;
 
-    router_data
-        .add_session_token(state, &connector, &default_gateway_context)
-        .await?;
-
     let mut should_continue_further = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
         &mut router_data,
         &call_connector_action,
     );
+
+    router_data
+        .add_session_token(state, &connector, &default_gateway_context)
+        .await?;
 
     let (connector_request, should_continue_further) = if should_continue_further {
         router_data
@@ -8343,7 +8345,7 @@ where
 #[cfg(feature = "v1")]
 #[derive(Clone)]
 pub struct PaymentEligibilityData {
-    pub payment_method_data: Option<domain::PaymentMethodData>,
+    pub payment_method_data: Option<domain::EligibilityPaymentMethodData>,
     pub payment_intent: storage::PaymentIntent,
     pub browser_info: Option<pii::SecretSerdeValue>,
 }
@@ -8359,7 +8361,7 @@ impl PaymentEligibilityData {
             .payment_method_data
             .payment_method_data
             .clone()
-            .map(domain::PaymentMethodData::from);
+            .map(domain::EligibilityPaymentMethodData::from);
         let browser_info = payments_eligibility_request
             .browser_info
             .clone()
@@ -8578,6 +8580,10 @@ where
         "PaymentIncrementalAuthorization" => matches!(
             payment_data.get_payment_intent().status,
             storage_enums::IntentStatus::RequiresCapture
+        ),
+        "PaymentRecurrence" => matches!(
+            payment_data.get_payment_intent().status,
+            storage_enums::IntentStatus::RequiresCustomerAction
         ),
         _ => false,
     }
@@ -11640,7 +11646,7 @@ impl EligibilityCheck for CardTestingCheck {
         business_profile: &domain::Profile,
     ) -> CustomResult<CheckResult, errors::ApiErrorResponse> {
         match &payment_elgibility_data.payment_method_data {
-            Some(domain::PaymentMethodData::Card(card)) => {
+            Some(domain::EligibilityPaymentMethodData::Card(card)) => {
                 match card_testing_guard_utils::validate_card_testing_guard_checks(
                     state,
                     payment_elgibility_data

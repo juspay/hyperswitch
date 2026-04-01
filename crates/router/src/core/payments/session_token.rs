@@ -19,6 +19,7 @@ pub(crate) async fn add_session_token_if_needed<F: Clone, Req: Debug + Clone>(
     state: &routes::SessionState,
     connector: &api_types::ConnectorData,
     gateway_context: &gateway_context::RouterGatewayContext,
+    current_flow: Option<hyperswitch_interfaces::api::CurrentFlowInfo>,
 ) -> RouterResult<Option<String>>
 where
     types::AuthorizeSessionTokenData:
@@ -26,7 +27,7 @@ where
 {
     if connector
         .connector
-        .is_authorize_session_token_call_required()
+        .is_authorize_session_token_call_required(current_flow)
     {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api_types::AuthorizeSessionToken,

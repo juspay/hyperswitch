@@ -31,8 +31,8 @@ use super::{ConstructFlowSpecificData, Feature};
 use crate::core::unified_connector_service::{
     get_access_token_from_ucs_response,
     handle_unified_connector_service_response_for_payment_authorize,
-    handle_unified_connector_service_response_for_payment_repeat, set_access_token_for_ucs,
-    ucs_logging_wrapper,
+    handle_unified_connector_service_response_for_recurring_payment_charge,
+    set_access_token_for_ucs, ucs_logging_wrapper,
 };
 use crate::{
     core::{
@@ -286,8 +286,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
     ) -> RouterResult<types::BalanceCheckResult> {
         if connector.connector.is_balance_check_flow_required(
             api_interface::CurrentFlowInfo::Authorize {
-                auth_type: &self.auth_type,
-                request_data: &self.request,
+                auth_type: self.auth_type,
+                request_data: Box::new(self.request.clone()),
             },
         ) {
             logger::info!(
@@ -396,12 +396,17 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         creds_identifier: Option<&str>,
         gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult> {
+        let current_flow = Some(api_interface::CurrentFlowInfo::Authorize {
+            auth_type: self.auth_type,
+            request_data: Box::new(self.request.clone()),
+        });
         Box::pin(access_token::add_access_token(
             state,
             connector,
             self,
             creds_identifier,
             gateway_context,
+            current_flow,
         ))
         .await
     }
@@ -415,9 +420,18 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
     where
         Self: Sized,
     {
-        self.session_token =
-            session_token::add_session_token_if_needed(self, state, connector, gateway_context)
-                .await?;
+        let current_flow = api_interface::CurrentFlowInfo::Authorize {
+            auth_type: self.auth_type,
+            request_data: Box::new(self.request.clone()),
+        };
+        self.session_token = session_token::add_session_token_if_needed(
+            self,
+            state,
+            connector,
+            gateway_context,
+            Some(current_flow),
+        )
+        .await?;
         Ok(())
     }
 
@@ -453,8 +467,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
     {
         if connector.connector.is_pre_authentication_flow_required(
             api_interface::CurrentFlowInfo::Authorize {
-                auth_type: &self.auth_type,
-                request_data: &self.request,
+                auth_type: self.auth_type,
+                request_data: Box::new(self.request.clone()),
             },
         ) {
             logger::info!(
@@ -568,8 +582,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
     {
         if connector.connector.is_authentication_flow_required(
             api_interface::CurrentFlowInfo::Authorize {
-                auth_type: &self.auth_type,
-                request_data: &self.request,
+                auth_type: self.auth_type,
+                request_data: Box::new(self.request.clone()),
             },
         ) {
             logger::info!(
@@ -822,8 +836,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
     ) -> RouterResult<(Self, bool)> {
         if connector.connector.is_settlement_split_call_required(
             api_interface::CurrentFlowInfo::Authorize {
-                auth_type: &self.auth_type,
-                request_data: &self.request,
+                auth_type: self.auth_type,
+                request_data: Box::new(self.request.clone()),
             },
         ) {
             logger::info!(
@@ -893,8 +907,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
     ) -> RouterResult<Option<types::CreateOrderResult>> {
         let is_order_create_bloated_connector = connector.connector.is_order_create_flow_required(
             api_interface::CurrentFlowInfo::Authorize {
-                auth_type: &self.auth_type,
-                request_data: &self.request,
+                auth_type: self.auth_type,
+                request_data: Box::new(self.request.clone()),
             },
         );
         if (connector
@@ -1445,9 +1459,11 @@ pub async fn call_unified_connector_service_pre_authenticate(
         .attach_printable("Failed to fetch Unified Connector Service client")?;
 
     let payment_pre_authenticate_request =
-        payments_grpc::PaymentServicePreAuthenticateRequest::foreign_try_from(router_data)
-            .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
-            .attach_printable("Failed to construct Payment Authorize Request")?;
+        payments_grpc::PaymentMethodAuthenticationServicePreAuthenticateRequest::foreign_try_from(
+            router_data,
+        )
+        .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
+        .attach_printable("Failed to construct Payment Pre Authenticate Request")?;
 
     let connector_auth_metadata =
         unified_connector_service::build_unified_connector_service_auth_metadata(
@@ -1490,7 +1506,7 @@ pub async fn call_unified_connector_service_pre_authenticate(
                     grpc_headers,
                 )
                 .await
-                .attach_printable("Failed to authorize payment")?;
+                .attach_printable("Failed to pre authenticate payment")?;
 
             let payment_pre_authenticate_response = response.into_inner();
 

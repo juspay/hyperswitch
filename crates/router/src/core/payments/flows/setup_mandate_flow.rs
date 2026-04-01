@@ -157,8 +157,8 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
     ) -> RouterResult<types::BalanceCheckResult> {
         if connector.connector.is_balance_check_flow_required(
             api_interface::CurrentFlowInfo::SetupMandate {
-                auth_type: &self.auth_type,
-                request_data: &self.request,
+                auth_type: self.auth_type,
+                request_data: Box::new(self.request.clone()),
             },
         ) {
             logger::info!(
@@ -267,12 +267,17 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         creds_identifier: Option<&str>,
         gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult> {
+        let current_flow = Some(api_interface::CurrentFlowInfo::SetupMandate {
+            auth_type: self.auth_type,
+            request_data: Box::new(self.request.clone()),
+        });
         Box::pin(access_token::add_access_token(
             state,
             connector,
             self,
             creds_identifier,
             gateway_context,
+            current_flow,
         ))
         .await
     }
@@ -286,9 +291,18 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
     where
         Self: Sized,
     {
-        self.session_token =
-            session_token::add_session_token_if_needed(self, state, connector, gateway_context)
-                .await?;
+        let current_flow = api_interface::CurrentFlowInfo::SetupMandate {
+            auth_type: self.auth_type,
+            request_data: Box::new(self.request.clone()),
+        };
+        self.session_token = session_token::add_session_token_if_needed(
+            self,
+            state,
+            connector,
+            gateway_context,
+            Some(current_flow),
+        )
+        .await?;
         Ok(())
     }
 
@@ -335,8 +349,8 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
     {
         if connector.connector.is_pre_authentication_flow_required(
             api_interface::CurrentFlowInfo::SetupMandate {
-                auth_type: &self.auth_type,
-                request_data: &self.request,
+                auth_type: self.auth_type,
+                request_data: Box::new(self.request.clone()),
             },
         ) {
             logger::info!(
