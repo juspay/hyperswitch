@@ -456,6 +456,7 @@ pub enum ConnectorSpecificConfig {
         password: Secret<String>,
         merchant_id: Secret<String>,
     },
+
     /// Itaubank connector configuration
     Itaubank {
         client_id: Secret<String>,

@@ -686,4 +686,10 @@ export const connectorDetails = {
       },
     },
   },
+  webhook: {
+    TransactionIdConfig: {
+      path: "triggered_on.id",
+      type: "string",
+    },
+  },
 };

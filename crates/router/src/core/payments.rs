@@ -8584,6 +8584,10 @@ where
             payment_data.get_payment_intent().status,
             storage_enums::IntentStatus::RequiresCapture
         ),
+        "PaymentRecurrence" => matches!(
+            payment_data.get_payment_intent().status,
+            storage_enums::IntentStatus::RequiresCustomerAction
+        ),
         _ => false,
     }
 }
