@@ -45,15 +45,14 @@ use crate::{
             SantanderPixAutomaticCalendarRequest, SantanderPixAutomaticDestinationRequest,
             SantanderPixAutomaticSolicitationRequest, SantanderPixCancelRequest,
             SantanderPixDueDateCalendarRequest, SantanderPixImmediateCalendarRequest,
-            SantanderPixQRPaymentRequest, SantanderPixRequestCalendar,
-            SantanderPostProcessingStepRequest, SantanderProtestType, SantanderRefundRequest,
-            SantanderRouterData, SantanderValue, SantanderValueType,
+            SantanderPixQRPaymentRequest, SantanderPixRequestCalendar, SantanderProtestType,
+            SantanderRefundRequest, SantanderRouterData, SantanderValue, SantanderValueType,
         },
         responses::{
             Beneficiary, Key, NsuComposite, Payer, RecurrenceStatus, SanatanderAccessTokenResponse,
             SanatanderTokenResponse, SantanderAdditionalInfo, SantanderBoletoDocumentKind,
             SantanderBoletoPaymentType, SantanderBoletoStatus,
-            SantanderCreatePixPayloadLocationResponse, SantanderDocumentKind, SantanderJourneyType,
+            SantanderCreatePixPayloadLocationResponse, SantanderDocumentKind,
             SantanderPaymentStatus, SantanderPaymentsResponse, SantanderPaymentsSyncResponse,
             SantanderPixAutomaticRecResponse, SantanderPixAutomaticSolicitationResponse,
             SantanderPixKeyType, SantanderPixQRCodePaymentsResponse,
@@ -376,12 +375,32 @@ impl TryFrom<(&RefreshTokenRouterData, &SantanderMetadataObject)> for SantanderA
         item: (&RefreshTokenRouterData, &SantanderMetadataObject),
     ) -> Result<Self, Self::Error> {
         let (client_id, client_secret) = match item.0.payment_method_type {
-            Some(enums::PaymentMethodType::Pix)
-            | Some(enums::PaymentMethodType::PixAutomaticoPush)
-            | Some(enums::PaymentMethodType::PixAutomaticoQr) => {
+            Some(enums::PaymentMethodType::Pix) => {
                 let pix_mca_metadata = item
                     .1
                     .pix
+                    .as_ref()
+                    .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
+                Ok((
+                    pix_mca_metadata.client_id.clone(),
+                    pix_mca_metadata.client_secret.clone(),
+                ))
+            }
+            Some(enums::PaymentMethodType::PixAutomaticoPush) => {
+                let pix_mca_metadata = item
+                    .1
+                    .pix_automatico_push
+                    .as_ref()
+                    .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
+                Ok((
+                    pix_mca_metadata.client_id.clone(),
+                    pix_mca_metadata.client_secret.clone(),
+                ))
+            }
+            Some(enums::PaymentMethodType::PixAutomaticoQr) => {
+                let pix_mca_metadata = item
+                    .1
+                    .pix_automatico_qr
                     .as_ref()
                     .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
                 Ok((
@@ -898,16 +917,6 @@ impl From<RecurrenceStatus> for AttemptStatus {
                 Self::Pending
             }
             _ => Self::Pending,
-        }
-    }
-}
-
-impl From<SantanderJourneyType> for Option<ExpiryType> {
-    fn from(item: SantanderJourneyType) -> Self {
-        match item {
-            SantanderJourneyType::Jornada3 => Some(ExpiryType::Immediate),
-            SantanderJourneyType::Jornada4 => Some(ExpiryType::Scheduled),
-            _ => None,
         }
     }
 }
@@ -1799,31 +1808,6 @@ fn get_boleto_additional_fields_from_connector_metadata(
             )
         })
         .unwrap_or_default()
-}
-
-impl TryFrom<&PaymentsPushNotificationRouterData> for SantanderPostProcessingStepRequest {
-    type Error = Error;
-    fn try_from(value: &PaymentsPushNotificationRouterData) -> Result<Self, Self::Error> {
-        match &value.request.payment_method_data {
-            Some(PaymentMethodData::BankTransfer(bank_transfer_data)) => {
-                match bank_transfer_data.as_ref() {
-                    BankTransferData::PixAutomaticoPush { .. } => {
-                        let solicitation_request =
-                            SantanderPixAutomaticSolicitationRequest::try_from(value)?;
-                        Ok(Self::PixAutomaticoPush(solicitation_request))
-                    }
-                    // For PixAutomaticoQr, since there are no additional details needed in the request body,it should be null
-                    BankTransferData::PixAutomaticoQr {} => Ok(Self::PixAutomaticoQr()),
-                    _ => Err(errors::ConnectorError::NotImplemented(
-                        crate::utils::get_unimplemented_payment_method_error_message("Santander"),
-                    ))?,
-                }
-            }
-            _ => Err(errors::ConnectorError::NotImplemented(
-                crate::utils::get_unimplemented_payment_method_error_message("Santander"),
-            ))?,
-        }
-    }
 }
 
 impl TryFrom<&PaymentsPushNotificationRouterData> for SantanderPixAutomaticSolicitationRequest {

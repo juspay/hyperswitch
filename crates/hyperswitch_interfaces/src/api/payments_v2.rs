@@ -284,8 +284,8 @@ pub trait PaymentsPostProcessingV2:
 {
 }
 
-/// trait PaymentsPaymentTriggerV2
-pub trait PaymentsPaymentTriggerV2:
+/// trait PaymentsPushNotificationV2
+pub trait PaymentsPushNotificationV2:
     ConnectorIntegrationV2<
     PushNotification,
     PaymentFlowData,
@@ -333,7 +333,7 @@ pub trait PaymentV2:
     + PaymentSessionV2
     + PaymentTokenV2
     + PaymentsPostProcessingV2
-    + PaymentsPaymentTriggerV2
+    + PaymentsPushNotificationV2
     + PaymentsGenerateQrV2
     + ConnectorCustomerV2
     + PaymentIncrementalAuthorizationV2

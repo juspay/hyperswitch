@@ -4717,13 +4717,13 @@ where
         .await?;
     *payment_data = new_payment_data;
 
-    let router_data = call_connector_service_response.router_data;
+    let mut router_data = call_connector_service_response.router_data;
+    let gateway_context = call_connector_service_response.gateway_context;
     let router_data = if call_connector_service_response.should_continue_further {
         // The status of payment_attempt and intent will be updated in the previous step
         // update this in router_data.
         // This is added because few connector integrations do not update the status,
         // and rely on previous status set in router_data
-        let mut router_data = router_data;
         router_data.status = payment_data.get_payment_attempt().status;
         router_data
             .decide_flows(
@@ -4732,9 +4732,9 @@ where
                 call_connector_action,
                 call_connector_service_response.connector_request,
                 business_profile,
-                header_payload.clone(),
+                header_payload,
                 return_raw_connector_response,
-                call_connector_service_response.gateway_context.clone(),
+                gateway_context.clone(),
             )
             .await
     } else {
@@ -4746,11 +4746,7 @@ where
     // Call push notification step after the authorize/setup mandate flow completes
     let (router_data, _should_continue_trigger) = if should_continue_payment {
         router_data
-            .push_notification_step(
-                state,
-                connector,
-                &call_connector_service_response.gateway_context,
-            )
+            .push_notification_step(state, connector, &gateway_context)
             .await?
     } else {
         (router_data, false)
@@ -4759,11 +4755,7 @@ where
     // Call generate QR step after the authorize/setup mandate flow completes
     let (router_data, _should_continue_generate_qr) = if should_continue_payment {
         router_data
-            .generate_qr_step(
-                state,
-                connector,
-                &call_connector_service_response.gateway_context,
-            )
+            .generate_qr_step(state, connector, &gateway_context)
             .await?
     } else {
         (router_data, false)
@@ -5215,6 +5207,7 @@ where
     *payment_data = new_payment_data;
 
     let mut router_data = call_connector_service_response.router_data;
+    let gateway_context = call_connector_service_response.gateway_context;
     let router_data = if call_connector_service_response.should_continue_further {
         // The status of payment_attempt and intent will be updated in the previous step
         // update this in router_data.
@@ -5231,7 +5224,7 @@ where
                 business_profile,
                 header_payload.clone(),
                 return_raw_connector_response,
-                call_connector_service_response.gateway_context.clone(),
+                gateway_context.clone(),
             )
             .await
     } else {
@@ -5243,11 +5236,7 @@ where
     // Call push notification step after the authorize/setup mandate flow completes
     let (router_data, should_continue_trigger) = if should_continue_payment {
         router_data
-            .push_notification_step(
-                state,
-                connector,
-                &call_connector_service_response.gateway_context,
-            )
+            .push_notification_step(state, connector, &gateway_context)
             .await?
     } else {
         (router_data, false)
@@ -5256,11 +5245,7 @@ where
     // Call generate QR step after the authorize/setup mandate flow completes
     let (router_data, _should_continue_generate_qr) = if should_continue_payment {
         router_data
-            .generate_qr_step(
-                state,
-                connector,
-                &call_connector_service_response.gateway_context,
-            )
+            .generate_qr_step(state, connector, &gateway_context)
             .await?
     } else {
         (router_data, false)

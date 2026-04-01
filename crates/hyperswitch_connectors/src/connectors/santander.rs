@@ -377,11 +377,21 @@ where
         let santander_mca_metadata = SantanderMetadataObject::try_from(&req.connector_meta_data)?;
 
         let client_id = match req.payment_method_type {
-            Some(enums::PaymentMethodType::Pix)
-            | Some(enums::PaymentMethodType::PixAutomaticoPush)
-            | Some(enums::PaymentMethodType::PixAutomaticoQr) => {
+            Some(enums::PaymentMethodType::Pix) => {
                 santander_mca_metadata
                     .pix
+                    .ok_or(errors::ConnectorError::NoConnectorMetaData)?
+                    .client_id
+            }
+            Some(enums::PaymentMethodType::PixAutomaticoPush) => {
+                santander_mca_metadata
+                    .pix_automatico_push
+                    .ok_or(errors::ConnectorError::NoConnectorMetaData)?
+                    .client_id
+            }
+            Some(enums::PaymentMethodType::PixAutomaticoQr) => {
+                santander_mca_metadata
+                    .pix_automatico_qr
                     .ok_or(errors::ConnectorError::NoConnectorMetaData)?
                     .client_id
             }

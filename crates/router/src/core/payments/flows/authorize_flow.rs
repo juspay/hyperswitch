@@ -734,7 +734,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             },
         ) {
             logger::info!(
-                "Payment trigger flow is required for connector: {} for Authorize flow",
+                "Push Notification flow is required for connector: {} for Authorize flow",
                 connector.connector_name
             );
             let authorize_request_data = self.request.clone();
@@ -767,14 +767,14 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             .await
             .to_payment_failed_response()?;
             let push_notification_response = push_notification_router_data.response.clone();
-            let setup_mandate_router_data =
+            let authorize_router_data =
                 helpers::router_data_type_conversion::<_, api::Authorize, _, _, _, _>(
                     push_notification_router_data,
                     authorize_request_data,
                     push_notification_response,
                 );
-            let should_continue_payment = setup_mandate_router_data.response.is_ok();
-            Ok((setup_mandate_router_data, should_continue_payment))
+            let should_continue_payment = authorize_router_data.response.is_ok();
+            Ok((authorize_router_data, should_continue_payment))
         } else {
             Ok((self, true))
         }
@@ -796,7 +796,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             },
         ) {
             logger::info!(
-                "Payment trigger flow is required for connector: {} for Authorize flow",
+                "Generate Qr flow is required for connector: {} for Authorize flow",
                 connector.connector_name
             );
             let authorize_request_data = self.request.clone();
@@ -829,14 +829,14 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             .await
             .to_payment_failed_response()?;
             let generate_qr_response = generate_qr_router_data.response.clone();
-            let setup_mandate_router_data =
+            let authorize_router_data =
                 helpers::router_data_type_conversion::<_, api::Authorize, _, _, _, _>(
                     generate_qr_router_data,
                     authorize_request_data,
                     generate_qr_response,
                 );
-            let should_continue_payment = setup_mandate_router_data.response.is_ok();
-            Ok((setup_mandate_router_data, should_continue_payment))
+            let should_continue_payment = authorize_router_data.response.is_ok();
+            Ok((authorize_router_data, should_continue_payment))
         } else {
             Ok((self, true))
         }
