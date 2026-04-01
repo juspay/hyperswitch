@@ -560,6 +560,16 @@ impl ConnectorValidation for ConnectorEnum {
             Self::New(connector) => connector.is_webhook_source_verification_mandatory(),
         }
     }
+
+    fn should_continue_further(
+        &self,
+        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+    ) -> Option<bool> {
+        match self {
+            Self::Old(connector) => connector.should_continue_further(payment_intent),
+            Self::New(connector) => connector.should_continue_further(payment_intent),
+        }
+    }
 }
 
 impl ConnectorSpecifications for ConnectorEnum {
