@@ -219,9 +219,17 @@ impl RedisConnectionPool {
         }
     }
 
+    // pub fn on_unresponsive(&self) {
+    //     for client in self.pool.clients().iter() {
+    //         client.on_unresponsive(|server| async move {
+    //             tracing::warn!(redis_server =?server.host, "Redis server is unresponsive");
+    //             Ok(())
+    //         });
+    //     }
+    // }
     pub fn on_unresponsive(&self) {
         for client in self.pool.clients().iter() {
-            client.on_unresponsive(|server| async move {
+            client.on_unresponsive(|server| {
                 tracing::warn!(redis_server =?server.host, "Redis server is unresponsive");
                 Ok(())
             });
