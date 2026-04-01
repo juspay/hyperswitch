@@ -3410,6 +3410,14 @@ payment_method_type = "JCB"
 payment_method_type = "DinersClub"
 [[noon.debit]]
 payment_method_type = "Discover"
+
+[noon.metadata.region]
+name = "region"
+label = "Region of your Noon Merchant Account"
+placeholder = "Enter Region of your Noon Merchant Account"
+required = false
+type = "Select"
+options = ["Global", "Ksa", "Egypt"]
 [[noon.debit]]
 payment_method_type = "CartesBancaires"
 [[noon.debit]]

@@ -72,6 +72,18 @@ impl Noon {
     }
 }
 
+fn build_region_specific_endpoint(
+    base_url: &str,
+    connector_metadata: &Option<common_utils::pii::SecretSerdeValue>,
+) -> CustomResult<String, errors::ConnectorError> {
+    let noon_metadata_object =
+        transformers::NoonConnectorMetadataObject::try_from(connector_metadata)?;
+
+    let region = String::from(noon_metadata_object.region);
+
+    Ok(base_url.replace("{{region}}", &region))
+}
+
 impl api::Payment for Noon {}
 impl api::PaymentSession for Noon {}
 impl api::ConnectorAccessToken for Noon {}
@@ -265,10 +277,12 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn get_url(
         &self,
-        _req: &PaymentsAuthorizeRouterData,
+        req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}payment/v1/order", self.base_url(connectors)))
+        let endpoint =
+            build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
+        Ok(format!("{}payment/v1/order", endpoint))
     }
 
     fn get_request_body(
@@ -365,10 +379,11 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Noo
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        let endpoint =
+            build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
         Ok(format!(
             "{}payment/v1/order/getbyreference/{}",
-            self.base_url(connectors),
-            req.connector_request_reference_id
+            endpoint, req.connector_request_reference_id
         ))
     }
 
@@ -432,10 +447,12 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
 
     fn get_url(
         &self,
-        _req: &PaymentsCaptureRouterData,
+        req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}payment/v1/order", self.base_url(connectors)))
+        let endpoint =
+            build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
+        Ok(format!("{}payment/v1/order", endpoint))
     }
 
     fn get_request_body(
@@ -516,10 +533,12 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for No
 
     fn get_url(
         &self,
-        _req: &PaymentsCancelRouterData,
+        req: &PaymentsCancelRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}payment/v1/order", self.base_url(connectors)))
+        let endpoint =
+            build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
+        Ok(format!("{}payment/v1/order", endpoint))
     }
     fn get_request_body(
         &self,
@@ -591,10 +610,12 @@ impl ConnectorIntegration<MandateRevoke, MandateRevokeRequestData, MandateRevoke
     }
     fn get_url(
         &self,
-        _req: &MandateRevokeRouterData,
+        req: &MandateRevokeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}payment/v1/order", self.base_url(connectors)))
+        let endpoint =
+            build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
+        Ok(format!("{}payment/v1/order", endpoint))
     }
     fn build_request(
         &self,
@@ -664,10 +685,12 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Noon {
 
     fn get_url(
         &self,
-        _req: &RefundsRouterData<Execute>,
+        req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}payment/v1/order", self.base_url(connectors)))
+        let endpoint =
+            build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
+        Ok(format!("{}payment/v1/order", endpoint))
     }
 
     fn get_request_body(
@@ -748,10 +771,11 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Noon {
         req: &RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        let endpoint =
+            build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
         Ok(format!(
             "{}payment/v1/order/getbyreference/{}",
-            self.base_url(connectors),
-            req.connector_request_reference_id
+            endpoint, req.connector_request_reference_id
         ))
     }
 
