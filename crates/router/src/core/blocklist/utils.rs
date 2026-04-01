@@ -401,7 +401,7 @@ pub async fn should_payment_be_blocked(
     if !should_payment_be_blocked
         && payment_method_data
             .as_ref()
-            .is_some_and(|pmd| pmd.is_card())
+            .is_some_and(|pmd| pmd.is_eligible_for_profile_config_blocklist())
     {
         should_payment_be_blocked = should_payment_be_blocked_by_profile_config(
             state,

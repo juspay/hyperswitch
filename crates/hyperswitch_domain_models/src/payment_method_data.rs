@@ -349,7 +349,7 @@ pub enum EligibilityPaymentMethodData {
 }
 
 impl EligibilityPaymentMethodData {
-    pub fn is_card(&self) -> bool {
+    pub fn is_eligible_for_profile_config_blocklist(&self) -> bool {
         matches!(self, Self::Card(_))
     }
 }
