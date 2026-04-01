@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 #[cfg(feature = "payouts")]
-use api_models::payouts::{Bank, PayoutMethodData};
+use api_models::payouts::{BankTransfer, PayoutMethodData};
 use base64::{engine::general_purpose, Engine as _};
 use common_enums::enums;
 #[cfg(feature = "payouts")]
@@ -478,8 +478,8 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for RegisterAccountRe
     fn try_from(item: &TrustlyRouterData<&PayoutsRouterData<F>>) -> Result<Self, Self::Error> {
         let payout_method_data = item.router_data.get_payout_method_data()?;
         match payout_method_data {
-            PayoutMethodData::Bank(bank) => match bank {
-                Bank::Trustly(trustly_data) => {
+            PayoutMethodData::BankTransfer(bank) => match bank {
+                BankTransfer::Trustly(trustly_data) => {
                     let (account_number, bank_number) = if let Some(iban) = trustly_data.iban {
                         (iban, Secret::new(String::new()))
                     } else {
@@ -555,14 +555,16 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for RegisterAccountRe
                         version: "1.1".to_string(),
                     })
                 }
-                Bank::Sepa(_) | Bank::Ach(_) | Bank::Bacs(_) | Bank::Pix(_) => {
-                    Err(ConnectorError::NotImplemented(
-                        get_unimplemented_payment_method_error_message("Trustly"),
-                    ))?
-                }
+                BankTransfer::Sepa(_)
+                | BankTransfer::Ach(_)
+                | BankTransfer::Bacs(_)
+                | BankTransfer::Pix(_) => Err(ConnectorError::NotImplemented(
+                    get_unimplemented_payment_method_error_message("Trustly"),
+                ))?,
             },
             PayoutMethodData::Card(_)
             | PayoutMethodData::Wallet(_)
+            | PayoutMethodData::Bank(_)
             | PayoutMethodData::BankRedirect(_)
             | PayoutMethodData::Passthrough(_) => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("Trustly"),
@@ -678,8 +680,8 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for AccountPayoutRequ
     fn try_from(item: &TrustlyRouterData<&PayoutsRouterData<F>>) -> Result<Self, Self::Error> {
         let payout_method_data = item.router_data.get_payout_method_data()?;
         match payout_method_data {
-            PayoutMethodData::Bank(bank) => match bank {
-                Bank::Trustly(_trustly_data) => {
+            PayoutMethodData::BankTransfer(bank) => match bank {
+                BankTransfer::Trustly(_trustly_data) => {
                     let notification_url = item.router_data.request.get_webhook_url()?;
 
                     let metadata = item
@@ -734,13 +736,15 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for AccountPayoutRequ
                         version: "1.1".to_string(),
                     })
                 }
-                Bank::Sepa(_) | Bank::Ach(_) | Bank::Bacs(_) | Bank::Pix(_) => {
-                    Err(ConnectorError::NotImplemented(
-                        get_unimplemented_payment_method_error_message("Trustly"),
-                    ))?
-                }
+                BankTransfer::Sepa(_)
+                | BankTransfer::Ach(_)
+                | BankTransfer::Bacs(_)
+                | BankTransfer::Pix(_) => Err(ConnectorError::NotImplemented(
+                    get_unimplemented_payment_method_error_message("Trustly"),
+                ))?,
             },
             PayoutMethodData::Card(_)
+            | PayoutMethodData::Bank(_)
             | PayoutMethodData::Wallet(_)
             | PayoutMethodData::BankRedirect(_)
             | PayoutMethodData::Passthrough(_) => Err(ConnectorError::NotImplemented(

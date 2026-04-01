@@ -69,8 +69,13 @@ pub struct PaymentMethodCreate {
 
     /// Payment method details from locker
     #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<Bank>)]
+    #[schema(value_type = Option<Bank>, deprecated)]
     pub bank_transfer: Option<payouts::Bank>,
+
+    /// Payment method details from locker
+    #[cfg(feature = "payouts")]
+    #[schema(value_type = Option<BankTransfer>)]
+    pub bank_transfer_data: Option<payouts::BankTransfer>,
 
     /// Payment method details from locker
     #[cfg(feature = "payouts")]
@@ -268,6 +273,10 @@ pub struct PaymentMethodMigrate {
     #[cfg(feature = "payouts")]
     pub bank_transfer: Option<payouts::Bank>,
 
+    // Payment method details from locker
+    #[cfg(feature = "payouts")]
+    pub bank_transfer_data: Option<payouts::BankTransfer>,
+
     /// Payment method details from locker
     #[cfg(feature = "payouts")]
     pub wallet: Option<payouts::Wallet>,
@@ -461,6 +470,8 @@ impl PaymentMethodCreate {
             #[cfg(feature = "payouts")]
             bank_transfer: payment_method_migrate.bank_transfer.clone(),
             #[cfg(feature = "payouts")]
+            bank_transfer_data: payment_method_migrate.bank_transfer_data.clone(),
+            #[cfg(feature = "payouts")]
             wallet: payment_method_migrate.wallet.clone(),
             network_transaction_id: payment_method_migrate.network_transaction_id.clone(),
         }
@@ -488,6 +499,8 @@ impl PaymentMethodCreate {
             card_network: None,
             #[cfg(feature = "payouts")]
             bank_transfer: None,
+            #[cfg(feature = "payouts")]
+            bank_transfer_data: None,
             #[cfg(feature = "payouts")]
             wallet: None,
             network_transaction_id: payment_method_migrate.network_transaction_id.clone(),
@@ -3673,6 +3686,8 @@ impl
             card_network: None,
             #[cfg(feature = "payouts")]
             bank_transfer: None,
+            #[cfg(feature = "payouts")]
+            bank_transfer_data: None,
             #[cfg(feature = "payouts")]
             wallet: None,
             payment_method_data,

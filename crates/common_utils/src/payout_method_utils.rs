@@ -85,12 +85,12 @@ pub enum BankAdditionalData {
     Ach(Box<AchBankTransferAdditionalData>),
     /// Additional data for bacs bank transfer payout method
     Bacs(Box<BacsBankTransferAdditionalData>),
+    /// Additional data for Trustly bank transfer payout method
+    Trustly(Box<TrustlyBankTransferAdditionalData>),
     /// Additional data for sepa bank transfer payout method
     Sepa(Box<SepaBankTransferAdditionalData>),
     /// Additional data for pix bank transfer payout method
     Pix(Box<PixBankTransferAdditionalData>),
-    /// Additional data for Trustly bank transfer payout method
-    Trustly(Box<TrustlyBankTransferAdditionalData>),
 }
 
 /// Masked payout method details for ach bank transfer payout method
@@ -212,10 +212,10 @@ pub struct TrustlyBankTransferAdditionalData {
     pub iban: Option<Secret<String>>,
     /// country code of the customer's bank account.
     #[schema(value_type = CountryAlpha2, example = "US")]
-    pub bank_country_code: common_enums::CountryAlpha2,
+    pub country_code: common_enums::CountryAlpha2,
     /// The account number, identifying the end-user's account in the bank.
     #[schema(value_type = String, example = "69706212")]
-    pub bank_account_number: Option<Secret<String>>,
+    pub account_number: Option<Secret<String>>,
     /// The bank number identifying the end-user's bank in the given clearing house.
     #[schema(value_type = String, example = "6112")]
     pub bank_number: Option<Secret<String>>,
