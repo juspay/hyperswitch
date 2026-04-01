@@ -50,3 +50,7 @@ change_reason = "Initial setup"
 [default-configs.payout_tracker_mapping.value]
 start_after = 60
 frequencies = [[300, 5]]
+
+# Empty overrides table - required for FileDataSource backup parsing
+# The seeding script ignores this field; it's only needed for runtime fallback
+[overrides]
