@@ -1311,9 +1311,9 @@ impl TryFrom<Vec<NonZeroU8>> for InstallmentCounts {
 pub struct InstallmentInterestRate(f64);
 
 impl InstallmentInterestRate {
-    /// apply the interest rate to amount and ceil the result
+    /// Calculate the total EMI interest for a given principal and number of installments
     #[allow(clippy::as_conversions)]
-    pub fn apply_and_ceil_result(
+    pub fn calculate_emi_interest(
         &self,
         amount: MinorUnit,
         number_of_installments: NonZeroU8,

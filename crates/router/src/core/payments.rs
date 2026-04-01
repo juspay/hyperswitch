@@ -2232,7 +2232,7 @@ pub fn calculate_installment_interest(
     number_of_installments: std::num::NonZeroU8,
 ) -> RouterResult<MinorUnit> {
     interest_rate
-        .apply_and_ceil_result(order_amount, number_of_installments)
+        .calculate_emi_interest(order_amount, number_of_installments)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to calculate installment interest")
 }

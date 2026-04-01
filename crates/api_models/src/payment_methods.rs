@@ -2619,7 +2619,7 @@ impl PaymentMethodListInstallmentPlan {
             .map(|&count| {
                 let interest = data
                     .interest_rate
-                    .apply_and_ceil_result(order_amount, count)
+                    .calculate_emi_interest(order_amount, count)
                     .change_context(errors::ParsingError::UnknownError)
                     .attach_printable("Failed to apply installment interest rate")?;
                 let total_with_interest = net_amount + interest;
