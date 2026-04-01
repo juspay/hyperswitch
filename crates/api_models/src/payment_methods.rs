@@ -2619,11 +2619,15 @@ impl PaymentMethodListInstallmentPlan {
             .map(|&count| {
                 let interest = data
                     .interest_rate
-                    .apply_and_ceil_result(order_amount)
+                    .apply_and_ceil_result(order_amount, count)
                     .change_context(errors::ParsingError::UnknownError)
                     .attach_printable("Failed to apply installment interest rate")?;
                 let total_with_interest = net_amount + interest;
-                let per_installment = total_with_interest / count;
+                #[allow(clippy::as_conversions)]
+                let per_installment = MinorUnit::new(
+                    (total_with_interest.get_amount_as_i64() as f64 / f64::from(u8::from(count)))
+                        .ceil() as i64,
+                );
                 let amount_per_installment = per_installment
                     .to_major_unit_as_f64(currency)
                     .change_context(errors::ParsingError::UnknownError)

@@ -1312,9 +1312,11 @@ pub struct InstallmentInterestRate(f64);
 
 impl InstallmentInterestRate {
     /// apply the interest rate to amount and ceil the result
+    #[allow(clippy::as_conversions)]
     pub fn apply_and_ceil_result(
         &self,
         amount: MinorUnit,
+        number_of_installments: NonZeroU8,
     ) -> errors::CustomResult<MinorUnit, errors::InstallmentInterestRateError> {
         let max_amount = i64::MAX / 10000;
         let amount = amount.get_amount_as_i64();
@@ -1332,12 +1334,17 @@ impl InstallmentInterestRate {
                 .parse::<f64>()
                 .change_context(errors::InstallmentInterestRateError::UnableToApplyInterestRate)
                 .attach_printable("Failed to parse amount as f64")?;
-            let ceiled = (amount_f64 * (self.0 / 100.0)).ceil();
-            let result = ceiled
-                .to_string()
-                .parse::<i64>()
-                .change_context(errors::InstallmentInterestRateError::UnableToApplyInterestRate)
-                .attach_printable("Failed to parse ceiled result as i64")?;
+            let rate_decimal = self.0 / 100.0;
+            let n = f64::from(u8::from(number_of_installments));
+            let total_interest = if rate_decimal == 0.0 {
+                0.0
+            } else {
+                let factor = (1.0 + rate_decimal).powf(n);
+                let emi = (amount_f64 * rate_decimal * factor) / (factor - 1.0);
+                let total = emi * n;
+                total - amount_f64
+            };
+            let result = total_interest.round() as i64;
             Ok(MinorUnit::new(result))
         }
     }
