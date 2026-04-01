@@ -8655,6 +8655,48 @@
           {
             "type": "object",
             "required": [
+              "pix_automatico_qr"
+            ],
+            "properties": {
+              "pix_automatico_qr": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pix_automatico_push"
+            ],
+            "properties": {
+              "pix_automatico_push": {
+                "type": "object",
+                "properties": {
+                  "account_number": {
+                    "type": "string",
+                    "description": "Account number for Pix Automatico Push payment method",
+                    "example": "550689",
+                    "nullable": true
+                  },
+                  "branch_code": {
+                    "type": "string",
+                    "description": "Branch code for Pix Automatico Push payment method",
+                    "example": "2569",
+                    "nullable": true
+                  },
+                  "bank_identifier": {
+                    "type": "string",
+                    "description": "Bank identifier for Pix Automatico Push payment method",
+                    "example": "91193552",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "pse"
             ],
             "properties": {
@@ -25627,19 +25669,19 @@
         "properties": {
           "account_number": {
             "type": "string",
-            "description": "Partially masked account number for Pix Automatico Push payment method",
+            "description": "Account number for Pix Automatico Push payment method",
             "example": "550689",
             "nullable": true
           },
           "branch_code": {
             "type": "string",
-            "description": "Partially masked branch code for Pix Automatico Push payment method",
+            "description": "Branch code for Pix Automatico Push payment method",
             "example": "2569",
             "nullable": true
           },
           "bank_identifier": {
             "type": "string",
-            "description": "Partially masked bank identifier for Pix Automatico Push payment method",
+            "description": "Bank identifier for Pix Automatico Push payment method",
             "example": "91193552",
             "nullable": true
           }
