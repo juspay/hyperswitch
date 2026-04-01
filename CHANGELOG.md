@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.02.0-hotfix14
+
+### Bug Fixes
+
+- **connectors:** [stripe] fix webhook event type mapping ([#11687](https://github.com/juspay/hyperswitch/pull/11687)) ([`445ce26`](https://github.com/juspay/hyperswitch/commit/445ce264d1b39a6486957d3d4300ad34ae28fc68))
+
+### Refactors
+
+- **router:** Handle dispute webhook validation failure with 4xx response ([#11648](https://github.com/juspay/hyperswitch/pull/11648)) ([`a8dbf58`](https://github.com/juspay/hyperswitch/commit/a8dbf585009cdb6bef47028509f569f512d40656))
+
+**Full Changelog:** [`2026.02.02.0-hotfix13...2026.02.02.0-hotfix14`](https://github.com/juspay/hyperswitch/compare/2026.02.02.0-hotfix13...2026.02.02.0-hotfix14)
+
+- - -
+
 ## 2026.02.02.0-hotfix13
 
 ### Features
