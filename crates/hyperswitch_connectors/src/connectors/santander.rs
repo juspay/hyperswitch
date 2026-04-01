@@ -17,17 +17,17 @@ use hyperswitch_domain_models::{
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{
-            Authorize, Capture, PSync, PaymentMethodToken, PaymentTrigger, Session, SetupMandate,
-            Void,
+            Authorize, Capture, GenerateQr, PSync, PaymentMethodToken, PaymentTrigger, Session,
+            SetupMandate, Void,
         },
         refunds::{Execute, RSync},
         AuthorizeSessionToken, UpdateMetadata,
     },
     router_request_types::{
-        AccessTokenRequestData, AuthorizeSessionTokenData, PaymentMethodTokenizationData,
-        PaymentTriggerData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
-        PaymentsSessionData, PaymentsSyncData, PaymentsUpdateMetadataData, RefundsData, ResponseId,
-        SetupMandateRequestData,
+        AccessTokenRequestData, AuthorizeSessionTokenData, GenerateQrRequestData,
+        PaymentMethodTokenizationData, PaymentTriggerData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
+        PaymentsUpdateMetadataData, RefundsData, ResponseId, SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
@@ -109,6 +109,7 @@ impl api::RefundSync for Santander {}
 impl api::PaymentToken for Santander {}
 impl api::PaymentUpdateMetadata for Santander {}
 impl api::PaymentsTrigger for Santander {}
+impl api::PaymentsGenerateQr for Santander {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Santander
@@ -1862,5 +1863,18 @@ impl ConnectorAccessTokenSuffix for Santander {
                 merchant_connector_id_or_connector_name,
             )),
         }
+    }
+}
+
+impl ConnectorIntegration<GenerateQr, GenerateQrRequestData, PaymentsResponseData> for Santander {
+    fn build_request(
+        &self,
+        _req: &RouterData<GenerateQr, GenerateQrRequestData, PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("Generate QR flow for Santander".to_string())
+                .into(),
+        )
     }
 }

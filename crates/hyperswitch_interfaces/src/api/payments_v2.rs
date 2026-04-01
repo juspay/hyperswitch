@@ -6,17 +6,17 @@ use hyperswitch_domain_models::{
         payments::{
             Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
             CreateConnectorCustomer, CreateOrder, ExtendAuthorization, ExternalVaultProxy,
-            IncrementalAuthorization, PSync, PaymentMethodToken, PaymentTrigger, PostCaptureVoid,
-            PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
-            SettlementSplitCreate, SetupMandate, UpdateMetadata, Void,
+            GenerateQr, IncrementalAuthorization, PSync, PaymentMethodToken, PaymentTrigger,
+            PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing, Reject,
+            SdkSessionUpdate, Session, SettlementSplitCreate, SetupMandate, UpdateMetadata, Void,
         },
         Authenticate, GiftCardBalanceCheck, PostAuthenticate, PreAuthenticate,
     },
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
-        CreateOrderRequestData, ExternalVaultProxyPaymentsData, GiftCardBalanceCheckRequestData,
-        PaymentMethodTokenizationData, PaymentTriggerData, PaymentsApproveData,
-        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData,
+        CreateOrderRequestData, ExternalVaultProxyPaymentsData, GenerateQrRequestData,
+        GiftCardBalanceCheckRequestData, PaymentMethodTokenizationData, PaymentTriggerData,
+        PaymentsApproveData, PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData,
         PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsExtendAuthorizationData,
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
@@ -290,6 +290,12 @@ pub trait PaymentsPaymentTriggerV2:
 {
 }
 
+/// trait PaymentsGenerateQrV2
+pub trait PaymentsGenerateQrV2:
+    ConnectorIntegrationV2<GenerateQr, PaymentFlowData, GenerateQrRequestData, PaymentsResponseData>
+{
+}
+
 /// trait ExternalVaultProxyPaymentsCreate
 pub trait ExternalVaultProxyPaymentsCreate:
     ConnectorIntegrationV2<
@@ -323,6 +329,7 @@ pub trait PaymentV2:
     + PaymentTokenV2
     + PaymentsPostProcessingV2
     + PaymentsPaymentTriggerV2
+    + PaymentsGenerateQrV2
     + ConnectorCustomerV2
     + PaymentIncrementalAuthorizationV2
     + PaymentExtendAuthorizationV2

@@ -477,6 +477,10 @@ pub trait ConnectorSpecifications {
     fn is_payment_trigger_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
     }
+    /// Check if generate QR flow is required
+    fn is_generate_qr_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
+        false
+    }
     /// Preprocessing flow name if any, that must be made before the current flow.
     fn get_preprocessing_flow_if_needed(
         &self,

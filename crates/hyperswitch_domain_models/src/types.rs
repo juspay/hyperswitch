@@ -15,10 +15,10 @@ use crate::{
         Authorize, AuthorizeSessionToken, BillingConnectorInvoiceSync,
         BillingConnectorPaymentsSync, CalculateTax, Capture, CompleteAuthorize,
         CreateConnectorCustomer, CreateOrder, Execute, ExtendAuthorization, ExternalVaultProxy,
-        GiftCardBalanceCheck, IncrementalAuthorization, PSync, PaymentMethodToken, PaymentTrigger,
-        PostAuthenticate, PostCaptureVoid, PostSessionTokens, PreAuthenticate, PreProcessing,
-        ProcessIncomingWebhook, RSync, SdkSessionUpdate, Session, SettlementSplitCreate,
-        SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
+        GenerateQr, GiftCardBalanceCheck, IncrementalAuthorization, PSync, PaymentMethodToken,
+        PaymentTrigger, PostAuthenticate, PostCaptureVoid, PostSessionTokens, PreAuthenticate,
+        PreProcessing, ProcessIncomingWebhook, RSync, SdkSessionUpdate, Session,
+        SettlementSplitCreate, SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
     },
     router_request_types::{
         merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
@@ -38,15 +38,16 @@ use crate::{
         },
         AccessTokenAuthenticationRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
         CompleteAuthorizeData, ConnectorCustomerData, CreateOrderRequestData,
-        ExternalVaultProxyPaymentsData, GiftCardBalanceCheckRequestData, MandateRevokeRequestData,
-        PaymentMethodTokenizationData, PaymentTriggerData, PaymentsAuthenticateData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostAuthenticateData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
-        PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
-        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
-        SdkPaymentsSessionUpdateData, SettlementSplitRequestData, SetupMandateRequestData,
-        VaultRequestData, VerifyWebhookSourceRequestData,
+        ExternalVaultProxyPaymentsData, GenerateQrRequestData, GiftCardBalanceCheckRequestData,
+        MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentTriggerData,
+        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsExtendAuthorizationData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsPostSessionTokensData, PaymentsPreAuthenticateData, PaymentsPreProcessingData,
+        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        PaymentsUpdateMetadataData, RefundsData, SdkPaymentsSessionUpdateData,
+        SettlementSplitRequestData, SetupMandateRequestData, VaultRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
@@ -77,6 +78,8 @@ pub type PaymentsPreProcessingRouterData =
     RouterData<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>;
 pub type PaymentsTriggerRouterData =
     RouterData<PaymentTrigger, PaymentTriggerData, PaymentsResponseData>;
+pub type PaymentsGenerateQrRouterData =
+    RouterData<GenerateQr, GenerateQrRequestData, PaymentsResponseData>;
 pub type PaymentsPreAuthenticateRouterData =
     RouterData<PreAuthenticate, PaymentsPreAuthenticateData, PaymentsResponseData>;
 pub type PaymentsAuthenticateRouterData =

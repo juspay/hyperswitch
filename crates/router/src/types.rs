@@ -39,8 +39,8 @@ use hyperswitch_domain_models::router_flow_types::{
     payments::{
         Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture,
         CompleteAuthorize, CreateConnectorCustomer, CreateOrder, ExtendAuthorization,
-        ExternalVaultProxy, IncrementalAuthorization, InitPayment, PSync, PaymentTrigger,
-        PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing, Reject,
+        ExternalVaultProxy, GenerateQr, IncrementalAuthorization, InitPayment, PSync,
+        PaymentTrigger, PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing, Reject,
         SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
     },
     refunds::{Execute, RSync},
@@ -75,9 +75,9 @@ pub use hyperswitch_domain_models::{
         CompleteAuthorizeData, CompleteAuthorizeRedirectResponse, ConnectorCustomerData,
         CreateOrderRequestData, DefendDisputeRequestData, DestinationChargeRefund,
         DirectChargeRefund, DisputeSyncData, ExternalVaultProxyPaymentsData,
-        FetchDisputesRequestData, MandateRevokeRequestData, MultipleCaptureRequestData,
-        PaymentMethodTokenizationData, PaymentTriggerData, PaymentsApproveData,
-        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData,
+        FetchDisputesRequestData, GenerateQrRequestData, MandateRevokeRequestData,
+        MultipleCaptureRequestData, PaymentMethodTokenizationData, PaymentTriggerData,
+        PaymentsApproveData, PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData,
         PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsExtendAuthorizationData,
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
@@ -143,6 +143,8 @@ pub type PaymentsPreProcessingRouterData =
     RouterData<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>;
 pub type PaymentsTriggerRouterData =
     RouterData<PaymentTrigger, PaymentTriggerData, PaymentsResponseData>;
+pub type PaymentsGenerateQrRouterData =
+    RouterData<GenerateQr, GenerateQrRequestData, PaymentsResponseData>;
 pub type PaymentsPostProcessingRouterData =
     RouterData<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>;
 pub type PaymentsAuthorizeSessionTokenRouterData =

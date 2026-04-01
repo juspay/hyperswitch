@@ -51,6 +51,9 @@ pub struct PreProcessing;
 pub struct PaymentTrigger;
 
 #[derive(Debug, Clone)]
+pub struct GenerateQr;
+
+#[derive(Debug, Clone)]
 pub struct IncrementalAuthorization;
 
 #[derive(Debug, Clone)]

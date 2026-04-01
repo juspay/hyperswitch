@@ -4762,6 +4762,19 @@ where
         (router_data, false)
     };
 
+    // Call generate QR step after the authorize/setup mandate flow completes
+    let (router_data, _should_continue_generate_qr) = if should_continue_payment {
+        router_data
+            .generate_qr_step(
+                state,
+                connector,
+                &call_connector_service_response.gateway_context,
+            )
+            .await?
+    } else {
+        (router_data, false)
+    };
+
     Ok((router_data, merchant_connector_account))
 }
 
@@ -5234,9 +5247,22 @@ where
     let should_continue_payment = router_data.response.is_ok();
 
     // Call payment trigger step after the authorize/setup mandate flow completes
-    let (router_data, _should_continue_trigger) = if should_continue_payment {
+    let (router_data, should_continue_trigger) = if should_continue_payment {
         router_data
             .payment_trigger_step(
+                state,
+                connector,
+                &call_connector_service_response.gateway_context,
+            )
+            .await?
+    } else {
+        (router_data, false)
+    };
+
+    // Call generate QR step after the authorize/setup mandate flow completes
+    let (router_data, _should_continue_generate_qr) = if should_continue_payment {
+        router_data
+            .generate_qr_step(
                 state,
                 connector,
                 &call_connector_service_response.gateway_context,

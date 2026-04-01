@@ -4,19 +4,19 @@ use hyperswitch_domain_models::{
     router_flow_types::{
         payments::{
             Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
-            CreateConnectorCustomer, ExtendAuthorization, IncrementalAuthorization, PSync,
-            PaymentMethodToken, PaymentTrigger, PostCaptureVoid, PostProcessing, PostSessionTokens,
-            PreProcessing, Reject, SdkSessionUpdate, Session, SettlementSplitCreate, SetupMandate,
-            UpdateMetadata, Void,
+            CreateConnectorCustomer, ExtendAuthorization, GenerateQr, IncrementalAuthorization,
+            PSync, PaymentMethodToken, PaymentTrigger, PostCaptureVoid, PostProcessing,
+            PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
+            SettlementSplitCreate, SetupMandate, UpdateMetadata, Void,
         },
         Authenticate, CreateOrder, ExternalVaultProxy, GiftCardBalanceCheck, PostAuthenticate,
         PreAuthenticate,
     },
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
-        CreateOrderRequestData, ExternalVaultProxyPaymentsData, GiftCardBalanceCheckRequestData,
-        PaymentMethodTokenizationData, PaymentTriggerData, PaymentsApproveData,
-        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData,
+        CreateOrderRequestData, ExternalVaultProxyPaymentsData, GenerateQrRequestData,
+        GiftCardBalanceCheckRequestData, PaymentMethodTokenizationData, PaymentTriggerData,
+        PaymentsApproveData, PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData,
         PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsExtendAuthorizationData,
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
@@ -53,6 +53,7 @@ pub trait Payment:
     + PaymentToken
     + PaymentsPostProcessing
     + PaymentsTrigger
+    + PaymentsGenerateQr
     + ConnectorCustomer
     + PaymentIncrementalAuthorization
     + PaymentExtendAuthorization
@@ -221,6 +222,12 @@ pub trait PaymentsPostProcessing:
 /// trait PaymentsTrigger
 pub trait PaymentsTrigger:
     api::ConnectorIntegration<PaymentTrigger, PaymentTriggerData, PaymentsResponseData>
+{
+}
+
+/// trait PaymentsGenerateQr
+pub trait PaymentsGenerateQr:
+    api::ConnectorIntegration<GenerateQr, GenerateQrRequestData, PaymentsResponseData>
 {
 }
 

@@ -1843,3 +1843,38 @@ impl PaymentTriggerData {
             })
     }
 }
+
+#[derive(Debug, Clone, Serialize)]
+pub struct GenerateQrRequestData {}
+
+impl TryFrom<SetupMandateRequestData> for GenerateQrRequestData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(_data: SetupMandateRequestData) -> Result<Self, Self::Error> {
+        Ok(Self {})
+    }
+}
+
+impl TryFrom<PaymentsAuthorizeData> for GenerateQrRequestData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(_data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {})
+    }
+}
+
+impl TryFrom<PaymentsAuthenticateData> for GenerateQrRequestData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(_data: PaymentsAuthenticateData) -> Result<Self, Self::Error> {
+        Ok(Self {})
+    }
+}
+
+impl TryFrom<CompleteAuthorizeData> for GenerateQrRequestData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(_data: CompleteAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {})
+    }
+}
