@@ -691,17 +691,13 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
 {
     fn build_request(
         &self,
-        req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        _req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
         _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        match req.payment_method_type {
-            Some(enums::PaymentMethodType::PixAutomaticoPush)
-            | Some(enums::PaymentMethodType::PixAutomaticoQr) => Ok(None),
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Setup Mandate flow for Santander".to_string(),
-            )
-            .into()),
-        }
+        Err(
+            errors::ConnectorError::NotImplemented("Setup Mandate flow for Santander".to_string())
+                .into(),
+        )
     }
 }
 

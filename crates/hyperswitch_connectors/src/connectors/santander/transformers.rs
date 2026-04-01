@@ -105,118 +105,6 @@ impl
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SantanderPixAutomaticMetadata {
-    pub data_expiracao_solicitacao: String,
-    pub agencia: String,
-    pub conta: String,
-    pub cpf: Option<Secret<String>>,
-    pub cnpj: Option<Secret<String>>,
-    pub ispb_participante: String,
-}
-
-impl TryFrom<&SantanderRouterData<&PaymentsTriggerRouterData>>
-    for SantanderPixAutomaticSolicitationRequest
-{
-    type Error = Error;
-
-    fn try_from(
-        item: &SantanderRouterData<&PaymentsTriggerRouterData>,
-    ) -> Result<Self, Self::Error> {
-        let bank_transfer_data = match &item.router_data.request.payment_method_data {
-            Some(PaymentMethodData::BankTransfer(boxed_data)) => match boxed_data.as_ref() {
-                BankTransferData::PixAutomaticoPush {
-                    account_number,
-                    branch_code,
-                    bank_identifier,
-                } => (account_number, branch_code, bank_identifier),
-                _ => {
-                    return Err(errors::ConnectorError::MissingRequiredField {
-                        field_name: "payment_method_data.bank_transfer.pix_automatico_push",
-                    })?
-                }
-            },
-            _ => {
-                return Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: "payment_method_data.bank_transfer.pix_automatico_push",
-                })?
-            }
-        };
-
-        let customer_document_details = item.router_data.customer_document_details.clone().ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "customer.document_details",
-            },
-        )?;
-
-        let (cpf, cnpj) = match customer_document_details.document_type {
-            common_types::customers::DocumentKind::Cpf => {
-                (Some(customer_document_details.document_number), None)
-            }
-            common_types::customers::DocumentKind::Cnpj => {
-                (None, Some(customer_document_details.document_number))
-            }
-        };
-
-        let expiry_time_seconds = item
-            .router_data
-            .request
-            .feature_metadata
-            .as_ref()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "feature_metadata",
-            })?
-            .get_pix_automatico_push_expiry_time()
-            .change_context(errors::ConnectorError::ParsingFailed)
-            .attach_printable("Failed to get pix_automatico_push expiry time")?;
-
-        let expiry_seconds = i64::from(expiry_time_seconds);
-        let offset_datetime = time::OffsetDateTime::now_utc()
-            .checked_add(time::Duration::seconds(expiry_seconds))
-            .ok_or(errors::ConnectorError::ParsingFailed)?;
-
-        // Format as ISO 8601 with Z timezone: YYYY-MM-ddTHH:mm:ss.SSSZ
-        let data_expiracao_solicitacao = offset_datetime
-            .format(&time::macros::format_description!(
-                "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:3]Z"
-            ))
-            .change_context(errors::ConnectorError::DateFormattingFailed)?;
-
-        Ok(Self {
-            id_rec: item.router_data.connector_request_reference_id.clone(),
-            calendario: SantanderPixAutomaticCalendarRequest {
-                data_expiracao_solicitacao,
-            },
-            destinatario: SantanderPixAutomaticDestinationRequest {
-                agencia: bank_transfer_data
-                    .1
-                    .clone()
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "payment_method_data.bank_transfer.branch_code",
-                    })?
-                    .expose(),
-                conta: bank_transfer_data
-                    .0
-                    .clone()
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "payment_method_data.bank_transfer.account_number",
-                    })?
-                    .expose(),
-                cpf,
-                cnpj,
-                ispb_participante: bank_transfer_data
-                    .2
-                    .clone()
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "payment_method_data.bank_transfer.bank_identifier",
-                    })?
-                    .expose(),
-            },
-        })
-    }
-}
-
 impl
     TryFrom<
         ResponseRouterData<
@@ -280,6 +168,7 @@ impl
                 )
             }
             SantanderPaymentTriggerResponse::PixAutomaticoConsultAndActivateJourney(response) => {
+                // Passing journey in metadata so that it can be used in PSync flows to determine which url to call for J3/J4 (Immediate/Scheduled) COB/COBV API's
                 let journey = response
                     .dados_qr
                     .as_ref()
@@ -1001,7 +890,7 @@ impl From<RecurrenceStatus> for AttemptStatus {
             RecurrenceStatus::Recebida | RecurrenceStatus::Aceita | RecurrenceStatus::Enviada => {
                 Self::Pending
             }
-            RecurrenceStatus::Unknown => Self::Pending,
+            _ => Self::Pending,
         }
     }
 }
@@ -1903,34 +1792,6 @@ fn get_boleto_additional_fields_from_connector_metadata(
             )
         })
         .unwrap_or_default()
-}
-
-impl TryFrom<&SantanderRouterData<&PaymentsTriggerRouterData>>
-    for SantanderPostProcessingStepRequest
-{
-    type Error = Error;
-    fn try_from(
-        value: &SantanderRouterData<&PaymentsTriggerRouterData>,
-    ) -> Result<Self, Self::Error> {
-        match &value.router_data.request.payment_method_data {
-            Some(PaymentMethodData::BankTransfer(bank_transfer_data)) => {
-                match bank_transfer_data.as_ref() {
-                    BankTransferData::PixAutomaticoPush { .. } => {
-                        let solicitation_request =
-                            SantanderPixAutomaticSolicitationRequest::try_from(value)?;
-                        Ok(Self::PixAutomaticoPush(solicitation_request))
-                    }
-                    BankTransferData::PixAutomaticoQr {} => Ok(Self::PixAutomaticoQr()),
-                    _ => Err(errors::ConnectorError::NotImplemented(
-                        crate::utils::get_unimplemented_payment_method_error_message("Santander"),
-                    ))?,
-                }
-            }
-            _ => Err(errors::ConnectorError::NotImplemented(
-                crate::utils::get_unimplemented_payment_method_error_message("Santander"),
-            ))?,
-        }
-    }
 }
 
 impl TryFrom<&PaymentsTriggerRouterData> for SantanderPostProcessingStepRequest {
