@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.02.0-hotfix15
+
+### Features
+
+- **connector:** [Noon] Add support for configurable region_based_endpoint while creating mca ([#11675](https://github.com/juspay/hyperswitch/pull/11675)) ([`9f5f5cf`](https://github.com/juspay/hyperswitch/commit/9f5f5cfc637e1813476ee586dbc3e742dc0ef9e4))
+
+**Full Changelog:** [`2026.02.02.0-hotfix14...2026.02.02.0-hotfix15`](https://github.com/juspay/hyperswitch/compare/2026.02.02.0-hotfix14...2026.02.02.0-hotfix15)
+
+- - -
+
 ## 2026.02.02.0-hotfix14
 
 ### Bug Fixes
