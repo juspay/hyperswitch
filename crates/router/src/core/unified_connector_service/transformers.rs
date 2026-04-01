@@ -6128,6 +6128,54 @@ impl
 // =============================================================================
 
 #[cfg(feature = "payouts")]
+impl ForeignFrom<common_enums::PayoutSendPriority> for payments_grpc::payout_enums::PayoutPriority {
+    fn foreign_from(priority: common_enums::PayoutSendPriority) -> Self {
+        match priority {
+            common_enums::PayoutSendPriority::Instant => Self::Instant,
+            common_enums::PayoutSendPriority::Fast => Self::Fast,
+            common_enums::PayoutSendPriority::Regular => Self::Regular,
+            common_enums::PayoutSendPriority::Wire => Self::Wire,
+            common_enums::PayoutSendPriority::CrossBorder => Self::CrossBorder,
+            common_enums::PayoutSendPriority::Internal => Self::Internal,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl ForeignFrom<&router_request_types::CustomerDetails> for payments_grpc::Customer {
+    fn foreign_from(customer: &router_request_types::CustomerDetails) -> Self {
+        Self {
+            id: customer
+                .customer_id
+                .clone()
+                .map(|id| id.get_string_repr().to_string()),
+            connector_customer_id: None,
+            name: customer.name.clone().map(|s| s.expose()),
+            email: customer.email.clone().map(|e| e.expose().expose().into()),
+            phone_number: customer.phone.clone().map(|s| s.expose()),
+            phone_country_code: customer.phone_country_code.clone(),
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl ForeignFrom<common_enums::PayoutEntityType>
+    for payments_grpc::payout_enums::PayoutRecipientType
+{
+    fn foreign_from(entity: common_enums::PayoutEntityType) -> Self {
+        match entity {
+            common_enums::PayoutEntityType::Individual => Self::Individual,
+            common_enums::PayoutEntityType::Company => Self::Company,
+            common_enums::PayoutEntityType::NonProfit => Self::NonProfit,
+            common_enums::PayoutEntityType::PublicSector => Self::PublicSector,
+            common_enums::PayoutEntityType::NaturalPerson => Self::NaturalPerson,
+            common_enums::PayoutEntityType::Business => Self::Business,
+            common_enums::PayoutEntityType::Personal => Self::Personal,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
 impl transformers::ForeignTryFrom<payments_grpc::payout_enums::PayoutStatus>
     for common_enums::PayoutStatus
 {
@@ -6199,42 +6247,19 @@ impl
             .request
             .customer_details
             .as_ref()
-            .map(|customer| payments_grpc::Customer {
-                id: customer
-                    .customer_id
-                    .clone()
-                    .map(|id| id.get_string_repr().to_string()),
-                connector_customer_id: None,
-                name: customer.name.clone().map(|s| s.expose()),
-                email: customer.email.clone().map(|e| e.expose().expose().into()),
-                phone_number: customer.phone.clone().map(|s| s.expose()),
-                phone_country_code: customer.phone_country_code.clone(),
-            });
+            .map(payments_grpc::Customer::foreign_from);
 
         let priority = router_data
             .request
             .priority
-            .map(|p| match p {
-                common_enums::PayoutSendPriority::Instant => {
-                    payments_grpc::payout_enums::PayoutPriority::Instant
-                }
-                common_enums::PayoutSendPriority::Fast => {
-                    payments_grpc::payout_enums::PayoutPriority::Fast
-                }
-                common_enums::PayoutSendPriority::Regular => {
-                    payments_grpc::payout_enums::PayoutPriority::Regular
-                }
-                common_enums::PayoutSendPriority::Wire => {
-                    payments_grpc::payout_enums::PayoutPriority::Wire
-                }
-                common_enums::PayoutSendPriority::CrossBorder => {
-                    payments_grpc::payout_enums::PayoutPriority::CrossBorder
-                }
-                common_enums::PayoutSendPriority::Internal => {
-                    payments_grpc::payout_enums::PayoutPriority::Internal
-                }
-            })
+            .map(payments_grpc::payout_enums::PayoutPriority::foreign_from)
             .map(i32::from);
+
+        let connector_feature_data = router_data
+            .request
+            .payout_connector_metadata
+            .clone()
+            .map(|secret| Secret::new(secret.expose().to_string()));
 
         let payout_method_data = router_data
             .payout_method_data
@@ -6260,7 +6285,7 @@ impl
         Ok(Self {
             merchant_payout_id: router_data.payout_id.clone(),
             address,
-            connector_feature_data: None,
+            connector_feature_data,
             payout_method_data,
             connector_quote_id: router_data.quote_id.clone(),
             connector_payout_id: router_data.request.connector_payout_id.clone(),
@@ -6295,10 +6320,16 @@ impl
     ) -> Result<Self, Self::Error> {
         let address = payments_grpc::PayoutAddress::foreign_try_from(router_data.address.clone())?;
 
+        let connector_feature_data = router_data
+            .request
+            .payout_connector_metadata
+            .clone()
+            .map(|secret| Secret::new(secret.expose().to_string()));
+
         Ok(Self {
             merchant_payout_id: router_data.payout_id.clone(),
             address: Some(address),
-            connector_feature_data: None,
+            connector_feature_data,
             connector_payout_id: router_data.request.connector_payout_id.clone(),
             access_token: router_data.access_token.clone().map(|at| at.token),
         })
@@ -6324,8 +6355,7 @@ impl
             PayoutsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let address =
-            payments_grpc::PayoutAddress::foreign_try_from(router_data.address.clone()).ok();
+        let address = payments_grpc::PayoutAddress::foreign_try_from(router_data.address.clone())?;
         let source_currency =
             payments_grpc::Currency::foreign_try_from(router_data.request.source_currency)?;
         let destination_currency =
@@ -6334,42 +6364,49 @@ impl
             minor_amount: router_data.request.amount,
             currency: source_currency.into(),
         };
-        let customer = payments_grpc::Customer {
-            id: router_data
-                .customer_id
-                .clone()
-                .map(|id| id.get_string_repr().to_string()),
-            email: router_data
-                .request
-                .customer_details
-                .as_ref()
-                .and_then(|c| c.email.clone())
-                .map(|e| e.expose().expose().into()),
-            name: router_data
-                .request
-                .customer_details
-                .as_ref()
-                .and_then(|c| c.name.clone())
-                .map(|n| n.expose()),
-            connector_customer_id: None,
-            phone_number: None,
-            phone_country_code: None,
-        };
+        let customer = router_data
+            .request
+            .customer_details
+            .as_ref()
+            .map(payments_grpc::Customer::foreign_from)
+            .ok_or(
+                error_stack::Report::new(UnifiedConnectorServiceError::MissingRequiredField {
+                    field_name: "customer",
+                })
+                .attach_printable("Missing customer details in Payout Transfer Request"),
+            )?;
+        let payout_method_data = router_data
+            .payout_method_data
+            .as_ref()
+            .map(|payout_method_data| {
+                payments_grpc::PayoutMethod::foreign_try_from(payout_method_data)
+            })
+            .transpose()?;
+        let browser_info = router_data
+            .request
+            .browser_info
+            .as_ref()
+            .map(|b| payments_grpc::BrowserInformation::foreign_try_from(b.clone()))
+            .transpose()?;
 
         Ok(Self {
             merchant_payout_id: router_data.payout_id.clone(),
-            address,
+            address: Some(address),
             amount: Some(money),
             destination_currency: destination_currency.into(),
             customer: Some(customer),
             access_token: router_data.access_token.clone().map(|at| at.token),
             connector_payout_id: router_data.request.connector_payout_id.clone(),
-            payout_method_data: None,
-            connector_quote_id: None,
-            priority: None,
-            connector_payout_method_id: None,
-            webhook_url: None,
-            browser_info: None,
+            payout_method_data,
+            connector_quote_id: router_data.quote_id.clone(),
+            priority: router_data
+                .request
+                .priority
+                .map(payments_grpc::payout_enums::PayoutPriority::foreign_from)
+                .map(i32::from),
+            connector_payout_method_id: router_data.request.connector_transfer_method_id.clone(),
+            webhook_url: router_data.request.webhook_url.clone(),
+            browser_info,
         })
     }
 }
@@ -6403,27 +6440,23 @@ impl
             minor_amount: router_data.request.amount,
             currency: source_currency.into(),
         };
-        let customer = payments_grpc::Customer {
-            id: router_data
-                .customer_id
-                .clone()
-                .map(|id| id.get_string_repr().to_string()),
-            email: router_data
-                .request
-                .customer_details
-                .as_ref()
-                .and_then(|c| c.email.clone())
-                .map(|e| e.expose().expose().into()),
-            name: router_data
-                .request
-                .customer_details
-                .as_ref()
-                .and_then(|c| c.name.clone())
-                .map(|n| n.expose()),
-            connector_customer_id: None,
-            phone_number: None,
-            phone_country_code: None,
-        };
+        let customer = router_data
+            .request
+            .customer_details
+            .as_ref()
+            .map(payments_grpc::Customer::foreign_from)
+            .ok_or(
+                error_stack::Report::new(UnifiedConnectorServiceError::MissingRequiredField {
+                    field_name: "customer",
+                })
+                .attach_printable("Missing customer details in Payout Stage Request"),
+            )?;
+        let browser_info = router_data
+            .request
+            .browser_info
+            .as_ref()
+            .map(|b| payments_grpc::BrowserInformation::foreign_try_from(b.clone()))
+            .transpose()?;
 
         Ok(Self {
             merchant_quote_id: router_data.quote_id.clone(),
@@ -6432,7 +6465,7 @@ impl
             destination_currency: destination_currency.into(),
             customer: Some(customer),
             access_token: router_data.access_token.clone().map(|at| at.token),
-            browser_info: None,
+            browser_info,
         })
     }
 }
@@ -6458,26 +6491,29 @@ impl
     ) -> Result<Self, Self::Error> {
         let address =
             payments_grpc::PayoutAddress::foreign_try_from(router_data.address.clone()).ok();
-        let customer = payments_grpc::Customer {
-            id: router_data
-                .customer_id
-                .clone()
-                .map(|id| id.get_string_repr().to_string()),
-            email: router_data
-                .request
-                .customer_details
-                .as_ref()
-                .and_then(|c| c.email.clone())
-                .map(|e| e.expose().expose().into()),
-            name: router_data
-                .request
-                .customer_details
-                .as_ref()
-                .and_then(|c| c.name.clone())
-                .map(|n| n.expose()),
-            connector_customer_id: None,
-            phone_number: None,
-            phone_country_code: None,
+        let customer = router_data
+            .request
+            .customer_details
+            .as_ref()
+            .map(payments_grpc::Customer::foreign_from)
+            .ok_or(
+                error_stack::Report::new(UnifiedConnectorServiceError::MissingRequiredField {
+                    field_name: "customer",
+                })
+                .attach_printable("Missing customer details in Payout Create Recipient Request"),
+            )?;
+        let payout_method_data = router_data
+            .payout_method_data
+            .as_ref()
+            .map(|payout_method_data| {
+                payments_grpc::PayoutMethod::foreign_try_from(payout_method_data)
+            })
+            .transpose()?;
+        let source_currency =
+            payments_grpc::Currency::foreign_try_from(router_data.request.source_currency)?;
+        let amount = payments_grpc::Money {
+            minor_amount: router_data.request.amount,
+            currency: source_currency.into(),
         };
 
         Ok(Self {
@@ -6485,9 +6521,13 @@ impl
             address,
             customer: Some(customer),
             access_token: router_data.access_token.clone().map(|at| at.token),
-            payout_method_data: None,
-            amount: None,
-            recipient_type: 0,
+            payout_method_data,
+            amount: Some(amount),
+            recipient_type: i32::from(
+                payments_grpc::payout_enums::PayoutRecipientType::foreign_from(
+                    router_data.request.entity_type,
+                ),
+            ),
         })
     }
 }
@@ -6513,7 +6553,13 @@ impl
     ) -> Result<Self, Self::Error> {
         let address =
             payments_grpc::PayoutAddress::foreign_try_from(router_data.address.clone()).ok();
-        let payout_method_data = None;
+        let payout_method_data = router_data
+            .payout_method_data
+            .as_ref()
+            .map(|payout_method_data| {
+                payments_grpc::PayoutMethod::foreign_try_from(payout_method_data)
+            })
+            .transpose()?;
 
         let source_currency =
             payments_grpc::Currency::foreign_try_from(router_data.request.source_currency)?;
@@ -6521,27 +6567,19 @@ impl
             minor_amount: router_data.request.amount,
             currency: source_currency.into(),
         };
-        let customer = payments_grpc::Customer {
-            id: router_data
-                .customer_id
-                .clone()
-                .map(|id| id.get_string_repr().to_string()),
-            email: router_data
-                .request
-                .customer_details
-                .as_ref()
-                .and_then(|c| c.email.clone())
-                .map(|e| e.expose().expose().into()),
-            name: router_data
-                .request
-                .customer_details
-                .as_ref()
-                .and_then(|c| c.name.clone())
-                .map(|n| n.expose()),
-            phone_country_code: None,
-            connector_customer_id: None,
-            phone_number: None,
-        };
+        let customer = router_data
+            .request
+            .customer_details
+            .as_ref()
+            .map(payments_grpc::Customer::foreign_from)
+            .ok_or(
+                error_stack::Report::new(UnifiedConnectorServiceError::MissingRequiredField {
+                    field_name: "customer",
+                })
+                .attach_printable(
+                    "Missing customer details in Payout Enroll Disburse Account Request",
+                ),
+            )?;
 
         Ok(Self {
             merchant_payout_id: router_data.payout_id.clone(),
