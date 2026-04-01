@@ -12,7 +12,9 @@ use common_utils::ext_traits::{AsyncExt, Encode, StringExt, ValueExt};
 use diesel_models::payment_attempt::ConnectorMandateReferenceId as DieselConnectorMandateReferenceId;
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", not(feature = "pm_modular")))]
+use hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdateFields;
+#[cfg(all(feature = "v1", feature = "pm_modular"))]
 use hyperswitch_domain_models::payments::{
     self as domain_payments, payment_intent::PaymentIntentUpdateFields,
 };
@@ -26,6 +28,8 @@ use router_env::{instrument, logger, tracing};
 use tracing_futures::Instrument;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
+#[cfg(feature = "pm_modular")]
+use crate::core::payment_methods::{transformers as pm_transformers, utils as pm_utils};
 #[cfg(feature = "v1")]
 use crate::{
     consts,
@@ -41,12 +45,11 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         metrics,
-        payment_methods::{transformers as pm_transformers, utils as pm_utils},
         payments::{
             self, helpers, operations,
             operations::payment_confirm::unified_authentication_service::ThreeDsMetaData,
             populate_installment_details, populate_surcharge_details, CustomerDetails,
-            OperationSessionGetters, OperationSessionSetters, PaymentAddress, PaymentData,
+            OperationSessionGetters, PaymentAddress, PaymentData,
         },
         three_ds_decision_rule,
         unified_authentication_service::{
@@ -86,8 +89,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         platform: &domain::Platform,
         auth_flow: services::AuthFlow,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        #[cfg(feature = "pm_modular")]
-        payment_method_with_raw_data: Option<pm_transformers::PaymentMethodWithRawData>,
+        #[cfg(feature = "pm_modular")] payment_method_with_raw_data: Option<
+            pm_transformers::PaymentMethodWithRawData,
+        >,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let processor_merchant_id = platform.get_processor().get_account().get_id();
@@ -558,8 +562,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     })
             }));
         #[cfg(not(feature = "pm_modular"))]
-        let n_request_payment_method_billing_address =
-            request.payment_method_data.as_ref().and_then(|pmd| pmd.billing.clone());
+        let n_request_payment_method_billing_address = request
+            .payment_method_data
+            .as_ref()
+            .and_then(|pmd| pmd.billing.clone());
         let m_payment_intent_customer_id = payment_intent.customer_id.clone();
         let m_payment_intent_payment_id = payment_intent.payment_id.clone();
         let m_key_store = platform.get_processor().get_key_store().clone();
@@ -605,8 +611,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let payment_intent_customer_id = payment_intent.customer_id.clone();
         #[cfg(feature = "pm_modular")]
-        let payment_method_info_from_modular =
-            payment_method_with_raw_data.clone().map(|pm| pm.payment_method.0);
+        let payment_method_info_from_modular = payment_method_with_raw_data
+            .clone()
+            .map(|pm| pm.payment_method.0);
         #[cfg(not(feature = "pm_modular"))]
         let payment_method_info_from_modular = None;
 

@@ -28,6 +28,8 @@ use storage_impl::platform_wrapper;
 use time::PrimitiveDateTime;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
+#[cfg(feature = "pm_modular")]
+use crate::core::payment_methods::transformers as pm_transformers;
 use crate::{
     consts,
     core::{
@@ -54,8 +56,6 @@ use crate::{
     },
     utils::{self, OptionExt},
 };
-#[cfg(feature = "pm_modular")]
-use crate::core::payment_methods::transformers as pm_transformers;
 
 #[derive(Debug, Clone, Copy, PaymentOperation)]
 #[operation(operations = "all", flow = "authorize")]
@@ -76,8 +76,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        #[cfg(feature = "pm_modular")]
-        payment_method_with_raw_data: Option<pm_transformers::PaymentMethodWithRawData>,
+        #[cfg(feature = "pm_modular")] payment_method_with_raw_data: Option<
+            pm_transformers::PaymentMethodWithRawData,
+        >,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let db = &*state.store;
@@ -153,8 +154,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         })?;
 
         #[cfg(feature = "pm_modular")]
-        let payment_method_info_from_modular =
-            payment_method_with_raw_data.clone().map(|pm| pm.payment_method.0);
+        let payment_method_info_from_modular = payment_method_with_raw_data
+            .clone()
+            .map(|pm| pm.payment_method.0);
         #[cfg(not(feature = "pm_modular"))]
         let payment_method_info_from_modular = None;
 
@@ -230,8 +232,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             }));
 
         #[cfg(not(feature = "pm_modular"))]
-        let payment_method_data_billing =
-            request.payment_method_data.as_ref().and_then(|pmd| pmd.billing.clone());
+        let payment_method_data_billing = request
+            .payment_method_data
+            .as_ref()
+            .and_then(|pmd| pmd.billing.clone());
 
         let payment_method_billing_address =
             helpers::create_or_find_address_for_payment_by_request(
@@ -1258,6 +1262,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
 
 impl PaymentCreate {
     /// Determines the payment method reference for modular payment flows.
+    #[cfg(feature = "pm_modular")]
     fn get_payment_method_reference(self, req: &api::PaymentsRequest) -> Option<&String> {
         match (req.off_session, req.recurring_details.as_ref()) {
             // Payment using off_session MITs using PM ID

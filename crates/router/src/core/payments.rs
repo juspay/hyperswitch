@@ -134,7 +134,7 @@ use crate::{
     consts,
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult},
-        payment_methods::{cards, network_tokenization, transformers as pm_transformers, vault},
+        payment_methods::{cards, network_tokenization, vault},
         payments::helpers::{
             get_applepay_metadata, is_applepay_predecrypted_flow_supported,
             is_googlepay_predecrypted_flow_supported,
@@ -4792,8 +4792,7 @@ pub async fn call_connector_service_prerequisites<F, RouterDReq, ApiRequest, D>(
     business_profile: &domain::Profile,
     should_retry_with_pan: bool,
     routing_decision: Option<routing_helpers::RoutingDecisionData>,
-    #[cfg(feature = "pm_modular")]
-    feature_config: &core_utils::FeatureConfig,
+    #[cfg(feature = "pm_modular")] feature_config: &core_utils::FeatureConfig,
 ) -> RouterResult<(
     helpers::MerchantConnectorAccountType,
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
@@ -8026,8 +8025,7 @@ pub async fn get_connector_tokenization_action_when_confirm_true<F, Req, D>(
     platform: &domain::Platform,
     business_profile: &domain::Profile,
     should_retry_with_pan: bool,
-    #[cfg(feature = "pm_modular")]
-    feature_config: &core_utils::FeatureConfig,
+    #[cfg(feature = "pm_modular")] feature_config: &core_utils::FeatureConfig,
 ) -> RouterResult<(D, TokenizationAction)>
 where
     F: Send + Clone,
@@ -8265,8 +8263,7 @@ pub async fn tokenize_in_router_when_confirm_false_or_external_authentication<F,
     validate_result: &operations::ValidateResult,
     platform: &domain::Platform,
     business_profile: &domain::Profile,
-    #[cfg(feature = "pm_modular")]
-    feature_config: &core_utils::FeatureConfig,
+    #[cfg(feature = "pm_modular")] feature_config: &core_utils::FeatureConfig,
 ) -> RouterResult<D>
 where
     F: Send + Clone,
@@ -8328,7 +8325,7 @@ where
     Ok(payment_data.to_owned())
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "pm_modular"))]
 async fn set_payment_method_from_token_for_modular_payment_method_flow<F, D>(
     state: &SessionState,
     payment_data: &mut D,
@@ -9375,8 +9372,7 @@ pub async fn choose_connector<F, Req, D>(
     req: &Req,
     processor: &domain::Processor,
     business_profile: &domain::Profile,
-    #[cfg(feature = "pm_modular")]
-    feature_config: &core_utils::FeatureConfig,
+    #[cfg(feature = "pm_modular")] feature_config: &core_utils::FeatureConfig,
     payment_data: &mut D,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     mandate_type: Option<api::MandateTransactionType>,
@@ -9662,8 +9658,7 @@ pub async fn perform_routing_for_connector_selection<F, D>(
     state: &SessionState,
     processor: &domain::Processor,
     business_profile: &domain::Profile,
-    #[cfg(feature = "pm_modular")]
-    feature_config: &core_utils::FeatureConfig,
+    #[cfg(feature = "pm_modular")] feature_config: &core_utils::FeatureConfig,
     payment_data: &mut D,
     request_straight_through: Option<serde_json::Value>,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,

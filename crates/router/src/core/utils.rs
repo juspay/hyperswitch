@@ -91,14 +91,14 @@ where
 {
     #[cfg(feature = "pm_modular")]
     {
-    let feature_config = get_feature_config(state, platform).await;
-    common_utils::fp_utils::when(feature_config.is_payment_method_modular_allowed, || {
-        Err(error_stack::report!(E::from(
-            errors::ApiErrorResponse::AccessForbidden {
-                resource: "Deprecated route".to_string(),
-            },
-        )))
-    })?;
+        let feature_config = get_feature_config(state, platform).await;
+        common_utils::fp_utils::when(feature_config.is_payment_method_modular_allowed, || {
+            Err(error_stack::report!(E::from(
+                errors::ApiErrorResponse::AccessForbidden {
+                    resource: "Deprecated route".to_string(),
+                },
+            )))
+        })?;
     }
     #[cfg(not(feature = "pm_modular"))]
     let _ = (state, platform);

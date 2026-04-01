@@ -101,11 +101,12 @@ use super::{helpers, CustomerDetails, OperationSessionGetters, OperationSessionS
 use crate::core::payments;
 #[cfg(all(feature = "v1", feature = "pm_modular"))]
 use crate::core::payments::pm_transformers::PaymentMethodWithRawData;
+#[cfg(feature = "pm_modular")]
+use crate::core::utils as core_utils;
 use crate::{
     core::{
         configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
         errors::{self, CustomResult, RouterResult},
-        utils as core_utils,
     },
     routes::{app::ReqState, SessionState},
     services,
@@ -219,8 +220,9 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         platform: &domain::Platform,
         auth_flow: services::AuthFlow,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        #[cfg(feature = "pm_modular")]
-        payment_method_with_raw_data: Option<PaymentMethodWithRawData>,
+        #[cfg(feature = "pm_modular")] payment_method_with_raw_data: Option<
+            PaymentMethodWithRawData,
+        >,
     ) -> RouterResult<GetTrackerResponse<'a, F, R, D>>;
 
     #[cfg(feature = "v2")]
@@ -622,8 +624,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         _initiator: Option<&domain::Initiator>,
         _payment_data: &D,
         _router_data: &types::RouterData<F, R, PaymentsResponseData>,
-        #[cfg(feature = "pm_modular")]
-        _feature_set: &core_utils::FeatureConfig,
+        #[cfg(feature = "pm_modular")] _feature_set: &core_utils::FeatureConfig,
     ) -> RouterResult<()>
     where
         F: 'b + Clone + Send + Sync,

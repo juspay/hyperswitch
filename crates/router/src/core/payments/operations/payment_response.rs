@@ -719,8 +719,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
-        #[cfg(feature = "pm_modular")]
-        feature_set: &core_utils::FeatureConfig,
+        #[cfg(feature = "pm_modular")] feature_set: &core_utils::FeatureConfig,
     ) -> RouterResult<()>
     where
         F: 'b + Clone + Send + Sync,
@@ -1034,8 +1033,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         initiator: Option<&domain::Initiator>,
         payment_data: &PaymentData<F>,
         router_data: &types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
-        #[cfg(feature = "pm_modular")]
-        feature_set: &core_utils::FeatureConfig,
+        #[cfg(feature = "pm_modular")] feature_set: &core_utils::FeatureConfig,
     ) -> RouterResult<()>
     where
         F: 'b + Clone + Send + Sync,
@@ -1794,8 +1792,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
         >,
-        #[cfg(feature = "pm_modular")]
-        _feature_set: &core_utils::FeatureConfig,
+        #[cfg(feature = "pm_modular")] _feature_set: &core_utils::FeatureConfig,
     ) -> RouterResult<()>
     where
         F: 'b + Clone + Send + Sync,
@@ -1921,8 +1918,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             types::CompleteAuthorizeData,
             types::PaymentsResponseData,
         >,
-        #[cfg(feature = "pm_modular")]
-        feature_set: &core_utils::FeatureConfig,
+        #[cfg(feature = "pm_modular")] feature_set: &core_utils::FeatureConfig,
     ) -> RouterResult<()>
     where
         F: 'b + Clone + Send + Sync,
