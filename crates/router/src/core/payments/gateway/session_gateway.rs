@@ -16,7 +16,7 @@ use crate::{
     core::{
         payments::gateway::context::RouterGatewayContext,
         unified_connector_service::{
-            self, handle_unified_connector_service_response_for_sdk_session_token,
+            self, handle_unified_connector_service_response_for_create_sdk_session_token,
         },
     },
     routes::SessionState,
@@ -76,8 +76,8 @@ where
             .ok_or(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to fetch Unified Connector Service client")?;
 
-        let sdk_session_token_request =
-            payments_grpc::PaymentServiceSdkSessionTokenRequest::foreign_try_from(router_data)
+        let create_sdk_session_token_request =
+            payments_grpc::MerchantAuthenticationServiceCreateSdkSessionTokenRequest::foreign_try_from(router_data)
                 .change_context(ConnectorError::RequestEncodingFailed)
                 .attach_printable("Failed to construct Payment SdkSessionToken Request")?;
 
@@ -114,22 +114,22 @@ where
             Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
                 router_data.clone(),
                 state,
-                sdk_session_token_request,
+                create_sdk_session_token_request,
                 header_payload,
                 unified_connector_service_execution_mode,
-                |mut router_data, sdk_session_token_request, grpc_headers| async move {
-                    let response = Box::pin(client.sdk_session_token(
-                        sdk_session_token_request,
+                |mut router_data, create_sdk_session_token_request, grpc_headers| async move {
+                    let response = Box::pin(client.create_sdk_session_token(
+                        create_sdk_session_token_request,
                         connector_auth_metadata,
                         grpc_headers,
                     ))
                     .await
-                    .attach_printable("Failed to get payment")?;
+                    .attach_printable("Failed to create SDK session token")?;
 
                     let sdk_session_token_response = response.into_inner();
 
                     let (router_data_response, status_code) =
-                        handle_unified_connector_service_response_for_sdk_session_token(
+                        handle_unified_connector_service_response_for_create_sdk_session_token(
                             sdk_session_token_response.clone(),
                         )
                         .attach_printable("Failed to deserialize UCS response")?;

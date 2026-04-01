@@ -45,9 +45,22 @@ describe("Payment Webhook Tests", () => {
   });
 
   it("Create merchant connector account", () => {
+    const connectorBody = structuredClone(fixtures.createConnectorBody);
+
+    // If connector requires webhook signature verification (e.g. WorldPay),
+    // set connector_webhook_details with the test secret during connector creation
+    const webhookConfig = getConnectorDetails(globalState.get("connectorId"))[
+      "webhook"
+    ];
+    if (webhookConfig?.webhookSecret) {
+      connectorBody.connector_webhook_details = {
+        merchant_secret: webhookConfig.webhookSecret,
+      };
+    }
+
     cy.createConnectorCallTest(
       "payment_processor",
-      fixtures.createConnectorBody,
+      connectorBody,
       payment_methods_enabled,
       globalState
     );
@@ -115,19 +128,10 @@ describe("Payment Webhook Tests", () => {
         fixtures.IncomingWebhookBody.webhookBodies[connector]["payment"]
       );
 
-      // Extract webhook reference ID configuration for the specified connector
-      // This config defines how to locate and parse the payment reference ID from connector-specific webhook payloads
-      const data =
-        getConnectorDetails(connector)["webhook"]["TransactionIdConfig"];
+      // Extract webhook configuration for the specified connector
+      const webhookConfig = getConnectorDetails(connector)["webhook"];
 
-      // Normalize transaction ID
-      utils.setNormalizedValue(
-        webhookBody,
-        data,
-        globalState.get("connectorTransactionID")
-      );
-
-      cy.IncomingWebhookTest(globalState, webhookBody);
+      cy.IncomingWebhookTest(globalState, webhookBody, webhookConfig);
     });
 
     it("Retrieve Payment Call Test", () => {
