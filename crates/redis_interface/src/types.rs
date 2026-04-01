@@ -107,22 +107,10 @@ impl RedisSettings {
             || {
                 Err(errors::RedisError::InvalidConfiguration(
                     "Unresponsive timeout cannot be greater than the command timeout".into(),
-                ))
+                )
+                .into())
             },
-        )?;
-
-        // Validate timeout strategy: Application strategy requires non-zero timeout
-        when(
-            self.timeout_strategy == TimeoutStrategy::Application
-                && self.default_command_timeout == 0,
-            || {
-                Err(errors::RedisError::InvalidConfiguration(
-                    "`default_command_timeout` must be greater than 0 when `timeout_strategy` is `application`".into(),
-                ))
-            },
-        )?;
-
-        Ok(())
+        )
     }
 }
 
