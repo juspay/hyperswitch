@@ -219,13 +219,13 @@ impl RedisConnectionPool {
         }
     }
 
-    pub async fn on_unresponsive(&self) {
-        let _ = self.pool.clients().iter().map(|client| {
-            client.on_unresponsive(|server| {
+    pub fn on_unresponsive(&self) {
+        for client in self.pool.clients().iter() {
+            client.on_unresponsive(|server| async move {
                 tracing::warn!(redis_server =?server.host, "Redis server is unresponsive");
                 Ok(())
-            })
-        });
+            });
+        }
     }
 
     pub fn get_transaction(&self) -> Transaction {
