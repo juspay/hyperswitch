@@ -27,7 +27,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -427,6 +427,10 @@ impl TryFrom<&Option<PaymentMethodData>> for RedsysCardData {
             | Some(PaymentMethodData::CardToken(..))
             | Some(PaymentMethodData::NetworkToken(..))
             | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
+            | Some(
+                PaymentMethodData::CardWithOptionalCVC(_)
+                | PaymentMethodData::CardWithNetworkTokenDetails(_),
+            )
             | Some(PaymentMethodData::CardWithLimitedDetails(_))
             | Some(PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_))
             | Some(PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_))

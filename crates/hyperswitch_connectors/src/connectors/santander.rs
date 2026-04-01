@@ -47,7 +47,7 @@ use hyperswitch_interfaces::{
     types::{self, RefreshTokenType, Response},
     webhooks,
 };
-use masking::{Maskable, PeekInterface};
+use hyperswitch_masking::{Maskable, PeekInterface};
 
 use crate::{
     connectors::santander::{
@@ -469,7 +469,19 @@ impl ConnectorCommon for Santander {
 }
 
 impl ConnectorValidation for Santander {
-    //TODO: implement functions when support enabled
+    fn should_continue_further(
+        &self,
+        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+    ) -> Option<bool> {
+        #[cfg(feature = "v1")]
+        {
+            Some(payment_intent.setup_future_usage == Some(common_enums::FutureUsage::OffSession))
+        }
+        #[cfg(feature = "v2")]
+        {
+            Some(payment_intent.setup_future_usage == common_enums::FutureUsage::OffSession)
+        }
+    }
 }
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Santander {
@@ -1478,7 +1490,8 @@ impl webhooks::IncomingWebhook for Santander {
     fn get_webhook_resource_object(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }

@@ -27,7 +27,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{consts, errors};
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -524,6 +524,8 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -901,6 +903,8 @@ impl TryFrom<&PaymentsAuthorizeRouterData> for PayRequest {
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -976,6 +980,10 @@ impl TryFrom<&PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
             | Some(PaymentMethodData::CardToken(_))
             | Some(PaymentMethodData::NetworkToken(_))
             | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
+            | Some(
+                PaymentMethodData::CardWithOptionalCVC(_)
+                | PaymentMethodData::CardWithNetworkTokenDetails(_),
+            )
             | Some(PaymentMethodData::CardWithLimitedDetails(_))
             | Some(PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_))
             | Some(PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_))
@@ -1022,6 +1030,8 @@ impl TryFrom<&TokenizationRouterData> for CaptureBuyerRequest {
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {

@@ -50,7 +50,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{api, errors};
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use utils::ForeignTryFrom;
@@ -434,6 +434,8 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -987,13 +989,18 @@ impl
                         }
                         None => None,
                     };
+                    commerce_indicator = "recurring".to_string();
                     (
                         None,
                         None,
                         Some(CybersourceAuthorizationOptions {
-                            initiator: None,
+                            initiator: Some(CybersourcePaymentInitiator {
+                                initiator_type: Some(CybersourcePaymentInitiatorTypes::Merchant),
+                                credential_stored_on_file: None,
+                                stored_credential_used: Some(true),
+                            }),
                             merchant_initiated_transaction: Some(MerchantInitiatedTransaction {
-                                reason: None,
+                                reason: Some("7".to_string()), // The value 7 indicates Subscription
                                 original_authorized_amount,
                                 previous_transaction_id: None,
                             }),
@@ -2704,6 +2711,8 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
                     | PaymentMethodData::GiftCard(_)
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::CardToken(_)
+                    | PaymentMethodData::CardWithOptionalCVC(_)
+                    | PaymentMethodData::CardWithNetworkTokenDetails(_)
                     | PaymentMethodData::CardWithLimitedDetails(_)
                     | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                     | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -2836,6 +2845,8 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -2903,6 +2914,8 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPreAuthenticateRouterData>>
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -3591,6 +3604,8 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPreProcessingRouterData>>
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -3735,6 +3750,8 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthenticateRouterData>>
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -3859,6 +3876,8 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPostAuthenticateRouterData>>
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -3937,6 +3956,8 @@ impl TryFrom<&CybersourceRouterData<&PaymentsCompleteAuthorizeRouterData>>
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {

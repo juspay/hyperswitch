@@ -74,6 +74,13 @@ pub struct ModularPMRetrieveResponse {
 #[serde(rename_all = "snake_case")]
 pub enum RawPaymentMethodData {
     Card(CardDetail),
+    CardWithNT(RawCardWithNTDetails),
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct RawCardWithNTDetails {
+    pub card_details: CardDetail,
+    pub network_token_details: CardDetail,
 }
 
 /// V2 ConnectorTokenDetails (for deserialization, ignored in transformation)
@@ -86,7 +93,8 @@ pub struct ConnectorTokenDetails {
     pub original_payment_authorized_amount: Option<common_utils::types::MinorUnit>,
     pub original_payment_authorized_currency: Option<common_enums::Currency>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub token: masking::Secret<String>,
+    pub connector_customer_id: Option<String>,
+    pub token: hyperswitch_masking::Secret<String>,
 }
 
 /// V2 CardCVCTokenStorageDetails (for deserialization, ignored in transformation)

@@ -4,7 +4,7 @@ use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
@@ -370,6 +370,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsDynamicTaxCalculationRequest
         _state: &SessionState,
         _processor: &domain::Processor,
         _payment_data: &mut PaymentData<F>,
+        _business_profile: &domain::Profile,
     ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
     }

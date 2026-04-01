@@ -20,6 +20,7 @@ pub struct PaymentMethodInput {
     pub payment_method: Option<enums::PaymentMethod>,
     pub payment_method_type: Option<enums::PaymentMethodType>,
     pub card_network: Option<enums::CardNetwork>,
+    pub card_discovery: Option<enums::CardDiscovery>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

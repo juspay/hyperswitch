@@ -4,7 +4,7 @@ pub use hyperswitch_interfaces::{
     },
     disputes::DisputePayload,
 };
-use masking::{Deserialize, Serialize};
+use hyperswitch_masking::{Deserialize, Serialize};
 
 use crate::types;
 

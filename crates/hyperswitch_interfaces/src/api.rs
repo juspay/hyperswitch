@@ -81,7 +81,7 @@ use hyperswitch_domain_models::{
         VerifyWebhookSourceResponseData,
     },
 };
-use masking::Maskable;
+use hyperswitch_masking::Maskable;
 use serde_json::json;
 
 #[cfg(feature = "frm")]
@@ -930,6 +930,14 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
     /// fn is_webhook_source_verification_mandatory
     fn is_webhook_source_verification_mandatory(&self) -> bool {
         false
+    }
+
+    /// Validate if another operation is required
+    fn should_continue_further(
+        &self,
+        _payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+    ) -> Option<bool> {
+        Some(false)
     }
 }
 

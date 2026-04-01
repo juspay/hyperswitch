@@ -12,7 +12,7 @@ use hyperswitch_domain_models::{
     types::{PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::{api::CurrencyUnit, errors};
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -247,6 +247,8 @@ impl
                 | PaymentMethodData::CardToken(_)
                 | PaymentMethodData::NetworkToken(_)
                 | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                | PaymentMethodData::CardWithOptionalCVC(_)
+                | PaymentMethodData::CardWithNetworkTokenDetails(_)
                 | PaymentMethodData::CardWithLimitedDetails(_)
                 | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {

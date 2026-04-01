@@ -67,6 +67,7 @@ pub struct MockDb {
     pub themes: Arc<Mutex<Vec<store::user::theme::Theme>>>,
     pub hyperswitch_ai_interactions:
         Arc<Mutex<Vec<store::hyperswitch_ai_interaction::HyperswitchAiInteraction>>>,
+    pub card_issuers: Arc<Mutex<Vec<store::card_issuer::CardIssuer>>>,
     pub key_manager_state: Option<KeyManagerState>,
 }
 
@@ -125,6 +126,7 @@ impl MockDb {
             user_authentication_methods: Default::default(),
             themes: Default::default(),
             hyperswitch_ai_interactions: Default::default(),
+            card_issuers: Default::default(),
             key_manager_state: Some(key_manager_state),
         })
     }

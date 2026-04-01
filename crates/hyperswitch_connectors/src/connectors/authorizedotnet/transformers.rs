@@ -30,7 +30,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, PeekInterface, Secret, StrongSecret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret, StrongSecret};
 use rand::distributions::{Alphanumeric, DistString};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -558,6 +558,8 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerPaymentProfileRequest {
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -846,6 +848,8 @@ impl TryFrom<&AuthorizedotnetRouterData<&PaymentsAuthorizeRouterData>>
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::NetworkToken(_)
                     | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                    | PaymentMethodData::CardWithOptionalCVC(_)
+                    | PaymentMethodData::CardWithNetworkTokenDetails(_)
                     | PaymentMethodData::CardWithLimitedDetails(_)
                     | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                     | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -911,6 +915,8 @@ impl
                 | PaymentMethodData::CardToken(_)
                 | PaymentMethodData::NetworkToken(_)
                 | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                | PaymentMethodData::CardWithOptionalCVC(_)
+                | PaymentMethodData::CardWithNetworkTokenDetails(_)
                 | PaymentMethodData::CardWithLimitedDetails(_)
                 | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {

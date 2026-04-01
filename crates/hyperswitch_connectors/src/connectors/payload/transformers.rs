@@ -25,7 +25,7 @@ use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
-use masking::{ExposeOptionInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeOptionInterface, PeekInterface, Secret};
 use serde::Deserialize;
 
 use super::{requests, responses};
@@ -393,6 +393,10 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                     None
                 };
 
+                let processing_id = get_processing_account_id_from_metadata(
+                    item.router_data.request.metadata.as_ref(),
+                );
+
                 Ok(Self::PayloadMandateRequest(Box::new(
                     requests::PayloadMandateRequestData {
                         amount: item.amount.clone(),
@@ -401,6 +405,7 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                             item.router_data.request.get_connector_mandate_id()?,
                         ),
                         status,
+                        processing_id,
                     },
                 )))
             }
@@ -434,32 +439,43 @@ where
     ) -> Result<Self, Self::Error> {
         match item.response.clone() {
             responses::PayloadPaymentsResponse::PayloadCardsResponse(response) => {
-                let status = enums::AttemptStatus::from(response.status);
-
                 let router_data: &dyn std::any::Any = &item.data;
                 let is_mandate_payment = router_data
                     .downcast_ref::<PaymentsAuthorizeRouterData>()
-                    .is_some_and(|router_data| router_data.request.is_mandate_payment())
+                    .is_some_and(|rd| rd.request.is_mandate_payment())
                     || router_data
                         .downcast_ref::<SetupMandateRouterData>()
                         .is_some();
 
-                let mandate_reference = if is_mandate_payment {
-                    let connector_payment_method_id =
-                        response.connector_payment_method_id.clone().expose_option();
-                    if connector_payment_method_id.is_some() {
-                        Some(MandateReference {
-                            connector_mandate_id: connector_payment_method_id,
-                            payment_method_id: None,
-                            mandate_metadata: None,
-                            connector_mandate_request_reference_id: None,
-                        })
-                    } else {
-                        None
+                let is_ach_payment =
+                    is_mandate_payment
+                        && router_data
+                            .downcast_ref::<PaymentsAuthorizeRouterData>()
+                            .is_some_and(|rd| {
+                                matches!(
+                                    rd.request.additional_payment_method_data,
+                                    Some(api_models::payments::AdditionalPaymentData::BankDebit {
+                                        details: Some(api_models::payments::additional_info::BankDebitAdditionalData::Ach(_))
+                                    })
+                                )
+                            });
+
+                let status = match (is_ach_payment, response.status) {
+                    (true, responses::PayloadPaymentStatus::Authorized) => {
+                        enums::AttemptStatus::Pending
                     }
-                } else {
-                    None
+                    _ => enums::AttemptStatus::from(response.status),
                 };
+
+                let mandate_reference = is_mandate_payment
+                    .then(|| response.connector_payment_method_id.clone().expose_option())
+                    .flatten()
+                    .map(|id| MandateReference {
+                        connector_mandate_id: Some(id),
+                        payment_method_id: None,
+                        mandate_metadata: None,
+                        connector_mandate_request_reference_id: None,
+                    });
 
                 let connector_response = {
                     response.avs.map(|avs_response| {
@@ -537,56 +553,29 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         let response = item.response;
 
-        // Only store payment method ID if verification_status is verified or owner-verified
-        // Fail the SetupMandate if not verified
-        if response.verification_status.is_verified() {
-            let mandate_reference = Some(MandateReference {
-                connector_mandate_id: Some(response.id.clone()),
-                payment_method_id: None,
-                mandate_metadata: None,
-                connector_mandate_request_reference_id: None,
-            });
+        let mandate_reference = Some(MandateReference {
+            connector_mandate_id: Some(response.id.clone()),
+            payment_method_id: None,
+            mandate_metadata: None,
+            connector_mandate_request_reference_id: None,
+        });
 
-            Ok(Self {
-                status: enums::AttemptStatus::Charged, // SetupMandate succeeded
-                response: Ok(PaymentsResponseData::TransactionResponse {
-                    resource_id: ResponseId::ConnectorTransactionId(response.id),
-                    redirection_data: Box::new(None),
-                    mandate_reference: Box::new(mandate_reference),
-                    connector_metadata: None,
-                    network_txn_id: None,
-                    connector_response_reference_id: None,
-                    incremental_authorization_allowed: None,
-                    authentication_data: None,
-                    charges: None,
-                }),
-                connector_response: None,
-                ..item.data
-            })
-        } else {
-            // Not verified - fail the SetupMandate
-            Ok(Self {
-                status: enums::AttemptStatus::Failure,
-                response: Err(ErrorResponse {
-                    code: NO_ERROR_CODE.to_string(),
-                    message: format!(
-                        "Bank account verification status is {:?}",
-                        response.verification_status
-                    ),
-                    reason: None,
-                    status_code: item.http_code,
-                    attempt_status: Some(enums::AttemptStatus::Failure),
-                    connector_transaction_id: Some(response.id),
-                    connector_response_reference_id: None,
-                    network_decline_code: None,
-                    network_advice_code: None,
-                    network_error_message: None,
-                    connector_metadata: None,
-                }),
-                connector_response: None,
-                ..item.data
-            })
-        }
+        Ok(Self {
+            status: enums::AttemptStatus::Charged, // SetupMandate succeeded
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(response.id),
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(mandate_reference),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                authentication_data: None,
+                charges: None,
+            }),
+            connector_response: None,
+            ..item.data
+        })
     }
 }
 
