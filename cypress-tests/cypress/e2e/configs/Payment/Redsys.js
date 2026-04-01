@@ -470,6 +470,21 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentMethodIdMandateNo3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: ThreeDSChallengeTestCardDetails,
+        },
+        billing: Address,
+        shipping: Address,
+        currency: "EUR",
+      },
+    },
+
     No3DSFailPayment: getCustomExchange({
       Request: {
         payment_method: "card",

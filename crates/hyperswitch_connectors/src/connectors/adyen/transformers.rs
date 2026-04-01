@@ -1948,6 +1948,8 @@ impl TryFrom<&AdyenRouterData<&PaymentsAuthorizeRouterData>> for AdyenPaymentReq
                 | PaymentMethodData::Upi(_)
                 | PaymentMethodData::OpenBanking(_)
                 | PaymentMethodData::CardToken(_)
+                | PaymentMethodData::CardWithOptionalCVC(_)
+                | PaymentMethodData::CardWithNetworkTokenDetails(_)
                 | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::CardWithLimitedDetails(_)
                 | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
@@ -2058,52 +2060,31 @@ fn get_recurring_processing_model(
 ) -> Result<RecurringDetails, Error> {
     let shopper_reference = item.get_connector_customer_id().ok();
 
-    let has_existing_mandate = item
-        .request
-        .mandate_id
-        .as_ref()
-        .and_then(|mandate| mandate.mandate_reference_id.as_ref())
-        .is_some();
-
-    let is_off_session_setup = matches!(
-        item.request.setup_future_usage,
-        Some(storage_enums::FutureUsage::OffSession)
-    );
-
-    let is_off_session_payment = item.request.off_session == Some(true);
-
-    // Case 1: Customer initiated mandate payment
-    if is_off_session_setup && has_existing_mandate {
-        let shopper_reference =
-            shopper_reference.ok_or_else(missing_field_err("connector_customer_id"))?;
-        return Ok((
-            Some(AdyenRecurringModel::UnscheduledCardOnFile),
-            None,
-            Some(shopper_reference),
-        ));
+    match (item.request.setup_future_usage, item.request.off_session) {
+        // Setup for future off-session usage
+        (Some(storage_enums::FutureUsage::OffSession), _) => {
+            let store_payment_method = item.request.is_mandate_payment();
+            let shopper_reference =
+                shopper_reference.ok_or_else(missing_field_err("connector_customer_id"))?;
+            Ok((
+                Some(AdyenRecurringModel::UnscheduledCardOnFile),
+                Some(store_payment_method),
+                Some(shopper_reference),
+            ))
+        }
+        // Off-session payment
+        (_, Some(true)) => {
+            let shopper_reference =
+                shopper_reference.ok_or_else(missing_field_err("connector_customer_id"))?;
+            Ok((
+                Some(AdyenRecurringModel::UnscheduledCardOnFile),
+                None,
+                Some(shopper_reference),
+            ))
+        }
+        // On-session payment
+        _ => Ok((None, None, shopper_reference)),
     }
-
-    // Case 2: Setup for future off-session usage
-    if is_off_session_setup {
-        let store_payment_method = item.request.is_mandate_payment();
-        let shopper_reference =
-            shopper_reference.ok_or_else(missing_field_err("connector_customer_id"))?;
-        return Ok((None, Some(store_payment_method), Some(shopper_reference)));
-    }
-
-    // Case 3: Off-session payment
-    if is_off_session_payment {
-        let shopper_reference =
-            shopper_reference.ok_or_else(missing_field_err("connector_customer_id"))?;
-        return Ok((
-            Some(AdyenRecurringModel::UnscheduledCardOnFile),
-            None,
-            Some(shopper_reference),
-        ));
-    }
-
-    // Case 4: On-session payment
-    Ok((None, None, shopper_reference))
 }
 
 fn get_browser_info(item: &PaymentsAuthorizeRouterData) -> Result<Option<AdyenBrowserInfo>, Error> {
@@ -2990,6 +2971,8 @@ impl TryFrom<(&BankTransferData, &PaymentsAuthorizeRouterData)> for AdyenPayment
             | BankTransferData::InstantBankTransferFinland {}
             | BankTransferData::InstantBankTransferPoland {}
             | BankTransferData::IndonesianBankTransfer { .. }
+            | BankTransferData::PixAutomaticoPush { .. }
+            | BankTransferData::PixAutomaticoQr {}
             | BankTransferData::Pse {} => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             )
@@ -3226,6 +3209,8 @@ impl
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::NetworkToken(_)
                     | PaymentMethodData::Card(_)
+                    | PaymentMethodData::CardWithOptionalCVC(_)
+                    | PaymentMethodData::CardWithNetworkTokenDetails(_)
                     | PaymentMethodData::CardWithLimitedDetails(_)
                     | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                     | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -3258,6 +3243,8 @@ impl
                     }
 
                     PaymentMethodData::Card(_)
+                    | PaymentMethodData::CardWithOptionalCVC(_)
+                    | PaymentMethodData::CardWithNetworkTokenDetails(_)
                     | PaymentMethodData::CardRedirect(_)
                     | PaymentMethodData::Wallet(_)
                     | PaymentMethodData::PayLater(_)
@@ -3749,6 +3736,8 @@ impl
             | BankTransferData::InstantBankTransfer {}
             | BankTransferData::InstantBankTransferFinland {}
             | BankTransferData::InstantBankTransferPoland {}
+            | BankTransferData::PixAutomaticoPush { .. }
+            | BankTransferData::PixAutomaticoQr {}
             | BankTransferData::IndonesianBankTransfer { .. } => (None, None),
         };
         let application_info = get_application_info(item);

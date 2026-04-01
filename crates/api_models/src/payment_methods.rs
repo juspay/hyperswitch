@@ -1049,10 +1049,23 @@ pub enum PaymentMethodResponseData {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct RawCardWithNTDetails {
+    /// Raw card details associated with the payment method
+    #[schema(value_type = CardDetail)]
+    pub card_details: CardDetail,
+
+    /// Raw network token details associated with the payment method
+    #[schema(value_type = CardDetail)]
+    pub network_token_details: CardDetail,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 pub enum RawPaymentMethodData {
     Card(CardDetail),
+    CardWithNT(RawCardWithNTDetails),
 }
 
 #[cfg(feature = "v1")]
@@ -1207,6 +1220,9 @@ pub struct ConnectorTokenDetails {
 
     /// Metadata associated with the connector token
     pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// The connector customer identifier associated with this tokenized payment method
+    pub connector_customer_id: Option<String>,
 
     /// The value of the connector token. This token can be used to make merchant initiated payments ( MIT ), directly with the connector.
     pub token: hyperswitch_masking::Secret<String>,
@@ -3934,6 +3950,10 @@ pub struct PaymentMethodSessionConfirmRequest {
     /// The return url to which the customer should be redirected to after adding the payment method
     #[schema(value_type = Option<String>)]
     pub return_url: Option<common_utils::types::Url>,
+
+    /// Customer acceptance for mandate creation. Required for both single-use and multi-use tokenization flows.
+    #[schema(value_type = Option<CustomerAcceptance>)]
+    pub customer_acceptance: Option<common_types::payments::CustomerAcceptance>,
 }
 
 #[cfg(feature = "v2")]

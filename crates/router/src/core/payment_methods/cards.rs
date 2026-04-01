@@ -166,7 +166,7 @@ impl PaymentMethodsController for PmCards<'_> {
             .insert_payment_method(
                 self.provider.get_key_store(),
                 domain::PaymentMethod {
-                    customer_id: customer_id.to_owned(),
+                    customer_id: Some(customer_id.to_owned()),
                     merchant_id: merchant_id.to_owned(),
                     payment_method_id: payment_method_id.to_string(),
                     locker_id,
@@ -206,6 +206,8 @@ impl PaymentMethodsController for PmCards<'_> {
                     last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
                     customer_details: payment_method_customer_details_encrypted,
                     locker_fingerprint_id,
+                    network_tokenization_data: None, // setting this to None as write path will be introduced in a later PR
+                    storage_type: None,
                 },
                 self.provider.get_account().storage_scheme,
             )
@@ -437,6 +439,7 @@ impl PaymentMethodsController for PmCards<'_> {
                     last_modified_by: initiator
                         .and_then(|initiator| initiator.to_created_by())
                         .map(|last_modified_by| last_modified_by.to_string()),
+                    network_tokenization_data: None, // setting this to None as write path will be introduced in a later PR
                 };
                 let db = &*self.state.store;
                 let existing_pm = db
@@ -949,9 +952,13 @@ impl PaymentMethodsController for PmCards<'_> {
             .get_payment_method_type()
             .get_required_value("payment_method")?;
 
+        let pm_customer_id = payment_method
+            .customer_id
+            .clone()
+            .get_required_value("customer_id")?;
+
         utils::when(
-            &payment_method.customer_id != customer_id
-                || payment_method.merchant_id != *merchant_id,
+            &pm_customer_id != customer_id || payment_method.merchant_id != *merchant_id,
             || {
                 Err(errors::ApiErrorResponse::PreconditionFailed {
                     message: "The payment_method_id is not valid".to_string(),
@@ -1069,7 +1076,7 @@ impl PaymentMethodsController for PmCards<'_> {
                 let (card_detail, locker_metadata) = if self.state.conf.locker.locker_enabled {
                     let locker_card_response = get_card_from_locker(
                         self.state,
-                        &pm.customer_id,
+                        &pm.customer_id.clone().get_required_value("customer_id")?,
                         &pm.merchant_id,
                         pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
                     )
@@ -1096,7 +1103,7 @@ impl PaymentMethodsController for PmCards<'_> {
         Ok(services::ApplicationResponse::Json(
             api::PaymentMethodResponse {
                 merchant_id: pm.merchant_id.clone(),
-                customer_id: Some(pm.customer_id.clone()),
+                customer_id: pm.customer_id.clone(),
                 payment_method_id: pm.payment_method_id.clone(),
                 payment_method: pm.get_payment_method_type(),
                 payment_method_type: pm.get_payment_method_subtype(),
@@ -1132,9 +1139,11 @@ impl PaymentMethodsController for PmCards<'_> {
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
+        let customer_id = key.customer_id.clone().get_required_value("customer_id")?;
+
         let customer = db
             .find_customer_by_customer_id_merchant_id(
-                &key.customer_id,
+                &customer_id,
                 self.provider.get_account().get_id(),
                 self.provider.get_key_store(),
                 self.provider.get_account().storage_scheme,
@@ -1146,7 +1155,7 @@ impl PaymentMethodsController for PmCards<'_> {
         if key.get_payment_method_type() == Some(enums::PaymentMethod::Card) {
             let response = self
                 .delete_card_from_locker(
-                    &key.customer_id,
+                    &customer_id,
                     &key.merchant_id,
                     key.locker_id.as_ref().unwrap_or(&key.payment_method_id),
                 )
@@ -1156,7 +1165,7 @@ impl PaymentMethodsController for PmCards<'_> {
                 let resp =
                     network_tokenization::delete_network_token_from_locker_and_token_service(
                         self.state,
-                        &key.customer_id,
+                        &customer_id,
                         &key.merchant_id,
                         key.payment_method_id.clone(),
                         key.network_token_locker_id,
@@ -1196,7 +1205,7 @@ impl PaymentMethodsController for PmCards<'_> {
                     .map(|last_modified_by| last_modified_by.to_string()),
             };
             db.update_customer_by_customer_id_merchant_id(
-                key.customer_id,
+                customer_id,
                 key.merchant_id,
                 customer,
                 customer_update,
@@ -1642,7 +1651,10 @@ pub async fn add_payment_method_data(
         return Err((errors::ApiErrorResponse::ClientSecretExpired).into());
     }
 
-    let customer_id = payment_method.customer_id.clone();
+    let customer_id = payment_method
+        .customer_id
+        .clone()
+        .get_required_value("customer_id")?;
 
     let customer = db
         .find_customer_by_customer_id_merchant_id(
@@ -1761,6 +1773,7 @@ pub async fn add_payment_method_data(
                             metadata: None,
                             last_used_at: None,
                             connector_mandate_details: None,
+                            network_tokenization_data: None, // setting it to None as write path will be introduced in a later PR
                         };
 
                         db.update_payment_method(
@@ -1851,6 +1864,8 @@ pub async fn update_customer_payment_method(
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?
     };
 
+    let customer_id = pm.customer_id.clone().get_required_value("customer_id")?;
+
     if let Some(cs) = &req.client_secret {
         let is_client_secret_expired = authenticate_pm_client_secret_and_check_expiry(cs, &pm)?;
 
@@ -1904,7 +1919,7 @@ pub async fn update_customer_payment_method(
             // Fetch the existing card data from locker for getting card number
             let locker_card_response = get_card_from_locker(
                 &state,
-                &pm.customer_id,
+                &customer_id,
                 &pm.merchant_id,
                 pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
             )
@@ -1940,7 +1955,7 @@ pub async fn update_customer_payment_method(
                 #[cfg(feature = "payouts")]
                 wallet: None,
                 metadata: None,
-                customer_id: Some(pm.customer_id.clone()),
+                customer_id: pm.customer_id.clone(),
                 client_secret: pm.client_secret.clone(),
                 payment_method_data: None,
                 card_network: None,
@@ -1956,7 +1971,7 @@ pub async fn update_customer_payment_method(
             // Delete old payment method from locker
             cards
                 .delete_card_from_locker(
-                    &pm.customer_id,
+                    &customer_id,
                     &pm.merchant_id,
                     pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id),
                 )
@@ -1966,7 +1981,7 @@ pub async fn update_customer_payment_method(
             let (mut add_card_resp, _) = Box::pin(cards.add_card_to_locker(
                 new_pm.clone(),
                 &updated_card_details,
-                &pm.customer_id,
+                &customer_id,
                 Some(pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id)),
             ))
             .await
@@ -2059,7 +2074,7 @@ pub async fn update_customer_payment_method(
             // Return existing payment method data as response without any changes
             api::CustomerPaymentMethodUpdateResponse {
                 merchant_id: pm.merchant_id.to_owned(),
-                customer_id: Some(pm.customer_id.clone()),
+                customer_id: pm.customer_id.clone(),
                 payment_method_id: pm.payment_method_id.clone(),
                 payment_method: pm.get_payment_method_type(),
                 payment_method_type: pm.get_payment_method_subtype(),
@@ -2116,7 +2131,7 @@ pub async fn update_customer_payment_method(
         Ok(services::ApplicationResponse::Json(
             api::CustomerPaymentMethodUpdateResponse {
                 merchant_id: pm.merchant_id.to_owned(),
-                customer_id: Some(pm.customer_id.clone()),
+                customer_id: pm.customer_id.clone(),
                 payment_method_id: pm.payment_method_id.clone(),
                 payment_method: pm.get_payment_method_type(),
                 payment_method_type: pm.get_payment_method_subtype(),
@@ -2443,6 +2458,7 @@ pub async fn update_payment_method_metadata_and_network_token_data_and_last_used
         metadata: pm_metadata,
         last_used_at: Some(common_utils::date_time::now()),
         connector_mandate_details: None,
+        network_tokenization_data: None, // setting this to None as write path will be introduced in a later PR
     };
 
     db.update_payment_method(key_store, pm, pm_update, storage_scheme)
@@ -2470,6 +2486,7 @@ pub async fn update_payment_method_network_token_data(
         last_modified_by: initiator
             .and_then(|initiator| initiator.to_created_by())
             .map(|last_modified_by| last_modified_by.to_string()),
+        network_tokenization_data: None, // setting this to None as write path will be introduced in a later PR
     };
 
     db.update_payment_method(key_store, pm, pm_update, storage_scheme)
@@ -2591,7 +2608,8 @@ pub async fn update_payment_method_connector_mandate_details_and_network_token_d
             .map(|last_modified_by| last_modified_by.to_string()),
         metadata: None,
         last_used_at: None,
-        connector_mandate_details: connector_mandate_details_value,
+        connector_mandate_details: connector_mandate_details_value.map(Box::new),
+        network_tokenization_data: None, // setting this to None as write path will be introduced in a later PR
     };
 
     db.update_payment_method(key_store, pm, pm_update, storage_scheme)
@@ -4660,7 +4678,7 @@ pub async fn list_customer_payment_method(
         let pma = api::CustomerPaymentMethod {
             payment_token: parent_payment_method_token.to_owned(),
             payment_method_id: pm.payment_method_id.clone(),
-            customer_id: pm.customer_id.clone(),
+            customer_id: pm.customer_id.clone().get_required_value("customer_id")?,
             payment_method,
             payment_method_type: pm.get_payment_method_subtype(),
             payment_method_issuer: pm.payment_method_issuer,
@@ -4813,7 +4831,7 @@ pub async fn get_pm_list_context(
                     state,
                     key_store,
                     parent_payment_method_token.as_ref(),
-                    &pm.customer_id,
+                    &pm.customer_id.clone().get_required_value("customer_id")?,
                     &pm.merchant_id,
                     pm.locker_id.as_ref().unwrap_or(pm.get_id()),
                 )
@@ -4991,7 +5009,7 @@ pub async fn get_card_details_from_locker(
 ) -> errors::RouterResult<api::CardDetailFromLocker> {
     let card = get_card_from_locker(
         state,
-        &pm.customer_id,
+        &pm.customer_id.clone().get_required_value("customer_id")?,
         &pm.merchant_id,
         pm.locker_id.as_ref().unwrap_or(pm.get_id()),
     )
@@ -5352,7 +5370,7 @@ impl TempLockerCardSupport {
             None,
             None,
             None,
-            Some(pm.customer_id.clone()),
+            pm.customer_id.clone(),
             Some(pm.get_id().to_string()),
         )
         .change_context(errors::ApiErrorResponse::InternalServerError)

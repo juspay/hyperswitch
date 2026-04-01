@@ -81,6 +81,9 @@ pub enum SuperpositionError {
     /// Invalid configuration provided
     #[error("Invalid configuration: {0}")]
     InvalidConfiguration(String),
+    /// Error from the Superposition provider
+    #[error("Superposition provider error: {0}")]
+    ProviderError(String),
 }
 
 /// Context for configuration requests

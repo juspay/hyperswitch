@@ -444,6 +444,7 @@ export const CONNECTOR_LISTS = {
       "mollie",
       "zift",
     ],
+    MANDATE_ID_TEST: ["airwallex", "payload"],
     // Add more exclusion lists
   },
 
@@ -482,7 +483,21 @@ export const CONNECTOR_LISTS = {
       "worldpayvantiv",
       "worldpayxml",
     ],
-    PAYMENTS_WEBHOOK: ["noon", "stripe", "authorizedotnet"],
+    PAYMENTS_WEBHOOK: [
+      "noon",
+      "stripe",
+      "authorizedotnet",
+      "airwallex",
+      "finix",
+      "fiuu",
+      "mollie",
+      "nmi",
+      "novalnet",
+      "payload",
+      "paypal",
+      "trustpay",
+      "worldpay",
+    ],
     CARD_INSTALLMENTS: ["adyen"],
     // Add more inclusion lists
   },

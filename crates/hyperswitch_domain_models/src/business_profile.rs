@@ -91,7 +91,9 @@ pub struct Profile {
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
     pub external_vault_details: ExternalVaultDetails,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub network_tokenization_credentials: OptionalEncryptableValue,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
+    pub default_fallback_routing: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(feature = "v1")]
@@ -250,7 +252,9 @@ pub struct ProfileSetter {
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
     pub external_vault_details: ExternalVaultDetails,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub network_tokenization_credentials: OptionalEncryptableValue,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
+    pub default_fallback_routing: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(feature = "v1")]
@@ -319,7 +323,9 @@ impl From<ProfileSetter> for Profile {
             always_enable_overcapture: value.always_enable_overcapture,
             external_vault_details: value.external_vault_details,
             billing_processor_id: value.billing_processor_id,
+            network_tokenization_credentials: value.network_tokenization_credentials,
             payment_method_blocking: value.payment_method_blocking,
+            default_fallback_routing: value.default_fallback_routing,
         }
     }
 }
@@ -391,6 +397,7 @@ pub struct ProfileGeneralUpdate {
     pub is_external_vault_enabled: Option<common_enums::ExternalVaultEnabled>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub network_tokenization_credentials: OptionalEncryptableValue,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
 }
 
@@ -414,12 +421,16 @@ pub enum ProfileUpdate {
     },
     NetworkTokenizationUpdate {
         is_network_tokenization_enabled: bool,
+        network_tokenization_credentials: OptionalEncryptableValue,
     },
     CardTestingSecretKeyUpdate {
         card_testing_secret_key: OptionalEncryptableName,
     },
     AcquirerConfigMapUpdate {
         acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
+    },
+    DefaultRoutingFallbackUpdate {
+        default_fallback_routing: Option<pii::SecretSerdeValue>,
     },
 }
 
@@ -481,6 +492,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_external_vault_enabled,
                     external_vault_connector_details,
                     billing_processor_id,
+                    network_tokenization_credentials,
                     payment_method_blocking,
                 } = *update;
 
@@ -549,7 +561,10 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_external_vault_enabled,
                     external_vault_connector_details,
                     billing_processor_id,
+                    network_tokenization_credentials: network_tokenization_credentials
+                        .map(Encryption::from),
                     payment_method_blocking,
+                    default_fallback_routing: None,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -612,7 +627,9 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 billing_processor_id: None,
                 is_l2_l3_enabled: None,
+                network_tokenization_credentials: None,
                 payment_method_blocking: None,
+                default_fallback_routing: None,
             },
             ProfileUpdate::DynamicRoutingAlgorithmUpdate {
                 dynamic_routing_algorithm,
@@ -672,7 +689,9 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 billing_processor_id: None,
                 is_l2_l3_enabled: None,
+                network_tokenization_credentials: None,
                 payment_method_blocking: None,
+                default_fallback_routing: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -732,7 +751,9 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 billing_processor_id: None,
                 is_l2_l3_enabled: None,
+                network_tokenization_credentials: None,
                 payment_method_blocking: None,
+                default_fallback_routing: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -792,10 +813,13 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 billing_processor_id: None,
                 is_l2_l3_enabled: None,
+                network_tokenization_credentials: None,
                 payment_method_blocking: None,
+                default_fallback_routing: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
+                network_tokenization_credentials,
             } => Self {
                 profile_name: None,
                 modified_at: now,
@@ -852,7 +876,10 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 billing_processor_id: None,
                 is_l2_l3_enabled: None,
+                network_tokenization_credentials: network_tokenization_credentials
+                    .map(Encryption::from),
                 payment_method_blocking: None,
+                default_fallback_routing: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -912,7 +939,9 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 billing_processor_id: None,
                 is_l2_l3_enabled: None,
+                network_tokenization_credentials: None,
                 payment_method_blocking: None,
+                default_fallback_routing: None,
             },
             ProfileUpdate::AcquirerConfigMapUpdate {
                 acquirer_config_map,
@@ -972,7 +1001,71 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 external_vault_connector_details: None,
                 billing_processor_id: None,
                 is_l2_l3_enabled: None,
+                network_tokenization_credentials: None,
                 payment_method_blocking: None,
+                default_fallback_routing: None,
+            },
+            ProfileUpdate::DefaultRoutingFallbackUpdate {
+                default_fallback_routing,
+            } => Self {
+                profile_name: None,
+                modified_at: now,
+                return_url: None,
+                enable_payment_response_hash: None,
+                payment_response_hash_key: None,
+                redirect_to_merchant_with_http_post: None,
+                webhook_details: None,
+                metadata: None,
+                routing_algorithm: None,
+                intent_fulfillment_time: None,
+                frm_routing_algorithm: None,
+                payout_routing_algorithm: None,
+                is_recon_enabled: None,
+                applepay_verified_domains: None,
+                payment_link_config: None,
+                session_expiry: None,
+                authentication_connector_details: None,
+                payout_link_config: None,
+                is_extended_card_info_enabled: None,
+                extended_card_info_config: None,
+                is_connector_agnostic_mit_enabled: None,
+                use_billing_as_payment_method_billing: None,
+                collect_shipping_details_from_wallet_connector: None,
+                collect_billing_details_from_wallet_connector: None,
+                outgoing_webhook_custom_http_headers: None,
+                always_collect_billing_details_from_wallet_connector: None,
+                always_collect_shipping_details_from_wallet_connector: None,
+                tax_connector_id: None,
+                is_tax_connector_enabled: None,
+                dynamic_routing_algorithm: None,
+                is_network_tokenization_enabled: None,
+                is_auto_retries_enabled: None,
+                max_auto_retries_enabled: None,
+                always_request_extended_authorization: None,
+                is_click_to_pay_enabled: None,
+                authentication_product_ids: None,
+                card_testing_guard_config: None,
+                card_testing_secret_key: None,
+                is_clear_pan_retries_enabled: None,
+                force_3ds_challenge: None,
+                is_debit_routing_enabled: None,
+                merchant_business_country: None,
+                is_iframe_redirection_enabled: None,
+                is_pre_network_tokenization_enabled: None,
+                three_ds_decision_rule_algorithm: None,
+                acquirer_config_map: None,
+                merchant_category_code: None,
+                merchant_country_code: None,
+                dispute_polling_interval: None,
+                is_manual_retry_enabled: None,
+                always_enable_overcapture: None,
+                is_external_vault_enabled: None,
+                external_vault_connector_details: None,
+                billing_processor_id: None,
+                is_l2_l3_enabled: None,
+                payment_method_blocking: None,
+                default_fallback_routing,
+                network_tokenization_credentials: None,
             },
         }
     }
@@ -1055,7 +1148,11 @@ impl Conversion for Profile {
             is_external_vault_enabled,
             external_vault_connector_details,
             billing_processor_id: self.billing_processor_id,
+            network_tokenization_credentials: self
+                .network_tokenization_credentials
+                .map(|name| name.into()),
             payment_method_blocking: self.payment_method_blocking,
+            default_fallback_routing: self.default_fallback_routing,
         })
     }
 
@@ -1069,7 +1166,11 @@ impl Conversion for Profile {
         Self: Sized,
     {
         // Decrypt encrypted fields first
-        let (outgoing_webhook_custom_http_headers, card_testing_secret_key) = async {
+        let (
+            outgoing_webhook_custom_http_headers,
+            card_testing_secret_key,
+            network_tokenization_credentials,
+        ) = async {
             let outgoing_webhook_custom_http_headers = item
                 .outgoing_webhook_custom_http_headers
                 .async_lift(|inner| async {
@@ -1100,9 +1201,25 @@ impl Conversion for Profile {
                 })
                 .await?;
 
+            let network_tokenization_credentials = item
+                .network_tokenization_credentials
+                .async_lift(|inner| async {
+                    crypto_operation(
+                        state,
+                        type_name!(Self::DstType),
+                        CryptoOperation::DecryptOptional(inner),
+                        key_manager_identifier.clone(),
+                        key.peek(),
+                    )
+                    .await
+                    .and_then(|val| val.try_into_optionaloperation())
+                })
+                .await?;
+
             Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>((
                 outgoing_webhook_custom_http_headers,
                 card_testing_secret_key,
+                network_tokenization_credentials,
             ))
         }
         .await
@@ -1181,7 +1298,9 @@ impl Conversion for Profile {
             always_enable_overcapture: item.always_enable_overcapture,
             external_vault_details,
             billing_processor_id: item.billing_processor_id,
+            network_tokenization_credentials,
             payment_method_blocking: item.payment_method_blocking,
+            default_fallback_routing: item.default_fallback_routing,
         })
     }
 
@@ -1251,7 +1370,11 @@ impl Conversion for Profile {
             is_external_vault_enabled,
             external_vault_connector_details,
             billing_processor_id: self.billing_processor_id,
+            network_tokenization_credentials: self
+                .network_tokenization_credentials
+                .map(|name| name.into()),
             payment_method_blocking: self.payment_method_blocking,
+            default_fallback_routing: self.default_fallback_routing,
         })
     }
 }
@@ -2428,6 +2551,7 @@ impl Conversion for Profile {
             is_l2_l3_enabled: None,
             always_enable_overcapture: None,
             billing_processor_id: self.billing_processor_id,
+            network_tokenization_credentials: None,
             payment_method_blocking: None,
         })
     }

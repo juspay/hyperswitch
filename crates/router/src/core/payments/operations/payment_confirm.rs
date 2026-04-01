@@ -652,38 +652,39 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         //fetch for repeat cit using payment token
 
-        let (token_data, payment_method_info) =
-            if pm_utils::get_organization_eligibility_config_for_pm_modular_service(
+        let is_modular_payment_method_flow =
+            pm_utils::get_organization_eligibility_config_for_pm_modular_service(
                 &*state.store,
                 &platform.get_processor().get_account().organization_id,
             )
-            .await
-            {
-                (
-                    None,
-                    payment_method_with_raw_data
-                        .clone()
-                        .map(|pm| pm.payment_method.0),
-                )
-            } else if let Some(token) = token.clone() {
-                let token_data = helpers::retrieve_payment_token_data(
-                    state,
-                    token,
-                    payment_method.or(payment_attempt.payment_method),
-                )
-                .await?;
+            .await;
 
-                let payment_method_info = helpers::retrieve_payment_method_from_db_with_token_data(
-                    state,
-                    platform.get_provider().get_key_store(),
-                    &token_data,
-                    storage_scheme,
-                )
-                .await?;
-                (Some(token_data), payment_method_info)
-            } else {
-                (None, payment_method_info)
-            };
+        let (token_data, payment_method_info) = if is_modular_payment_method_flow {
+            (
+                None,
+                payment_method_with_raw_data
+                    .clone()
+                    .map(|pm| pm.payment_method.0),
+            )
+        } else if let Some(token) = token.clone() {
+            let token_data = helpers::retrieve_payment_token_data(
+                state,
+                token,
+                payment_method.or(payment_attempt.payment_method),
+            )
+            .await?;
+
+            let payment_method_info = helpers::retrieve_payment_method_from_db_with_token_data(
+                state,
+                platform.get_provider().get_key_store(),
+                &token_data,
+                storage_scheme,
+            )
+            .await?;
+            (Some(token_data), payment_method_info)
+        } else {
+            (None, payment_method_info)
+        };
         let additional_pm_data_from_locker = if let Some(ref pm) = payment_method_info {
             let card_detail_from_locker: Option<api::CardDetailFromLocker> = pm
                 .payment_method_data
@@ -703,6 +704,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
                     _ => None,
                 });
+
             card_detail_from_locker.map(|card_details| {
                 let additional_data = card_details.into();
                 api_models::payments::AdditionalPaymentData::Card(Box::new(additional_data))
@@ -1091,7 +1093,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 if req.customer_acceptance.is_some() {
                     logger::info!("Organization is eligible for PM Modular Service, proceeding to create payment method using PM Modular Service.");
                     //check for req.payment_method_data, if card, create payment method with pm service
-                    let payment_method_info = match req
+                    match req
                         .payment_method_data
                         .as_ref()
                         .and_then(|pmd| pmd.payment_method_data.as_ref())
@@ -1100,12 +1102,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             let payment_method = req.payment_method.ok_or(
                                 errors::ApiErrorResponse::MissingRequiredField {
                                     field_name: "payment_method",
-                                },
-                            )?;
-
-                            let payment_method_type = req.payment_method_type.ok_or(
-                                errors::ApiErrorResponse::MissingRequiredField {
-                                    field_name: "payment_method_type",
                                 },
                             )?;
 
@@ -1124,7 +1120,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                 platform.get_processor().get_account().get_id(),
                                 business_profile.get_id(),
                                 payment_method,
-                                payment_method_type,
+                                req.payment_method_type,
                                 payment_method_data,
                                 payment_data
                                     .address
@@ -1143,27 +1139,24 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                     logger::info!(
                                         "Payment method created in PM Modular service successfully"
                                     );
-                                    Some(pm_info)
+                                    //set payment_data.payment_method_info
+                                    payment_data.set_payment_method_id_in_attempt(Some(
+                                        pm_info.get_id().clone(),
+                                    ));
+                                    payment_data.set_payment_method_info(Some(pm_info));
                                 }
                                 Err(err) => {
                                     logger::error!(
                                         "Error creating payment method in PM Modular service: {:?}",
                                         err
                                     );
-                                    None
                                 }
                             }
                         }
                         _ => {
                             logger::info!("No supported payment method data found for creating payment method in PM Modular service.");
-                            None
                         }
                     };
-                    //set payment_data.payment_method_info
-                    payment_data.payment_attempt.payment_method_id = payment_method_info
-                        .as_ref()
-                        .map(|pm_info| pm_info.get_id().clone());
-                    payment_data.set_payment_method_info(payment_method_info);
 
                     Ok(())
                 } else {
@@ -1188,6 +1181,17 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
     ) -> RouterResult<Option<operations::PaymentMethodWithRawData>> {
         match feature_config.is_payment_method_modular_allowed {
             true => {
+                utils::when(
+                    req.off_session == Some(true) && req.recurring_details.is_none(),
+                    || {
+                        Err(error_stack::report!(
+                            errors::ApiErrorResponse::PreconditionFailed {
+                                message: "off_session requires recurring_details".into(),
+                            }
+                        ))
+                    },
+                )?;
+
                 let profile_id = req
                     .profile_id
                     .clone()
@@ -1219,17 +1223,12 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         &profile_id,
                         payment_token,
                         payment_method_data,
-                        false, // is_off_session, is false since customer present in the flow, but to be checked in On_session MIT
                     )
                     .await?;
                     logger::info!("Payment method fetched from PM Modular Service.");
 
                     utils::when(
-                        pm_info.payment_method.0.customer_id
-                            != req
-                                .get_customer_id()
-                                .get_required_value("customer_id")?
-                                .clone(),
+                        pm_info.payment_method.0.customer_id.as_ref() != req.get_customer_id(),
                         || {
                             logger::info!("Payment method id does not belong to the customer id provided in the request.");
                             Err(errors::ApiErrorResponse::PaymentMethodNotFound)
@@ -1540,6 +1539,9 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 })
                 .ok()
                 .flatten();
+            // Compute card_discovery and set it on payment_attempt BEFORE the 3DS rule evaluation
+            payment_data.payment_attempt.card_discovery =
+                payment_data.get_card_discovery_for_card_payment_method();
             // get three_ds_decision_rule_output using algorithm_id and payment data
             let decision = three_ds_decision_rule::get_three_ds_decision_rule_output(
                 state,
@@ -1562,6 +1564,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             card_network: additional_card_info
                                 .as_ref()
                                 .and_then(|info| info.card_network.clone()),
+                            card_discovery: payment_data.payment_attempt.card_discovery,
                         },
                     ),
                     issuer: Some(api_models::three_ds_decision_rule::IssuerData {
@@ -2116,9 +2119,15 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         state: &SessionState,
         processor: &domain::Processor,
         payment_data: &mut PaymentData<F>,
-        _business_profile: &domain::Profile,
+        business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
-        blocklist_utils::validate_data_for_blocklist(state, processor, payment_data).await
+        blocklist_utils::validate_data_for_blocklist(
+            state,
+            processor,
+            payment_data,
+            business_profile,
+        )
+        .await
     }
 
     #[instrument(skip_all)]

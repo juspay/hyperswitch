@@ -12596,6 +12596,28 @@
           {
             "type": "object",
             "required": [
+              "pix_automatico_push"
+            ],
+            "properties": {
+              "pix_automatico_push": {
+                "$ref": "#/components/schemas/PixAutomaticoPushAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pix_automatico_qr"
+            ],
+            "properties": {
+              "pix_automatico_qr": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "pse"
             ],
             "properties": {
@@ -14768,7 +14790,263 @@
       "CardSubtype": {
         "type": "string",
         "enum": [
-          "platinum"
+          "aarp",
+          "airmilespremier",
+          "atmcard",
+          "atmonly",
+          "atmonly_cashlinecard",
+          "best_price_save_max",
+          "best_price_save_smart",
+          "bharat",
+          "bharat_cashback",
+          "bharat_platinum",
+          "black",
+          "blackcard",
+          "blue",
+          "blue_and_revolving",
+          "blueairmilescashbackcard",
+          "bluecash",
+          "blueforbusiness",
+          "bmiplus",
+          "bonus",
+          "business",
+          "business_gold",
+          "business_moneyback",
+          "business_platinum",
+          "business_prepaid",
+          "business_regalia",
+          "business_regalia_first",
+          "businesscard",
+          "businesselite",
+          "businessimmediatedebit",
+          "businessloan",
+          "cashback",
+          "cashrebate",
+          "centurion",
+          "centurionservicio",
+          "chargecard",
+          "checkcard",
+          "classic",
+          "classicpremium",
+          "commercial",
+          "commercialtransportebt",
+          "companion",
+          "consumer",
+          "consumercard",
+          "corp_goldd_and_ranges",
+          "corp_golds_and_ranges",
+          "corp_greend_and_ranges",
+          "corp_greens_and_ranges",
+          "corp_purchasingcard",
+          "corpo_co_s_and_ranges",
+          "corporate",
+          "corporate_platinum",
+          "corporate_premium",
+          "corporatecard",
+          "corporateexecutive",
+          "corporatefleetcard",
+          "corporategold",
+          "corporategoldyplatinum",
+          "corporategreen",
+          "corporategreenebta",
+          "corporatepurchasing",
+          "corporaterevolving",
+          "corporatet",
+          "corporatet_and_e",
+          "corporation",
+          "credit",
+          "ctslandcard",
+          "debit",
+          "delayeddebit",
+          "delta",
+          "diners_club_black",
+          "diners_club_miles",
+          "diners_club_premium",
+          "diners_club_privilege",
+          "diners_club_rewardz",
+          "doctors_platinum",
+          "doctors_regalia",
+          "doctors_superia",
+          "dorada",
+          "dummy_logo",
+          "easy_emi",
+          "edge_platinum",
+          "electricorange",
+          "electron",
+          "electronic",
+          "electronicunembossed",
+          "embossed",
+          "executivebusiness",
+          "express",
+          "firstcitizen",
+          "firstcitizen_black",
+          "fleetcard",
+          "flipkart_wholesale",
+          "freedom",
+          "freedom_platinum",
+          "general_purpose_re_loadable_card",
+          "gift",
+          "gift_cards",
+          "globalpayment",
+          "gmcard",
+          "gold",
+          "gold_and_platinum",
+          "gold_personal",
+          "gold_platinum",
+          "gold_prem",
+          "goldcashbackcard",
+          "goldgrccyblue",
+          "goldimmediatedebit",
+          "goldpremium",
+          "governmentcommercialcard",
+          "governmentservicesloan",
+          "green",
+          "gsacard",
+          "gsacorporatet_and_e",
+          "gsapurchasing",
+          "hsanon_substantiated",
+          "icard",
+          "ikeacard",
+          "immediatedebit",
+          "indian_oil",
+          "indigo6e_rewards",
+          "individual",
+          "infinia",
+          "infinite",
+          "intermiles_diners_club",
+          "intermiles_premium",
+          "intermiles_signature",
+          "ix_rbl09",
+          "ix_rbl24",
+          "ix_slice01",
+          "ix_slice02",
+          "jcb_classic",
+          "jcb_platinum",
+          "jcb_select",
+          "jumbo_loan",
+          "lowescard",
+          "mastercard",
+          "mastermoney",
+          "micro_businesscard",
+          "millennia",
+          "moneyback_insta",
+          "moneyback_platinum",
+          "moneyback_plus",
+          "moneyback_st",
+          "newworld",
+          "newworldimmediatedebit",
+          "optima",
+          "others",
+          "ourocard",
+          "paymentcard",
+          "paypass",
+          "payroll_cards",
+          "paytm",
+          "paytm_business",
+          "paytm_mobile",
+          "paytm_select",
+          "peony",
+          "peonymoneylink",
+          "pinelabs",
+          "pinelabs_pro",
+          "platinum",
+          "platinum1",
+          "platinum_edge",
+          "platinum_freedom",
+          "platinum_plus",
+          "platinum_solitaire",
+          "platinum_times",
+          "platinumimmediatedebit",
+          "platinumtravel",
+          "plus",
+          "pmjdy",
+          "premier",
+          "premium",
+          "premiumcard",
+          "premiumplus",
+          "prepaid",
+          "prepaid_electron",
+          "prepaid_privatelabel",
+          "prepaidcash",
+          "prepaidtravelmoney",
+          "private",
+          "privatelabel",
+          "pro",
+          "proprietary",
+          "proprietary_atm",
+          "purchasing",
+          "quantum",
+          "rebate",
+          "regalia",
+          "regalia_first",
+          "revolving",
+          "rewards",
+          "rewardsonly",
+          "rupay_select",
+          "salute",
+          "sap_concur_solutions_black_corporate",
+          "sap_concur_solutions_prime_corporate",
+          "sbsgoldyblue",
+          "sears",
+          "signature",
+          "signaturebusiness",
+          "signaturebusinessplatinum",
+          "silver",
+          "6e_rewards",
+          "6e_rewards_xl",
+          "smallbusiness",
+          "smallbusinesscard",
+          "smallbusinesssbsgreen",
+          "smallcorporate",
+          "smallcorporatecard",
+          "solitaire",
+          "solitaire_platinum",
+          "standard",
+          "standardunembossed",
+          "tata_neu_infinity",
+          "tata_neu_plus",
+          "teachers_platinum",
+          "test_plastic",
+          "titanium",
+          "titanium_edge",
+          "titanium_personal",
+          "titanium_times",
+          "tjpersonal",
+          "travelmoney",
+          "uat_range",
+          "unembossed",
+          "virginatlantic",
+          "virtual",
+          "visa_business",
+          "visa_business_enhanced",
+          "visa_classic",
+          "visa_corporate_t_and_e",
+          "visa_electron",
+          "visa_enhanced",
+          "visa_gold",
+          "visa_infinite",
+          "visa_infinite_business",
+          "visa_platinum",
+          "visa_platinum_business",
+          "visa_purchasing",
+          "visa_purchasing_with_fleet",
+          "visa_rewards",
+          "visa_signature",
+          "visa_signature_business",
+          "visa_traditional",
+          "visacash",
+          "visacommerce",
+          "vpay",
+          "world",
+          "world_master",
+          "worldblack",
+          "worldcard",
+          "worlddebitembossed",
+          "worldelite",
+          "worldeliteforbusiness",
+          "worldembossed",
+          "worldforbusiness",
+          "worldsigniaimmediatedebit"
         ]
       },
       "CardTestingGuardConfig": {
@@ -21598,6 +21876,42 @@
           }
         }
       },
+      "InternalNetworkTokenizationCredentials": {
+        "type": "object",
+        "required": [
+          "token_service_api_key",
+          "public_key",
+          "private_key",
+          "key_id"
+        ],
+        "properties": {
+          "token_service_api_key": {
+            "type": "string",
+            "description": "The API key to contact the network tokenization provider",
+            "example": "MDRFRDU3Mzc1Q0Q0N2893727712QzQjJEQzlENTBCOg==",
+            "maxLength": 255
+          },
+          "public_key": {
+            "type": "string",
+            "description": "The public key to encrypt the card details before sending to the network tokenization provider",
+            "example": "-----BEGIN PUBLIC KEY-----\nsom8723hj1bajhgd123==\n-----END PUBLIC KEY-----",
+            "maxLength": 255
+          },
+          "private_key": {
+            "type": "string",
+            "description": "The private key to decrypt the tokenized card details received from the network tokenization provider",
+            "example": "-----BEGIN RSA PRIVATE KEY-----\n897238huhbsdbjh12==\n-----END RSA PRIVATE KEY-----",
+            "maxLength": 255
+          },
+          "key_id": {
+            "type": "string",
+            "description": "The key_id used in encryption",
+            "example": "key_1ac9895a6d85414897213gahdac838a8",
+            "maxLength": 255
+          }
+        },
+        "additionalProperties": false
+      },
       "Invoice": {
         "type": "object",
         "required": [
@@ -22269,6 +22583,14 @@
               }
             ],
             "nullable": true
+          },
+          "network_tokenization_credentials": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokeizationProviderCredentials"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -22727,6 +23049,14 @@
           },
           "merchant_account_type": {
             "$ref": "#/components/schemas/MerchantAccountType"
+          },
+          "network_tokenization_credentials": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokeizationProviderCredentials"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -22860,6 +23190,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/BusinessCollectLinkConfig"
+              }
+            ],
+            "nullable": true
+          },
+          "network_tokenization_credentials": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokeizationProviderCredentials"
               }
             ],
             "nullable": true
@@ -23844,6 +24182,7 @@
       },
       "MitCategory": {
         "type": "string",
+        "description": "Specifies the category of a Merchant Initiated Transaction (MIT). In the case of MIT, `mit_category` tells what kind of MIT is being processed. In the case of CIT, it tells the future intended MIT type.",
         "enum": [
           "installment",
           "unscheduled",
@@ -23971,6 +24310,22 @@
             "nullable": true
           }
         }
+      },
+      "NetworkTokeizationProviderCredentials": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "internal_network_token_service"
+            ],
+            "properties": {
+              "internal_network_token_service": {
+                "$ref": "#/components/schemas/InternalNetworkTokenizationCredentials"
+              }
+            }
+          }
+        ],
+        "description": "The credentials required for calling the network tokenization provider APIs"
       },
       "NetworkTokenData": {
         "type": "object",
@@ -27997,11 +28352,15 @@
         "type": "object",
         "description": "Represents metadata about the payment method used in the 3DS decision rule.",
         "required": [
-          "card_network"
+          "card_network",
+          "card_discovery"
         ],
         "properties": {
           "card_network": {
             "$ref": "#/components/schemas/CardNetwork"
+          },
+          "card_discovery": {
+            "$ref": "#/components/schemas/CardDiscovery"
           }
         }
       },
@@ -28241,6 +28600,8 @@
           "paypal",
           "paze",
           "pix",
+          "pix_automatico_qr",
+          "pix_automatico_push",
           "pay_safe_card",
           "przelewy24",
           "prompt_pay",
@@ -34735,6 +35096,29 @@
           }
         ]
       },
+      "PixAutomaticoPushAdditionalData": {
+        "type": "object",
+        "properties": {
+          "account_number": {
+            "type": "string",
+            "description": "Partially masked account number for Pix Automatico Push payment method",
+            "example": "550689",
+            "nullable": true
+          },
+          "branch_code": {
+            "type": "string",
+            "description": "Partially masked branch code for Pix Automatico Push payment method",
+            "example": "2569",
+            "nullable": true
+          },
+          "bank_identifier": {
+            "type": "string",
+            "description": "Partially masked bank identifier for Pix Automatico Push payment method",
+            "example": "91193552",
+            "nullable": true
+          }
+        }
+      },
       "PixBankTransfer": {
         "type": "object",
         "required": [
@@ -35637,6 +36021,14 @@
             "description": "Flag to enable Level 2 and Level 3 processing data for card transactions",
             "nullable": true
           },
+          "network_tokenization_credentials": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokeizationProviderCredentials"
+              }
+            ],
+            "nullable": true
+          },
           "payment_method_blocking": {
             "allOf": [
               {
@@ -36009,6 +36401,14 @@
           "is_l2_l3_enabled": {
             "type": "boolean",
             "description": "Flag to enable Level 2 and Level 3 processing data for card transactions",
+            "nullable": true
+          },
+          "network_tokenization_credentials": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokeizationProviderCredentials"
+              }
+            ],
             "nullable": true
           },
           "payment_method_blocking": {

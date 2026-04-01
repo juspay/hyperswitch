@@ -21,9 +21,10 @@ use hyperswitch_domain_models::{
         UpdateMetadata,
     },
     router_request_types::{
-        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        PaymentsUpdateMetadataData, RefundsData, SetupMandateRequestData,
+        AccessTokenRequestData, CurrentFlowInfo, PaymentMethodTokenizationData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
+        PaymentsSyncData, PaymentsUpdateMetadataData, RefundsData, ResponseId,
+        SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
@@ -469,7 +470,19 @@ impl ConnectorCommon for Santander {
 }
 
 impl ConnectorValidation for Santander {
-    //TODO: implement functions when support enabled
+    fn should_continue_further(
+        &self,
+        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+    ) -> Option<bool> {
+        #[cfg(feature = "v1")]
+        {
+            Some(payment_intent.setup_future_usage == Some(common_enums::FutureUsage::OffSession))
+        }
+        #[cfg(feature = "v2")]
+        {
+            Some(payment_intent.setup_future_usage == common_enums::FutureUsage::OffSession)
+        }
+    }
 }
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Santander {
@@ -799,9 +812,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
         let santander_mca_metadata = SantanderMetadataObject::try_from(&req.connector_meta_data)?;
 
         let connector_transaction_id = match req.request.connector_transaction_id {
-            hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(
-                ref id,
-            ) => Some(id.clone()),
+            ResponseId::ConnectorTransactionId(ref id) => Some(id.clone()),
             _ => None,
         };
 
@@ -1573,6 +1584,19 @@ impl ConnectorSpecifications for Santander {
             _ => payment_attempt.payment_id.get_string_repr().to_owned(),
         }
     }
+
+    fn is_authorize_session_token_call_required(
+        &self,
+        current_flow: Option<CurrentFlowInfo>,
+    ) -> bool {
+        match current_flow {
+            // Journey 1/2/3/4 CIT
+            Some(CurrentFlowInfo::SetupMandate { .. }) => true,
+            Some(CurrentFlowInfo::CompleteAuthorize { .. })
+            | Some(CurrentFlowInfo::Authorize { .. })
+            | None => false,
+        }
+    }
 }
 
 impl ConnectorAccessTokenSuffix for Santander {
@@ -1580,6 +1604,7 @@ impl ConnectorAccessTokenSuffix for Santander {
         &self,
         router_data: &dyn api::AccessTokenData,
         merchant_connector_id_or_connector_name: String,
+        _current_flow: Option<CurrentFlowInfo>,
     ) -> CustomResult<String, errors::ConnectorError> {
         let pmt = router_data.get_payment_method_type();
         let merchant_id = router_data.get_merchant_id();
