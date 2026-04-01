@@ -98,6 +98,13 @@ pub enum SantanderPaymentsResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SantanderCreatePixPayloadLocationResponse {
+    pub id: i64,
+    pub location: String,
+    pub criacao: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SantanderPixQRCodePaymentsResponse {
     pub status: SantanderPaymentStatus,
