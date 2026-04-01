@@ -3333,7 +3333,7 @@ pub enum CardSubtype {
     Freedom,
     #[strum(serialize = "FREEDOM PLATINUM")]
     FreedomPlatinum,
-    #[strum(serialize = "GENERAL PURPOSE RE LOADABLE CARD")]
+    #[strum(serialize = "GENERAL PURPOSE RE-LOADABLE CARD")]
     GeneralPurposeReLoadableCard,
     Gift,
     #[strum(serialize = "GIFT CARDS")]
