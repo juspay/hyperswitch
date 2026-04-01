@@ -143,13 +143,13 @@ jobs:
       RUSTFLAGS: "-D warnings"
 
     strategy:
-    fail-fast: false
-    matrix:
-      include:
-        - runner: ubuntu-latest
-          cargo_jobs: 3
-        - runner: hyperswitch-runners
-          cargo_jobs: 6
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            cargo_jobs: 3
+          - runner: hyperswitch-runners
+            cargo_jobs: 6
 
     steps:
       - name: Generate a token
