@@ -6,6 +6,17 @@ use fred::types::RedisValue as FredRedisValue;
 
 use crate::{errors, RedisConnectionPool};
 
+/// Strategy for handling Redis command timeouts
+#[derive(Debug, serde::Deserialize, Clone, Copy, Default, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum TimeoutStrategy {
+    /// Fred library handles the timeout internally (default)
+    #[default]
+    Library,
+    /// Application wraps calls with tokio::time::timeout
+    Application,
+}
+
 pub struct RedisValue {
     inner: FredRedisValue,
 }
@@ -69,6 +80,9 @@ pub struct RedisSettings {
     pub unresponsive_timeout: u64,
     pub unresponsive_check_interval: u64,
     pub broadcast_channel_capacity: usize,
+    /// Strategy for handling command timeouts
+    #[serde(default)]
+    pub timeout_strategy: TimeoutStrategy,
 }
 
 impl RedisSettings {
@@ -89,15 +103,26 @@ impl RedisSettings {
         })?;
 
         when(
-            self.default_command_timeout != 0
-                && (self.default_command_timeout < self.unresponsive_timeout),
+            self.default_command_timeout < self.unresponsive_timeout,
             || {
                 Err(errors::RedisError::InvalidConfiguration(
                     "Unresponsive timeout cannot be greater than the command timeout".into(),
-                )
-                .into())
+                ))
             },
-        )
+        )?;
+
+        // Validate timeout strategy: Application strategy requires non-zero timeout
+        when(
+            self.timeout_strategy == TimeoutStrategy::Application
+                && self.default_command_timeout == 0,
+            || {
+                Err(errors::RedisError::InvalidConfiguration(
+                    "`default_command_timeout` must be greater than 0 when `timeout_strategy` is `application`".into(),
+                ))
+            },
+        )?;
+
+        Ok(())
     }
 }
 
@@ -118,6 +143,7 @@ impl Default for RedisSettings {
             auto_pipeline: true,
             disable_auto_backpressure: false,
             max_in_flight_commands: 5000,
+            timeout_strategy: TimeoutStrategy::default(),
             default_command_timeout: 30,
             max_feed_count: 200,
             unresponsive_timeout: 10,
