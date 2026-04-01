@@ -1,8 +1,8 @@
-use api_models::{admin::PaymentLinkConfig, payments::PaymentLinkData};
+use api_models::admin::PaymentLinkConfig;
 
 use crate::{
     build_payment_link_html, get_css_script, get_js_script, get_meta_tags_html,
-    types::{PaymentLinkPreviewConfig, PreloadSDKParams},
+    types::PaymentLinkPreviewConfig,
     PaymentLinkFormData,
 };
 

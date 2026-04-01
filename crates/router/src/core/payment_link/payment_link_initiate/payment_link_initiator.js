@@ -15,8 +15,8 @@ function initializeSDK() {
   var sdkUiRules = paymentDetails.sdk_ui_rules;
   var labelType = paymentDetails.payment_form_label_type;
   var colorIconCardCvcError = paymentDetails.color_icon_card_cvc_error;
-  var testMode = paymentDetails.test_mode;
-  var preloadSDKWithParams = paymentDetails.preload_sdk_with_params;
+  var isTestMode = paymentDetails.isTestMode === true;
+  var preloadSDKWithParams = paymentDetails.preloadSDKWithParams;
   var appearance = {
     variables: {
       colorPrimary: paymentDetails.theme || "rgb(0, 109, 249)",
@@ -41,14 +41,19 @@ function initializeSDK() {
   }
 
   var isPreloadEnabled = false;
-  if (testMode === true) {
+  if (isTestMode) {
     isPreloadEnabled = true;
-  } else if (preloadSDKWithParams != null && typeof preloadSDKWithParams === 'object') {
+  } else if (preloadSDKWithParams != null && typeof preloadSDKWithParams === "object") {
     isPreloadEnabled = true;
+  }
+
+  if (isTestMode) {
+    console.warn("The SDK is running in test mode. API calls are bypassed and wallet interactions are disabled.");
   }
 
   // @ts-ignore
   hyper = window.Hyper(pub_key, {
+    isTestMode: isTestMode,
     isPreloadEnabled: isPreloadEnabled,
     // TODO: Remove in next deployment
     shouldUseTopRedirection: true,
@@ -65,7 +70,7 @@ function initializeSDK() {
     locale: paymentDetails.locale
   };
 
-  if (preloadSDKWithParams != null && typeof preloadSDKWithParams === 'object') {
+  if (preloadSDKWithParams != null && typeof preloadSDKWithParams === "object") {
   // @ts-ignore
     widgetOptions.preloadSDKWithParams = preloadSDKWithParams;
   }

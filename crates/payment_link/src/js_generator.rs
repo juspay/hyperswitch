@@ -46,6 +46,25 @@ fn camel_case_json(value: &mut Value) {
 }
 
 pub fn convert_custom_message_keys_to_camel(value: &mut Value) {
+    if let Some(test_mode) = value
+        .as_object_mut()
+        .and_then(|map| map.remove("test_mode"))
+    {
+        if let Some(map) = value.as_object_mut() {
+            map.insert("isTestMode".to_string(), test_mode);
+        }
+    }
+
+    if let Some(mut preload_params) = value
+        .as_object_mut()
+        .and_then(|map| map.remove("preload_sdk_with_params"))
+    {
+        camel_case_json(&mut preload_params);
+        if let Some(map) = value.as_object_mut() {
+            map.insert("preloadSDKWithParams".to_string(), preload_params);
+        }
+    }
+
     if let Some(custom_msg) = value.get_mut("custom_message_for_payment_method_types") {
         camel_case_json(custom_msg);
     }
@@ -85,7 +104,7 @@ mod tests {
     }
 
     #[test]
-    fn test_test_mode_converted_to_test_mode() {
+    fn test_test_mode_converted_to_is_test_mode() {
         let mut value = json!({
             "test_mode": true,
             "client_secret": "secret_123"
@@ -93,9 +112,9 @@ mod tests {
 
         convert_custom_message_keys_to_camel(&mut value);
 
-        assert!(value.get("testMode").is_some());
+        assert!(value.get("isTestMode").is_some());
         assert!(value.get("test_mode").is_none());
-        assert_eq!(value["testMode"], json!(true));
+        assert_eq!(value["isTestMode"], json!(true));
     }
 
     #[test]
@@ -174,10 +193,10 @@ mod tests {
 
         convert_custom_message_keys_to_camel(&mut value);
 
-        // Check test_mode -> testMode
-        assert!(value.get("testMode").is_some());
+        // Check test_mode -> isTestMode
+        assert!(value.get("isTestMode").is_some());
         assert!(value.get("test_mode").is_none());
-        assert_eq!(value["testMode"], json!(false));
+        assert_eq!(value["isTestMode"], json!(false));
 
         // Check preload_sdk_with_params -> preloadSDKWithParams
         assert!(value.get("preloadSDKWithParams").is_some());
