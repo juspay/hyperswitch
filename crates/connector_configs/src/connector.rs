@@ -451,6 +451,7 @@ impl ConnectorConfig {
             PayoutConnectors::Worldpay => Ok(connector_data.worldpay_payout),
             PayoutConnectors::Worldpayxml => Ok(connector_data.worldpayxml_payout),
             PayoutConnectors::Envoy => Ok(connector_data.envoy_payout),
+            PayoutConnectors::Itaubank => Ok(connector_data.itaubank),
         }
     }
 
