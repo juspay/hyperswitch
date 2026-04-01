@@ -1085,4 +1085,21 @@ export const connectorDetails = {
       },
     },
   },
+  webhook: {
+    TransactionIdConfig: {
+      // Defines how to locate and parse the payment reference ID from connector-specific webhook payloads
+      path: "eventDetails.transactionReference",
+      // Type of payment reference ID
+      type: "string",
+      // WorldPay webhook handler uses PaymentAttemptId for lookup, not ConnectorTransactionId
+      source: "paymentAttemptID",
+    },
+    // WorldPay requires mandatory HMAC-SHA256 webhook signature verification.
+    // This hex secret is used both during connector creation (connector_webhook_details)
+    // and to compute the Event-Signature header when sending test webhooks.
+    webhookSecret:
+      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    signatureHeader: "Event-Signature",
+    signaturePrefix: "mac/sha256/",
+  },
 };

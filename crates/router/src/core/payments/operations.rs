@@ -15,6 +15,8 @@ pub mod payment_create;
 #[cfg(feature = "v1")]
 pub mod payment_post_session_tokens;
 #[cfg(feature = "v1")]
+pub mod payment_recurrence;
+#[cfg(feature = "v1")]
 pub mod payment_reject;
 pub mod payment_response;
 #[cfg(feature = "v1")]

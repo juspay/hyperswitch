@@ -82,7 +82,7 @@ where
             .attach_printable("Failed to fetch Unified Connector Service client")?;
 
         let create_connector_customer_request =
-            payments_grpc::PaymentServiceCreateConnectorCustomerRequest::foreign_try_from((
+            payments_grpc::CustomerServiceCreateRequest::foreign_try_from((
                 router_data,
                 call_connector_action,
             ))
