@@ -515,6 +515,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: multiUseMandateData,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -909,6 +910,7 @@ export const connectorDetails = {
       },
     },
   },
+<<<<<<< HEAD
   modular_pm: {
     PaymentMethodCreate: {
       Request: {
@@ -973,6 +975,12 @@ export const connectorDetails = {
           status: "succeeded",
         },
       },
+=======
+  webhook: {
+    TransactionIdConfig: {
+      path: "sourceId",
+      type: "string",
+>>>>>>> main
     },
   },
 };

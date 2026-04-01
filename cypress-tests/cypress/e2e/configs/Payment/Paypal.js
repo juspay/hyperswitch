@@ -903,6 +903,7 @@ export const connectorDetails = {
       },
     },
   },
+<<<<<<< HEAD
   modular_pm: {
     PaymentMethodCreate: {
       Request: {
@@ -967,6 +968,12 @@ export const connectorDetails = {
           status: "succeeded",
         },
       },
+=======
+  webhook: {
+    TransactionIdConfig: {
+      path: "resource.supplementary_data.related_ids.order_id",
+      type: "string",
+>>>>>>> main
     },
   },
 };

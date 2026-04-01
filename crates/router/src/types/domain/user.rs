@@ -513,6 +513,7 @@ impl NewUserMerchant {
             pm_collect_link_config: None,
             product_type: self.get_product_type(),
             merchant_account_type: self.merchant_account_type,
+            network_tokenization_credentials: None,
         })
     }
 

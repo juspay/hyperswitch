@@ -826,6 +826,7 @@ export const connectorDetails = {
       commonConnectorDetails.bank_transfer_pm.InstantBankTransferPoland
     ),
   },
+<<<<<<< HEAD
   modular_pm: {
     PaymentMethodCreate: {
       Request: {
@@ -890,6 +891,13 @@ export const connectorDetails = {
           status: "succeeded",
         },
       },
+=======
+  webhook: {
+    TransactionIdConfig: {
+      path: "PaymentInformation.References.MerchantReference",
+      type: "string",
+      source: "paymentAttemptID",
+>>>>>>> main
     },
   },
 };

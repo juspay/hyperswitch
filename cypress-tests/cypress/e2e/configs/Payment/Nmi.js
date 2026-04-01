@@ -643,6 +643,7 @@ export const connectorDetails = {
       },
     },
   },
+<<<<<<< HEAD
   modular_pm: {
     PaymentMethodCreate: {
       Request: {
@@ -707,6 +708,16 @@ export const connectorDetails = {
           status: "succeeded",
         },
       },
+=======
+  webhook: {
+    TransactionIdConfig: {
+      // Defines how to locate and parse the payment reference ID from connector-specific webhook payloads
+      path: "event_body.order_id",
+      // Type of payment reference ID
+      type: "string",
+      // NMI webhook handler uses PaymentAttemptId for lookup, not ConnectorTransactionId
+      source: "paymentAttemptID",
+>>>>>>> main
     },
   },
 };

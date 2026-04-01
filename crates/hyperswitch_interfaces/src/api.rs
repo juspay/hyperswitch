@@ -931,6 +931,14 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
     fn is_webhook_source_verification_mandatory(&self) -> bool {
         false
     }
+
+    /// Validate if another operation is required
+    fn should_continue_further(
+        &self,
+        _payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+    ) -> Option<bool> {
+        Some(false)
+    }
 }
 
 /// trait ConnectorRedirectResponse
