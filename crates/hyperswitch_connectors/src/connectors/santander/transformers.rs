@@ -16,7 +16,7 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{payments::PushNotification, AuthorizeSessionToken, GenerateQr},
     router_request_types::{
-        AuthorizeSessionTokenData, GenerateQrRequestData, PaymentsUpdateMetadataData,
+        AuthorizeSessionTokenData, GenerateQrRequestData, AuthorizeSessionTokenData, PaymentsUpdateMetadataData,
         PushNotificationRequestData, ResponseId,
     },
     router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
