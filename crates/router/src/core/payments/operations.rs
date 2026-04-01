@@ -99,7 +99,7 @@ pub use self::{
 use super::{helpers, CustomerDetails, OperationSessionGetters, OperationSessionSetters};
 #[cfg(feature = "v2")]
 use crate::core::payments;
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "pm_modular"))]
 use crate::core::payments::pm_transformers::PaymentMethodWithRawData;
 use crate::{
     core::{
@@ -219,6 +219,7 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         platform: &domain::Platform,
         auth_flow: services::AuthFlow,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        #[cfg(feature = "pm_modular")]
         payment_method_with_raw_data: Option<PaymentMethodWithRawData>,
     ) -> RouterResult<GetTrackerResponse<'a, F, R, D>>;
 
@@ -309,7 +310,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
-    #[cfg(feature = "v1")]
+    #[cfg(all(feature = "v1", feature = "pm_modular"))]
     async fn create_payment_method(
         &self,
         _state: &SessionState,
@@ -322,7 +323,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         Ok(())
     }
 
-    #[cfg(feature = "v1")]
+    #[cfg(all(feature = "v1", feature = "pm_modular"))]
     async fn fetch_payment_method(
         &self,
         _state: &SessionState,
@@ -621,6 +622,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         _initiator: Option<&domain::Initiator>,
         _payment_data: &D,
         _router_data: &types::RouterData<F, R, PaymentsResponseData>,
+        #[cfg(feature = "pm_modular")]
         _feature_set: &core_utils::FeatureConfig,
     ) -> RouterResult<()>
     where
@@ -629,7 +631,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         Ok(())
     }
 
-    #[cfg(feature = "v1")]
+    #[cfg(all(feature = "v1", feature = "pm_modular"))]
     async fn update_modular_pm_and_mandate<'b>(
         &self,
         _state: &SessionState,
