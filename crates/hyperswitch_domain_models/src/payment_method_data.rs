@@ -348,6 +348,12 @@ pub enum EligibilityPaymentMethodData {
     MobilePayment(MobilePaymentData),
 }
 
+impl EligibilityPaymentMethodData {
+    pub fn is_card(&self) -> bool {
+        matches!(self, Self::Card(_))
+    }
+}
+
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
 pub struct Card {
     pub card_number: cards::CardNumber,
