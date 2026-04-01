@@ -24,10 +24,10 @@ use hyperswitch_domain_models::{
         AuthorizeSessionToken, UpdateMetadata,
     },
     router_request_types::{
-        AccessTokenRequestData, AuthorizeSessionTokenData, CurrentFlowInfo,
+        AccessTokenRequestData, AuthorizeSessionTokenData, GenerateQrRequestData,
         PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
         PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData, PaymentsUpdateMetadataData,
-        RefundsData, ResponseId, SetupMandateRequestData, GenerateQrRequestData, PushNotificationRequestData, 
+        PushNotificationRequestData, RefundsData, ResponseId, SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
