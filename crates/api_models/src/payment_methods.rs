@@ -593,6 +593,14 @@ impl PaymentMethodCreateData {
             _ => None,
         }
     }
+
+    pub fn payment_method_type(&self) -> &'static str {
+        match self {
+            Self::Card(_) => "card",
+            Self::ProxyCard(_) => "proxy_card",
+            Self::BankDebit(_) => "bank_debit",
+        }
+    }
 }
 
 #[cfg(feature = "v1")]

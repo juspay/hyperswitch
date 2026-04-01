@@ -91,7 +91,7 @@ pub struct ModularPaymentMethodResponse {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodResponseData {
-    Card(api_models::payment_methods::CardDetailFromLocker),
+    Card(Box<api_models::payment_methods::CardDetailFromLocker>),
     BankDebit(api_models::payment_methods::BankDebitDetailsPaymentMethod),
 }
 
