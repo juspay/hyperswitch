@@ -345,7 +345,6 @@ jobs:
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT_KEY: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE_KEY }}
           SERVER_LOG_PATH: ${{ github.workspace }}/server-logs.txt
         run: |
-          touch "${{ env.SERVER_LOG_PATH }}"
           # Start the server in the background
 
           target/debug/router >> "${{ env.SERVER_LOG_PATH }}" 2>&1 &
