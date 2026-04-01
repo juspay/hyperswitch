@@ -2176,6 +2176,124 @@ pub fn handle_unified_connector_service_response_for_payout_create(
     })
 }
 
+pub fn handle_unified_connector_service_response_for_payout_transfer(
+    response: payments_grpc::PayoutServiceTransferResponse,
+    prev_status: common_enums::PayoutStatus,
+) -> CustomResult<crate::types::UcsPayoutTransferResponseData, UnifiedConnectorServiceError> {
+    use crate::core::unified_connector_service::transformers::convert_connector_service_status_code;
+
+    let status_code = convert_connector_service_status_code(response.status_code)?;
+
+    let router_data_response = Result::<PayoutsResponseData, ErrorResponse>::foreign_try_from((
+        response.clone(),
+        prev_status,
+    ))?;
+
+    Ok(crate::types::UcsPayoutTransferResponseData {
+        router_data_response,
+        status_code,
+    })
+}
+
+pub fn handle_unified_connector_service_response_for_payout_get(
+    response: payments_grpc::PayoutServiceGetResponse,
+    prev_status: common_enums::PayoutStatus,
+) -> CustomResult<crate::types::UcsPayoutGetResponseData, UnifiedConnectorServiceError> {
+    use crate::core::unified_connector_service::transformers::convert_connector_service_status_code;
+
+    let status_code = convert_connector_service_status_code(response.status_code)?;
+
+    let router_data_response = Result::<PayoutsResponseData, ErrorResponse>::foreign_try_from((
+        response.clone(),
+        prev_status,
+    ))?;
+
+    Ok(crate::types::UcsPayoutGetResponseData {
+        router_data_response,
+        status_code,
+    })
+}
+
+pub fn handle_unified_connector_service_response_for_payout_void(
+    response: payments_grpc::PayoutServiceVoidResponse,
+    prev_status: common_enums::PayoutStatus,
+) -> CustomResult<crate::types::UcsPayoutVoidResponseData, UnifiedConnectorServiceError> {
+    use crate::core::unified_connector_service::transformers::convert_connector_service_status_code;
+
+    let status_code = convert_connector_service_status_code(response.status_code)?;
+
+    let router_data_response = Result::<PayoutsResponseData, ErrorResponse>::foreign_try_from((
+        response.clone(),
+        prev_status,
+    ))?;
+
+    Ok(crate::types::UcsPayoutVoidResponseData {
+        router_data_response,
+        status_code,
+    })
+}
+
+pub fn handle_unified_connector_service_response_for_payout_stage(
+    response: payments_grpc::PayoutServiceStageResponse,
+    prev_status: common_enums::PayoutStatus,
+) -> CustomResult<crate::types::UcsPayoutStageResponseData, UnifiedConnectorServiceError> {
+    use crate::core::unified_connector_service::transformers::convert_connector_service_status_code;
+
+    let status_code = convert_connector_service_status_code(response.status_code)?;
+
+    let router_data_response = Result::<PayoutsResponseData, ErrorResponse>::foreign_try_from((
+        response.clone(),
+        prev_status,
+    ))?;
+
+    Ok(crate::types::UcsPayoutStageResponseData {
+        router_data_response,
+        status_code,
+    })
+}
+
+pub fn handle_unified_connector_service_response_for_payout_create_recipient(
+    response: payments_grpc::PayoutServiceCreateRecipientResponse,
+    prev_status: common_enums::PayoutStatus,
+) -> CustomResult<crate::types::UcsPayoutCreateRecipientResponseData, UnifiedConnectorServiceError>
+{
+    use crate::core::unified_connector_service::transformers::convert_connector_service_status_code;
+
+    let status_code = convert_connector_service_status_code(response.status_code)?;
+
+    let router_data_response = Result::<PayoutsResponseData, ErrorResponse>::foreign_try_from((
+        response.clone(),
+        prev_status,
+    ))?;
+
+    Ok(crate::types::UcsPayoutCreateRecipientResponseData {
+        router_data_response,
+        status_code,
+    })
+}
+
+pub fn handle_unified_connector_service_response_for_payout_enroll_disburse_account(
+    response: payments_grpc::PayoutServiceEnrollDisburseAccountResponse,
+    prev_status: common_enums::PayoutStatus,
+) -> CustomResult<
+    crate::types::UcsPayoutEnrollDisburseAccountResponseData,
+    UnifiedConnectorServiceError,
+> {
+    use crate::core::unified_connector_service::transformers::convert_connector_service_status_code;
+
+    let status_code = convert_connector_service_status_code(response.status_code)?;
+
+    let router_data_response = Result::<PayoutsResponseData, ErrorResponse>::foreign_try_from((
+        response.clone(),
+        prev_status,
+    ))?;
+
+    Ok(crate::types::UcsPayoutEnrollDisburseAccountResponseData {
+        router_data_response,
+        status_code,
+    })
+}
+
 pub fn build_webhook_secrets_from_merchant_connector_account(
     #[cfg(feature = "v1")] merchant_connector_account: &MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: &MerchantConnectorAccountTypeDetails,

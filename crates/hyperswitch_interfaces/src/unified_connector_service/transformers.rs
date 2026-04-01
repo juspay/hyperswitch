@@ -169,6 +169,30 @@ pub enum UnifiedConnectorServiceError {
     /// Failed to perform Payout Create from gRPC Server
     #[error("Failed to perform Payout Create from gRPC Server")]
     PayoutCreateFailure,
+
+    /// Failed to perform Payout Transfer from gRPC Server
+    #[error("Failed to perform Payout Transfer from gRPC Server")]
+    PayoutTransferFailure,
+
+    /// Failed to perform Payout Get from gRPC Server
+    #[error("Failed to perform Payout Get from gRPC Server")]
+    PayoutGetFailure,
+
+    /// Failed to perform Payout Void from gRPC Server
+    #[error("Failed to perform Payout Void from gRPC Server")]
+    PayoutVoidFailure,
+
+    /// Failed to perform Payout Stage from gRPC Server
+    #[error("Failed to perform Payout Stage from gRPC Server")]
+    PayoutStageFailure,
+
+    /// Failed to perform Payout Create Recipient from gRPC Server
+    #[error("Failed to perform Payout Create Recipient from gRPC Server")]
+    PayoutCreateRecipientFailure,
+
+    /// Failed to perform Payout Enroll Disburse Account from gRPC Server
+    #[error("Failed to perform Payout Enroll Disburse Account from gRPC Server")]
+    PayoutEnrollDisburseAccountFailure,
 }
 
 /// UCS Webhook transformation status
