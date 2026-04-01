@@ -6,6 +6,10 @@
 # Extra fields (description, change_reason) are used only by the seeding script
 # and are silently ignored by the FileDataSource parser.
 
+# Empty overrides table - required for FileDataSource backup parsing
+# The seeding script ignores this field; it's only needed for runtime fallback
+overrides = []
+
 [dimensions.organization_id]
 position = 1
 schema = { type = "string" }
@@ -51,6 +55,3 @@ change_reason = "Initial setup"
 start_after = 60
 frequencies = [[300, 5]]
 
-# Empty overrides table - required for FileDataSource backup parsing
-# The seeding script ignores this field; it's only needed for runtime fallback
-[overrides]
