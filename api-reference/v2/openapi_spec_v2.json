@@ -8266,6 +8266,28 @@
           {
             "type": "object",
             "required": [
+              "pix_automatico_push"
+            ],
+            "properties": {
+              "pix_automatico_push": {
+                "$ref": "#/components/schemas/PixAutomaticoPushAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pix_automatico_qr"
+            ],
+            "properties": {
+              "pix_automatico_qr": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "pse"
             ],
             "properties": {
@@ -22179,6 +22201,8 @@
           "paypal",
           "paze",
           "pix",
+          "pix_automatico_qr",
+          "pix_automatico_push",
           "pay_safe_card",
           "przelewy24",
           "prompt_pay",
@@ -25597,6 +25621,29 @@
             }
           }
         ]
+      },
+      "PixAutomaticoPushAdditionalData": {
+        "type": "object",
+        "properties": {
+          "account_number": {
+            "type": "string",
+            "description": "Partially masked account number for Pix Automatico Push payment method",
+            "example": "550689",
+            "nullable": true
+          },
+          "branch_code": {
+            "type": "string",
+            "description": "Partially masked branch code for Pix Automatico Push payment method",
+            "example": "2569",
+            "nullable": true
+          },
+          "bank_identifier": {
+            "type": "string",
+            "description": "Partially masked bank identifier for Pix Automatico Push payment method",
+            "example": "91193552",
+            "nullable": true
+          }
+        }
       },
       "PixBankTransfer": {
         "type": "object",
