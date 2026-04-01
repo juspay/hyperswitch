@@ -555,7 +555,12 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
         ) {
             CheckoutPaymentType::Moto
         } else if item.router_data.request.is_mandate_payment() {
-            CheckoutPaymentType::Unscheduled
+            match item.router_data.request.mit_category {
+                Some(MitCategory::Installment) => CheckoutPaymentType::Installment,
+                Some(MitCategory::Recurring) => CheckoutPaymentType::Recurring,
+                Some(MitCategory::Unscheduled) | None => CheckoutPaymentType::Unscheduled,
+                _ => CheckoutPaymentType::Unscheduled,
+            }
         } else {
             CheckoutPaymentType::Regular
         };
