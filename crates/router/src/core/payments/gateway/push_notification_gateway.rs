@@ -7,26 +7,26 @@ use hyperswitch_interfaces::{
 use crate::{core::payments::gateway::context::RouterGatewayContext, routes::SessionState, types};
 
 // =============================================================================
-// FlowGateway Implementation for domain::PaymentTrigger
+// FlowGateway Implementation for domain::PushNotification
 // =============================================================================
 
-/// Implementation of FlowGateway for PaymentTrigger
+/// Implementation of FlowGateway for PushNotification
 ///
 /// This allows the flow to provide its specific gateway based on execution path
 impl<RCD>
     payment_gateway::FlowGateway<
         SessionState,
         RCD,
-        types::PaymentTriggerData,
+        types::PushNotificationRequestData,
         types::PaymentsResponseData,
         RouterGatewayContext,
-    > for domain::PaymentTrigger
+    > for domain::PushNotification
 where
     RCD: Clone
         + Send
         + Sync
         + 'static
-        + RouterDataConversion<Self, types::PaymentTriggerData, types::PaymentsResponseData>,
+        + RouterDataConversion<Self, types::PushNotificationRequestData, types::PaymentsResponseData>,
 {
     fn get_gateway(
         execution_path: ExecutionPath,
@@ -35,14 +35,14 @@ where
             SessionState,
             RCD,
             Self,
-            types::PaymentTriggerData,
+            types::PushNotificationRequestData,
             types::PaymentsResponseData,
             RouterGatewayContext,
         >,
     > {
         match execution_path {
-            // PaymentTrigger currently only supports DirectGateway
-            // UCS support can be added when the gRPC payment_trigger methods are implemented
+            // PushNotification currently only supports DirectGateway
+            // UCS support can be added when the gRPC push_notification methods are implemented
             ExecutionPath::Direct
             | ExecutionPath::UnifiedConnectorService
             | ExecutionPath::ShadowUnifiedConnectorService => {

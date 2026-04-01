@@ -17,7 +17,7 @@ use hyperswitch_domain_models::{
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{
-            Authorize, Capture, GenerateQr, PSync, PaymentMethodToken, PaymentTrigger, Session,
+            Authorize, Capture, GenerateQr, PSync, PaymentMethodToken, PushNotification, Session,
             SetupMandate, Void,
         },
         refunds::{Execute, RSync},
@@ -25,9 +25,9 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         AccessTokenRequestData, AuthorizeSessionTokenData, GenerateQrRequestData,
-        PaymentMethodTokenizationData, PaymentTriggerData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        PaymentsUpdateMetadataData, RefundsData, ResponseId, SetupMandateRequestData,
+        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData, PaymentsUpdateMetadataData,
+        PushNotificationRequestData, RefundsData, ResponseId, SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
@@ -35,8 +35,8 @@ use hyperswitch_domain_models::{
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsAuthorizeSessionTokenRouterData,
-        PaymentsCancelRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        PaymentsTriggerRouterData, PaymentsUpdateMetadataRouterData, RefundSyncRouterData,
+        PaymentsCancelRouterData, PaymentsCaptureRouterData, PaymentsPushNotificationRouterData,
+        PaymentsSyncRouterData, PaymentsUpdateMetadataRouterData, RefundSyncRouterData,
         RefundsRouterData,
     },
 };
@@ -108,7 +108,7 @@ impl api::RefundExecute for Santander {}
 impl api::RefundSync for Santander {}
 impl api::PaymentToken for Santander {}
 impl api::PaymentUpdateMetadata for Santander {}
-impl api::PaymentsTrigger for Santander {}
+impl api::PaymentsPushNotification for Santander {}
 impl api::PaymentsGenerateQr for Santander {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
@@ -702,10 +702,12 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
     }
 }
 
-impl ConnectorIntegration<PaymentTrigger, PaymentTriggerData, PaymentsResponseData> for Santander {
+impl ConnectorIntegration<PushNotification, PushNotificationRequestData, PaymentsResponseData>
+    for Santander
+{
     fn get_headers(
         &self,
-        req: &PaymentsTriggerRouterData,
+        req: &PaymentsPushNotificationRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
@@ -717,7 +719,7 @@ impl ConnectorIntegration<PaymentTrigger, PaymentTriggerData, PaymentsResponseDa
 
     fn get_url(
         &self,
-        req: &PaymentsTriggerRouterData,
+        req: &PaymentsPushNotificationRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         match req.payment_method_type {
@@ -755,7 +757,7 @@ impl ConnectorIntegration<PaymentTrigger, PaymentTriggerData, PaymentsResponseDa
 
     fn get_request_body(
         &self,
-        req: &PaymentsTriggerRouterData,
+        req: &PaymentsPushNotificationRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = SantanderPostProcessingStepRequest::try_from(req)?;
@@ -764,7 +766,7 @@ impl ConnectorIntegration<PaymentTrigger, PaymentTriggerData, PaymentsResponseDa
 
     fn build_request(
         &self,
-        req: &PaymentsTriggerRouterData,
+        req: &PaymentsPushNotificationRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         let auth_details = SantanderAuthType::try_from(&req.connector_auth_type)?;
@@ -803,10 +805,10 @@ impl ConnectorIntegration<PaymentTrigger, PaymentTriggerData, PaymentsResponseDa
 
     fn handle_response(
         &self,
-        data: &PaymentsTriggerRouterData,
+        data: &PaymentsPushNotificationRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<PaymentsTriggerRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsPushNotificationRouterData, errors::ConnectorError> {
         let response: SantanderPaymentTriggerResponse = res
             .response
             .parse_struct("Santander PaymentTriggerResponse")
@@ -1831,7 +1833,13 @@ impl ConnectorSpecifications for Santander {
             | None => false,
         }
     }
-    fn is_payment_trigger_flow_required(&self, current_flow: CurrentFlowInfo) -> bool {
+    fn is_push_notification_flow_required(&self, current_flow: CurrentFlowInfo) -> bool {
+        match current_flow {
+            CurrentFlowInfo::SetupMandate { .. } => true,
+            CurrentFlowInfo::Authorize { .. } | CurrentFlowInfo::CompleteAuthorize { .. } => false,
+        }
+    }
+    fn is_generate_qr_flow_required(&self, current_flow: CurrentFlowInfo) -> bool {
         match current_flow {
             CurrentFlowInfo::SetupMandate { .. } => true,
             CurrentFlowInfo::Authorize { .. } | CurrentFlowInfo::CompleteAuthorize { .. } => false,

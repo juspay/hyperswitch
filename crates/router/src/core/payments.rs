@@ -4752,7 +4752,7 @@ where
     // Call payment trigger step after the authorize/setup mandate flow completes
     let (router_data, _should_continue_trigger) = if should_continue_payment {
         router_data
-            .payment_trigger_step(
+            .push_notification_step(
                 state,
                 connector,
                 &call_connector_service_response.gateway_context,
@@ -5249,7 +5249,7 @@ where
     // Call payment trigger step after the authorize/setup mandate flow completes
     let (router_data, should_continue_trigger) = if should_continue_payment {
         router_data
-            .payment_trigger_step(
+            .push_notification_step(
                 state,
                 connector,
                 &call_connector_service_response.gateway_context,

@@ -6,8 +6,8 @@ use hyperswitch_domain_models::{
         payments::{
             Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
             CreateConnectorCustomer, CreateOrder, ExtendAuthorization, ExternalVaultProxy,
-            GenerateQr, IncrementalAuthorization, PSync, PaymentMethodToken, PaymentTrigger,
-            PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing, Reject,
+            GenerateQr, IncrementalAuthorization, PSync, PaymentMethodToken, PostCaptureVoid,
+            PostProcessing, PostSessionTokens, PreProcessing, PushNotification, Reject,
             SdkSessionUpdate, Session, SettlementSplitCreate, SetupMandate, UpdateMetadata, Void,
         },
         Authenticate, GiftCardBalanceCheck, PostAuthenticate, PreAuthenticate,
@@ -15,14 +15,14 @@ use hyperswitch_domain_models::{
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
         CreateOrderRequestData, ExternalVaultProxyPaymentsData, GenerateQrRequestData,
-        GiftCardBalanceCheckRequestData, PaymentMethodTokenizationData, PaymentTriggerData,
-        PaymentsApproveData, PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData,
+        GiftCardBalanceCheckRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
+        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData,
         PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsExtendAuthorizationData,
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
         PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData, PaymentsSyncData,
-        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, SdkPaymentsSessionUpdateData,
-        SettlementSplitRequestData, SetupMandateRequestData,
+        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, PushNotificationRequestData,
+        SdkPaymentsSessionUpdateData, SettlementSplitRequestData, SetupMandateRequestData,
     },
     router_response_types::{
         GiftCardBalanceCheckResponseData, PaymentsResponseData, TaxCalculationResponseData,
@@ -286,7 +286,12 @@ pub trait PaymentsPostProcessingV2:
 
 /// trait PaymentsPaymentTriggerV2
 pub trait PaymentsPaymentTriggerV2:
-    ConnectorIntegrationV2<PaymentTrigger, PaymentFlowData, PaymentTriggerData, PaymentsResponseData>
+    ConnectorIntegrationV2<
+    PushNotification,
+    PaymentFlowData,
+    PushNotificationRequestData,
+    PaymentsResponseData,
+>
 {
 }
 

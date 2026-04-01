@@ -474,7 +474,7 @@ pub trait ConnectorSpecifications {
         false
     }
     /// Check if payment trigger flow is required
-    fn is_payment_trigger_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
+    fn is_push_notification_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
     }
     /// Check if generate QR flow is required

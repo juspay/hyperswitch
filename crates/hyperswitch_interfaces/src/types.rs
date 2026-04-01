@@ -12,8 +12,8 @@ use hyperswitch_domain_models::{
         payments::{
             Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
             CreateConnectorCustomer, CreateOrder, ExtendAuthorization, GenerateQr,
-            IncrementalAuthorization, InitPayment, PSync, PaymentMethodToken, PaymentTrigger,
-            PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing, SdkSessionUpdate,
+            IncrementalAuthorization, InitPayment, PSync, PaymentMethodToken, PostCaptureVoid,
+            PostProcessing, PostSessionTokens, PreProcessing, PushNotification, SdkSessionUpdate,
             Session, SettlementSplitCreate, SetupMandate, UpdateMetadata, Void,
         },
         refunds::{Execute, RSync},
@@ -53,16 +53,16 @@ use hyperswitch_domain_models::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
         CreateOrderRequestData, DefendDisputeRequestData, DisputeSyncData,
         FetchDisputesRequestData, GenerateQrRequestData, GiftCardBalanceCheckRequestData,
-        MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentTriggerData,
-        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsExtendAuthorizationData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
-        PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
-        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
-        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SettlementSplitRequestData,
-        SetupMandateRequestData, SubmitEvidenceRequestData, UploadFileRequestData,
-        VaultRequestData, VerifyWebhookSourceRequestData,
+        MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthenticateData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
+        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsSessionData,
+        PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData,
+        PushNotificationRequestData, RefundsData, RetrieveFileRequestData,
+        SdkPaymentsSessionUpdateData, SettlementSplitRequestData, SetupMandateRequestData,
+        SubmitEvidenceRequestData, UploadFileRequestData, VaultRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
@@ -158,9 +158,9 @@ pub type PaymentsPostAuthenticateType =
 /// Type alias for `ConnectorIntegration<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>`
 pub type PaymentsPostProcessingType =
     dyn ConnectorIntegration<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>;
-/// Type alias for `ConnectorIntegration<PaymentTrigger, PaymentTriggerData, PaymentsResponseData>`
+/// Type alias for `ConnectorIntegration<PushNotification, PushNotificationRequestData, PaymentsResponseData>`
 pub type PaymentsPaymentTriggerType =
-    dyn ConnectorIntegration<PaymentTrigger, PaymentTriggerData, PaymentsResponseData>;
+    dyn ConnectorIntegration<PushNotification, PushNotificationRequestData, PaymentsResponseData>;
 /// Type alias for `ConnectorIntegration<GenerateQr, GenerateQrRequestData, PaymentsResponseData>`
 pub type PaymentsGenerateQrType =
     dyn ConnectorIntegration<GenerateQr, GenerateQrRequestData, PaymentsResponseData>;

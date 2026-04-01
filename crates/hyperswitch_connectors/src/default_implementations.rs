@@ -35,8 +35,8 @@ use hyperswitch_domain_models::{
         payments::{
             Approve, AuthorizeSessionToken, CalculateTax, CompleteAuthorize,
             CreateConnectorCustomer, CreateOrder, ExtendAuthorization, GenerateQr,
-            GiftCardBalanceCheck, IncrementalAuthorization, PaymentTrigger, PostCaptureVoid,
-            PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate,
+            GiftCardBalanceCheck, IncrementalAuthorization, PostCaptureVoid, PostProcessing,
+            PostSessionTokens, PreProcessing, PushNotification, Reject, SdkSessionUpdate,
             SettlementSplitCreate, UpdateMetadata,
         },
         subscriptions::{
@@ -67,14 +67,14 @@ use hyperswitch_domain_models::{
         CompleteAuthorizeData, ConnectorCustomerData, CreateOrderRequestData,
         DefendDisputeRequestData, DisputeSyncData, ExternalVaultProxyPaymentsData,
         FetchDisputesRequestData, GenerateQrRequestData, GiftCardBalanceCheckRequestData,
-        MandateRevokeRequestData, PaymentTriggerData, PaymentsApproveData,
-        PaymentsAuthenticateData, PaymentsCancelPostCaptureData, PaymentsExtendAuthorizationData,
+        MandateRevokeRequestData, PaymentsApproveData, PaymentsAuthenticateData,
+        PaymentsCancelPostCaptureData, PaymentsExtendAuthorizationData,
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
         PaymentsPreProcessingData, PaymentsRejectData, PaymentsTaxCalculationData,
-        PaymentsUpdateMetadataData, RetrieveFileRequestData, SdkPaymentsSessionUpdateData,
-        SettlementSplitRequestData, SubmitEvidenceRequestData, UploadFileRequestData,
-        VaultRequestData, VerifyWebhookSourceRequestData,
+        PaymentsUpdateMetadataData, PushNotificationRequestData, RetrieveFileRequestData,
+        SdkPaymentsSessionUpdateData, SettlementSplitRequestData, SubmitEvidenceRequestData,
+        UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
@@ -146,8 +146,8 @@ use hyperswitch_interfaces::{
             PaymentReject, PaymentSessionUpdate, PaymentUpdateMetadata, PaymentsAuthenticate,
             PaymentsCompleteAuthorize, PaymentsCreateOrder, PaymentsGenerateQr,
             PaymentsGiftCardBalanceCheck, PaymentsPostAuthenticate, PaymentsPostProcessing,
-            PaymentsPreAuthenticate, PaymentsPreProcessing, PaymentsSettlementSplitCreate,
-            PaymentsTrigger, TaxCalculation,
+            PaymentsPreAuthenticate, PaymentsPreProcessing, PaymentsPushNotification,
+            PaymentsSettlementSplitCreate, TaxCalculation,
         },
         revenue_recovery::RevenueRecovery,
         subscriptions::{
@@ -10806,9 +10806,10 @@ impl<const T: u8>
 }
 
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> PaymentsTrigger for connectors::DummyConnector<T> {}
+impl<const T: u8> PaymentsPushNotification for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> ConnectorIntegration<PaymentTrigger, PaymentTriggerData, PaymentsResponseData>
+impl<const T: u8>
+    ConnectorIntegration<PushNotification, PushNotificationRequestData, PaymentsResponseData>
     for connectors::DummyConnector<T>
 {
 }
@@ -11329,11 +11330,11 @@ default_imp_for_generate_qr_flow!(
 macro_rules! default_imp_for_trigger_flow {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl PaymentsTrigger for $path::$connector {}
+            impl PaymentsPushNotification for $path::$connector {}
             impl
             ConnectorIntegration<
-                PaymentTrigger,
-                PaymentTriggerData,
+                PushNotification,
+                PushNotificationRequestData,
                 PaymentsResponseData,
             > for $path::$connector
             {}

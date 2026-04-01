@@ -14,14 +14,15 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankTransferData, BoletoVoucherData, PaymentMethodData, VoucherData},
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
-    router_flow_types::{payments::PaymentTrigger, AuthorizeSessionToken},
+    router_flow_types::{payments::PushNotification, AuthorizeSessionToken},
     router_request_types::{
-        AuthorizeSessionTokenData, PaymentTriggerData, PaymentsUpdateMetadataData, ResponseId,
+        AuthorizeSessionTokenData, PaymentsUpdateMetadataData, PushNotificationRequestData,
+        ResponseId,
     },
     router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsSyncRouterData,
-        PaymentsTriggerRouterData, PaymentsUpdateMetadataRouterData, RefundsRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsPushNotificationRouterData,
+        PaymentsSyncRouterData, PaymentsUpdateMetadataRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -108,20 +109,20 @@ impl
 impl
     TryFrom<
         ResponseRouterData<
-            PaymentTrigger,
+            PushNotification,
             SantanderPaymentTriggerResponse,
-            PaymentTriggerData,
+            PushNotificationRequestData,
             PaymentsResponseData,
         >,
-    > for RouterData<PaymentTrigger, PaymentTriggerData, PaymentsResponseData>
+    > for RouterData<PushNotification, PushNotificationRequestData, PaymentsResponseData>
 {
     type Error = Error;
 
     fn try_from(
         item: ResponseRouterData<
-            PaymentTrigger,
+            PushNotification,
             SantanderPaymentTriggerResponse,
-            PaymentTriggerData,
+            PushNotificationRequestData,
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
@@ -1794,9 +1795,9 @@ fn get_boleto_additional_fields_from_connector_metadata(
         .unwrap_or_default()
 }
 
-impl TryFrom<&PaymentsTriggerRouterData> for SantanderPostProcessingStepRequest {
+impl TryFrom<&PaymentsPushNotificationRouterData> for SantanderPostProcessingStepRequest {
     type Error = Error;
-    fn try_from(value: &PaymentsTriggerRouterData) -> Result<Self, Self::Error> {
+    fn try_from(value: &PaymentsPushNotificationRouterData) -> Result<Self, Self::Error> {
         match &value.request.payment_method_data {
             Some(PaymentMethodData::BankTransfer(bank_transfer_data)) => {
                 match bank_transfer_data.as_ref() {
@@ -1819,10 +1820,10 @@ impl TryFrom<&PaymentsTriggerRouterData> for SantanderPostProcessingStepRequest 
     }
 }
 
-impl TryFrom<&PaymentsTriggerRouterData> for SantanderPixAutomaticSolicitationRequest {
+impl TryFrom<&PaymentsPushNotificationRouterData> for SantanderPixAutomaticSolicitationRequest {
     type Error = Error;
 
-    fn try_from(item: &PaymentsTriggerRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &PaymentsPushNotificationRouterData) -> Result<Self, Self::Error> {
         // Extract expiration time from feature_metadata using the helper function
         let expires_in_secs = item
             .request
