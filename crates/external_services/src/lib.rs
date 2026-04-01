@@ -99,6 +99,9 @@ pub mod consts {
 
     /// Header key for sending the resource id to UCS
     pub(crate) const UCS_HEADER_RESOURCE_ID: &str = "x-resource-id";
+
+    /// Header key for sending connector-specific configuration to UCS
+    pub(crate) const UCS_HEADER_CONNECTOR_CONFIG: &str = "x-connector-config";
 }
 
 /// Metrics for interactions with external systems.

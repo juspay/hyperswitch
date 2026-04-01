@@ -21833,6 +21833,14 @@
             "type": "string",
             "description": "The return url to which the customer should be redirected to after adding the payment method",
             "nullable": true
+          },
+          "customer_acceptance": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerAcceptance"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -22566,8 +22574,7 @@
         "description": "Request for Payment Intent Confirm",
         "required": [
           "payment_method_data",
-          "payment_method_type",
-          "payment_method_subtype"
+          "payment_method_type"
         ],
         "properties": {
           "return_url": {
@@ -22591,7 +22598,12 @@
             "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_subtype": {
-            "$ref": "#/components/schemas/PaymentMethodType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
           },
           "shipping": {
             "allOf": [
@@ -23451,8 +23463,7 @@
           "amount_details",
           "customer_id",
           "payment_method_data",
-          "payment_method_type",
-          "payment_method_subtype"
+          "payment_method_type"
         ],
         "properties": {
           "amount_details": {
@@ -23644,7 +23655,12 @@
             "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_subtype": {
-            "$ref": "#/components/schemas/PaymentMethodType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
           },
           "customer_acceptance": {
             "allOf": [
@@ -26771,6 +26787,21 @@
           }
         }
       },
+      "RawCardWithNTDetails": {
+        "type": "object",
+        "required": [
+          "card_details",
+          "network_token_details"
+        ],
+        "properties": {
+          "card_details": {
+            "$ref": "#/components/schemas/CardDetail"
+          },
+          "network_token_details": {
+            "$ref": "#/components/schemas/CardDetail"
+          }
+        }
+      },
       "RawPaymentMethodData": {
         "oneOf": [
           {
@@ -26781,6 +26812,17 @@
             "properties": {
               "card": {
                 "$ref": "#/components/schemas/CardDetail"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "card_with_n_t"
+            ],
+            "properties": {
+              "card_with_n_t": {
+                "$ref": "#/components/schemas/RawCardWithNTDetails"
               }
             }
           }

@@ -1567,7 +1567,7 @@ pub struct PaymentsRequest {
     #[smithy(value_type = "Option<bool>")]
     pub is_stored_credential: Option<bool>,
 
-    /// The category of the MIT transaction
+    /// Specifies the category of a Merchant Initiated Transaction (MIT). In the case of MIT, `mit_category` tells what kind of MIT is being processed. In the case of CIT, it tells the future intended MIT type.
     #[schema(value_type = Option<MitCategory>, example = "recurring")]
     #[smithy(value_type = "Option<MitCategory>")]
     pub mit_category: Option<api_enums::MitCategory>,
@@ -1780,19 +1780,6 @@ impl PaymentsRequest {
         } else {
             Ok(())
         }
-    }
-
-    pub fn validate_mit_request(&self) -> common_utils::errors::CustomResult<(), ValidationError> {
-        if self.mit_category.is_some()
-            && (!matches!(self.off_session, Some(true)) || self.recurring_details.is_none())
-        {
-            return Err(ValidationError::InvalidValue {
-                message: "`mit_category` requires both: (1) `off_session = true`, and (2) `recurring_details`.".to_string(),
-            }
-            .into());
-        }
-
-        Ok(())
     }
 
     pub fn validate_installment_options(
@@ -7718,7 +7705,7 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<bool>")]
     pub is_stored_credential: Option<bool>,
 
-    /// The category of the MIT transaction
+    /// Specifies the category of a Merchant Initiated Transaction (MIT). In the case of MIT, `mit_category` tells what kind of MIT is being processed. In the case of CIT, it tells the future intended MIT type.
     #[schema(value_type = Option<MitCategory>, example = "recurring")]
     #[smithy(value_type = "Option<MitCategory>")]
     pub mit_category: Option<api_enums::MitCategory>,
@@ -8014,8 +8001,8 @@ pub struct PaymentsConfirmIntentRequest {
     pub payment_method_type: api_enums::PaymentMethod,
 
     /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
-    #[schema(value_type = PaymentMethodType, example = "apple_pay")]
-    pub payment_method_subtype: api_enums::PaymentMethodType,
+    #[schema(value_type = Option<PaymentMethodType>, example = "apple_pay")]
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
     /// The shipping address for the payment. This will override the shipping address provided in the create-intent request
     pub shipping: Option<Address>,
@@ -8243,8 +8230,8 @@ pub struct PaymentsRequest {
     pub payment_method_type: api_enums::PaymentMethod,
 
     /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
-    #[schema(value_type = PaymentMethodType, example = "apple_pay")]
-    pub payment_method_subtype: api_enums::PaymentMethodType,
+    #[schema(value_type = Option<PaymentMethodType>, example = "apple_pay")]
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
     /// This "CustomerAcceptance" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.
     #[schema(value_type = Option<CustomerAcceptance>)]
