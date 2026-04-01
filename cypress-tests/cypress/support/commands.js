@@ -3352,15 +3352,8 @@ Cypress.Commands.add(
 
       expect(response.status).to.equal(200);
       expect(response.headers["content-type"]).to.include("application/json");
-
       expect(response.body.payment_id).to.equal(paymentId);
-
-      /**
-       * Basic validations
-       */
-
       expect(response.body.amount).to.equal(globalState.get("paymentAmount"));
-
       expect(response.body.profile_id).to.not.be.null;
       expect(response.body.billing).to.not.be.null;
       expect(response.body.customer).to.not.be.empty;
@@ -3368,10 +3361,6 @@ Cypress.Commands.add(
       if (expectedIntentStatus) {
         expect(response.body.status).to.equal(expectedIntentStatus);
       }
-
-      /**
-       * Attempts validation
-       */
 
       if (response.body.attempts && response.body.attempts.length > 0) {
         expect(response.body.attempts).to.be.an("array");
