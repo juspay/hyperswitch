@@ -1384,16 +1384,21 @@ pub struct CardDetailsPaymentMethod {
     pub co_badged_card_data: Option<CoBadgedCardDataToBeSaved>,
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq)]
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum BankDebitDetailsPaymentMethod {
     AchBankDebit {
         masked_account_number: String,
         masked_routing_number: String,
+        #[schema(value_type=Option<String>)]
         card_holder_name: Option<hyperswitch_masking::Secret<String>>,
+        #[schema(value_type=Option<String>)]
         bank_account_holder_name: Option<hyperswitch_masking::Secret<String>>,
+        #[schema(value_type = String, example = "ACH")]
         bank_name: Option<common_enums::BankNames>,
+        #[schema(value_type = String, example = "Checking")]
         bank_type: Option<common_enums::BankType>,
+        #[schema(value_type = String, example = "Personal")]
         bank_holder_type: Option<common_enums::BankHolderType>,
     },
 }

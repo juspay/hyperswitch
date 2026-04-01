@@ -7399,6 +7399,56 @@
           }
         ]
       },
+      "BankDebitDetailsPaymentMethod": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "ach_bank_debit"
+            ],
+            "properties": {
+              "ach_bank_debit": {
+                "type": "object",
+                "required": [
+                  "masked_account_number",
+                  "masked_routing_number",
+                  "bank_name",
+                  "bank_type",
+                  "bank_holder_type"
+                ],
+                "properties": {
+                  "masked_account_number": {
+                    "type": "string"
+                  },
+                  "masked_routing_number": {
+                    "type": "string"
+                  },
+                  "card_holder_name": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "bank_account_holder_name": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "bank_name": {
+                    "type": "string",
+                    "example": "ACH"
+                  },
+                  "bank_type": {
+                    "type": "string",
+                    "example": "Checking"
+                  },
+                  "bank_holder_type": {
+                    "type": "string",
+                    "example": "Personal"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
       "BankDebitResponse": {
         "allOf": [
           {
