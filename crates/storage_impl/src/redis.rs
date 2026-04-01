@@ -39,6 +39,9 @@ impl RedisStore {
             }
             .in_current_span(),
         );
+        
+        // Register unresponsive handlers (fred spawns task internally)
+        self.redis_conn.on_unresponsive();
     }
 }
 
