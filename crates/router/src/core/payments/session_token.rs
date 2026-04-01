@@ -14,8 +14,8 @@ use crate::{
     types::{api as api_types, transformers::ForeignFrom},
 };
 
-pub(crate) async fn add_session_token_if_needed<F: Clone, Req: Debug + Clone>(
-    router_data: &types::RouterData<F, Req, types::PaymentsResponseData>,
+pub(crate) async fn add_session_token_if_needed<'a, F: Clone, Req: Debug + Clone>(
+    router_data: &'a types::RouterData<F, Req, types::PaymentsResponseData>,
     state: &routes::SessionState,
     connector: &api_types::ConnectorData,
     gateway_context: &gateway_context::RouterGatewayContext,
@@ -23,7 +23,7 @@ pub(crate) async fn add_session_token_if_needed<F: Clone, Req: Debug + Clone>(
 ) -> RouterResult<Option<String>>
 where
     types::AuthorizeSessionTokenData:
-        for<'a> ForeignFrom<&'a types::RouterData<F, Req, types::PaymentsResponseData>>,
+        ForeignFrom<&'a types::RouterData<F, Req, types::PaymentsResponseData>>,
 {
     if connector
         .connector
