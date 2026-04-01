@@ -74,7 +74,9 @@ pub struct PaymentMethod {
 #[derive(Clone, Debug, Identifiable, Queryable, Selectable, Serialize, Deserialize)]
 #[diesel(table_name = payment_methods, primary_key(id), check_for_backend(diesel::pg::Pg))]
 pub struct PaymentMethod {
-    pub customer_id: common_utils::id_type::GlobalCustomerId,
+    //customer_id is made optional in v2 to accommodate guest checkout flow where customer id is not present.
+    //customer_id should only be none in case of guest checkout flow as volatile pm are stored in redis, for all other cases it should be present to maintain the db persistency
+    pub customer_id: Option<common_utils::id_type::GlobalCustomerId>,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,
@@ -170,7 +172,7 @@ pub struct PaymentMethodNew {
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize)]
 #[diesel(table_name = payment_methods)]
 pub struct PaymentMethodNew {
-    pub customer_id: common_utils::id_type::GlobalCustomerId,
+    pub customer_id: Option<common_utils::id_type::GlobalCustomerId>,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,

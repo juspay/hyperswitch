@@ -277,7 +277,7 @@ pub fn make_dsl_input(
     };
     let payment_method_input = dsl_inputs::PaymentMethodInput {
         payment_method: Some(payments_dsl_input.payment_attempt.payment_method_type),
-        payment_method_type: Some(payments_dsl_input.payment_attempt.payment_method_subtype),
+        payment_method_type: payments_dsl_input.payment_attempt.payment_method_subtype,
         card_network: payments_dsl_input
             .payment_method_data
             .as_ref()
@@ -407,6 +407,12 @@ pub fn make_dsl_input(
             .and_then(|pm_data| match pm_data {
                 domain::PaymentMethodData::Card(card) => card.card_network.clone(),
                 domain::PaymentMethodData::CardWithOptionalCVC(card) => card.card_network.clone(),
+                domain::PaymentMethodData::CardWithNetworkTokenDetails(
+                    card_with_network_token_details,
+                ) => card_with_network_token_details
+                    .card_details
+                    .card_network
+                    .clone(),
                 domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
                     card_details_for_ntid,
                 ) => card_details_for_ntid.card_network.clone(),
@@ -449,6 +455,12 @@ pub fn make_dsl_input(
             .and_then(|pm_data| match pm_data {
                 domain::PaymentMethodData::Card(card) => card.card_issuer.clone(),
                 domain::PaymentMethodData::CardWithOptionalCVC(card) => card.card_issuer.clone(),
+                domain::PaymentMethodData::CardWithNetworkTokenDetails(
+                    card_with_network_token_details,
+                ) => card_with_network_token_details
+                    .card_details
+                    .card_issuer
+                    .clone(),
                 domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
                     card_details_for_ntid,
                 ) => card_details_for_ntid.card_issuer.clone(),

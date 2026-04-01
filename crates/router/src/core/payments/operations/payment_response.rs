@@ -84,13 +84,17 @@ where
         payment_data.payment_attempt.payment_method,
         Some(enums::PaymentMethod::Card)
     ) {
-        //#1 - Check if Payment method id is present in the payment data
-        match payment_data
+        let is_volatile = payment_data
+            .get_payment_method_info()
+            .map(|pm| pm.is_pm_volatile());
+
+        let payment_method_id = payment_data
             .payment_method_info
             .as_ref()
-            .map(|pm_info| pm_info.get_id().clone())
-        {
-            Some(payment_method_id) => {
+            .map(|pm_info| pm_info.get_id().clone());
+
+        match (is_volatile, payment_method_id) {
+            (Some(false), Some(pm_id)) => {
                 let should_update = resp.status.should_update_payment_method();
                 logger::info!(
                     "Payment method is card; is eligible for modular update: {}",
@@ -211,7 +215,7 @@ where
                         state,
                         &payment_data.payment_attempt.processor_merchant_id,
                         &payment_data.payment_attempt.profile_id,
-                        &payment_method_id,
+                        &pm_id,
                         payload,
                     )
                     .await
@@ -223,18 +227,16 @@ where
                             logger::error!("Failed to call modular payment method update: {}", err);
                         }
                     };
-                    payment_data.payment_attempt.payment_method_id =
-                        Some(payment_method_id.clone());
+                    payment_data.payment_attempt.payment_method_id = Some(pm_id.clone());
                 } else {
                     logger::info!("No updates found for modular payment method update call");
                 }
             }
-            _ => {
+            (_, _) => {
                 logger::info!("Payment method is not eligible for modular update");
             }
         }
     }
-
     Ok(())
 }
 
@@ -3685,8 +3687,13 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
                         connector_token_details: Some(
                             connector_token_details_for_payment_method_update,
                         ),
-                        network_transaction_id: None,
-                        acknowledgement_status: None, //based on the response from the connector we can decide the acknowledgement status to be sent to payment method service
+                        network_transaction_id: payments_response
+                            .get_network_transaction_id()
+                            .map(hyperswitch_masking::Secret::new),
+                        acknowledgement_status: router_data
+                            .status
+                            .should_update_payment_method()
+                            .then_some(common_enums::AcknowledgementStatus::Authenticated),
                     };
 
                 let payment_method_update_request =
