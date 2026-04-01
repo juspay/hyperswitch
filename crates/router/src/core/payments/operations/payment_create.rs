@@ -31,7 +31,7 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     consts,
     core::{
-        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
+        configs::dimension_state::DimensionsWithProcessorAndPlatformMerchantIdAndProfileId,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payment_link,
@@ -697,7 +697,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
         initiator: Option<&domain::Initiator>,
-        dimensions: DimensionsWithMerchantIdAndProfileId,
+        dimensions: DimensionsWithProcessorAndPlatformMerchantIdAndProfileId,
     ) -> CustomResult<(PaymentCreateOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
     {
         match provider.get_account().merchant_account_type {

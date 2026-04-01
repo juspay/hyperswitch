@@ -34,8 +34,6 @@ impl ProcessTrackerWorkflow<SessionState> for AttachPayoutAccountWorkflow {
             .merchant_id
             .clone()
             .get_required_value("merchant_id")?;
-        let dimensions =
-            configs::dimension_state::Dimensions::new().with_merchant_id(merchant_id.clone());
 
         let key_store = db
             .get_merchant_key_store_by_merchant_id(
@@ -57,6 +55,9 @@ impl ProcessTrackerWorkflow<SessionState> for AttachPayoutAccountWorkflow {
             key_store,
             None,
         );
+        let dimensions = configs::dimension_state::Dimensions::new()
+            .with_platform_merchant_id(platform.get_provider().get_account().get_id().clone())
+            .with_processor_merchant_id(merchant_id.clone());
         let mut payout_data = Box::pin(payouts::make_payout_data(
             state,
             &platform,

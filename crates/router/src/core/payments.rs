@@ -123,7 +123,7 @@ use crate::core::routing::helpers as routing_helpers;
 #[cfg(feature = "v1")]
 use crate::core::{
     blocklist::utils as blocklist_utils,
-    configs::{self as configs, dimension_state::DimensionsWithMerchantId},
+    configs::{self as configs, dimension_state::DimensionsWithProcessorAndPlatformMerchantId},
 };
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use crate::types::api::convert_connector_data_to_routable_connectors;
@@ -629,7 +629,7 @@ pub async fn payments_operation_core<'a, F, Req, Op, FData, D>(
     auth_flow: services::AuthFlow,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     header_payload: HeaderPayload,
-    dimensions: DimensionsWithMerchantId,
+    dimensions: DimensionsWithProcessorAndPlatformMerchantId,
 ) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync + Debug + 'static,
@@ -1462,7 +1462,7 @@ pub async fn proxy_for_payments_operation_core<F, Req, Op, FData, D>(
     auth_flow: services::AuthFlow,
     header_payload: HeaderPayload,
     return_raw_connector_response: Option<bool>,
-    dimensions: DimensionsWithMerchantId,
+    dimensions: DimensionsWithProcessorAndPlatformMerchantId,
 ) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync,
@@ -2510,7 +2510,8 @@ where
             .collect()
     });
     let dimensions = configs::dimension_state::Dimensions::new()
-        .with_merchant_id(platform.get_processor().get_account().get_id().clone());
+        .with_processor_merchant_id(platform.get_processor().get_account().get_id().clone())
+        .with_platform_merchant_id(platform.get_provider().get_account().get_id().clone());
     let (payment_data, _req, connector_http_status_code, external_latency) =
         payments_operation_core::<_, _, _, _, _>(
             &state,
@@ -2574,7 +2575,8 @@ where
     PaymentResponse: Operation<F, FData, Data = D>,
 {
     let dimensions = configs::dimension_state::Dimensions::new()
-        .with_merchant_id(platform.get_processor().get_account().get_id().clone());
+        .with_processor_merchant_id(platform.get_processor().get_account().get_id().clone())
+        .with_platform_merchant_id(platform.get_provider().get_account().get_id().clone());
     let (payment_data, _req, connector_http_status_code, external_latency) =
         proxy_for_payments_operation_core::<_, _, _, _, _>(
             &state,
