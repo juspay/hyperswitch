@@ -4658,12 +4658,6 @@ where
             .ok();
     }
 
-    let connector_request = if should_continue_further {
-        connector_request
-    } else {
-        None
-    };
-
     Ok((
         updated_customer,
         ConnectorServiceIntermediateState {
@@ -4749,7 +4743,7 @@ where
 
     let should_continue_payment = router_data.response.is_ok();
 
-    // Call payment trigger step after the authorize/setup mandate flow completes
+    // Call push notification step after the authorize/setup mandate flow completes
     let (router_data, _should_continue_trigger) = if should_continue_payment {
         router_data
             .push_notification_step(
@@ -5246,7 +5240,7 @@ where
 
     let should_continue_payment = router_data.response.is_ok();
 
-    // Call payment trigger step after the authorize/setup mandate flow completes
+    // Call push notification step after the authorize/setup mandate flow completes
     let (router_data, should_continue_trigger) = if should_continue_payment {
         router_data
             .push_notification_step(

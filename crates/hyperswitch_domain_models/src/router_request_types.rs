@@ -1845,21 +1845,46 @@ impl PushNotificationRequestData {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct GenerateQrRequestData {}
+pub struct GenerateQrRequestData {
+    pub amount: Option<i64>,
+    pub mandate_id: Option<api_models::payments::MandateIds>,
+}
+
+impl GenerateQrRequestData {
+    pub fn get_connector_mandate_id(&self) -> Option<String> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+                    connector_mandate_ids,
+                )) => connector_mandate_ids.get_connector_mandate_id(),
+                Some(api_models::payments::MandateReferenceId::NetworkMandateId(_))
+                | Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_))
+                | Some(api_models::payments::MandateReferenceId::CardWithLimitedData)
+                | None => None,
+            })
+    }
+}
 
 impl TryFrom<SetupMandateRequestData> for GenerateQrRequestData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
-    fn try_from(_data: SetupMandateRequestData) -> Result<Self, Self::Error> {
-        Ok(Self {})
+    fn try_from(data: SetupMandateRequestData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: Some(data.amount),
+            mandate_id: data.mandate_id,
+        })
     }
 }
 
 impl TryFrom<PaymentsAuthorizeData> for GenerateQrRequestData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
-    fn try_from(_data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
-        Ok(Self {})
+    fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: Some(data.amount),
+            mandate_id: data.mandate_id,
+        })
     }
 }
 
@@ -1867,7 +1892,10 @@ impl TryFrom<PaymentsAuthenticateData> for GenerateQrRequestData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
     fn try_from(_data: PaymentsAuthenticateData) -> Result<Self, Self::Error> {
-        Ok(Self {})
+        Ok(Self {
+            amount: None,
+            mandate_id: None,
+        })
     }
 }
 
@@ -1875,6 +1903,9 @@ impl TryFrom<CompleteAuthorizeData> for GenerateQrRequestData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
     fn try_from(_data: CompleteAuthorizeData) -> Result<Self, Self::Error> {
-        Ok(Self {})
+        Ok(Self {
+            amount: None,
+            mandate_id: None,
+        })
     }
 }

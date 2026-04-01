@@ -760,12 +760,8 @@ impl EmailData for RoleDeleted {
             EntityType::Profile => vec![org_info, merchant_info, profile_info],
         }
         .into_iter()
-        .fold(String::new(), |mut acc, item| {
-            acc.push_str("<li>");
-            acc.push_str(&item);
-            acc.push_str("</li>");
-            acc
-        });
+        .map(|item| format!("<li>{}</li>", item))
+        .collect::<String>();
 
         let body = html::get_html_body(EmailBody::RoleDeleted {
             user_name: self.user_name.clone().get_secret().expose(),

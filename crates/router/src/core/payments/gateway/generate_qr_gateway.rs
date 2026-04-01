@@ -7,10 +7,10 @@ use hyperswitch_interfaces::{
 use crate::{core::payments::gateway::context::RouterGatewayContext, routes::SessionState, types};
 
 // =============================================================================
-// FlowGateway Implementation for domain::PushNotification
+// FlowGateway Implementation for domain::GenerateQr
 // =============================================================================
 
-/// Implementation of FlowGateway for PushNotification
+/// Implementation of FlowGateway for GenerateQr
 ///
 /// This allows the flow to provide its specific gateway based on execution path
 impl<RCD>

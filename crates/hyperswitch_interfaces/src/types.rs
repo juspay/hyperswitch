@@ -159,7 +159,7 @@ pub type PaymentsPostAuthenticateType =
 pub type PaymentsPostProcessingType =
     dyn ConnectorIntegration<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>;
 /// Type alias for `ConnectorIntegration<PushNotification, PushNotificationRequestData, PaymentsResponseData>`
-pub type PaymentsPaymentTriggerType =
+pub type PaymentsPushNotificationType =
     dyn ConnectorIntegration<PushNotification, PushNotificationRequestData, PaymentsResponseData>;
 /// Type alias for `ConnectorIntegration<GenerateQr, GenerateQrRequestData, PaymentsResponseData>`
 pub type PaymentsGenerateQrType =

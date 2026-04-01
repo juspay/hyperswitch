@@ -11327,7 +11327,7 @@ default_imp_for_generate_qr_flow!(
     connectors::CtpMastercard
 );
 
-macro_rules! default_imp_for_trigger_flow {
+macro_rules! default_imp_for_push_notification_flow {
     ($($path:ident::$connector:ident),*) => {
         $(
             impl PaymentsPushNotification for $path::$connector {}
@@ -11342,7 +11342,7 @@ macro_rules! default_imp_for_trigger_flow {
     };
 }
 
-default_imp_for_trigger_flow!(
+default_imp_for_push_notification_flow!(
     connectors::Plaid,
     connectors::Vgs,
     connectors::Aci,

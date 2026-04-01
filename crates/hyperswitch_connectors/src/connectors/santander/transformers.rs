@@ -14,10 +14,10 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankTransferData, BoletoVoucherData, PaymentMethodData, VoucherData},
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
-    router_flow_types::{payments::PushNotification, AuthorizeSessionToken},
+    router_flow_types::{payments::PushNotification, AuthorizeSessionToken, GenerateQr},
     router_request_types::{
-        AuthorizeSessionTokenData, PaymentsUpdateMetadataData, PushNotificationRequestData,
-        ResponseId,
+        AuthorizeSessionTokenData, GenerateQrRequestData, PaymentsUpdateMetadataData,
+        PushNotificationRequestData, ResponseId,
     },
     router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
     types::{
@@ -54,8 +54,9 @@ use crate::{
             SanatanderTokenResponse, SantanderAdditionalInfo, SantanderBoletoDocumentKind,
             SantanderBoletoPaymentType, SantanderBoletoStatus,
             SantanderCreatePixPayloadLocationResponse, SantanderDocumentKind, SantanderJourneyType,
-            SantanderPaymentStatus, SantanderPaymentTriggerResponse, SantanderPaymentsResponse,
-            SantanderPaymentsSyncResponse, SantanderPixKeyType, SantanderPixQRCodePaymentsResponse,
+            SantanderPaymentStatus, SantanderPaymentsResponse, SantanderPaymentsSyncResponse,
+            SantanderPixAutomaticRecResponse, SantanderPixAutomaticSolicitationResponse,
+            SantanderPixKeyType, SantanderPixQRCodePaymentsResponse,
             SantanderPixQRCodeSyncResponse, SantanderRefundResponse, SantanderRefundStatus,
             SantanderUpdateMetadataResponse, SantanderVoidResponse, SantanderVoidStatus,
             WaitScreenData,
@@ -110,7 +111,7 @@ impl
     TryFrom<
         ResponseRouterData<
             PushNotification,
-            SantanderPaymentTriggerResponse,
+            SantanderPixAutomaticSolicitationResponse,
             PushNotificationRequestData,
             PaymentsResponseData,
         >,
@@ -121,92 +122,39 @@ impl
     fn try_from(
         item: ResponseRouterData<
             PushNotification,
-            SantanderPaymentTriggerResponse,
+            SantanderPixAutomaticSolicitationResponse,
             PushNotificationRequestData,
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let (
-            status,
-            resource_id,
-            connector_response_reference_id,
-            mandate_reference,
-            connector_metadata,
-        ) = match item.response {
-            SantanderPaymentTriggerResponse::PixAutomaticoSolicRec(response) => {
-                let expires_in_secs = item
-                    .data
-                    .request
-                    .feature_metadata
-                    .as_ref()
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "feature_metadata",
-                    })?
-                    .get_pix_automatico_push_expiry_time()
-                    .change_context(errors::ConnectorError::ParsingFailed)
-                    .attach_printable("Failed to get pix_automatico_push expiry time")?;
+        let expires_in_secs = item
+            .data
+            .request
+            .feature_metadata
+            .as_ref()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "feature_metadata",
+            })?
+            .get_pix_automatico_push_expiry_time()
+            .change_context(errors::ConnectorError::ParsingFailed)
+            .attach_printable("Failed to get pix_automatico_push expiry time")?;
 
-                let metadata = get_wait_screen_metadata(u64::from(expires_in_secs))?;
+        let metadata = get_wait_screen_metadata(u64::from(expires_in_secs))?;
 
-                let status = response
-                    .status
-                    .map(AttemptStatus::from)
-                    .unwrap_or(AttemptStatus::Pending);
-
-                (
-                    status,
-                    ResponseId::ConnectorTransactionId(
-                        item.data.connector_request_reference_id.clone(),
-                    ),
-                    Some(response.id_rec.clone()),
-                    Some(MandateReference {
-                        connector_mandate_id: Some(response.id_rec.clone()),
-                        payment_method_id: None,
-                        mandate_metadata: None,
-                        connector_mandate_request_reference_id: Some(response.id_solic_rec),
-                    }),
-                    metadata,
-                )
-            }
-            SantanderPaymentTriggerResponse::PixAutomaticoConsultAndActivateJourney(response) => {
-                // Passing journey in metadata so that it can be used in PSync flows to determine which url to call for J3/J4 (Immediate/Scheduled) COB/COBV API's
-                let journey = response
-                    .dados_qr
-                    .as_ref()
-                    .map(|qr_data| qr_data.jornada.clone())
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "response.dadosQR.jornada",
-                    })?;
-                let expiry_type = journey.and_then(Option::<ExpiryType>::from);
-                let connector_metadata = match response
-                    .dados_qr
-                    .as_ref()
-                    .and_then(|dados_qr| dados_qr.pix_copia_e_cola.clone())
-                {
-                    Some(pix_copia_e_cola) => {
-                        convert_pix_data_to_value(pix_copia_e_cola, expiry_type)?
-                    }
-                    None => None,
-                };
-
-                let status = AttemptStatus::from(response.status);
-
-                (
-                    status,
-                    ResponseId::ConnectorTransactionId(
-                        item.data.connector_request_reference_id.clone(),
-                    ),
-                    Some(response.id_rec.clone()),
-                    Some(MandateReference {
-                        connector_mandate_id: Some(response.id_rec.clone()),
-                        payment_method_id: None,
-                        mandate_metadata: None,
-                        connector_mandate_request_reference_id: None,
-                    }),
-                    connector_metadata,
-                )
-            }
-        };
+        let status = item
+            .response
+            .status
+            .map(AttemptStatus::from)
+            .unwrap_or(AttemptStatus::Pending);
+        let resource_id =
+            ResponseId::ConnectorTransactionId(item.data.connector_request_reference_id.clone());
+        let connector_response_reference_id = Some(item.response.id_rec.clone());
+        let mandate_reference = Some(MandateReference {
+            connector_mandate_id: Some(item.response.id_rec.clone()),
+            payment_method_id: None,
+            mandate_metadata: None,
+            connector_mandate_request_reference_id: Some(item.response.id_solic_rec),
+        });
 
         Ok(Self {
             status,
@@ -214,6 +162,64 @@ impl
                 resource_id,
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(mandate_reference),
+                connector_metadata: metadata,
+                network_txn_id: None,
+                connector_response_reference_id,
+                incremental_authorization_allowed: None,
+                authentication_data: None,
+                charges: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            GenerateQr,
+            SantanderPixAutomaticRecResponse,
+            GenerateQrRequestData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<GenerateQr, GenerateQrRequestData, PaymentsResponseData>
+{
+    type Error = Error;
+
+    fn try_from(
+        item: ResponseRouterData<
+            GenerateQr,
+            SantanderPixAutomaticRecResponse,
+            GenerateQrRequestData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let status = AttemptStatus::from(item.response.status);
+        let connector_metadata = match item
+            .response
+            .dados_qr
+            .as_ref()
+            .and_then(|dados_qr| dados_qr.pix_copia_e_cola.clone())
+        {
+            Some(pix_copia_e_cola) => convert_pix_data_to_value(pix_copia_e_cola, None)?,
+            None => None,
+        };
+        let mandate_reference = Box::new(Some(MandateReference {
+            connector_mandate_id: Some(item.response.id_rec.clone()),
+            payment_method_id: None,
+            mandate_metadata: None,
+            connector_mandate_request_reference_id: None,
+        }));
+        let resource_id =
+            ResponseId::ConnectorTransactionId(item.data.connector_request_reference_id.clone());
+        let connector_response_reference_id = Some(item.response.id_rec.clone());
+
+        Ok(Self {
+            status,
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id,
+                redirection_data: Box::new(None),
+                mandate_reference,
                 connector_metadata,
                 network_txn_id: None,
                 connector_response_reference_id,
