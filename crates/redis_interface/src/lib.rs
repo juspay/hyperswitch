@@ -125,7 +125,9 @@ impl RedisConnectionPool {
         // - Library strategy: Use the configured default_command_timeout
         // - Application strategy: Set to 0 (disabled) since we handle timeouts at application level
         let fred_command_timeout = match conf.timeout_strategy {
-            TimeoutStrategy::Library => std::time::Duration::from_secs(conf.default_command_timeout),
+            TimeoutStrategy::Library => {
+                std::time::Duration::from_secs(conf.default_command_timeout)
+            }
             TimeoutStrategy::Application => std::time::Duration::from_secs(0),
         };
 
@@ -292,9 +294,9 @@ impl From<&RedisSettings> for RedisConfig {
             default_hash_ttl: config.default_hash_ttl,
             cluster_enabled: config.cluster_enabled,
             command_timeout: match config.timeout_strategy {
-                TimeoutStrategy::Application => {
-                    Some(std::time::Duration::from_secs(config.default_command_timeout))
-                }
+                TimeoutStrategy::Application => Some(std::time::Duration::from_secs(
+                    config.default_command_timeout,
+                )),
                 TimeoutStrategy::Library => None,
             },
         }
