@@ -226,6 +226,10 @@ pub async fn payouts_cancel(
     let payload = payout_types::PayoutActionRequest {
         payout_id: path.into_inner(),
     };
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
 
     Box::pin(api::server_wrap(
         flow,
@@ -233,7 +237,7 @@ pub async fn payouts_cancel(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payouts_cancel_core(state, auth.platform, req)
+            payouts_cancel_core(state, auth.platform, header_payload.clone(), req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             allow_connected_scope_operation: false,
