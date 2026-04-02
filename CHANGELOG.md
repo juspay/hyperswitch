@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.04.02.0-hotfix1
+
+### Features
+
+- **connector:** [SANTANDER] Implement CIT, CIT PSync, MIT & MIT Psync for Pix Automatico ([#11700](https://github.com/juspay/hyperswitch/pull/11700)) ([`986a66c`](https://github.com/juspay/hyperswitch/commit/986a66c3c5fe5743af295ea4c3a41483976eff1e))
+
+**Full Changelog:** [`2026.04.02.0...2026.04.02.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.04.02.0...2026.04.02.0-hotfix1)
+
+- - -
+
 ## 2026.04.02.0
 
 ### Features
