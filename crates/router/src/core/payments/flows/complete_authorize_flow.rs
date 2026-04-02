@@ -172,9 +172,9 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
     ) -> RouterResult<types::BalanceCheckResult> {
         if connector.connector.is_balance_check_flow_required(
             api_interface::CurrentFlowInfo::CompleteAuthorize {
-                auth_type: &self.auth_type,
+                auth_type: self.auth_type,
                 payment_method: Some(self.payment_method),
-                request_data: &self.request,
+                request_data: Box::new(self.request.clone()),
             },
         ) {
             logger::info!(
@@ -289,6 +289,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
             self,
             creds_identifier,
             gateway_context,
+            None,
         ))
         .await
     }
@@ -358,8 +359,8 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
     {
         if connector.connector.is_authentication_flow_required(
             api_interface::CurrentFlowInfo::CompleteAuthorize {
-                auth_type: &self.auth_type,
-                request_data: &self.request,
+                auth_type: self.auth_type,
+                request_data: Box::new(self.request.clone()),
                 payment_method: Some(self.payment_method),
             },
         ) {
@@ -445,8 +446,8 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
     {
         if connector.connector.is_post_authentication_flow_required(
             api_interface::CurrentFlowInfo::CompleteAuthorize {
-                auth_type: &self.auth_type,
-                request_data: &self.request,
+                auth_type: self.auth_type,
+                request_data: Box::new(self.request.clone()),
                 payment_method: Some(self.payment_method),
             },
         ) {
@@ -640,9 +641,11 @@ pub async fn call_unified_connector_service_authenticate(
         .attach_printable("Failed to fetch Unified Connector Service client")?;
 
     let payment_authenticate_request =
-        payments_grpc::PaymentServiceAuthenticateRequest::foreign_try_from(router_data)
-            .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
-            .attach_printable("Failed to construct Payment Authorize Request")?;
+        payments_grpc::PaymentMethodAuthenticationServiceAuthenticateRequest::foreign_try_from(
+            router_data,
+        )
+        .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
+        .attach_printable("Failed to construct Payment Authenticate Request")?;
 
     let connector_auth_metadata = ucs_core::build_unified_connector_service_auth_metadata(
         merchant_connector_account,
@@ -677,14 +680,13 @@ pub async fn call_unified_connector_service_authenticate(
         headers_builder,
         unified_connector_service_execution_mode,
         |mut router_data, payment_authenticate_request, grpc_headers| async move {
-            let response = client
-                .payment_authenticate(
-                    payment_authenticate_request,
-                    connector_auth_metadata,
-                    grpc_headers,
-                )
-                .await
-                .attach_printable("Failed to authorize payment")?;
+            let response = Box::pin(client.payment_authenticate(
+                payment_authenticate_request,
+                connector_auth_metadata,
+                grpc_headers,
+            ))
+            .await
+            .attach_printable("Failed to authenticate payment")?;
 
             let payment_authenticate_response = response.into_inner();
 
@@ -752,9 +754,11 @@ pub async fn call_unified_connector_service_post_authenticate(
         .attach_printable("Failed to fetch Unified Connector Service client")?;
 
     let payment_post_authenticate_request =
-        payments_grpc::PaymentServicePostAuthenticateRequest::foreign_try_from(router_data)
-            .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
-            .attach_printable("Failed to construct Payment Authorize Request")?;
+        payments_grpc::PaymentMethodAuthenticationServicePostAuthenticateRequest::foreign_try_from(
+            router_data,
+        )
+        .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
+        .attach_printable("Failed to construct Payment Post Authenticate Request")?;
 
     let connector_auth_metadata = ucs_core::build_unified_connector_service_auth_metadata(
         merchant_connector_account,
@@ -789,14 +793,13 @@ pub async fn call_unified_connector_service_post_authenticate(
         headers_builder,
         unified_connector_service_execution_mode,
         |mut router_data, payment_post_authenticate_request, grpc_headers| async move {
-            let response = client
-                .payment_post_authenticate(
-                    payment_post_authenticate_request,
-                    connector_auth_metadata,
-                    grpc_headers,
-                )
-                .await
-                .attach_printable("Failed to authorize payment")?;
+            let response = Box::pin(client.payment_post_authenticate(
+                payment_post_authenticate_request,
+                connector_auth_metadata,
+                grpc_headers,
+            ))
+            .await
+            .attach_printable("Failed to post authenticate payment")?;
 
             let payment_post_authenticate_response = response.into_inner();
 
