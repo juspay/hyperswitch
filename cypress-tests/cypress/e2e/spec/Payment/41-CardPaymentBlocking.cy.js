@@ -94,7 +94,7 @@ describe("Business Profile Payment Method Blocking", () => {
         };
         cy.UpdateBusinessProfileTest(
           updateBusinessProfileBody,
-          false, // is_connector_agnostic_enabled 
+          false, // is_connector_agnostic_enabled
           false, // collect_billing_address_from_wallet_connector
           false, // collect_shipping_address_from_wallet_connector
           false, // always_collect_billing_address_from_wallet_connector
@@ -155,7 +155,7 @@ describe("Business Profile Payment Method Blocking", () => {
         };
         cy.UpdateBusinessProfileTest(
           updateBusinessProfileBody,
-          false, // is_connector_agnostic_enabled 
+          false, // is_connector_agnostic_enabled
           false, // collect_billing_address_from_wallet_connector
           false, // collect_shipping_address_from_wallet_connector
           false, // always_collect_billing_address_from_wallet_connector
@@ -218,7 +218,7 @@ describe("Business Profile Payment Method Blocking", () => {
           };
           cy.UpdateBusinessProfileTest(
             updateBusinessProfileBody,
-            false, // is_connector_agnostic_enabled 
+            false, // is_connector_agnostic_enabled
             false, // collect_billing_address_from_wallet_connector
             false, // collect_shipping_address_from_wallet_connector
             false, // always_collect_billing_address_from_wallet_connector
