@@ -140,7 +140,7 @@ jobs:
       - name: Build project
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
-          CARGO_BUILD_JOBS: 3
+          CARGO_BUILD_JOBS: 6
         run: cargo build --package router --bin router
 
       - name: Upload binary artifact
