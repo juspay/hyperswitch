@@ -1567,7 +1567,7 @@ pub struct PaymentsRequest {
     #[smithy(value_type = "Option<bool>")]
     pub is_stored_credential: Option<bool>,
 
-    /// The category of the MIT transaction
+    /// Specifies the category of a Merchant Initiated Transaction (MIT). In the case of MIT, `mit_category` tells what kind of MIT is being processed. In the case of CIT, it tells the future intended MIT type.
     #[schema(value_type = Option<MitCategory>, example = "recurring")]
     #[smithy(value_type = "Option<MitCategory>")]
     pub mit_category: Option<api_enums::MitCategory>,
@@ -1780,19 +1780,6 @@ impl PaymentsRequest {
         } else {
             Ok(())
         }
-    }
-
-    pub fn validate_mit_request(&self) -> common_utils::errors::CustomResult<(), ValidationError> {
-        if self.mit_category.is_some()
-            && (!matches!(self.off_session, Some(true)) || self.recurring_details.is_none())
-        {
-            return Err(ValidationError::InvalidValue {
-                message: "`mit_category` requires both: (1) `off_session = true`, and (2) `recurring_details`.".to_string(),
-            }
-            .into());
-        }
-
-        Ok(())
     }
 
     pub fn validate_installment_options(
@@ -7740,7 +7727,7 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<bool>")]
     pub is_stored_credential: Option<bool>,
 
-    /// The category of the MIT transaction
+    /// Specifies the category of a Merchant Initiated Transaction (MIT). In the case of MIT, `mit_category` tells what kind of MIT is being processed. In the case of CIT, it tells the future intended MIT type.
     #[schema(value_type = Option<MitCategory>, example = "recurring")]
     #[smithy(value_type = "Option<MitCategory>")]
     pub mit_category: Option<api_enums::MitCategory>,
@@ -12350,11 +12337,188 @@ pub struct PaymentsEligibilityRequest {
     /// The payment method type to be used for the payment
     #[schema(value_type = Option<PaymentMethodType>)]
     pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
-    /// The payment instrument data to be used for the payment
-    pub payment_method_data: PaymentMethodDataRequest,
+    /// The payment instrument data for eligibility check
+    #[serde(with = "eligibility_payment_method_data_serde")]
+    pub payment_method_data: EligibilityPaymentMethodDataRequest,
     /// The browser information for the payment
     #[schema(value_type = Option<BrowserInformation>)]
     pub browser_info: Option<BrowserInformation>,
+}
+
+/// Card data for eligibility check — only card_number is required, no CVV needed
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
+pub struct EligibilityCard {
+    /// The card number
+    #[schema(value_type = String, example = "4242424242424242")]
+    pub card_number: CardNumber,
+
+    /// The card's expiry month
+    #[schema(value_type = Option<String>, example = "24")]
+    pub card_exp_month: Option<Secret<String>>,
+
+    /// The card's expiry year
+    #[schema(value_type = Option<String>, example = "24")]
+    pub card_exp_year: Option<Secret<String>>,
+
+    /// The card's CVC/CVV
+    #[schema(value_type = Option<String>, example = "123")]
+    pub card_cvc: Option<Secret<String>>,
+
+    /// The card holder's name
+    #[schema(value_type = Option<String>, example = "John Test")]
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The name of the issuer of card
+    #[schema(example = "chase")]
+    pub card_issuer: Option<String>,
+
+    /// The card network for the card
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    pub card_network: Option<api_enums::CardNetwork>,
+
+    #[schema(example = "CREDIT")]
+    pub card_type: Option<String>,
+
+    #[schema(example = "INDIA")]
+    pub card_issuing_country: Option<String>,
+
+    #[schema(example = "IN")]
+    pub card_issuing_country_code: Option<String>,
+
+    #[schema(example = "JP_AMEX")]
+    pub bank_code: Option<String>,
+
+    /// The card holder's nick name
+    #[schema(value_type = Option<String>, example = "John Test")]
+    pub nick_name: Option<Secret<String>>,
+}
+
+/// Payment method data for eligibility check
+#[derive(
+    Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq, SmithyModel,
+)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum EligibilityPaymentMethodData {
+    #[schema(title = "EligibilityCard")]
+    #[smithy(value_type = "EligibilityCard")]
+    Card(EligibilityCard),
+    #[schema(title = "CardRedirect")]
+    #[smithy(value_type = "CardRedirectData")]
+    CardRedirect(CardRedirectData),
+    #[schema(title = "Wallet")]
+    Wallet(WalletData),
+    #[schema(title = "PayLater")]
+    #[smithy(value_type = "PayLaterData")]
+    PayLater(PayLaterData),
+    #[schema(title = "BankRedirect")]
+    #[smithy(value_type = "BankRedirectData")]
+    BankRedirect(BankRedirectData),
+    #[schema(title = "BankDebit")]
+    #[smithy(value_type = "BankDebitData")]
+    BankDebit(BankDebitData),
+    #[schema(title = "BankTransfer")]
+    #[smithy(value_type = "BankTransferData")]
+    BankTransfer(Box<BankTransferData>),
+    #[schema(title = "RealTimePayment")]
+    #[smithy(value_type = "RealTimePaymentData")]
+    RealTimePayment(Box<RealTimePaymentData>),
+    #[schema(title = "Crypto")]
+    #[smithy(value_type = "CryptoData")]
+    Crypto(CryptoData),
+    #[schema(title = "MandatePayment")]
+    #[smithy(value_type = "smithy.api#Unit")]
+    MandatePayment,
+    #[schema(title = "Reward")]
+    #[smithy(value_type = "smithy.api#Unit")]
+    Reward,
+    #[schema(title = "Upi")]
+    #[smithy(value_type = "UpiData")]
+    Upi(UpiData),
+    #[schema(title = "Voucher")]
+    #[smithy(value_type = "VoucherData")]
+    Voucher(VoucherData),
+    #[schema(title = "GiftCard")]
+    #[smithy(value_type = "GiftCardData")]
+    GiftCard(Box<GiftCardData>),
+    #[schema(title = "CardToken")]
+    #[smithy(value_type = "CardToken")]
+    CardToken(CardToken),
+    #[schema(title = "OpenBanking")]
+    #[smithy(value_type = "OpenBankingData")]
+    OpenBanking(OpenBankingData),
+    #[schema(title = "MobilePayment")]
+    #[smithy(value_type = "MobilePaymentData")]
+    MobilePayment(MobilePaymentData),
+    #[schema(title = "NetworkToken")]
+    NetworkToken(NetworkTokenData),
+}
+
+/// Custom deserializer for EligibilityPaymentMethodDataRequest.
+/// Required to catch deserialization errors: bare #[serde(flatten)] on
+/// Option<ExternallyTaggedEnum> uses FlatMapDeserializer which swallows all
+/// errors and returns None, hiding malformed card data. This mirrors the
+/// approach used by payment_method_data_serde for PaymentMethodDataRequest.
+#[cfg(feature = "v1")]
+mod eligibility_payment_method_data_serde {
+    use super::*;
+
+    pub fn deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<EligibilityPaymentMethodDataRequest, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        // Intermediate struct: flatten into raw serde_json::Value so errors are
+        // preserved — FlatMapDeserializer only swallows errors on typed enums,
+        // not on Value.
+        #[derive(serde::Deserialize, Debug)]
+        struct __Inner {
+            billing: Option<Address>,
+            #[serde(flatten)]
+            payment_method_data: Option<serde_json::Value>,
+        }
+
+        let parsed = __Inner::deserialize(deserializer)?;
+
+        let payment_method_data = if let Some(value) = parsed.payment_method_data {
+            // Even when no payment method data is sent, flatten produces Some(Object {})
+            if let serde_json::Value::Object(ref map) = value {
+                if map.is_empty() {
+                    None
+                } else {
+                    Some(
+                        serde_json::from_value::<EligibilityPaymentMethodData>(value)
+                            .map_err(|e| de::Error::custom(e.to_string()))?,
+                    )
+                }
+            } else {
+                return Err(de::Error::custom("Expected a map for payment_method_data"));
+            }
+        } else {
+            None
+        };
+
+        Ok(EligibilityPaymentMethodDataRequest {
+            payment_method_data,
+            billing: parsed.billing,
+        })
+    }
+}
+
+/// Payment method data request for eligibility check
+#[derive(
+    Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct EligibilityPaymentMethodDataRequest {
+    #[serde(flatten)]
+    #[smithy(value_type = "Option<EligibilityPaymentMethodData>")]
+    pub payment_method_data: Option<EligibilityPaymentMethodData>,
+    /// billing details for the payment method.
+    /// This billing details will be passed to the processor as billing address.
+    /// If not passed, then payment.billing will be considered
+    pub billing: Option<Address>,
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]

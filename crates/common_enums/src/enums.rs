@@ -3291,7 +3291,7 @@ pub enum CardSubtype {
     Corporaterevolving,
     Corporatet,
     #[strum(serialize = "CORPORATET&E")]
-    CorporatetAndE,
+    CorporateTAndE,
     Corporation,
     Credit,
     Ctslandcard,
@@ -3345,8 +3345,6 @@ pub enum CardSubtype {
     Globalpayment,
     Gmcard,
     Gold,
-    #[strum(serialize = "GOLD&PLATINUM")]
-    GoldAndPlatinum,
     #[strum(serialize = "GOLD PERSONAL")]
     GoldPersonal,
     #[strum(serialize = "GOLD/PLATINUM")]
@@ -3362,7 +3360,7 @@ pub enum CardSubtype {
     Green,
     Gsacard,
     #[strum(serialize = "GSACORPORATET&E")]
-    GsacorporatetAndE,
+    GsacorporateTAndE,
     Gsapurchasing,
     #[strum(serialize = "HSANON-SUBSTANTIATED")]
     HsanonSubstantiated,
@@ -10580,6 +10578,7 @@ pub enum TriggeredBy {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
+/// Specifies the category of a Merchant Initiated Transaction (MIT). In the case of MIT, `mit_category` tells what kind of MIT is being processed. In the case of CIT, it tells the future intended MIT type.
 pub enum MitCategory {
     /// A fixed purchase amount split into multiple scheduled payments until the total is paid.
     Installment,

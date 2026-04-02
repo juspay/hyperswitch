@@ -564,6 +564,16 @@ impl ConnectorValidation for ConnectorEnum {
             Self::New(connector) => connector.is_webhook_source_verification_mandatory(),
         }
     }
+
+    fn should_continue_further(
+        &self,
+        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+    ) -> Option<bool> {
+        match self {
+            Self::Old(connector) => connector.should_continue_further(payment_intent),
+            Self::New(connector) => connector.should_continue_further(payment_intent),
+        }
+    }
 }
 impl ConnectorSpecifications for ConnectorEnum {
     fn is_balance_check_flow_required(&self, current_flow: CurrentFlowInfo) -> bool {
@@ -602,10 +612,16 @@ impl ConnectorSpecifications for ConnectorEnum {
             Self::New(connector) => connector.is_settlement_split_call_required(current_flow),
         }
     }
-    fn is_payment_trigger_flow_required(&self, current_flow: CurrentFlowInfo) -> bool {
+    fn is_push_notification_flow_required(&self, current_flow: CurrentFlowInfo) -> bool {
         match self {
-            Self::Old(connector) => connector.is_payment_trigger_flow_required(current_flow),
-            Self::New(connector) => connector.is_payment_trigger_flow_required(current_flow),
+            Self::Old(connector) => connector.is_push_notification_flow_required(current_flow),
+            Self::New(connector) => connector.is_push_notification_flow_required(current_flow),
+        }
+    }
+    fn is_generate_qr_flow_required(&self, current_flow: CurrentFlowInfo) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_generate_qr_flow_required(current_flow),
+            Self::New(connector) => connector.is_generate_qr_flow_required(current_flow),
         }
     }
     fn get_preprocessing_flow_if_needed(

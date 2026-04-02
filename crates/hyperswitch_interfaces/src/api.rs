@@ -474,7 +474,11 @@ pub trait ConnectorSpecifications {
         false
     }
     /// Check if payment trigger flow is required
-    fn is_payment_trigger_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
+    fn is_push_notification_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
+        false
+    }
+    /// Check if generate QR flow is required
+    fn is_generate_qr_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
     }
     /// Preprocessing flow name if any, that must be made before the current flow.
@@ -912,6 +916,14 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
     /// fn is_webhook_source_verification_mandatory
     fn is_webhook_source_verification_mandatory(&self) -> bool {
         false
+    }
+
+    /// Validate if another operation is required
+    fn should_continue_further(
+        &self,
+        _payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+    ) -> Option<bool> {
+        Some(false)
     }
 }
 

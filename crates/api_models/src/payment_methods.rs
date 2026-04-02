@@ -1049,10 +1049,23 @@ pub enum PaymentMethodResponseData {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct RawCardWithNTDetails {
+    /// Raw card details associated with the payment method
+    #[schema(value_type = CardDetail)]
+    pub card_details: CardDetail,
+
+    /// Raw network token details associated with the payment method
+    #[schema(value_type = CardDetail)]
+    pub network_token_details: CardDetail,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 pub enum RawPaymentMethodData {
     Card(CardDetail),
+    CardWithNT(RawCardWithNTDetails),
 }
 
 #[cfg(feature = "v1")]

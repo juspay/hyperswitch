@@ -48,7 +48,10 @@ pub struct SetupMandate;
 pub struct PreProcessing;
 
 #[derive(Debug, Clone)]
-pub struct PaymentTrigger;
+pub struct PushNotification;
+
+#[derive(Debug, Clone)]
+pub struct GenerateQr;
 
 #[derive(Debug, Clone)]
 pub struct IncrementalAuthorization;

@@ -1108,13 +1108,6 @@ pub struct SantanderPixAutomaticQrData {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum SantanderPaymentTriggerResponse {
-    PixAutomaticoConsultAndActivateJourney(Box<SantanderPixAutomaticRecResponse>),
-    PixAutomaticoSolicRec(Box<SantanderPixAutomaticSolicitationResponse>),
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WaitScreenData {
     /// Timestamp from which the wait screen should be displayed
     pub display_from_timestamp: i128,

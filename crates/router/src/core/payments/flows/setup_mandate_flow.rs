@@ -433,7 +433,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         .await
     }
 
-    async fn payment_trigger_step<'a>(
+    async fn generate_qr_step<'a>(
         self,
         state: &SessionState,
         connector: &api::ConnectorData,
@@ -442,45 +442,38 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
     where
         Self: Sized,
     {
-        if connector.connector.is_payment_trigger_flow_required(
+        if connector.connector.is_generate_qr_flow_required(
             api_interface::CurrentFlowInfo::SetupMandate {
                 auth_type: self.auth_type,
                 request_data: Box::new(self.request.clone()),
             },
         ) {
             logger::info!(
-                "Payment trigger flow is required for connector: {} for Setup Mandate flow",
+                "Generate QR flow is required for connector: {} for Setup Mandate flow",
                 connector.connector_name
             );
             let setup_mandate_request_data = self.request.clone();
-            let mut payment_trigger_request_data =
-                types::PaymentTriggerData::try_from(self.request.to_owned())?;
-
-            // Extract mandate_id from SetupMandate response and populate it in PaymentTriggerData
-            helpers::update_payments_trigger_router_request_data_with_mandate_id(
-                &mut payment_trigger_request_data,
-                &self.response,
-            );
-
-            let payment_trigger_response_data: Result<
+            let generate_qr_request_data =
+                types::GenerateQrRequestData::try_from(self.request.to_owned())?;
+            let generate_qr_response_data: Result<
                 types::PaymentsResponseData,
                 types::ErrorResponse,
             > = Err(types::ErrorResponse::default());
-            let payment_trigger_router_data =
-                helpers::router_data_type_conversion::<_, api::PaymentTrigger, _, _, _, _>(
+            let generate_qr_router_data =
+                helpers::router_data_type_conversion::<_, api::GenerateQr, _, _, _, _>(
                     self.clone(),
-                    payment_trigger_request_data,
-                    payment_trigger_response_data,
+                    generate_qr_request_data,
+                    generate_qr_response_data,
                 );
             let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
-                api::PaymentTrigger,
-                types::PaymentTriggerData,
+                api::GenerateQr,
+                types::GenerateQrRequestData,
                 types::PaymentsResponseData,
             > = connector.connector.get_connector_integration();
-            let payment_trigger_router_data = gateway::execute_payment_gateway(
+            let generate_qr_router_data = gateway::execute_payment_gateway(
                 state,
                 connector_integration,
-                &payment_trigger_router_data,
+                &generate_qr_router_data,
                 payments::CallConnectorAction::Trigger,
                 None,
                 None,
@@ -488,12 +481,74 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             )
             .await
             .to_payment_failed_response()?;
-            let payment_trigger_response = payment_trigger_router_data.response.clone();
+            let generate_qr_response = generate_qr_router_data.response.clone();
             let setup_mandate_router_data =
                 helpers::router_data_type_conversion::<_, api::SetupMandate, _, _, _, _>(
-                    payment_trigger_router_data,
+                    generate_qr_router_data,
                     setup_mandate_request_data,
-                    payment_trigger_response,
+                    generate_qr_response,
+                );
+            let should_continue_payment = setup_mandate_router_data.response.is_ok();
+            Ok((setup_mandate_router_data, should_continue_payment))
+        } else {
+            Ok((self, true))
+        }
+    }
+
+    async fn push_notification_step<'a>(
+        self,
+        state: &SessionState,
+        connector: &api::ConnectorData,
+        gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<(Self, bool)>
+    where
+        Self: Sized,
+    {
+        if connector.connector.is_push_notification_flow_required(
+            api_interface::CurrentFlowInfo::SetupMandate {
+                auth_type: self.auth_type,
+                request_data: Box::new(self.request.clone()),
+            },
+        ) {
+            logger::info!(
+                "Push Notification flow is required for connector: {} for Setup Mandate flow",
+                connector.connector_name
+            );
+            let setup_mandate_request_data = self.request.clone();
+            let push_notification_request_data =
+                types::PushNotificationRequestData::try_from(self.request.to_owned())?;
+            let push_notification_response_data: Result<
+                types::PaymentsResponseData,
+                types::ErrorResponse,
+            > = Err(types::ErrorResponse::default());
+            let push_notification_router_data =
+                helpers::router_data_type_conversion::<_, api::PushNotification, _, _, _, _>(
+                    self.clone(),
+                    push_notification_request_data,
+                    push_notification_response_data,
+                );
+            let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
+                api::PushNotification,
+                types::PushNotificationRequestData,
+                types::PaymentsResponseData,
+            > = connector.connector.get_connector_integration();
+            let push_notification_router_data = gateway::execute_payment_gateway(
+                state,
+                connector_integration,
+                &push_notification_router_data,
+                payments::CallConnectorAction::Trigger,
+                None,
+                None,
+                gateway_context.clone(),
+            )
+            .await
+            .to_payment_failed_response()?;
+            let push_notification_response = push_notification_router_data.response.clone();
+            let setup_mandate_router_data =
+                helpers::router_data_type_conversion::<_, api::SetupMandate, _, _, _, _>(
+                    push_notification_router_data,
+                    setup_mandate_request_data,
+                    push_notification_response,
                 );
             let should_continue_payment = setup_mandate_router_data.response.is_ok();
             Ok((setup_mandate_router_data, should_continue_payment))

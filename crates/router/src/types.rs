@@ -39,9 +39,9 @@ use hyperswitch_domain_models::router_flow_types::{
     payments::{
         Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture,
         CompleteAuthorize, CreateConnectorCustomer, CreateOrder, ExtendAuthorization,
-        ExternalVaultProxy, IncrementalAuthorization, InitPayment, PSync, PaymentTrigger,
-        PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing, Reject,
-        SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
+        ExternalVaultProxy, GenerateQr, IncrementalAuthorization, InitPayment, PSync,
+        PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing, PushNotification,
+        Reject, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
     },
     refunds::{Execute, RSync},
     webhooks::VerifyWebhookSource,
@@ -75,17 +75,17 @@ pub use hyperswitch_domain_models::{
         CompleteAuthorizeData, CompleteAuthorizeRedirectResponse, ConnectorCustomerData,
         CreateOrderRequestData, DefendDisputeRequestData, DestinationChargeRefund,
         DirectChargeRefund, DisputeSyncData, ExternalVaultProxyPaymentsData,
-        FetchDisputesRequestData, MandateRevokeRequestData, MultipleCaptureRequestData,
-        PaymentMethodTokenizationData, PaymentTriggerData, PaymentsApproveData,
+        FetchDisputesRequestData, GenerateQrRequestData, MandateRevokeRequestData,
+        MultipleCaptureRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
         PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData,
         PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsExtendAuthorizationData,
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
         PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData, PaymentsSyncData,
-        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData, ResponseId,
-        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
-        SplitRefundsRequest, SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData,
-        VaultRequestData, VerifyWebhookSourceRequestData,
+        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, PushNotificationRequestData,
+        RefundsData, ResponseId, RetrieveFileRequestData, SdkPaymentsSessionUpdateData,
+        SetupMandateRequestData, SplitRefundsRequest, SubmitEvidenceRequestData, SyncRequestType,
+        UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
@@ -116,8 +116,8 @@ pub use hyperswitch_interfaces::{
         AcceptDisputeType, ConnectorCustomerType, DefendDisputeType, FetchDisputesType,
         IncrementalAuthorizationType, MandateRevokeType, PaymentsAuthorizeType,
         PaymentsBalanceType, PaymentsCaptureType, PaymentsCompleteAuthorizeType, PaymentsInitType,
-        PaymentsPaymentTriggerType, PaymentsPostCaptureVoidType, PaymentsPostProcessingType,
-        PaymentsPostSessionTokensType, PaymentsPreAuthorizeType, PaymentsPreProcessingType,
+        PaymentsPostCaptureVoidType, PaymentsPostProcessingType, PaymentsPostSessionTokensType,
+        PaymentsPreAuthorizeType, PaymentsPreProcessingType, PaymentsPushNotificationType,
         PaymentsSessionType, PaymentsSyncType, PaymentsUpdateMetadataType, PaymentsVoidType,
         RefreshTokenType, RefundExecuteType, RefundSyncType, Response, RetrieveFileType,
         SdkSessionUpdateType, SetupMandateType, SubmitEvidenceType, TokenizationType,
@@ -141,8 +141,10 @@ pub type ExternalVaultProxyPaymentsRouterData =
     RouterData<ExternalVaultProxy, ExternalVaultProxyPaymentsData, PaymentsResponseData>;
 pub type PaymentsPreProcessingRouterData =
     RouterData<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>;
-pub type PaymentsTriggerRouterData =
-    RouterData<PaymentTrigger, PaymentTriggerData, PaymentsResponseData>;
+pub type PaymentsPushNotificationRouterData =
+    RouterData<PushNotification, PushNotificationRequestData, PaymentsResponseData>;
+pub type PaymentsGenerateQrRouterData =
+    RouterData<GenerateQr, GenerateQrRequestData, PaymentsResponseData>;
 pub type PaymentsPostProcessingRouterData =
     RouterData<PostProcessing, PaymentsPostProcessingData, PaymentsResponseData>;
 pub type PaymentsAuthorizeSessionTokenRouterData =
@@ -730,7 +732,7 @@ pub struct PspTokenResult {
 }
 
 /// Data extracted from UCS response
-pub struct UcsAuthorizeResponseData {
+pub struct UcsPaymentAuthorizeResponseData {
     pub router_data_response:
         Result<(PaymentsResponseData, common_enums::AttemptStatus), ErrorResponse>,
     pub status_code: u16,
@@ -738,7 +740,7 @@ pub struct UcsAuthorizeResponseData {
     pub connector_response: Option<ConnectorResponseData>,
 }
 
-pub struct UcsRepeatPaymentResponseData {
+pub struct UcsRecurringPaymentChargeResponseData {
     pub router_data_response:
         Result<(PaymentsResponseData, common_enums::AttemptStatus), ErrorResponse>,
     pub status_code: u16,
@@ -746,7 +748,7 @@ pub struct UcsRepeatPaymentResponseData {
     pub connector_response: Option<ConnectorResponseData>,
 }
 
-pub struct UcsSetupMandateResponseData {
+pub struct UcsPaymentSetupRecurringResponseData {
     pub router_data_response:
         Result<(PaymentsResponseData, common_enums::AttemptStatus), ErrorResponse>,
     pub status_code: u16,

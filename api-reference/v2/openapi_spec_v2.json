@@ -8310,6 +8310,28 @@
           {
             "type": "object",
             "required": [
+              "pix_automatico_push"
+            ],
+            "properties": {
+              "pix_automatico_push": {
+                "$ref": "#/components/schemas/PixAutomaticoPushAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pix_automatico_qr"
+            ],
+            "properties": {
+              "pix_automatico_qr": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "pse"
             ],
             "properties": {
@@ -25760,24 +25782,90 @@
           }
         }
       },
+      "PixAutomaticoAdditionalDetails": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixAutomaticoPushDetails"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "pix_automatico_push"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
       "PixAutomaticoPushAdditionalData": {
         "type": "object",
         "properties": {
           "account_number": {
             "type": "string",
-            "description": "Partially masked account number for Pix Automatico Push payment method",
+            "description": "Account number for Pix Automatico Push payment method",
             "example": "550689",
             "nullable": true
           },
           "branch_code": {
             "type": "string",
-            "description": "Partially masked branch code for Pix Automatico Push payment method",
+            "description": "Branch code for Pix Automatico Push payment method",
             "example": "2569",
             "nullable": true
           },
           "bank_identifier": {
             "type": "string",
-            "description": "Partially masked bank identifier for Pix Automatico Push payment method",
+            "description": "Bank identifier for Pix Automatico Push payment method",
+            "example": "91193552",
+            "nullable": true
+          }
+        }
+      },
+      "PixAutomaticoPushDetails": {
+        "type": "object",
+        "required": [
+          "time"
+        ],
+        "properties": {
+          "time": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Time in seconds until which the push notification is valid",
+            "example": 3600,
+            "minimum": 0
+          }
+        }
+      },
+      "PixAutomaticoPushAdditionalData": {
+        "type": "object",
+        "properties": {
+          "account_number": {
+            "type": "string",
+            "description": "Account number for Pix Automatico Push payment method",
+            "example": "550689",
+            "nullable": true
+          },
+          "branch_code": {
+            "type": "string",
+            "description": "Branch code for Pix Automatico Push payment method",
+            "example": "2569",
+            "nullable": true
+          },
+          "bank_identifier": {
+            "type": "string",
+            "description": "Bank identifier for Pix Automatico Push payment method",
             "example": "91193552",
             "nullable": true
           }
@@ -26925,6 +27013,21 @@
           }
         }
       },
+      "RawCardWithNTDetails": {
+        "type": "object",
+        "required": [
+          "card_details",
+          "network_token_details"
+        ],
+        "properties": {
+          "card_details": {
+            "$ref": "#/components/schemas/CardDetail"
+          },
+          "network_token_details": {
+            "$ref": "#/components/schemas/CardDetail"
+          }
+        }
+      },
       "RawPaymentMethodData": {
         "oneOf": [
           {
@@ -26935,6 +27038,17 @@
             "properties": {
               "card": {
                 "$ref": "#/components/schemas/CardDetail"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "card_with_n_t"
+            ],
+            "properties": {
+              "card_with_n_t": {
+                "$ref": "#/components/schemas/RawCardWithNTDetails"
               }
             }
           }

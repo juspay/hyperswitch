@@ -425,6 +425,7 @@ where
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -742,7 +743,10 @@ impl<T> TryFrom<&Shift4RouterData<&RouterData<T, CompleteAuthorizeData, Payments
             | Some(PaymentMethodData::CardToken(_))
             | Some(PaymentMethodData::NetworkToken(_))
             | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
-            | Some(PaymentMethodData::CardWithOptionalCVC(_))
+            | Some(
+                PaymentMethodData::CardWithOptionalCVC(_)
+                | PaymentMethodData::CardWithNetworkTokenDetails(_),
+            )
             | Some(PaymentMethodData::CardWithLimitedDetails(_))
             | Some(PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_))
             | Some(PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_))

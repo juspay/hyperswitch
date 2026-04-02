@@ -213,7 +213,20 @@ pub trait Feature<F, T> {
         Ok((self, true))
     }
 
-    async fn payment_trigger_step<'a>(
+    async fn push_notification_step<'a>(
+        self,
+        _state: &SessionState,
+        _connector: &api::ConnectorData,
+        _gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<(Self, bool)>
+    where
+        F: Clone,
+        Self: Sized,
+    {
+        Ok((self, true))
+    }
+
+    async fn generate_qr_step<'a>(
         self,
         _state: &SessionState,
         _connector: &api::ConnectorData,

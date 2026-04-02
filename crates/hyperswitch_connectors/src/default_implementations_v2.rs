@@ -21,8 +21,8 @@ use hyperswitch_domain_models::{
         payments::{
             Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
             CreateConnectorCustomer, CreateOrder, ExtendAuthorization, ExternalVaultProxy,
-            GiftCardBalanceCheck, IncrementalAuthorization, PSync, PaymentMethodToken,
-            PaymentTrigger, PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing,
+            GenerateQr, GiftCardBalanceCheck, IncrementalAuthorization, PSync, PaymentMethodToken,
+            PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing, PushNotification,
             Reject, SdkSessionUpdate, Session, SettlementSplitCreate, SetupMandate, UpdateMetadata,
             Void,
         },
@@ -45,17 +45,17 @@ use hyperswitch_domain_models::{
         AcceptDisputeRequestData, AccessTokenAuthenticationRequestData, AccessTokenRequestData,
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
         CreateOrderRequestData, DefendDisputeRequestData, DisputeSyncData,
-        ExternalVaultProxyPaymentsData, FetchDisputesRequestData, GiftCardBalanceCheckRequestData,
-        MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentTriggerData,
+        ExternalVaultProxyPaymentsData, FetchDisputesRequestData, GenerateQrRequestData,
+        GiftCardBalanceCheckRequestData, MandateRevokeRequestData, PaymentMethodTokenizationData,
         PaymentsApproveData, PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData,
         PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsExtendAuthorizationData,
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
         PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData, PaymentsSyncData,
-        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, RefundsData,
-        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SettlementSplitRequestData,
-        SetupMandateRequestData, SubmitEvidenceRequestData, UploadFileRequestData,
-        VaultRequestData, VerifyWebhookSourceRequestData,
+        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, PushNotificationRequestData,
+        RefundsData, RetrieveFileRequestData, SdkPaymentsSessionUpdateData,
+        SettlementSplitRequestData, SetupMandateRequestData, SubmitEvidenceRequestData,
+        UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
@@ -121,9 +121,10 @@ use hyperswitch_interfaces::{
             PaymentPostCaptureVoidV2, PaymentPostSessionTokensV2, PaymentRejectV2,
             PaymentSessionUpdateV2, PaymentSessionV2, PaymentSyncV2, PaymentTokenV2,
             PaymentUpdateMetadataV2, PaymentV2, PaymentVoidV2, PaymentsAuthenticateV2,
-            PaymentsCompleteAuthorizeV2, PaymentsGiftCardBalanceCheckV2, PaymentsPaymentTriggerV2,
+            PaymentsCompleteAuthorizeV2, PaymentsGenerateQrV2, PaymentsGiftCardBalanceCheckV2,
             PaymentsPostAuthenticateV2, PaymentsPostProcessingV2, PaymentsPreAuthenticateV2,
-            PaymentsPreProcessingV2, PaymentsSettlementSplitCreate, TaxCalculationV2,
+            PaymentsPreProcessingV2, PaymentsPushNotificationV2, PaymentsSettlementSplitCreate,
+            TaxCalculationV2,
         },
         refunds_v2::{RefundExecuteV2, RefundSyncV2, RefundV2},
         revenue_recovery_v2::{
@@ -168,7 +169,8 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             impl PaymentsAuthenticateV2 for $path::$connector{}
             impl PaymentsPostAuthenticateV2 for $path::$connector{}
             impl PaymentsPostProcessingV2 for $path::$connector{}
-            impl PaymentsPaymentTriggerV2 for $path::$connector{}
+            impl PaymentsPushNotificationV2 for $path::$connector{}
+            impl PaymentsGenerateQrV2 for $path::$connector{}
             impl TaxCalculationV2 for $path::$connector{}
             impl PaymentSessionUpdateV2 for $path::$connector{}
             impl PaymentPostSessionTokensV2 for $path::$connector{}
@@ -266,9 +268,15 @@ macro_rules! default_imp_for_new_connector_integration_payment {
                 PaymentsResponseData,
             > for $path::$connector{}
             impl ConnectorIntegrationV2<
-            PaymentTrigger,
+            PushNotification,
             PaymentFlowData,
-                PaymentTriggerData,
+                PushNotificationRequestData,
+                PaymentsResponseData,
+            > for $path::$connector{}
+            impl ConnectorIntegrationV2<
+            GenerateQr,
+            PaymentFlowData,
+                GenerateQrRequestData,
                 PaymentsResponseData,
             > for $path::$connector{}
             impl

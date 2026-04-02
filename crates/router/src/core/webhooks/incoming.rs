@@ -787,10 +787,10 @@ async fn process_non_ucs_webhook<'a>(
 
 /// Extract resource object from UCS WebhookResponseContent
 fn get_ucs_webhook_resource_object(
-    webhook_response_content: &payments_grpc::WebhookResponseContent,
+    event_content: &payments_grpc::EventContent,
 ) -> errors::RouterResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>> {
-    let resource_object = match &webhook_response_content.content {
-        Some(payments_grpc::webhook_response_content::Content::IncompleteTransformation(
+    let resource_object = match &event_content.content {
+        Some(payments_grpc::event_content::Content::IncompleteTransformation(
             incomplete_transformation_response,
         )) => {
             // Deserialize resource object
@@ -802,7 +802,7 @@ fn get_ucs_webhook_resource_object(
         }
         _ => {
             // Convert UCS webhook content to appropriate format
-            serde_json::to_value(webhook_response_content)
+            serde_json::to_value(event_content)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to serialize UCS webhook content")?
         }
@@ -2353,7 +2353,7 @@ pub async fn get_or_update_dispute_object(
                 dispute_details.dispute_stage,
                 dispute_status,
             )
-            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+            .change_context(errors::ApiErrorResponse::WebhookBadRequest)
             .attach_printable("dispute stage and status validation failed")?;
             let update_dispute = diesel_models::dispute::DisputeUpdate::Update {
                 dispute_stage: dispute_details.dispute_stage,

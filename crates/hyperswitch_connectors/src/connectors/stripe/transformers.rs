@@ -1047,14 +1047,16 @@ pub enum StripeBankNames {
 impl From<WebhookEventStatus> for api_models::webhooks::IncomingWebhookEvent {
     fn from(value: WebhookEventStatus) -> Self {
         match value {
-            WebhookEventStatus::WarningNeedsResponse => Self::DisputeOpened,
+            WebhookEventStatus::WarningNeedsResponse | WebhookEventStatus::NeedsResponse => {
+                Self::DisputeOpened
+            }
             WebhookEventStatus::WarningClosed => Self::DisputeCancelled,
-            WebhookEventStatus::WarningUnderReview => Self::DisputeChallenged,
+            WebhookEventStatus::WarningUnderReview | WebhookEventStatus::UnderReview => {
+                Self::DisputeChallenged
+            }
             WebhookEventStatus::Won => Self::DisputeWon,
             WebhookEventStatus::Lost => Self::DisputeLost,
-            WebhookEventStatus::NeedsResponse
-            | WebhookEventStatus::UnderReview
-            | WebhookEventStatus::ChargeRefunded
+            WebhookEventStatus::ChargeRefunded
             | WebhookEventStatus::Succeeded
             | WebhookEventStatus::RequiresPaymentMethod
             | WebhookEventStatus::RequiresConfirmation
@@ -1592,6 +1594,7 @@ fn create_stripe_payment_method(
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
         | PaymentMethodData::CardWithOptionalCVC(_)
+        | PaymentMethodData::CardWithNetworkTokenDetails(_)
         | PaymentMethodData::CardWithLimitedDetails(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => Err(
@@ -2090,6 +2093,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                         | PaymentMethodData::NetworkToken(_)
                         | PaymentMethodData::Card(_)
                         | PaymentMethodData::CardWithOptionalCVC(_)
+                        | PaymentMethodData::CardWithNetworkTokenDetails(_)
                         | PaymentMethodData::CardWithLimitedDetails(_)
                         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(
                             _,
@@ -4735,6 +4739,7 @@ impl
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {

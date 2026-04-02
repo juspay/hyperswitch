@@ -111,8 +111,8 @@ use crate::{
         storage::{self, enums as storage_enums, ephemeral_key, CardTokenData},
         transformers::{ForeignFrom, ForeignTryFrom},
         AdditionalMerchantData, AdditionalPaymentMethodConnectorResponse, ErrorResponse,
-        MandateReference, MerchantAccountData, MerchantRecipientData, PaymentTriggerData,
-        PaymentsResponseData, RecipientIdType, RecurringMandatePaymentData, RouterData,
+        MandateReference, MerchantAccountData, MerchantRecipientData, PaymentsResponseData,
+        RecipientIdType, RecurringMandatePaymentData, RouterData,
     },
     utils::{
         self,
@@ -3255,30 +3255,102 @@ impl<'a>
     ) -> Result<Self, Self::Error> {
         let (payment_method_data, selected_mandate_reference) = value;
         let payment_method_data = match (payment_method_data, selected_mandate_reference) {
-            // PSP tokens when it's ConnectorMandateId and card data is available
+            // PSP tokens when it's ConnectorMandateId and card data is available.
             (
                 Some(
-                    domain::PaymentMethodData::CardWithOptionalCVC(_)
+                    domain::PaymentMethodData::CardWithNetworkTokenDetails(_)
+                    | domain::PaymentMethodData::CardWithOptionalCVC(_)
                     | domain::PaymentMethodData::Card(_),
                 ),
                 Some(&api_models::payments::MandateReferenceId::ConnectorMandateId(_)),
             ) => Some(domain::PaymentMethodData::MandatePayment),
-            // Card + NTI when Network Transaction ID is present
+            // NT + NTI flow when NetworkTokenWithNTI mandate reference is selected.
+            (
+                Some(domain::PaymentMethodData::CardWithNetworkTokenDetails(
+                    card_with_network_token_details,
+                )),
+                Some(&api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_)),
+            ) => Some(domain::PaymentMethodData::NetworkToken(
+                domain::NetworkTokenData::from(
+                    card_with_network_token_details
+                        .network_token_details
+                        .clone(),
+                ),
+            )),
+            // Card + NTI flow when NetworkMandateId is selected for modular CardWithNetworkTokenDetails.
+            (
+                Some(domain::PaymentMethodData::CardWithNetworkTokenDetails(
+                    card_with_network_token_details,
+                )),
+                Some(&api_models::payments::MandateReferenceId::NetworkMandateId(_)),
+            ) => {
+                let card_details = &card_with_network_token_details.card_details;
+                Some(
+                    domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
+                        domain::CardDetailsForNetworkTransactionId {
+                            card_number: card_details.card_number.clone(),
+                            card_exp_month: card_details.card_exp_month.clone(),
+                            card_exp_year: card_details.card_exp_year.clone(),
+                            card_issuer: card_details.card_issuer.clone(),
+                            card_network: card_details.card_network.clone(),
+                            card_type: card_details.card_type.clone(),
+                            card_issuing_country: card_details.card_issuing_country.clone(),
+                            card_issuing_country_code: card_details
+                                .card_issuing_country_code
+                                .clone(),
+                            bank_code: card_details.bank_code.clone(),
+                            nick_name: card_details.nick_name.clone(),
+                            card_holder_name: card_details.card_holder_name.clone(),
+                        },
+                    ),
+                )
+            }
+            // Card + NTI flow when NetworkMandateId is selected for CardWithOptionalCVC.
             (
                 Some(domain::PaymentMethodData::CardWithOptionalCVC(card_data)),
                 Some(&api_models::payments::MandateReferenceId::NetworkMandateId(_)),
             ) => Some(
                 domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
-                    domain::CardDetailsForNetworkTransactionId::foreign_try_from((card_data,))?,
+                    domain::CardDetailsForNetworkTransactionId::foreign_try_from(card_data)?,
                 ),
             ),
-            // Raw card as last preference
+            // Raw card as last preference for CardWithOptionalCVC.
             (Some(domain::PaymentMethodData::CardWithOptionalCVC(card_data)), _) => {
-                Some(domain::PaymentMethodData::foreign_try_from((card_data,))?)
+                Some(domain::PaymentMethodData::foreign_try_from(card_data)?)
             }
+            // Raw card as fallback for CardWithNetworkTokenDetails when mandate-specific paths are not selected.
+            (
+                Some(domain::PaymentMethodData::CardWithNetworkTokenDetails(
+                    card_with_network_token_details,
+                )),
+                _,
+            ) => {
+                let card_details = &card_with_network_token_details.card_details;
+                let card_cvc = card_details.card_cvc.clone().ok_or(
+                    errors::ApiErrorResponse::UnprocessableEntity {
+                        message: "card_cvc is required for card payment path".to_string(),
+                    },
+                )?;
 
-            // Keep data as is, otherwise
+                Some(domain::PaymentMethodData::Card(domain::Card {
+                    card_number: card_details.card_number.clone(),
+                    card_exp_month: card_details.card_exp_month.clone(),
+                    card_exp_year: card_details.card_exp_year.clone(),
+                    card_cvc,
+                    card_issuer: card_details.card_issuer.clone(),
+                    card_network: card_details.card_network.clone(),
+                    card_type: card_details.card_type.clone(),
+                    card_issuing_country: card_details.card_issuing_country.clone(),
+                    card_issuing_country_code: card_details.card_issuing_country_code.clone(),
+                    bank_code: card_details.bank_code.clone(),
+                    nick_name: card_details.nick_name.clone(),
+                    card_holder_name: card_details.card_holder_name.clone(),
+                    co_badged_card_data: card_details.co_badged_card_data.clone(),
+                }))
+            }
+            // Keep data as-is, otherwise.
             (Some(payment_method_data), _) => Some(payment_method_data.clone()),
+            // Preserve empty input.
             (None, _) => None,
         };
 
@@ -5775,6 +5847,17 @@ pub async fn get_additional_payment_data(
                 })))
             }
         }
+        domain::PaymentMethodData::CardWithNetworkTokenDetails(card_with_network_token_details) => {
+            Box::pin(get_additional_payment_data(
+                &domain::PaymentMethodData::CardWithOptionalCVC(
+                    card_with_network_token_details.card_details.clone(),
+                ),
+                db,
+                profile_id,
+                payment_method_token,
+            ))
+            .await
+        }
         domain::PaymentMethodData::BankRedirect(bank_redirect_data) => match bank_redirect_data {
             domain::BankRedirectData::Eps { bank_name, .. } => Ok(Some(
                 api_models::payments::AdditionalPaymentData::BankRedirect {
@@ -7445,6 +7528,16 @@ pub fn get_key_params_for_surcharge_details(
             common_enums::PaymentMethodType::Credit,
             card.card_network.clone(),
         )),
+        domain::PaymentMethodData::CardWithNetworkTokenDetails(card_with_network_token_details) => {
+            Some((
+                common_enums::PaymentMethod::Card,
+                common_enums::PaymentMethodType::Credit,
+                card_with_network_token_details
+                    .card_details
+                    .card_network
+                    .clone(),
+            ))
+        }
         domain::PaymentMethodData::CardRedirect(card_redirect_data) => Some((
             common_enums::PaymentMethod::CardRedirect,
             card_redirect_data.get_payment_method_type(),
@@ -9034,32 +9127,32 @@ pub fn get_merchant_advice_code_recommended_action(
 
 // Update PaymentsTriggerData with mandate_id received from SetupMandate router response
 // Mandate information needed in the consecutive flow - PaymentTrigger which is triggered after successful completion of SetupMandate flow
-pub fn update_payments_trigger_router_request_data_with_mandate_id(
-    payment_trigger_request_data: &mut PaymentTriggerData,
-    setup_mandate_response: &Result<PaymentsResponseData, ErrorResponse>,
-) {
-    if let Ok(PaymentsResponseData::TransactionResponse {
-        mandate_reference, ..
-    }) = setup_mandate_response
-    {
-        if let Some(mandate_ref) = mandate_reference.as_ref() {
-            if let Some(connector_mandate_id) = &mandate_ref.connector_mandate_id {
-                payment_trigger_request_data.mandate_id = Some(api_models::payments::MandateIds {
-                    mandate_id: Some(connector_mandate_id.clone()),
-                    mandate_reference_id: Some(
-                        api_models::payments::MandateReferenceId::ConnectorMandateId(
-                            api_models::payments::ConnectorMandateReferenceId::new(
-                                Some(connector_mandate_id.clone()),
-                                None,
-                                None,
-                                None,
-                                None,
-                                None,
-                            ),
-                        ),
-                    ),
-                });
-            }
-        }
-    }
-}
+// pub fn update_payments_trigger_router_request_data_with_mandate_id(
+//     payment_trigger_request_data: &mut PaymentTriggerData,
+//     setup_mandate_response: &Result<PaymentsResponseData, ErrorResponse>,
+// ) {
+//     if let Ok(PaymentsResponseData::TransactionResponse {
+//         mandate_reference, ..
+//     }) = setup_mandate_response
+//     {
+//         if let Some(mandate_ref) = mandate_reference.as_ref() {
+//             if let Some(connector_mandate_id) = &mandate_ref.connector_mandate_id {
+//                 payment_trigger_request_data.mandate_id = Some(api_models::payments::MandateIds {
+//                     mandate_id: Some(connector_mandate_id.clone()),
+//                     mandate_reference_id: Some(
+//                         api_models::payments::MandateReferenceId::ConnectorMandateId(
+//                             api_models::payments::ConnectorMandateReferenceId::new(
+//                                 Some(connector_mandate_id.clone()),
+//                                 None,
+//                                 None,
+//                                 None,
+//                                 None,
+//                                 None,
+//                             ),
+//                         ),
+//                     ),
+//                 });
+//             }
+//         }
+//     }
+// }

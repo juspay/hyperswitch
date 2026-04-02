@@ -34,10 +34,10 @@ use hyperswitch_domain_models::{
         merchant_connector_webhook_management::ConnectorWebhookRegister,
         payments::{
             Approve, AuthorizeSessionToken, CalculateTax, CompleteAuthorize,
-            CreateConnectorCustomer, CreateOrder, ExtendAuthorization, GiftCardBalanceCheck,
-            IncrementalAuthorization, PaymentTrigger, PostCaptureVoid, PostProcessing,
-            PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, SettlementSplitCreate,
-            UpdateMetadata,
+            CreateConnectorCustomer, CreateOrder, ExtendAuthorization, GenerateQr,
+            GiftCardBalanceCheck, IncrementalAuthorization, PostCaptureVoid, PostProcessing,
+            PostSessionTokens, PreProcessing, PushNotification, Reject, SdkSessionUpdate,
+            SettlementSplitCreate, UpdateMetadata,
         },
         subscriptions::{
             GetSubscriptionEstimate, GetSubscriptionItemPrices, GetSubscriptionItems,
@@ -66,15 +66,15 @@ use hyperswitch_domain_models::{
         AcceptDisputeRequestData, AccessTokenAuthenticationRequestData, AuthorizeSessionTokenData,
         CompleteAuthorizeData, ConnectorCustomerData, CreateOrderRequestData,
         DefendDisputeRequestData, DisputeSyncData, ExternalVaultProxyPaymentsData,
-        FetchDisputesRequestData, GiftCardBalanceCheckRequestData, MandateRevokeRequestData,
-        PaymentTriggerData, PaymentsApproveData, PaymentsAuthenticateData,
+        FetchDisputesRequestData, GenerateQrRequestData, GiftCardBalanceCheckRequestData,
+        MandateRevokeRequestData, PaymentsApproveData, PaymentsAuthenticateData,
         PaymentsCancelPostCaptureData, PaymentsExtendAuthorizationData,
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
         PaymentsPreProcessingData, PaymentsRejectData, PaymentsTaxCalculationData,
-        PaymentsUpdateMetadataData, RetrieveFileRequestData, SdkPaymentsSessionUpdateData,
-        SettlementSplitRequestData, SubmitEvidenceRequestData, UploadFileRequestData,
-        VaultRequestData, VerifyWebhookSourceRequestData,
+        PaymentsUpdateMetadataData, PushNotificationRequestData, RetrieveFileRequestData,
+        SdkPaymentsSessionUpdateData, SettlementSplitRequestData, SubmitEvidenceRequestData,
+        UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
@@ -144,9 +144,10 @@ use hyperswitch_interfaces::{
             PaymentAuthorizeSessionToken, PaymentExtendAuthorization,
             PaymentIncrementalAuthorization, PaymentPostCaptureVoid, PaymentPostSessionTokens,
             PaymentReject, PaymentSessionUpdate, PaymentUpdateMetadata, PaymentsAuthenticate,
-            PaymentsCompleteAuthorize, PaymentsCreateOrder, PaymentsGiftCardBalanceCheck,
-            PaymentsPostAuthenticate, PaymentsPostProcessing, PaymentsPreAuthenticate,
-            PaymentsPreProcessing, PaymentsSettlementSplitCreate, PaymentsTrigger, TaxCalculation,
+            PaymentsCompleteAuthorize, PaymentsCreateOrder, PaymentsGenerateQr,
+            PaymentsGiftCardBalanceCheck, PaymentsPostAuthenticate, PaymentsPostProcessing,
+            PaymentsPreAuthenticate, PaymentsPreProcessing, PaymentsPushNotification,
+            PaymentsSettlementSplitCreate, TaxCalculation,
         },
         revenue_recovery::RevenueRecovery,
         subscriptions::{
@@ -10805,9 +10806,18 @@ impl<const T: u8>
 }
 
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> PaymentsTrigger for connectors::DummyConnector<T> {}
+impl<const T: u8> PaymentsPushNotification for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> ConnectorIntegration<PaymentTrigger, PaymentTriggerData, PaymentsResponseData>
+impl<const T: u8>
+    ConnectorIntegration<PushNotification, PushNotificationRequestData, PaymentsResponseData>
+    for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> PaymentsGenerateQr for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> ConnectorIntegration<GenerateQr, GenerateQrRequestData, PaymentsResponseData>
     for connectors::DummyConnector<T>
 {
 }
@@ -11157,14 +11167,14 @@ default_impl_connector_access_token!(
     connectors::Fiservcommercehub
 );
 
-macro_rules! default_imp_for_payment_trigger{
+macro_rules! default_imp_for_generate_qr_flow{
     ($($path:ident::$connector:ident),*)=> {
         $(
-            impl PaymentsTrigger for $path::$connector {}
+            impl PaymentsGenerateQr for $path::$connector {}
             impl
             ConnectorIntegration<
-            PaymentTrigger,
-            PaymentTriggerData,
+            GenerateQr,
+            GenerateQrRequestData,
             PaymentsResponseData,
         > for $path::$connector
         {}
@@ -11172,7 +11182,167 @@ macro_rules! default_imp_for_payment_trigger{
     };
 }
 
-default_imp_for_payment_trigger!(
+default_imp_for_generate_qr_flow!(
+    connectors::Plaid,
+    connectors::Vgs,
+    connectors::Aci,
+    connectors::Adyen,
+    connectors::Adyenplatform,
+    connectors::Affirm,
+    connectors::Airwallex,
+    connectors::Amazonpay,
+    connectors::Archipel,
+    connectors::Authipay,
+    connectors::Authorizedotnet,
+    connectors::Bambora,
+    connectors::Bamboraapac,
+    connectors::Bankofamerica,
+    connectors::Barclaycard,
+    connectors::Billwerk,
+    connectors::Bitpay,
+    connectors::Blackhawknetwork,
+    connectors::Calida,
+    connectors::Bluesnap,
+    connectors::Braintree,
+    connectors::Boku,
+    connectors::Breadpay,
+    connectors::Cashtocode,
+    connectors::Celero,
+    connectors::Chargebee,
+    connectors::Checkbook,
+    connectors::Checkout,
+    connectors::Coinbase,
+    connectors::Coingate,
+    connectors::Cryptopay,
+    connectors::Custombilling,
+    connectors::Cybersource,
+    connectors::Cybersourcedecisionmanager,
+    connectors::Datatrans,
+    connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
+    connectors::Dwolla,
+    connectors::Ebanx,
+    connectors::Elavon,
+    connectors::Envoy,
+    connectors::Facilitapay,
+    connectors::Finix,
+    connectors::Fiserv,
+    connectors::Fiservcommercehub,
+    connectors::Fiservemea,
+    connectors::Fiuu,
+    connectors::Flexiti,
+    connectors::Forte,
+    connectors::Getnet,
+    connectors::Gigadat,
+    connectors::Globalpay,
+    connectors::Globepay,
+    connectors::Gocardless,
+    connectors::Gpayments,
+    connectors::Hipay,
+    connectors::Hyperpg,
+    connectors::Helcim,
+    connectors::HyperswitchVault,
+    connectors::Hyperwallet,
+    connectors::Iatapay,
+    connectors::Inespay,
+    connectors::Itaubank,
+    connectors::Jpmorgan,
+    connectors::Juspaythreedsserver,
+    connectors::Katapult,
+    connectors::Klarna,
+    connectors::Loonio,
+    connectors::Netcetera,
+    connectors::Nmi,
+    connectors::Nomupay,
+    connectors::Noon,
+    connectors::Nordea,
+    connectors::Novalnet,
+    connectors::Nexinets,
+    connectors::Nexixpay,
+    connectors::Opayo,
+    connectors::Opennode,
+    connectors::Nuvei,
+    connectors::Paybox,
+    connectors::Payeezy,
+    connectors::Payjustnow,
+    connectors::Payjustnowinstore,
+    connectors::Payload,
+    connectors::Payme,
+    connectors::Payone,
+    connectors::Paypal,
+    connectors::Paysafe,
+    connectors::Paystack,
+    connectors::Paytm,
+    connectors::Payu,
+    connectors::Peachpayments,
+    connectors::Phonepe,
+    connectors::Placetopay,
+    connectors::Powertranz,
+    connectors::Prophetpay,
+    connectors::Mifinity,
+    connectors::Mollie,
+    connectors::Moneris,
+    connectors::Mpgs,
+    connectors::Multisafepay,
+    connectors::Rapyd,
+    connectors::Razorpay,
+    connectors::Recurly,
+    connectors::Redsys,
+    connectors::Revolv3,
+    connectors::Riskified,
+    connectors::Shift4,
+    connectors::Sift,
+    connectors::Silverflow,
+    connectors::Signifyd,
+    connectors::Stax,
+    connectors::Square,
+    connectors::Stripe,
+    connectors::Stripebilling,
+    connectors::Taxjar,
+    connectors::Tesouro,
+    connectors::Threedsecureio,
+    connectors::Thunes,
+    connectors::Tokenex,
+    connectors::Tokenio,
+    connectors::Truelayer,
+    connectors::Trustly,
+    connectors::Trustpay,
+    connectors::Trustpayments,
+    connectors::Tsys,
+    connectors::UnifiedAuthenticationService,
+    connectors::Wise,
+    connectors::Worldline,
+    connectors::Worldpay,
+    connectors::Worldpaymodular,
+    connectors::Worldpayvantiv,
+    connectors::Worldpayxml,
+    connectors::Wellsfargo,
+    connectors::Wellsfargopayout,
+    connectors::Volt,
+    connectors::Xendit,
+    connectors::Zift,
+    connectors::Zen,
+    connectors::Zsl,
+    connectors::CtpMastercard
+);
+
+macro_rules! default_imp_for_push_notification_flow {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl PaymentsPushNotification for $path::$connector {}
+            impl
+            ConnectorIntegration<
+                PushNotification,
+                PushNotificationRequestData,
+                PaymentsResponseData,
+            > for $path::$connector
+            {}
+        )*
+    };
+}
+
+default_imp_for_push_notification_flow!(
     connectors::Plaid,
     connectors::Vgs,
     connectors::Aci,
