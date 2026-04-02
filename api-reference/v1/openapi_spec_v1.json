@@ -10154,14 +10154,6 @@
             "description": "The business profile that is associated with this authentication",
             "nullable": true
           },
-          "customer": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CustomerDetails"
-              }
-            ],
-            "nullable": true
-          },
           "amount": {
             "$ref": "#/components/schemas/MinorUnit"
           },
@@ -10212,6 +10204,19 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/CustomerDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "AuthenticationDetails": {
+        "type": "object",
+        "properties": {
+          "three_ds_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalThreeDsData"
               }
             ],
             "nullable": true
@@ -10902,6 +10907,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/AuthenticationVaultTokenData"
+              }
+            ],
+            "nullable": true
+          },
+          "authentication_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationDetails"
               }
             ],
             "nullable": true
@@ -19945,48 +19958,35 @@
       },
       "ExternalThreeDsData": {
         "type": "object",
-        "description": "Represents external 3DS authentication data used in the payment flow.",
         "required": [
-          "authentication_cryptogram",
-          "ds_trans_id",
-          "version",
-          "eci",
           "transaction_status"
         ],
         "properties": {
           "authentication_cryptogram": {
-            "$ref": "#/components/schemas/Cryptogram"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Cryptogram"
+              }
+            ],
+            "nullable": true
           },
           "ds_trans_id": {
             "type": "string",
-            "description": "Directory Server Transaction ID generated during the 3DS process."
+            "description": "Directory Server Transaction ID generated during the 3DS process.",
+            "nullable": true
           },
           "version": {
             "type": "string",
-            "description": "The version of the 3DS protocol used (e.g., \"2.1.0\" or \"2.2.0\")."
+            "description": "The version of the 3DS protocol used (e.g., \"2.1.0\" or \"2.2.0\").",
+            "nullable": true
           },
           "eci": {
             "type": "string",
-            "description": "Electronic Commerce Indicator (ECI) value representing the 3DS authentication result."
+            "description": "Electronic Commerce Indicator (ECI) value representing the 3DS authentication result.",
+            "nullable": true
           },
           "transaction_status": {
             "$ref": "#/components/schemas/TransactionStatus"
-          },
-          "exemption_indicator": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ExemptionIndicator"
-              }
-            ],
-            "nullable": true
-          },
-          "network_params": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/NetworkParams"
-              }
-            ],
-            "nullable": true
           }
         }
       },
