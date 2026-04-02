@@ -7,12 +7,13 @@ use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
+#[cfg(feature = "pm_modular")]
+use crate::core::utils;
 use crate::{
     core::{
         configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
-        utils,
     },
     routes::{app::ReqState, SessionState},
     services,
@@ -44,7 +45,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsStartReq
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        _payment_method_wrapper: Option<operations::PaymentMethodWithRawData>,
+        #[cfg(feature = "pm_modular")] _payment_method_wrapper: Option<
+            operations::PaymentMethodWithRawData,
+        >,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsStartRequest, PaymentData<F>>,
     > {
@@ -127,19 +130,38 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsStartReq
         )
         .await?;
 
-        let feature_config = utils::get_feature_config(state, platform).await;
-
         // In case of modular payment method flow payment token in the request will belong to payment method modular service
         // hence populating token data is not required
-        let token_data = match (
-            payment_attempt.payment_token.clone(),
-            feature_config.is_payment_method_modular_allowed,
-        ) {
-            (Some(token), false) => Some(
+        #[cfg(feature = "pm_modular")]
+        let token_data = {
+            let is_payment_method_modular_allowed = utils::get_feature_config(state, platform)
+                .await
+                .is_payment_method_modular_allowed;
+            match (
+                payment_attempt.payment_token.clone(),
+                is_payment_method_modular_allowed,
+            ) {
+                (Some(token), false) => Some(
+                    helpers::retrieve_payment_token_data(
+                        state,
+                        token,
+                        payment_attempt.payment_method,
+                    )
+                    .await?,
+                ),
+                _ => {
+                    logger::debug!("skipping token data retrieval in payment start");
+                    None
+                }
+            }
+        };
+        #[cfg(not(feature = "pm_modular"))]
+        let token_data = match payment_attempt.payment_token.clone() {
+            Some(token) => Some(
                 helpers::retrieve_payment_token_data(state, token, payment_attempt.payment_method)
                     .await?,
             ),
-            _ => {
+            None => {
                 logger::debug!("skipping token data retrieval in payment start");
                 None
             }

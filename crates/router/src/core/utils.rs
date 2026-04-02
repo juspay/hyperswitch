@@ -60,13 +60,13 @@ use crate::{
     utils::{generate_id, OptionExt, ValueExt},
 };
 
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "pm_modular"))]
 #[derive(Debug, Clone, Default)]
 pub struct FeatureConfig {
     pub is_payment_method_modular_allowed: bool,
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "pm_modular"))]
 pub async fn get_feature_config(
     state: &SessionState,
     platform: &domain::Platform,
