@@ -566,17 +566,19 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     key1,
                     api_secret,
                 } => {
-                    let (disable_avs, disable_cvn) = metadata
-                        .and_then(|m| serde_json::from_value::<CybersourceMetadata>(m.clone()).ok())
-                        .map(|m| (m.disable_avs, m.disable_cvn))
-                        .unwrap_or((None, None));
+                    let cybersource_meta = metadata
+                        .map(|m| {
+                            serde_json::from_value::<CybersourceMetadata>(m.clone())
+                                .map_err(|_| err("Invalid Cybersource metadata format"))
+                        })
+                        .transpose()?;
 
                     Ok(Self::Cybersource {
                         api_key: api_key.clone(),
                         merchant_account: key1.clone(),
                         api_secret: api_secret.clone(),
-                        disable_avs,
-                        disable_cvn,
+                        disable_avs: cybersource_meta.as_ref().and_then(|m| m.disable_avs),
+                        disable_cvn: cybersource_meta.as_ref().and_then(|m| m.disable_cvn),
                     })
                 }
                 _ => Err(err("Cybersource requires SignatureKey auth type")),
