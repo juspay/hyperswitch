@@ -200,9 +200,7 @@ jobs:
 
       - name: Run clippy
         shell: bash
-        env:
-          CARGO_BUILD_JOBS: 3
-        run: just clippy
+        run: just clippy --jobs 3
 
       - name: Check Cargo.lock changed
         if: ${{ (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
