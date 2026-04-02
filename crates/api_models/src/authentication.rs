@@ -28,10 +28,6 @@ pub struct AuthenticationCreateRequest {
     #[schema(value_type = Option<String>)]
     pub profile_id: Option<id_type::ProfileId>,
 
-    /// Customer details.
-    #[schema(value_type = Option<CustomerDetails>)]
-    pub customer: Option<CustomerDetails>,
-
     /// The amount for the transaction, required.
     #[schema(value_type = MinorUnit, example = 1000)]
     pub amount: common_utils::types::MinorUnit,
@@ -688,6 +684,10 @@ pub struct AuthenticationSyncResponse {
     /// The tokens for vaulted data
     pub vault_token_data: Option<AuthenticationVaultTokenData>,
 
+    /// The authentication details after external authentication
+    #[schema(value_type = Option<AuthenticationDetails>)]
+    pub authentication_details: Option<AuthenticationDetails>,
+
     /// Billing address.
     #[schema(value_type = Option<Address>)]
     pub billing: Option<Address>,
@@ -745,6 +745,43 @@ pub struct AuthenticationSyncResponse {
     /// Profile Acquirer ID
     #[schema(value_type = Option<String>)]
     pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct AuthenticationDetails {
+    // Three Ds Data after external authentication
+    pub three_ds_data: Option<ExternalThreeDsData>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct ExternalThreeDsData {
+    /// Contains the authentication cryptogram data (CAVV or TAVV).
+    #[schema(value_type = Option<Cryptogram>)]
+    pub authentication_cryptogram: Option<Cryptogram>,
+    /// Directory Server Transaction ID generated during the 3DS process.
+    #[schema(value_type = Option<String>)]
+    pub ds_trans_id: Option<String>,
+    /// The version of the 3DS protocol used (e.g., "2.1.0" or "2.2.0").
+    #[schema(value_type = Option<String>)]
+    pub version: Option<common_utils::types::SemanticVersion>,
+    /// Electronic Commerce Indicator (ECI) value representing the 3DS authentication result.
+    #[schema(value_type = Option<String>)]
+    pub eci: Option<String>,
+    /// Indicates the transaction status from the 3DS authentication flow.
+    #[schema(value_type = TransactionStatus)]
+    pub transaction_status: common_enums::TransactionStatus,
+}
+
+/// Represents the 3DS cryptogram data returned after authentication.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Cryptogram {
+    /// Cardholder Authentication Verification Value (CAVV) cryptogram.
+    Cavv {
+        /// The authentication cryptogram provided by the issuer or ACS.
+        #[schema(value_type = Option<String>)]
+        authentication_cryptogram: hyperswitch_masking::Secret<String>,
+    },
 }
 
 #[cfg(feature = "v1")]

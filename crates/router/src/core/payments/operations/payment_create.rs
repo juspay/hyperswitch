@@ -38,7 +38,7 @@ use crate::{
         mandate::helpers as m_helpers,
         payment_link,
         payments::{
-            self, helpers, operations, payment_session::PaymentSessionManager, CustomerDetails,
+            self, client_session::ClientSessionManager, helpers, operations, CustomerDetails,
             PaymentAddress, PaymentData,
         },
         utils as core_utils,
@@ -661,22 +661,22 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let unified_address = address.unify_with_payment_method_data_billing(add);
 
-        // Check if payment session validation is enabled
+        // Check if client session validation is enabled
         let dimensions = Dimensions::new()
             .with_merchant_id(platform.get_processor().get_account().get_id().clone());
 
         let session_validation_enabled = dimensions
-            .get_payment_session_validation_enabled(
+            .get_client_session_validation_enabled(
                 state.store.as_ref(),
                 state.superposition_service.as_deref(),
                 None,
             )
             .await;
 
-        // Generate payment session for the payment only if validation is enabled
-        let payment_session_id = if session_validation_enabled {
+        // Generate client session for the payment only if validation is enabled
+        let client_session_id = if session_validation_enabled {
             Some(
-                PaymentSessionManager::create_session(
+                ClientSessionManager::create_session(
                     state,
                     platform.get_processor().get_account().get_id(),
                     &payment_id,
@@ -684,7 +684,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to create payment session")?,
+                .attach_printable("Failed to create client session")?,
             )
         } else {
             None
@@ -738,7 +738,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             is_manual_retry_enabled: None,
             is_l2_l3_enabled: business_profile.is_l2_l3_enabled,
             external_authentication_data: request.three_ds_data.clone(),
-            payment_session_id,
+            client_session_id,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

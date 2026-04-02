@@ -2264,7 +2264,18 @@ Cypress.Commands.add(
 
       cy.wrap(response).then(() => {
         expect(response.headers["content-type"]).to.include("application/json");
-        if (response.status === 200) {
+
+        // Check if this is a blocklist / payment method blocking case
+        const expectBlockedPayment = resData?.expectBlockedPayment || false;
+
+        if (expectBlockedPayment && response.status === 200) {
+          // Blocklist case: HTTP 200 with an error body instead of a success body
+          expect(response.status, "status_code").to.equal(200);
+          // Validate response body against expected values from config (Commons.js)
+          for (const key in resData.body) {
+            expect(resData.body[key], [key]).to.deep.equal(response.body[key]);
+          }
+        } else if (response.status === 200) {
           globalState.set("paymentID", paymentIntentID);
           updateConnectorState(globalState, response.body.connector);
           globalState.set(
@@ -6162,3 +6173,31 @@ Cypress.Commands.add(
       });
   }
 );
+
+Cypress.Commands.add("blocklistToggle", (status, globalState) => {
+  const apiKey = globalState.get("apiKey");
+  const baseUrl = globalState.get("baseUrl");
+  const url = `${baseUrl}/blocklist/toggle?status=${status}`;
+
+  cy.request({
+    method: "POST",
+    url: url,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      if (response.status === 200) {
+        cy.log(`Blocklist toggled successfully to status: ${status}`);
+      } else {
+        throw new Error(
+          `Blocklist toggle failed with status: ${response.status} and message: ${response.body?.error?.message}`
+        );
+      }
+    });
+  });
+});

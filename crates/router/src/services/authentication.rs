@@ -53,7 +53,7 @@ use crate::{
             SDK_AUTH_INVALID_SESSION_TOTAL, SDK_AUTH_LEGACY_FLOW_TOTAL,
             SDK_AUTH_SESSION_VALIDATED_TOTAL,
         },
-        payments::payment_session::PaymentSessionManager,
+        payments::client_session::ClientSessionManager,
     },
     headers,
     routes::app::SessionStateInfo,
@@ -3436,14 +3436,14 @@ where
         )
         .await?;
 
-        // Taking processor_merchant_id for payment session validation as we have a unique constraint on (processor_merchant_id, payment_id)
+        // Taking processor_merchant_id for client session validation as we have a unique constraint on (processor_merchant_id, payment_id)
         let processor_merchant_id = platform.get_processor().get_account().get_id();
 
-        // Check if payment session validation is enabled
+        // Check if client session validation is enabled
         let dimensions = Dimensions::new().with_merchant_id(processor_merchant_id.clone());
 
         let session_validation_enabled = dimensions
-            .get_payment_session_validation_enabled(
+            .get_client_session_validation_enabled(
                 state.store().as_ref(),
                 state.superposition_service().as_deref(),
                 None,
@@ -3452,8 +3452,8 @@ where
 
         // Validate session_id if present and validation is enabled
         if session_validation_enabled {
-            match sdk_auth.payment_session_id {
-                Some(payment_session_id) => {
+            match sdk_auth.client_session_id {
+                Some(client_session_id) => {
                     let payment_id =
                         crate::core::payments::helpers::get_payment_id_from_client_secret(
                             &client_secret,
@@ -3464,15 +3464,15 @@ where
                         .attach_printable("Invalid payment_id in client_secret")?;
 
                     // Validate session
-                    PaymentSessionManager::validate_session(
+                    ClientSessionManager::validate_session(
                         state,
                         processor_merchant_id,
                         &payment_id,
-                        &payment_session_id,
+                        &client_session_id,
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::Unauthorized)
-                    .attach_printable("Failed to validate payment session")?
+                    .attach_printable("Failed to validate client session")?
                     .then_some(())
                     .ok_or_else(|| {
                         SDK_AUTH_INVALID_SESSION_TOTAL.add(
@@ -3508,7 +3508,7 @@ where
                 }
             }
         } else {
-            logger::info!("Payment session validation is disabled");
+            logger::info!("Client session validation is disabled");
         }
 
         let profile = state
