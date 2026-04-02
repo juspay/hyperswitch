@@ -100,6 +100,12 @@ pub struct PaysafeAchAccountId {
     pub account_id: Option<Secret<String>>,
 }
 
+#[derive(Debug, serde::Deserialize)]
+pub struct PeachpaymentsMetadata {
+    client_merchant_reference_id: Secret<String>,
+    merchant_payment_method_route_id: Secret<String>,
+}
+
 /// Connector-specific configuration enum for all supported connectors
 #[derive(Debug, Clone, serde::Serialize)]
 pub enum ConnectorSpecificConfig {
@@ -438,6 +444,8 @@ pub enum ConnectorSpecificConfig {
     Peachpayments {
         api_key: Secret<String>,
         tenant_id: Secret<String>,
+        client_merchant_reference_id: Option<Secret<String>>,
+        merchant_payment_method_route_id: Option<Secret<String>>,
     },
     /// Billwerk connector configuration
     Billwerk {
@@ -815,10 +823,24 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 _ => Err(err("Rapyd requires BodyKey auth type")),
             },
             Connector::Peachpayments => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Peachpayments {
-                    api_key: api_key.clone(),
-                    tenant_id: key1.clone(),
-                }),
+                ConnectorAuthType::BodyKey { api_key, key1 } => {
+                    let peach_meta = metadata
+                        .map(|meta| {
+                            serde_json::from_value::<PeachpaymentsMetadata>(meta.clone())
+                                .map_err(|_| err("Invalid peachpayments metadata format"))
+                        })
+                        .transpose()?;
+                    Ok(Self::Peachpayments {
+                        api_key: api_key.clone(),
+                        tenant_id: key1.clone(),
+                        client_merchant_reference_id: peach_meta
+                            .as_ref()
+                            .map(|metadata| metadata.client_merchant_reference_id.clone()),
+                        merchant_payment_method_route_id: peach_meta
+                            .as_ref()
+                            .map(|metadata| metadata.merchant_payment_method_route_id.clone()),
+                    })
+                }
                 _ => Err(err("Peachpayments requires BodyKey auth type")),
             },
             Connector::Nexinets => match auth {
