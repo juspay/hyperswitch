@@ -6743,7 +6743,7 @@ pub enum NextActionData {
         #[smithy(value_type = "IframeData")]
         iframe_data: IframeData,
     },
-    /// Contains url to be rendered in an iframe
+    /// The data required to trigger the DDC (Device Data Collection) flow by rendering the provided URL in a hidden iframe.
     InvokeDdc {
         #[smithy(value_type = "DDCData")]
         ddc_data: DDCData,
@@ -7100,6 +7100,13 @@ pub struct PaymentsConnectorThreeDsInvokeData {
     pub message_version: Option<String>,
     pub three_ds_method_data_submission: bool,
 }
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct PaymentConnectorInvokeDDCData {
+    pub iframe_url: String,
+    pub timeout_ms: Option<i32>,
+}
+
 #[derive(
     Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
 )]

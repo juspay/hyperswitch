@@ -3488,6 +3488,7 @@ pub trait PaymentRedirectFlow: Sync {
         payment_flow_response: &Self::PaymentFlowResponse,
         payment_id: id_type::PaymentId,
         connector: String,
+        state: &SessionState,
     ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>>;
 
     #[cfg(feature = "v2")]
@@ -3562,7 +3563,7 @@ pub trait PaymentRedirectFlow: Sync {
             )
             .await?;
 
-        self.generate_response(&payment_flow_response, resource_id, connector)
+        self.generate_response(&payment_flow_response, resource_id, connector, &state)
     }
 
     #[cfg(feature = "v2")]
@@ -3687,6 +3688,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
         payment_flow_response: &Self::PaymentFlowResponse,
         payment_id: id_type::PaymentId,
         connector: String,
+        state: &SessionState,
     ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>> {
         let payments_response = &payment_flow_response.payments_response;
         // There might be multiple redirections needed for some flows
@@ -3738,7 +3740,17 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             _ => Err(errors::ApiErrorResponse::InternalServerError).attach_printable_lazy(|| format!("Could not proceed with payment as payment status {} cannot be handled during redirection",payments_response.status))?
         }?;
 
-        if connector == "worldpayxml" {
+        let connector_enum: enums::Connector = connector
+            .parse()
+            .map_err(|_| errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Invalid connector name received")?;
+
+        if state
+            .conf
+            .notify_iframe_exit_and_redirect
+            .connector_list
+            .contains(&connector_enum)
+        {
             let html = core_utils::get_html_redirect_response_after_ddc(
                 redirection_response.return_url_with_query_params,
                 "required", // hard-coded for now, need to update as we add support for other connectors
@@ -3859,6 +3871,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
         payment_flow_response: &Self::PaymentFlowResponse,
         payment_id: id_type::PaymentId,
         connector: String,
+        state: &SessionState,
     ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>> {
         let payments_response = &payment_flow_response.payments_response;
         let redirect_response = helpers::get_handle_response_url(
@@ -3868,7 +3881,17 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
             connector.clone(),
         )?;
 
-        if connector == "worldpayxml" {
+        let connector_enum: enums::Connector = connector
+            .parse()
+            .map_err(|_| errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Invalid connector name received")?;
+
+        if state
+            .conf
+            .notify_iframe_exit_and_redirect
+            .connector_list
+            .contains(&connector_enum)
+        {
             let html = core_utils::get_html_redirect_response_after_ddc(
                 redirect_response.return_url_with_query_params,
                 "required", // hard-coded for now, need to update as we add support for other connectors
@@ -4328,6 +4351,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
         payment_flow_response: &Self::PaymentFlowResponse,
         payment_id: id_type::PaymentId,
         connector: String,
+        _state: &SessionState,
     ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>> {
         let payments_response = &payment_flow_response.payments_response;
         let redirect_response = helpers::get_handle_response_url(

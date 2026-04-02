@@ -3734,6 +3734,9 @@ where
             let next_action_invoke_hidden_frame =
                 next_action_invoke_hidden_frame(&payment_attempt)?;
 
+            let next_action_invoke_ddc_iframe =
+                next_action_invoke_ddc_iframe(&payment_attempt, base_url)?;
+
             if payment_intent.status == enums::IntentStatus::RequiresCustomerAction
                 || bank_transfer_next_steps.is_some()
                 || next_action_voucher.is_some()
@@ -3781,6 +3784,14 @@ where
                                     poll_config: wait_screen_data.poll_config,
                                 }
                             }))
+                            .or(next_action_invoke_ddc_iframe.map(|ddc_iframe_data| {
+                                api_models::payments::NextActionData::InvokeDdc {
+                                    ddc_data: api_models::payments::DDCData {
+                                        iframe_url: ddc_iframe_data.iframe_url,
+                                        timeout_ms: ddc_iframe_data.timeout_ms,
+                                    }
+                                }
+                            }))
                             .or(payment_attempt.authentication_data.as_ref().map(|_| {
                                 // Check if iframe redirection is enabled in the business profile
                                 let redirect_url = helpers::create_startpay_url(
@@ -3788,15 +3799,6 @@ where
                                     &payment_attempt,
                                     &payment_intent,
                                 );
-                                // Check if connector is Worldpayxml and if status is DeviceDataCollectionPending -> required to render the script in an iframe
-                                if payment_attempt.connector == Some("worldpayxml".to_string()) && payment_attempt.status == enums::AttemptStatus::DeviceDataCollectionPending {
-                                    return api_models::payments::NextActionData::InvokeDdc {
-                                        ddc_data: api_models::payments::DDCData {
-                                            iframe_url: redirect_url,
-                                            timeout_ms: None,
-                                        }
-                                    };
-                                }
                                 // Check if redirection inside popup is enabled in the payment intent
                                 if payment_intent.is_iframe_redirection_enabled.unwrap_or(false) {
                                     api_models::payments::NextActionData::RedirectInsidePopup {
@@ -4295,6 +4297,27 @@ pub fn next_action_invoke_hidden_frame(
 
     let three_ds_invoke_data = connector_three_ds_invoke_data.transpose().ok().flatten();
     Ok(three_ds_invoke_data)
+}
+
+pub fn next_action_invoke_ddc_iframe(
+    payment_attempt: &storage::PaymentAttempt,
+    base_url: &str,
+) -> RouterResult<Option<api_models::payments::PaymentConnectorInvokeDDCData>> {
+    let ddc_iframe_data: Option<Result<api_models::payments::PaymentConnectorInvokeDDCData, _>> =
+        payment_attempt
+            .connector_metadata
+            .clone()
+            .map(|metadata| metadata.parse_value("PaymentConnectorInvokeDDCData"))
+            .map(|res| {
+                res.map(|mut data: api_payments::PaymentConnectorInvokeDDCData| {
+                    data.iframe_url = format!("{}{}", base_url, data.iframe_url).to_string();
+
+                    data
+                })
+            });
+
+    let ddc_data = ddc_iframe_data.transpose().ok().flatten();
+    Ok(ddc_data)
 }
 
 pub fn construct_connector_invoke_hidden_frame(

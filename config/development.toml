@@ -1219,6 +1219,9 @@ connector_list = "adyen,archipel,checkout,cybersource,novalnet,nuvei,stripe,worl
 [card_only_mit_supported_connectors]
 connector_list = "peachpayments" # Supported connectors for card only mit
 
+[notify_iframe_exit_and_redirect]
+connector_list = "worldpayxml"
+
 [connector_request_reference_id_config]
 merchant_ids_send_payment_id_as_connector_request_id = []
 

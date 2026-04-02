@@ -762,6 +762,12 @@ impl TryFrom<(&Card, Option<enums::CaptureMethod>, Option<Session>)> for Payment
     }
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PaymentConnectorInvokeDDCData {
+    timeout_ms: Option<i32>,
+    iframe_url: String,
+}
+
 impl TryFrom<PaymentsPreAuthenticateResponseRouterData<bytes::Bytes>>
     for PaymentsPreAuthenticateRouterData
 {
@@ -814,11 +820,29 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<bytes::Bytes>>
 
         let redirection_form = RedirectForm::WorldpayxmlDDCForm { bin, jwt };
 
+        let iframe_url = format!(
+            "/payments/redirect/{}/{}/{}",
+            item.data.payment_id,
+            item.data.merchant_id.get_string_repr(),
+            item.data.attempt_id,
+        );
+
+        let metadata = PaymentConnectorInvokeDDCData {
+            timeout_ms: None,
+            iframe_url,
+        };
+
+        let connector_metadata = Some(
+            serde_json::to_value(&metadata)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)
+                .attach_printable("Failed to serialize ThreeDsData")?,
+        );
+
         let response = Ok(PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::NoResponseId,
             redirection_data: Box::new(Some(redirection_form)),
             mandate_reference: Box::new(None),
-            connector_metadata: None,
+            connector_metadata,
             network_txn_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
