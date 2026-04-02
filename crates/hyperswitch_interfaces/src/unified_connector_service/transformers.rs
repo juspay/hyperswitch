@@ -303,7 +303,7 @@ impl ForeignTryFrom<payments_grpc::MandateReference>
                     .connector_mandate_request_reference_id,
             }),
             _ => Err(UnifiedConnectorServiceError::ResponseDeserializationFailed)
-                .attach_printable("Recieved Invalid MandateReference from UCS"),
+                .attach_printable("Received Invalid MandateReference from UCS"),
         }
     }
 }
