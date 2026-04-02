@@ -17,9 +17,81 @@ use common_utils::{
     id_type, pii, type_name,
     types::{keymanager, CreatedBy},
 };
-pub use diesel_models::{
-    enums as storage_enums, PaymentMethodUpdate as StoragePaymentMethodUpdate,
-};
+pub use common_enums as storage_enums;
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub enum StoragePaymentMethodUpdate {
+    MetadataUpdateAndLastUsed {
+        metadata: Option<serde_json::Value>,
+        last_used_at: time::PrimitiveDateTime,
+        last_modified_by: Option<String>,
+    },
+    UpdatePaymentMethodDataAndLastUsed {
+        payment_method_data: Option<common_utils::encryption::Encryption>,
+        scheme: Option<String>,
+        last_used_at: time::PrimitiveDateTime,
+        last_modified_by: Option<String>,
+    },
+    PaymentMethodDataUpdate {
+        payment_method_data: Option<common_utils::encryption::Encryption>,
+        last_modified_by: Option<String>,
+    },
+    LastUsedUpdate {
+        last_used_at: time::PrimitiveDateTime,
+    },
+    NetworkTransactionIdAndStatusUpdate {
+        network_transaction_id: Option<String>,
+        status: Option<storage_enums::PaymentMethodStatus>,
+        last_modified_by: Option<String>,
+    },
+    StatusUpdate {
+        status: Option<storage_enums::PaymentMethodStatus>,
+        last_modified_by: Option<String>,
+    },
+    AdditionalDataUpdate {
+        payment_method_data: Option<common_utils::encryption::Encryption>,
+        status: Option<storage_enums::PaymentMethodStatus>,
+        locker_id: Option<String>,
+        payment_method: Option<storage_enums::PaymentMethod>,
+        payment_method_type: Option<storage_enums::PaymentMethodType>,
+        payment_method_issuer: Option<String>,
+        network_token_requestor_reference_id: Option<String>,
+        network_token_locker_id: Option<String>,
+        network_token_payment_method_data: Option<common_utils::encryption::Encryption>,
+        last_modified_by: Option<String>,
+        metadata: Option<serde_json::Value>,
+        last_used_at: Option<time::PrimitiveDateTime>,
+        connector_mandate_details: Option<Box<serde_json::Value>>,
+        network_tokenization_data: Option<common_utils::encryption::Encryption>,
+    },
+    ConnectorMandateDetailsUpdate {
+        connector_mandate_details: Option<serde_json::Value>,
+        last_modified_by: Option<String>,
+    },
+    NetworkTokenDataUpdate {
+        network_token_requestor_reference_id: Option<String>,
+        network_token_locker_id: Option<String>,
+        network_token_payment_method_data: Option<common_utils::encryption::Encryption>,
+        network_tokenization_data: Option<common_utils::encryption::Encryption>,
+        last_modified_by: Option<String>,
+    },
+    ConnectorNetworkTransactionIdAndMandateDetailsUpdate {
+        connector_mandate_details: Option<pii::SecretSerdeValue>,
+        network_transaction_id: Option<Secret<String>>,
+        last_modified_by: Option<String>,
+    },
+    PaymentMethodBatchUpdate {
+        connector_mandate_details: Option<pii::SecretSerdeValue>,
+        network_transaction_id: Option<String>,
+        status: Option<storage_enums::PaymentMethodStatus>,
+        payment_method_data: Option<common_utils::encryption::Encryption>,
+        last_modified_by: Option<String>,
+    },
+}
+
+#[cfg(feature = "v2")]
+pub use diesel_models::PaymentMethodUpdate as StoragePaymentMethodUpdate;
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v1")]

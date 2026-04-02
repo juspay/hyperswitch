@@ -3,6 +3,7 @@ use diesel_models::{customers, kv};
 use error_stack::ResultExt;
 use futures::future::try_join_all;
 use crate::behaviour::{Conversion, ReverseConversion};
+use crate::transformers::ForeignFrom;
 use hyperswitch_domain_models::{
     customer as domain,
     merchant_key_store::MerchantKeyStore,
@@ -166,7 +167,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         let customer = crate::behaviour::Conversion::convert(customer)
             .await
             .change_context(StorageError::EncryptionError)?;
-        let updated_customer = diesel_models::CustomerUpdateInternal::from(customer_update.clone())
+        let updated_customer = diesel_models::CustomerUpdateInternal::foreign_from(customer_update.clone())
             .apply_changeset(customer.clone());
         let key = PartitionKey::MerchantIdCustomerId {
             merchant_id: &merchant_id,
@@ -180,13 +181,13 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
                 &conn,
                 customer_id.clone(),
                 merchant_id.clone(),
-                customer_update.clone().into(),
+                customers::CustomerUpdateInternal::foreign_from(customer_update.clone()),
             ),
             updated_customer,
             kv_router_store::UpdateResourceParams {
                 updateable: kv::Updateable::CustomerUpdate(Box::new(kv::CustomerUpdateMems {
                     orig: customer.clone(),
-                    update_data: customer_update.clone().into(),
+                    update_data: customers::CustomerUpdateInternal::foreign_from(customer_update.clone()),
                 })),
                 operation: Op::Update(key.clone(), &field, customer.updated_by.as_deref()),
             },
@@ -473,7 +474,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             .await
             .change_context(StorageError::EncryptionError)?;
         let database_call =
-            customers::Customer::update_by_id(&conn, id.clone(), customer_update.clone().into());
+            customers::Customer::update_by_id(&conn, id.clone(), customer_update.clone().foreign_into());
         let key = PartitionKey::GlobalId {
             id: id.get_string_repr(),
         };
@@ -482,12 +483,12 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             key_store,
             storage_scheme,
             database_call,
-            diesel_models::CustomerUpdateInternal::from(customer_update.clone())
+            diesel_models::CustomerUpdateInternal::foreign_from(customer_update.clone())
                 .apply_changeset(customer.clone()),
             kv_router_store::UpdateResourceParams {
                 updateable: kv::Updateable::CustomerUpdate(Box::new(kv::CustomerUpdateMems {
                     orig: customer.clone(),
-                    update_data: customer_update.into(),
+                    update_data: customer_update.foreign_into(),
                 })),
                 operation: Op::Update(key.clone(), &field, customer.updated_by.as_deref()),
             },
@@ -602,7 +603,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
                 &conn,
                 customer_id,
                 merchant_id.clone(),
-                customer_update.into(),
+                customers::CustomerUpdateInternal::foreign_from(customer_update),
             ),
         )
         .await
@@ -669,7 +670,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
     ) -> CustomResult<Vec<domain::Customer>, StorageError> {
         let conn = pg_connection_read(self).await?;
         let customer_list_constraints =
-            diesel_models::query::customers::CustomerListConstraints::from(constraints);
+            diesel_models::query::customers::CustomerListConstraints::foreign_from(constraints);
         self.find_resources(
             key_store,
             customers::Customer::list_customers_by_merchant_id_and_constraints(
@@ -690,7 +691,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
     ) -> CustomResult<(Vec<domain::Customer>, usize), StorageError> {
         let conn = pg_connection_read(self).await?;
         let customer_list_constraints =
-            diesel_models::query::customers::CustomerListConstraints::from(constraints);
+            diesel_models::query::customers::CustomerListConstraints::foreign_from(constraints);
         let customers_constraints = diesel_models::query::customers::CustomerListConstraints {
             limit: customer_list_constraints.limit,
             offset: customer_list_constraints.offset,

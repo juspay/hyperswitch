@@ -5,11 +5,12 @@ use common_utils::{
     types::keymanager::{self, KeyManagerState},
 };
 use error_stack::ResultExt;
-use hyperswitch_domain_models::relay::{Relay, RelayData};
+use hyperswitch_domain_models::relay::{Relay, RelayData, RelayUpdate};
 use hyperswitch_masking::Secret;
 use serde_json;
 
 use crate::behaviour::Conversion;
+use crate::transformers::ForeignFrom;
 
 #[async_trait::async_trait]
 impl Conversion for Relay {
@@ -92,5 +93,33 @@ impl Conversion for Relay {
             modified_at: self.modified_at,
             response_data: self.response_data,
         })
+    }
+}
+
+impl ForeignFrom<RelayUpdate> for diesel_models::relay::RelayUpdateInternal {
+    fn foreign_from(value: RelayUpdate) -> Self {
+        match value {
+            RelayUpdate::ErrorUpdate {
+                error_code,
+                error_message,
+                status,
+            } => Self {
+                error_code: Some(error_code),
+                error_message: Some(error_message),
+                connector_reference_id: None,
+                status: Some(status),
+                modified_at: common_utils::date_time::now(),
+            },
+            RelayUpdate::StatusUpdate {
+                connector_reference_id,
+                status,
+            } => Self {
+                connector_reference_id,
+                status: Some(status),
+                error_code: None,
+                error_message: None,
+                modified_at: common_utils::date_time::now(),
+            },
+        }
     }
 }

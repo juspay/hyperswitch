@@ -3,8 +3,9 @@ use common_utils::{encryption::Encryption, ext_traits::AsyncExt};
 use diesel_models::merchant_connector_account as storage;
 use error_stack::{report, ResultExt};
 use crate::behaviour::{Conversion, ReverseConversion};
+use crate::transformers::ForeignFrom;
 use hyperswitch_domain_models::{
-    merchant_connector_account::{self as domain, MerchantConnectorAccountInterface},
+    merchant_connector_account::{self as domain, MerchantConnectorAccountInterface, MerchantConnectorAccountUpdate},
     merchant_key_store::MerchantKeyStore,
 };
 use router_env::{instrument, tracing};
@@ -155,11 +156,16 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KV
         &self,
         merchant_connector_accounts: Vec<(
             domain::MerchantConnectorAccount,
-            storage::MerchantConnectorAccountUpdateInternal,
+            MerchantConnectorAccountUpdate,
         )>,
     ) -> CustomResult<(), Self::Error> {
         self.router_store
-            .update_multiple_merchant_connector_accounts(merchant_connector_accounts)
+            .update_multiple_merchant_connector_accounts(
+                merchant_connector_accounts
+                    .into_iter()
+                    .map(|(mca, update)| (mca, update.into()))
+                    .collect(),
+            )
             .await
     }
 
@@ -168,11 +174,11 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KV
     async fn update_merchant_connector_account(
         &self,
         this: domain::MerchantConnectorAccount,
-        merchant_connector_account: storage::MerchantConnectorAccountUpdateInternal,
+        merchant_connector_account: MerchantConnectorAccountUpdate,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
         self.router_store
-            .update_merchant_connector_account(this, merchant_connector_account, key_store)
+            .update_merchant_connector_account(this, merchant_connector_account.into(), key_store)
             .await
     }
 
@@ -181,11 +187,11 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KV
     async fn update_merchant_connector_account(
         &self,
         this: domain::MerchantConnectorAccount,
-        merchant_connector_account: storage::MerchantConnectorAccountUpdateInternal,
+        merchant_connector_account: MerchantConnectorAccountUpdate,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
         self.router_store
-            .update_merchant_connector_account(this, merchant_connector_account, key_store)
+            .update_merchant_connector_account(this, merchant_connector_account.into(), key_store)
             .await
     }
 
@@ -606,7 +612,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         &self,
         merchant_connector_accounts: Vec<(
             domain::MerchantConnectorAccount,
-            storage::MerchantConnectorAccountUpdateInternal,
+            domain::MerchantConnectorAccountUpdate,
         )>,
     ) -> CustomResult<(), Self::Error> {
         let conn = pg_accounts_connection_write(self).await?;
@@ -642,11 +648,12 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
                 let _merchant_id = merchant_connector_account.merchant_id.clone();
                 let _merchant_connector_id = merchant_connector_account.get_id().clone();
 
+                let diesel_update = storage::MerchantConnectorAccountUpdateInternal::foreign_from(update_merchant_connector_account);
                 let update = update_call(
                     &connection_pool,
                     (
                         merchant_connector_account,
-                        update_merchant_connector_account,
+                        diesel_update,
                     ),
                 );
 
@@ -716,7 +723,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
     async fn update_merchant_connector_account(
         &self,
         this: domain::MerchantConnectorAccount,
-        merchant_connector_account: storage::MerchantConnectorAccountUpdateInternal,
+        merchant_connector_account: domain::MerchantConnectorAccountUpdate,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
         let _connector_name = this.connector_name.clone();
@@ -725,12 +732,13 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         let _merchant_id = this.merchant_id.clone();
         let _merchant_connector_id = this.merchant_connector_id.clone();
 
+        let diesel_update = storage::MerchantConnectorAccountUpdateInternal::foreign_from(merchant_connector_account);
         let update_call = || async {
             let conn = pg_accounts_connection_write(self).await?;
             Conversion::convert(this)
                 .await
                 .change_context(Self::Error::EncryptionError)?
-                .update(&conn, merchant_connector_account)
+                .update(&conn, diesel_update)
                 .await
                 .map_err(|error| report!(Self::Error::from(error)))
                 .async_and_then(|item| async {
@@ -796,7 +804,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
     async fn update_merchant_connector_account(
         &self,
         this: domain::MerchantConnectorAccount,
-        merchant_connector_account: storage::MerchantConnectorAccountUpdateInternal,
+        merchant_connector_account: domain::MerchantConnectorAccountUpdate,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
         let _connector_name = this.connector_name;
@@ -805,12 +813,13 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         let _merchant_id = this.merchant_id.clone();
         let _merchant_connector_id = this.get_id().clone();
 
+        let diesel_update = storage::MerchantConnectorAccountUpdateInternal::foreign_from(merchant_connector_account);
         let update_call = || async {
             let conn = pg_accounts_connection_write(self).await?;
             Conversion::convert(this)
                 .await
                 .change_context(Self::Error::EncryptionError)?
-                .update(&conn, merchant_connector_account)
+                .update(&conn, diesel_update)
                 .await
                 .map_err(|error| report!(Self::Error::from(error)))
                 .async_and_then(|item| async {
@@ -1017,7 +1026,7 @@ impl MerchantConnectorAccountInterface for MockDb {
         &self,
         _merchant_connector_accounts: Vec<(
             domain::MerchantConnectorAccount,
-            storage::MerchantConnectorAccountUpdateInternal,
+            domain::MerchantConnectorAccountUpdate,
         )>,
     ) -> CustomResult<(), StorageError> {
         // No need to implement this function for `MockDb` as this function will be removed after the
@@ -1390,9 +1399,10 @@ impl MerchantConnectorAccountInterface for MockDb {
     async fn update_merchant_connector_account(
         &self,
         this: domain::MerchantConnectorAccount,
-        merchant_connector_account: storage::MerchantConnectorAccountUpdateInternal,
+        merchant_connector_account: domain::MerchantConnectorAccountUpdate,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, StorageError> {
+        let diesel_update = storage::MerchantConnectorAccountUpdateInternal::foreign_from(merchant_connector_account);
         let mca_update_res = self
             .merchant_connector_accounts
             .lock()
@@ -1401,7 +1411,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             .find(|account| account.merchant_connector_id == this.merchant_connector_id)
             .map(|a| {
                 let updated =
-                    merchant_connector_account.create_merchant_connector_account(a.clone());
+                    diesel_update.create_merchant_connector_account(a.clone());
                 *a = updated.clone();
                 updated
             })
@@ -1433,9 +1443,10 @@ impl MerchantConnectorAccountInterface for MockDb {
     async fn update_merchant_connector_account(
         &self,
         this: domain::MerchantConnectorAccount,
-        merchant_connector_account: storage::MerchantConnectorAccountUpdateInternal,
+        merchant_connector_account: domain::MerchantConnectorAccountUpdate,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, StorageError> {
+        let diesel_update = storage::MerchantConnectorAccountUpdateInternal::foreign_from(merchant_connector_account);
         let mca_update_res = self
             .merchant_connector_accounts
             .lock()
@@ -1444,7 +1455,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             .find(|account| account.get_id() == this.get_id())
             .map(|a| {
                 let updated =
-                    merchant_connector_account.create_merchant_connector_account(a.clone());
+                    diesel_update.create_merchant_connector_account(a.clone());
                 *a = updated.clone();
                 updated
             })

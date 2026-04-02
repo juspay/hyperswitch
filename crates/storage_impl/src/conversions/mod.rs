@@ -2,8 +2,11 @@
 
 pub mod authentication;
 pub mod business_profile;
+pub mod configs;
 pub mod customer;
+pub mod gsm;
 pub mod invoice;
+pub mod mandate;
 pub mod merchant_account;
 pub mod merchant_connector_account;
 pub mod merchant_key_store;

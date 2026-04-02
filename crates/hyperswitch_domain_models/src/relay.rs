@@ -7,7 +7,6 @@ use common_utils::{
     pii,
     types::{keymanager, MinorUnit},
 };
-use diesel_models::relay::RelayUpdateInternal;
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{self, Deserialize, Serialize};
@@ -545,32 +544,4 @@ pub enum RelayUpdate {
         connector_reference_id: Option<String>,
         status: common_enums::RelayStatus,
     },
-}
-
-impl From<RelayUpdate> for RelayUpdateInternal {
-    fn from(value: RelayUpdate) -> Self {
-        match value {
-            RelayUpdate::ErrorUpdate {
-                error_code,
-                error_message,
-                status,
-            } => Self {
-                error_code: Some(error_code),
-                error_message: Some(error_message),
-                connector_reference_id: None,
-                status: Some(status),
-                modified_at: common_utils::date_time::now(),
-            },
-            RelayUpdate::StatusUpdate {
-                connector_reference_id,
-                status,
-            } => Self {
-                connector_reference_id,
-                status: Some(status),
-                error_code: None,
-                error_message: None,
-                modified_at: common_utils::date_time::now(),
-            },
-        }
-    }
 }

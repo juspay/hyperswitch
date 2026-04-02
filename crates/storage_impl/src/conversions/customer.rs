@@ -5,15 +5,19 @@ use common_utils::{
     errors::{CustomResult, ValidationError},
     pii,
     types::keymanager::{self, KeyManagerState, ToEncryptable},
+    id_type,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    customer::{Customer, EncryptedCustomer},
+    customer::{Customer, CustomerListConstraints, CustomerUpdate, EncryptedCustomer},
     type_encryption::{self as types, AsyncLift},
 };
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::customer::CustomerGeneralUpdate;
 use hyperswitch_masking::{PeekInterface, Secret, SwitchStrategy};
 
 use crate::behaviour::Conversion;
+use crate::transformers::ForeignFrom;
 
 #[async_trait::async_trait]
 #[cfg(feature = "v1")]
@@ -352,5 +356,176 @@ impl Conversion for Customer {
             last_modified_by: self.created_by.map(|created_by| created_by.to_string()),
             customer_id: Some(self.id),
         })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<CustomerUpdate> for diesel_models::customers::CustomerUpdateInternal {
+    fn foreign_from(from: CustomerUpdate) -> Self {
+        match from {
+            CustomerUpdate::Update(update) => {
+                let CustomerGeneralUpdate {
+                    name,
+                    email,
+                    phone,
+                    description,
+                    phone_country_code,
+                    metadata,
+                    connector_customer,
+                    default_billing_address,
+                    default_shipping_address,
+                    default_payment_method_id,
+                    status,
+                    tax_registration_id,
+                    document_details,
+                    last_modified_by,
+                } = *update;
+                Self {
+                    name: name.map(Encryption::from),
+                    email: email.map(Encryption::from),
+                    phone: phone.map(Encryption::from),
+                    description,
+                    phone_country_code,
+                    metadata,
+                    connector_customer: *connector_customer,
+                    modified_at: date_time::now(),
+                    default_billing_address: default_billing_address.map(Encryption::from),
+                    default_shipping_address: default_shipping_address.map(Encryption::from),
+                    default_payment_method_id,
+                    updated_by: None,
+                    status,
+                    tax_registration_id: tax_registration_id.map(Encryption::from),
+                    document_details: document_details.map(Encryption::from),
+                    last_modified_by,
+                }
+            }
+            CustomerUpdate::ConnectorCustomer {
+                connector_customer,
+                last_modified_by,
+            } => Self {
+                connector_customer,
+                name: None,
+                email: None,
+                phone: None,
+                description: None,
+                phone_country_code: None,
+                metadata: None,
+                modified_at: date_time::now(),
+                default_payment_method_id: None,
+                updated_by: None,
+                default_billing_address: None,
+                default_shipping_address: None,
+                status: None,
+                tax_registration_id: None,
+                document_details: None,
+                last_modified_by,
+            },
+            CustomerUpdate::UpdateDefaultPaymentMethod {
+                default_payment_method_id,
+                last_modified_by,
+            } => Self {
+                default_payment_method_id,
+                modified_at: date_time::now(),
+                name: None,
+                email: None,
+                phone: None,
+                description: None,
+                phone_country_code: None,
+                metadata: None,
+                connector_customer: None,
+                updated_by: None,
+                default_billing_address: None,
+                default_shipping_address: None,
+                status: None,
+                tax_registration_id: None,
+                document_details: None,
+                last_modified_by,
+            },
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ForeignFrom<CustomerUpdate> for diesel_models::customers::CustomerUpdateInternal {
+    fn foreign_from(from: CustomerUpdate) -> Self {
+        match from {
+            CustomerUpdate::Update {
+                name,
+                email,
+                phone,
+                description,
+                phone_country_code,
+                metadata,
+                connector_customer,
+                address_id,
+                tax_registration_id,
+                document_details,
+                last_modified_by,
+            } => Self {
+                name: name.map(Encryption::from),
+                email: email.map(Encryption::from),
+                phone: phone.map(Encryption::from),
+                description,
+                phone_country_code,
+                metadata: *metadata,
+                connector_customer: *connector_customer,
+                modified_at: date_time::now(),
+                address_id,
+                default_payment_method_id: None,
+                updated_by: None,
+                tax_registration_id: tax_registration_id.map(Encryption::from),
+                document_details: document_details.map(Encryption::from),
+                last_modified_by,
+            },
+            CustomerUpdate::ConnectorCustomer {
+                connector_customer,
+                last_modified_by,
+            } => Self {
+                connector_customer,
+                modified_at: date_time::now(),
+                name: None,
+                email: None,
+                phone: None,
+                description: None,
+                phone_country_code: None,
+                metadata: None,
+                default_payment_method_id: None,
+                updated_by: None,
+                address_id: None,
+                tax_registration_id: None,
+                document_details: None,
+                last_modified_by,
+            },
+            CustomerUpdate::UpdateDefaultPaymentMethod {
+                default_payment_method_id,
+                last_modified_by,
+            } => Self {
+                default_payment_method_id,
+                modified_at: date_time::now(),
+                name: None,
+                email: None,
+                phone: None,
+                description: None,
+                phone_country_code: None,
+                metadata: None,
+                connector_customer: None,
+                updated_by: None,
+                address_id: None,
+                tax_registration_id: None,
+                document_details: None,
+                last_modified_by,
+            },
+        }
+    }
+}
+
+impl ForeignFrom<CustomerListConstraints> for diesel_models::query::customers::CustomerListConstraints {
+    fn foreign_from(from: CustomerListConstraints) -> Self {
+        Self {
+            limit: i64::from(from.limit),
+            offset: from.offset.map(i64::from),
+            customer_id: from.customer_id,
+            time_range: from.time_range,
+        }
     }
 }

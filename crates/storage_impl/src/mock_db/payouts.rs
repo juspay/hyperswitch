@@ -10,6 +10,8 @@ use crate::{errors::StorageError, MockDb};
 #[async_trait::async_trait]
 impl PayoutsInterface for MockDb {
     type Error = StorageError;
+    type Customer = diesel_models::customers::Customer;
+    type Address = diesel_models::address::Address;
     async fn find_payout_by_merchant_id_payout_id(
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,

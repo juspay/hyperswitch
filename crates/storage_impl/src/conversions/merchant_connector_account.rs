@@ -10,12 +10,19 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    merchant_connector_account::{EncryptedMerchantConnectorAccount, MerchantConnectorAccount},
+    merchant_connector_account::{
+        EncryptedMerchantConnectorAccount, MerchantConnectorAccount, MerchantConnectorAccountUpdate,
+    },
     type_encryption::{crypto_operation, CryptoOperation},
+};
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::merchant_connector_account::{
+    MerchantConnectorAccountFeatureMetadata, RevenueRecoveryMetadata, AccountReferenceMap,
 };
 use hyperswitch_masking::{PeekInterface, Secret};
 
 use crate::behaviour::Conversion;
+use crate::transformers::ForeignFrom;
 
 #[cfg(feature = "v1")]
 #[async_trait::async_trait]
@@ -152,4 +159,201 @@ impl Conversion for MerchantConnectorAccount {
     }
 }
 
+#[cfg(feature = "v1")]
+impl ForeignFrom<MerchantConnectorAccountUpdate>
+    for diesel_models::merchant_connector_account::MerchantConnectorAccountUpdateInternal
+{
+    fn foreign_from(merchant_connector_account_update: MerchantConnectorAccountUpdate) -> Self {
+        match merchant_connector_account_update {
+            MerchantConnectorAccountUpdate::Update {
+                connector_type,
+                connector_name,
+                connector_account_details,
+                test_mode,
+                disabled,
+                merchant_connector_id,
+                payment_methods_enabled,
+                metadata,
+                frm_configs,
+                connector_webhook_details,
+                applepay_verified_domains,
+                pm_auth_config,
+                connector_label,
+                status,
+                connector_wallets_details,
+                additional_merchant_data,
+            } => Self {
+                connector_type,
+                connector_name,
+                connector_account_details: connector_account_details.map(Encryption::from),
+                test_mode,
+                disabled,
+                merchant_connector_id,
+                payment_methods_enabled,
+                metadata,
+                frm_configs: None,
+                frm_config: frm_configs,
+                modified_at: Some(date_time::now()),
+                connector_webhook_details: *connector_webhook_details,
+                applepay_verified_domains,
+                pm_auth_config: *pm_auth_config,
+                connector_label,
+                status,
+                connector_wallets_details: connector_wallets_details.map(Encryption::from),
+                additional_merchant_data: additional_merchant_data.map(Encryption::from),
+                connector_webhook_registration_details: None,
+            },
+            MerchantConnectorAccountUpdate::ConnectorWalletDetailsUpdate {
+                connector_wallets_details,
+            } => Self {
+                connector_wallets_details: Some(Encryption::from(connector_wallets_details)),
+                connector_type: None,
+                connector_name: None,
+                connector_account_details: None,
+                connector_label: None,
+                test_mode: None,
+                disabled: None,
+                merchant_connector_id: None,
+                payment_methods_enabled: None,
+                frm_configs: None,
+                metadata: None,
+                modified_at: None,
+                connector_webhook_details: None,
+                frm_config: None,
+                applepay_verified_domains: None,
+                pm_auth_config: None,
+                status: None,
+                additional_merchant_data: None,
+                connector_webhook_registration_details: None,
+            },
+            MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
+                connector_webhook_registration_details,
+            } => Self {
+                connector_type: None,
+                connector_name: None,
+                connector_account_details: None,
+                connector_label: None,
+                test_mode: None,
+                disabled: None,
+                merchant_connector_id: None,
+                payment_methods_enabled: None,
+                frm_configs: None,
+                metadata: None,
+                modified_at: None,
+                connector_webhook_details: None,
+                frm_config: None,
+                applepay_verified_domains: None,
+                pm_auth_config: None,
+                status: None,
+                connector_wallets_details: None,
+                additional_merchant_data: None,
+                connector_webhook_registration_details,
+            },
+        }
+    }
+}
 
+#[cfg(feature = "v2")]
+impl From<MerchantConnectorAccountUpdate>
+    for diesel_models::merchant_connector_account::MerchantConnectorAccountUpdateInternal
+{
+    fn from(merchant_connector_account_update: MerchantConnectorAccountUpdate) -> Self {
+        match merchant_connector_account_update {
+            MerchantConnectorAccountUpdate::Update {
+                connector_type,
+                connector_account_details,
+                disabled,
+                payment_methods_enabled,
+                metadata,
+                frm_configs,
+                connector_webhook_details,
+                applepay_verified_domains,
+                pm_auth_config,
+                connector_label,
+                status,
+                connector_wallets_details,
+                additional_merchant_data,
+                feature_metadata,
+            } => Self {
+                connector_type,
+                connector_account_details: connector_account_details.map(Encryption::from),
+                disabled,
+                payment_methods_enabled,
+                metadata,
+                frm_config: frm_configs,
+                modified_at: Some(date_time::now()),
+                connector_webhook_details: *connector_webhook_details,
+                applepay_verified_domains,
+                pm_auth_config: *pm_auth_config,
+                connector_label,
+                status,
+                connector_wallets_details: connector_wallets_details.map(Encryption::from),
+                additional_merchant_data: additional_merchant_data.map(Encryption::from),
+                feature_metadata: feature_metadata.map(From::from),
+            },
+            MerchantConnectorAccountUpdate::ConnectorWalletDetailsUpdate {
+                connector_wallets_details,
+            } => Self {
+                connector_wallets_details: Some(Encryption::from(connector_wallets_details)),
+                connector_type: None,
+                connector_account_details: None,
+                connector_label: None,
+                disabled: None,
+                payment_methods_enabled: None,
+                metadata: None,
+                modified_at: None,
+                connector_webhook_details: None,
+                frm_config: None,
+                applepay_verified_domains: None,
+                pm_auth_config: None,
+                status: None,
+                additional_merchant_data: None,
+                feature_metadata: None,
+            },
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl From<MerchantConnectorAccountFeatureMetadata>
+    for diesel_models::merchant_connector_account::MerchantConnectorAccountFeatureMetadata
+{
+    fn from(feature_metadata: MerchantConnectorAccountFeatureMetadata) -> Self {
+        let revenue_recovery = feature_metadata.revenue_recovery.map(|recovery_metadata| {
+            diesel_models::merchant_connector_account::RevenueRecoveryMetadata {
+                max_retry_count: recovery_metadata.max_retry_count,
+                billing_connector_retry_threshold: recovery_metadata.billing_connector_retry_threshold,
+                billing_account_reference: diesel_models::merchant_connector_account::BillingAccountReference(
+                    recovery_metadata.mca_reference.recovery_to_billing,
+                ),
+            }
+        });
+        Self { revenue_recovery }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl From<diesel_models::merchant_connector_account::MerchantConnectorAccountFeatureMetadata>
+    for MerchantConnectorAccountFeatureMetadata
+{
+    fn from(
+        feature_metadata: diesel_models::merchant_connector_account::MerchantConnectorAccountFeatureMetadata,
+    ) -> Self {
+        use std::collections::HashMap;
+        let revenue_recovery = feature_metadata.revenue_recovery.map(|recovery_metadata| {
+            let mut billing_to_recovery = HashMap::new();
+            for (key, value) in &recovery_metadata.billing_account_reference.0 {
+                billing_to_recovery.insert(value.to_string(), key.clone());
+            }
+            RevenueRecoveryMetadata {
+                max_retry_count: recovery_metadata.max_retry_count,
+                billing_connector_retry_threshold: recovery_metadata.billing_connector_retry_threshold,
+                mca_reference: AccountReferenceMap {
+                    recovery_to_billing: recovery_metadata.billing_account_reference.0,
+                    billing_to_recovery,
+                },
+            }
+        });
+        Self { revenue_recovery }
+    }
+}

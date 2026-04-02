@@ -20,6 +20,7 @@ use hyperswitch_domain_models::RemoteStorageObject;
 use hyperswitch_masking::{PeekInterface, Secret};
 
 use crate::behaviour::Conversion;
+use crate::transformers::ForeignFrom;
 
 #[cfg(feature = "v1")]
 #[async_trait::async_trait]
@@ -316,5 +317,323 @@ impl Conversion for PaymentIntent {
                 .installment_options
                 .map(common_types::payments::InstallmentOptions),
         })
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ForeignFrom<hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate>
+    for diesel_models::PaymentIntentUpdate
+{
+    fn foreign_from(from: hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate) -> Self {
+        use hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate;
+        use common_utils::encryption::Encryption;
+
+        match from {
+            PaymentIntentUpdate::ResponseUpdate {
+                status,
+                amount_captured,
+                fingerprint_id,
+                updated_by,
+                incremental_authorization_allowed,
+                feature_metadata,
+            } => Self::ResponseUpdate {
+                status,
+                amount_captured,
+                fingerprint_id,
+                updated_by,
+                incremental_authorization_allowed,
+                feature_metadata,
+            },
+            PaymentIntentUpdate::MetadataUpdate {
+                metadata,
+                updated_by,
+                feature_metadata,
+            } => Self::MetadataUpdate {
+                metadata,
+                updated_by,
+                feature_metadata,
+            },
+            PaymentIntentUpdate::StateMetadataUpdate {
+                state_metadata,
+                updated_by,
+            } => Self::StateMetadataUpdate {
+                state_metadata,
+                updated_by,
+            },
+            PaymentIntentUpdate::Update(value) => {
+                Self::Update(Box::new(diesel_models::PaymentIntentUpdateFields {
+                    amount: value.amount,
+                    currency: value.currency,
+                    setup_future_usage: value.setup_future_usage,
+                    status: value.status,
+                    customer_id: value.customer_id,
+                    shipping_address_id: value.shipping_address_id,
+                    billing_address_id: value.billing_address_id,
+                    return_url: value.return_url,
+                    business_country: value.business_country,
+                    business_label: value.business_label,
+                    description: value.description,
+                    statement_descriptor_name: value.statement_descriptor_name,
+                    statement_descriptor_suffix: value.statement_descriptor_suffix,
+                    order_details: value.order_details,
+                    metadata: value.metadata,
+                    payment_confirm_source: value.payment_confirm_source,
+                    updated_by: value.updated_by,
+                    session_expiry: value.session_expiry,
+                    fingerprint_id: value.fingerprint_id,
+                    request_external_three_ds_authentication: value
+                        .request_external_three_ds_authentication,
+                    frm_metadata: value.frm_metadata,
+                    customer_details: value.customer_details.map(Encryption::from),
+                    billing_details: value.billing_details.map(Encryption::from),
+                    merchant_order_reference_id: value.merchant_order_reference_id,
+                    shipping_details: value.shipping_details.map(Encryption::from),
+                    is_payment_processor_token_flow: value.is_payment_processor_token_flow,
+                    tax_details: value.tax_details,
+                    force_3ds_challenge: value.force_3ds_challenge,
+                    is_iframe_redirection_enabled: value.is_iframe_redirection_enabled,
+                    payment_channel: value.payment_channel,
+                    feature_metadata: value.feature_metadata,
+                    tax_status: value.tax_status,
+                    discount_amount: value.discount_amount,
+                    order_date: value.order_date,
+                    shipping_amount_tax: value.shipping_amount_tax,
+                    duty_amount: value.duty_amount,
+                    enable_partial_authorization: value.enable_partial_authorization,
+                    enable_overcapture: value.enable_overcapture,
+                    shipping_cost: value.shipping_cost,
+                    installment_options: value
+                        .installment_options
+                        .map(common_types::payments::InstallmentOptions),
+                }))
+            }
+            PaymentIntentUpdate::PaymentCreateUpdate {
+                return_url,
+                status,
+                customer_id,
+                shipping_address_id,
+                billing_address_id,
+                customer_details,
+                updated_by,
+            } => Self::PaymentCreateUpdate {
+                return_url,
+                status,
+                customer_id,
+                shipping_address_id,
+                billing_address_id,
+                customer_details: customer_details.map(Encryption::from),
+                updated_by,
+            },
+            PaymentIntentUpdate::MerchantStatusUpdate {
+                status,
+                shipping_address_id,
+                billing_address_id,
+                updated_by,
+            } => Self::MerchantStatusUpdate {
+                status,
+                shipping_address_id,
+                billing_address_id,
+                updated_by,
+            },
+            PaymentIntentUpdate::PGStatusUpdate {
+                status,
+                updated_by,
+                incremental_authorization_allowed,
+                feature_metadata,
+            } => Self::PGStatusUpdate {
+                status,
+                updated_by,
+                incremental_authorization_allowed,
+                feature_metadata,
+            },
+            PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
+                active_attempt_id,
+                attempt_count,
+                updated_by,
+            } => Self::PaymentAttemptAndAttemptCountUpdate {
+                active_attempt_id,
+                attempt_count,
+                updated_by,
+            },
+            PaymentIntentUpdate::StatusAndAttemptUpdate {
+                status,
+                active_attempt_id,
+                attempt_count,
+                updated_by,
+            } => Self::StatusAndAttemptUpdate {
+                status,
+                active_attempt_id,
+                attempt_count,
+                updated_by,
+            },
+            PaymentIntentUpdate::ApproveUpdate {
+                status,
+                merchant_decision,
+                updated_by,
+            } => Self::ApproveUpdate {
+                status,
+                merchant_decision,
+                updated_by,
+            },
+            PaymentIntentUpdate::RejectUpdate {
+                status,
+                merchant_decision,
+                updated_by,
+            } => Self::RejectUpdate {
+                status,
+                merchant_decision,
+                updated_by,
+            },
+            PaymentIntentUpdate::SurchargeApplicableUpdate {
+                surcharge_applicable,
+                updated_by,
+            } => Self::SurchargeApplicableUpdate {
+                surcharge_applicable: Some(surcharge_applicable),
+                updated_by,
+            },
+            PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount } => {
+                Self::IncrementalAuthorizationAmountUpdate { amount }
+            }
+            PaymentIntentUpdate::AuthorizationCountUpdate {
+                authorization_count,
+            } => Self::AuthorizationCountUpdate {
+                authorization_count,
+            },
+            PaymentIntentUpdate::CompleteAuthorizeUpdate {
+                shipping_address_id,
+            } => Self::CompleteAuthorizeUpdate {
+                shipping_address_id,
+            },
+            PaymentIntentUpdate::ManualUpdate { status, updated_by } => {
+                Self::ManualUpdate { status, updated_by }
+            }
+            PaymentIntentUpdate::SessionResponseUpdate {
+                tax_details,
+                shipping_address_id,
+                updated_by,
+                shipping_details,
+            } => Self::SessionResponseUpdate {
+                tax_details,
+                shipping_address_id,
+                updated_by,
+                shipping_details: shipping_details.map(Encryption::from),
+            },
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ForeignFrom<hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdateInternal>
+    for diesel_models::PaymentIntentUpdateInternal
+{
+    fn foreign_from(from: hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdateInternal) -> Self {
+        use common_utils::encryption::Encryption;
+
+        let modified_at = common_utils::date_time::now();
+        let hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdateInternal {
+            amount,
+            currency,
+            status,
+            amount_captured,
+            customer_id,
+            return_url,
+            setup_future_usage,
+            off_session,
+            metadata,
+            billing_address_id,
+            shipping_address_id,
+            modified_at: _,
+            active_attempt_id,
+            business_country,
+            business_label,
+            description,
+            statement_descriptor_name,
+            statement_descriptor_suffix,
+            order_details,
+            attempt_count,
+            merchant_decision,
+            payment_confirm_source,
+            updated_by,
+            surcharge_applicable,
+            incremental_authorization_allowed,
+            authorization_count,
+            session_expiry,
+            fingerprint_id,
+            request_external_three_ds_authentication,
+            frm_metadata,
+            customer_details,
+            billing_details,
+            merchant_order_reference_id,
+            shipping_details,
+            is_payment_processor_token_flow,
+            tax_details,
+            force_3ds_challenge,
+            is_iframe_redirection_enabled,
+            payment_channel,
+            feature_metadata,
+            tax_status,
+            discount_amount,
+            order_date,
+            shipping_amount_tax,
+            duty_amount,
+            enable_partial_authorization,
+            enable_overcapture,
+            shipping_cost,
+            state_metadata,
+            installment_options,
+        } = from;
+        Self {
+            amount,
+            currency,
+            status,
+            amount_captured,
+            customer_id,
+            return_url: None,
+            setup_future_usage,
+            off_session,
+            metadata,
+            billing_address_id,
+            shipping_address_id,
+            modified_at,
+            active_attempt_id,
+            business_country,
+            business_label,
+            description,
+            statement_descriptor_name,
+            statement_descriptor_suffix,
+            order_details,
+            attempt_count,
+            merchant_decision,
+            payment_confirm_source,
+            updated_by,
+            surcharge_applicable,
+            incremental_authorization_allowed,
+            authorization_count,
+            session_expiry,
+            fingerprint_id,
+            request_external_three_ds_authentication,
+            frm_metadata,
+            customer_details: customer_details.map(Encryption::from),
+            billing_details: billing_details.map(Encryption::from),
+            merchant_order_reference_id,
+            shipping_details: shipping_details.map(Encryption::from),
+            is_payment_processor_token_flow,
+            tax_details,
+            force_3ds_challenge,
+            is_iframe_redirection_enabled,
+            extended_return_url: return_url,
+            payment_channel,
+            feature_metadata,
+            tax_status,
+            discount_amount,
+            order_date,
+            shipping_amount_tax,
+            duty_amount,
+            enable_partial_authorization,
+            enable_overcapture,
+            shipping_cost,
+            state_metadata,
+            installment_options: installment_options.map(common_types::payments::InstallmentOptions),
+        }
     }
 }

@@ -7,6 +7,8 @@ pub mod unified_authentication_service;
 use api_models::payments::{
     AdditionalPaymentData, AddressDetails, ConnectorMetadata, RequestSurchargeDetails,
 };
+use common_enums as storage_enums;
+use common_types::payment_intent_types::OrderDetailsWithAmount;
 use common_types::payments as common_payments_types;
 use common_utils::{
     consts, errors,
@@ -14,7 +16,6 @@ use common_utils::{
     id_type, payout_method_utils, pii,
     types::{MinorUnit, SemanticVersion},
 };
-use diesel_models::{enums as storage_enums, types::OrderDetailsWithAmount};
 use error_stack::ResultExt;
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};

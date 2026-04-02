@@ -1,6 +1,7 @@
 pub use diesel_models::payment_method::PaymentMethod;
 
 use crate::redis::kv_store::KvStorePartition;
+use crate::transformers::ForeignFrom;
 
 impl KvStorePartition for PaymentMethod {}
 
@@ -16,7 +17,12 @@ use error_stack::ResultExt;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::{
     merchant_key_store::MerchantKeyStore,
-    payment_methods::{PaymentMethod as DomainPaymentMethod, PaymentMethodInterface},
+    payment_methods::{PaymentMethod as DomainPaymentMethod, PaymentMethodInterface, StoragePaymentMethodUpdate as DomainStoragePaymentMethodUpdate},
+};
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::{
+    merchant_key_store::MerchantKeyStore,
+    payment_methods::{PaymentMethod as DomainPaymentMethod, PaymentMethodInterface, StoragePaymentMethodUpdate},
 };
 
 use crate::behaviour::{Conversion, ReverseConversion};
@@ -204,7 +210,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         &self,
         key_store: &MerchantKeyStore,
         payment_method: DomainPaymentMethod,
-        payment_method_update: PaymentMethodUpdate,
+        payment_method_update: DomainStoragePaymentMethodUpdate,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let payment_method = Conversion::convert(payment_method)
@@ -219,8 +225,9 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         };
         let conn = pg_connection_write(self).await?;
         let field = format!("payment_method_id_{}", payment_method.get_id().clone());
+        let diesel_update = PaymentMethodUpdate::foreign_from(payment_method_update);
         let p_update: PaymentMethodUpdateInternal =
-            payment_method_update.convert_to_payment_method_update(storage_scheme);
+            diesel_update.convert_to_payment_method_update(storage_scheme);
         let updated_payment_method = p_update.clone().apply_changeset(payment_method.clone());
         Box::pin(
             self.update_resource(
@@ -254,7 +261,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         &self,
         key_store: &MerchantKeyStore,
         payment_method: DomainPaymentMethod,
-        payment_method_update: PaymentMethodUpdate,
+        payment_method_update: StoragePaymentMethodUpdate,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         self.router_store
@@ -552,7 +559,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         &self,
         key_store: &MerchantKeyStore,
         payment_method: DomainPaymentMethod,
-        payment_method_update: PaymentMethodUpdate,
+        payment_method_update: DomainStoragePaymentMethodUpdate,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let payment_method = Conversion::convert(payment_method)
@@ -560,9 +567,10 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
             .change_context(errors::StorageError::DecryptionError)?;
 
         let conn = pg_connection_write(self).await?;
+        let diesel_update = PaymentMethodUpdate::foreign_from(payment_method_update);
         self.call_database(
             key_store,
-            payment_method.update_with_payment_method_id(&conn, payment_method_update.into()),
+            payment_method.update_with_payment_method_id(&conn, diesel_update.into()),
         )
         .await
     }
@@ -573,7 +581,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         &self,
         key_store: &MerchantKeyStore,
         payment_method: DomainPaymentMethod,
-        payment_method_update: PaymentMethodUpdate,
+        payment_method_update: StoragePaymentMethodUpdate,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let payment_method = Conversion::convert(payment_method)
@@ -1001,11 +1009,37 @@ impl PaymentMethodInterface for MockDb {
         }
     }
 
+    #[cfg(feature = "v1")]
     async fn update_payment_method(
         &self,
         key_store: &MerchantKeyStore,
         payment_method: DomainPaymentMethod,
-        payment_method_update: PaymentMethodUpdate,
+        payment_method_update: DomainStoragePaymentMethodUpdate,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
+        let diesel_update = PaymentMethodUpdate::foreign_from(payment_method_update);
+        let payment_method_updated = PaymentMethodUpdateInternal::from(diesel_update)
+            .apply_changeset(
+                Conversion::convert(payment_method.clone())
+                    .await
+                    .change_context(errors::StorageError::EncryptionError)?,
+            );
+        self.update_resource::<PaymentMethod, _>(
+            key_store,
+            self.payment_methods.lock().await,
+            payment_method_updated,
+            |pm| pm.get_id() == payment_method.get_id(),
+            "cannot update payment method".to_string(),
+        )
+        .await
+    }
+
+    #[cfg(feature = "v2")]
+    async fn update_payment_method(
+        &self,
+        key_store: &MerchantKeyStore,
+        payment_method: DomainPaymentMethod,
+        payment_method_update: StoragePaymentMethodUpdate,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let payment_method_updated = PaymentMethodUpdateInternal::from(payment_method_update)

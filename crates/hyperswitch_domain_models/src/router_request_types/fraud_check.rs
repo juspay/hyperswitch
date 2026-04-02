@@ -1,8 +1,8 @@
+use common_types::payment_intent_types::OrderDetailsWithAmount;
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},
     pii::Email,
 };
-use diesel_models::types::OrderDetailsWithAmount;
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;

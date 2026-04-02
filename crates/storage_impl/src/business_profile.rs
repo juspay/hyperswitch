@@ -9,6 +9,7 @@ use hyperswitch_domain_models::{
 use router_env::{instrument, tracing};
 
 use crate::behaviour::{Conversion, ReverseConversion};
+use crate::transformers::ForeignFrom;
 use crate::{
     kv_router_store,
     utils::{pg_accounts_connection_read, pg_accounts_connection_write},
@@ -195,7 +196,7 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
         Conversion::convert(current_state)
             .await
             .change_context(StorageError::EncryptionError)?
-            .update_by_profile_id(&conn, ProfileUpdateInternal::from(profile_update))
+            .update_by_profile_id(&conn, ProfileUpdateInternal::foreign_from(profile_update))
             .await
             .map_err(|error| report!(StorageError::from(error)))?
             .convert(
@@ -343,7 +344,7 @@ impl ProfileInterface for MockDb {
             .iter_mut()
             .find(|business_profile| business_profile.get_id() == current_state.get_id())
             .async_map(|business_profile| async {
-                let profile_updated = ProfileUpdateInternal::from(profile_update).apply_changeset(
+                let profile_updated = ProfileUpdateInternal::foreign_from(profile_update).apply_changeset(
                     Conversion::convert(current_state)
                         .await
                         .change_context(StorageError::EncryptionError)?,

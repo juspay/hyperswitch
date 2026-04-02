@@ -10,6 +10,7 @@ use hyperswitch_domain_models::{
 };
 
 use crate::behaviour::Conversion;
+use crate::DataModelExt;
 
 use super::MockDb;
 use crate::errors::StorageError;

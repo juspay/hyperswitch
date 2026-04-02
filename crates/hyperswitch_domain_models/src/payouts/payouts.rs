@@ -11,6 +11,9 @@ use super::PayoutFetchConstraints;
 #[async_trait::async_trait]
 pub trait PayoutsInterface {
     type Error;
+    type Customer;
+    type Address;
+
     async fn insert_payout(
         &self,
         _payout: PayoutsNew,
@@ -57,8 +60,8 @@ pub trait PayoutsInterface {
         Vec<(
             Payouts,
             PayoutAttempt,
-            Option<diesel_models::Customer>,
-            Option<diesel_models::Address>,
+            Option<Self::Customer>,
+            Option<Self::Address>,
         )>,
         Self::Error,
     >;

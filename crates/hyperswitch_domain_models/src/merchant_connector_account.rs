@@ -10,16 +10,7 @@ use common_utils::{
     id_type, pii, type_name,
     types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
 };
-#[cfg(feature = "v2")]
-use diesel_models::merchant_connector_account::{
-    BillingAccountReference as DieselBillingAccountReference,
-    MerchantConnectorAccountFeatureMetadata as DieselMerchantConnectorAccountFeatureMetadata,
-    RevenueRecoveryMetadata as DieselRevenueRecoveryMetadata,
-};
-use diesel_models::{
-    enums,
-    merchant_connector_account::{self as storage, MerchantConnectorAccountUpdateInternal},
-};
+use common_enums as enums;
 use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, Secret};
 use rustc_hash::FxHashMap;
@@ -524,157 +515,6 @@ pub enum MerchantConnectorAccountUpdate {
     },
 }
 
-#[cfg(feature = "v1")]
-impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInternal {
-    fn from(merchant_connector_account_update: MerchantConnectorAccountUpdate) -> Self {
-        match merchant_connector_account_update {
-            MerchantConnectorAccountUpdate::Update {
-                connector_type,
-                connector_name,
-                connector_account_details,
-                test_mode,
-                disabled,
-                merchant_connector_id,
-                payment_methods_enabled,
-                metadata,
-                frm_configs,
-                connector_webhook_details,
-                applepay_verified_domains,
-                pm_auth_config,
-                connector_label,
-                status,
-                connector_wallets_details,
-                additional_merchant_data,
-            } => Self {
-                connector_type,
-                connector_name,
-                connector_account_details: connector_account_details.map(Encryption::from),
-                test_mode,
-                disabled,
-                merchant_connector_id,
-                payment_methods_enabled,
-                metadata,
-                frm_configs: None,
-                frm_config: frm_configs,
-                modified_at: Some(date_time::now()),
-                connector_webhook_details: *connector_webhook_details,
-                applepay_verified_domains,
-                pm_auth_config: *pm_auth_config,
-                connector_label,
-                status,
-                connector_wallets_details: connector_wallets_details.map(Encryption::from),
-                additional_merchant_data: additional_merchant_data.map(Encryption::from),
-                connector_webhook_registration_details: None,
-            },
-            MerchantConnectorAccountUpdate::ConnectorWalletDetailsUpdate {
-                connector_wallets_details,
-            } => Self {
-                connector_wallets_details: Some(Encryption::from(connector_wallets_details)),
-                connector_type: None,
-                connector_name: None,
-                connector_account_details: None,
-                connector_label: None,
-                test_mode: None,
-                disabled: None,
-                merchant_connector_id: None,
-                payment_methods_enabled: None,
-                frm_configs: None,
-                metadata: None,
-                modified_at: None,
-                connector_webhook_details: None,
-                frm_config: None,
-                applepay_verified_domains: None,
-                pm_auth_config: None,
-                status: None,
-                additional_merchant_data: None,
-                connector_webhook_registration_details: None,
-            },
-            MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
-                connector_webhook_registration_details,
-            } => Self {
-                connector_type: None,
-                connector_name: None,
-                connector_account_details: None,
-                connector_label: None,
-                test_mode: None,
-                disabled: None,
-                merchant_connector_id: None,
-                payment_methods_enabled: None,
-                frm_configs: None,
-                metadata: None,
-                modified_at: None,
-                connector_webhook_details: None,
-                frm_config: None,
-                applepay_verified_domains: None,
-                pm_auth_config: None,
-                status: None,
-                connector_wallets_details: None,
-                additional_merchant_data: None,
-                connector_webhook_registration_details,
-            },
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
-impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInternal {
-    fn from(merchant_connector_account_update: MerchantConnectorAccountUpdate) -> Self {
-        match merchant_connector_account_update {
-            MerchantConnectorAccountUpdate::Update {
-                connector_type,
-                connector_account_details,
-                disabled,
-                payment_methods_enabled,
-                metadata,
-                frm_configs,
-                connector_webhook_details,
-                applepay_verified_domains,
-                pm_auth_config,
-                connector_label,
-                status,
-                connector_wallets_details,
-                additional_merchant_data,
-                feature_metadata,
-            } => Self {
-                connector_type,
-                connector_account_details: connector_account_details.map(Encryption::from),
-                disabled,
-                payment_methods_enabled,
-                metadata,
-                frm_config: frm_configs,
-                modified_at: Some(date_time::now()),
-                connector_webhook_details: *connector_webhook_details,
-                applepay_verified_domains,
-                pm_auth_config: *pm_auth_config,
-                connector_label,
-                status,
-                connector_wallets_details: connector_wallets_details.map(Encryption::from),
-                additional_merchant_data: additional_merchant_data.map(Encryption::from),
-                feature_metadata: feature_metadata.map(From::from),
-            },
-            MerchantConnectorAccountUpdate::ConnectorWalletDetailsUpdate {
-                connector_wallets_details,
-            } => Self {
-                connector_wallets_details: Some(Encryption::from(connector_wallets_details)),
-                connector_type: None,
-                connector_account_details: None,
-                connector_label: None,
-                disabled: None,
-                payment_methods_enabled: None,
-                metadata: None,
-                modified_at: None,
-                connector_webhook_details: None,
-                frm_config: None,
-                applepay_verified_domains: None,
-                pm_auth_config: None,
-                status: None,
-                additional_merchant_data: None,
-                feature_metadata: None,
-            },
-        }
-    }
-}
-
 common_utils::create_list_wrapper!(
     MerchantConnectorAccounts,
     MerchantConnectorAccount,
@@ -876,7 +716,7 @@ pub trait MerchantConnectorAccountInterface
     async fn update_merchant_connector_account(
         &self,
         this: MerchantConnectorAccount,
-        merchant_connector_account: MerchantConnectorAccountUpdateInternal,
+        merchant_connector_account: MerchantConnectorAccountUpdate,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<MerchantConnectorAccount, Self::Error>;
 
@@ -884,7 +724,7 @@ pub trait MerchantConnectorAccountInterface
         &self,
         this: Vec<(
             MerchantConnectorAccount,
-            MerchantConnectorAccountUpdateInternal,
+            MerchantConnectorAccountUpdate,
         )>,
     ) -> CustomResult<(), Self::Error>;
 

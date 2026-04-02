@@ -55,6 +55,15 @@ where
     }
 }
 
+impl<F, T> ForeignFrom<Option<F>> for Option<T>
+where
+    T: ForeignFrom<F>,
+{
+    fn foreign_from(from: Option<F>) -> Self {
+        from.map(|v| T::foreign_from(v))
+    }
+}
+
 /// Extension trait for ForeignTryFrom
 pub trait ForeignTryInto<T> {
     type Error;

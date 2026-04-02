@@ -58,6 +58,7 @@ use crate::{
     utils::{self, pg_connection_read, pg_connection_write},
     DatabaseStore,
 };
+use crate::transformers::ForeignFrom;
 #[cfg(feature = "v2")]
 use crate::{errors, lookup::ReverseLookupInterface};
 
@@ -274,7 +275,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             MerchantStorageScheme::RedisKv => {
                 let key_str = key.to_string();
 
-                let diesel_intent_update = DieselPaymentIntentUpdate::from(payment_intent_update);
+                let diesel_intent_update = DieselPaymentIntentUpdate::foreign_from(payment_intent_update);
                 let origin_diesel_intent = this
                     .convert()
                     .await
@@ -760,7 +761,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let conn = pg_connection_write(self).await?;
-        let diesel_payment_intent_update = DieselPaymentIntentUpdate::from(payment_intent);
+        let diesel_payment_intent_update = DieselPaymentIntentUpdate::foreign_from(payment_intent);
 
         let diesel_payment_intent = this
             .convert()

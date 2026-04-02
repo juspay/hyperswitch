@@ -56,6 +56,8 @@ use crate::{
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
     type Error = StorageError;
+    type Customer = diesel_models::customers::Customer;
+    type Address = diesel_models::address::Address;
     #[instrument(skip_all)]
     async fn insert_payout(
         &self,
@@ -319,7 +321,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
             .await
     }
 
-    #[cfg(feature = "olap")]
+    #[cfg(all(feature = "olap", feature = "v1"))]
     #[instrument(skip_all)]
     async fn filter_payouts_and_attempts(
         &self,
@@ -337,6 +339,27 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
     > {
         self.router_store
             .filter_payouts_and_attempts(merchant_id, filters, storage_scheme)
+            .await
+    }
+
+    #[cfg(all(feature = "olap", feature = "v2"))]
+    #[instrument(skip_all)]
+    async fn filter_payouts_and_attempts_v2(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        filters: &PayoutFetchConstraints,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<
+        Vec<(
+            Payouts,
+            PayoutAttempt,
+            Option<DieselCustomer>,
+            Option<DieselAddress>,
+        )>,
+        StorageError,
+    > {
+        self.router_store
+            .filter_payouts_and_attempts_v2(merchant_id, filters, storage_scheme)
             .await
     }
 
@@ -402,6 +425,8 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
     type Error = StorageError;
+    type Customer = diesel_models::customers::Customer;
+    type Address = diesel_models::address::Address;
     #[instrument(skip_all)]
     async fn insert_payout(
         &self,
@@ -745,7 +770,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
 
     #[cfg(all(feature = "olap", feature = "v2"))]
     #[instrument(skip_all)]
-    async fn filter_payouts_and_attempts(
+    async fn filter_payouts_and_attempts_v2(
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
         _filters: &PayoutFetchConstraints,

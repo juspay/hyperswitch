@@ -2450,12 +2450,19 @@ impl PayoutAttemptInterface for KafkaStore {
 }
 
 #[cfg(not(feature = "payouts"))]
-impl PayoutsInterface for KafkaStore {}
+#[cfg(not(feature = "payouts"))]
+impl PayoutsInterface for KafkaStore {
+    type Error = errors::StorageError;
+    type Customer = diesel_models::Customer;
+    type Address = diesel_models::Address;
+}
 
 #[cfg(feature = "payouts")]
 #[async_trait::async_trait]
 impl PayoutsInterface for KafkaStore {
     type Error = errors::StorageError;
+    type Customer = diesel_models::Customer;
+    type Address = diesel_models::Address;
     async fn find_payout_by_merchant_id_payout_id(
         &self,
         merchant_id: &id_type::MerchantId,

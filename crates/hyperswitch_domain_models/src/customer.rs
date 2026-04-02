@@ -13,9 +13,7 @@ use common_utils::{
         CreatedBy, Description,
     },
 };
-use diesel_models::{
-    customers as storage_types, customers::CustomerUpdateInternal, query::customers as query,
-};
+
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy};
 use router_env::{instrument, tracing};
@@ -185,92 +183,6 @@ pub enum CustomerUpdate {
     },
 }
 
-#[cfg(feature = "v2")]
-impl From<CustomerUpdate> for CustomerUpdateInternal {
-    fn from(customer_update: CustomerUpdate) -> Self {
-        match customer_update {
-            CustomerUpdate::Update(update) => {
-                let CustomerGeneralUpdate {
-                    name,
-                    email,
-                    phone,
-                    description,
-                    phone_country_code,
-                    metadata,
-                    connector_customer,
-                    default_billing_address,
-                    default_shipping_address,
-                    default_payment_method_id,
-                    status,
-                    tax_registration_id,
-                    document_details,
-                    last_modified_by,
-                } = *update;
-                Self {
-                    name: name.map(Encryption::from),
-                    email: email.map(Encryption::from),
-                    phone: phone.map(Encryption::from),
-                    description,
-                    phone_country_code,
-                    metadata,
-                    connector_customer: *connector_customer,
-                    modified_at: date_time::now(),
-                    default_billing_address: default_billing_address.map(Encryption::from),
-                    default_shipping_address: default_shipping_address.map(Encryption::from),
-                    default_payment_method_id,
-                    updated_by: None,
-                    status,
-                    tax_registration_id: tax_registration_id.map(Encryption::from),
-                    document_details: document_details.map(Encryption::from),
-                    last_modified_by,
-                }
-            }
-            CustomerUpdate::ConnectorCustomer {
-                connector_customer,
-                last_modified_by,
-            } => Self {
-                connector_customer,
-                name: None,
-                email: None,
-                phone: None,
-                description: None,
-                phone_country_code: None,
-                metadata: None,
-                modified_at: date_time::now(),
-                default_payment_method_id: None,
-                updated_by: None,
-                default_billing_address: None,
-                default_shipping_address: None,
-                status: None,
-                tax_registration_id: None,
-                document_details: None,
-                last_modified_by,
-            },
-            CustomerUpdate::UpdateDefaultPaymentMethod {
-                default_payment_method_id,
-                last_modified_by,
-            } => Self {
-                default_payment_method_id,
-                modified_at: date_time::now(),
-                name: None,
-                email: None,
-                phone: None,
-                description: None,
-                phone_country_code: None,
-                metadata: None,
-                connector_customer: None,
-                updated_by: None,
-                default_billing_address: None,
-                default_shipping_address: None,
-                status: None,
-                tax_registration_id: None,
-                document_details: None,
-                last_modified_by,
-            },
-        }
-    }
-}
-
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug)]
 pub enum CustomerUpdate {
@@ -297,96 +209,11 @@ pub enum CustomerUpdate {
     },
 }
 
-#[cfg(feature = "v1")]
-impl From<CustomerUpdate> for CustomerUpdateInternal {
-    fn from(customer_update: CustomerUpdate) -> Self {
-        match customer_update {
-            CustomerUpdate::Update {
-                name,
-                email,
-                phone,
-                description,
-                phone_country_code,
-                metadata,
-                connector_customer,
-                address_id,
-                tax_registration_id,
-                document_details,
-                last_modified_by,
-            } => Self {
-                name: name.map(Encryption::from),
-                email: email.map(Encryption::from),
-                phone: phone.map(Encryption::from),
-                description,
-                phone_country_code,
-                metadata: *metadata,
-                connector_customer: *connector_customer,
-                modified_at: date_time::now(),
-                address_id,
-                default_payment_method_id: None,
-                updated_by: None,
-                tax_registration_id: tax_registration_id.map(Encryption::from),
-                document_details: document_details.map(Encryption::from),
-                last_modified_by,
-            },
-            CustomerUpdate::ConnectorCustomer {
-                connector_customer,
-                last_modified_by,
-            } => Self {
-                connector_customer,
-                modified_at: date_time::now(),
-                name: None,
-                email: None,
-                phone: None,
-                description: None,
-                phone_country_code: None,
-                metadata: None,
-                default_payment_method_id: None,
-                updated_by: None,
-                address_id: None,
-                tax_registration_id: None,
-                document_details: None,
-                last_modified_by,
-            },
-            CustomerUpdate::UpdateDefaultPaymentMethod {
-                default_payment_method_id,
-                last_modified_by,
-            } => Self {
-                default_payment_method_id,
-                modified_at: date_time::now(),
-                name: None,
-                email: None,
-                phone: None,
-                description: None,
-                phone_country_code: None,
-                metadata: None,
-                connector_customer: None,
-                updated_by: None,
-                address_id: None,
-                tax_registration_id: None,
-                document_details: None,
-                last_modified_by,
-            },
-        }
-    }
-}
-
 pub struct CustomerListConstraints {
     pub limit: u16,
     pub offset: Option<u32>,
     pub customer_id: Option<id_type::CustomerId>,
     pub time_range: Option<common_utils::types::TimeRange>,
-}
-
-impl From<CustomerListConstraints> for query::CustomerListConstraints {
-    fn from(value: CustomerListConstraints) -> Self {
-        Self {
-            limit: i64::from(value.limit),
-            offset: value.offset.map(i64::from),
-            customer_id: value.customer_id,
-            time_range: value.time_range,
-        }
-    }
 }
 
 #[async_trait::async_trait]

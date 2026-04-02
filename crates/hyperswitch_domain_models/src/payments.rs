@@ -23,7 +23,7 @@ use common_utils::{
     id_type, pii,
     types::{keymanager::ToEncryptable, CreatedBy, MinorUnit},
 };
-use diesel_models::payment_intent::TaxDetails;
+use common_types::payment_intent_types::{DefaultTax, TaxDetails};
 use error_stack::Report;
 #[cfg(feature = "v2")]
 use error_stack::ResultExt;
@@ -45,7 +45,7 @@ use api_models::{
 };
 use common_enums as storage_enums;
 #[cfg(feature = "v2")]
-use diesel_models::types::{FeatureMetadata, OrderDetailsWithAmount};
+use common_types::{payment_intent_types::OrderDetailsWithAmount, storage_types::FeatureMetadata};
 #[cfg(feature = "v1")]
 use error_stack::ResultExt;
 use hyperswitch_masking::ExposeInterface;
@@ -716,7 +716,7 @@ impl AmountDetails {
             tax_details: req
                 .order_tax_amount()
                 .map(|order_tax_amount| TaxDetails {
-                    default: Some(diesel_models::DefaultTax { order_tax_amount }),
+                    default: Some(DefaultTax { order_tax_amount }),
                     payment_method_type: None,
                 })
                 .or(self.tax_details),
@@ -1063,7 +1063,7 @@ impl PaymentIntent {
 
     pub fn get_revenue_recovery_metadata(
         &self,
-    ) -> Option<diesel_models::types::PaymentRevenueRecoveryMetadata> {
+    ) -> Option<common_types::storage_types::PaymentRevenueRecoveryMetadata> {
         self.feature_metadata
             .as_ref()
             .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.clone())
@@ -1449,8 +1449,8 @@ where
             );
 
         let billing_connector_payment_method_details = Some(
-            diesel_models::types::BillingConnectorPaymentMethodDetails::Card(
-                diesel_models::types::BillingConnectorAdditionalCardInfo {
+            common_types::storage_types::BillingConnectorPaymentMethodDetails::Card(
+                common_types::storage_types::BillingConnectorAdditionalCardInfo {
                     card_network: self.revenue_recovery_data.card_network.clone(),
                     card_issuer: self.revenue_recovery_data.card_issuer.clone(),
                 },
@@ -1458,7 +1458,7 @@ where
         );
 
         let payment_revenue_recovery_metadata = match payment_attempt_connector {
-            Some(connector) => Some(diesel_models::types::PaymentRevenueRecoveryMetadata {
+            Some(connector) => Some(common_types::storage_types::PaymentRevenueRecoveryMetadata {
                 // Update retry count by one.
                 total_retry_count: revenue_recovery.as_ref().map_or(
                     self.revenue_recovery_data.retry_count.unwrap_or(1),
@@ -1472,7 +1472,7 @@ where
                     .payment_attempt
                     .get_attempt_merchant_connector_account_id()?,
                 billing_connector_payment_details:
-                    diesel_models::types::BillingConnectorPaymentDetails {
+                    common_types::storage_types::BillingConnectorPaymentDetails {
                         payment_processor_token: self
                             .revenue_recovery_data
                             .processor_payment_method_token

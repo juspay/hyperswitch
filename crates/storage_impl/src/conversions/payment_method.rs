@@ -8,12 +8,13 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_methods::{PaymentMethod, PaymentMethodVaultSourceDetails},
+    payment_methods::{PaymentMethod, PaymentMethodVaultSourceDetails, StoragePaymentMethodUpdate},
     type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
 };
 use hyperswitch_masking::{PeekInterface, Secret};
 
 use crate::behaviour::Conversion;
+use crate::transformers::ForeignFrom;
 
 #[cfg(feature = "v1")]
 #[async_trait::async_trait]
@@ -286,5 +287,132 @@ impl Conversion for PaymentMethod {
             locker_fingerprint_id: self.locker_fingerprint_id,
             network_tokenization_data: self.network_tokenization_data.map(|val| val.into()),
         })
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ForeignFrom<StoragePaymentMethodUpdate> for diesel_models::PaymentMethodUpdate {
+    fn foreign_from(update: StoragePaymentMethodUpdate) -> Self {
+        match update {
+            StoragePaymentMethodUpdate::MetadataUpdateAndLastUsed {
+                metadata,
+                last_used_at,
+                last_modified_by,
+            } => Self::MetadataUpdateAndLastUsed {
+                metadata,
+                last_used_at,
+                last_modified_by,
+            },
+            StoragePaymentMethodUpdate::UpdatePaymentMethodDataAndLastUsed {
+                payment_method_data,
+                scheme,
+                last_used_at,
+                last_modified_by,
+            } => Self::UpdatePaymentMethodDataAndLastUsed {
+                payment_method_data,
+                scheme,
+                last_used_at,
+                last_modified_by,
+            },
+            StoragePaymentMethodUpdate::PaymentMethodDataUpdate {
+                payment_method_data,
+                last_modified_by,
+            } => Self::PaymentMethodDataUpdate {
+                payment_method_data,
+                last_modified_by,
+            },
+            StoragePaymentMethodUpdate::LastUsedUpdate { last_used_at } => {
+                Self::LastUsedUpdate { last_used_at }
+            }
+            StoragePaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
+                network_transaction_id,
+                status,
+                last_modified_by,
+            } => Self::NetworkTransactionIdAndStatusUpdate {
+                network_transaction_id,
+                status,
+                last_modified_by,
+            },
+            StoragePaymentMethodUpdate::StatusUpdate {
+                status,
+                last_modified_by,
+            } => Self::StatusUpdate {
+                status,
+                last_modified_by,
+            },
+            StoragePaymentMethodUpdate::AdditionalDataUpdate {
+                payment_method_data,
+                status,
+                locker_id,
+                payment_method,
+                payment_method_type,
+                payment_method_issuer,
+                network_token_requestor_reference_id,
+                network_token_locker_id,
+                network_token_payment_method_data,
+                last_modified_by,
+                metadata,
+                last_used_at,
+                connector_mandate_details,
+                network_tokenization_data,
+            } => Self::AdditionalDataUpdate {
+                payment_method_data,
+                status,
+                locker_id,
+                payment_method,
+                payment_method_type,
+                payment_method_issuer,
+                network_token_requestor_reference_id,
+                network_token_locker_id,
+                network_token_payment_method_data,
+                last_modified_by,
+                metadata,
+                last_used_at,
+                connector_mandate_details,
+                network_tokenization_data,
+            },
+            StoragePaymentMethodUpdate::ConnectorMandateDetailsUpdate {
+                connector_mandate_details,
+                last_modified_by,
+            } => Self::ConnectorMandateDetailsUpdate {
+                connector_mandate_details,
+                last_modified_by,
+            },
+            StoragePaymentMethodUpdate::NetworkTokenDataUpdate {
+                network_token_requestor_reference_id,
+                network_token_locker_id,
+                network_token_payment_method_data,
+                network_tokenization_data,
+                last_modified_by,
+            } => Self::NetworkTokenDataUpdate {
+                network_token_requestor_reference_id,
+                network_token_locker_id,
+                network_token_payment_method_data,
+                network_tokenization_data,
+                last_modified_by,
+            },
+            StoragePaymentMethodUpdate::ConnectorNetworkTransactionIdAndMandateDetailsUpdate {
+                connector_mandate_details,
+                network_transaction_id,
+                last_modified_by,
+            } => Self::ConnectorNetworkTransactionIdAndMandateDetailsUpdate {
+                connector_mandate_details,
+                network_transaction_id,
+                last_modified_by,
+            },
+            StoragePaymentMethodUpdate::PaymentMethodBatchUpdate {
+                connector_mandate_details,
+                network_transaction_id,
+                status,
+                payment_method_data,
+                last_modified_by,
+            } => Self::PaymentMethodBatchUpdate {
+                connector_mandate_details,
+                network_transaction_id,
+                status,
+                payment_method_data,
+                last_modified_by,
+            },
+        }
     }
 }

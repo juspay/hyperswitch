@@ -17,78 +17,11 @@ use crate::schema::payment_attempt;
 #[cfg(feature = "v2")]
 use crate::{schema_v2::payment_attempt, RequiredFromNullable};
 
-common_utils::impl_to_sql_from_sql_json!(ConnectorMandateReferenceId);
-#[derive(
-    Clone, Debug, serde::Deserialize, serde::Serialize, Eq, PartialEq, diesel::AsExpression,
-)]
-#[diesel(sql_type = diesel::sql_types::Jsonb)]
-pub struct ConnectorMandateReferenceId {
-    pub connector_mandate_id: Option<String>,
-    pub payment_method_id: Option<String>,
-    pub mandate_metadata: Option<pii::SecretSerdeValue>,
-    pub connector_mandate_request_reference_id: Option<String>,
-}
-
-impl ConnectorMandateReferenceId {
-    pub fn get_connector_mandate_request_reference_id(&self) -> Option<String> {
-        self.connector_mandate_request_reference_id.clone()
-    }
-
-    pub fn is_connector_mandate_id_present(&self) -> bool {
-        self.connector_mandate_id.is_some()
-    }
-}
-common_utils::impl_to_sql_from_sql_json!(NetworkDetails);
-#[derive(
-    Clone, Default, Debug, serde::Deserialize, Eq, PartialEq, serde::Serialize, diesel::AsExpression,
-)]
-#[diesel(sql_type = diesel::sql_types::Jsonb)]
-pub struct NetworkDetails {
-    pub network_advice_code: Option<String>,
-}
-
-// ErrorDetails nested structs for V1 payment_attempt
-common_utils::impl_to_sql_from_sql_json!(ErrorDetails);
-#[derive(
-    Clone, Default, Debug, serde::Deserialize, Eq, PartialEq, serde::Serialize, diesel::AsExpression,
-)]
-#[diesel(sql_type = diesel::sql_types::Jsonb)]
-pub struct ErrorDetails {
-    pub unified_details: Option<UnifiedErrorDetails>,
-    pub issuer_details: Option<IssuerErrorDetails>,
-    pub connector_details: Option<ConnectorErrorDetails>,
-}
-
-#[derive(Clone, Default, Debug, serde::Deserialize, Eq, PartialEq, serde::Serialize)]
-pub struct UnifiedErrorDetails {
-    pub category: Option<String>,
-    pub message: Option<String>,
-    pub standardised_code: Option<storage_enums::StandardisedCode>,
-    pub description: Option<String>,
-    pub user_guidance_message: Option<String>,
-    pub recommended_action: Option<storage_enums::RecommendedAction>,
-}
-
-#[derive(Clone, Default, Debug, serde::Deserialize, Eq, PartialEq, serde::Serialize)]
-pub struct IssuerErrorDetails {
-    pub code: Option<String>,
-    pub message: Option<String>,
-    pub network_details: Option<NetworkErrorDetails>,
-}
-
-#[derive(Clone, Default, Debug, serde::Deserialize, Eq, PartialEq, serde::Serialize)]
-pub struct NetworkErrorDetails {
-    pub name: Option<storage_enums::CardNetwork>,
-    pub advice_code: Option<String>,
-    pub advice_message: Option<String>,
-}
-
-#[derive(Clone, Default, Debug, serde::Deserialize, Eq, PartialEq, serde::Serialize)]
-pub struct ConnectorErrorDetails {
-    pub code: Option<String>,
-    pub message: Option<String>,
-    pub reason: Option<String>,
-}
+// Re-export types that have been moved to common_types
+pub use common_types::payment_attempt_types::{
+    ConnectorErrorDetails, ConnectorMandateReferenceId, ErrorDetails, IssuerErrorDetails,
+    NetworkDetails, NetworkErrorDetails, UnifiedErrorDetails,
+};
 
 #[cfg(feature = "v2")]
 #[derive(
@@ -4549,71 +4482,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
     }
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, diesel::AsExpression)]
-#[diesel(sql_type = diesel::sql_types::Jsonb)]
-pub enum RedirectForm {
-    Form {
-        endpoint: String,
-        method: common_utils::request::Method,
-        form_fields: std::collections::HashMap<String, String>,
-    },
-    Html {
-        html_data: String,
-    },
-    BarclaycardAuthSetup {
-        access_token: String,
-        ddc_url: String,
-        reference_id: String,
-    },
-    BarclaycardConsumerAuth {
-        access_token: String,
-        step_up_url: String,
-    },
-    BlueSnap {
-        payment_fields_token: String,
-    },
-    CybersourceAuthSetup {
-        access_token: String,
-        ddc_url: String,
-        reference_id: String,
-    },
-    CybersourceConsumerAuth {
-        access_token: String,
-        step_up_url: String,
-    },
-    DeutschebankThreeDSChallengeFlow {
-        acs_url: String,
-        creq: String,
-    },
-    Payme,
-    Braintree {
-        client_token: String,
-        card_token: String,
-        bin: String,
-        acs_url: String,
-    },
-    Nmi {
-        amount: String,
-        currency: common_enums::Currency,
-        public_key: hyperswitch_masking::Secret<String>,
-        customer_vault_id: String,
-        order_id: String,
-    },
-    Mifinity {
-        initialization_token: String,
-    },
-    WorldpayDDCForm {
-        endpoint: common_utils::types::Url,
-        method: common_utils::request::Method,
-        form_fields: std::collections::HashMap<String, String>,
-        collection_id: Option<String>,
-    },
-    WorldpayxmlRedirectForm {
-        jwt: String,
-    },
-}
-
-common_utils::impl_to_sql_from_sql_json!(RedirectForm);
+pub use common_types::payment_attempt_types::RedirectForm;
 
 #[cfg(feature = "v2")]
 #[derive(

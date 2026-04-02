@@ -68,12 +68,13 @@ use api_models::payments::{
     BillingConnectorPaymentMethodDetails as ApiBillingConnectorPaymentMethodDetails,
     PaymentRevenueRecoveryMetadata as ApiRevenueRecoveryMetadata,
 };
-use diesel_models::types::{
+use common_types::storage_types::{
     ApplePayRecurringDetails, ApplePayRegularBillingDetails, FeatureMetadata,
-    OrderDetailsWithAmount, RecurringPaymentIntervalUnit, RedirectResponse,
+    RecurringPaymentIntervalUnit, RedirectResponse,
 };
+use common_types::payment_intent_types::OrderDetailsWithAmount;
 #[cfg(feature = "v2")]
-use diesel_models::types::{
+use common_types::storage_types::{
     BillingConnectorAdditionalCardInfo, BillingConnectorPaymentDetails,
     BillingConnectorPaymentMethodDetails, PaymentRevenueRecoveryMetadata,
 };
@@ -130,9 +131,9 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
                 .map(ApplePayRecurringDetails::convert_from),
             gateway_system: None,
             pix_additional_details: pix_additional_details
-                .map(diesel_models::types::PixAdditionalDetails::convert_from),
+                .map(common_types::storage_types::PixAdditionalDetails::convert_from),
             boleto_additional_details: boleto_additional_details
-                .map(diesel_models::types::BoletoAdditionalDetails::convert_from),
+                .map(common_types::storage_types::BoletoAdditionalDetails::convert_from),
         }
     }
 
@@ -157,7 +158,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
 }
 
 impl ApiModelToDieselModelConvertor<api_models::payments::BoletoAdditionalDetails>
-    for diesel_models::types::BoletoAdditionalDetails
+    for common_types::storage_types::BoletoAdditionalDetails
 {
     fn convert_from(from: api_models::payments::BoletoAdditionalDetails) -> Self {
         Self {
@@ -181,18 +182,18 @@ impl ApiModelToDieselModelConvertor<api_models::payments::BoletoAdditionalDetail
 }
 
 impl ApiModelToDieselModelConvertor<api_models::payments::PixAdditionalDetails>
-    for diesel_models::types::PixAdditionalDetails
+    for common_types::storage_types::PixAdditionalDetails
 {
     fn convert_from(from: api_models::payments::PixAdditionalDetails) -> Self {
         match from {
             api_models::payments::PixAdditionalDetails::Immediate(v) => {
-                Self::Immediate(diesel_models::types::ImmediateExpirationTime {
+                Self::Immediate(common_types::storage_types::ImmediateExpirationTime {
                     time: v.time,
                     pix_key: v.pix_key,
                 })
             }
             api_models::payments::PixAdditionalDetails::Scheduled(v) => {
-                Self::Scheduled(diesel_models::types::ScheduledExpirationTime {
+                Self::Scheduled(common_types::storage_types::ScheduledExpirationTime {
                     date: v.date,
                     validity_after_expiration: v.validity_after_expiration,
                     pix_key: v.pix_key,
@@ -240,9 +241,9 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             payment_revenue_recovery_metadata: payment_revenue_recovery_metadata
                 .map(PaymentRevenueRecoveryMetadata::convert_from),
             pix_additional_details: pix_additional_details
-                .map(diesel_models::types::PixAdditionalDetails::convert_from),
+                .map(common_types::storage_types::PixAdditionalDetails::convert_from),
             boleto_additional_details: boleto_additional_details
-                .map(diesel_models::types::BoletoAdditionalDetails::convert_from),
+                .map(common_types::storage_types::BoletoAdditionalDetails::convert_from),
         }
     }
 
@@ -769,8 +770,8 @@ impl From<api_models::payments::AmountDetails> for payments::AmountDetails {
             currency: amount_details.currency(),
             shipping_cost: amount_details.shipping_cost(),
             tax_details: amount_details.order_tax_amount().map(|order_tax_amount| {
-                diesel_models::TaxDetails {
-                    default: Some(diesel_models::DefaultTax { order_tax_amount }),
+                common_types::payment_intent_types::TaxDetails {
+                    default: Some(common_types::payment_intent_types::DefaultTax { order_tax_amount }),
                     payment_method_type: None,
                 }
             }),

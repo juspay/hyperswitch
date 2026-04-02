@@ -1,4 +1,4 @@
-pub use diesel_models::types::OrderDetailsWithAmount;
+pub use common_types::payment_intent_types::OrderDetailsWithAmount;
 
 use crate::{
     router_data::{AccessToken, AccessTokenAuthenticationResponse, RouterData},

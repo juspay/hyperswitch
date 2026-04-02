@@ -3,6 +3,7 @@
 use std::str::FromStr;
 
 use common_utils::{
+    crypto::Encryptable,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
     type_name,
@@ -16,6 +17,22 @@ use hyperswitch_domain_models::{
 use hyperswitch_masking::{PeekInterface, Secret};
 
 use crate::behaviour::Conversion;
+use crate::transformers::ForeignFrom;
+
+impl ForeignFrom<Box<Option<Encryptable<Secret<serde_json::Value>>>>> for Option<Encryption> {
+    fn foreign_from(from: Box<Option<Encryptable<Secret<serde_json::Value>>>>) -> Self {
+        (*from).map(Encryption::from)
+    }
+}
+
+impl<T: Clone> ForeignFrom<Encryptable<T>> for Encryption
+where
+    Encryption: From<Encryptable<T>>,
+{
+    fn foreign_from(from: Encryptable<T>) -> Self {
+        Self::from(from)
+    }
+}
 
 #[async_trait::async_trait]
 impl Conversion for Authentication {
@@ -321,3 +338,201 @@ impl Conversion for Authentication {
         })
     }
 }
+
+impl ForeignFrom<hyperswitch_domain_models::authentication::AuthenticationUpdate> for diesel_models::authentication::AuthenticationUpdate {
+    fn foreign_from(from: hyperswitch_domain_models::authentication::AuthenticationUpdate) -> Self {
+        use hyperswitch_domain_models::authentication::AuthenticationUpdate as DomainUpdate;
+        use crate::transformers::ForeignInto;
+        
+        match from {
+            DomainUpdate::PreAuthenticationVersionCallUpdate {
+                maximum_supported_3ds_version,
+                message_version,
+            } => Self::PreAuthenticationVersionCallUpdate {
+                maximum_supported_3ds_version,
+                message_version,
+            },
+            DomainUpdate::PreAuthenticationThreeDsMethodCall {
+                threeds_server_transaction_id,
+                three_ds_method_data,
+                three_ds_method_url,
+                acquirer_bin,
+                acquirer_merchant_id,
+                connector_metadata,
+            } => Self::PreAuthenticationThreeDsMethodCall {
+                threeds_server_transaction_id,
+                three_ds_method_data,
+                three_ds_method_url,
+                acquirer_bin,
+                acquirer_merchant_id,
+                connector_metadata,
+            },
+            DomainUpdate::PreAuthenticationUpdate {
+                threeds_server_transaction_id,
+                maximum_supported_3ds_version,
+                connector_authentication_id,
+                three_ds_method_data,
+                three_ds_method_url,
+                message_version,
+                connector_metadata,
+                authentication_status,
+                acquirer_bin,
+                acquirer_merchant_id,
+                directory_server_id,
+                acquirer_country_code,
+                billing_address,
+                shipping_address,
+                browser_info,
+                email,
+                scheme_id,
+                merchant_category_code,
+                merchant_country_code,
+                billing_country,
+                shipping_country,
+                earliest_supported_version,
+                latest_supported_version,
+            } => Self::PreAuthenticationUpdate {
+                threeds_server_transaction_id,
+                maximum_supported_3ds_version,
+                connector_authentication_id,
+                three_ds_method_data,
+                three_ds_method_url,
+                message_version,
+                connector_metadata,
+                authentication_status,
+                acquirer_bin,
+                acquirer_merchant_id,
+                directory_server_id,
+                acquirer_country_code,
+                billing_address: billing_address.foreign_into(),
+                shipping_address: shipping_address.foreign_into(),
+                browser_info,
+                email: email.foreign_into(),
+                scheme_id,
+                merchant_category_code,
+                merchant_country_code,
+                billing_country,
+                shipping_country,
+                earliest_supported_version,
+                latest_supported_version,
+            },
+            DomainUpdate::AuthenticationUpdate {
+                trans_status,
+                authentication_type,
+                acs_url,
+                challenge_request,
+                acs_reference_number,
+                acs_trans_id,
+                acs_signed_content,
+                connector_metadata,
+                authentication_status,
+                ds_trans_id,
+                eci,
+                challenge_code,
+                challenge_cancel,
+                challenge_code_reason,
+                message_extension,
+                challenge_request_key,
+                device_type,
+                device_brand,
+                device_os,
+                device_display,
+            } => Self::AuthenticationUpdate {
+                trans_status,
+                authentication_type,
+                acs_url,
+                challenge_request,
+                acs_reference_number,
+                acs_trans_id,
+                acs_signed_content,
+                connector_metadata,
+                authentication_status,
+                ds_trans_id,
+                eci,
+                challenge_code,
+                challenge_cancel,
+                challenge_code_reason,
+                message_extension,
+                challenge_request_key,
+                device_type,
+                device_brand,
+                device_os,
+                device_display,
+            },
+            DomainUpdate::PostAuthenticationUpdate {
+                trans_status,
+                eci,
+                authentication_status,
+                challenge_cancel,
+                challenge_code_reason,
+            } => Self::PostAuthenticationUpdate {
+                trans_status,
+                eci,
+                authentication_status,
+                challenge_cancel,
+                challenge_code_reason,
+            },
+            DomainUpdate::ErrorUpdate {
+                error_message,
+                error_code,
+                authentication_status,
+                connector_authentication_id,
+            } => Self::ErrorUpdate {
+                error_message,
+                error_code,
+                authentication_status,
+                connector_authentication_id,
+            },
+            DomainUpdate::PostAuthorizationUpdate {
+                authentication_lifecycle_status,
+            } => Self::PostAuthorizationUpdate {
+                authentication_lifecycle_status,
+            },
+            DomainUpdate::AuthenticationStatusUpdate {
+                trans_status,
+                authentication_status,
+            } => Self::AuthenticationStatusUpdate {
+                trans_status,
+                authentication_status,
+            },
+        }
+    }
+}
+
+/*
+impl ForeignTryFrom<&diesel_models::authentication::Authentication>
+    for hyperswitch_domain_models::router_request_types::authentication::PreAuthenticationData
+{
+    type Error = error_stack::Report<hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse>;
+
+    fn foreign_try_from(
+        authentication: &diesel_models::authentication::Authentication,
+    ) -> error_stack::Result<Self, Self::Error> {
+        use common_utils::ext_traits::OptionExt;
+        use error_stack::ResultExt;
+        use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
+
+        let error_message = ApiErrorResponse::UnprocessableEntity {
+            message: "Pre Authentication must be completed successfully before Authentication can be performed".to_string(),
+        };
+        let threeds_server_transaction_id = authentication
+            .threeds_server_transaction_id
+            .clone()
+            .get_required_value("threeds_server_transaction_id")
+            .change_context(error_message.clone())?;
+        let message_version = authentication
+            .message_version
+            .clone()
+            .get_required_value("message_version")
+            .change_context(error_message)?;
+        Ok(Self {
+            threeds_server_transaction_id,
+            message_version,
+            acquirer_bin: authentication.acquirer_bin.clone(),
+            acquirer_merchant_id: authentication.acquirer_merchant_id.clone(),
+            connector_metadata: authentication.connector_metadata.clone(),
+            acquirer_country_code: authentication.acquirer_country_code.clone(),
+        })
+    }
+}
+*/

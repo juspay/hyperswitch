@@ -14,6 +14,7 @@ use hyperswitch_domain_models::{
 
 use super::MockDb;
 use crate::errors::StorageError;
+use crate::transformers::ForeignFrom;
 
 #[async_trait::async_trait]
 impl PaymentIntentInterface for MockDb {
@@ -141,7 +142,7 @@ impl PaymentIntentInterface for MockDb {
             })
             .unwrap();
 
-        let diesel_payment_intent_update = diesel_models::PaymentIntentUpdate::from(update);
+        let diesel_payment_intent_update = diesel_models::PaymentIntentUpdate::foreign_from(update);
         let diesel_payment_intent = payment_intent
             .clone()
             .convert()
