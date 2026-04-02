@@ -5,10 +5,29 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 let globalState;
 
 describe("Card - List and revoke Mandates flow test", () => {
-  before("seed global state", () => {
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
-    });
+  before(function () {
+    // Changed to regular function instead of arrow function
+    let skip = false;
+
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
+
+        // Skip running test against a connector that is added in the exclude list
+        if (
+          utils.shouldExcludeConnector(
+            globalState.get("connectorId"),
+            utils.CONNECTOR_LISTS.EXCLUDE.MANDATE_ID_TEST
+          )
+        ) {
+          skip = true;
+        }
+      })
+      .then(() => {
+        if (skip) {
+          this.skip();
+        }
+      });
   });
 
   after("flush global state", () => {

@@ -8378,6 +8378,28 @@
           {
             "type": "object",
             "required": [
+              "pix_automatico_push"
+            ],
+            "properties": {
+              "pix_automatico_push": {
+                "$ref": "#/components/schemas/PixAutomaticoPushAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pix_automatico_qr"
+            ],
+            "properties": {
+              "pix_automatico_qr": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "pse"
             ],
             "properties": {
@@ -8736,6 +8758,48 @@
                     "type": "string",
                     "description": "The expiration date and time for the Pix QR code in ISO 8601 format",
                     "example": "2025-09-10T10:11:12Z",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pix_automatico_qr"
+            ],
+            "properties": {
+              "pix_automatico_qr": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pix_automatico_push"
+            ],
+            "properties": {
+              "pix_automatico_push": {
+                "type": "object",
+                "properties": {
+                  "account_number": {
+                    "type": "string",
+                    "description": "Account number for Pix Automatico Push payment method",
+                    "example": "550689",
+                    "nullable": true
+                  },
+                  "branch_code": {
+                    "type": "string",
+                    "description": "Branch code for Pix Automatico Push payment method",
+                    "example": "2569",
+                    "nullable": true
+                  },
+                  "bank_identifier": {
+                    "type": "string",
+                    "description": "Bank identifier for Pix Automatico Push payment method",
+                    "example": "91193552",
                     "nullable": true
                   }
                 }
@@ -21923,6 +21987,14 @@
             "type": "string",
             "description": "The return url to which the customer should be redirected to after adding the payment method",
             "nullable": true
+          },
+          "customer_acceptance": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerAcceptance"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -22283,6 +22355,8 @@
           "paypal",
           "paze",
           "pix",
+          "pix_automatico_qr",
+          "pix_automatico_push",
           "pay_safe_card",
           "przelewy24",
           "prompt_pay",
@@ -22654,8 +22728,7 @@
         "description": "Request for Payment Intent Confirm",
         "required": [
           "payment_method_data",
-          "payment_method_type",
-          "payment_method_subtype"
+          "payment_method_type"
         ],
         "properties": {
           "return_url": {
@@ -22679,7 +22752,12 @@
             "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_subtype": {
-            "$ref": "#/components/schemas/PaymentMethodType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
           },
           "shipping": {
             "allOf": [
@@ -23539,8 +23617,7 @@
           "amount_details",
           "customer_id",
           "payment_method_data",
-          "payment_method_type",
-          "payment_method_subtype"
+          "payment_method_type"
         ],
         "properties": {
           "amount_details": {
@@ -23732,7 +23809,12 @@
             "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_subtype": {
-            "$ref": "#/components/schemas/PaymentMethodType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
           },
           "customer_acceptance": {
             "allOf": [
@@ -25705,6 +25787,29 @@
           }
         ]
       },
+      "PixAutomaticoPushAdditionalData": {
+        "type": "object",
+        "properties": {
+          "account_number": {
+            "type": "string",
+            "description": "Account number for Pix Automatico Push payment method",
+            "example": "550689",
+            "nullable": true
+          },
+          "branch_code": {
+            "type": "string",
+            "description": "Branch code for Pix Automatico Push payment method",
+            "example": "2569",
+            "nullable": true
+          },
+          "bank_identifier": {
+            "type": "string",
+            "description": "Bank identifier for Pix Automatico Push payment method",
+            "example": "91193552",
+            "nullable": true
+          }
+        }
+      },
       "PixBankTransfer": {
         "type": "object",
         "required": [
@@ -26847,6 +26952,21 @@
           }
         }
       },
+      "RawCardWithNTDetails": {
+        "type": "object",
+        "required": [
+          "card_details",
+          "network_token_details"
+        ],
+        "properties": {
+          "card_details": {
+            "$ref": "#/components/schemas/CardDetail"
+          },
+          "network_token_details": {
+            "$ref": "#/components/schemas/CardDetail"
+          }
+        }
+      },
       "RawPaymentMethodData": {
         "oneOf": [
           {
@@ -26857,6 +26977,17 @@
             "properties": {
               "card": {
                 "$ref": "#/components/schemas/CardDetail"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "card_with_n_t"
+            ],
+            "properties": {
+              "card_with_n_t": {
+                "$ref": "#/components/schemas/RawCardWithNTDetails"
               }
             }
           }

@@ -110,7 +110,7 @@ nexinets.base_url = "https://api.payengine.de/v1"
 nexixpay.base_url = "https://xpay.nexigroup.com/api/phoenix-0.0/psp/api/v1"
 nmi.base_url = "https://secure.nmi.com/"
 nomupay.base_url = "https://payout-api.nomupay.com"
-noon.base_url = "https://api{{noon_region}}.noonpayments.com/"
+noon.base_url = "https://api{{region}}.noonpayments.com/"
 nordea.base_url = "https://open.nordeaopenbanking.com"
 noon.key_mode = "Live"
 novalnet.base_url = "https://payport.novalnet.de/v2"
@@ -876,6 +876,8 @@ eft = { country = "NG, ZA, GH, KE, CI", currency = "NGN, GHS, ZAR, KES, USD" }
 [pm_filters.santander]
 pix = { country = "BR", currency = "BRL" }
 boleto = { country = "BR", currency = "BRL" }
+pix_automatico_qr = { country = "BR", currency = "BRL" }
+pix_automatico_push = { country = "BR", currency = "BRL" }
 
 [pm_filters.calida]
 bluecode = { country = "AT,BE,BG,HR,CY,CZ,DK,EE,FI,FR,DE,GR,HU,IE,IT,LV,LT,LU,MT,NL,PL,PT,RO,SK,SI,ES,SE,IS,LI,NO", currency = "EUR" }

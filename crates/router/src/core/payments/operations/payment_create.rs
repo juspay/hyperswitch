@@ -843,6 +843,16 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         match feature_config.is_payment_method_modular_allowed {
             true => {
                 logger::info!("Organization is eligible for PM Modular Service, fetching payment method if payment_token is provided.");
+                utils::when(
+                    req.off_session == Some(true) && req.recurring_details.is_none(),
+                    || {
+                        Err(error_stack::report!(
+                            errors::ApiErrorResponse::PreconditionFailed {
+                                message: "off_session requires recurring_details".into(),
+                            }
+                        ))
+                    },
+                )?;
 
                 let profile_id = req
                     .profile_id
@@ -854,17 +864,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .clone())
                     .get_required_value("profile_id")?;
 
-                let (payment_method_reference, is_off_session_payment) =
-                    if req.off_session == Some(true) {
-                        match req.recurring_details.as_ref() {
-                            Some(RecurringDetails::PaymentMethodId(payment_method_id)) => {
-                                (Some(payment_method_id), true)
-                            }
-                            _ => (None, true),
-                        }
-                    } else {
-                        (req.payment_token.as_ref(), false)
-                    };
+                let payment_method_reference = self.get_payment_method_reference(req);
 
                 let pm_info = if let Some(payment_method_ref) = payment_method_reference {
                     // Fetch payment method using PM Modular Service
@@ -874,17 +874,12 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         &profile_id,
                         payment_method_ref,
                         None, // CVC token data is not passed in create api
-                        is_off_session_payment,
                     )
                     .await?;
                     logger::info!("Payment method fetched from PM Modular Service.");
 
                     utils::when(
-                        pm_info.payment_method.0.customer_id
-                            != req
-                                .get_customer_id()
-                                .get_required_value("customer_id")?
-                                .clone(),
+                        pm_info.payment_method.0.customer_id.as_ref() != req.get_customer_id(),
                         || {
                             logger::info!("Payment method id does not belong to the customer id provided in the request.");
                             Err(errors::ApiErrorResponse::PaymentMethodNotFound)
@@ -1156,13 +1151,6 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
             &request.enable_overcapture,
             &request.capture_method,
         )?;
-        request.validate_mit_request().change_context(
-            errors::ApiErrorResponse::InvalidRequestData {
-                message:
-                "`mit_category` requires both: (1) `off_session = true`, and (2) `recurring_details`."
-                        .to_string(),
-            },
-        )?;
 
         request.validate_installment_options().map_err(|err| {
             let message = format!("invalid installment options: {err}");
@@ -1232,6 +1220,18 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
 }
 
 impl PaymentCreate {
+    /// Determines the payment method reference for modular payment flows.
+    fn get_payment_method_reference(self, req: &api::PaymentsRequest) -> Option<&String> {
+        match (req.off_session, req.recurring_details.as_ref()) {
+            // Payment using off_session MITs using PM ID
+            (Some(true), Some(RecurringDetails::PaymentMethodId(payment_method_id))) => {
+                Some(payment_method_id)
+            }
+            // All other cases
+            _ => req.payment_token.as_ref(),
+        }
+    }
+
     #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     #[allow(clippy::too_many_arguments)]
@@ -1446,8 +1446,7 @@ impl PaymentCreate {
                         platform.get_processor().get_account().get_id(),
                         payment_method_info
                             .as_ref()
-                            .map(|pmd_info| pmd_info.customer_id.clone())
-                            .as_ref(),
+                            .and_then(|pmd_info| pmd_info.customer_id.as_ref()),
                         platform.get_processor().get_key_store(),
                         payment_id,
                         platform.get_processor().get_account().storage_scheme,

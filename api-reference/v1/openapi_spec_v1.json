@@ -8224,6 +8224,155 @@
           }
         ]
       }
+    },
+    "/card_issuers": {
+      "post": {
+        "tags": [
+          "Card Issuer"
+        ],
+        "summary": "Card Issuer - Create",
+        "description": "Creates a new card issuer entry",
+        "operationId": "Create Card Issuer",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CardIssuerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Card issuer created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardIssuerResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid fields"
+          },
+          "409": {
+            "description": "Card issuer already exists"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "Card Issuer"
+        ],
+        "summary": "Card Issuer - List",
+        "description": "Lists card issuers with optional search filter",
+        "operationId": "List Card Issuers",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "description": "Optional search term to filter issuers by name",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of results to return",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true,
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Card issuers listed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardIssuerListResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/card_issuers/{id}": {
+      "put": {
+        "tags": [
+          "Card Issuer"
+        ],
+        "summary": "Card Issuer - Update",
+        "description": "Updates an existing card issuer entry",
+        "operationId": "Update Card Issuer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the card issuer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CardIssuerUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Card issuer updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardIssuerResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Card issuer not found"
+          },
+          "409": {
+            "description": "Card issuer with this name already exists"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -12559,6 +12708,28 @@
           {
             "type": "object",
             "required": [
+              "pix_automatico_push"
+            ],
+            "properties": {
+              "pix_automatico_push": {
+                "$ref": "#/components/schemas/PixAutomaticoPushAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pix_automatico_qr"
+            ],
+            "properties": {
+              "pix_automatico_qr": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "pse"
             ],
             "properties": {
@@ -12917,6 +13088,48 @@
                     "type": "string",
                     "description": "The expiration date and time for the Pix QR code in ISO 8601 format",
                     "example": "2025-09-10T10:11:12Z",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pix_automatico_qr"
+            ],
+            "properties": {
+              "pix_automatico_qr": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pix_automatico_push"
+            ],
+            "properties": {
+              "pix_automatico_push": {
+                "type": "object",
+                "properties": {
+                  "account_number": {
+                    "type": "string",
+                    "description": "Account number for Pix Automatico Push payment method",
+                    "example": "550689",
+                    "nullable": true
+                  },
+                  "branch_code": {
+                    "type": "string",
+                    "description": "Branch code for Pix Automatico Push payment method",
+                    "example": "2569",
+                    "nullable": true
+                  },
+                  "bank_identifier": {
+                    "type": "string",
+                    "description": "Bank identifier for Pix Automatico Push payment method",
+                    "example": "91193552",
                     "nullable": true
                   }
                 }
@@ -14106,7 +14319,7 @@
             "items": {
               "type": "string"
             },
-            "description": "Set of card issuers to block (e.g., [\"HDFC Bank\", \"ICICI Bank\"])",
+            "description": "Set of card issuer IDs to block",
             "uniqueItems": true,
             "nullable": true
           },
@@ -14330,6 +14543,81 @@
           "saved_card",
           "click_to_pay"
         ]
+      },
+      "CardIssuerListQuery": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Optional search term to filter issuers by name (case-insensitive prefix match)",
+            "example": "hdfc",
+            "nullable": true
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Maximum number of results to return (default: 30, max: 255)",
+            "default": 30,
+            "example": 30,
+            "maximum": 255,
+            "minimum": 0
+          }
+        }
+      },
+      "CardIssuerListResponse": {
+        "type": "object",
+        "required": [
+          "issuers"
+        ],
+        "properties": {
+          "issuers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardIssuerResponse"
+            }
+          }
+        }
+      },
+      "CardIssuerRequest": {
+        "type": "object",
+        "required": [
+          "issuer_name"
+        ],
+        "properties": {
+          "issuer_name": {
+            "type": "string",
+            "description": "The name of the card issuer to add",
+            "example": "STATE BANK OF INDIA"
+          }
+        }
+      },
+      "CardIssuerResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "issuer_name"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "issuer_name": {
+            "type": "string"
+          }
+        }
+      },
+      "CardIssuerUpdateRequest": {
+        "type": "object",
+        "required": [
+          "issuer_name"
+        ],
+        "properties": {
+          "issuer_name": {
+            "type": "string",
+            "description": "The new name for the card issuer",
+            "example": "STATE BANK OF INDIA UPDATED"
+          }
+        }
       },
       "CardNetwork": {
         "type": "string",
@@ -14656,7 +14944,262 @@
       "CardSubtype": {
         "type": "string",
         "enum": [
-          "platinum"
+          "aarp",
+          "airmilespremier",
+          "atmcard",
+          "atmonly",
+          "atmonly_cashlinecard",
+          "best_price_save_max",
+          "best_price_save_smart",
+          "bharat",
+          "bharat_cashback",
+          "bharat_platinum",
+          "black",
+          "blackcard",
+          "blue",
+          "blue_and_revolving",
+          "blueairmilescashbackcard",
+          "bluecash",
+          "blueforbusiness",
+          "bmiplus",
+          "bonus",
+          "business",
+          "business_gold",
+          "business_moneyback",
+          "business_platinum",
+          "business_prepaid",
+          "business_regalia",
+          "business_regalia_first",
+          "businesscard",
+          "businesselite",
+          "businessimmediatedebit",
+          "businessloan",
+          "cashback",
+          "cashrebate",
+          "centurion",
+          "centurionservicio",
+          "chargecard",
+          "checkcard",
+          "classic",
+          "classicpremium",
+          "commercial",
+          "commercialtransportebt",
+          "companion",
+          "consumer",
+          "consumercard",
+          "corp_goldd_and_ranges",
+          "corp_golds_and_ranges",
+          "corp_greend_and_ranges",
+          "corp_greens_and_ranges",
+          "corp_purchasingcard",
+          "corpo_co_s_and_ranges",
+          "corporate",
+          "corporate_platinum",
+          "corporate_premium",
+          "corporatecard",
+          "corporateexecutive",
+          "corporatefleetcard",
+          "corporategold",
+          "corporategoldyplatinum",
+          "corporategreen",
+          "corporategreenebta",
+          "corporatepurchasing",
+          "corporaterevolving",
+          "corporatet",
+          "corporate_t_and_e",
+          "corporation",
+          "credit",
+          "ctslandcard",
+          "debit",
+          "delayeddebit",
+          "delta",
+          "diners_club_black",
+          "diners_club_miles",
+          "diners_club_premium",
+          "diners_club_privilege",
+          "diners_club_rewardz",
+          "doctors_platinum",
+          "doctors_regalia",
+          "doctors_superia",
+          "dorada",
+          "dummy_logo",
+          "easy_emi",
+          "edge_platinum",
+          "electricorange",
+          "electron",
+          "electronic",
+          "electronicunembossed",
+          "embossed",
+          "executivebusiness",
+          "express",
+          "firstcitizen",
+          "firstcitizen_black",
+          "fleetcard",
+          "flipkart_wholesale",
+          "freedom",
+          "freedom_platinum",
+          "general_purpose_re_loadable_card",
+          "gift",
+          "gift_cards",
+          "globalpayment",
+          "gmcard",
+          "gold",
+          "gold_personal",
+          "gold_platinum",
+          "gold_prem",
+          "goldcashbackcard",
+          "goldgrccyblue",
+          "goldimmediatedebit",
+          "goldpremium",
+          "governmentcommercialcard",
+          "governmentservicesloan",
+          "green",
+          "gsacard",
+          "gsacorporate_t_and_e",
+          "gsapurchasing",
+          "hsanon_substantiated",
+          "icard",
+          "ikeacard",
+          "immediatedebit",
+          "indian_oil",
+          "indigo6e_rewards",
+          "individual",
+          "infinia",
+          "infinite",
+          "intermiles_diners_club",
+          "intermiles_premium",
+          "intermiles_signature",
+          "ix_rbl09",
+          "ix_rbl24",
+          "ix_slice01",
+          "ix_slice02",
+          "jcb_classic",
+          "jcb_platinum",
+          "jcb_select",
+          "jumbo_loan",
+          "lowescard",
+          "mastercard",
+          "mastermoney",
+          "micro_businesscard",
+          "millennia",
+          "moneyback_insta",
+          "moneyback_platinum",
+          "moneyback_plus",
+          "moneyback_st",
+          "newworld",
+          "newworldimmediatedebit",
+          "optima",
+          "others",
+          "ourocard",
+          "paymentcard",
+          "paypass",
+          "payroll_cards",
+          "paytm",
+          "paytm_business",
+          "paytm_mobile",
+          "paytm_select",
+          "peony",
+          "peonymoneylink",
+          "pinelabs",
+          "pinelabs_pro",
+          "platinum",
+          "platinum1",
+          "platinum_edge",
+          "platinum_freedom",
+          "platinum_plus",
+          "platinum_solitaire",
+          "platinum_times",
+          "platinumimmediatedebit",
+          "platinumtravel",
+          "plus",
+          "pmjdy",
+          "premier",
+          "premium",
+          "premiumcard",
+          "premiumplus",
+          "prepaid",
+          "prepaid_electron",
+          "prepaid_privatelabel",
+          "prepaidcash",
+          "prepaidtravelmoney",
+          "private",
+          "privatelabel",
+          "pro",
+          "proprietary",
+          "proprietary_atm",
+          "purchasing",
+          "quantum",
+          "rebate",
+          "regalia",
+          "regalia_first",
+          "revolving",
+          "rewards",
+          "rewardsonly",
+          "rupay_select",
+          "salute",
+          "sap_concur_solutions_black_corporate",
+          "sap_concur_solutions_prime_corporate",
+          "sbsgoldyblue",
+          "sears",
+          "signature",
+          "signaturebusiness",
+          "signaturebusinessplatinum",
+          "silver",
+          "6e_rewards",
+          "6e_rewards_xl",
+          "smallbusiness",
+          "smallbusinesscard",
+          "smallbusinesssbsgreen",
+          "smallcorporate",
+          "smallcorporatecard",
+          "solitaire",
+          "solitaire_platinum",
+          "standard",
+          "standardunembossed",
+          "tata_neu_infinity",
+          "tata_neu_plus",
+          "teachers_platinum",
+          "test_plastic",
+          "titanium",
+          "titanium_edge",
+          "titanium_personal",
+          "titanium_times",
+          "tjpersonal",
+          "travelmoney",
+          "uat_range",
+          "unembossed",
+          "virginatlantic",
+          "virtual",
+          "visa_business",
+          "visa_business_enhanced",
+          "visa_classic",
+          "visa_corporate_t_and_e",
+          "visa_electron",
+          "visa_enhanced",
+          "visa_gold",
+          "visa_infinite",
+          "visa_infinite_business",
+          "visa_platinum",
+          "visa_platinum_business",
+          "visa_purchasing",
+          "visa_purchasing_with_fleet",
+          "visa_rewards",
+          "visa_signature",
+          "visa_signature_business",
+          "visa_traditional",
+          "visacash",
+          "visacommerce",
+          "vpay",
+          "world",
+          "world_master",
+          "worldblack",
+          "worldcard",
+          "worlddebitembossed",
+          "worldelite",
+          "worldeliteforbusiness",
+          "worldembossed",
+          "worldforbusiness",
+          "worldsigniaimmediatedebit"
         ]
       },
       "CardTestingGuardConfig": {
@@ -18636,6 +19179,321 @@
           }
         ]
       },
+      "EligibilityCard": {
+        "type": "object",
+        "description": "Card data for eligibility check — only card_number is required, no CVV needed",
+        "required": [
+          "card_number"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "description": "The card number",
+            "example": "4242424242424242"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "24",
+            "nullable": true
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "24",
+            "nullable": true
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "The card's CVC/CVV",
+            "example": "123",
+            "nullable": true
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test",
+            "nullable": true
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "The name of the issuer of card",
+            "example": "chase",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "example": "CREDIT",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "card_issuing_country_code": {
+            "type": "string",
+            "example": "IN",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "example": "JP_AMEX",
+            "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "The card holder's nick name",
+            "example": "John Test",
+            "nullable": true
+          }
+        }
+      },
+      "EligibilityPaymentMethodData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "title": "EligibilityCard",
+            "required": [
+              "card"
+            ],
+            "properties": {
+              "card": {
+                "$ref": "#/components/schemas/EligibilityCard"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "CardRedirect",
+            "required": [
+              "card_redirect"
+            ],
+            "properties": {
+              "card_redirect": {
+                "$ref": "#/components/schemas/CardRedirectData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "Wallet",
+            "required": [
+              "wallet"
+            ],
+            "properties": {
+              "wallet": {
+                "$ref": "#/components/schemas/WalletData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "PayLater",
+            "required": [
+              "pay_later"
+            ],
+            "properties": {
+              "pay_later": {
+                "$ref": "#/components/schemas/PayLaterData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "BankRedirect",
+            "required": [
+              "bank_redirect"
+            ],
+            "properties": {
+              "bank_redirect": {
+                "$ref": "#/components/schemas/BankRedirectData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "BankDebit",
+            "required": [
+              "bank_debit"
+            ],
+            "properties": {
+              "bank_debit": {
+                "$ref": "#/components/schemas/BankDebitData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "BankTransfer",
+            "required": [
+              "bank_transfer"
+            ],
+            "properties": {
+              "bank_transfer": {
+                "$ref": "#/components/schemas/BankTransferData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "RealTimePayment",
+            "required": [
+              "real_time_payment"
+            ],
+            "properties": {
+              "real_time_payment": {
+                "$ref": "#/components/schemas/RealTimePaymentData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "Crypto",
+            "required": [
+              "crypto"
+            ],
+            "properties": {
+              "crypto": {
+                "$ref": "#/components/schemas/CryptoData"
+              }
+            }
+          },
+          {
+            "type": "string",
+            "title": "MandatePayment",
+            "enum": [
+              "mandate_payment"
+            ]
+          },
+          {
+            "type": "string",
+            "title": "Reward",
+            "enum": [
+              "reward"
+            ]
+          },
+          {
+            "type": "object",
+            "title": "Upi",
+            "required": [
+              "upi"
+            ],
+            "properties": {
+              "upi": {
+                "$ref": "#/components/schemas/UpiData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "Voucher",
+            "required": [
+              "voucher"
+            ],
+            "properties": {
+              "voucher": {
+                "$ref": "#/components/schemas/VoucherData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "GiftCard",
+            "required": [
+              "gift_card"
+            ],
+            "properties": {
+              "gift_card": {
+                "$ref": "#/components/schemas/GiftCardData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "CardToken",
+            "required": [
+              "card_token"
+            ],
+            "properties": {
+              "card_token": {
+                "$ref": "#/components/schemas/CardToken"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "OpenBanking",
+            "required": [
+              "open_banking"
+            ],
+            "properties": {
+              "open_banking": {
+                "$ref": "#/components/schemas/OpenBankingData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "MobilePayment",
+            "required": [
+              "mobile_payment"
+            ],
+            "properties": {
+              "mobile_payment": {
+                "$ref": "#/components/schemas/MobilePaymentData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "NetworkToken",
+            "required": [
+              "network_token"
+            ],
+            "properties": {
+              "network_token": {
+                "$ref": "#/components/schemas/NetworkTokenData"
+              }
+            }
+          }
+        ],
+        "description": "Payment method data for eligibility check"
+      },
+      "EligibilityPaymentMethodDataRequest": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EligibilityPaymentMethodData"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object",
+            "properties": {
+              "billing": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/Address"
+                  }
+                ],
+                "nullable": true
+              }
+            }
+          }
+        ],
+        "description": "Payment method data request for eligibility check"
+      },
       "EligibilityResponseParams": {
         "oneOf": [
           {
@@ -21486,6 +22344,42 @@
           }
         }
       },
+      "InternalNetworkTokenizationCredentials": {
+        "type": "object",
+        "required": [
+          "token_service_api_key",
+          "public_key",
+          "private_key",
+          "key_id"
+        ],
+        "properties": {
+          "token_service_api_key": {
+            "type": "string",
+            "description": "The API key to contact the network tokenization provider",
+            "example": "MDRFRDU3Mzc1Q0Q0N2893727712QzQjJEQzlENTBCOg==",
+            "maxLength": 255
+          },
+          "public_key": {
+            "type": "string",
+            "description": "The public key to encrypt the card details before sending to the network tokenization provider",
+            "example": "-----BEGIN PUBLIC KEY-----\nsom8723hj1bajhgd123==\n-----END PUBLIC KEY-----",
+            "maxLength": 255
+          },
+          "private_key": {
+            "type": "string",
+            "description": "The private key to decrypt the tokenized card details received from the network tokenization provider",
+            "example": "-----BEGIN RSA PRIVATE KEY-----\n897238huhbsdbjh12==\n-----END RSA PRIVATE KEY-----",
+            "maxLength": 255
+          },
+          "key_id": {
+            "type": "string",
+            "description": "The key_id used in encryption",
+            "example": "key_1ac9895a6d85414897213gahdac838a8",
+            "maxLength": 255
+          }
+        },
+        "additionalProperties": false
+      },
       "Invoice": {
         "type": "object",
         "required": [
@@ -22157,6 +23051,14 @@
               }
             ],
             "nullable": true
+          },
+          "network_tokenization_credentials": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokeizationProviderCredentials"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -22615,6 +23517,14 @@
           },
           "merchant_account_type": {
             "$ref": "#/components/schemas/MerchantAccountType"
+          },
+          "network_tokenization_credentials": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokeizationProviderCredentials"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -22748,6 +23658,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/BusinessCollectLinkConfig"
+              }
+            ],
+            "nullable": true
+          },
+          "network_tokenization_credentials": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokeizationProviderCredentials"
               }
             ],
             "nullable": true
@@ -23732,6 +24650,7 @@
       },
       "MitCategory": {
         "type": "string",
+        "description": "Specifies the category of a Merchant Initiated Transaction (MIT). In the case of MIT, `mit_category` tells what kind of MIT is being processed. In the case of CIT, it tells the future intended MIT type.",
         "enum": [
           "installment",
           "unscheduled",
@@ -23859,6 +24778,22 @@
             "nullable": true
           }
         }
+      },
+      "NetworkTokeizationProviderCredentials": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "internal_network_token_service"
+            ],
+            "properties": {
+              "internal_network_token_service": {
+                "$ref": "#/components/schemas/InternalNetworkTokenizationCredentials"
+              }
+            }
+          }
+        ],
+        "description": "The credentials required for calling the network tokenization provider APIs"
       },
       "NetworkTokenData": {
         "type": "object",
@@ -27893,11 +28828,15 @@
         "type": "object",
         "description": "Represents metadata about the payment method used in the 3DS decision rule.",
         "required": [
-          "card_network"
+          "card_network",
+          "card_discovery"
         ],
         "properties": {
           "card_network": {
             "$ref": "#/components/schemas/CardNetwork"
+          },
+          "card_discovery": {
+            "$ref": "#/components/schemas/CardDiscovery"
           }
         }
       },
@@ -28137,6 +29076,8 @@
           "paypal",
           "paze",
           "pix",
+          "pix_automatico_qr",
+          "pix_automatico_push",
           "pay_safe_card",
           "przelewy24",
           "prompt_pay",
@@ -30464,7 +31405,7 @@
             "nullable": true
           },
           "payment_method_data": {
-            "$ref": "#/components/schemas/PaymentMethodDataRequest"
+            "$ref": "#/components/schemas/EligibilityPaymentMethodDataRequest"
           },
           "browser_info": {
             "allOf": [
@@ -34642,6 +35583,29 @@
           }
         ]
       },
+      "PixAutomaticoPushAdditionalData": {
+        "type": "object",
+        "properties": {
+          "account_number": {
+            "type": "string",
+            "description": "Account number for Pix Automatico Push payment method",
+            "example": "550689",
+            "nullable": true
+          },
+          "branch_code": {
+            "type": "string",
+            "description": "Branch code for Pix Automatico Push payment method",
+            "example": "2569",
+            "nullable": true
+          },
+          "bank_identifier": {
+            "type": "string",
+            "description": "Bank identifier for Pix Automatico Push payment method",
+            "example": "91193552",
+            "nullable": true
+          }
+        }
+      },
       "PixBankTransfer": {
         "type": "object",
         "required": [
@@ -35544,6 +36508,14 @@
             "description": "Flag to enable Level 2 and Level 3 processing data for card transactions",
             "nullable": true
           },
+          "network_tokenization_credentials": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokeizationProviderCredentials"
+              }
+            ],
+            "nullable": true
+          },
           "payment_method_blocking": {
             "allOf": [
               {
@@ -35916,6 +36888,14 @@
           "is_l2_l3_enabled": {
             "type": "boolean",
             "description": "Flag to enable Level 2 and Level 3 processing data for card transactions",
+            "nullable": true
+          },
+          "network_tokenization_credentials": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NetworkTokeizationProviderCredentials"
+              }
+            ],
             "nullable": true
           },
           "payment_method_blocking": {
@@ -41975,6 +42955,10 @@
     {
       "name": "Subscriptions",
       "description": "Subscription management and billing endpoints"
+    },
+    {
+      "name": "Card Issuer",
+      "description": "Create and manage card issuers"
     }
   ]
 }

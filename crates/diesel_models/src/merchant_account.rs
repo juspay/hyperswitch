@@ -55,6 +55,7 @@ pub struct MerchantAccount {
     pub id: Option<common_utils::id_type::MerchantId>,
     pub product_type: Option<common_enums::MerchantProductType>,
     pub merchant_account_type: Option<common_enums::MerchantAccountType>,
+    pub network_tokenization_credentials: Option<Encryption>,
 }
 
 #[cfg(feature = "v1")]
@@ -90,6 +91,7 @@ pub struct MerchantAccountSetter {
     pub is_platform_account: bool,
     pub product_type: Option<common_enums::MerchantProductType>,
     pub merchant_account_type: common_enums::MerchantAccountType,
+    pub network_tokenization_credentials: Option<Encryption>,
 }
 
 #[cfg(feature = "v1")]
@@ -128,6 +130,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             is_platform_account: item.is_platform_account,
             product_type: item.product_type,
             merchant_account_type: Some(item.merchant_account_type),
+            network_tokenization_credentials: item.network_tokenization_credentials,
         }
     }
 }
@@ -162,6 +165,7 @@ pub struct MerchantAccount {
     pub id: common_utils::id_type::MerchantId,
     pub product_type: Option<common_enums::MerchantProductType>,
     pub merchant_account_type: Option<common_enums::MerchantAccountType>,
+    pub network_tokenization_credentials: Option<Encryption>,
 }
 
 #[cfg(feature = "v2")]
@@ -182,6 +186,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             is_platform_account: item.is_platform_account,
             product_type: item.product_type,
             merchant_account_type: Some(item.merchant_account_type),
+            network_tokenization_credentials: None, // need to check if we can have this column in v2
         }
     }
 }
@@ -252,6 +257,7 @@ pub struct MerchantAccountNew {
     pub id: Option<common_utils::id_type::MerchantId>,
     pub product_type: Option<common_enums::MerchantProductType>,
     pub merchant_account_type: common_enums::MerchantAccountType,
+    pub network_tokenization_credentials: Option<Encryption>,
 }
 
 #[cfg(feature = "v2")]
@@ -320,6 +326,7 @@ impl MerchantAccountUpdateInternal {
             is_platform_account: is_platform_account.unwrap_or(source.is_platform_account),
             product_type: product_type.or(source.product_type),
             merchant_account_type: source.merchant_account_type,
+            network_tokenization_credentials: source.network_tokenization_credentials,
         }
     }
 }
@@ -355,6 +362,7 @@ pub struct MerchantAccountUpdateInternal {
     pub pm_collect_link_config: Option<serde_json::Value>,
     pub is_platform_account: Option<bool>,
     pub product_type: Option<common_enums::MerchantProductType>,
+    pub network_tokenization_credentials: Option<Encryption>,
 }
 
 #[cfg(feature = "v1")]
@@ -388,6 +396,7 @@ impl MerchantAccountUpdateInternal {
             pm_collect_link_config,
             is_platform_account,
             product_type,
+            network_tokenization_credentials,
         } = self;
 
         MerchantAccount {
@@ -427,6 +436,8 @@ impl MerchantAccountUpdateInternal {
             id: source.id,
             product_type: product_type.or(source.product_type),
             merchant_account_type: source.merchant_account_type,
+            network_tokenization_credentials: network_tokenization_credentials
+                .or(source.network_tokenization_credentials),
         }
     }
 }

@@ -88,10 +88,9 @@ where
             .attach_printable("Failed to fetch Unified Connector Service client")?;
 
         let create_access_token_request =
-            payments_grpc::PaymentServiceCreateAccessTokenRequest::foreign_try_from((
-                router_data,
-                call_connector_action,
-            ))
+            payments_grpc::MerchantAuthenticationServiceCreateAccessTokenRequest::foreign_try_from(
+                (router_data, call_connector_action),
+            )
             .change_context(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to construct Create Access Token Request")?;
 

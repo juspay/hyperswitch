@@ -272,7 +272,7 @@ impl<'a> NetworkTokenizationBuilder<'a, CardTokenStored> {
         });
         let payment_method_response = api::PaymentMethodResponse {
             merchant_id: payment_method.merchant_id.clone(),
-            customer_id: Some(payment_method.customer_id.clone()),
+            customer_id: payment_method.customer_id.clone(),
             payment_method_id: payment_method.payment_method_id.clone(),
             payment_method: payment_method.payment_method,
             payment_method_type: payment_method.payment_method_type,

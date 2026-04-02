@@ -503,7 +503,7 @@ fn http_response<T: MessageBody + 'static>(response: T) -> HttpResponse<BoxBody>
     HttpResponse::Ok().body(response)
 }
 
-/// Payouts - Available filters for Profile
+/// Payouts - Available filters for Merchant
 #[cfg(all(feature = "olap", feature = "payouts", feature = "v1"))]
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsFilter))]
 pub async fn get_payout_filters(state: web::Data<AppState>, req: HttpRequest) -> impl Responder {
@@ -514,7 +514,47 @@ pub async fn get_payout_filters(state: web::Data<AppState>, req: HttpRequest) ->
         state,
         &req,
         (),
-        |state, auth: auth::AuthenticationData, _, _| get_payout_filters_core(state, auth.platform),
+        |state, auth: auth::AuthenticationData, _, _| {
+            get_payout_filters_core(state, auth.platform, None)
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
+            }),
+            &auth::JWTAuth {
+                permission: Permission::ProfilePayoutRead,
+                allow_connected: false,
+                allow_platform: false,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
+
+/// Payouts - Available filters for Profile
+#[cfg(all(feature = "olap", feature = "payouts", feature = "v1"))]
+#[instrument(skip_all, fields(flow = ?Flow::PayoutsFilter))]
+pub async fn get_payout_filters_profile(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> impl Responder {
+    let flow = Flow::PayoutsFilter;
+
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth: auth::AuthenticationData, _, _| {
+            get_payout_filters_core(
+                state,
+                auth.platform,
+                auth.profile.map(|profile| vec![profile.get_id().clone()]),
+            )
+        },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
                 allow_connected_scope_operation: false,

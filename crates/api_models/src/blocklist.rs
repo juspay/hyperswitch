@@ -46,6 +46,16 @@ pub type AddToBlocklistResponse = BlocklistResponse;
 pub type DeleteFromBlocklistResponse = BlocklistResponse;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct ListBlocklistResponse {
+    /// The number of blocked entries in the current response
+    pub count: usize,
+    /// The total number of blocked entries for the given data_kind
+    pub total_count: usize,
+    /// The list of blocked payment method entries
+    pub data: Vec<BlocklistResponse>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ListBlocklistQuery {
     #[schema(value_type = BlocklistDataKind)]
     pub data_kind: enums::BlocklistDataKind,
@@ -68,6 +78,7 @@ pub struct ToggleBlocklistQuery {
 
 impl ApiEventMetric for BlocklistRequest {}
 impl ApiEventMetric for BlocklistResponse {}
+impl ApiEventMetric for ListBlocklistResponse {}
 impl ApiEventMetric for ToggleBlocklistResponse {}
 impl ApiEventMetric for ListBlocklistQuery {}
 impl ApiEventMetric for GenerateFingerprintRequest {}
