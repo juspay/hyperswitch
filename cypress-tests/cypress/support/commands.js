@@ -1130,6 +1130,90 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add(
+  "externalVaultConnectorCreateCallTest",
+  (
+    createConnectorBody,
+    globalState,
+    profilePrefix = "profile",
+    mcaPrefix = "vaultConnector",
+    expectedStatus = 200
+  ) => {
+    const apiKey = globalState.get("apiKey");
+    const baseUrl = globalState.get("baseUrl");
+    const merchantId = globalState.get("merchantId");
+    const profileId = globalState.get(`${profilePrefix}Id`);
+    const url = `${baseUrl}/account/${merchantId}/connectors`;
+
+    createConnectorBody.connector_type = "vault_processor";
+    createConnectorBody.profile_id = profileId;
+
+    cy.readFile(globalState.get("connectorAuthFilePath")).then(
+      (jsonContent) => {
+        const { authDetails } = getValueByKey(
+          JSON.stringify(jsonContent),
+          createConnectorBody.connector_name
+        );
+
+        if (authDetails && authDetails.connector_account_details) {
+          createConnectorBody.connector_account_details =
+            authDetails.connector_account_details;
+        }
+
+        if (authDetails && authDetails.metadata) {
+          createConnectorBody.metadata = {
+            ...createConnectorBody.metadata,
+            ...authDetails.metadata,
+          };
+        }
+
+        cy.request({
+          method: "POST",
+          url,
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+            "api-key": apiKey,
+          },
+          body: createConnectorBody,
+          failOnStatusCode: false,
+        }).then((response) => {
+          logRequestId(response.headers["x-request-id"]);
+
+          cy.wrap(response).then(() => {
+            if (expectedStatus === 200) {
+              if (response.status === 200) {
+                expect(response.body.connector_name).to.equal(
+                  createConnectorBody.connector_name
+                );
+                expect(response.body.connector_type).to.equal(
+                  "vault_processor"
+                );
+                expect(response.body).to.have.property("merchant_connector_id")
+                  .and.to.not.be.empty;
+                globalState.set(
+                  `${mcaPrefix}Id`,
+                  response.body.merchant_connector_id
+                );
+              } else {
+                cy.task(
+                  "cli_log",
+                  "response status -> " + JSON.stringify(response.status)
+                );
+                throw new Error(
+                  `External Vault Connector Create Call Failed ${response.body.error.message}`
+                );
+              }
+            } else {
+              expect(response.status).to.equal(expectedStatus);
+            }
+          });
+        });
+      }
+    );
+  }
+);
+
+Cypress.Commands.add(
   "createPayoutConnectorCallTest",
   (connectorType, createConnectorBody, globalState) => {
     const merchantId = globalState.get("merchantId");
