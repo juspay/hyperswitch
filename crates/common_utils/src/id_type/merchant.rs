@@ -115,10 +115,10 @@ impl MerchantId {
         format!("{}_implicit_customer_update", self.get_string_repr())
     }
 
-    /// get_payment_session_validation_enabled_key
-    pub fn get_payment_session_validation_enabled_key(&self) -> String {
+    /// get_client_session_validation_enabled_key
+    pub fn get_client_session_validation_enabled_key(&self) -> String {
         format!(
-            "{}_payment_session_validation_enabled",
+            "{}_client_session_validation_enabled",
             self.get_string_repr()
         )
     }

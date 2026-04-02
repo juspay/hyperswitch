@@ -874,7 +874,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             is_manual_retry_enabled: business_profile.is_manual_retry_enabled,
             is_l2_l3_enabled: business_profile.is_l2_l3_enabled,
             external_authentication_data: request.three_ds_data.clone(),
-            payment_session_id: None,
+            client_session_id: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

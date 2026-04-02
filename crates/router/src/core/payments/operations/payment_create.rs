@@ -35,7 +35,7 @@ use crate::{
         mandate::helpers as m_helpers,
         payment_link,
         payments::{
-            self, helpers, operations, payment_session::PaymentSessionManager, CustomerDetails,
+            self, client_session::ClientSessionManager, helpers, operations, CustomerDetails,
             PaymentAddress, PaymentData,
         },
         utils as core_utils,
@@ -593,12 +593,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         // Check if payment session validation is enabled
         let session_validation_enabled = crate::core::configs::get_config_bool(
             state,
-            consts::superposition::PAYMENT_SESSION_VALIDATION_ENABLED,
+            consts::superposition::CLIENT_SESSION_VALIDATION_ENABLED,
             &platform
                 .get_processor()
                 .get_account()
                 .get_id()
-                .get_payment_session_validation_enabled_key(),
+                .get_client_session_validation_enabled_key(),
             Some(
                 external_services::superposition::ConfigContext::new().with(
                     "merchant_id",
@@ -609,16 +609,16 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         .get_string_repr(),
                 ),
             ),
-            true, // Payment Session Validation is enabled by default
+            true, // Client Session Validation is enabled by default
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to fetch payment_session_validaton_enabled config")?;
+        .attach_printable("Failed to fetch client_session_validaton_enabled config")?;
 
-        // Generate payment session for the payment only if validation is enabled
-        let payment_session_id = if session_validation_enabled {
+        // Generate client session for the payment only if validation is enabled
+        let client_session_id = if session_validation_enabled {
             Some(
-                PaymentSessionManager::create_session(
+                ClientSessionManager::create_session(
                     state,
                     platform.get_processor().get_account().get_id(),
                     &payment_id,
@@ -626,7 +626,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to create payment session")?,
+                .attach_printable("Failed to create client session")?,
             )
         } else {
             None
@@ -681,7 +681,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             is_manual_retry_enabled: None,
             is_l2_l3_enabled: business_profile.is_l2_l3_enabled,
             external_authentication_data: request.three_ds_data.clone(),
-            payment_session_id,
+            client_session_id,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

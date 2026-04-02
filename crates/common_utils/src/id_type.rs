@@ -4,6 +4,7 @@
 mod api_key;
 mod authentication;
 mod client_secret;
+mod client_session;
 mod customer;
 #[cfg(feature = "v2")]
 mod global_id;
@@ -12,7 +13,6 @@ mod merchant;
 mod merchant_connector_account;
 mod organization;
 mod payment;
-mod payment_session;
 mod payout;
 mod profile;
 mod profile_acquirer;
@@ -49,13 +49,13 @@ pub use self::{
     api_key::ApiKeyId,
     authentication::AuthenticationId,
     client_secret::ClientSecretId,
+    client_session::ClientSessionId,
     customer::CustomerId,
     invoice::InvoiceId,
     merchant::MerchantId,
     merchant_connector_account::MerchantConnectorAccountId,
     organization::OrganizationId,
     payment::{PaymentId, PaymentReferenceId, PaymentResourceId},
-    payment_session::PaymentSessionId,
     profile::ProfileId,
     profile_acquirer::ProfileAcquirerId,
     refunds::RefundReferenceId,
