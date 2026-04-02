@@ -468,7 +468,10 @@ pub async fn get_token_pm_type_mandate_details(
     pm_info: Option<domain::PaymentMethod>,
 ) -> RouterResult<MandateGenericData> {
     let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
-    let feature_config = core_utils::get_feature_config(state, platform).await;
+    #[cfg(feature = "pm_modular")]
+    let is_payment_method_modular_allowed = core_utils::get_feature_config(state, platform)
+        .await
+        .is_payment_method_modular_allowed;
     let (
         payment_token,
         payment_method,
@@ -751,7 +754,8 @@ pub async fn get_token_pm_type_mandate_details(
             }
         }
         None => {
-            let payment_method_info = if feature_config.is_payment_method_modular_allowed {
+            #[cfg(feature = "pm_modular")]
+            let payment_method_info = if is_payment_method_modular_allowed {
                 pm_info
             } else {
                 payment_method_id
@@ -769,6 +773,21 @@ pub async fn get_token_pm_type_mandate_details(
                     .await
                     .transpose()?
             };
+            #[cfg(not(feature = "pm_modular"))]
+            let payment_method_info = payment_method_id
+                .async_map(|payment_method_id| async move {
+                    state
+                        .store
+                        .find_payment_method(
+                            platform.get_provider().get_key_store(),
+                            &payment_method_id,
+                            platform.get_provider().get_account().storage_scheme,
+                        )
+                        .await
+                        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
+                })
+                .await
+                .transpose()?;
             let resolved_payment_method = request.payment_method.or_else(|| {
                 payment_method_info
                     .as_ref()
