@@ -328,6 +328,7 @@ pub async fn payouts_core(
 pub async fn payouts_core(
     state: &SessionState,
     platform: &domain::Platform,
+    header_payload: HeaderPayload,
     payout_data: &mut PayoutData,
     routing_algorithm: Option<serde_json::Value>,
     eligible_connectors: Option<Vec<api_enums::PayoutConnectors>>,
@@ -1535,6 +1536,7 @@ pub async fn create_recipient(
 pub async fn create_recipient(
     state: &SessionState,
     platform: &domain::Platform,
+    header_payload: HeaderPayload,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
@@ -3890,6 +3892,21 @@ pub fn extract_gateway_system_from_payouts(
     {
         None // V2 does not use feature metadata for gateway system tracking
     }
+}
+
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
+#[instrument(skip_all)]
+pub async fn decide_unified_connector_service_payout<F: Clone>(
+    state: &SessionState,
+    platform: &domain::Platform,
+    header_payload: HeaderPayload,
+    router_data: &mut types::RouterData<F, types::PayoutsData, types::PayoutsResponseData>,
+    connector_data: &api::ConnectorData,
+    payout_data: &mut PayoutData,
+) -> RouterResult<(gateway_context::RouterGatewayContext, SessionState)> {
+    todo!()
 }
 
 /// Updates the payout intent's metadata to track the gateway system being used
