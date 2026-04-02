@@ -220,6 +220,9 @@ pub const AUTHENTICATION_SERVICE_ELIGIBLE_CONFIG: &str =
 /// Payment flow identifier used for performing GSM operations
 pub const PAYMENT_FLOW_STR: &str = "Payment";
 
+/// Redis key prefix for payment session storage
+pub(crate) const PAYMENT_SESSION_KEY_PREFIX: &str = "payment_session";
+
 /// Default subflow identifier used for performing GSM operations
 pub const DEFAULT_SUBFLOW_STR: &str = "sub_flow";
 
@@ -358,6 +361,8 @@ pub mod superposition {
     pub const DYNAMIC_FIELDS: &str = "dynamic_fields";
     /// payout sync tracker configuration key
     pub const PAYOUT_TRACKER_MAPPING: &str = "payout_tracker_mapping";
+    /// payment session validation enabled configuration key
+    pub const PAYMENT_SESSION_VALIDATION_ENABLED: &str = "payment_session_validation_enabled";
 }
 
 #[cfg(test)]
