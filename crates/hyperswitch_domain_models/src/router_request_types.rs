@@ -60,7 +60,7 @@ pub enum CurrentFlowInfo {
         /// The payment setup mandate request data
         request_data: Box<SetupMandateRequestData>,
     },
-        Psync {
+    Psync {
         /// The payment setup mandate request data
         request_data: Box<PaymentsSyncData>,
     },
