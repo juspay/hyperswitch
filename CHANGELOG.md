@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.04.01.0-hotfix1
+
+### Features
+
+- **blocklist:** Introduce EligibilityPaymentMethodData for blocklist and eligibility checks ([#11696](https://github.com/juspay/hyperswitch/pull/11696)) ([`c2f3411`](https://github.com/juspay/hyperswitch/commit/c2f3411473dccb921875e82943949777dd9cfa54))
+- **router:** Add payment_session_id validation support to SdkAuthorization ([#11698](https://github.com/juspay/hyperswitch/pull/11698)) ([`e6a39d9`](https://github.com/juspay/hyperswitch/commit/e6a39d942dc6579a49547796a7ed2bc355a96378))
+
+**Full Changelog:** [`2026.04.01.0...2026.04.01.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.04.01.0...2026.04.01.0-hotfix1)
+
+- - -
+
 ## 2026.04.01.0
 
 ### Features
