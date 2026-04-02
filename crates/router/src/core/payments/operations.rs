@@ -99,10 +99,10 @@ pub use self::{
     payment_session_intent::PaymentSessionIntent,
 };
 use super::{helpers, CustomerDetails, OperationSessionGetters, OperationSessionSetters};
-#[cfg(feature = "v2")]
-use crate::core::payments;
 #[cfg(all(feature = "v1", feature = "pm_modular"))]
 use crate::core::payment_methods::transformers::PaymentMethodWithRawData;
+#[cfg(feature = "v2")]
+use crate::core::payments;
 #[cfg(feature = "pm_modular")]
 use crate::core::utils as core_utils;
 use crate::{

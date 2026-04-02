@@ -115,6 +115,8 @@ use crate::core::card_testing_guard::utils as card_testing_guard_utils;
 use crate::core::debit_routing;
 #[cfg(feature = "frm")]
 use crate::core::fraud_check as frm_core;
+#[cfg(any(feature = "v2", all(feature = "v1", feature = "pm_modular")))]
+use crate::core::payment_methods::vault;
 #[cfg(feature = "v2")]
 use crate::core::revenue_recovery::get_workflow_entries;
 #[cfg(feature = "v2")]
@@ -162,8 +164,6 @@ use crate::{
     },
     workflows::payment_sync,
 };
-#[cfg(any(feature = "v2", all(feature = "v1", feature = "pm_modular")))]
-use crate::core::payment_methods::vault;
 #[cfg(feature = "v1")]
 use crate::{
     core::{

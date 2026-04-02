@@ -18,13 +18,12 @@ use crate::{
     core::payment_methods::cards::create_encrypted_data,
     events::audit_events::{AuditEvent, AuditEventType},
 };
-#[cfg(feature = "pm_modular")]
-use crate::core::payment_methods::transformers as pm_transformers;
 use crate::{
     core::{
         configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
+        payment_methods::transformers as pm_transformers,
         payments::{
             helpers, operations, CustomerDetails, OperationSessionGetters, PaymentAddress,
             PaymentData,
@@ -66,7 +65,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         #[cfg(not(feature = "pm_modular"))]
-        let payment_method_with_raw_data = None;
+        let payment_method_with_raw_data: Option<
+            pm_transformers::PaymentMethodWithRawData,
+        > = None;
 
         let processor_merchant_id = platform.get_processor().get_account().get_id();
         let storage_scheme = platform.get_processor().get_account().storage_scheme;
