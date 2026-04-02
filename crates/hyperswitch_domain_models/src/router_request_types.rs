@@ -33,6 +33,50 @@ use crate::{
     vault::PaymentMethodCustomVaultingData,
 };
 
+/// Current flow information passed to the connector specifications trait
+/// In order to make some decision about the preprocessing or alternate flow
+#[derive(Clone, Debug, Serialize)]
+pub enum CurrentFlowInfo {
+    /// Authorize flow information
+    Authorize {
+        /// The authentication type being used
+        auth_type: storage_enums::AuthenticationType,
+        /// The payment authorize request data
+        request_data: Box<PaymentsAuthorizeData>,
+    },
+    /// CompleteAuthorize flow information
+    CompleteAuthorize {
+        /// The authentication type being used
+        auth_type: storage_enums::AuthenticationType,
+        /// The payment authorize request data
+        request_data: Box<CompleteAuthorizeData>,
+        /// The payment method that is used
+        payment_method: Option<common_enums::PaymentMethod>,
+    },
+    /// SetupMandate flow information
+    SetupMandate {
+        /// The authentication type being used
+        auth_type: storage_enums::AuthenticationType,
+        /// The payment setup mandate request data
+        request_data: Box<SetupMandateRequestData>,
+    },
+        Psync {
+        /// The payment setup mandate request data
+        request_data: Box<PaymentsSyncData>,
+    },
+}
+
+impl CurrentFlowInfo {
+    pub fn get_feature_metadata(&self) -> Option<api_models::payments::FeatureMetadata> {
+        match self {
+            Self::Authorize { request_data, .. } => request_data.feature_metadata.clone(),
+            Self::CompleteAuthorize { .. } => None,
+            Self::SetupMandate { .. } => None,
+            Self::Psync { request_data } => request_data.feature_metadata.clone(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentsAuthorizeData {
     pub payment_method_data: PaymentMethodData,
@@ -1898,49 +1942,5 @@ impl TryFrom<CompleteAuthorizeData> for GenerateQrRequestData {
             amount: None,
             mandate_id: None,
         })
-    }
-}
-
-/// Current flow information passed to the connector specifications trait
-/// In order to make some decision about the preprocessing or alternate flow
-#[derive(Clone, Debug, Serialize)]
-pub enum CurrentFlowInfo {
-    /// Authorize flow information
-    Authorize {
-        /// The authentication type being used
-        auth_type: storage_enums::AuthenticationType,
-        /// The payment authorize request data
-        request_data: Box<PaymentsAuthorizeData>,
-    },
-    /// CompleteAuthorize flow information
-    CompleteAuthorize {
-        /// The authentication type being used
-        auth_type: storage_enums::AuthenticationType,
-        /// The payment authorize request data
-        request_data: Box<CompleteAuthorizeData>,
-        /// The payment method that is used
-        payment_method: Option<common_enums::PaymentMethod>,
-    },
-    /// SetupMandate flow information
-    SetupMandate {
-        /// The authentication type being used
-        auth_type: storage_enums::AuthenticationType,
-        /// The payment setup mandate request data
-        request_data: Box<SetupMandateRequestData>,
-    },
-    Psync {
-        /// The payment setup mandate request data
-        request_data: Box<PaymentsSyncData>,
-    },
-}
-
-impl CurrentFlowInfo {
-    pub fn get_feature_metadata(&self) -> Option<api_models::payments::FeatureMetadata> {
-        match self {
-            Self::Authorize { request_data, .. } => request_data.feature_metadata.clone(),
-            Self::CompleteAuthorize { .. } => None,
-            Self::SetupMandate { .. } => None,
-            Self::Psync { request_data } => request_data.feature_metadata.clone(),
-        }
     }
 }

@@ -4659,13 +4659,6 @@ where
             .ok();
     }
 
-    // check what happens if removed
-    let connector_request = if should_continue_further {
-        connector_request
-    } else {
-        None
-    };
-
     Ok((
         updated_customer,
         ConnectorServiceIntermediateState {

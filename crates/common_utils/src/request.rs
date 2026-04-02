@@ -119,7 +119,7 @@ impl Request {
     }
 
     pub fn add_certificate_key(&mut self, certificate_key: Option<Secret<String>>) {
-        self.certificate_key = certificate_key;
+        self.certificate = certificate_key;
     }
 }
 

@@ -1044,7 +1044,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount);
 
         let routing_approach = payment_data.payment_attempt.routing_approach.clone();
-        let connector_metadata = payment_data.payment_attempt.connector_metadata.clone();
         let is_stored_credential = helpers::is_stored_credential(
             &payment_data.recurring_details,
             &payment_data.pm_token,
@@ -1069,7 +1068,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     merchant_connector_id,
                     routing_approach,
                     is_stored_credential,
-                    connector_metadata,
                 },
                 storage_scheme,
                 key_store,

@@ -389,7 +389,6 @@ pub enum SantanderPaymentsSyncResponse {
     Boleto(Box<SantanderBoletoPSyncResponse>),
     PixAutomaticoConsultAndActivateJourney(Box<SantanderPixAutomaticRecResponse>),
     PixAutomaticoCobrSync(Box<SantanderPixAutomaticoCobrSyncResponse>),
-    // PixAutomaticoSolicRec(Box<SantanderPixAutomaticSolicitationResponse>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
