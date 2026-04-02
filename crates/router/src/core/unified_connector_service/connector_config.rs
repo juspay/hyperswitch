@@ -800,13 +800,16 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
             },
             Connector::Paysafe => match auth {
                 ConnectorAuthType::BodyKey { api_key, key1 } => {
-                    let account_id = metadata
-                        .and_then(|m| serde_json::from_value::<PaysafeMetadata>(m.clone()).ok())
-                        .map(|m| m.account_id);
+                    let paysafe_meta = metadata
+                        .map(|m| {
+                            serde_json::from_value::<PaysafeMetadata>(m.clone())
+                                .map_err(|_| err("Invalid Paysafe metadata format"))
+                        })
+                        .transpose()?;
                     Ok(Self::Paysafe {
                         username: api_key.clone(),
                         password: key1.clone(),
-                        account_id,
+                        account_id: paysafe_meta.map(|m| m.account_id),
                     })
                 }
                 _ => Err(err("Paysafe requires BodyKey auth type")),
