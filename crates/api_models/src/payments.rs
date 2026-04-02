@@ -6871,7 +6871,6 @@ pub struct PollConfigResponse {
 pub enum QrCodeInformation {
     QrCodeUrl {
         image_data_url: Url,
-        // can we not make this Optional since FE consumes image_data_url
         qr_code_url: Url,
         display_to_timestamp: Option<i64>,
         expiry_type: Option<common_enums::enums::ExpiryType>,
