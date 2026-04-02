@@ -7,6 +7,7 @@ pub mod unified_authentication_service;
 use api_models::payments::{
     AdditionalPaymentData, AddressDetails, ConnectorMetadata, RequestSurchargeDetails,
 };
+use common_enums;
 use common_types::payments as common_payments_types;
 use common_utils::{
     consts, errors,
@@ -31,6 +32,36 @@ use crate::{
     router_flow_types as flows, router_response_types as response_types,
     vault::PaymentMethodCustomVaultingData,
 };
+
+/// Current flow information passed to the connector specifications trait
+/// In order to make some decision about the preprocessing or alternate flow
+#[derive(Clone, Debug, Serialize)]
+pub enum CurrentFlowInfo {
+    /// Authorize flow information
+    Authorize {
+        /// The authentication type being used
+        auth_type: storage_enums::AuthenticationType,
+        /// The payment authorize request data
+        request_data: Box<PaymentsAuthorizeData>,
+    },
+    /// CompleteAuthorize flow information
+    CompleteAuthorize {
+        /// The authentication type being used
+        auth_type: storage_enums::AuthenticationType,
+        /// The payment authorize request data
+        request_data: Box<CompleteAuthorizeData>,
+        /// The payment method that is used
+        payment_method: Option<common_enums::PaymentMethod>,
+    },
+    /// SetupMandate flow information
+    SetupMandate {
+        /// The authentication type being used
+        auth_type: storage_enums::AuthenticationType,
+        /// The payment setup mandate request data
+        request_data: Box<SetupMandateRequestData>,
+    },
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentsAuthorizeData {
     pub payment_method_data: PaymentMethodData,
@@ -1370,6 +1401,7 @@ pub struct AccessTokenRequestData {
     pub app_id: Secret<String>,
     pub id: Option<Secret<String>>,
     pub authentication_token: Option<AccessTokenAuthenticationResponse>,
+    pub current_flow: Option<CurrentFlowInfo>,
     // Add more keys if required
 }
 
@@ -1382,21 +1414,25 @@ impl TryFrom<router_data::ConnectorAuthType> for AccessTokenRequestData {
                 app_id: api_key,
                 id: None,
                 authentication_token: None,
+                current_flow: None,
             }),
             router_data::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 app_id: api_key,
                 id: Some(key1),
                 authentication_token: None,
+                current_flow: None,
             }),
             router_data::ConnectorAuthType::SignatureKey { api_key, key1, .. } => Ok(Self {
                 app_id: api_key,
                 id: Some(key1),
                 authentication_token: None,
+                current_flow: None,
             }),
             router_data::ConnectorAuthType::MultiAuthKey { api_key, key1, .. } => Ok(Self {
                 app_id: api_key,
                 id: Some(key1),
                 authentication_token: None,
+                current_flow: None,
             }),
             router_data::ConnectorAuthType::CertificateAuth {
                 certificate,
@@ -1406,6 +1442,7 @@ impl TryFrom<router_data::ConnectorAuthType> for AccessTokenRequestData {
                 app_id: certificate,
                 id: Some(private_key),
                 authentication_token: None,
+                current_flow: None,
             }),
 
             _ => Err(ApiErrorResponse::InvalidDataValue {
@@ -1419,17 +1456,20 @@ impl
     TryFrom<(
         router_data::ConnectorAuthType,
         Option<AccessTokenAuthenticationResponse>,
+        Option<CurrentFlowInfo>,
     )> for AccessTokenRequestData
 {
     type Error = ApiErrorResponse;
     fn try_from(
-        (connector_auth, authentication_token): (
+        (connector_auth, authentication_token, current_flow): (
             router_data::ConnectorAuthType,
             Option<AccessTokenAuthenticationResponse>,
+            Option<CurrentFlowInfo>,
         ),
     ) -> Result<Self, Self::Error> {
         let mut access_token_request_data = Self::try_from(connector_auth)?;
         access_token_request_data.authentication_token = authentication_token;
+        access_token_request_data.current_flow = current_flow;
         Ok(access_token_request_data)
     }
 }

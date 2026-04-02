@@ -14,7 +14,8 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankTransferData, BoletoVoucherData, PaymentMethodData, VoucherData},
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
-    router_request_types::{PaymentsUpdateMetadataData, ResponseId},
+    router_flow_types::AuthorizeSessionToken,
+    router_request_types::{AuthorizeSessionTokenData, PaymentsUpdateMetadataData, ResponseId},
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsSyncRouterData,
@@ -45,7 +46,8 @@ use crate::{
         responses::{
             Beneficiary, Key, NsuComposite, Payer, SanatanderAccessTokenResponse,
             SanatanderTokenResponse, SantanderAdditionalInfo, SantanderBoletoDocumentKind,
-            SantanderBoletoPaymentType, SantanderBoletoStatus, SantanderDocumentKind,
+            SantanderBoletoPaymentType, SantanderBoletoStatus,
+            SantanderCreatePixPayloadLocationResponse, SantanderDocumentKind,
             SantanderPaymentStatus, SantanderPaymentsResponse, SantanderPaymentsSyncResponse,
             SantanderPixKeyType, SantanderPixQRCodePaymentsResponse,
             SantanderPixQRCodeSyncResponse, SantanderRefundResponse, SantanderRefundStatus,
@@ -64,6 +66,36 @@ impl<T> From<(StringMajorUnit, T)> for SantanderRouterData<T> {
             amount,
             router_data: item,
         }
+    }
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            AuthorizeSessionToken,
+            SantanderCreatePixPayloadLocationResponse,
+            AuthorizeSessionTokenData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<AuthorizeSessionToken, AuthorizeSessionTokenData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<
+            AuthorizeSessionToken,
+            SantanderCreatePixPayloadLocationResponse,
+            AuthorizeSessionTokenData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            session_token: Some(item.response.id.to_string()),
+            response: Ok(PaymentsResponseData::SessionTokenResponse {
+                session_token: item.response.id.to_string(),
+            }),
+            ..item.data
+        })
     }
 }
 
@@ -215,6 +247,28 @@ impl TryFrom<(&RefreshTokenRouterData, &SantanderMetadataObject)> for SantanderA
                 let pix_mca_metadata = item
                     .1
                     .pix
+                    .as_ref()
+                    .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
+                Ok((
+                    pix_mca_metadata.client_id.clone(),
+                    pix_mca_metadata.client_secret.clone(),
+                ))
+            }
+            Some(enums::PaymentMethodType::PixAutomaticoPush) => {
+                let pix_mca_metadata = item
+                    .1
+                    .pix_automatico_push
+                    .as_ref()
+                    .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
+                Ok((
+                    pix_mca_metadata.client_id.clone(),
+                    pix_mca_metadata.client_secret.clone(),
+                ))
+            }
+            Some(enums::PaymentMethodType::PixAutomaticoQr) => {
+                let pix_mca_metadata = item
+                    .1
+                    .pix_automatico_qr
                     .as_ref()
                     .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
                 Ok((

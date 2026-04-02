@@ -56,6 +56,8 @@ pub enum SantanderDiscountType {
 pub struct SantanderMetadataObject {
     pub pix: Option<PixMetadataObject>,
     pub boleto: Option<BoletoMetadataObject>,
+    pub pix_automatico_push: Option<PixAutomaticoMetadataObject>,
+    pub pix_automatico_qr: Option<PixAutomaticoMetadataObject>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -360,3 +362,11 @@ pub type BoletoAdditionalFields = (
         Option<StringMajorUnit>,
     ),
 );
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PixAutomaticoMetadataObject {
+    pub client_id: Secret<String>,
+    pub client_secret: Secret<String>,
+    pub pix_key_value: Secret<String>,
+    pub pix_key_type: responses::SantanderPixKeyType,
+}

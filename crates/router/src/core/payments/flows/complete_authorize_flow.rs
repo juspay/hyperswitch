@@ -172,9 +172,9 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
     ) -> RouterResult<types::BalanceCheckResult> {
         if connector.connector.is_balance_check_flow_required(
             api_interface::CurrentFlowInfo::CompleteAuthorize {
-                auth_type: &self.auth_type,
+                auth_type: self.auth_type,
                 payment_method: Some(self.payment_method),
-                request_data: &self.request,
+                request_data: Box::new(self.request.clone()),
             },
         ) {
             logger::info!(
@@ -289,6 +289,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
             self,
             creds_identifier,
             gateway_context,
+            None,
         ))
         .await
     }
@@ -358,8 +359,8 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
     {
         if connector.connector.is_authentication_flow_required(
             api_interface::CurrentFlowInfo::CompleteAuthorize {
-                auth_type: &self.auth_type,
-                request_data: &self.request,
+                auth_type: self.auth_type,
+                request_data: Box::new(self.request.clone()),
                 payment_method: Some(self.payment_method),
             },
         ) {
@@ -445,8 +446,8 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
     {
         if connector.connector.is_post_authentication_flow_required(
             api_interface::CurrentFlowInfo::CompleteAuthorize {
-                auth_type: &self.auth_type,
-                request_data: &self.request,
+                auth_type: self.auth_type,
+                request_data: Box::new(self.request.clone()),
                 payment_method: Some(self.payment_method),
             },
         ) {
