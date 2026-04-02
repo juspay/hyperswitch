@@ -110,20 +110,6 @@ jobs:
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: actions/checkout@v5
-      
-      - name: Print System Resources
-        if: ${{ env.RUN_TESTS == 'true' }}
-        shell: bash
-        run: |
-          echo "===== SYSTEM INFO ====="
-          echo "CPU cores:"
-          nproc
-
-          echo "Memory:"
-          free -h
-
-          echo "Disk:"
-          df -h
 
       - name: Install mold linker
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -153,9 +139,7 @@ jobs:
 
       - name: Build project
         if: ${{ env.RUN_TESTS == 'true' }}
-        env:
-          CARGO_BUILD_JOBS: 6
-        run: cargo build --package router --bin router
+        run: cargo build --package router --bin router --jobs 2
 
       - name: Upload binary artifact
         if: ${{ env.RUN_TESTS == 'true' }}
