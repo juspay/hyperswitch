@@ -589,18 +589,19 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     key1: _,
                     api_secret,
                 } => {
-                    let metadata_parsed = metadata
-                        .map(|m| serde_json::from_value::<BraintreeMetadata>(m.clone()))
-                        .transpose()
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to parse Braintree metadata")?
+                    let braintree_meta = metadata
+                        .map(|m| {
+                            serde_json::from_value::<BraintreeMetadata>(m.clone())
+                                .map_err(|_| err("Invalid Braintree metadata format"))
+                        })
+                        .transpose()?
                         .ok_or_else(|| err("Braintree requires metadata with merchant_account_id and merchant_config_currency"))?;
 
                     Ok(Self::Braintree {
                         public_key: api_key.clone(),
                         private_key: api_secret.clone(),
-                        merchant_account_id: metadata_parsed.merchant_account_id,
-                        merchant_config_currency: Some(metadata_parsed.merchant_config_currency),
+                        merchant_account_id: braintree_meta.merchant_account_id,
+                        merchant_config_currency: Some(braintree_meta.merchant_config_currency),
                     })
                 }
                 _ => Err(err("Braintree requires SignatureKey auth type")),
