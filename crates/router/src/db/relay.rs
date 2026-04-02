@@ -1,6 +1,7 @@
 use diesel_models;
 use error_stack::{report, ResultExt};
 use storage_impl::behaviour::{Conversion, ReverseConversion};
+use storage_impl::transformers::ForeignFrom;
 use storage_impl::MockDb;
 
 use super::domain;
@@ -76,7 +77,7 @@ impl RelayInterface for Store {
             .change_context(errors::StorageError::EncryptionError)?
             .update(
                 &conn,
-                diesel_models::relay::RelayUpdateInternal::from(relay_update),
+                diesel_models::relay::RelayUpdateInternal::foreign_from(relay_update),
             )
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?

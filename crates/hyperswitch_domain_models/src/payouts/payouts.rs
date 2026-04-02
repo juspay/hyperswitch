@@ -11,8 +11,6 @@ use super::PayoutFetchConstraints;
 #[async_trait::async_trait]
 pub trait PayoutsInterface {
     type Error;
-    type Customer;
-    type Address;
 
     async fn insert_payout(
         &self,
@@ -56,12 +54,13 @@ pub trait PayoutsInterface {
         _merchant_id: &id_type::MerchantId,
         _filters: &PayoutFetchConstraints,
         _storage_scheme: MerchantStorageScheme,
+        _key_store: &crate::merchant_key_store::MerchantKeyStore,
     ) -> error_stack::Result<
         Vec<(
             Payouts,
             PayoutAttempt,
-            Option<Self::Customer>,
-            Option<Self::Address>,
+            Option<crate::customer::Customer>,
+            Option<crate::address::Address>,
         )>,
         Self::Error,
     >;

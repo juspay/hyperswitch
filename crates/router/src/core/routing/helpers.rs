@@ -14,7 +14,6 @@ use api_models::routing as routing_types;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use common_utils::ext_traits::ValueExt;
 use common_utils::{ext_traits::Encode, id_type};
-use diesel_models::configs;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use diesel_models::dynamic_routing_stats::{DynamicRoutingStatsNew, DynamicRoutingStatsUpdate};
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
@@ -107,7 +106,7 @@ pub async fn get_merchant_default_config(
                     "Error while creating and serializing new merchant default config",
                 )?;
 
-            let new_config = configs::ConfigNew {
+            let new_config = storage::ConfigNew {
                 key,
                 config: serialized,
             };
@@ -140,7 +139,7 @@ pub async fn update_merchant_default_config(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to serialize merchant default routing config during update")?;
 
-    let config_update = configs::ConfigUpdate::Update {
+    let config_update = storage::ConfigUpdate::Update {
         config: Some(config_str),
     };
 
@@ -163,7 +162,7 @@ pub async fn update_merchant_routing_dictionary(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to serialize routing dictionary during update")?;
 
-    let config_update = configs::ConfigUpdate::Update {
+    let config_update = storage::ConfigUpdate::Update {
         config: Some(dictionary_str),
     };
 

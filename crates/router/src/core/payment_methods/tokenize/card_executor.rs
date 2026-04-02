@@ -99,7 +99,7 @@ impl<'a> NetworkTokenizationBuilder<'a, CardRequestValidated> {
     pub fn set_card_details(
         self,
         card_req: &'a domain::TokenizeCardRequest,
-        optional_card_info: Option<diesel_models::CardInfo>,
+        optional_card_info: Option<hyperswitch_domain_models::cards_info::CardInfo>,
     ) -> NetworkTokenizationBuilder<'a, CardDetailsAssigned> {
         let card = domain::CardDetail {
             card_number: card_req.raw_card_number.clone(),

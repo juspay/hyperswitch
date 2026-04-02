@@ -10,8 +10,6 @@ use crate::{errors::StorageError, MockDb};
 #[async_trait::async_trait]
 impl PayoutsInterface for MockDb {
     type Error = StorageError;
-    type Customer = diesel_models::customers::Customer;
-    type Address = diesel_models::address::Address;
     async fn find_payout_by_merchant_id_payout_id(
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
@@ -69,12 +67,13 @@ impl PayoutsInterface for MockDb {
         _merchant_id: &common_utils::id_type::MerchantId,
         _filters: &hyperswitch_domain_models::payouts::PayoutFetchConstraints,
         _storage_scheme: storage_enums::MerchantStorageScheme,
+        _key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
     ) -> CustomResult<
         Vec<(
             Payouts,
             PayoutAttempt,
-            Option<diesel_models::Customer>,
-            Option<diesel_models::Address>,
+            Option<hyperswitch_domain_models::customer::Customer>,
+            Option<hyperswitch_domain_models::address::Address>,
         )>,
         StorageError,
     > {

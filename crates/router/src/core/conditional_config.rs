@@ -69,10 +69,11 @@ pub async fn upsert_conditional_config(
     request: DecisionManager,
 ) -> RouterResponse<DecisionManagerRecord> {
     use common_utils::ext_traits::{Encode, OptionExt, ValueExt};
-    use diesel_models::configs;
     use storage_impl::redis::cache;
 
     use super::routing::helpers::update_merchant_active_algorithm_ref;
+
+    use crate::types::storage;
 
     let db = state.store.as_ref();
     let (name, prog) = match request {
@@ -146,7 +147,7 @@ pub async fn upsert_conditional_config(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unable to serialize config to string")?;
 
-            let updated_config = configs::ConfigUpdate::Update {
+            let updated_config = storage::ConfigUpdate::Update {
                 config: Some(serialize_updated_str),
             };
 
@@ -186,7 +187,7 @@ pub async fn upsert_conditional_config(
                 .encode_to_string_of_json()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error serializing the config")?;
-            let new_config = configs::ConfigNew {
+            let new_config = storage::ConfigNew {
                 key: key.clone(),
                 config: serialized_str,
             };

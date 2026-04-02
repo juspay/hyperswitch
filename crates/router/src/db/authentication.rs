@@ -1,6 +1,7 @@
 use common_utils::{ext_traits::AsyncExt, types::keymanager::KeyManagerState};
 use error_stack::{report, ResultExt};
 use storage_impl::behaviour::{Conversion, ReverseConversion};
+use storage_impl::transformers::ForeignFrom;
 use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 use router_env::{instrument, tracing};
 use storage_impl::StorageError;
@@ -140,7 +141,7 @@ impl AuthenticationInterface for Store {
             &conn,
             previous_state.merchant_id,
             previous_state.authentication_id,
-            authentication_update.into(),
+            storage::AuthenticationUpdate::foreign_from(authentication_update),
         )
         .await
         .map_err(|error| report!(StorageError::from(error)))

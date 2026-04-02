@@ -18,7 +18,7 @@ use crate::{
     },
     errors::{self, RouterResult},
     services,
-    types::{api, domain, payment_methods as pm_types},
+    types::{api, domain, payment_methods as pm_types, storage},
     SessionState,
 };
 
@@ -217,7 +217,7 @@ pub trait NetworkTokenizationProcess<'a, D> {
         card_network: Option<&api_enums::CardNetwork>,
         card_type: Option<&api_models::payment_methods::CardType>,
         card_issuing_country: Option<&String>,
-    ) -> RouterResult<Option<diesel_models::CardInfo>>;
+    ) -> RouterResult<Option<hyperswitch_domain_models::cards_info::CardInfo>>;
     fn validate_card_network(
         &self,
         optional_card_network: Option<&api_enums::CardNetwork>,
@@ -320,7 +320,7 @@ where
         card_network: Option<&api_enums::CardNetwork>,
         card_type: Option<&api_models::payment_methods::CardType>,
         card_issuing_country: Option<&String>,
-    ) -> RouterResult<Option<diesel_models::CardInfo>> {
+    ) -> RouterResult<Option<storage::CardInfo>> {
         let db = &*self.state.store;
         if card_issuer.is_some()
             && card_network.is_some()

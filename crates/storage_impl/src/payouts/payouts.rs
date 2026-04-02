@@ -56,8 +56,6 @@ use crate::{
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
     type Error = StorageError;
-    type Customer = diesel_models::customers::Customer;
-    type Address = diesel_models::address::Address;
     #[instrument(skip_all)]
     async fn insert_payout(
         &self,
@@ -328,17 +326,18 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         merchant_id: &common_utils::id_type::MerchantId,
         filters: &PayoutFetchConstraints,
         storage_scheme: MerchantStorageScheme,
+        key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
     ) -> error_stack::Result<
         Vec<(
             Payouts,
             PayoutAttempt,
-            Option<DieselCustomer>,
-            Option<DieselAddress>,
+            Option<hyperswitch_domain_models::customer::Customer>,
+            Option<hyperswitch_domain_models::address::Address>,
         )>,
         StorageError,
     > {
         self.router_store
-            .filter_payouts_and_attempts(merchant_id, filters, storage_scheme)
+            .filter_payouts_and_attempts(merchant_id, filters, storage_scheme, key_store)
             .await
     }
 
@@ -425,8 +424,6 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
     type Error = StorageError;
-    type Customer = diesel_models::customers::Customer;
-    type Address = diesel_models::address::Address;
     #[instrument(skip_all)]
     async fn insert_payout(
         &self,
@@ -607,12 +604,13 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         merchant_id: &common_utils::id_type::MerchantId,
         filters: &PayoutFetchConstraints,
         storage_scheme: MerchantStorageScheme,
+        key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
     ) -> error_stack::Result<
         Vec<(
             Payouts,
             PayoutAttempt,
-            Option<DieselCustomer>,
-            Option<DieselAddress>,
+            Option<hyperswitch_domain_models::customer::Customer>,
+            Option<hyperswitch_domain_models::address::Address>,
         )>,
         StorageError,
     > {
@@ -732,40 +730,62 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
 
         logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
-        query
+        let results: Vec<(
+            DieselPayouts,
+            DieselPayoutAttempt,
+            Option<DieselCustomer>,
+            Option<DieselAddress>,
+        )> = query
             .select((
                 po_all_columns,
                 poa_all_columns,
                 cust_all_columns.nullable(),
                 addr_all_columns.nullable(),
             ))
-            .get_results_async::<(
-                DieselPayouts,
-                DieselPayoutAttempt,
-                Option<DieselCustomer>,
-                Option<DieselAddress>,
-            )>(conn)
+            .get_results_async(conn)
             .await
-            .map(|results| {
-                results
-                    .into_iter()
-                    .map(|(pi, pa, c, add)| {
-                        (
-                            Payouts::from_storage_model(pi),
-                            PayoutAttempt::from_storage_model(pa),
-                            c,
-                            add,
-                        )
-                    })
-                    .collect()
-            })
             .map_err(|er| {
                 StorageError::DatabaseError(
                     error_stack::report!(diesel_models::errors::DatabaseError::from(er))
                         .attach_printable("Error filtering payout records"),
                 )
-                .into()
-            })
+            })?;
+
+        use futures::future::try_join_all;
+        use crate::behaviour::Conversion;
+        use common_utils::types::keymanager::Identifier;
+
+        let key_manager_state = self.get_keymanager_state()?;
+        let key = key_store.key.get_inner();
+        let key_manager_id: Identifier = key_store.merchant_id.clone().into();
+
+        let converted = try_join_all(results.into_iter().map(|(p, pa, c, _a)| async {
+            let customer = if let Some(cust) = c {
+                hyperswitch_domain_models::customer::Customer::convert_back(
+                    key_manager_state,
+                    cust,
+                    key,
+                    key_manager_id.clone(),
+                )
+                .await
+                .ok()
+            } else {
+                None
+            };
+
+            // TODO: Address conversion - deferred
+            // Need to decrypt diesel_models::Address and convert to hyperswitch_domain_models::address::Address
+            let address = None;
+
+            Ok::<_, StorageError>((
+                Payouts::from_storage_model(p),
+                PayoutAttempt::from_storage_model(pa),
+                customer,
+                address,
+            ))
+        })).await?;
+
+        Ok(converted)
     }
 
     #[cfg(all(feature = "olap", feature = "v2"))]

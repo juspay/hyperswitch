@@ -6,7 +6,7 @@ use hyperswitch_domain_models::gsm::{GatewayStatusMap, GatewayStatusMappingUpdat
 use crate::transformers::ForeignTryFrom;
 
 impl ForeignTryFrom<GatewayStatusMap> for diesel_models::gsm::GatewayStatusMappingNew {
-    type Error = error_stack::Report<ValidationError>;
+    type Error = ValidationError;
 
     fn foreign_try_from(from: GatewayStatusMap) -> error_stack::Result<Self, Self::Error> {
         Ok(Self {
@@ -41,7 +41,7 @@ impl ForeignTryFrom<GatewayStatusMap> for diesel_models::gsm::GatewayStatusMappi
 }
 
 impl ForeignTryFrom<GatewayStatusMappingUpdate> for diesel_models::gsm::GatewayStatusMappingUpdate {
-    type Error = error_stack::Report<ValidationError>;
+    type Error = ValidationError;
 
     fn foreign_try_from(
         from: GatewayStatusMappingUpdate,

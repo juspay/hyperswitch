@@ -828,6 +828,21 @@ impl ForeignFrom<diesel_models::cards_info::CardInfo> for api_models::cards_info
     }
 }
 
+impl ForeignFrom<hyperswitch_domain_models::cards_info::CardInfo>
+    for api_models::cards_info::CardInfoResponse
+{
+    fn foreign_from(item: hyperswitch_domain_models::cards_info::CardInfo) -> Self {
+        Self {
+            card_iin: item.card_iin,
+            card_type: item.card_type,
+            card_sub_type: item.card_subtype,
+            card_network: item.card_network.map(|x| x.to_string()),
+            card_issuer: item.card_issuer,
+            card_issuing_country: item.card_issuing_country,
+        }
+    }
+}
+
 #[cfg(feature = "v1")]
 impl ForeignFrom<hyperswitch_domain_models::payments::payment_attempt::UnifiedErrorDetails>
     for payments::ApiUnifiedErrorDetails

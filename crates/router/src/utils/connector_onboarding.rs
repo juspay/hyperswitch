@@ -1,4 +1,4 @@
-use diesel_models::{ConfigNew, ConfigUpdate};
+use crate::types::storage::{ConfigNew, ConfigUpdate};
 use error_stack::ResultExt;
 
 use super::errors::StorageErrorExt;

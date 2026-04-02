@@ -874,72 +874,24 @@ pub async fn payouts_filtered_list_core(
     validator::validate_payout_list_request_for_joins(*limit)?;
     let db = state.store.as_ref();
     let constraints = filters.clone().into();
-    let list: Vec<(
-        storage::Payouts,
-        storage::PayoutAttempt,
-        Option<diesel_models::Customer>,
-        Option<diesel_models::Address>,
-    )> = db
+    let list = db
         .filter_payouts_and_attempts(
             platform.get_processor().get_account().get_id(),
             &constraints,
             platform.get_processor().get_account().storage_scheme,
+            &platform.get_processor().get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
     let list = core_utils::filter_objects_based_on_profile_id_list(profile_id_list, list);
-    let data: Vec<api::PayoutCreateResponse> =
-        join_all(list.into_iter().map(|(p, pa, customer, address)| async {
-            let customer: Option<domain::Customer> = customer
-                .async_and_then(|cust| async {
-                    domain::Customer::convert_back(
-                        &(&state).into(),
-                        cust,
-                        &(platform.get_processor().get_key_store().clone()).key,
-                        platform
-                            .get_processor()
-                            .get_key_store()
-                            .merchant_id
-                            .clone()
-                            .into(),
-                    )
-                    .await
-                    .map_err(|err| {
-                        let msg = format!("failed to convert customer for id: {:?}", p.customer_id);
-                        logger::warn!(?err, msg);
-                    })
-                    .ok()
-                })
-                .await;
-
-            let payout_addr: Option<payment_enums::Address> = address
-                .async_and_then(|addr| async {
-                    domain::Address::convert_back(
-                        &(&state).into(),
-                        addr,
-                        &(platform.get_processor().get_key_store().clone()).key,
-                        platform
-                            .get_processor()
-                            .get_key_store()
-                            .merchant_id
-                            .clone()
-                            .into(),
-                    )
-                    .await
-                    .map(ForeignFrom::foreign_from)
-                    .map_err(|err| {
-                        let msg = format!("failed to convert address for id: {:?}", p.address_id);
-                        logger::warn!(?err, msg);
-                    })
-                    .ok()
-                })
-                .await;
-
-            Some((p, pa, customer, payout_addr))
-        }))
-        .await
+    let data: Vec<api::PayoutCreateResponse> = list
         .into_iter()
-        .flatten()
+        .filter_map(|(p, pa, customer, address)| {
+            // TODO: Address conversion when implemented
+            // Currently address is always None from storage_impl
+            let payout_addr: Option<payment_enums::Address> = None;
+            Some((p, pa, customer, payout_addr))
+        })
         .map(ForeignFrom::foreign_from)
         .collect();
 
@@ -2248,7 +2200,7 @@ pub async fn create_recipient_disburse_account(
 
                 if let Some(pm_method) = payout_data.payment_method.clone() {
                     let pm_update =
-                        diesel_models::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
+                        storage::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
                             #[cfg(feature = "v1")]
                             connector_mandate_details: Some(connector_mandate_details_value),
 

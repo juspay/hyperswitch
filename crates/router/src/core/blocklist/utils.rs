@@ -1,7 +1,7 @@
 use api_models::blocklist as api_blocklist;
 use common_enums::MerchantDecision;
 use common_utils::errors::CustomResult;
-use diesel_models::{business_profile::CardBlockingConfig, configs};
+use diesel_models::business_profile::CardBlockingConfig;
 use error_stack::ResultExt;
 use hyperswitch_masking::StrongSecret;
 
@@ -50,13 +50,13 @@ pub async fn toggle_blocklist_guard_for_merchant(
 ) -> CustomResult<api_blocklist::ToggleBlocklistResponse, errors::ApiErrorResponse> {
     let key = merchant_id.get_blocklist_guard_key();
     let maybe_guard = state.store.find_config_by_key_from_db(&key).await;
-    let new_config = configs::ConfigNew {
+    let new_config = storage::ConfigNew {
         key: key.clone(),
         config: query.status.to_string(),
     };
     match maybe_guard {
         Ok(_config) => {
-            let updated_config = configs::ConfigUpdate::Update {
+            let updated_config = storage::ConfigUpdate::Update {
                 config: Some(query.status.to_string()),
             };
             state

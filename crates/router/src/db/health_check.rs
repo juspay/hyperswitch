@@ -44,7 +44,7 @@ impl HealthCheckDbInterface for Store {
 
             logger::debug!("Database write was successful");
 
-            storage::Config::delete_by_key(&conn, "test_key")
+            diesel_models::configs::Config::delete_by_key(&conn, "test_key")
                 .await
                 .map_err(|err| {
                     logger::error!(delete_err=?err,"Error while deleting element in the database");

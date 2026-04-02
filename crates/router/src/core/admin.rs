@@ -13,7 +13,7 @@ use common_utils::{
 };
 #[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap"))]
 use diesel_models::{business_profile::CardTestingGuardConfig, organization::OrganizationBridge};
-use diesel_models::{configs, payment_method};
+use diesel_models::{configs::ConfigUpdateInternal, payment_method};
 use error_stack::{report, FutureExt, ResultExt};
 use external_services::http_client::client;
 use hyperswitch_domain_models::merchant_connector_account::{
@@ -77,7 +77,7 @@ pub async fn insert_merchant_configs(
     db: &dyn StorageInterface,
     merchant_id: &id_type::MerchantId,
 ) -> RouterResult<()> {
-    db.insert_config(configs::ConfigNew {
+    db.insert_config(storage::ConfigNew {
         key: merchant_id.get_requires_cvv_key(),
         config: "true".to_string(),
     })
@@ -85,7 +85,7 @@ pub async fn insert_merchant_configs(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Error while setting requires_cvv config")?;
 
-    db.insert_config(configs::ConfigNew {
+    db.insert_config(storage::ConfigNew {
         key: merchant_id.get_merchant_fingerprint_secret_key(),
         config: utils::generate_id(consts::FINGERPRINT_SECRET_LENGTH, "fs"),
     })

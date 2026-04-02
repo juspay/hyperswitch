@@ -1,4 +1,2 @@
-pub use diesel_models::gsm::{
-    GatewayStatusMap, GatewayStatusMapperUpdateInternal, GatewayStatusMappingNew,
-    GatewayStatusMappingUpdate,
-};
+pub use diesel_models::gsm::{GatewayStatusMapperUpdateInternal, GatewayStatusMappingNew};
+pub use hyperswitch_domain_models::gsm::{GatewayStatusMap, GatewayStatusMappingUpdate};

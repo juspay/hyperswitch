@@ -1,6 +1,7 @@
 use diesel_models::gsm as storage;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
+use storage_impl::transformers::ForeignTryFrom;
 
 use super::MockDb;
 use crate::{
@@ -59,14 +60,14 @@ impl GsmInterface for Store {
         rule: hyperswitch_domain_models::gsm::GatewayStatusMap,
     ) -> CustomResult<hyperswitch_domain_models::gsm::GatewayStatusMap, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        let gsm_db_record = diesel_models::gsm::GatewayStatusMappingNew::try_from(rule)
+        let gsm_db_record = storage::GatewayStatusMappingNew::foreign_try_from(rule)
             .change_context(errors::StorageError::SerializationFailed)
             .attach_printable("Failed to convert gsm domain models to diesel models")?
             .insert(&conn)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?;
 
-        hyperswitch_domain_models::gsm::GatewayStatusMap::try_from(gsm_db_record)
+        hyperswitch_domain_models::gsm::GatewayStatusMap::foreign_try_from(gsm_db_record)
             .change_context(errors::StorageError::DeserializationFailed)
             .attach_printable("Failed to convert gsm diesel models to domain models")
     }
@@ -103,7 +104,7 @@ impl GsmInterface for Store {
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))?;
 
-        hyperswitch_domain_models::gsm::GatewayStatusMap::try_from(gsm_db_record)
+        hyperswitch_domain_models::gsm::GatewayStatusMap::foreign_try_from(gsm_db_record)
             .change_context(errors::StorageError::DeserializationFailed)
             .attach_printable("Failed to convert gsm diesel models to domain models")
     }
@@ -119,7 +120,7 @@ impl GsmInterface for Store {
         data: hyperswitch_domain_models::gsm::GatewayStatusMappingUpdate,
     ) -> CustomResult<hyperswitch_domain_models::gsm::GatewayStatusMap, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        let gsm_update_data = diesel_models::gsm::GatewayStatusMappingUpdate::try_from(data)
+        let gsm_update_data = storage::GatewayStatusMappingUpdate::foreign_try_from(data)
             .change_context(errors::StorageError::SerializationFailed)?;
         let gsm_db_record = storage::GatewayStatusMap::update(
             &conn,
@@ -133,7 +134,7 @@ impl GsmInterface for Store {
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))?;
 
-        hyperswitch_domain_models::gsm::GatewayStatusMap::try_from(gsm_db_record)
+        hyperswitch_domain_models::gsm::GatewayStatusMap::foreign_try_from(gsm_db_record)
             .change_context(errors::StorageError::DeserializationFailed)
             .attach_printable("Failed to convert gsm diesel models to domain models")
     }

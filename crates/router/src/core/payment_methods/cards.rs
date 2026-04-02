@@ -39,7 +39,6 @@ use common_utils::{
         MinorUnit,
     },
 };
-use diesel_models::payment_method;
 use error_stack::{report, ResultExt};
 use euclid::{
     dssa::graph::{AnalysisContext, CgraphExt},
@@ -609,7 +608,7 @@ impl PaymentMethodsController for PmCards<'_> {
                 .async_lift(|inner| async {
                     domain::types::crypto_operation(
                         &key_manager_state,
-                        type_name!(payment_method::PaymentMethod),
+                        type_name!(storage::PaymentMethod),
                         domain::types::CryptoOperation::EncryptOptional(inner),
                         Identifier::Merchant(key_store.merchant_id.clone()),
                         key,
@@ -2262,7 +2261,7 @@ pub async fn decode_and_decrypt_locker_data(
     // Decrypt
     domain::types::crypto_operation(
         &state.into(),
-        type_name!(payment_method::PaymentMethod),
+        type_name!(storage::PaymentMethod),
         domain::types::CryptoOperation::DecryptOptional(Some(Encryption::new(
             decoded_bytes.into(),
         ))),
@@ -2430,7 +2429,7 @@ pub async fn update_payment_method_metadata_and_network_token_data_and_last_used
     storage_scheme: MerchantStorageScheme,
     initiator: Option<&domain::Initiator>,
 ) -> errors::CustomResult<(), errors::VaultError> {
-    let pm_update = payment_method::PaymentMethodUpdate::AdditionalDataUpdate {
+    let pm_update = storage::PaymentMethodUpdate::AdditionalDataUpdate {
         locker_id: None,
         payment_method_data: None,
         status: None,
@@ -2467,7 +2466,7 @@ pub async fn update_payment_method_network_token_data(
     storage_scheme: MerchantStorageScheme,
     initiator: Option<&domain::Initiator>,
 ) -> errors::CustomResult<(), errors::VaultError> {
-    let pm_update = payment_method::PaymentMethodUpdate::NetworkTokenDataUpdate {
+    let pm_update = storage::PaymentMethodUpdate::NetworkTokenDataUpdate {
         network_token_requestor_reference_id,
         network_token_locker_id,
         network_token_payment_method_data: pm_network_token_data_encrypted.map(Into::into),
@@ -2492,7 +2491,7 @@ pub async fn update_payment_method_and_last_used(
     card_scheme: Option<String>,
     initiator: Option<&domain::Initiator>,
 ) -> errors::CustomResult<(), errors::VaultError> {
-    let pm_update = payment_method::PaymentMethodUpdate::UpdatePaymentMethodDataAndLastUsed {
+    let pm_update = storage::PaymentMethodUpdate::UpdatePaymentMethodDataAndLastUsed {
         payment_method_data: payment_method_update,
         scheme: card_scheme,
         last_used_at: common_utils::date_time::now(),
@@ -2516,7 +2515,7 @@ pub async fn update_payment_method_connector_mandate_details(
     storage_scheme: MerchantStorageScheme,
     initiator: Option<&domain::Initiator>,
 ) -> errors::CustomResult<(), errors::VaultError> {
-    let pm_update = payment_method::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
+    let pm_update = storage::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
         connector_mandate_details: connector_mandate_details.map(|cmd| cmd.into()),
         last_modified_by: initiator
             .and_then(|initiator| initiator.to_created_by())
@@ -2547,7 +2546,7 @@ pub async fn update_payment_method_connector_mandate_details(
         })
         .transpose()?;
 
-    let pm_update = payment_method::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
+    let pm_update = storage::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
         connector_mandate_details: connector_mandate_details_value,
         last_modified_by: initiator
             .and_then(|initiator| initiator.to_created_by())
@@ -2581,7 +2580,7 @@ pub async fn update_payment_method_connector_mandate_details_and_network_token_d
             })
         })
         .transpose()?;
-    let pm_update = payment_method::PaymentMethodUpdate::AdditionalDataUpdate {
+    let pm_update = storage::PaymentMethodUpdate::AdditionalDataUpdate {
         locker_id: None,
         payment_method_data: None,
         status: None,
@@ -5420,7 +5419,7 @@ where
 
     let encrypted_data = domain::types::crypto_operation(
         key_manager_state,
-        type_name!(payment_method::PaymentMethod),
+        type_name!(storage::PaymentMethod),
         domain::types::CryptoOperation::Encrypt(secret_data),
         identifier.clone(),
         key,

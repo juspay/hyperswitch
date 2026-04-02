@@ -11,7 +11,7 @@ use super::{
 use crate::{
     core::payment_methods::transformers as pm_transformers,
     errors::{self, RouterResult},
-    types::{api, domain},
+    types::{api, domain, storage},
 };
 
 // Available states for payment method tokenization
@@ -122,7 +122,7 @@ impl<'a> NetworkTokenizationBuilder<'a, PmValidated> {
     pub fn set_card_details(
         self,
         card_from_locker: &'a api_models::payment_methods::Card,
-        optional_card_info: Option<diesel_models::CardInfo>,
+        optional_card_info: Option<hyperswitch_domain_models::cards_info::CardInfo>,
         card_cvc: Option<Secret<String>>,
     ) -> NetworkTokenizationBuilder<'a, PmAssigned> {
         let card = domain::CardDetail {
@@ -395,7 +395,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
             .await?;
 
         // Update payment method
-        let payment_method_update = diesel_models::PaymentMethodUpdate::NetworkTokenDataUpdate {
+        let payment_method_update = storage::PaymentMethodUpdate::NetworkTokenDataUpdate {
             network_token_requestor_reference_id: network_token_details.1.clone(),
             network_token_locker_id: Some(store_token_response.card_reference.clone()),
             network_token_payment_method_data: Some(enc_token_data.into()),

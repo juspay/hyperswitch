@@ -1,5 +1,6 @@
 pub use diesel_models::merchant_connector_account::{
-    MerchantConnectorAccount, MerchantConnectorAccountNew, MerchantConnectorAccountUpdateInternal,
+    MerchantConnectorAccountNew, MerchantConnectorAccountUpdateInternal,
 };
-
-pub use crate::types::domain::MerchantConnectorAccountUpdate;
+pub use hyperswitch_domain_models::merchant_connector_account::{
+    MerchantConnectorAccount, MerchantConnectorAccountUpdate,
+};

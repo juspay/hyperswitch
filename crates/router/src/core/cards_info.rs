@@ -2,7 +2,6 @@ use actix_multipart::form::{bytes::Bytes, MultipartForm};
 use api_models::cards_info as cards_info_api_types;
 use common_utils::fp_utils::when;
 use csv::Reader;
-use diesel_models::cards_info as card_info_models;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::cards_info;
 use rdkafka::message::ToBytes;
@@ -17,6 +16,7 @@ use crate::{
     services::ApplicationResponse,
     types::{
         domain,
+        storage,
         transformers::{ForeignFrom, ForeignInto},
     },
 };
@@ -75,7 +75,7 @@ pub async fn update_card_info(
     cards_info::CardsInfoInterface::update_card_info(
         db,
         card_info_request.card_iin,
-        card_info_models::UpdateCardInfo {
+        storage::UpdateCardInfo {
             card_issuer: card_info_request.card_issuer,
             card_network: card_info_request.card_network,
             card_type: card_info_request.card_type,
@@ -181,7 +181,7 @@ impl<'a> CardInfoMigrateExecutor<'a> {
         Self { state, record }
     }
 
-    async fn fetch_card_info(&self) -> RouterResult<Option<card_info_models::CardInfo>> {
+    async fn fetch_card_info(&self) -> RouterResult<Option<storage::CardInfo>> {
         let db = self.state.store.as_ref();
         let maybe_card_info = db
             .get_card_info(&self.record.card_iin)
@@ -190,7 +190,7 @@ impl<'a> CardInfoMigrateExecutor<'a> {
         Ok(maybe_card_info)
     }
 
-    async fn add_card_info(&self) -> RouterResult<card_info_models::CardInfo> {
+    async fn add_card_info(&self) -> RouterResult<storage::CardInfo> {
         let db = self.state.store.as_ref();
         let card_info =
             cards_info::CardsInfoInterface::add_card_info(db, self.record.clone().foreign_into())
@@ -201,12 +201,12 @@ impl<'a> CardInfoMigrateExecutor<'a> {
         Ok(card_info)
     }
 
-    async fn update_card_info(&self) -> RouterResult<card_info_models::CardInfo> {
+    async fn update_card_info(&self) -> RouterResult<storage::CardInfo> {
         let db = self.state.store.as_ref();
         let card_info = cards_info::CardsInfoInterface::update_card_info(
             db,
             self.record.card_iin.clone(),
-            card_info_models::UpdateCardInfo {
+            storage::UpdateCardInfo {
                 card_issuer: self.record.card_issuer.clone(),
                 card_network: self.record.card_network.clone(),
                 card_type: self.record.card_type.clone(),
@@ -231,7 +231,7 @@ impl<'a> CardInfoMigrateExecutor<'a> {
 // Builder
 pub struct CardInfoBuilder<S: State> {
     state: std::marker::PhantomData<S>,
-    pub card_info: Option<card_info_models::CardInfo>,
+    pub card_info: Option<storage::CardInfo>,
 }
 
 impl CardInfoBuilder<CardInfoFetch> {
@@ -246,7 +246,7 @@ impl CardInfoBuilder<CardInfoFetch> {
 impl CardInfoBuilder<CardInfoFetch> {
     fn set_card_info(
         self,
-        card_info: card_info_models::CardInfo,
+        card_info: storage::CardInfo,
     ) -> CardInfoBuilder<CardInfoUpdate> {
         CardInfoBuilder {
             state: std::marker::PhantomData,
@@ -265,7 +265,7 @@ impl CardInfoBuilder<CardInfoFetch> {
 impl CardInfoBuilder<CardInfoUpdate> {
     fn set_updated_card_info(
         self,
-        card_info: card_info_models::CardInfo,
+        card_info: storage::CardInfo,
     ) -> CardInfoBuilder<CardInfoResponse> {
         CardInfoBuilder {
             state: std::marker::PhantomData,
@@ -277,7 +277,7 @@ impl CardInfoBuilder<CardInfoUpdate> {
 impl CardInfoBuilder<CardInfoAdd> {
     fn set_added_card_info(
         self,
-        card_info: card_info_models::CardInfo,
+        card_info: storage::CardInfo,
     ) -> CardInfoBuilder<CardInfoResponse> {
         CardInfoBuilder {
             state: std::marker::PhantomData,

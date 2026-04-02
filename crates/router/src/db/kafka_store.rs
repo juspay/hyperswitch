@@ -1222,7 +1222,7 @@ impl MerchantConnectorAccountInterface for KafkaStore {
         &self,
         merchant_connector_accounts: Vec<(
             domain::MerchantConnectorAccount,
-            storage::MerchantConnectorAccountUpdateInternal,
+            domain::MerchantConnectorAccountUpdate,
         )>,
     ) -> CustomResult<(), errors::StorageError> {
         self.diesel_store
@@ -1354,7 +1354,7 @@ impl MerchantConnectorAccountInterface for KafkaStore {
     async fn update_merchant_connector_account(
         &self,
         this: domain::MerchantConnectorAccount,
-        merchant_connector_account: storage::MerchantConnectorAccountUpdateInternal,
+        merchant_connector_account: domain::MerchantConnectorAccountUpdate,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
         self.diesel_store
@@ -2453,16 +2453,12 @@ impl PayoutAttemptInterface for KafkaStore {
 #[cfg(not(feature = "payouts"))]
 impl PayoutsInterface for KafkaStore {
     type Error = errors::StorageError;
-    type Customer = diesel_models::Customer;
-    type Address = diesel_models::Address;
 }
 
 #[cfg(feature = "payouts")]
 #[async_trait::async_trait]
 impl PayoutsInterface for KafkaStore {
     type Error = errors::StorageError;
-    type Customer = diesel_models::Customer;
-    type Address = diesel_models::Address;
     async fn find_payout_by_merchant_id_payout_id(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -2538,17 +2534,18 @@ impl PayoutsInterface for KafkaStore {
         merchant_id: &id_type::MerchantId,
         filters: &hyperswitch_domain_models::payouts::PayoutFetchConstraints,
         storage_scheme: MerchantStorageScheme,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<
         Vec<(
             storage::Payouts,
             storage::PayoutAttempt,
-            Option<diesel_models::Customer>,
-            Option<diesel_models::Address>,
+            Option<domain::Customer>,
+            Option<hyperswitch_domain_models::address::Address>,
         )>,
         errors::StorageError,
     > {
         self.diesel_store
-            .filter_payouts_and_attempts(merchant_id, filters, storage_scheme)
+            .filter_payouts_and_attempts(merchant_id, filters, storage_scheme, key_store)
             .await
     }
 

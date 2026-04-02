@@ -24,6 +24,7 @@ use hyperswitch_domain_models::payments::{
     PaymentConfirmData, PaymentIntentData, PaymentStatusData,
 };
 use storage_impl::behaviour::Conversion;
+use storage_impl::DataModelExt;
 use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
 #[cfg(feature = "v2")]
 use hyperswitch_masking::{ExposeInterface, PeekInterface};

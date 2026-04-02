@@ -9,13 +9,13 @@ use crate::{
     db,
     routes::{metrics, SessionState},
     services::ApplicationResponse,
-    types::{api, transformers::ForeignInto},
+    types::{api, storage, transformers::ForeignInto},
 };
 
 pub async fn set_config(state: SessionState, config: api::Config) -> RouterResponse<api::Config> {
     let store = state.store.as_ref();
     let config = store
-        .insert_config(diesel_models::configs::ConfigNew {
+        .insert_config(storage::ConfigNew {
             key: config.key,
             config: config.value,
         })

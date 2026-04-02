@@ -67,13 +67,13 @@ use crate::{
             IncomingWebhook,
         },
         domain,
-        storage::{self, enums},
+        storage::{self, enums, PayoutAttemptUpdate},
         transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
     },
     utils::{self as helper_utils, ext_traits::OptionExt, generate_id},
 };
 #[cfg(feature = "payouts")]
-use crate::{core::payouts, types::storage::PayoutAttemptUpdate};
+use crate::core::payouts;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
@@ -3330,7 +3330,7 @@ async fn update_connector_mandate_details(
                 })
                 .transpose()?;
 
-            let pm_update = diesel_models::PaymentMethodUpdate::ConnectorNetworkTransactionIdAndMandateDetailsUpdate {
+            let pm_update = storage::PaymentMethodUpdate::ConnectorNetworkTransactionIdAndMandateDetailsUpdate {
                 connector_mandate_details: connector_mandate_details_value.map(hyperswitch_masking::Secret::new),
                 network_transaction_id: webhook_connector_network_transaction_id
                     .map(|webhook_network_transaction_id| webhook_network_transaction_id.get_id().clone()),

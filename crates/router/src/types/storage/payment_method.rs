@@ -1,9 +1,14 @@
 use api_models::payment_methods;
 use diesel_models::enums;
 pub use diesel_models::payment_method::{
-    PaymentMethod, PaymentMethodNew, PaymentMethodUpdate, PaymentMethodUpdateInternal,
-    TokenizeCoreWorkflow,
+    PaymentMethodNew, PaymentMethodUpdateInternal, TokenizeCoreWorkflow,
 };
+#[cfg(feature = "v1")]
+pub use hyperswitch_domain_models::payment_methods::StoragePaymentMethodUpdate as PaymentMethodUpdate;
+#[cfg(feature = "v2")]
+pub use hyperswitch_domain_models::payment_methods::{PaymentMethod, PaymentMethodUpdate};
+#[cfg(feature = "v1")]
+pub use hyperswitch_domain_models::payment_methods::{PaymentMethod, StoragePaymentMethodUpdate};
 
 use crate::types::{api, domain};
 

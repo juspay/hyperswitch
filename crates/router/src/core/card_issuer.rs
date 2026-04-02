@@ -1,13 +1,15 @@
 use api_models::card_issuer as api_types;
 use common_utils::{date_time, id_type};
-use diesel_models::card_issuer::{NewCardIssuer, UpdateCardIssuer};
 use router_env::{instrument, tracing};
 
 use crate::{
     core::errors::{self, RouterResponse, StorageErrorExt},
     routes::SessionState,
     services::ApplicationResponse,
-    types::transformers::ForeignTryInto,
+    types::{
+        storage::{NewCardIssuer, UpdateCardIssuer},
+        transformers::ForeignTryInto,
+    },
 };
 
 #[instrument(skip_all)]
