@@ -3287,7 +3287,7 @@ pub enum CardSubtype {
     Corporaterevolving,
     Corporatet,
     #[strum(serialize = "CORPORATET&E")]
-    CorporatetAndE,
+    CorporateTAndE,
     Corporation,
     Credit,
     Ctslandcard,
@@ -3341,13 +3341,11 @@ pub enum CardSubtype {
     Globalpayment,
     Gmcard,
     Gold,
-    #[strum(serialize = "GOLD&PLATINUM")]
-    GoldAndPlatinum,
     #[strum(serialize = "GOLD PERSONAL")]
     GoldPersonal,
-    #[strum(serialize = "GOLD/PLATINUM")]
+    #[strum(serialize = "GOLD PLATINUM")]
     GoldPlatinum,
-    #[strum(serialize = "GOLD/PREM")]
+    #[strum(serialize = "GOLD PREM")]
     GoldPrem,
     Goldcashbackcard,
     Goldgrccyblue,
@@ -3358,7 +3356,7 @@ pub enum CardSubtype {
     Green,
     Gsacard,
     #[strum(serialize = "GSACORPORATET&E")]
-    GsacorporatetAndE,
+    GsacorporateTAndE,
     Gsapurchasing,
     #[strum(serialize = "HSANON-SUBSTANTIATED")]
     HsanonSubstantiated,
