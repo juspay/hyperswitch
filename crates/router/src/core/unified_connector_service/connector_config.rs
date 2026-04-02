@@ -614,20 +614,24 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
             },
             Connector::Truelayer => match auth {
                 ConnectorAuthType::BodyKey { api_key, key1 } => {
-                    let metadata_parsed = metadata
-                        .and_then(|m| serde_json::from_value::<TruelayerMetadata>(m.clone()).ok());
+                    let truelayer_meta = metadata
+                        .map(|m| {
+                            serde_json::from_value::<TruelayerMetadata>(m.clone())
+                                .map_err(|_| err("Invalid Truelayer metadata format"))
+                        })
+                        .transpose()?;
 
                     Ok(Self::Truelayer {
                         client_id: api_key.clone(),
                         client_secret: key1.clone(),
-                        merchant_account_id: metadata_parsed
+                        merchant_account_id: truelayer_meta
                             .as_ref()
                             .and_then(|m| m.merchant_account_id.clone()),
-                        account_holder_name: metadata_parsed
+                        account_holder_name: truelayer_meta
                             .as_ref()
                             .and_then(|m| m.account_holder_name.clone()),
-                        private_key: metadata_parsed.as_ref().and_then(|m| m.private_key.clone()),
-                        kid: metadata_parsed.as_ref().and_then(|m| m.kid.clone()),
+                        private_key: truelayer_meta.as_ref().and_then(|m| m.private_key.clone()),
+                        kid: truelayer_meta.as_ref().and_then(|m| m.kid.clone()),
                     })
                 }
                 _ => Err(err("Truelayer requires BodyKey auth type")),
