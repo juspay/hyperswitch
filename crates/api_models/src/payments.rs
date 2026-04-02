@@ -11476,6 +11476,20 @@ impl FeatureMetadata {
 
         (pix_key, value)
     }
+    /// Checks if this is a Pix Automatico Journey 3 (Immediate expiration variant)
+    pub fn is_pix_immediate(&self) -> bool {
+        self.pix_additional_details
+            .as_ref()
+            .map(|details| matches!(details, PixAdditionalDetails::Immediate(_)))
+            .unwrap_or(false)
+    }
+    /// Checks if this is a Pix Automatico Journey 4 (Scheduled expiration variant)
+    pub fn is_pix_scheduled(&self) -> bool {
+        self.pix_additional_details
+            .as_ref()
+            .map(|details| matches!(details, PixAdditionalDetails::Scheduled(_)))
+            .unwrap_or(false)
+    }
 }
 
 /// additional data that might be required by hyperswitch
@@ -11570,6 +11584,20 @@ impl FeatureMetadata {
         let value = pix_key.as_ref().map(|pk| pk.get_inner_value());
 
         (pix_key, value)
+    }
+    /// Checks if this is a Pix Automatico Journey 3 (Immediate expiration variant)
+    pub fn is_pix_immediate(&self) -> bool {
+        self.pix_additional_details
+            .as_ref()
+            .map(|details| matches!(details, PixAdditionalDetails::Immediate(_)))
+            .unwrap_or(false)
+    }
+    /// Checks if this is a Pix Automatico Journey 4 (Scheduled expiration variant)
+    pub fn is_pix_scheduled(&self) -> bool {
+        self.pix_additional_details
+            .as_ref()
+            .map(|details| matches!(details, PixAdditionalDetails::Scheduled(_)))
+            .unwrap_or(false)
     }
 }
 
@@ -13223,6 +13251,9 @@ pub struct SantanderConnectorMetadataData {
     /// Boleto-specific data and rules for Santander payments
     #[smithy(value_type = "Option<SantanderBoletoData>")]
     pub boleto: Option<SantanderBoletoData>,
+    /// Pix Automatico-specific data for Santander recurring payments
+    #[smithy(value_type = "Option<SantanderPixAutomaticoData>")]
+    pub pix_automatico: Option<SantanderPixAutomaticoData>,
 }
 
 /// Represents the specific data and rules related to Santander Boleto payments, including discounts, penalties, collection actions, payment constraints, beneficiary details, and document kind.
@@ -13251,6 +13282,127 @@ pub struct SantanderBoletoData {
     #[smithy(value_type = "Option<BoletoDocumentKind>")]
     #[schema(value_type = Option<BoletoDocumentKind>, example = "commercial_invoice")]
     pub document_kind: Option<common_enums::BoletoDocumentKind>,
+}
+
+/// Account type for Santander Pix Automatico recurring charges
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum AccountType {
+    /// Checking account (Conta Corrente)
+    Current,
+    /// Savings account (Conta Poupança)
+    Savings,
+    /// Payment account (Conta Pagamento)
+    Payment,
+}
+
+/// Represents the receiver details for Santander Pix Automatico recurring charges
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct SantanderPixAutomaticoReceiverDetails {
+    /// Branch code (agencia) of the receiver's bank account
+    #[smithy(value_type = "Option<String>")]
+    #[schema(value_type = Option<String>, example = "0001")]
+    pub branch_code: Option<Secret<String>>,
+    /// Account number (conta) of the receiver
+    #[smithy(value_type = "Option<String>")]
+    #[schema(value_type = Option<String>, example = "130333323")]
+    pub account_number: Option<Secret<String>>,
+    /// Account type (tipoConta) - CORRENTE, POUPANCA, or PAGAMENTO
+    #[smithy(value_type = "Option<AccountType>")]
+    #[schema(value_type = Option<AccountType>)]
+    pub account_type: Option<AccountType>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct SantanderMandateDetails {
+    /// Maximum amount for each recurring charge
+    #[schema(value_type = Option<String>, example = "5.00")]
+    #[smithy(value_type = "Option<String>")]
+    pub amount: Option<StringMajorUnit>,
+    /// Start date for the recurring charges. Format: YYYY-MM-DD. If not provided, the mandate will be valid immediately.
+    #[schema(value_type = Option<String>, example="2026-12-31")]
+    #[serde(default, with = "common_utils::custom_serde::date_only_optional")]
+    pub start_date: Option<PrimitiveDateTime>,
+    /// End date for the recurring charges. Format: YYYY-MM-DD. If not provided, the mandate will be valid indefinitely.
+    #[schema(value_type = Option<String>, example="2026-12-31")]
+    #[serde(default, with = "common_utils::custom_serde::date_only_optional")]
+    pub end_date: Option<PrimitiveDateTime>,
+    /// Frequency of the recurring charges (e.g., weekly, monthly). If not provided, defaults to monthly.
+    #[schema(value_type = Option<SantanderMandatePeriodicity>, example = "weekly")]
+    #[smithy(value_type = "Option<SantanderMandatePeriodicity>")]
+    pub periodicity: Option<SantanderMandatePeriodicity>,
+}
+
+#[derive(
+    Debug, Default, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(rename_all = "snake_case")]
+pub enum SantanderMandatePeriodicity {
+    /// Every week
+    Weekly,
+    /// Every month
+    #[default]
+    Monthly,
+    /// Every 3 months
+    Quarterly,
+    /// Every 6 months
+    Semiannually,
+    /// Every year
+    Annually,
+}
+
+/// Represents the specific data for Santander Pix Automatico (recurring PIX payments)
+/// Split into CIT (Customer Initiated Transaction) and MIT (Merchant Initiated Transaction) variants
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(rename_all = "snake_case")]
+pub enum SantanderPixAutomaticoData {
+    /// Customer Initiated Transaction - used during mandate setup
+    Cit(PixAutomaticoCitData),
+    /// Merchant Initiated Transaction - used during recurring charge creation
+    Mit(PixAutomaticoMitData),
+}
+
+/// Data for Santander Pix Automatico CIT (Customer Initiated Transaction) - used during mandate setup
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct PixAutomaticoCitData {
+    /// Contract ID to identify the recurring payment contract
+    #[smithy(value_type = "Option<String>")]
+    #[schema(value_type = Option<String>, example = "pm_16503867")]
+    pub contract_id: Option<String>,
+    /// Enable retry policy for failed payments (maps to PERMITE_3R_7D if true)
+    #[smithy(value_type = "Option<bool>")]
+    #[schema(value_type = Option<bool>, example = true)]
+    pub retry_policy: Option<bool>,
+    /// Mandate details for the recurring charge
+    #[smithy(value_type = "Option<SantanderMandateDetails>")]
+    #[schema(value_type = Option<SantanderMandateDetails>)]
+    pub mandate_details: Option<SantanderMandateDetails>,
+}
+
+/// Data for Santander Pix Automatico MIT (Merchant Initiated Transaction) - used during recurring charge creation
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct PixAutomaticoMitData {
+    /// Receiver details for the recurring charge
+    #[smithy(value_type = "Option<SantanderPixAutomaticoReceiverDetails>")]
+    #[schema(value_type = Option<SantanderPixAutomaticoReceiverDetails>)]
+    pub receiver_details: Option<SantanderPixAutomaticoReceiverDetails>,
+    /// Execution date for the mandate charge (maps to data_de_vencimento). Format: YYYY-MM-DD.
+    /// If not provided, defaults to current date + 1 day.
+    #[schema(value_type = Option<String>, example = "2026-12-31")]
+    #[serde(default, with = "common_utils::custom_serde::date_only_optional")]
+    pub exec_date: Option<PrimitiveDateTime>,
+    /// Whether to automatically adjust the due date to the next business day if it falls on a non-business day.
+    /// Maps to ajuste_dia_util in Santander API. Defaults to true if not provided.
+    #[smithy(value_type = "Option<bool>")]
+    #[schema(value_type = Option<bool>, example = true)]
+    pub auto_adjust_date: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]

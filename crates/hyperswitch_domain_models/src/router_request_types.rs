@@ -60,6 +60,21 @@ pub enum CurrentFlowInfo {
         /// The payment setup mandate request data
         request_data: Box<SetupMandateRequestData>,
     },
+    Psync {
+        /// The payment setup mandate request data
+        request_data: Box<PaymentsSyncData>,
+    },
+}
+
+impl CurrentFlowInfo {
+    pub fn get_feature_metadata(&self) -> Option<api_models::payments::FeatureMetadata> {
+        match self {
+            Self::Authorize { request_data, .. } => request_data.feature_metadata.clone(),
+            Self::CompleteAuthorize { .. } => None,
+            Self::SetupMandate { .. } => None,
+            Self::Psync { request_data } => request_data.feature_metadata.clone(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1804,6 +1819,7 @@ pub struct SetupMandateRequestData {
     pub partner_merchant_identifier_details:
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
     pub authentication_data: Option<AuthenticationData>,
+    pub connector_intent_metadata: Option<ConnectorMetadata>,
 }
 
 #[derive(Debug, Clone)]
@@ -1820,12 +1836,25 @@ pub struct DisputeSyncData {
     pub connector_dispute_id: String,
 }
 
+/// Trait for request data types that carry an optional mandate_id.
+/// Implemented by request types used in flows triggered after SetupMandate,
+/// where the mandate_id from the SetupMandate response needs to be propagated.
+pub trait MandateIdSettable {
+    fn set_mandate_id(&mut self, mandate_id: api_models::payments::MandateIds);
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct PushNotificationRequestData {
     pub payment_method_data: Option<PaymentMethodData>,
     pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
     pub mandate_id: Option<api_models::payments::MandateIds>,
     pub amount: Option<i64>,
+}
+
+impl MandateIdSettable for PushNotificationRequestData {
+    fn set_mandate_id(&mut self, mandate_id: api_models::payments::MandateIds) {
+        self.mandate_id = Some(mandate_id);
+    }
 }
 
 impl PushNotificationRequestData {
@@ -1848,6 +1877,12 @@ impl PushNotificationRequestData {
 pub struct GenerateQrRequestData {
     pub amount: Option<i64>,
     pub mandate_id: Option<api_models::payments::MandateIds>,
+}
+
+impl MandateIdSettable for GenerateQrRequestData {
+    fn set_mandate_id(&mut self, mandate_id: api_models::payments::MandateIds) {
+        self.mandate_id = Some(mandate_id);
+    }
 }
 
 impl GenerateQrRequestData {

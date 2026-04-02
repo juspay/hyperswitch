@@ -4540,7 +4540,7 @@ where
         &call_connector_action,
     );
 
-    // AuthorizeSessionTokenFlow needs access token to be added in router data before creating session token, as the session token creation might require access token in headers for some connectors (like Santander)
+    // AuthorizeSessionTokenFlow needs access token to be added in router data before creating session token, as the session token creation might require access token in headers for some connectors(like Santander)
     router_data
         .add_session_token(state, &connector, &context)
         .await?;
@@ -4759,13 +4759,14 @@ where
         .await?;
     *payment_data = new_payment_data;
 
-    let mut router_data = call_connector_service_response.router_data;
+    let router_data = call_connector_service_response.router_data;
     let gateway_context = call_connector_service_response.gateway_context;
     let router_data = if call_connector_service_response.should_continue_further {
         // The status of payment_attempt and intent will be updated in the previous step
         // update this in router_data.
         // This is added because few connector integrations do not update the status,
         // and rely on previous status set in router_data
+        let mut router_data = router_data;
         router_data.status = payment_data.get_payment_attempt().status;
         router_data
             .decide_flows(
@@ -4774,7 +4775,7 @@ where
                 call_connector_action,
                 call_connector_service_response.connector_request,
                 business_profile,
-                header_payload,
+                header_payload.clone(),
                 return_raw_connector_response,
                 gateway_context.clone(),
             )

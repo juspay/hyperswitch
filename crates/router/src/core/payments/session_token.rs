@@ -55,7 +55,7 @@ where
             .map_err(|error| {
                 logger::error!(session_token_create_error = error.reason);
                 report!(errors::ApiErrorResponse::PreconditionFailed {
-                    message: "Faied to perform session token call".to_string()
+                    message: "Failed to perform session token call".to_string()
                 })
             })
             .attach_printable(format!(
