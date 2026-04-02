@@ -110,6 +110,20 @@ jobs:
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: actions/checkout@v5
+      
+      - name: Print System Resources
+        if: ${{ env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: |
+          echo "===== SYSTEM INFO ====="
+          echo "CPU cores:"
+          nproc
+
+          echo "Memory:"
+          free -h
+
+          echo "Disk:"
+          df -h
 
       - name: Install mold linker
         if: ${{ env.RUN_TESTS == 'true' }}
