@@ -2630,6 +2630,7 @@ pub trait PaymentsSyncRequestData {
     fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ConnectorError>;
     fn is_mandate_payment(&self) -> bool;
     fn get_optional_connector_transaction_id(&self) -> Option<String>;
+    fn get_connector_mandate_id(&self) -> Option<String>;
 }
 
 impl PaymentsSyncRequestData for PaymentsSyncData {
@@ -2663,6 +2664,19 @@ impl PaymentsSyncRequestData for PaymentsSyncData {
             ResponseId::ConnectorTransactionId(txn_id) => Some(txn_id),
             _ => None,
         }
+    }
+    fn get_connector_mandate_id(&self) -> Option<String> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                    connector_mandate_ids.get_connector_mandate_id()
+                }
+                Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_))
+                | Some(payments::MandateReferenceId::CardWithLimitedData)
+                | None => None,
+            })
     }
 }
 

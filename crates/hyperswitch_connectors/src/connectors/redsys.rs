@@ -1084,6 +1084,7 @@ impl ConnectorSpecifications for Redsys {
             } => auth_type.is_three_ds() && request_data.is_card(),
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
             api::CurrentFlowInfo::SetupMandate { .. } => false,
+            api::CurrentFlowInfo::Psync { .. } => false,
         }
     }
 
@@ -1120,6 +1121,7 @@ impl ConnectorSpecifications for Redsys {
                 }
             }
             api::CurrentFlowInfo::SetupMandate { .. } => false,
+            api::CurrentFlowInfo::Psync { .. } => false,
         }
     }
 

@@ -453,8 +453,13 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 connector.connector_name
             );
             let setup_mandate_request_data = self.request.clone();
-            let generate_qr_request_data =
+            let mut generate_qr_request_data =
                 types::GenerateQrRequestData::try_from(self.request.to_owned())?;
+            // Extract mandate_id from SetupMandate response and populate it in GenerateQRRequestData
+            helpers::update_request_data_with_mandate_id(
+                &mut generate_qr_request_data,
+                &self.response,
+            );
             let generate_qr_response_data: Result<
                 types::PaymentsResponseData,
                 types::ErrorResponse,
@@ -515,8 +520,13 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
                 connector.connector_name
             );
             let setup_mandate_request_data = self.request.clone();
-            let push_notification_request_data =
+            let mut push_notification_request_data =
                 types::PushNotificationRequestData::try_from(self.request.to_owned())?;
+            // Extract mandate_id from SetupMandate response and populate it in PushNotificationRequestData
+            helpers::update_request_data_with_mandate_id(
+                &mut push_notification_request_data,
+                &self.response,
+            );
             let push_notification_response_data: Result<
                 types::PaymentsResponseData,
                 types::ErrorResponse,
