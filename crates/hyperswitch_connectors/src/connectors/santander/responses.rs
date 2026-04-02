@@ -642,7 +642,8 @@ pub struct SantanderPixQRCodeErrorResponse {
     #[serde(rename = "type")]
     pub field_type: Secret<String>,
     pub title: String,
-    pub status: String,
+    // could be i64/String as well
+    pub status: serde_json::Value,
     pub detail: Option<String>,
     pub correlation_id: Option<String>,
     // Violations - required to distinguish from Pattern1ErrorResponse
@@ -1035,6 +1036,7 @@ pub struct SantanderPixAutomaticRecResponse {
     /// Activation information for the recurrence
     pub ativacao: Option<SantanderPixAutomaticoAtivacao>,
     /// QR code data associated with the recurrence
+    // #[serde(rename = "dadosQR", alias = "dadosqr")]
     #[serde(rename = "dadosQR")]
     pub dados_qr: Option<SantanderPixAutomaticQrData>,
 }

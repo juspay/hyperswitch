@@ -61,7 +61,7 @@ use crate::{
             Beneficiary, Key, NsuComposite, Payer, RecurrenceStatus, SanatanderAccessTokenResponse,
             SanatanderTokenResponse, SantanderAdditionalInfo, SantanderBoletoDocumentKind,
             SantanderBoletoPaymentType, SantanderBoletoStatus,
-            SantanderCreatePixPayloadLocationResponse, SantanderDocumentKind,
+            SantanderCreatePixPayloadLocationResponse, SantanderDocumentKind, SantanderJourneyType,
             SantanderPaymentStatus, SantanderPaymentsResponse, SantanderPaymentsSyncResponse,
             SantanderPixAutomaticRecResponse, SantanderPixAutomaticSolicitationResponse,
             SantanderPixAutomaticoCobrStatus, SantanderPixAutomaticoCobrSyncResponse,
@@ -206,13 +206,22 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         let status = AttemptStatus::from(item.response.status);
+        let journey = item
+            .response
+            .dados_qr
+            .as_ref()
+            .map(|qr_data| qr_data.jornada.clone())
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "response.dadosQR.jornada",
+            })?;
+        let expiry_type = journey.and_then(|j| Option::<ExpiryType>::from(j));
         let connector_metadata = match item
             .response
             .dados_qr
             .as_ref()
             .and_then(|dados_qr| dados_qr.pix_copia_e_cola.clone())
         {
-            Some(pix_copia_e_cola) => convert_pix_data_to_value(pix_copia_e_cola, None)?,
+            Some(pix_copia_e_cola) => convert_pix_data_to_value(pix_copia_e_cola, expiry_type)?,
             None => None,
         };
         let mandate_reference = Box::new(Some(MandateReference {
@@ -1841,22 +1850,14 @@ where
     }
 }
 
-pub fn get_qr_code_type(
-    metadata: Option<Value>,
-) -> CustomResult<ExpiryType, errors::ConnectorError> {
-    let qr_data_santander: Option<QrCodeInformation> = metadata
-        .clone()
-        .map(|qr_code_data| qr_code_data.parse_value("QrDataUrlSantander"))
-        .transpose()
-        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+pub fn get_qr_code_type(metadata: Option<Value>) -> Option<ExpiryType> {
+    let qr_data_santander: Option<QrCodeInformation> =
+        metadata.and_then(|qr_code_data| qr_code_data.parse_value("QrDataUrlSantander").ok());
 
-    let santander_variant = match qr_data_santander {
+    match qr_data_santander {
         Some(QrCodeInformation::QrCodeUrl { expiry_type, .. }) => expiry_type,
-        _ => {
-            return Err(errors::ConnectorError::ResponseDeserializationFailed.into());
-        }
-    };
-    Ok(santander_variant.ok_or_else(|| errors::ConnectorError::ResponseDeserializationFailed)?)
+        _ => None,
+    }
 }
 
 fn extract_boleto_components(input: &str) -> Result<NsuComposite, errors::ConnectorError> {
@@ -2159,15 +2160,12 @@ impl
             .map(|p| Periodicidade::from(p.clone()))
             .unwrap_or(Periodicidade::Semanal);
 
+        // either of valor or valor_minimo_recebedor can be passed at one time
         let valor = Some(RecurrenceValue {
             valor_rec: mandate_details
                 .and_then(|md| md.amount.clone())
                 .or_else(|| Some(value.amount.clone())),
-            valor_minimo_recebedor: if value.router_data.request.amount > 0 {
-                Some(value.amount.clone())
-            } else {
-                None
-            },
+            valor_minimo_recebedor: None,
         });
 
         let is_immediate = item
@@ -2298,7 +2296,7 @@ impl TryFrom<&PaymentsPushNotificationRouterData> for SantanderPixAutomaticSolic
 
     fn try_from(item: &PaymentsPushNotificationRouterData) -> Result<Self, Self::Error> {
         // Extract expiration time from feature_metadata using the helper function
-        let expires_in_secs = item
+        let expiry_time_seconds = item
             .request
             .feature_metadata
             .as_ref()
@@ -2309,13 +2307,17 @@ impl TryFrom<&PaymentsPushNotificationRouterData> for SantanderPixAutomaticSolic
             .change_context(errors::ConnectorError::ParsingFailed)
             .attach_printable("Failed to get pix_automatico_push expiry time")?;
 
-        // Calculate expiration datetime from current time + expires_in_secs
-        let data_expiracao_solicitacao = (time::OffsetDateTime::now_utc()
-            + time::Duration::seconds(i64::from(expires_in_secs)))
-        .format(&time::format_description::well_known::Rfc3339)
-        .change_context(errors::ConnectorError::InvalidDataFormat {
-            field_name: "data_expiracao_solicitacao",
-        })?;
+        let expiry_seconds = i64::from(expiry_time_seconds);
+        let offset_datetime = time::OffsetDateTime::now_utc()
+            .checked_add(time::Duration::seconds(expiry_seconds))
+            .ok_or(errors::ConnectorError::ParsingFailed)?;
+
+        // Format as ISO 8601 with Z timezone: YYYY-MM-ddTHH:mm:ss.SSSZ
+        let data_expiracao_solicitacao = offset_datetime
+            .format(&time::macros::format_description!(
+                "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:3]Z"
+            ))
+            .change_context(errors::ConnectorError::DateFormattingFailed)?;
 
         // Extract bank transfer data for PixAutomaticoPush
         let bank_transfer_data = match &item.request.payment_method_data {
@@ -2355,7 +2357,10 @@ impl TryFrom<&PaymentsPushNotificationRouterData> for SantanderPixAutomaticSolic
         };
 
         Ok(Self {
-            id_rec: item.connector_request_reference_id.clone(),
+            id_rec: item
+                .request
+                .get_connector_mandate_id()
+                .ok_or(errors::ConnectorError::MissingConnectorMandateID)?,
             calendario: SantanderPixAutomaticCalendarRequest {
                 data_expiracao_solicitacao,
             },
@@ -2435,7 +2440,6 @@ pub fn decide_access_token_key_suffix(
     current_flow_info: Option<CurrentFlowInfo>,
     payment_method_type: Option<enums::PaymentMethodType>,
     is_mit: bool,
-    amount: i64,
 ) -> Option<AccessTokenUrlPath> {
     match is_mit {
         true => Some(AccessTokenUrlPath::Leg2),
@@ -2503,21 +2507,40 @@ pub fn decide_access_token_key_suffix(
 
                 (None, Some(enums::PaymentMethodType::Boleto)) => Some(AccessTokenUrlPath::Boleto),
                 (None, Some(enums::PaymentMethodType::Pix)) => Some(AccessTokenUrlPath::Leg1),
+                (
+                    Some(CurrentFlowInfo::Psync { .. }),
+                    Some(enums::PaymentMethodType::PixAutomaticoPush),
+                ) => Some(AccessTokenUrlPath::Leg2),
+                (
+                    Some(CurrentFlowInfo::Psync { request_data }),
+                    Some(enums::PaymentMethodType::PixAutomaticoQr),
+                ) => {
+                    let expiry_type = get_qr_code_type(request_data.connector_meta);
+                    match expiry_type {
+                        Some(ExpiryType::Immediate) | Some(ExpiryType::Scheduled) => {
+                            Some(AccessTokenUrlPath::Leg1)
+                        }
+                        None => Some(AccessTokenUrlPath::Leg2),
+                    }
+                }
                 (None, Some(enums::PaymentMethodType::PixAutomaticoPush)) => {
                     Some(AccessTokenUrlPath::Leg2)
                 }
-                (None, Some(enums::PaymentMethodType::PixAutomaticoQr)) => {
-                    // psync
-                    if amount > 0 {
-                        Some(AccessTokenUrlPath::Leg1)
-                    } else {
-                        Some(AccessTokenUrlPath::Leg2)
-                    }
-                }
+                (None, Some(enums::PaymentMethodType::PixAutomaticoQr)) => None,
                 // No payment method type or unsupported payment method type
                 (_, None) => None,
                 (_, Some(_)) => None,
             }
+        }
+    }
+}
+
+impl From<SantanderJourneyType> for Option<ExpiryType> {
+    fn from(item: SantanderJourneyType) -> Self {
+        match item {
+            SantanderJourneyType::Jornada3 => Some(ExpiryType::Immediate),
+            SantanderJourneyType::Jornada4 => Some(ExpiryType::Scheduled),
+            _ => None,
         }
     }
 }

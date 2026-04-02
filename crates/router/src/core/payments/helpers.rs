@@ -48,6 +48,7 @@ use hyperswitch_domain_models::{
         payment_intent::PaymentIntentFetchConstraints, PaymentIntent,
     },
     router_data::{InteracCustomerInfo, KlarnaSdkResponse, PaymentMethodToken},
+    router_request_types::MandateIdSettable,
 };
 pub use hyperswitch_interfaces::{
     api::ConnectorSpecifications,
@@ -9125,34 +9126,35 @@ pub fn get_merchant_advice_code_recommended_action(
     }
 }
 
-// Update PaymentsTriggerData with mandate_id received from SetupMandate router response
-// Mandate information needed in the consecutive flow - PaymentTrigger which is triggered after successful completion of SetupMandate flow
-// pub fn update_payments_trigger_router_request_data_with_mandate_id(
-//     payment_trigger_request_data: &mut PaymentTriggerData,
-//     setup_mandate_response: &Result<PaymentsResponseData, ErrorResponse>,
-// ) {
-//     if let Ok(PaymentsResponseData::TransactionResponse {
-//         mandate_reference, ..
-//     }) = setup_mandate_response
-//     {
-//         if let Some(mandate_ref) = mandate_reference.as_ref() {
-//             if let Some(connector_mandate_id) = &mandate_ref.connector_mandate_id {
-//                 payment_trigger_request_data.mandate_id = Some(api_models::payments::MandateIds {
-//                     mandate_id: Some(connector_mandate_id.clone()),
-//                     mandate_reference_id: Some(
-//                         api_models::payments::MandateReferenceId::ConnectorMandateId(
-//                             api_models::payments::ConnectorMandateReferenceId::new(
-//                                 Some(connector_mandate_id.clone()),
-//                                 None,
-//                                 None,
-//                                 None,
-//                                 None,
-//                                 None,
-//                             ),
-//                         ),
-//                     ),
-//                 });
-//             }
-//         }
-//     }
-// }
+// Update request data with mandate_id received from SetupMandate router response.
+// Mandate information is needed in consecutive flows (e.g., PaymentTrigger, GenerateQR)
+// triggered after successful completion of the SetupMandate flow.
+pub fn update_request_data_with_mandate_id(
+    request_data: &mut impl MandateIdSettable,
+    setup_mandate_response: &Result<PaymentsResponseData, ErrorResponse>,
+) {
+    if let Ok(PaymentsResponseData::TransactionResponse {
+        mandate_reference, ..
+    }) = setup_mandate_response
+    {
+        if let Some(mandate_ref) = mandate_reference.as_ref() {
+            if let Some(connector_mandate_id) = &mandate_ref.connector_mandate_id {
+                request_data.set_mandate_id(api_models::payments::MandateIds {
+                    mandate_id: Some(connector_mandate_id.clone()),
+                    mandate_reference_id: Some(
+                        api_models::payments::MandateReferenceId::ConnectorMandateId(
+                            api_models::payments::ConnectorMandateReferenceId::new(
+                                Some(connector_mandate_id.clone()),
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                            ),
+                        ),
+                    ),
+                });
+            }
+        }
+    }
+}

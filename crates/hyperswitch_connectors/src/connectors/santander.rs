@@ -238,19 +238,20 @@ impl ConnectorIntegration<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsRe
             enums::PaymentMethod::BankTransfer => match req.request.payment_method_type {
                 Some(enums::PaymentMethodType::Pix) => {
                     let santander_variant =
-                        transformers::get_qr_code_type(req.request.connector_meta.clone())?;
+                        transformers::get_qr_code_type(req.request.connector_meta.clone());
 
                     match santander_variant {
-                        enums::ExpiryType::Immediate => Ok(format!(
+                        Some(enums::ExpiryType::Immediate) => Ok(format!(
                             "{}api/v1/cob/{}",
                             self.base_url(connectors),
                             req.request.connector_transaction_id
                         )),
-                        enums::ExpiryType::Scheduled => Ok(format!(
+                        Some(enums::ExpiryType::Scheduled) => Ok(format!(
                             "{}api/v1/cobv/{}",
                             self.base_url(connectors),
                             req.request.connector_transaction_id
                         )),
+                        None => Err(errors::ConnectorError::ResponseDeserializationFailed.into()),
                     }
                 }
                 _ => Err(errors::ConnectorError::NotSupported {
@@ -640,11 +641,6 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
             req.request.current_flow.clone(),
             req.payment_method_type,
             req.recurring_mandate_payment_data.is_some(),
-            req.request
-                .current_flow
-                .as_ref()
-                .and_then(|cf| cf.get_amount_as_i64())
-                .unwrap_or(0),
         )
         .ok_or(errors::ConnectorError::GenericError {
             error_message: "AccessToken URL decision".to_string(),
@@ -817,6 +813,14 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
     }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
 }
 
 impl ConnectorIntegration<PushNotification, PushNotificationRequestData, PaymentsResponseData>
@@ -868,6 +872,9 @@ impl ConnectorIntegration<PushNotification, PushNotificationRequestData, Payment
             .attach_default_headers()
             .headers(types::PaymentsPushNotificationType::get_headers(
                 self, req, connectors,
+            )?)
+            .set_body(types::PaymentsPushNotificationType::get_request_body(
+                self, req, connectors,
             )?);
 
         Ok(Some(builder.build()))
@@ -895,6 +902,14 @@ impl ConnectorIntegration<PushNotification, PushNotificationRequestData, Payment
     }
 
     fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+
+    fn get_5xx_error_response(
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
@@ -1192,10 +1207,10 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
                     Some(enums::PaymentMethodType::Pix)
                     | Some(enums::PaymentMethodType::PixAutomaticoQr) => {
                         let santander_variant =
-                            transformers::get_qr_code_type(req.request.connector_meta.clone())?;
+                            transformers::get_qr_code_type(req.request.connector_meta.clone());
                         match santander_variant {
                             // Pix One-off Immediate type or Journey 3 CIT Flow
-                            enums::ExpiryType::Immediate => Ok(format!(
+                            Some(enums::ExpiryType::Immediate) => Ok(format!(
                                 "{}api/v1/cob/{}",
                                 self.base_url(connectors),
                                 connector_transaction_id.ok_or(
@@ -1205,7 +1220,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
                                 )?
                             )),
                             // Pix One-off Scheduled type or Journey 4 CIT flow
-                            enums::ExpiryType::Scheduled => Ok(format!(
+                            Some(enums::ExpiryType::Scheduled) => Ok(format!(
                                 "{}api/v1/cobv/{}",
                                 self.base_url(connectors),
                                 connector_transaction_id.ok_or(
@@ -1214,6 +1229,25 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
                                     }
                                 )?
                             )),
+                            // Journey 1/2 CIT flow (no QR code type found)
+                            None => {
+                                let mandate_id = req
+                                    .request
+                                    .mandate_id
+                                    .as_ref()
+                                    .and_then(|ids| match &ids.mandate_reference_id {
+                                        Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+                                            connector_mandate_ids,
+                                        )) => connector_mandate_ids.get_connector_mandate_id(),
+                                        _ => None,
+                                    })
+                                    .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
+                                Ok(format!(
+                                    "{}api/v1/rec/{}",
+                                    self.base_url(connectors),
+                                    mandate_id,
+                                ))
+                            }
                         }
                     }
                     // Journey 1 CIT flow
@@ -2017,6 +2051,7 @@ impl ConnectorSpecifications for Santander {
             Some(CurrentFlowInfo::SetupMandate { .. }) => true,
             Some(CurrentFlowInfo::CompleteAuthorize { .. })
             | Some(CurrentFlowInfo::Authorize { .. })
+            | Some(CurrentFlowInfo::Psync { .. })
             | None => false,
         }
     }
@@ -2028,7 +2063,9 @@ impl ConnectorSpecifications for Santander {
                     Some(enums::PaymentMethodType::PixAutomaticoPush)
                 ) && request_data.mandate_id.is_none()
             }
-            CurrentFlowInfo::Authorize { .. } | CurrentFlowInfo::CompleteAuthorize { .. } => false,
+            CurrentFlowInfo::Authorize { .. }
+            | CurrentFlowInfo::CompleteAuthorize { .. }
+            | CurrentFlowInfo::Psync { .. } => false,
         }
     }
     fn is_generate_qr_flow_required(&self, current_flow: CurrentFlowInfo) -> bool {
@@ -2039,7 +2076,9 @@ impl ConnectorSpecifications for Santander {
                     Some(enums::PaymentMethodType::PixAutomaticoQr)
                 ) && request_data.mandate_id.is_none()
             }
-            CurrentFlowInfo::Authorize { .. } | CurrentFlowInfo::CompleteAuthorize { .. } => false,
+            CurrentFlowInfo::Authorize { .. }
+            | CurrentFlowInfo::CompleteAuthorize { .. }
+            | CurrentFlowInfo::Psync { .. } => false,
         }
     }
 }
@@ -2056,10 +2095,6 @@ impl ConnectorAccessTokenSuffix for Santander {
             current_flow.clone(),
             router_data.get_payment_method_type(),
             router_data.is_mit_payment(),
-            current_flow
-                .as_ref()
-                .and_then(|cf| cf.get_amount_as_i64())
-                .unwrap_or(0),
         );
 
         let suffix = url_path.map(|path| match path {

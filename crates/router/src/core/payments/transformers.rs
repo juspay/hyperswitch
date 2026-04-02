@@ -5198,7 +5198,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
             },
             encoded_data: payment_data.payment_attempt.encoded_data,
             capture_method,
-            connector_meta: payment_data.payment_attempt.connector_metadata,
+            connector_meta: payment_data.payment_attempt.connector_metadata.clone(),
             sync_type: match payment_data.multiple_capture_data {
                 Some(multiple_capture_data) => types::SyncRequestType::MultipleCaptureSync(
                     multiple_capture_data.get_pending_connector_capture_ids(),
