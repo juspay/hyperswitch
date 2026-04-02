@@ -1623,13 +1623,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             db_metrics::DatabaseOperation::Filter,
         )
         .await
-        .map_err(|er| {
-            StorageError::DatabaseError(
-                error_stack::report!(diesel_models::errors::DatabaseError::from(er))
-                    .attach_printable("Error filtering payment records"),
-            )
-            .into()
-        })
+        .change_context(StorageError::DatabaseError(error_stack::report!(
+            diesel_models::errors::DatabaseError::Others
+        )))
+        .attach_printable("Error filtering payment records")
     }
 
     #[cfg(all(feature = "v1", feature = "olap"))]
@@ -1710,12 +1707,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             db_metrics::DatabaseOperation::Filter,
         )
         .await
-        .map_err(|er| {
-            StorageError::DatabaseError(
-                error_stack::report!(diesel_models::errors::DatabaseError::from(er))
-                    .attach_printable("Error filtering payment records"),
-            )
-            .into()
-        })
+        .change_context(StorageError::DatabaseError(error_stack::report!(
+            diesel_models::errors::DatabaseError::Others
+        )))
+        .attach_printable("Error filtering payment records")
     }
 }
