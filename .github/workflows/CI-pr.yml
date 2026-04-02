@@ -147,9 +147,9 @@ jobs:
       matrix:
         include:
           - runner: ubuntu-latest
-            cargo_jobs: 3
+            cargo_jobs: 2
           - runner: hyperswitch-runners
-            cargo_jobs: 6
+            cargo_jobs: 4
 
     steps:
       - name: Generate a token
