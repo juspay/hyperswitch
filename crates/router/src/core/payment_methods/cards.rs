@@ -1329,7 +1329,7 @@ impl PaymentMethodsController for PmCards<'_> {
             #[cfg(feature = "payouts")]
             api_enums::PaymentMethod::BankTransfer => {
                 match (req.bank_transfer.clone(), req.bank_transfer_data.clone()) {
-                    (Some(bank), None) => self
+                    (Some(bank), _) => self
                         .add_bank_to_locker(
                             req.clone(),
                             self.provider.get_key_store(),

@@ -475,6 +475,7 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectRecipientAccountCreateRe
                 }
                 .into())
             }
+            #[allow(unreachable_code)]
             api_models::payouts::PayoutMethodData::Bank(_) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: "Deprecated in hyperswitch".to_string(),
