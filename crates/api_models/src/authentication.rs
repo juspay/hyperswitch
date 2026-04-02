@@ -756,16 +756,16 @@ pub struct AuthenticationDetails {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ExternalThreeDsData {
     /// Contains the authentication cryptogram data (CAVV or TAVV).
-    #[schema(value_type = Cryptogram)]
+    #[schema(value_type = Option<Cryptogram>)]
     pub authentication_cryptogram: Option<Cryptogram>,
     /// Directory Server Transaction ID generated during the 3DS process.
-    #[schema(value_type = String)]
+    #[schema(value_type = Option<String>)]
     pub ds_trans_id: Option<String>,
     /// The version of the 3DS protocol used (e.g., "2.1.0" or "2.2.0").
-    #[schema(value_type = String)]
+    #[schema(value_type = Option<String>)]
     pub version: Option<common_utils::types::SemanticVersion>,
     /// Electronic Commerce Indicator (ECI) value representing the 3DS authentication result.
-    #[schema(value_type = String)]
+    #[schema(value_type = Option<String>)]
     pub eci: Option<String>,
     /// Indicates the transaction status from the 3DS authentication flow.
     #[schema(value_type = TransactionStatus)]

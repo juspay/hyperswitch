@@ -1001,6 +1001,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::authentication::AuthenticationVaultTokenData,
         api_models::authentication::AuthenticationPaymentMethodDataResponse,
         api_models::authentication::AuthenticationDetails,
+        api_models::authentication::ExternalThreeDsData,
         api_models::open_router::OpenRouterDecideGatewayRequest,
         api_models::open_router::DecideGatewayResponse,
         api_models::open_router::UpdateScorePayload,
