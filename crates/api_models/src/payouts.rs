@@ -1228,16 +1228,7 @@ pub struct PayoutsManualUpdateResponse {
 impl From<&PayoutMethodData> for api_enums::PaymentMethodType {
     fn from(data: &PayoutMethodData) -> Self {
         match data {
-            PayoutMethodData::Card(_) => {
-                #[cfg(feature = "v2")]
-                {
-                    Self::Card
-                }
-                #[cfg(not(feature = "v2"))]
-                {
-                    Self::Debit
-                }
-            }
+            PayoutMethodData::Card(_) => Self::Debit,
             PayoutMethodData::Bank(bank) => match bank {
                 Bank::Ach(_) => Self::Ach,
                 Bank::Bacs(_) => Self::Bacs,
