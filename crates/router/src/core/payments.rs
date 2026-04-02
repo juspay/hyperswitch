@@ -3631,6 +3631,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                 apple_pay_recurring_details: None,
                 pix_additional_details: None,
                 boleto_additional_details: None,
+                pix_automatico_additional_details: None,
             }),
             ..Default::default()
         };
@@ -4140,6 +4141,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     apple_pay_recurring_details: None,
                     pix_additional_details: None,
                     boleto_additional_details: None,
+                    pix_automatico_additional_details: None,
                 }),
                 ..Default::default()
             };
@@ -4717,6 +4719,7 @@ where
     *payment_data = new_payment_data;
 
     let mut router_data = call_connector_service_response.router_data;
+    let gateway_context = call_connector_service_response.gateway_context;
     let router_data = if call_connector_service_response.should_continue_further {
         // The status of payment_attempt and intent will be updated in the previous step
         // update this in router_data.
@@ -4732,12 +4735,32 @@ where
                 business_profile,
                 header_payload,
                 return_raw_connector_response,
-                call_connector_service_response.gateway_context,
+                gateway_context.clone(),
             )
             .await
     } else {
         Ok(router_data)
     }?;
+
+    let should_continue_payment = router_data.response.is_ok();
+
+    // Call push notification step after the authorize/setup mandate flow completes
+    let (router_data, _should_continue_trigger) = if should_continue_payment {
+        router_data
+            .push_notification_step(state, connector, &gateway_context)
+            .await?
+    } else {
+        (router_data, false)
+    };
+
+    // Call generate QR step after the authorize/setup mandate flow completes
+    let (router_data, _should_continue_generate_qr) = if should_continue_payment {
+        router_data
+            .generate_qr_step(state, connector, &gateway_context)
+            .await?
+    } else {
+        (router_data, false)
+    };
 
     Ok((router_data, merchant_connector_account))
 }
@@ -5185,6 +5208,7 @@ where
     *payment_data = new_payment_data;
 
     let mut router_data = call_connector_service_response.router_data;
+    let gateway_context = call_connector_service_response.gateway_context;
     let router_data = if call_connector_service_response.should_continue_further {
         // The status of payment_attempt and intent will be updated in the previous step
         // update this in router_data.
@@ -5199,14 +5223,34 @@ where
                 call_connector_action,
                 call_connector_service_response.connector_request,
                 business_profile,
-                header_payload,
+                header_payload.clone(),
                 return_raw_connector_response,
-                call_connector_service_response.gateway_context,
+                gateway_context.clone(),
             )
             .await
     } else {
         Ok(router_data)
     }?;
+
+    let should_continue_payment = router_data.response.is_ok();
+
+    // Call push notification step after the authorize/setup mandate flow completes
+    let (router_data, should_continue_trigger) = if should_continue_payment {
+        router_data
+            .push_notification_step(state, connector, &gateway_context)
+            .await?
+    } else {
+        (router_data, false)
+    };
+
+    // Call generate QR step after the authorize/setup mandate flow completes
+    let (router_data, _should_continue_generate_qr) = if should_continue_payment {
+        router_data
+            .generate_qr_step(state, connector, &gateway_context)
+            .await?
+    } else {
+        (router_data, false)
+    };
 
     Ok((router_data, merchant_connector_account_type_details))
 }

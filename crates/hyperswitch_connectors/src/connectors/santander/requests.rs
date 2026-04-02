@@ -125,7 +125,8 @@ pub struct SantanderDebtor {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cpf: Option<Secret<String>>,
     // Name
-    pub nome: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nome: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     // Street
     pub logradouro: Option<Secret<String>>,
@@ -167,6 +168,39 @@ pub struct SantanderPixDueDateCalendarRequest {
     // Validity After Expiration
     #[serde(skip_serializing_if = "Option::is_none")]
     pub validade_apos_vencimento: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticCalendarRequest {
+    pub data_expiracao_solicitacao: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticDestinationRequest {
+    pub agencia: String,
+    pub conta: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpf: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cnpj: Option<Secret<String>>,
+    pub ispb_participante: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticSolicitationRequest {
+    pub id_rec: String,
+    pub calendario: SantanderPixAutomaticCalendarRequest,
+    pub destinatario: SantanderPixAutomaticDestinationRequest,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum SantanderPostProcessingStepRequest {
+    PixAutomaticoPush(SantanderPixAutomaticSolicitationRequest),
+    PixAutomaticoQr(),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
