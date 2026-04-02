@@ -49,7 +49,7 @@ impl From<SdkAuthorizationContext> for Option<SdkAuthorization> {
                     client_secret: input.client_secret,
                     customer_id: input.customer_id,
                     payment_method_session_id: input.payment_method_session_id,
-                    payment_session_id: None,
+                    client_session_id: None,
                 })
             }
             Initiator::Admin | Initiator::Jwt { .. } | Initiator::EmbeddedToken { .. } => None, // SDK authorization is only applicable for API initiators
@@ -83,8 +83,12 @@ pub struct SdkAuthorization {
     #[cfg(feature = "v2")]
     pub payment_method_session_id: Option<id_type::GlobalPaymentMethodSessionId>,
 
-    /// Payment Session ID for SDK authorization validation
-    pub payment_session_id: Option<id_type::PaymentSessionId>,
+    /// Client Session ID for SDK authorization validation
+    pub client_session_id: Option<id_type::ClientSessionId>,
+
+    /// Payment ID for the payment/session (v1 only)
+    #[cfg(feature = "v1")]
+    pub payment_id: Option<id_type::PaymentId>,
 }
 
 impl SdkAuthorization {
@@ -108,9 +112,13 @@ impl SdkAuthorization {
             self.payment_method_session_id
                 .as_ref()
                 .map(|id| format!("payment_method_session_id={}", id.get_string_repr())),
-            self.payment_session_id
+            self.client_session_id
                 .as_ref()
-                .map(|id| format!("payment_session_id={}", id.get_string_repr())),
+                .map(|id| format!("client_session_id={}", id.get_string_repr())),
+            #[cfg(feature = "v1")]
+            self.payment_id
+                .as_ref()
+                .map(|id| format!("payment_id={}", id.get_string_repr())),
         ]
         .into_iter()
         .flatten()
@@ -209,15 +217,25 @@ impl SdkAuthorization {
                     )
                 },
             ),
-            payment_session_id: parts
-                .get("payment_session_id")
-                .map(|payment_session_id| {
-                    id_type::PaymentSessionId::try_from(std::borrow::Cow::from(
-                        payment_session_id.to_string(),
+            client_session_id: parts
+                .get("client_session_id")
+                .map(|client_session_id| {
+                    id_type::ClientSessionId::try_from(std::borrow::Cow::from(
+                        client_session_id.to_string(),
                     ))
                     .change_context(ValidationError::InvalidValue {
-                        message: "Invalid payment_session_id format".to_string(),
+                        message: "Invalid client_session_id format".to_string(),
                     })
+                })
+                .transpose()?,
+            #[cfg(feature = "v1")]
+            payment_id: parts
+                .get("payment_id")
+                .map(|payment_id| {
+                    id_type::PaymentId::try_from(std::borrow::Cow::from(payment_id.to_string()))
+                        .change_context(ValidationError::InvalidValue {
+                            message: "Invalid payment_id format".to_string(),
+                        })
                 })
                 .transpose()?,
         })
