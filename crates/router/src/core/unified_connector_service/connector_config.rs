@@ -525,27 +525,37 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     key1,
                     api_secret,
                 } => {
-                    let endpoint_prefix = metadata
-                        .and_then(|m| serde_json::from_value::<AdyenMetadata>(m.clone()).ok())
-                        .and_then(|m| m.endpoint_prefix);
+                    let adyen_meta = metadata
+                        .map(|m| {
+                            serde_json::from_value::<AdyenMetadata>(m.clone())
+                                .map_err(|_| err("Invalid Adyen metadata format"))
+                        })
+                        .transpose()?;
 
                     Ok(Self::Adyen {
                         api_key: api_key.clone(),
                         merchant_account: key1.clone(),
                         review_key: Some(api_secret.clone()),
-                        endpoint_prefix,
+                        endpoint_prefix: adyen_meta
+                            .as_ref()
+                            .and_then(|m| m.endpoint_prefix.clone()),
                     })
                 }
                 ConnectorAuthType::BodyKey { api_key, key1 } => {
-                    let endpoint_prefix = metadata
-                        .and_then(|m| serde_json::from_value::<AdyenMetadata>(m.clone()).ok())
-                        .and_then(|m| m.endpoint_prefix);
+                    let adyen_meta = metadata
+                        .map(|m| {
+                            serde_json::from_value::<AdyenMetadata>(m.clone())
+                                .map_err(|_| err("Invalid Adyen metadata format"))
+                        })
+                        .transpose()?;
 
                     Ok(Self::Adyen {
                         api_key: api_key.clone(),
                         merchant_account: key1.clone(),
                         review_key: None,
-                        endpoint_prefix,
+                        endpoint_prefix: adyen_meta
+                            .as_ref()
+                            .and_then(|m| m.endpoint_prefix.clone()),
                     })
                 }
                 _ => Err(err("Adyen requires SignatureKey or BodyKey auth type")),
