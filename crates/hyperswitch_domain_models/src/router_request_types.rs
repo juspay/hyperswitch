@@ -410,6 +410,59 @@ impl TryFrom<SetupMandateRequestData> for PaymentsPreProcessingData {
         })
     }
 }
+
+impl TryFrom<SetupMandateRequestData> for PushNotificationRequestData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: SetupMandateRequestData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: Some(data.payment_method_data),
+            feature_metadata: data.feature_metadata,
+            mandate_id: data.mandate_id,
+            amount: Some(data.amount),
+        })
+    }
+}
+
+impl TryFrom<PaymentsAuthorizeData> for PushNotificationRequestData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: Some(data.payment_method_data),
+            feature_metadata: None,
+            mandate_id: None,
+            amount: None,
+        })
+    }
+}
+
+impl TryFrom<PaymentsAuthenticateData> for PushNotificationRequestData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: PaymentsAuthenticateData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: data.payment_method_data,
+            feature_metadata: None,
+            mandate_id: None,
+            amount: None,
+        })
+    }
+}
+
+impl TryFrom<CompleteAuthorizeData> for PushNotificationRequestData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: CompleteAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: data.payment_method_data,
+            feature_metadata: None,
+            mandate_id: None,
+            amount: None,
+        })
+    }
+}
+
 impl
     TryFrom<
         &RouterData<flows::Authorize, PaymentsAuthorizeData, response_types::PaymentsResponseData>,
@@ -1723,6 +1776,7 @@ pub struct SetupMandateRequestData {
     pub setup_mandate_details: Option<mandates::MandateData>,
     pub router_return_url: Option<String>,
     pub webhook_url: Option<String>,
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
     pub browser_info: Option<BrowserInformation>,
     pub email: Option<pii::Email>,
     pub customer_name: Option<Secret<String>>,
@@ -1764,4 +1818,94 @@ pub struct VaultRequestData {
 pub struct DisputeSyncData {
     pub dispute_id: String,
     pub connector_dispute_id: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PushNotificationRequestData {
+    pub payment_method_data: Option<PaymentMethodData>,
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
+    pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub amount: Option<i64>,
+}
+
+impl PushNotificationRequestData {
+    pub fn get_connector_mandate_id(&self) -> Option<String> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+                    connector_mandate_ids,
+                )) => connector_mandate_ids.get_connector_mandate_id(),
+                Some(api_models::payments::MandateReferenceId::NetworkMandateId(_))
+                | Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_))
+                | Some(api_models::payments::MandateReferenceId::CardWithLimitedData)
+                | None => None,
+            })
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct GenerateQrRequestData {
+    pub amount: Option<i64>,
+    pub mandate_id: Option<api_models::payments::MandateIds>,
+}
+
+impl GenerateQrRequestData {
+    pub fn get_connector_mandate_id(&self) -> Option<String> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+                    connector_mandate_ids,
+                )) => connector_mandate_ids.get_connector_mandate_id(),
+                Some(api_models::payments::MandateReferenceId::NetworkMandateId(_))
+                | Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_))
+                | Some(api_models::payments::MandateReferenceId::CardWithLimitedData)
+                | None => None,
+            })
+    }
+}
+
+impl TryFrom<SetupMandateRequestData> for GenerateQrRequestData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: SetupMandateRequestData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: Some(data.amount),
+            mandate_id: data.mandate_id,
+        })
+    }
+}
+
+impl TryFrom<PaymentsAuthorizeData> for GenerateQrRequestData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: Some(data.amount),
+            mandate_id: data.mandate_id,
+        })
+    }
+}
+
+impl TryFrom<PaymentsAuthenticateData> for GenerateQrRequestData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(_data: PaymentsAuthenticateData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: None,
+            mandate_id: None,
+        })
+    }
+}
+
+impl TryFrom<CompleteAuthorizeData> for GenerateQrRequestData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(_data: CompleteAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: None,
+            mandate_id: None,
+        })
+    }
 }
