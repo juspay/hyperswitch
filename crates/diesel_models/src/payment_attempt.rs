@@ -582,6 +582,7 @@ pub enum PaymentAttemptUpdate {
         merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
         routing_approach: Option<storage_enums::RoutingApproach>,
         is_stored_credential: Option<bool>,
+        connector_metadata: Option<serde_json::Value>,
     },
     AuthenticationTypeUpdate {
         authentication_type: storage_enums::AuthenticationType,
@@ -3740,6 +3741,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 merchant_connector_id,
                 routing_approach,
                 is_stored_credential,
+                connector_metadata,
             } => Self {
                 payment_token,
                 modified_at: common_utils::date_time::now(),
@@ -3764,7 +3766,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 mandate_id: None,
                 browser_info: None,
                 error_code: None,
-                connector_metadata: None,
+                connector_metadata,
                 payment_method_data: None,
                 payment_method_type: None,
                 payment_experience: None,

@@ -1921,6 +1921,7 @@ pub enum PaymentAttemptUpdate {
         merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
         routing_approach: Option<storage_enums::RoutingApproach>,
         is_stored_credential: Option<bool>,
+        connector_metadata: Option<Value>,
     },
     AuthenticationTypeUpdate {
         authentication_type: storage_enums::AuthenticationType,
@@ -2183,6 +2184,7 @@ impl PaymentAttemptUpdate {
                 merchant_connector_id,
                 routing_approach,
                 is_stored_credential,
+                connector_metadata,
             } => DieselPaymentAttemptUpdate::UpdateTrackers {
                 payment_token,
                 connector,
@@ -2192,6 +2194,7 @@ impl PaymentAttemptUpdate {
                 tax_amount,
                 updated_by,
                 merchant_connector_id,
+                connector_metadata,
                 routing_approach: routing_approach.map(|approach| match approach {
                     storage_enums::RoutingApproach::Other(_) => {
                         // we need to make sure Other variant is not stored in DB, in the rare case

@@ -214,7 +214,7 @@ impl
             .ok_or(errors::ConnectorError::MissingRequiredField {
                 field_name: "response.dadosQR.jornada",
             })?;
-        let expiry_type = journey.and_then(|j| Option::<ExpiryType>::from(j));
+        let expiry_type = journey.and_then(Option::<ExpiryType>::from);
         let connector_metadata = match item
             .response
             .dados_qr
