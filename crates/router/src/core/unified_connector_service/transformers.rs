@@ -46,8 +46,8 @@ use router_env::tracing;
 use time::{Duration, OffsetDateTime};
 use unified_connector_service_cards::{CardNumber, NetworkToken};
 use unified_connector_service_client::payments::{
-    self as payments_grpc, client_authentication_token_data, ConnectorState, EventServiceHandleRequest,
-    EventServiceHandleResponse,
+    self as payments_grpc, client_authentication_token_data, ConnectorState,
+    EventServiceHandleRequest, EventServiceHandleResponse,
 };
 
 use crate::{
@@ -776,7 +776,8 @@ impl
             router_request_types::AuthorizeSessionTokenData,
             PaymentsResponseData,
         >,
-    > for payments_grpc::MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest
+    >
+    for payments_grpc::MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
     fn foreign_try_from(
@@ -4764,9 +4765,13 @@ impl transformers::ForeignTryFrom<payments_grpc::PaypalTransactionInfo> for Payp
 impl transformers::ForeignTryFrom<payments_grpc::ClientAuthenticationTokenData> for SessionToken {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
-    fn foreign_try_from(value: payments_grpc::ClientAuthenticationTokenData) -> Result<Self, Self::Error> {
+    fn foreign_try_from(
+        value: payments_grpc::ClientAuthenticationTokenData,
+    ) -> Result<Self, Self::Error> {
         match value.sdk_type {
-            Some(client_authentication_token_data::SdkType::GooglePay(gpay_session_token_response)) => {
+            Some(client_authentication_token_data::SdkType::GooglePay(
+                gpay_session_token_response,
+            )) => {
                 let gpay_session = gpay_session_token_response
                     .google_pay_session
                     .ok_or(UnifiedConnectorServiceError::CreateSdkSessionTokenFailure)
@@ -4780,7 +4785,9 @@ impl transformers::ForeignTryFrom<payments_grpc::ClientAuthenticationTokenData> 
                     GpaySessionTokenResponse::GooglePaySession(gpay_response),
                 )))
             }
-            Some(client_authentication_token_data::SdkType::ApplePay(apay_session_token_response)) => {
+            Some(client_authentication_token_data::SdkType::ApplePay(
+                apay_session_token_response,
+            )) => {
                 let apay_response = ApplepaySessionTokenResponse {
                     session_token_data: apay_session_token_response
                         .session_token_data
@@ -4804,7 +4811,9 @@ impl transformers::ForeignTryFrom<payments_grpc::ClientAuthenticationTokenData> 
 
                 Ok(Self::ApplePay(Box::new(apay_response)))
             }
-            Some(client_authentication_token_data::SdkType::Paypal(paypal_session_token_response)) => {
+            Some(client_authentication_token_data::SdkType::Paypal(
+                paypal_session_token_response,
+            )) => {
                 let paypal_session_token_response = PaypalSessionTokenResponse {
                     session_token: paypal_session_token_response.session_token.clone(),
                     connector: paypal_session_token_response.connector.clone(),
