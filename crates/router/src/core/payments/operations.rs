@@ -15,6 +15,8 @@ pub mod payment_create;
 #[cfg(feature = "v1")]
 pub mod payment_post_session_tokens;
 #[cfg(feature = "v1")]
+pub mod payment_recurrence;
+#[cfg(feature = "v1")]
 pub mod payment_reject;
 pub mod payment_response;
 #[cfg(feature = "v1")]
@@ -100,7 +102,7 @@ use super::{helpers, CustomerDetails, OperationSessionGetters, OperationSessionS
 #[cfg(feature = "v2")]
 use crate::core::payments;
 #[cfg(all(feature = "v1", feature = "pm_modular"))]
-use crate::core::payments::pm_transformers::PaymentMethodWithRawData;
+use crate::core::payment_methods::transformers::PaymentMethodWithRawData;
 #[cfg(feature = "pm_modular")]
 use crate::core::utils as core_utils;
 use crate::{

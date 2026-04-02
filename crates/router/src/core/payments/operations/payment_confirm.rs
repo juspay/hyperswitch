@@ -49,7 +49,7 @@ use crate::{
             self, helpers, operations,
             operations::payment_confirm::unified_authentication_service::ThreeDsMetaData,
             populate_installment_details, populate_surcharge_details, CustomerDetails,
-            OperationSessionGetters, PaymentAddress, PaymentData,
+            OperationSessionGetters, OperationSessionSetters, PaymentAddress, PaymentData,
         },
         three_ds_decision_rule,
         unified_authentication_service::{
@@ -999,6 +999,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             is_manual_retry_enabled: business_profile.is_manual_retry_enabled,
             is_l2_l3_enabled: business_profile.is_l2_l3_enabled,
             external_authentication_data: request.three_ds_data.clone(),
+            payment_session_id: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

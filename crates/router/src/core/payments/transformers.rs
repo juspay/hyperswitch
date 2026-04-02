@@ -1579,6 +1579,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         split_payments: None,
         partner_merchant_identifier_details: None,
         authentication_data: None,
+        feature_metadata: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -3985,6 +3986,7 @@ where
                 .clone()
                 .get_required_value("client_secret")?,
             customer_id: payment_intent.customer_id.clone(),
+            payment_session_id: payment_data.get_payment_session_id(),
         };
 
         let sdk_authorization = sdk_auth_data
@@ -6177,6 +6179,17 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                     .as_ref()
                     .map(AuthenticationData::foreign_try_from)
                     .transpose()?),
+            feature_metadata: payment_data
+                .payment_intent
+                .feature_metadata
+                .clone()
+                .map(|metadata| {
+                    metadata
+                        .parse_value::<api_models::payments::FeatureMetadata>("FeatureMetadata")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed parsing FeatureMetadata")
+                })
+                .transpose()?,
         })
     }
 }
@@ -6768,6 +6781,7 @@ impl ForeignFrom<&diesel_models::types::FeatureMetadata> for api_models::payment
             search_tags: feature_metadata.search_tags.clone(),
             pix_additional_details: None,
             boleto_additional_details: None,
+            pix_automatico_additional_details: None,
         }
     }
 }

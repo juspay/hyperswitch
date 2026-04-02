@@ -1,0 +1,7 @@
+{
+  "name": "payment_attempt.authorized",
+  "sourceId": "{{connector_transaction_id}}",
+  "data": {
+    "object": {}
+  }
+}

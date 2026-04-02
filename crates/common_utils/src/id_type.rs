@@ -13,6 +13,7 @@ mod merchant;
 mod merchant_connector_account;
 mod organization;
 mod payment;
+mod payment_session;
 mod payout;
 mod profile;
 mod profile_acquirer;
@@ -56,6 +57,7 @@ pub use self::{
     merchant_connector_account::MerchantConnectorAccountId,
     organization::OrganizationId,
     payment::{PaymentId, PaymentReferenceId, PaymentResourceId},
+    payment_session::PaymentSessionId,
     profile::ProfileId,
     profile_acquirer::ProfileAcquirerId,
     refunds::RefundReferenceId,
