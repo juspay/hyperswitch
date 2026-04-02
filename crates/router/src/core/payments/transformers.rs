@@ -1579,6 +1579,8 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         split_payments: None,
         partner_merchant_identifier_details: None,
         authentication_data: None,
+        feature_metadata: None,
+        connector_intent_metadata: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -4561,6 +4563,10 @@ pub fn bank_transfer_next_steps_check(
         payment_attempt.payment_method
     {
         if payment_attempt.payment_method_type != Some(diesel_models::enums::PaymentMethodType::Pix)
+            && payment_attempt.payment_method_type
+                != Some(diesel_models::enums::PaymentMethodType::PixAutomaticoQr)
+            && payment_attempt.payment_method_type
+                != Some(diesel_models::enums::PaymentMethodType::PixAutomaticoPush)
         {
             let bank_transfer_next_steps: Option<api_models::payments::BankTransferNextStepsData> =
                 payment_attempt
@@ -5192,7 +5198,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
             },
             encoded_data: payment_data.payment_attempt.encoded_data,
             capture_method,
-            connector_meta: payment_data.payment_attempt.connector_metadata,
+            connector_meta: payment_data.payment_attempt.connector_metadata.clone(),
             sync_type: match payment_data.multiple_capture_data {
                 Some(multiple_capture_data) => types::SyncRequestType::MultipleCaptureSync(
                     multiple_capture_data.get_pending_connector_capture_ids(),
@@ -6177,6 +6183,28 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                     .as_ref()
                     .map(AuthenticationData::foreign_try_from)
                     .transpose()?),
+            feature_metadata: payment_data
+                .payment_intent
+                .feature_metadata
+                .clone()
+                .map(|metadata| {
+                    metadata
+                        .parse_value::<api_models::payments::FeatureMetadata>("FeatureMetadata")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed parsing FeatureMetadata")
+                })
+                .transpose()?,
+            connector_intent_metadata: payment_data
+                .payment_intent
+                .connector_metadata
+                .clone()
+                .map(|metadata| {
+                    metadata
+                        .parse_value::<api_models::payments::ConnectorMetadata>("ConnectorMetadata")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed parsing ConnectorMetadata")
+                })
+                .transpose()?,
         })
     }
 }
@@ -6768,6 +6796,7 @@ impl ForeignFrom<&diesel_models::types::FeatureMetadata> for api_models::payment
             search_tags: feature_metadata.search_tags.clone(),
             pix_additional_details: None,
             boleto_additional_details: None,
+            pix_automatico_additional_details: None,
         }
     }
 }
