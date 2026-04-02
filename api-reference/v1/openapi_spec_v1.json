@@ -20098,6 +20098,14 @@
               }
             ],
             "nullable": true
+          },
+          "pix_automatico_additional_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixAutomaticoAdditionalDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -35452,6 +35460,34 @@
           }
         ]
       },
+      "PixAutomaticoAdditionalDetails": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixAutomaticoPushDetails"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "pix_automatico_push"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
       "PixAutomaticoPushAdditionalData": {
         "type": "object",
         "properties": {
@@ -35472,6 +35508,21 @@
             "description": "Bank identifier for Pix Automatico Push payment method",
             "example": "91193552",
             "nullable": true
+          }
+        }
+      },
+      "PixAutomaticoPushDetails": {
+        "type": "object",
+        "required": [
+          "time"
+        ],
+        "properties": {
+          "time": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Time in seconds until which the push notification is valid",
+            "example": 3600,
+            "minimum": 0
           }
         }
       },

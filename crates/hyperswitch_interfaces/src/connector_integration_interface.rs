@@ -612,6 +612,18 @@ impl ConnectorSpecifications for ConnectorEnum {
             Self::New(connector) => connector.is_settlement_split_call_required(current_flow),
         }
     }
+    fn is_push_notification_flow_required(&self, current_flow: CurrentFlowInfo) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_push_notification_flow_required(current_flow),
+            Self::New(connector) => connector.is_push_notification_flow_required(current_flow),
+        }
+    }
+    fn is_generate_qr_flow_required(&self, current_flow: CurrentFlowInfo) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_generate_qr_flow_required(current_flow),
+            Self::New(connector) => connector.is_generate_qr_flow_required(current_flow),
+        }
+    }
     fn get_preprocessing_flow_if_needed(
         &self,
         current_flow_info: CurrentFlowInfo,
