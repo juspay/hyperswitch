@@ -139,7 +139,7 @@ pub struct SantanderPixQRCodePaymentsResponse {
 #[serde(rename_all = "camelCase")]
 pub struct SantanderPixAutomaticoCobrResponse {
     /// Recurring charge ID
-    pub id_rec: String,
+    pub id_rec: Secret<String>,
     /// Transaction ID
     pub txid: String,
     /// Additional information
@@ -411,7 +411,7 @@ pub struct SantanderPix {
 #[serde(rename_all = "camelCase")]
 pub struct SantanderPixAutomaticoCobrSyncResponse {
     /// Recurring charge ID (idRec)
-    pub id_rec: String,
+    pub id_rec: Secret<String>,
     /// Transaction ID
     pub txid: String,
     /// Additional information
@@ -901,9 +901,9 @@ pub enum SantanderBoletoStatus {
 #[serde(rename_all = "camelCase")]
 pub struct SantanderPixAutomaticSolicitationResponse {
     /// Unique identifier for the recurrence solicitation request
-    pub id_solic_rec: String,
+    pub id_solic_rec: Secret<String>,
     /// Unique identifier for the recurrence
-    pub id_rec: String,
+    pub id_rec: Secret<String>,
     /// Calendar information for the recurrence (expiration, start, end, frequency)
     pub calendario: SantanderPixAutomaticoCalendario,
     /// Recipient/Destination information for the recurrence
@@ -957,7 +957,7 @@ pub struct SantanderPixAutomaticoAtualizacao {
 #[serde(rename_all = "camelCase")]
 pub struct SantanderPixAutomaticoRecPayload {
     /// Unique identifier for the recurrence
-    pub id_rec: String,
+    pub id_rec: Secret<String>,
     /// Link/relationship information between debtor and creditor
     pub vinculo: SantanderPixAutomaticoVinculo,
     /// Calendar information for the recurrence
@@ -1009,7 +1009,7 @@ pub struct SantanderPixAutomaticoRecebedor {
 #[serde(rename_all = "camelCase")]
 pub struct SantanderPixAutomaticRecResponse {
     /// Unique identifier for the recurrence
-    pub id_rec: String,
+    pub id_rec: Secret<String>,
     /// Link/relationship information between debtor and creditor
     pub vinculo: SantanderPixAutomaticoVinculo,
     /// Calendar information for the recurrence
@@ -1176,7 +1176,7 @@ pub struct SantanderPixAutomaticoValor {
 #[serde(rename_all = "camelCase")]
 pub struct SantanderSetupMandateResponse {
     /// Recurrence ID
-    pub id_rec: String,
+    pub id_rec: Secret<String>,
     /// Information about the recurring object/service
     pub vinculo: RecurrenceLinkResponse,
     /// Calendar information for the recurrence
@@ -1256,7 +1256,7 @@ pub struct LocationResponse {
     /// Creation timestamp
     pub criacao: String,
     /// Recurrence ID
-    pub id_rec: String,
+    pub id_rec: Secret<String>,
 }
 
 /// Status update history entry for the recurrence
