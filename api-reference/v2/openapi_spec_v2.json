@@ -25747,7 +25747,7 @@
             ],
             "nullable": true
           },
-          "exec_date": {
+          "mandate_execution_date": {
             "type": "string",
             "description": "Execution date for the mandate charge (maps to data_de_vencimento). Format: YYYY-MM-DD.\nIf not provided, defaults to current date + 1 day.",
             "example": "2026-12-31",
@@ -28840,10 +28840,12 @@
         "type": "object",
         "properties": {
           "amount": {
-            "type": "string",
+            "type": "integer",
+            "format": "int64",
             "description": "Maximum amount for each recurring charge",
-            "example": "5.00",
-            "nullable": true
+            "example": 6540,
+            "nullable": true,
+            "minimum": 0
           },
           "start_date": {
             "type": "string",
