@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.04.02.0-hotfix2
+
+### Bug Fixes
+
+- **core/connector:** [SANTANDER] Pix Automatico Fixes ([#11702](https://github.com/juspay/hyperswitch/pull/11702)) ([`f5af2a7`](https://github.com/juspay/hyperswitch/commit/f5af2a785f7936c8f01d1e1eb306eaec3568c21b))
+
+**Full Changelog:** [`2026.04.02.0-hotfix1...2026.04.02.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2026.04.02.0-hotfix1...2026.04.02.0-hotfix2)
+
+- - -
+
 ## 2026.04.02.0-hotfix1
 
 ### Features
