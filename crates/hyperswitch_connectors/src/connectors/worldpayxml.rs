@@ -1524,15 +1524,16 @@ impl ConnectorSpecifications for Worldpayxml {
         Some(WORLDPAYXML_SUPPORTED_WEBHOOK_FLOWS)
     }
 
-    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize {
                 request_data,
                 auth_type,
-            } => *auth_type == common_enums::AuthenticationType::ThreeDs && request_data.is_card(),
+            } => auth_type == common_enums::AuthenticationType::ThreeDs && request_data.is_card(),
             // No alternate flow for complete authorize
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
             api::CurrentFlowInfo::SetupMandate { .. } => false,
+            api::CurrentFlowInfo::Psync { .. } => false,
         }
     }
 
