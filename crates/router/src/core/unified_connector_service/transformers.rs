@@ -2020,7 +2020,7 @@ impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, Paym
             .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
             .map(|country| country.into());
 
-        let payment_sdk_session_context = payments_grpc::PaymentSdkSessionContext {
+        let payment_sdk_session_context = payments_grpc::PaymentClientAuthenticationContext {
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
                 currency: currency.into(),
@@ -4796,7 +4796,7 @@ impl transformers::ForeignTryFrom<payments_grpc::ClientAuthenticationTokenData> 
             )) => {
                 let apay_response = ApplepaySessionTokenResponse {
                     session_token_data: apay_session_token_response
-                        .session_token_data
+                        .session_response
                         .as_ref()
                         .map(ApplePaySessionResponse::foreign_try_from)
                         .transpose()?,

@@ -767,13 +767,19 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
                         .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
                             field_name: "amount",
                         })?;
+                let currency = match payments_grpc::Currency::try_from(amount_money.currency) {
+                    Ok(payments_grpc::Currency::Unspecified) | Err(_) => {
+                        Err(UnifiedConnectorServiceError::MissingRequiredField {
+                            field_name: "currency",
+                        })
+                    }
+                    Ok(c) => common_enums::Currency::from_str(c.as_str_name())
+                        .map_err(|_| UnifiedConnectorServiceError::ParsingFailed),
+                }
+                .attach_printable("Failed to parse currency from UCS Nmi redirect form")?;
                 Ok(Self::Nmi {
                     amount: amount_money.minor_amount.to_string(),
-                    currency: common_enums::Currency::from_str(
-                        &amount_money.currency.unwrap_or_default(),
-                    )
-                    .map_err(|_| UnifiedConnectorServiceError::ParsingFailed)
-                    .attach_printable("Failed to parse currency from UCS Nmi redirect form")?,
+                    currency,
                     public_key: hyperswitch_masking::Secret::new(
                         nmi.public_key
                             .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
