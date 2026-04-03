@@ -2422,27 +2422,39 @@ where
                             should_continue_further,
                             payment_data.get_payment_intent().payment_id,
                         );
-                        Box::pin(payments::payments_operation_core::<
-                            api_types::SetupMandate,
-                            _,
-                            _,
-                            _,
-                            payments::PaymentData<api_types::SetupMandate>,
-                        >(
-                            &state,
-                            req_state,
-                            &platform,
-                            profile_id,
-                            PaymentRecurrence,
-                            req,
-                            payments::CallConnectorAction::Trigger,
-                            None,
+                        let (pd, _req, connector_status_code, ext_latency) =
+                            Box::pin(payments::payments_operation_core::<
+                                api_types::SetupMandate,
+                                _,
+                                _,
+                                _,
+                                payments::PaymentData<api_types::SetupMandate>,
+                            >(
+                                &state,
+                                req_state,
+                                &platform,
+                                profile_id,
+                                PaymentRecurrence,
+                                req,
+                                payments::CallConnectorAction::Trigger,
+                                None,
+                                auth_flow,
+                                eligible_routable_connectors,
+                                header_payload.clone(),
+                                dimensions,
+                            ))
+                            .await?;
+                        return payment_types::PaymentsResponse::generate_response(
+                            pd,
                             auth_flow,
-                            eligible_routable_connectors,
-                            header_payload.clone(),
-                            dimensions,
-                        ))
-                        .await?;
+                            &state.base_url,
+                            operation,
+                            &state.conf.connector_request_reference_id_config,
+                            connector_status_code,
+                            ext_latency,
+                            header_payload.x_hs_latency,
+                            &platform,
+                        );
                     }
                 }
 
