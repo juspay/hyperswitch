@@ -948,6 +948,11 @@ impl
                 )
             })
             .transpose()?;
+        let capture_method = router_data
+            .request
+            .capture_method
+            .map(payments_grpc::CaptureMethod::foreign_try_from)
+            .transpose()?;
 
         Ok(Self {
             merchant_order_id: Some(router_data.connector_request_reference_id.clone()),
@@ -993,6 +998,7 @@ impl
                 .transpose()?,
             connector_feature_data: None,
             connector_order_reference_id: None,
+            capture_method: capture_method.map(|capture_method| capture_method.into()),
         })
     }
 }
