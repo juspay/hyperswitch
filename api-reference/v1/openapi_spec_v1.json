@@ -11291,7 +11291,8 @@
           {
             "$ref": "#/components/schemas/PixBankTransfer"
           }
-        ]
+        ],
+        "description": "Deprecated - Use `BankTransfer` instead"
       },
       "BankAdditionalData": {
         "oneOf": [

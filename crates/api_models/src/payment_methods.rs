@@ -269,7 +269,7 @@ pub struct PaymentMethodMigrate {
     /// The card network
     pub card_network: Option<String>,
 
-    /// Payment method details from locker
+    /// Payment method details from locker. Deprecated, use bank_transfer_data instead
     #[cfg(feature = "payouts")]
     pub bank_transfer: Option<payouts::Bank>,
 

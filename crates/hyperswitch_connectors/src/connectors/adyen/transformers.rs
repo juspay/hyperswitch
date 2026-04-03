@@ -6345,10 +6345,9 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                 message: "Passthrough payout creation is not supported".to_string(),
                 connector: "Adyen",
             })?,
-            #[allow(unreachable_code)]
-            PayoutMethodData::Bank(_) => Err(errors::ConnectorError::NotSupported {
-                message: "Deprecated in hyperswitch".to_string(),
-                connector: "Adyen",
+            PayoutMethodData::Bank(_) => Err(errors::ConnectorError::GenericError {
+                error_message: "Payout method 'Bank' should have been normalized to 'BankTransfer'. This is an unexpected state.".to_string(),
+                error_object: serde_json::Value::Null,
             })?,
         }
     }

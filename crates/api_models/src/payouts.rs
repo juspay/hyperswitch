@@ -242,8 +242,7 @@ pub struct PayoutCreatePayoutLinkConfig {
 #[serde(rename_all = "snake_case")]
 pub enum PayoutMethodData {
     Card(CardPayout),
-    #[schema(deprecated)]
-    Bank(Bank),
+    Bank(Bank), // Deprecated - Use BankTransfer instead
     Wallet(Wallet),
     BankRedirect(BankRedirect),
     Passthrough(Passthrough),
@@ -322,6 +321,7 @@ pub struct CardPayout {
     pub card_network: Option<CardNetwork>,
 }
 
+/// Deprecated - Use `BankTransfer` instead
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(untagged)]
 pub enum Bank {

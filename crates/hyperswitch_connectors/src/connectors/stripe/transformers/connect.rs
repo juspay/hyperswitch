@@ -475,11 +475,10 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectRecipientAccountCreateRe
                 }
                 .into())
             }
-            #[allow(unreachable_code)]
             api_models::payouts::PayoutMethodData::Bank(_) => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: "Deprecated in hyperswitch".to_string(),
-                    connector: "stripe",
+                Err(errors::ConnectorError::GenericError {
+                    error_message: "Payout method 'Bank' should have been normalized to 'BankTransfer'. This is an unexpected state.".to_string(),
+                    error_object: serde_json::Value::Null,
                 }
                 .into())
             }
