@@ -299,8 +299,8 @@ diesel::table! {
         is_external_vault_enabled -> Nullable<Bool>,
         external_vault_connector_details -> Nullable<Jsonb>,
         is_l2_l3_enabled -> Nullable<Bool>,
-        payment_method_blocking -> Nullable<Jsonb>,
         network_tokenization_credentials -> Nullable<Bytea>,
+        payment_method_blocking -> Nullable<Jsonb>,
         default_fallback_routing -> Nullable<Jsonb>,
     }
 }
