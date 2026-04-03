@@ -9945,6 +9945,47 @@ impl ConnectorMetadata {
                 })
         })
     }
+    pub fn get_mandatory_pix_automatico_maximum_permissible_mandate_amount(
+        self,
+    ) -> common_utils::errors::CustomResult<MinorUnit, ValidationError> {
+        let santander = self
+            .santander
+            .ok_or(ValidationError::MissingRequiredField {
+                field_name: "connector_metadata.santander".to_string(),
+            })?;
+
+        let pix_automatico =
+            santander
+                .pix_automatico
+                .ok_or(ValidationError::MissingRequiredField {
+                    field_name: "connector_metadata.santander.pix_automatico".to_string(),
+                })?;
+
+        let cit_data = match pix_automatico {
+            SantanderPixAutomaticoData::Cit(cit) => cit,
+            SantanderPixAutomaticoData::Mit(_) => {
+                return Err(error_stack::report!(ValidationError::InvalidValue {
+                    message: "Expected pix_automatico CIT variant, but got MIT".to_string(),
+                }))
+            }
+        };
+
+        let mandate_details =
+            cit_data
+                .mandate_details
+                .ok_or(ValidationError::MissingRequiredField {
+                    field_name: "connector_metadata.santander.pix_automatico.cit.mandate_details"
+                        .to_string(),
+                })?;
+
+        mandate_details.amount.ok_or(error_stack::report!(
+            ValidationError::MissingRequiredField {
+                field_name:
+                    "connector_metadata.santander.pix_automatico.cit.mandate_details.amount"
+                        .to_string(),
+            }
+        ))
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -13319,9 +13360,9 @@ pub struct SantanderPixAutomaticoReceiverDetails {
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SantanderMandateDetails {
     /// Maximum amount for each recurring charge
-    #[schema(value_type = Option<String>, example = "5.00")]
-    #[smithy(value_type = "Option<String>")]
-    pub amount: Option<StringMajorUnit>,
+    #[schema(value_type = Option<u64>, example = 6540)]
+    #[smithy(value_type = "Option<MinorUnit>")]
+    pub amount: Option<MinorUnit>,
     /// Start date for the recurring charges. Format: YYYY-MM-DD. If not provided, the mandate will be valid immediately.
     #[schema(value_type = Option<String>, example="2026-12-31")]
     #[serde(default, with = "common_utils::custom_serde::date_only_optional")]
@@ -13397,7 +13438,7 @@ pub struct PixAutomaticoMitData {
     /// If not provided, defaults to current date + 1 day.
     #[schema(value_type = Option<String>, example = "2026-12-31")]
     #[serde(default, with = "common_utils::custom_serde::date_only_optional")]
-    pub exec_date: Option<PrimitiveDateTime>,
+    pub mandate_execution_date: Option<PrimitiveDateTime>,
     /// Whether to automatically adjust the due date to the next business day if it falls on a non-business day.
     /// Maps to ajuste_dia_util in Santander API. Defaults to true if not provided.
     #[smithy(value_type = "Option<bool>")]

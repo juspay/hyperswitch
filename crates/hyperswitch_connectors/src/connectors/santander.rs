@@ -754,8 +754,31 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
             req.request.minor_amount,
             req.request.currency,
         )?;
-
-        let connector_router_data = SantanderRouterData::from((amount, req));
+        let rec_amount_in_minor = req
+            .request
+            .connector_intent_metadata
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "connector_intent_metadata",
+            })?
+            .get_mandatory_pix_automatico_maximum_permissible_mandate_amount()
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name:
+                    "connector_metadata.santander.pix_automatico.cit.mandate_details.amount",
+            })?;
+        let rec_amount = convert_amount(
+            self.amount_converter,
+            rec_amount_in_minor,
+            req.request.currency,
+        )?;
+        let final_amount = if req.request.minor_amount.get_amount_as_i64()
+            < rec_amount_in_minor.get_amount_as_i64()
+        {
+            rec_amount
+        } else {
+            amount
+        };
+        let connector_router_data = SantanderRouterData::from((final_amount, req));
         let connector_req = SantanderSetupMandateRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
