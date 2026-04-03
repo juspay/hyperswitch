@@ -33,12 +33,12 @@ pub use hyperswitch_interfaces::{
     },
     types::{ComparisonServiceConfig, Proxy},
 };
-use masking::{Maskable, Secret};
+use hyperswitch_masking::{Maskable, Secret};
 pub use payment_methods::configs::settings::{
     BankRedirectConfig, BanksVector, ConnectorBankNames, ConnectorFields, EligiblePaymentMethods,
-    Installments, Mandates, PaymentMethodAuth, PaymentMethodType, RequiredFieldFinal,
-    RequiredFields, SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
-    SupportedPaymentMethodsForMandate, ZeroMandates,
+    InstallmentConfig, Installments, Mandates, PaymentMethodAuth, PaymentMethodType,
+    RequiredFieldFinal, RequiredFields, SupportedConnectorsForMandate,
+    SupportedPaymentMethodTypesForMandate, SupportedPaymentMethodsForMandate, ZeroMandates,
 };
 use payment_methods::configs::MicroServicesConfig;
 use rand::seq::IteratorRandom;
@@ -118,6 +118,7 @@ pub struct Settings<S: SecretState> {
     pub mandates: Mandates,
     pub zero_mandates: ZeroMandates,
     pub installments: Installments,
+    pub installment_config: InstallmentConfig,
     pub network_transaction_id_supported_connectors: NetworkTransactionIdSupportedConnectors,
     pub card_only_mit_supported_connectors: CardOnlyMitSupportedConnectors,
     pub notify_iframe_exit_and_redirect: NotifyIframeExitAndRedirectConnectors,

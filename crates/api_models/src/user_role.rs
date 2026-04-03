@@ -1,6 +1,6 @@
 use common_enums::{ParentGroup, PermissionGroup};
 use common_utils::pii;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 
 pub mod role;
 

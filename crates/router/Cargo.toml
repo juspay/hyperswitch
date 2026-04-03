@@ -37,6 +37,7 @@ v1 = ["common_default", "api_models/v1", "diesel_models/v1", "hyperswitch_domain
 dynamic_routing = ["external_services/dynamic_routing", "storage_impl/dynamic_routing", "api_models/dynamic_routing"]
 revenue_recovery = ["api_models/revenue_recovery", "hyperswitch_interfaces/revenue_recovery", "hyperswitch_domain_models/revenue_recovery", "hyperswitch_connectors/revenue_recovery", "external_services/revenue_recovery", "dep:prost-types"]
 tokenization_v2 = ["api_models/tokenization_v2", "diesel_models/tokenization_v2", "hyperswitch_domain_models/tokenization_v2", "storage_impl/tokenization_v2"]
+pm_modular = []
 
 # Partial Auth
 # The feature reduces the overhead of the router authenticating the merchant for every request, and trusts on `x-merchant-id` header to be present in the request.
@@ -59,7 +60,7 @@ blake3 = "1.8.2"
 bytes = "1.10.1"
 clap = { version = "4.5.38", default-features = false, features = ["std", "derive", "help", "usage"] }
 config = { version = "0.14.1", features = ["toml"] }
-prost-types = { version = "0.13", optional = true }
+prost-types = { version = "0.14", optional = true }
 cookie = "0.18.1"
 csv = "1.3.1"
 diesel = { version = "2.2.10", features = ["postgres"] }
@@ -90,9 +91,8 @@ reqwest = { version = "0.11.27", features = ["json", "rustls-tls", "gzip", "mult
 ring = "0.17.14"
 rust_decimal = { version = "1.37.1", features = ["serde-with-float", "serde-with-str"] }
 rust-i18n = { git = "https://github.com/kashif-m/rust-i18n", rev = "f2d8096aaaff7a87a847c35a5394c269f75e077a" }
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "95144b0829b8b3d8c4b0914921b43540abb6ac50", package = "rust-grpc-client" }
-unified-connector-service-cards = { git = "https://github.com/juspay/connector-service", rev = "95144b0829b8b3d8c4b0914921b43540abb6ac50", package = "ucs_cards" }
-unified-connector-service-masking = { git = "https://github.com/juspay/hyperswitch", tag = "2025.11.24.0", package = "masking" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "0de0cb9aeb0db7b01401ffae04c270ba2e3a1137", package = "rust-grpc-client" }
+unified-connector-service-cards = { git = "https://github.com/juspay/connector-service", rev = "0de0cb9aeb0db7b01401ffae04c270ba2e3a1137", package = "ucs_cards" }
 rustc-hash = "1.1.0"
 rustls = "0.22"
 rustls-pemfile = "2"
@@ -113,7 +113,7 @@ unicode-segmentation = "1.12.0"
 url = { version = "2.5.4", features = ["serde"] }
 urlencoding = "2.1.3"
 utoipa = { version = "4.2.3", features = ["preserve_order", "preserve_path_order", "time"] }
-uuid = { version = "1.17.0", features = ["v4"] }
+uuid = { version = "1.20.0", features = ["v4"] }
 validator = "0.17.0"
 x509-parser = "0.16.0"
 
@@ -136,7 +136,7 @@ hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_m
 hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces", default-features = false }
 injector = { version = "0.1.0", path = "../injector", optional = true }
 kgraph_utils = { version = "0.1.0", path = "../kgraph_utils" }
-masking = { version = "0.1.0", path = "../masking" }
+hyperswitch_masking = "0.0.1"
 pm_auth = { version = "0.1.0", path = "../pm_auth", package = "pm_auth" }
 redis_interface = { version = "0.1.0", path = "../redis_interface" }
 router_derive = { version = "0.1.0", path = "../router_derive" }

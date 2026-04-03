@@ -30,7 +30,7 @@ pub mod routes {
     use common_utils::{pii::Email, types::TimeRange};
     use error_stack::{report, ResultExt};
     use futures::{stream::FuturesUnordered, StreamExt};
-    use masking::ExposeInterface;
+    use hyperswitch_masking::ExposeInterface;
     use router_env::logger;
 
     use crate::{

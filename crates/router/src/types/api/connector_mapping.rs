@@ -267,6 +267,9 @@ impl ConnectorData {
                 enums::Connector::Fiservemea => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Fiservemea::new())))
                 }
+                enums::Connector::Fiservcommercehub => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Fiservcommercehub::new(),
+                ))),
                 enums::Connector::Fiuu => Ok(ConnectorEnum::Old(Box::new(connector::Fiuu::new()))),
                 enums::Connector::Flexiti => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Flexiti::new())))
@@ -469,6 +472,9 @@ impl ConnectorData {
                 }
                 enums::Connector::Truelayer => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Truelayer::new())))
+                }
+                enums::Connector::Trustly => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Trustly::new())))
                 }
                 enums::Connector::Trustpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Trustpay::new())))

@@ -175,14 +175,16 @@ impl CaptureSyncResponse {
     }
 }
 impl PaymentsResponseData {
-    pub fn get_connector_metadata(&self) -> Option<masking::Secret<serde_json::Value>> {
+    pub fn get_connector_metadata(&self) -> Option<hyperswitch_masking::Secret<serde_json::Value>> {
         match self {
             Self::TransactionResponse {
                 connector_metadata, ..
             }
             | Self::PreProcessingResponse {
                 connector_metadata, ..
-            } => connector_metadata.clone().map(masking::Secret::new),
+            } => connector_metadata
+                .clone()
+                .map(hyperswitch_masking::Secret::new),
             _ => None,
         }
     }
@@ -368,7 +370,7 @@ pub enum RedirectForm {
     Nmi {
         amount: String,
         currency: common_enums::Currency,
-        public_key: masking::Secret<String>,
+        public_key: hyperswitch_masking::Secret<String>,
         customer_vault_id: String,
         order_id: String,
     },
@@ -676,7 +678,7 @@ pub enum AuthenticationResponseData {
     },
     AuthNResponse {
         authn_flow_type: AuthNFlowType,
-        authentication_value: Option<masking::Secret<String>>,
+        authentication_value: Option<hyperswitch_masking::Secret<String>>,
         trans_status: common_enums::TransactionStatus,
         connector_metadata: Option<serde_json::Value>,
         ds_trans_id: Option<String>,
@@ -688,7 +690,7 @@ pub enum AuthenticationResponseData {
     },
     PostAuthNResponse {
         trans_status: common_enums::TransactionStatus,
-        authentication_value: Option<masking::Secret<String>>,
+        authentication_value: Option<hyperswitch_masking::Secret<String>>,
         eci: Option<String>,
         challenge_cancel: Option<String>,
         challenge_code_reason: Option<String>,
@@ -779,8 +781,8 @@ impl PaymentMethodDetails {
 #[derive(Debug, Clone)]
 pub enum VaultResponseData {
     ExternalVaultCreateResponse {
-        session_id: masking::Secret<String>,
-        client_secret: masking::Secret<String>,
+        session_id: hyperswitch_masking::Secret<String>,
+        client_secret: hyperswitch_masking::Secret<String>,
     },
     ExternalVaultInsertResponse {
         connector_vault_id: VaultIdType,
@@ -803,16 +805,16 @@ pub enum VaultIdType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MultiVaultIdType {
     Card {
-        tokenized_card_number: Option<masking::Secret<String>>,
-        tokenized_card_expiry_year: Option<masking::Secret<String>>,
-        tokenized_card_expiry_month: Option<masking::Secret<String>>,
-        tokenized_card_cvc: Option<masking::Secret<String>>,
+        tokenized_card_number: Option<hyperswitch_masking::Secret<String>>,
+        tokenized_card_expiry_year: Option<hyperswitch_masking::Secret<String>>,
+        tokenized_card_expiry_month: Option<hyperswitch_masking::Secret<String>>,
+        tokenized_card_cvc: Option<hyperswitch_masking::Secret<String>>,
     },
     NetworkToken {
-        tokenized_network_token: Option<masking::Secret<String>>,
-        tokenized_network_token_exp_year: Option<masking::Secret<String>>,
-        tokenized_network_token_exp_month: Option<masking::Secret<String>>,
-        tokenized_cryptogram: Option<masking::Secret<String>>,
+        tokenized_network_token: Option<hyperswitch_masking::Secret<String>>,
+        tokenized_network_token_exp_year: Option<hyperswitch_masking::Secret<String>>,
+        tokenized_network_token_exp_month: Option<hyperswitch_masking::Secret<String>>,
+        tokenized_cryptogram: Option<hyperswitch_masking::Secret<String>>,
     },
 }
 
