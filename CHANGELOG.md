@@ -4,6 +4,24 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.04.03.0
+
+### Features
+
+- **authentication:** Generate authn values in response for pci merchant using modular auth ([#11610](https://github.com/juspay/hyperswitch/pull/11610)) ([`a22f7d1`](https://github.com/juspay/hyperswitch/commit/a22f7d11690bd3992f1ba1479fab190755e54815))
+- **connector:** [SANTANDER] Implement CIT, CIT PSync, MIT & MIT Psync for Pix Automatico ([#11589](https://github.com/juspay/hyperswitch/pull/11589)) ([`b1ce937`](https://github.com/juspay/hyperswitch/commit/b1ce9378911a9b0f0a077d8969bd462fc75c421d))
+- **core/connector:** [SANTANDER] Add & Implement PushNotification & GenerateQr Connector Integration Flow ([#11553](https://github.com/juspay/hyperswitch/pull/11553)) ([`2eb3106`](https://github.com/juspay/hyperswitch/commit/2eb3106753d399062ecb45d14254d4e4bca6c28f))
+- **pm-modular:** Move behind feature flags ([#11689](https://github.com/juspay/hyperswitch/pull/11689)) ([`a9c38e2`](https://github.com/juspay/hyperswitch/commit/a9c38e2d73edb88659bea8ff0b358ee03b7b0eba))
+- **router:** Add payment_session_id validation support to SdkAuthorization ([#11583](https://github.com/juspay/hyperswitch/pull/11583)) ([`4ec618d`](https://github.com/juspay/hyperswitch/commit/4ec618dca53b33f85efe7534a38ab0418949a758))
+
+### Bug Fixes
+
+- **router:** Rename payment_session to client_session ([#11692](https://github.com/juspay/hyperswitch/pull/11692)) ([`42509f7`](https://github.com/juspay/hyperswitch/commit/42509f79db159f9816a5e26f974757986a707b64))
+
+**Full Changelog:** [`2026.04.02.0...2026.04.03.0`](https://github.com/juspay/hyperswitch/compare/2026.04.02.0...2026.04.03.0)
+
+- - -
+
 ## 2026.04.02.0
 
 ### Features
