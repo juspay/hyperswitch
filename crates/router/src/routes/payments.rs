@@ -2444,6 +2444,11 @@ where
                                 dimensions,
                             ))
                             .await?;
+                        let total_ext_latency = match (external_latency, ext_latency) {
+                            (Some(l1), Some(l2)) => Some(l1 + l2),
+                            (Some(l), None) | (None, Some(l)) => Some(l),
+                            (None, None) => None,
+                        };
                         return payment_types::PaymentsResponse::generate_response(
                             pd,
                             auth_flow,
@@ -2451,7 +2456,7 @@ where
                             operation,
                             &state.conf.connector_request_reference_id_config,
                             connector_status_code,
-                            ext_latency,
+                            total_ext_latency,
                             header_payload.x_hs_latency,
                             &platform,
                         );
