@@ -69,7 +69,7 @@ pub struct PaymentMethodCreate {
 
     /// Payment method details from locker
     #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<Bank>, deprecated)]
+    #[schema(value_type = Option<Bank>)]
     pub bank_transfer: Option<payouts::Bank>,
 
     /// Payment method details from locker
