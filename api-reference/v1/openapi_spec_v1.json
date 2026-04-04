@@ -25495,7 +25495,7 @@
           },
           {
             "type": "object",
-            "description": "Contains url to be rendered in an iframe",
+            "description": "The data required to trigger the DDC (Device Data Collection) flow by rendering the provided URL in a hidden iframe.",
             "required": [
               "ddc_data",
               "type"

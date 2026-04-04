@@ -6789,7 +6789,8 @@ pub enum IframeData {
     Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
 )]
 pub struct DDCData {
-    pub iframe_url: String,
+    #[schema(value_type = String)]
+    pub iframe_url: Url,
     pub timeout_ms: Option<i32>,
 }
 
@@ -7110,8 +7111,14 @@ pub struct PaymentsConnectorThreeDsInvokeData {
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
-pub struct PaymentConnectorInvokeDDCData {
+pub struct PaymentConnectorInvokeDDCMetadata {
     pub iframe_url: String,
+    pub timeout_ms: Option<i32>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct PaymentConnectorInvokeDDCData {
+    pub iframe_url: Url,
     pub timeout_ms: Option<i32>,
 }
 

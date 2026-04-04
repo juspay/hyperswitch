@@ -4308,18 +4308,25 @@ pub fn next_action_invoke_ddc_iframe(
     payment_attempt: &storage::PaymentAttempt,
     base_url: &str,
 ) -> RouterResult<Option<api_models::payments::PaymentConnectorInvokeDDCData>> {
-    let ddc_iframe_data: Option<Result<api_models::payments::PaymentConnectorInvokeDDCData, _>> =
-        payment_attempt
-            .connector_metadata
-            .clone()
-            .map(|metadata| metadata.parse_value("PaymentConnectorInvokeDDCData"))
-            .map(|res| {
-                res.map(|mut data: api_payments::PaymentConnectorInvokeDDCData| {
-                    data.iframe_url = format!("{}{}", base_url, data.iframe_url).to_string();
-
-                    data
-                })
-            });
+    let ddc_iframe_data: Option<
+        error_stack::Result<
+            api_models::payments::PaymentConnectorInvokeDDCData,
+            common_utils::errors::ParsingError,
+        >,
+    > = payment_attempt.connector_metadata.clone().map(|metadata| {
+        let meta = metadata
+            .parse_value::<api_models::payments::PaymentConnectorInvokeDDCMetadata>(
+                "PaymentConnectorInvokeDDCData",
+            )?;
+        let full_iframe_url = format!("{}{}", base_url, meta.iframe_url);
+        let iframe_url = url::Url::parse(&full_iframe_url)
+            .change_context(common_utils::errors::ParsingError::UrlParsingError)
+            .attach_printable("Failed to parse DDC iframe URL after joining with base_url")?;
+        Ok(api_models::payments::PaymentConnectorInvokeDDCData {
+            iframe_url,
+            timeout_ms: meta.timeout_ms,
+        })
+    });
 
     let ddc_data = ddc_iframe_data.transpose().ok().flatten();
     Ok(ddc_data)

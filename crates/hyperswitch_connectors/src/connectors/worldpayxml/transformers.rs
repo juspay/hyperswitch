@@ -1,3 +1,4 @@
+use api_models::payments::PaymentConnectorInvokeDDCMetadata;
 #[cfg(feature = "payouts")]
 use api_models::payouts::{ApplePayDecrypt, CardPayout};
 use base64::Engine;
@@ -762,12 +763,6 @@ impl TryFrom<(&Card, Option<enums::CaptureMethod>, Option<Session>)> for Payment
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PaymentConnectorInvokeDDCData {
-    timeout_ms: Option<i32>,
-    iframe_url: String,
-}
-
 impl TryFrom<PaymentsPreAuthenticateResponseRouterData<bytes::Bytes>>
     for PaymentsPreAuthenticateRouterData
 {
@@ -827,7 +822,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<bytes::Bytes>>
             item.data.attempt_id,
         );
 
-        let metadata = PaymentConnectorInvokeDDCData {
+        let metadata = PaymentConnectorInvokeDDCMetadata {
             timeout_ms: None,
             iframe_url,
         };
