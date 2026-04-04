@@ -170,6 +170,9 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           token: ${{ steps.generate_token.outputs.token }}
 
+      - name: Collect Workflow Telemetry
+        uses: catchpoint/workflow-telemetry-action@v2
+
       - name: Install mold linker
         uses: rui314/setup-mold@v1
         if: ${{ runner.os == 'Linux' }}

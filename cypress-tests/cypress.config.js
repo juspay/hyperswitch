@@ -38,6 +38,7 @@ export default defineConfig({
           return crypto.createHmac("sha256", key).update(message).digest("hex");
         },
       });
+
       on("after:spec", (spec, results) => {
         // Clean up resources after each spec
         if (
