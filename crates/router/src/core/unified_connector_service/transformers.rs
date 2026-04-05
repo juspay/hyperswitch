@@ -46,8 +46,8 @@ use router_env::tracing;
 use time::{Duration, OffsetDateTime};
 use unified_connector_service_cards::{CardNumber, NetworkToken};
 use unified_connector_service_client::payments::{
-    self as payments_grpc, session_token, ConnectorState, EventServiceHandleRequest,
-    EventServiceHandleResponse,
+    self as payments_grpc, client_authentication_token_data, ConnectorState,
+    EventServiceHandleRequest, EventServiceHandleResponse,
 };
 
 use crate::{
@@ -771,7 +771,8 @@ impl
             router_request_types::AuthorizeSessionTokenData,
             PaymentsResponseData,
         >,
-    > for payments_grpc::MerchantAuthenticationServiceCreateSessionTokenRequest
+    >
+    for payments_grpc::MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
     fn foreign_try_from(
@@ -789,15 +790,21 @@ impl
             }
         ))?;
 
-        Ok(Self {
-            merchant_session_id: Some(router_data.connector_request_reference_id.clone()),
+        let payment_session_context = payments_grpc::PaymentSessionContext {
             amount: Some(payments_grpc::Money {
                 minor_amount: amount,
                 currency: currency.into(),
             }),
             metadata: None,
-            state: None,
             browser_info: None,
+        };
+
+        Ok(Self {
+            merchant_server_session_id: Some(router_data.connector_request_reference_id.clone()),
+            domain_context: Some(
+                payments_grpc::merchant_authentication_service_create_server_session_authentication_token_request::DomainContext::Payment(payment_session_context),
+            ),
+            state: None,
             connector_feature_data: None,
             test_mode: router_data.test_mode,
         })
@@ -934,6 +941,11 @@ impl
                 )
             })
             .transpose()?;
+        let capture_method = router_data
+            .request
+            .capture_method
+            .map(payments_grpc::CaptureMethod::foreign_try_from)
+            .transpose()?;
 
         Ok(Self {
             merchant_order_id: Some(router_data.connector_request_reference_id.clone()),
@@ -979,6 +991,7 @@ impl
                 .transpose()?,
             connector_feature_data: None,
             connector_order_reference_id: None,
+            capture_method: capture_method.map(|capture_method| capture_method.into()),
         })
     }
 }
@@ -1979,7 +1992,7 @@ impl
 }
 
 impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, PaymentsResponseData>>
-    for payments_grpc::MerchantAuthenticationServiceCreateSdkSessionTokenRequest
+    for payments_grpc::MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
@@ -1995,12 +2008,25 @@ impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, Paym
             .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
             .map(|country| country.into());
 
-        Ok(Self {
-            merchant_sdk_session_id: router_data.connector_request_reference_id.clone(),
+        let payment_sdk_session_context = payments_grpc::PaymentClientAuthenticationContext {
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
                 currency: currency.into(),
             }),
+            order_tax_amount: router_data
+                .request
+                .order_tax_amount
+                .map(|order_tax_amount| order_tax_amount.get_amount_as_i64()),
+            shipping_cost: router_data
+                .request
+                .shipping_cost
+                .map(|shipping_cost| shipping_cost.get_amount_as_i64()),
+            payment_method_type: router_data
+                .payment_method_type
+                .map(payments_grpc::PaymentMethodType::foreign_try_from)
+                .transpose()?
+                .map(|payment_method_type| payment_method_type.into()),
+            country_alpha2_code: country,
             customer: Some(payments_grpc::Customer {
                 name: router_data
                     .request
@@ -2020,22 +2046,16 @@ impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, Paym
                 phone_number: None,
                 phone_country_code: None,
             }),
-            order_tax_amount: router_data
-                .request
-                .order_tax_amount
-                .map(|order_tax_amount| order_tax_amount.get_amount_as_i64()),
-            shipping_cost: router_data
-                .request
-                .shipping_cost
-                .map(|shipping_cost| shipping_cost.get_amount_as_i64()),
-            country_alpha2_code: country,
-            payment_method_type: router_data
-                .payment_method_type
-                .map(payments_grpc::PaymentMethodType::foreign_try_from)
-                .transpose()?
-                .map(|payment_method_type| payment_method_type.into()),
             metadata: None,
+        };
+
+        Ok(Self {
+            merchant_client_session_id: router_data.connector_request_reference_id.clone(),
             connector_feature_data: None,
+            test_mode: router_data.test_mode,
+            domain_context: Some(
+                payments_grpc::merchant_authentication_service_create_client_authentication_token_request::DomainContext::Payment(payment_sdk_session_context),
+            ),
         })
     }
 }
@@ -2801,13 +2821,13 @@ impl
 
 impl
     transformers::ForeignTryFrom<
-        payments_grpc::MerchantAuthenticationServiceCreateAccessTokenResponse,
+        payments_grpc::MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
     > for Result<AccessToken, ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        response: payments_grpc::MerchantAuthenticationServiceCreateAccessTokenResponse,
+        response: payments_grpc::MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
     ) -> Result<Self, Self::Error> {
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
@@ -4402,13 +4422,13 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceIncrementalAuthor
 
 impl
     transformers::ForeignTryFrom<
-        payments_grpc::MerchantAuthenticationServiceCreateSdkSessionTokenResponse,
+        payments_grpc::MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
     > for Result<PaymentsResponseData, ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        response: payments_grpc::MerchantAuthenticationServiceCreateSdkSessionTokenResponse,
+        response: payments_grpc::MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
     ) -> Result<Self, Self::Error> {
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
@@ -4460,7 +4480,7 @@ impl
                 connector_metadata: None,
             })
         } else {
-            let session_token = match response.session_token {
+            let session_token = match response.session_data {
                 Some(session_token) => SessionToken::foreign_try_from(session_token),
                 None => {
                     router_env::logger::info!(
@@ -4515,12 +4535,16 @@ impl transformers::ForeignTryFrom<payments_grpc::PaypalTransactionInfo> for Payp
     }
 }
 
-impl transformers::ForeignTryFrom<payments_grpc::SessionToken> for SessionToken {
+impl transformers::ForeignTryFrom<payments_grpc::ClientAuthenticationTokenData> for SessionToken {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
-    fn foreign_try_from(value: payments_grpc::SessionToken) -> Result<Self, Self::Error> {
-        match value.wallet_name {
-            Some(session_token::WalletName::GooglePay(gpay_session_token_response)) => {
+    fn foreign_try_from(
+        value: payments_grpc::ClientAuthenticationTokenData,
+    ) -> Result<Self, Self::Error> {
+        match value.sdk_type {
+            Some(client_authentication_token_data::SdkType::GooglePay(
+                gpay_session_token_response,
+            )) => {
                 let gpay_session = gpay_session_token_response
                     .google_pay_session
                     .ok_or(UnifiedConnectorServiceError::CreateSdkSessionTokenFailure)
@@ -4534,10 +4558,12 @@ impl transformers::ForeignTryFrom<payments_grpc::SessionToken> for SessionToken 
                     GpaySessionTokenResponse::GooglePaySession(gpay_response),
                 )))
             }
-            Some(session_token::WalletName::ApplePay(apay_session_token_response)) => {
+            Some(client_authentication_token_data::SdkType::ApplePay(
+                apay_session_token_response,
+            )) => {
                 let apay_response = ApplepaySessionTokenResponse {
                     session_token_data: apay_session_token_response
-                        .session_token_data
+                        .session_response
                         .as_ref()
                         .map(ApplePaySessionResponse::foreign_try_from)
                         .transpose()?,
@@ -4558,7 +4584,9 @@ impl transformers::ForeignTryFrom<payments_grpc::SessionToken> for SessionToken 
 
                 Ok(Self::ApplePay(Box::new(apay_response)))
             }
-            Some(session_token::WalletName::Paypal(paypal_session_token_response)) => {
+            Some(client_authentication_token_data::SdkType::Paypal(
+                paypal_session_token_response,
+            )) => {
                 let paypal_session_token_response = PaypalSessionTokenResponse {
                     session_token: paypal_session_token_response.session_token.clone(),
                     connector: paypal_session_token_response.connector.clone(),
@@ -5242,13 +5270,13 @@ impl transformers::ForeignTryFrom<&common_enums::PaymentChannel> for payments_gr
 
 impl
     transformers::ForeignTryFrom<
-        payments_grpc::MerchantAuthenticationServiceCreateSessionTokenResponse,
+        payments_grpc::MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
     > for Result<PaymentsResponseData, ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        response: payments_grpc::MerchantAuthenticationServiceCreateSessionTokenResponse,
+        response: payments_grpc::MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
     ) -> Result<Self, Self::Error> {
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
@@ -5816,7 +5844,7 @@ impl
             AccessToken,
         >,
         common_enums::CallConnectorAction,
-    )> for payments_grpc::MerchantAuthenticationServiceCreateAccessTokenRequest
+    )> for payments_grpc::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
