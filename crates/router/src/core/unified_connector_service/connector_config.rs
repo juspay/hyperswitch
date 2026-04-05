@@ -570,10 +570,15 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     api_secret,
                 } => {
                     let metadata_parsed = metadata
-                        .map(|m| serde_json::from_value::<BraintreeMetadata>(m.clone()))
-                        .transpose()
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to parse Braintree metadata")?
+                        .map(|m| {
+                            serde_json::from_value::<BraintreeMetadata>(m.clone()).map_err(|_| {
+                                error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+                                    .attach_printable(
+                                        "Failed to parse Braintree metadata",
+                                    )
+                            })
+                        })
+                        .transpose()?
                         .ok_or_else(|| err("Braintree requires metadata with merchant_account_id and merchant_config_currency"))?;
 
                     Ok(Self::Braintree {

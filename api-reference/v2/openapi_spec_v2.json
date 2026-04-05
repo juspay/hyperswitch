@@ -5191,6 +5191,15 @@
           "propertyName": "type"
         }
       },
+      "AccountType": {
+        "type": "string",
+        "description": "Account type for Santander Pix Automatico recurring charges",
+        "enum": [
+          "current",
+          "savings",
+          "payment"
+        ]
+      },
       "AchBankDebitAdditionalData": {
         "type": "object",
         "required": [
@@ -25700,6 +25709,58 @@
           "propertyName": "type"
         }
       },
+      "PixAutomaticoCitData": {
+        "type": "object",
+        "description": "Data for Santander Pix Automatico CIT (Customer Initiated Transaction) - used during mandate setup",
+        "properties": {
+          "contract_id": {
+            "type": "string",
+            "description": "Contract ID to identify the recurring payment contract",
+            "example": "pm_16503867",
+            "nullable": true
+          },
+          "retry_policy": {
+            "type": "boolean",
+            "description": "Enable retry policy for failed payments (maps to PERMITE_3R_7D if true)",
+            "example": true,
+            "nullable": true
+          },
+          "mandate_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SantanderMandateDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "PixAutomaticoMitData": {
+        "type": "object",
+        "description": "Data for Santander Pix Automatico MIT (Merchant Initiated Transaction) - used during recurring charge creation",
+        "properties": {
+          "receiver_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SantanderPixAutomaticoReceiverDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "mandate_execution_date": {
+            "type": "string",
+            "description": "Execution date for the mandate charge (maps to data_de_vencimento). Format: YYYY-MM-DD.\nIf not provided, defaults to current date + 1 day.",
+            "example": "2026-12-31",
+            "nullable": true
+          },
+          "auto_adjust_date": {
+            "type": "boolean",
+            "description": "Whether to automatically adjust the due date to the next business day if it falls on a non-business day.\nMaps to ajuste_dia_util in Santander API. Defaults to true if not provided.",
+            "example": true,
+            "nullable": true
+          }
+        }
+      },
       "PixAutomaticoPushAdditionalData": {
         "type": "object",
         "properties": {
@@ -28754,6 +28815,14 @@
               }
             ],
             "nullable": true
+          },
+          "pix_automatico": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SantanderPixAutomaticoData"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -28766,6 +28835,49 @@
           }
         },
         "additionalProperties": false
+      },
+      "SantanderMandateDetails": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Maximum amount for each recurring charge",
+            "example": 6540,
+            "nullable": true,
+            "minimum": 0
+          },
+          "start_date": {
+            "type": "string",
+            "description": "Start date for the recurring charges. Format: YYYY-MM-DD. If not provided, the mandate will be valid immediately.",
+            "example": "2026-12-31",
+            "nullable": true
+          },
+          "end_date": {
+            "type": "string",
+            "description": "End date for the recurring charges. Format: YYYY-MM-DD. If not provided, the mandate will be valid indefinitely.",
+            "example": "2026-12-31",
+            "nullable": true
+          },
+          "periodicity": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SantanderMandatePeriodicity"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "SantanderMandatePeriodicity": {
+        "type": "string",
+        "enum": [
+          "weekly",
+          "monthly",
+          "quarterly",
+          "semiannually",
+          "annually"
+        ]
       },
       "SantanderPaymentDiscountRules": {
         "type": "object",
@@ -28788,6 +28900,59 @@
               "$ref": "#/components/schemas/DiscountTier"
             },
             "description": "A generic vector of discount tiers"
+          }
+        }
+      },
+      "SantanderPixAutomaticoData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "cit"
+            ],
+            "properties": {
+              "cit": {
+                "$ref": "#/components/schemas/PixAutomaticoCitData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "mit"
+            ],
+            "properties": {
+              "mit": {
+                "$ref": "#/components/schemas/PixAutomaticoMitData"
+              }
+            }
+          }
+        ],
+        "description": "Represents the specific data for Santander Pix Automatico (recurring PIX payments)\nSplit into CIT (Customer Initiated Transaction) and MIT (Merchant Initiated Transaction) variants"
+      },
+      "SantanderPixAutomaticoReceiverDetails": {
+        "type": "object",
+        "description": "Represents the receiver details for Santander Pix Automatico recurring charges",
+        "properties": {
+          "branch_code": {
+            "type": "string",
+            "description": "Branch code (agencia) of the receiver's bank account",
+            "example": "0001",
+            "nullable": true
+          },
+          "account_number": {
+            "type": "string",
+            "description": "Account number (conta) of the receiver",
+            "example": "130333323",
+            "nullable": true
+          },
+          "account_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AccountType"
+              }
+            ],
+            "nullable": true
           }
         }
       },

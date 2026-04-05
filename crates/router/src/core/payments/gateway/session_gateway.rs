@@ -77,7 +77,7 @@ where
             .attach_printable("Failed to fetch Unified Connector Service client")?;
 
         let create_sdk_session_token_request =
-            payments_grpc::MerchantAuthenticationServiceCreateSdkSessionTokenRequest::foreign_try_from(router_data)
+            payments_grpc::MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest::foreign_try_from(router_data)
                 .change_context(ConnectorError::RequestEncodingFailed)
                 .attach_printable("Failed to construct Payment SdkSessionToken Request")?;
 
