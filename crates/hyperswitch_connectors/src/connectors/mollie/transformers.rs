@@ -1,6 +1,10 @@
 use cards::CardNumber;
 use common_enums::enums;
-use common_utils::{pii::Email, request::Method, types::StringMajorUnit};
+use common_utils::{
+    pii::Email,
+    request::Method,
+    types::{MinorUnit, StringMajorUnit},
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{
@@ -119,6 +123,8 @@ pub struct KlarnaMethodData {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MollieLinesItems {
+    #[serde(rename = "type")]
+    _type: String,
     description: String,
     quantity: i32,
     quantity_unit: Option<String>,
@@ -134,6 +140,7 @@ impl TryFrom<(types::OrderDetailsWithAmount, enums::Currency)> for MollieLinesIt
     fn try_from(
         (order_details, currency): (types::OrderDetailsWithAmount, enums::Currency),
     ) -> Result<Self, Self::Error> {
+        let _type = "physical".to_string();
         let description = order_details.get_order_description()?;
         let quantity = i32::from(order_details.get_order_quantity());
         let quantity_unit = order_details.get_optional_order_quantity_unit();
@@ -149,7 +156,9 @@ impl TryFrom<(types::OrderDetailsWithAmount, enums::Currency)> for MollieLinesIt
         let discount_amount_value = order_details
             .get_optional_unit_discount_amount()
             .map(|unit_discount_amount| {
-                convert_amount(mollie_converter, unit_discount_amount, currency)
+                let total_discount_amount =
+                    unit_discount_amount * (order_details.get_order_quantity());
+                convert_amount(mollie_converter, total_discount_amount, currency)
             })
             .transpose()?;
 
@@ -160,6 +169,7 @@ impl TryFrom<(types::OrderDetailsWithAmount, enums::Currency)> for MollieLinesIt
         )?;
 
         Ok(Self {
+            _type,
             description,
             quantity,
             quantity_unit,
@@ -175,6 +185,32 @@ impl TryFrom<(types::OrderDetailsWithAmount, enums::Currency)> for MollieLinesIt
                 .map(|value| OrderItemUnitPrice { currency, value }),
             sku,
             image_url,
+        })
+    }
+}
+
+impl MollieLinesItems {
+    pub fn shipping_fee(
+        shipping_amount: MinorUnit,
+        currency: enums::Currency,
+    ) -> Result<Self, Error> {
+        let mollie_converter = super::Mollie::new().amount_converter;
+
+        let value = convert_amount(mollie_converter, shipping_amount, currency)?;
+
+        Ok(Self {
+            _type: "shipping_fee".to_string(),
+            description: "shipping_fee".to_string(),
+            quantity: 1,
+            quantity_unit: None,
+            unit_price: OrderItemUnitPrice {
+                currency,
+                value: value.clone(),
+            },
+            total_amount: OrderItemUnitPrice { currency, value },
+            discount_amount: None,
+            sku: None,
+            image_url: None,
         })
     }
 }
@@ -514,7 +550,7 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, &PayLaterData)> for MolliePay
                     item.get_billing()?.clone(),
                 )?;
 
-                let lines = item
+                let mut lines = item
                     .request
                     .get_order_details()?
                     .into_iter()
@@ -522,6 +558,12 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, &PayLaterData)> for MolliePay
                         MollieLinesItems::try_from((order_detail, item.request.currency))
                     })
                     .collect::<Result<Vec<MollieLinesItems>, Error>>()?;
+
+                if let Some(shipping_fee) = item.request.shipping_cost {
+                    let shipping_line =
+                        MollieLinesItems::shipping_fee(shipping_fee, item.request.currency)?;
+                    lines.push(shipping_line);
+                }
 
                 Ok(Self::Klarna(Box::new(KlarnaMethodData {
                     billing_address,

@@ -1,7 +1,8 @@
 use actix_web::http::header::HeaderMap;
 use api_models::{
     cards_info as card_info_types, enums as api_enums, gsm as gsm_api_types, payment_methods,
-    payments, routing::ConnectorSelection,
+    payments::{self, CustomerDetails},
+    routing::ConnectorSelection,
 };
 use common_utils::{
     consts::X_HS_LATENCY,
@@ -1714,6 +1715,17 @@ impl
                 .or_else(|| {
                     customer.and_then(|cust| cust.name.as_ref().map(|n| n.clone().into_inner()))
                 }),
+            customer: Some(CustomerDetails {
+                name: None,
+                email: None,
+                phone: None,
+                id: None,
+                phone_country_code: None,
+                tax_registration_id: None,
+                document_details: customer_details_from_pi
+                    .as_ref()
+                    .and_then(|doc_details| doc_details.customer_document_details.clone()),
+            }),
             ..Self::default()
         })
     }

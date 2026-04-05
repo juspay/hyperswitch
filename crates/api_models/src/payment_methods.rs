@@ -339,6 +339,7 @@ pub struct PaymentsMandateReferenceRecord {
     pub original_payment_authorized_amount: Option<i64>,
     pub original_payment_authorized_currency: Option<common_enums::Currency>,
     pub connector_customer_id: Option<String>,
+    pub connector_mandate_request_reference_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -1441,6 +1442,8 @@ pub struct NetworkTokenDetailsPaymentMethod {
     pub card_type: Option<String>,
     #[serde(default = "saved_in_locker_default")]
     pub saved_to_locker: bool,
+    #[schema(value_type = Option<String>, example = "522134KAVJ1JPZ8L77N0Z2LRYZS7J")]
+    pub par: Option<masking::Secret<String>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -3279,6 +3282,7 @@ pub struct PaymentMethodRecord {
     pub nick_name: Option<masking::Secret<String>>,
     pub payment_instrument_id: Option<masking::Secret<String>>,
     pub connector_customer_id: Option<String>,
+    pub connector_mandate_request_reference_id: Option<String>,
     // Card fields are optional to support non-card CSV rows (e.g., ACH bank debit).
     // For card rows these will still be populated normally from the CSV columns.
     #[serde(default)]
@@ -3587,7 +3591,10 @@ impl
                             original_payment_authorized_amount: record.original_transaction_amount,
                             original_payment_authorized_currency: record
                                 .original_transaction_currency,
-                            connector_customer_id: record.connector_customer_id.clone(),
+                            connector_customer_id: None,
+                            connector_mandate_request_reference_id: record
+                                .connector_mandate_request_reference_id
+                                .clone(),
                         },
                     )
                 })
@@ -4009,6 +4016,9 @@ pub struct PaymentMethodSessionResponse {
 
     /// Whether the card with new status should be listed in the session
     pub keep_alive: bool,
+
+    /// Network token details if available
+    pub network_tokenization_data: Option<NetworkTokenResponse>,
 }
 
 #[cfg(feature = "v2")]

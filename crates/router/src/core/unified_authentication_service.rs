@@ -588,7 +588,8 @@ pub async fn create_new_authentication(
     return_url: Option<String>,
     profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
     customer_details: Option<common_utils::encryption::Encryption>,
-    merchant_key_store: &domain::MerchantKeyStore,
+    processor: &domain::Processor,
+    initiator: Option<&domain::Initiator>,
 ) -> RouterResult<hyperswitch_domain_models::authentication::Authentication> {
     let service_details_value = service_details
         .map(serde_json::to_value)
@@ -680,11 +681,17 @@ pub async fn create_new_authentication(
         challenge_request_key: None,
         customer_details,
         merchant_country_code: None,
+        processor_merchant_id: Some(processor.get_account().get_id().clone()),
+        created_by: initiator.and_then(|initiator| initiator.to_created_by()),
     };
 
     state
         .store
-        .insert_authentication(&key_manager_state, merchant_key_store, new_authentication)
+        .insert_authentication(
+            &key_manager_state,
+            processor.get_key_store(),
+            new_authentication,
+        )
         .await
         .to_duplicate_response(ApiErrorResponse::GenericDuplicateError {
             message: format!(
@@ -820,7 +827,8 @@ pub async fn authentication_create_core(
         customer_details
             .clone()
             .map(common_utils::encryption::Encryption::from),
-        platform.get_processor().get_key_store(),
+        platform.get_processor(),
+        platform.get_initiator(),
     )
     .await?;
 

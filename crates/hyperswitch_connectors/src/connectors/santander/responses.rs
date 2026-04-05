@@ -160,7 +160,7 @@ pub struct SantanderBoletoPaymentsResponse {
     pub key: Option<Key>,
     pub tx_id: Option<String>,
     pub messages: Option<Vec<String>>,
-    pub barcode: Option<Secret<String>>,
+    pub bar_code: Option<Secret<String>>,
     pub digitable_line: Option<Secret<String>>,
     pub entry_date: Option<String>,
     pub qr_code_pix: Option<String>,

@@ -177,7 +177,7 @@ where
     let default_value = C::default_value();
 
     let superposition_result = match superposition_client {
-        Some(client) => C::fetch(client, context, targeting_key).await,
+        Some(client) => C::fetch(client, context.clone(), targeting_key).await,
         None => Err(error_stack::report!(
             superposition::SuperpositionError::ClientError(
                 "No superposition client available".to_string()
@@ -185,8 +185,17 @@ where
         )),
     };
 
-    match superposition_result {
-        Ok(value) => value,
+   let resolved_value = match superposition_result {
+        Ok(value) => {
+            router_env::logger::info!(
+                config_key = %config_type,
+                source = "superposition",
+                value = %value.to_config_string().unwrap_or_default(),
+                context = ?context,
+                "Config resolved from superposition"
+            );
+            value
+        }
         Err(_) => match db_key {
             Some(db_key) => {
                 router_env::logger::info!(
@@ -237,7 +246,8 @@ where
                 default_value
             }
         },
-    }
+    };
+    resolved_value
 }
 
 /// Fetch object-type config with JSON-to-Type conversion.
@@ -264,6 +274,56 @@ where
     .await;
     let config_type = C::KEY;
 
+    serde_json::from_value(json_value).unwrap_or_else(|e| {
+        router_env::logger::error!(
+            "Failed to deserialize {}: {:?}, using default",
+            stringify!(T),
+            e
+        );
+        metrics::CONFIG_DEFAULT_FALLBACK.add(
+            1,
+            router_env::metric_attributes!(("config_type", config_type)),
+        );
+        T::default()
+    })
+}
+
+/// Fetch dimension-aware array config with JSON deserialization.
+/// Use this instead of `fetch_db_config_for_objects` when the config value is always a
+/// JSON array. The OpenFeature provider encodes an empty array `[]` as an empty StructValue
+/// which converts to `Value::Object({})`. This function converts that back to
+/// `Value::Array([])` so deserialization into `Vec<T>` works correctly.
+pub async fn fetch_db_config_for_object_array<C, T>(
+    storage: &dyn db::StorageInterface,
+    superposition_client: Option<&superposition::SuperpositionClient>,
+    dimensions: &impl dimension_state::DimensionsBase,
+    targeting_key: Option<&C::TargetingKey>,
+) -> T
+where
+    C: DatabaseBackedConfig<Output = serde_json::Value>,
+    T: for<'de> serde::Deserialize<'de> + Default,
+    open_feature::Client: superposition::GetValue<serde_json::Value>,
+{
+    let db_key = <C as DatabaseBackedConfig>::db_key(dimensions);
+    let context = dimensions.to_superposition_context();
+
+    let json_value = fetch_db_config::<C>(
+        storage,
+        superposition_client,
+        db_key.as_deref(),
+        context,
+        targeting_key,
+    )
+    .await;
+
+    // Empty array [] in CAC → empty StructValue → Value::Object({}) after conversion.
+    // Convert to Value::Array([]) so Vec<T> deserialization succeeds.
+    let json_value = match json_value {
+        serde_json::Value::Object(ref map) if map.is_empty() => serde_json::Value::Array(vec![]),
+        other => other,
+    };
+
+    let config_type = C::KEY;
     serde_json::from_value(json_value).unwrap_or_else(|e| {
         router_env::logger::error!(
             "Failed to deserialize {}: {:?}, using default",

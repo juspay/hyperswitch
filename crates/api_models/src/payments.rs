@@ -123,7 +123,9 @@ pub struct BankCodeResponse {
 }
 
 /// Passing this object creates a new customer or attaches an existing customer to the payment
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema, PartialEq, SmithyModel)]
+#[derive(
+    Debug, Default, serde::Deserialize, serde::Serialize, Clone, ToSchema, PartialEq, SmithyModel,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct CustomerDetails {
     /// The identifier for the customer.
@@ -3523,6 +3525,11 @@ pub struct NetworkTokenData {
     #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub eci: Option<String>,
+
+    /// The Payment Account Reference (PAR) for this card.
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub par: Option<Secret<String>>,
 }
 
 #[derive(
@@ -3573,6 +3580,11 @@ pub struct NetworkTokenResponse {
     #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub card_holder_name: Option<Secret<String>>,
+
+    /// The Payment Account Reference (PAR) for this card
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub par: Option<Secret<String>>,
 }
 
 #[derive(
@@ -4118,6 +4130,9 @@ pub struct AdditionalNetworkTokenInfo {
 
     /// The card holder's name
     pub card_holder_name: Option<Secret<String>>,
+
+    /// Payment Account Reference (PAR) for the card
+    pub par: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -6663,6 +6678,10 @@ pub enum NextActionData {
         display_text: Option<String>,
         #[smithy(value_type = "Option<String>")]
         border_color: Option<String>,
+        /// The raw QR code data (EMV copy and paste) used for Brazilian payment methods like Pix
+        #[smithy(value_type = "Option<String>")]
+        #[schema(value_type = Option<String>)]
+        raw_qr_data: Option<String>,
     },
     /// Contains url to fetch Qr code data
     FetchQrCodeInformation {
@@ -6847,6 +6866,7 @@ pub enum QrCodeInformation {
         qr_code_url: Url,
         display_to_timestamp: Option<i64>,
         expiry_type: Option<common_enums::enums::ExpiryType>,
+        raw_qr_data: Option<String>,
     },
     QrDataUrl {
         image_data_url: Url,
@@ -6932,6 +6952,10 @@ pub struct VoucherNextStepData {
     #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub qr_code_url: Option<Url>,
+    /// The raw QR code data (EMV copy and paste) used for Brazilian payment methods like Pix
+    #[smithy(value_type = "Option<String>")]
+    #[schema(value_type = Option<String>)]
+    pub raw_qr_data: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -9005,6 +9029,8 @@ pub struct PaymentListFilterConstraints {
     pub merchant_order_reference_id: Option<String>,
     /// Indicates the method by which a card is discovered during a payment
     pub card_discovery: Option<Vec<enums::CardDiscovery>>,
+    /// The customer email to filter payments list
+    pub customer_email: Option<Email>,
 }
 
 #[cfg(feature = "v1")]
@@ -9230,6 +9256,7 @@ impl From<AdditionalNetworkTokenInfo> for NetworkTokenResponse {
             token_exp_month: network_token.token_exp_month,
             token_exp_year: network_token.token_exp_year,
             card_holder_name: network_token.card_holder_name,
+            par: network_token.par,
         }
     }
 }

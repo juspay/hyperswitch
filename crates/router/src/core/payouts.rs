@@ -2884,6 +2884,10 @@ pub async fn payout_create_db_entries(
         status,
         created_at: common_utils::date_time::now(),
         last_modified_at: common_utils::date_time::now(),
+        processor_merchant_id: Some(platform.get_processor().get_account().get_id().clone()),
+        created_by: platform
+            .get_initiator()
+            .and_then(|initiator| initiator.to_created_by()),
     };
     let payouts = db
         .insert_payout(
@@ -2941,6 +2945,10 @@ pub async fn payout_create_db_entries(
         unified_code: None,
         unified_message: None,
         payout_connector_metadata: None,
+        processor_merchant_id: Some(platform.get_processor().get_account().get_id().clone()),
+        created_by: platform
+            .get_initiator()
+            .and_then(|initiator| initiator.to_created_by()),
     };
     let payout_attempt = db
         .insert_payout_attempt(

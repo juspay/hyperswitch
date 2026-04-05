@@ -3986,3 +3986,54 @@ pub async fn embedded_token_info(
         },
     ))
 }
+
+pub async fn get_user_details_internal(
+    state: SessionState,
+    user_id: String,
+) -> UserResponse<user_api::GetUserInternalDetailsResponse> {
+    let user: domain::UserFromStorage = state
+        .global_store
+        .find_user_by_user_id(&user_id)
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to fetch user from database")?
+        .into();
+
+    Ok(ApplicationResponse::Json(
+        user_api::GetUserInternalDetailsResponse {
+            user_id: user.get_user_id().to_string(),
+            name: user.get_name(),
+            email: user.get_email(),
+            is_active: user.is_active(),
+        },
+    ))
+}
+
+pub async fn list_users_internal(
+    state: SessionState,
+    req: user_api::ListUsersInternalRequest,
+) -> UserResponse<user_api::ListUsersInternalResponse> {
+    let users = state
+        .global_store
+        .list_users_by_user_ids(req.user_ids)
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to fetch users from database")?;
+
+    let users_minimal_details = users
+        .into_iter()
+        .map(domain::UserFromStorage::from)
+        .map(|user| user_api::GetUserInternalDetailsResponse {
+            user_id: user.get_user_id().to_string(),
+            name: user.get_name(),
+            email: user.get_email(),
+            is_active: user.is_active(),
+        })
+        .collect();
+
+    Ok(ApplicationResponse::Json(
+        user_api::ListUsersInternalResponse {
+            users: users_minimal_details,
+        },
+    ))
+}

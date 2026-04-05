@@ -1113,8 +1113,10 @@ impl TryFrom<RefundsResponseRouterData<Execute, NovalnetRefundResponse>>
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NovolnetRedirectionResponse {
-    status: NovalnetTransactionStatus,
-    tid: Option<String>,
+    pub status: NovalnetTransactionStatus,
+    pub tid: Option<String>,
+    pub status_text: Option<String>,
+    pub status_code: Option<u64>,
 }
 
 impl TryFrom<&PaymentsSyncRouterData> for NovalnetSyncRequest {

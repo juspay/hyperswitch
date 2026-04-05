@@ -943,10 +943,11 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
 
                 let voucher_data = VoucherNextStepData {
                     digitable_line: boleto_data.digitable_line.clone(),
-                    barcode: boleto_data.barcode.clone(),
+                    barcode: boleto_data.bar_code.clone(),
                     expires_at: None,
                     expiry_date: Some(boleto_data.due_date),
                     reference: boleto_data.nsu_code.clone(),
+                    raw_qr_data: boleto_data.qr_code_pix.clone(),
                     entry_date: boleto_data.entry_date.clone(),
                     download_url: None,
                     instructions_url: None,
@@ -1150,6 +1151,7 @@ fn convert_pix_data_to_value(
         qr_code_url: image_data_url,
         display_to_timestamp: None,
         expiry_type: variant,
+        raw_qr_data: Some(data),
     };
 
     Some(qr_code_info.encode_to_value())

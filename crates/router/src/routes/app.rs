@@ -3113,6 +3113,19 @@ impl User {
                         ),
                 ),
         );
+
+        // Internal API endpoints (authenticated via X-Internal-API-Key header)
+        route = route.service(
+            web::scope("/internal")
+                .service(
+                    web::resource("/user/list").route(web::post().to(user::list_users_internal)),
+                )
+                .service(
+                    web::resource("/user/{user_id}")
+                        .route(web::get().to(user::get_user_details_internal)),
+                ),
+        );
+
         route
     }
 }

@@ -177,6 +177,10 @@ diesel::table! {
         billing_country -> Nullable<Varchar>,
         #[max_length = 16]
         shipping_country -> Nullable<Varchar>,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
     }
 }
 
@@ -503,6 +507,10 @@ diesel::table! {
         #[max_length = 32]
         organization_id -> Varchar,
         dispute_currency -> Nullable<Currency>,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
     }
 }
 
@@ -1349,6 +1357,10 @@ diesel::table! {
         #[max_length = 255]
         merchant_order_reference_id -> Nullable<Varchar>,
         payout_connector_metadata -> Nullable<Jsonb>,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
     }
 }
 
@@ -1395,6 +1407,10 @@ diesel::table! {
         priority -> Nullable<Varchar>,
         #[max_length = 32]
         organization_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
     }
 }
 
@@ -1477,6 +1493,10 @@ diesel::table! {
         unified_message -> Nullable<Varchar>,
         processor_refund_data -> Nullable<Text>,
         processor_transaction_data -> Nullable<Text>,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
         #[max_length = 64]
         id -> Varchar,
         #[max_length = 64]

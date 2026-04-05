@@ -15000,6 +15000,7 @@
           "dlocal",
           "dwolla",
           "ebanx",
+          "envoy",
           "elavon",
           "facilitapay",
           "finix",
@@ -23511,6 +23512,11 @@
             "type": "string",
             "description": "The ECI(Electronic Commerce Indicator) value for this authentication.",
             "nullable": true
+          },
+          "par": {
+            "type": "string",
+            "description": "The Payment Account Reference (PAR) for this card.",
+            "nullable": true
           }
         }
       },
@@ -23563,6 +23569,11 @@
           "card_holder_name": {
             "type": "string",
             "description": "The card holder's name",
+            "nullable": true
+          },
+          "par": {
+            "type": "string",
+            "description": "The Payment Account Reference (PAR) for this card",
             "nullable": true
           }
         }
@@ -23975,6 +23986,11 @@
               },
               "border_color": {
                 "type": "string",
+                "nullable": true
+              },
+              "raw_qr_data": {
+                "type": "string",
+                "description": "The raw QR code data (EMV copy and paste) used for Brazilian payment methods like Pix",
                 "nullable": true
               },
               "type": {
@@ -32638,7 +32654,8 @@
           "truelayer",
           "wise",
           "worldpay",
-          "worldpayxml"
+          "worldpayxml",
+          "envoy"
         ]
       },
       "PayoutCreatePayoutLinkConfig": {
@@ -36969,6 +36986,7 @@
           "dwolla",
           "ebanx",
           "elavon",
+          "envoy",
           "facilitapay",
           "finix",
           "fiserv",

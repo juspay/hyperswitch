@@ -1019,6 +1019,7 @@ pub fn generate_payment_method_session_response(
     storage_type: common_enums::StorageType,
     card_cvc_token_storage: Option<api_models::payment_methods::CardCVCTokenStorageDetails>,
     payment_method_data: Option<api_models::payment_methods::PaymentMethodResponseData>,
+    network_tokenization_response: Option<api_models::payment_methods::NetworkTokenResponse>,
 ) -> api_models::payment_methods::PaymentMethodSessionResponse {
     let next_action = associated_payment
         .as_ref()
@@ -1060,6 +1061,7 @@ pub fn generate_payment_method_session_response(
         payment_method_data,
         sdk_authorization,
         keep_alive: payment_method_session.keep_alive,
+        network_tokenization_data: network_tokenization_response,
     }
 }
 
@@ -1701,6 +1703,7 @@ pub async fn create_payment_method_in_modular_service(
     payment_method_data: domain::PaymentMethodData,
     billing_address: Option<hyperswitch_domain_models::address::Address>,
     customer_id: id_type::CustomerId,
+    is_network_tokenization_enabled: bool,
 ) -> CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
     let payment_method_request = CreatePaymentMethodV1Request {
         merchant_id: provider_merchant_id.clone(),
@@ -1710,7 +1713,11 @@ pub async fn create_payment_method_in_modular_service(
         customer_id,
         payment_method_data,
         billing: billing_address,
-        network_tokenization: None,
+        network_tokenization: is_network_tokenization_enabled.then_some(
+            common_types::payment_methods::NetworkTokenization {
+                enable: common_enums::NetworkTokenizationToggle::Enable,
+            },
+        ),
         storage_type: Some(common_enums::StorageType::Persistent),
         modular_service_prefix: state.conf.micro_services.payment_methods_prefix.0.clone(),
     };

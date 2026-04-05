@@ -111,17 +111,30 @@ impl TryFrom<open_feature::StructValue> for JsonValue {
 
     fn try_from(sv: open_feature::StructValue) -> Result<Self, Self::Error> {
         let capacity = sv.fields.len();
-        sv.fields
-            .into_iter()
-            .try_fold(
+        let map: serde_json::Map<String, serde_json::Value> =
+            sv.fields.into_iter().try_fold(
                 serde_json::Map::with_capacity(capacity),
-                |mut map, (k, v)| {
+                |mut map, (k, v)| -> Result<_, String> {
                     let value = super::convert_open_feature_value(v)?;
                     map.insert(k, value);
                     Ok(map)
                 },
-            )
-            .map(|map| Self(serde_json::Value::Object(map)))
+            )?;
+
+        // When the CAC value is a JSON array, the OpenFeature provider encodes it as a
+        // StructValue with consecutive integer string keys ("0", "1", ...). Detect this
+        // and convert back to a proper JSON array so downstream deserialization works.
+        let is_array = !map.is_empty()
+            && (0..map.len()).all(|i| map.contains_key(&i.to_string()));
+
+        if is_array {
+            let arr = (0..map.len())
+                .map(|i| map[&i.to_string()].clone())
+                .collect();
+            Ok(Self(serde_json::Value::Array(arr)))
+        } else {
+            Ok(Self(serde_json::Value::Object(map)))
+        }
     }
 }
 

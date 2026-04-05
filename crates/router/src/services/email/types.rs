@@ -1,6 +1,7 @@
 use api_models::user::dashboard_metadata::ProdIntent;
 use common_enums::{EntityType, MerchantProductType};
 use common_utils::{errors::CustomResult, pii, types::user::EmailThemeConfig};
+use diesel_models::organization::OrganizationBridge;
 use error_stack::ResultExt;
 use external_services::email::{EmailContents, EmailData, EmailError};
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -81,6 +82,16 @@ pub enum EmailBody {
         prefix: String,
     },
     WelcomeToCommunity,
+    RoleDeleted {
+        user_name: String,
+        role_name: String,
+        entity_type: String,
+        lineage_info: String,
+        entity_name: String,
+        entity_logo_url: String,
+        background_color: String,
+        foreground_color: String,
+    },
 }
 
 pub mod html {
@@ -241,6 +252,28 @@ Email         : {user_email}
             ),
             EmailBody::WelcomeToCommunity => {
                 include_str!("assets/welcome_to_community.html").to_string()
+            }
+            EmailBody::RoleDeleted {
+                user_name,
+                role_name,
+                entity_type,
+                lineage_info,
+                entity_name,
+                entity_logo_url,
+                background_color,
+                foreground_color,
+            } => {
+                format!(
+                    include_str!("assets/role_deleted.html"),
+                    username = user_name,
+                    role_name = role_name,
+                    entity_type = entity_type,
+                    lineage_info = lineage_info,
+                    entity_name = entity_name,
+                    entity_logo_url = entity_logo_url,
+                    background_color = background_color,
+                    foreground_color = foreground_color
+                )
             }
         }
     }
@@ -685,6 +718,64 @@ impl EmailData for WelcomeToCommunity {
 
         Ok(EmailContents {
             subject: "Thank you for signing up on Hyperswitch Dashboard!".to_string(),
+            body: external_services::email::IntermediateString::new(body),
+            recipient: self.recipient_email.clone().into_inner(),
+        })
+    }
+}
+
+pub struct RoleDeleted {
+    pub recipient_email: domain::UserEmail,
+    pub user_name: domain::UserName,
+    pub role_name: String,
+    pub entity_type: EntityType,
+    pub org: diesel_models::organization::Organization,
+    pub merchant: domain::MerchantAccount,
+    pub profile: domain::Profile,
+    pub theme_config: EmailThemeConfig,
+}
+
+#[async_trait::async_trait]
+impl EmailData for RoleDeleted {
+    async fn get_email_data(&self, _base_url: &str) -> CustomResult<EmailContents, EmailError> {
+        let org_info = match self.org.get_organization_name() {
+            Some(name) => format!("Organization: {}", name),
+            None => format!(
+                "Organization Id: {}",
+                self.org.get_organization_id().get_string_repr()
+            ),
+        };
+
+        let merchant_info = match &self.merchant.merchant_name {
+            Some(name) => format!("Merchant: {}", name.get_inner().peek().clone()),
+            None => format!("Merchant Id: {}", self.merchant.get_id().get_string_repr()),
+        };
+
+        let profile_info = format!("Profile: {}", self.profile.profile_name);
+
+        let lineage_info = match self.entity_type {
+            EntityType::Tenant => vec!["Tenant Level".to_string()],
+            EntityType::Organization => vec![org_info],
+            EntityType::Merchant => vec![org_info, merchant_info],
+            EntityType::Profile => vec![org_info, merchant_info, profile_info],
+        }
+        .into_iter()
+        .map(|item| format!("<li>{}</li>", item))
+        .collect::<String>();
+
+        let body = html::get_html_body(EmailBody::RoleDeleted {
+            user_name: self.user_name.clone().get_secret().expose(),
+            role_name: self.role_name.clone(),
+            entity_type: format!("{:?}", self.entity_type),
+            lineage_info,
+            entity_name: self.theme_config.entity_name.clone(),
+            entity_logo_url: self.theme_config.entity_logo_url.clone(),
+            background_color: self.theme_config.background_color.clone(),
+            foreground_color: self.theme_config.foreground_color.clone(),
+        });
+
+        Ok(EmailContents {
+            subject: format!("Access Removed - {} Role Revoked", self.role_name),
             body: external_services::email::IntermediateString::new(body),
             recipient: self.recipient_email.clone().into_inner(),
         })

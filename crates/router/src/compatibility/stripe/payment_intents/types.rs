@@ -897,6 +897,7 @@ pub(crate) fn into_stripe_next_action(
             qr_code_url,
             border_color,
             display_text,
+            raw_qr_data: _,
         } => StripeNextAction::QrCodeInformation {
             image_data_url,
             display_to_timestamp,

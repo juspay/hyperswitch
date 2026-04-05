@@ -207,7 +207,7 @@ impl ConnectorCommon for Payload {
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        "application/x-www-form-urlencoded"
+        "application/json"
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
@@ -252,11 +252,8 @@ impl ConnectorCommon for Payload {
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error_type,
-            message: response.error_description,
-            reason: response
-                .details
-                .as_ref()
-                .map(|details_value| details_value.to_string()),
+            message: response.error_description.clone(),
+            reason: Some(response.error_description),
             attempt_status: None,
             connector_transaction_id: None,
             connector_response_reference_id: None,
@@ -328,11 +325,11 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
                 },
             ) => {
                 let connector_req = requests::PayloadPaymentMethodRequest::try_from(req)?;
-                Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+                Ok(RequestContent::Json(Box::new(connector_req)))
             }
             _ => {
                 let connector_req = requests::PayloadPaymentRequestData::try_from(req)?;
-                Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+                Ok(RequestContent::Json(Box::new(connector_req)))
             }
         }
     }
@@ -440,7 +437,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         let connector_router_data = payload::PayloadRouterData::from((amount, req));
         let connector_req = requests::PayloadPaymentsRequest::try_from(&connector_router_data)?;
 
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -607,7 +604,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         let connector_router_data = payload::PayloadRouterData::from((amount, req));
         let connector_req = requests::PayloadCaptureRequest::try_from(&connector_router_data)?;
 
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -691,7 +688,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Pa
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = payload::PayloadRouterData::from((Default::default(), req));
         let connector_req = requests::PayloadCancelRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -777,7 +774,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Payload
 
         let connector_router_data = payload::PayloadRouterData::from((refund_amount, req));
         let connector_req = requests::PayloadRefundRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(

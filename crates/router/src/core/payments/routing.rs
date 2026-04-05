@@ -1582,13 +1582,19 @@ pub async fn perform_static_routing_v1(
     logger::debug!("euclid_routing: performing routing for connector selection");
     let get_merchant_fallback_config = || async {
         #[cfg(feature = "v1")]
-        return routing::helpers::get_merchant_default_config(
-            &*state.clone().store,
-            business_profile.get_id().get_string_repr(),
-            &api_enums::TransactionType::from(transaction_data),
-        )
-        .await
-        .change_context(errors::RoutingError::FallbackConfigFetchFailed);
+        {
+            let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+                .with_merchant_id(merchant_id.clone())
+                .with_profile_id(business_profile.get_id().clone())
+                .with_transaction_type(api_enums::TransactionType::from(transaction_data));
+            return Ok::<Vec<routing_types::RoutableConnectorChoice>, error_stack::Report<errors::RoutingError>>(dimensions
+                .get_routing_default_config(
+                    &*state.clone().store,
+                    state.superposition_service.as_deref(),
+                    Some(merchant_id),
+                )
+                .await);
+        }
         #[cfg(feature = "v2")]
         return admin::ProfileWrapper::new(business_profile.clone())
             .get_default_fallback_list_of_connector_under_profile()
@@ -2145,7 +2151,7 @@ pub async fn perform_cgraph_filtering(
 
 #[cfg(feature = "v1")]
 fn is_installment_payment(payment_data: &routing::PaymentsDslInput<'_>) -> bool {
-    payment_data.payment_intent.installment_options.is_some()
+    payment_data.payment_attempt.installment_data.is_some()
 }
 
 #[cfg(feature = "v1")]
@@ -2273,25 +2279,32 @@ pub async fn perform_fallback_routing(
     business_profile: &domain::Profile,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     #[cfg(feature = "v1")]
-    let fallback_config = routing::helpers::get_merchant_default_config(
-        &*state.store,
-        match transaction_data {
+    let fallback_config = {
+        let profile_id = match transaction_data {
             routing::TransactionData::Payment(payment_data) => payment_data
                 .payment_intent
                 .profile_id
                 .as_ref()
                 .get_required_value("profile_id")
                 .change_context(errors::RoutingError::ProfileIdMissing)?
-                .get_string_repr(),
+                .clone(),
             #[cfg(feature = "payouts")]
             routing::TransactionData::Payout(payout_data) => {
-                payout_data.payout_attempt.profile_id.get_string_repr()
+                payout_data.payout_attempt.profile_id.clone()
             }
-        },
-        &api_enums::TransactionType::from(transaction_data),
-    )
-    .await
-    .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
+        };
+        let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+            .with_merchant_id(business_profile.merchant_id.clone())
+            .with_profile_id(profile_id)
+            .with_transaction_type(api_enums::TransactionType::from(transaction_data));
+        dimensions
+            .get_routing_default_config(
+                &*state.store,
+                state.superposition_service.as_deref(),
+                Some(&business_profile.merchant_id),
+            )
+            .await
+    };
     #[cfg(feature = "v2")]
     let fallback_config = admin::ProfileWrapper::new(business_profile.clone())
         .get_default_fallback_list_of_connector_under_profile()
@@ -2711,14 +2724,18 @@ async fn perform_session_routing_for_pm_type(
             ),
         }
     } else {
+        let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+            .with_merchant_id(merchant_id.clone())
+            .with_profile_id(session_pm_input.profile_id.clone())
+            .with_transaction_type(*transaction_type);
         (
-            routing::helpers::get_merchant_default_config(
-                &*session_pm_input.state.clone().store,
-                session_pm_input.profile_id.get_string_repr(),
-                transaction_type,
-            )
-            .await
-            .change_context(errors::RoutingError::FallbackConfigFetchFailed)?,
+            dimensions
+                .get_routing_default_config(
+                    &*session_pm_input.state.clone().store,
+                    session_pm_input.state.superposition_service.as_deref(),
+                    Some(merchant_id),
+                )
+                .await,
             None,
         )
     };
@@ -2736,13 +2753,19 @@ async fn perform_session_routing_for_pm_type(
     .await?;
 
     if final_selection.is_empty() {
-        let fallback = routing::helpers::get_merchant_default_config(
-            &*session_pm_input.state.clone().store,
-            session_pm_input.profile_id.get_string_repr(),
-            transaction_type,
-        )
-        .await
-        .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
+        let fallback = {
+            let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+                .with_merchant_id(merchant_id.clone())
+                .with_profile_id(session_pm_input.profile_id.clone())
+                .with_transaction_type(*transaction_type);
+            dimensions
+                .get_routing_default_config(
+                    &*session_pm_input.state.clone().store,
+                    session_pm_input.state.superposition_service.as_deref(),
+                    Some(merchant_id),
+                )
+                .await
+        };
 
         final_selection = perform_cgraph_filtering(
             &session_pm_input.state.clone(),

@@ -126,6 +126,8 @@ pub struct Payouts {
     pub client_secret: Option<String>,
     pub priority: Option<storage_enums::PayoutSendPriority>,
     pub organization_id: Option<id_type::OrganizationId>,
+    pub processor_merchant_id: Option<id_type::MerchantId>,
+    pub created_by: Option<common_utils::types::CreatedBy>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -155,6 +157,8 @@ pub struct PayoutsNew {
     pub client_secret: Option<String>,
     pub priority: Option<storage_enums::PayoutSendPriority>,
     pub organization_id: Option<id_type::OrganizationId>,
+    pub processor_merchant_id: Option<id_type::MerchantId>,
+    pub created_by: Option<common_utils::types::CreatedBy>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -130,7 +130,7 @@ dummyconnector.base_url = "http://localhost:8080/dummy-connector"
 dwolla.base_url = "https://api-sandbox.dwolla.com"
 ebanx.base_url = "https://sandbox.ebanxpay.com/"
 elavon.base_url = "https://api.demo.convergepay.com/VirtualMerchantDemo/"
-envoy.base_url = "https://www.envoytx.com/MerchantAPI.asmx"
+envoy.base_url = "https://test.envoytx.com/"
 facilitapay.base_url = "https://sandbox-api.facilitapay.com/api/v1"
 finix.base_url = "https://finix.sandbox-payments-api.com"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
@@ -223,6 +223,7 @@ thunes.base_url = "https://api.limonetikqualif.com/"
 tokenex.base_url = "https://test-api.tokenex.com"
 tokenio.base_url = "https://api.sandbox.token.io"
 truelayer.base_url = "https://api.truelayer-sandbox.com"
+trustly.base_url = "https://test.trustly.com/api/1"
 truelayer.secondary_base_url = "https://auth.truelayer-sandbox.com"
 stripe.base_url_file_upload = "https://files.stripe.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
@@ -762,6 +763,11 @@ dwolla = { long_lived_token = true, payment_method = "bank_debit" }
 
 [connector_customer]
 payout_connector_list = "nomupay,wise"
+
+[payout_method_filters.envoy]
+sepa = { country = "AD, AT, BE, BG, HR, CY, CZ, DK, EE, FI, FR, DE, GR, HU, IS, IE, IT, LV, LI, LT, LU, MT, MC, NL, NO, PL, PT, RO, SM, SK, SI, ES, SE, CH, GB", currency = "EUR, BGN, CZK, DKK, HUF, ISK, CHF, NOK, PLN, RON, SEK, GBP" }
+ach = { country = "AD, AT, BE, BG, HR, CY, CZ, DK, EE, FI, FR, DE, GR, HU, IS, IE, IT, LV, LI, LT, LU, MT, MC, NL, NO, PL, PT, RO, SM, SK, SI, ES, SE, CH, GB", currency = "EUR, BGN, CZK, DKK, HUF, ISK, CHF, NOK, PLN, RON, SEK, GBP" }
+bacs = { country = "AD, AT, BE, BG, HR, CY, CZ, DK, EE, FI, FR, DE, GR, HU, IS, IE, IT, LV, LI, LT, LU, MT, MC, NL, NO, PL, PT, RO, SM, SK, SI, ES, SE, CH, GB", currency = "EUR, BGN, CZK, DKK, HUF, ISK, CHF, NOK, PLN, RON, SEK, GBP" }
 
 [dummy_connector]
 enabled = true

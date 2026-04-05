@@ -15,7 +15,7 @@ use diesel_models::payment_method;
 #[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap"))]
 use diesel_models::{business_profile::CardTestingGuardConfig, organization::OrganizationBridge};
 use error_stack::{report, FutureExt, ResultExt};
-use external_services::http_client::client;
+use external_services::{http_client::client, superposition::SuperpositionClient};
 use hyperswitch_domain_models::merchant_connector_account::{
     FromRequestEncryptableMerchantConnectorAccount, UpdateEncryptableMerchantConnectorAccount,
 };
@@ -177,7 +177,7 @@ pub async fn get_organization(
 ) -> RouterResponse<api::OrganizationResponse> {
     #[cfg(all(feature = "v1", feature = "olap"))]
     {
-        CreateOrValidateOrganization::new(Some(org_id.organization_id))
+        CreateOrValidateOrganization::new(Some(org_id.organization_id), None)
             .create_or_validate(state.accounts_store.as_ref())
             .await
             .map(ForeignFrom::foreign_from)
@@ -387,6 +387,20 @@ pub async fn create_merchant_account(
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
 
+    if merchant_account.is_platform_account() {
+        state
+            .accounts_store
+            .update_organization_by_org_id(
+                &merchant_account.organization_id,
+                diesel_models::organization::OrganizationUpdate::UpdatePlatformMerchant {
+                    platform_merchant_id: merchant_id.clone(),
+                },
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update organization with platform_merchant_id")?;
+    }
+
     let platform = domain::Platform::new(
         merchant_account.clone(),
         key_store.clone(),
@@ -494,7 +508,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             (req_org_id, _) => req_org_id.clone(),
         };
 
-        let organization = CreateOrValidateOrganization::new(org_id)
+        let organization = CreateOrValidateOrganization::new(org_id, self.merchant_account_type)
             .create_or_validate(db)
             .await?;
 
@@ -650,7 +664,9 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
 enum CreateOrValidateOrganization {
     /// Creates a new organization
     #[cfg(feature = "v1")]
-    Create,
+    Create {
+        merchant_account_type: Option<MerchantAccountType>,
+    },
     /// Validates if this organization exists in the records
     Validate {
         organization_id: id_type::OrganizationId,
@@ -663,11 +679,16 @@ impl CreateOrValidateOrganization {
     /// Create an action to either create or validate the given organization_id
     /// If organization_id is passed, then validate if this organization exists
     /// If not passed, create a new organization
-    fn new(organization_id: Option<id_type::OrganizationId>) -> Self {
+    fn new(
+        organization_id: Option<id_type::OrganizationId>,
+        merchant_account_type: Option<MerchantAccountType>,
+    ) -> Self {
         if let Some(organization_id) = organization_id {
             Self::Validate { organization_id }
         } else {
-            Self::Create
+            Self::Create {
+                merchant_account_type,
+            }
         }
     }
 
@@ -685,11 +706,22 @@ impl CreateOrValidateOrganization {
     ) -> RouterResult<diesel_models::organization::Organization> {
         match self {
             #[cfg(feature = "v1")]
-            Self::Create => {
-                let new_organization = api_models::organization::OrganizationNew::new(
-                    OrganizationType::Standard,
-                    None,
-                );
+            Self::Create {
+                merchant_account_type,
+            } => {
+                let org_type = match merchant_account_type {
+                    Some(MerchantAccountType::Platform) => OrganizationType::Platform,
+                    Some(MerchantAccountType::Connected) => {
+                        return Err(errors::ApiErrorResponse::InvalidRequestData {
+                            message: "Organization cannot be created with connected merchant only"
+                                .to_string(),
+                        }
+                        .into());
+                    }
+                    Some(MerchantAccountType::Standard) | None => OrganizationType::Standard,
+                };
+                let new_organization =
+                    api_models::organization::OrganizationNew::new(org_type, None);
                 let db_organization = ForeignFrom::foreign_from(new_organization);
                 db.insert_organization(db_organization)
                     .await
@@ -1643,25 +1675,26 @@ struct MerchantDefaultConfigUpdate<'a> {
     merchant_id: &'a id_type::MerchantId,
     profile_id: &'a id_type::ProfileId,
     transaction_type: &'a api_enums::TransactionType,
+    superposition_client: Option<&'a SuperpositionClient>,
+    state: &'a SessionState,
 }
 #[cfg(feature = "v1")]
 impl MerchantDefaultConfigUpdate<'_> {
     async fn retrieve_and_update_default_fallback_routing_algorithm_if_routable_connector_exists(
         &self,
     ) -> RouterResult<()> {
-        let mut default_routing_config = routing::helpers::get_merchant_default_config(
-            self.store,
-            self.merchant_id.get_string_repr(),
-            self.transaction_type,
-        )
-        .await?;
+        let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+            .with_merchant_id(self.merchant_id.clone())
+            .with_profile_id(self.profile_id.clone())
+            .with_transaction_type(*self.transaction_type);
 
-        let mut default_routing_config_for_profile = routing::helpers::get_merchant_default_config(
-            self.store,
-            self.profile_id.get_string_repr(),
-            self.transaction_type,
-        )
-        .await?;
+        let mut default_routing_config_for_profile = dimensions
+            .get_routing_default_config(
+                self.store,
+                self.superposition_client,
+                Some(self.merchant_id),
+            )
+            .await;
 
         if let Some(routable_connector_val) = self.routable_connector {
             let choice = routing_types::RoutableConnectorChoice {
@@ -1669,23 +1702,15 @@ impl MerchantDefaultConfigUpdate<'_> {
                 connector: *routable_connector_val,
                 merchant_connector_id: Some(self.merchant_connector_id.clone()),
             };
-            if !default_routing_config.contains(&choice) {
-                default_routing_config.push(choice.clone());
-                routing::helpers::update_merchant_default_config(
-                    self.store,
-                    self.merchant_id.get_string_repr(),
-                    default_routing_config.clone(),
-                    self.transaction_type,
-                )
-                .await?;
-            }
-            if !default_routing_config_for_profile.contains(&choice.clone()) {
+            if !default_routing_config_for_profile.contains(&choice) {
                 default_routing_config_for_profile.push(choice);
                 routing::helpers::update_merchant_default_config(
                     self.store,
                     self.profile_id.get_string_repr(),
                     default_routing_config_for_profile.clone(),
                     self.transaction_type,
+                    &dimensions,
+                    self.state,
                 )
                 .await?;
             }
@@ -1696,19 +1721,18 @@ impl MerchantDefaultConfigUpdate<'_> {
     async fn retrieve_and_delete_from_default_fallback_routing_algorithm_if_routable_connector_exists(
         &self,
     ) -> RouterResult<()> {
-        let mut default_routing_config = routing::helpers::get_merchant_default_config(
-            self.store,
-            self.merchant_id.get_string_repr(),
-            self.transaction_type,
-        )
-        .await?;
+        let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+            .with_merchant_id(self.merchant_id.clone())
+            .with_profile_id(self.profile_id.clone())
+            .with_transaction_type(*self.transaction_type);
 
-        let mut default_routing_config_for_profile = routing::helpers::get_merchant_default_config(
-            self.store,
-            self.profile_id.get_string_repr(),
-            self.transaction_type,
-        )
-        .await?;
+        let mut default_routing_config_for_profile = dimensions
+            .get_routing_default_config(
+                self.store,
+                self.superposition_client,
+                Some(self.merchant_id),
+            )
+            .await;
 
         if let Some(routable_connector_val) = self.routable_connector {
             let choice = routing_types::RoutableConnectorChoice {
@@ -1716,19 +1740,7 @@ impl MerchantDefaultConfigUpdate<'_> {
                 connector: *routable_connector_val,
                 merchant_connector_id: Some(self.merchant_connector_id.clone()),
             };
-            if default_routing_config.contains(&choice) {
-                default_routing_config.retain(|mca| {
-                    mca.merchant_connector_id.as_ref() != Some(self.merchant_connector_id)
-                });
-                routing::helpers::update_merchant_default_config(
-                    self.store,
-                    self.merchant_id.get_string_repr(),
-                    default_routing_config.clone(),
-                    self.transaction_type,
-                )
-                .await?;
-            }
-            if default_routing_config_for_profile.contains(&choice.clone()) {
+            if default_routing_config_for_profile.contains(&choice) {
                 default_routing_config_for_profile.retain(|mca| {
                     mca.merchant_connector_id.as_ref() != Some(self.merchant_connector_id)
                 });
@@ -1737,6 +1749,8 @@ impl MerchantDefaultConfigUpdate<'_> {
                     self.profile_id.get_string_repr(),
                     default_routing_config_for_profile.clone(),
                     self.transaction_type,
+                    &dimensions,
+                    self.state,
                 )
                 .await?;
             }
@@ -2691,6 +2705,8 @@ pub async fn create_connector(
         merchant_id,
         profile_id: business_profile.get_id(),
         transaction_type: &req.get_transaction_type(),
+        superposition_client: state.superposition_service.as_deref(),
+        state: &state,
     };
 
     #[cfg(feature = "v2")]
@@ -2956,6 +2972,8 @@ pub async fn update_connector(
         merchant_id: &merchant_id,
         profile_id: &mca.profile_id,
         transaction_type: &mca.connector_type.into(),
+        superposition_client: state.superposition_service.as_deref(),
+        state: &state,
     };
 
     #[cfg(feature = "v1")]
@@ -3026,6 +3044,8 @@ pub async fn delete_connector(
         merchant_id: &merchant_id,
         profile_id: &mca.profile_id,
         transaction_type: &mca.connector_type.into(),
+        superposition_client: state.superposition_service.as_deref(),
+        state: &state,
     };
 
     merchant_default_config_delete

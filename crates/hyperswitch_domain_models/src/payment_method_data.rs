@@ -667,6 +667,7 @@ impl From<NetworkTokenDetailsForNetworkTransactionId> for NetworkTokenData {
             bank_code: network_token_details_for_nti.bank_code,
             nick_name: network_token_details_for_nti.nick_name,
             eci: network_token_details_for_nti.eci,
+            par: None, // Setting Par to None as it is not required for NetworkTransactionId flows
         }
     }
 }
@@ -1385,6 +1386,7 @@ pub struct NetworkTokenData {
     pub bank_code: Option<String>,
     pub nick_name: Option<Secret<String>>,
     pub eci: Option<String>,
+    pub par: Option<Secret<String>>,
 }
 
 #[cfg(feature = "v2")]
@@ -1402,6 +1404,7 @@ pub struct NetworkTokenData {
     pub card_holder_name: Option<Secret<String>>,
     pub nick_name: Option<Secret<String>>,
     pub eci: Option<String>,
+    pub par: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
@@ -1416,6 +1419,7 @@ pub struct NetworkTokenDetails {
     pub card_issuing_country: Option<api_enums::CountryAlpha2>,
     pub card_holder_name: Option<Secret<String>>,
     pub nick_name: Option<Secret<String>>,
+    pub par: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
@@ -2591,6 +2595,7 @@ impl From<api_models::payments::NetworkTokenData> for NetworkTokenData {
             bank_code: network_token_data.bank_code,
             nick_name: network_token_data.nick_name,
             eci: network_token_data.eci,
+            par: network_token_data.par,
         }
     }
 }
@@ -2615,6 +2620,7 @@ impl From<api_models::payments::NetworkTokenData> for NetworkTokenData {
             card_holder_name: network_token_data.card_holder_name,
             nick_name: network_token_data.nick_name,
             eci: network_token_data.eci,
+            par: network_token_data.par,
         }
     }
 }
@@ -3052,6 +3058,7 @@ pub struct NetworkTokenDetailsPaymentMethod {
     pub card_type: Option<String>,
     #[serde(default = "saved_in_locker_default")]
     pub saved_to_locker: bool,
+    pub par: Option<Secret<String>>,
 }
 
 fn saved_in_locker_default() -> bool {
@@ -3301,6 +3308,7 @@ impl From<NetworkTokenDetails> for NetworkTokenDetailsPaymentMethod {
             card_network: item.card_network,
             card_type: item.card_type.map(|card| card.to_string()),
             saved_to_locker: true,
+            par: item.par,
         }
     }
 }
@@ -3339,6 +3347,7 @@ impl From<NetworkTokenDetailsPaymentMethod> for payment_methods::NetworkTokenDet
             card_network: item.card_network,
             card_type: item.card_type,
             saved_to_locker: item.saved_to_locker,
+            par: item.par,
         }
     }
 }
@@ -3411,6 +3420,7 @@ impl From<NetworkTokenData> for AdditionalNetworkTokenInfo {
             card_holder_name: None,
             last4: Some(network_token_data.token_number.get_last4().clone()),
             token_isin: Some(network_token_data.token_number.get_card_isin().clone()),
+            par: network_token_data.par.clone(),
         }
     }
 }
@@ -3431,6 +3441,7 @@ impl From<NetworkTokenData> for AdditionalNetworkTokenInfo {
             card_holder_name: network_token_data.card_holder_name.to_owned(),
             last4: Some(network_token_data.network_token.get_last4().clone()),
             token_isin: Some(network_token_data.network_token.get_card_isin().clone()),
+            par: network_token_data.par.clone(),
         }
     }
 }
@@ -3453,6 +3464,7 @@ impl From<NetworkTokenDetailsForNetworkTransactionId> for AdditionalNetworkToken
                     .get_card_isin()
                     .clone(),
             ),
+            par: None,
         }
     }
 }
@@ -3475,6 +3487,7 @@ impl From<DecryptedWalletTokenDetailsForNetworkTransactionId> for AdditionalNetw
                     .get_card_isin()
                     .clone(),
             ),
+            par: None, // Setting Par to None as it is not required for NetworkTransactionId flows
         }
     }
 }
