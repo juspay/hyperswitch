@@ -54,14 +54,6 @@ pub struct AdyenMetadata {
     endpoint_prefix: Option<Secret<String>>,
 }
 
-#[derive(Debug, serde::Deserialize)]
-pub struct TruelayerMetadata {
-    merchant_account_id: Option<Secret<String>>,
-    account_holder_name: Option<Secret<String>>,
-    private_key: Option<Secret<String>>,
-    kid: Option<Secret<String>>,
-}
-
 /// Connector-specific configuration enum for all supported connectors
 #[derive(Debug, Clone, serde::Serialize)]
 pub enum ConnectorSpecificConfig {
@@ -557,26 +549,6 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Stripe requires HeaderKey auth type")),
             },
-            Connector::Truelayer => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => {
-                    let metadata_parsed = metadata
-                        .and_then(|m| serde_json::from_value::<TruelayerMetadata>(m.clone()).ok());
-
-                    Ok(Self::Truelayer {
-                        client_id: api_key.clone(),
-                        client_secret: key1.clone(),
-                        merchant_account_id: metadata_parsed
-                            .as_ref()
-                            .and_then(|m| m.merchant_account_id.clone()),
-                        account_holder_name: metadata_parsed
-                            .as_ref()
-                            .and_then(|m| m.account_holder_name.clone()),
-                        private_key: metadata_parsed.as_ref().and_then(|m| m.private_key.clone()),
-                        kid: metadata_parsed.as_ref().and_then(|m| m.kid.clone()),
-                    })
-                }
-                _ => Err(err("Truelayer requires BodyKey auth type")),
-            },
             Connector::Paypal => match auth {
                 ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Paypal {
                     client_id: key1.clone(),
@@ -593,26 +565,6 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     payer_id: Some(api_secret.clone()),
                 }),
                 _ => Err(err("Paypal requires BodyKey or SignatureKey auth type")),
-            },
-            Connector::Revolv3 => match auth {
-                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Revolv3 {
-                    api_key: api_key.clone(),
-                }),
-                _ => Err(err("Revolv3 requires HeaderKey auth type")),
-            },
-            Connector::Fiservcommercehub => match auth {
-                ConnectorAuthType::MultiAuthKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                    key2,
-                } => Ok(Self::Fiservcommercehub {
-                    api_key: api_key.clone(),
-                    secret: api_secret.clone(),
-                    merchant_id: key1.clone(),
-                    terminal_id: key2.clone(),
-                }),
-                _ => Err(err("Fiservcommercehub requires MultiAuthKey auth type")),
             },
             Connector::Calida => match auth {
                 ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Calida {
@@ -972,18 +924,6 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     campaign_id: key1.clone(),
                 }),
                 _ => Err(err("Gigadat requires SignatureKey auth type")),
-            },
-            Connector::Hyperpg => match auth {
-                ConnectorAuthType::SignatureKey {
-                    api_key,
-                    key1,
-                    api_secret,
-                } => Ok(Self::Hyperpg {
-                    username: api_key.clone(),
-                    password: key1.clone(),
-                    merchant_id: api_secret.clone(),
-                }),
-                _ => Err(err("Hyperpg requires SignatureKey auth type")),
             },
             Connector::Iatapay => match auth {
                 ConnectorAuthType::SignatureKey {

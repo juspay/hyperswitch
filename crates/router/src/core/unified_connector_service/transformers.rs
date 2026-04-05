@@ -3086,10 +3086,6 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_method_data
                 Ok(Self::UpiAccount)
             }
             hyperswitch_domain_models::payment_method_data::UpiSource::UpiCcCl => Ok(Self::UpiCcCl),
-            hyperswitch_domain_models::payment_method_data::UpiSource::UpiPpi => Ok(Self::UpiPpi),
-            hyperswitch_domain_models::payment_method_data::UpiSource::UpiVoucher => {
-                Ok(Self::UpiVoucher)
-            }
         }
     }
 }
@@ -4198,7 +4194,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateOrderRespon
                 payments_grpc::PaymentStatus::Unspecified => None,
                 _ => Some(AttemptStatus::foreign_try_from((
                     response.status(),
-                    prev_status,
+                    AttemptStatus::default(),
                 ))?),
             };
 
@@ -4228,7 +4224,7 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateOrderRespon
                     .as_ref()
                     .and_then(|cd| cd.reason.clone()),
                 status_code,
-                attempt_status: None,
+                attempt_status,
                 connector_transaction_id: None,
                 connector_response_reference_id: None,
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
@@ -4259,14 +4255,9 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceCreateOrderRespon
                     "Missing connector_order_id in PaymentServiceCreateOrderResponse response",
                 )?;
 
-            let session_token = response
-                .session_data
-                .map(SessionToken::foreign_try_from)
-                .transpose()?;
-
             // For order creation, we typically return a successful response with the order_id
             // Since this is not a standard payment response, we'll create a simple success response
-            Ok(PaymentsResponseData::PaymentsCreateOrderResponse { order_id, session_token, })
+            Ok(PaymentsResponseData::PaymentsCreateOrderResponse { order_id })
         };
 
         Ok(response)
@@ -5358,24 +5349,7 @@ impl
 
         Ok(Self {
             method: 1, // POST method for webhooks
-            uri: Some({
-                let uri_result = request_details
-                    .headers
-                    .get("x-forwarded-path")
-                    .and_then(|h| h.to_str().map_err(|e| {
-                        tracing::warn!(
-                            header_conversion_error=?e,
-                            header_value=?h,
-                            "Failed to convert x-forwarded-path header to string for webhook processing"
-                        );
-                        e
-                    }).ok());
-
-                uri_result.unwrap_or_else(|| {
-                    tracing::debug!("x-forwarded-path header not found or invalid, using default '/Unknown'");
-                    "/Unknown"
-                }).to_string()
-            }),
+            uri: Some(request_details.uri.to_string()),
             body: request_details.body.to_vec(),
             headers: headers_map,
             query_params: Some(request_details.query_params.clone()),

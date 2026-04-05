@@ -3028,7 +3028,11 @@ async fn verify_webhook_source_verification_call(
         .map(|response| response.verify_webhook_status);
     match verification_result {
         Ok(VerifyWebhookStatus::SourceVerified) => Ok(true),
-        _ => Ok(false),
+        Ok(VerifyWebhookStatus::SourceNotVerified) => Ok(false),
+        Err(err) => {
+            tracing::error!(?err, "Webhook source verification failed");
+            Ok(false)
+        }
     }
 }
 
