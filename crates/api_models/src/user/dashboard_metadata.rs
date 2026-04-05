@@ -106,6 +106,8 @@ pub struct ProdIntent {
     pub is_completed: bool,
     #[serde(default)]
     pub product_type: MerchantProductType,
+    #[serde(default)]
+    pub product_types: Option<Vec<MerchantProductType>>,
     pub business_country_name: Option<SafeString>,
 }
 
