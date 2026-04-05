@@ -495,6 +495,8 @@ impl From<GooglePayPredecryptDataInternal> for common_payment_types::GPayPredecr
             application_primary_account_number: data.payment_method_details.pan.clone(),
             cryptogram: data.payment_method_details.cryptogram.clone(),
             eci_indicator: data.payment_method_details.eci_indicator.clone(),
+            message_id: Some(data.message_id),
+            message_expiration: Some(data.message_expiration),
         }
     }
 }
