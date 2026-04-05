@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.04.02.0-hotfix3
+
+### Features
+
+- **pm-modular:** Move behind feature flags ([#11705](https://github.com/juspay/hyperswitch/pull/11705)) ([`98613a1`](https://github.com/juspay/hyperswitch/commit/98613a1b01687467f9048c861c40b19004609ab4))
+
+**Full Changelog:** [`2026.04.02.0-hotfix2...2026.04.02.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2026.04.02.0-hotfix2...2026.04.02.0-hotfix3)
+
+- - -
+
 ## 2026.04.02.0-hotfix2
 
 ### Bug Fixes
