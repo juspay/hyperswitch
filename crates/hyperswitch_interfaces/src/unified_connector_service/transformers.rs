@@ -789,6 +789,36 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
                     initialization_token: mifinity.initialization_token,
                 })
             }
+            Some(payments_grpc::redirect_form::FormType::Nmi(nmi)) => {
+                let amount_money =
+                    nmi.amount
+                        .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
+                            field_name: "amount",
+                        })?;
+                let currency = match payments_grpc::Currency::try_from(amount_money.currency) {
+                    Ok(payments_grpc::Currency::Unspecified) | Err(_) => {
+                        Err(UnifiedConnectorServiceError::MissingRequiredField {
+                            field_name: "currency",
+                        })
+                    }
+                    Ok(c) => common_enums::Currency::from_str(c.as_str_name())
+                        .map_err(|_| UnifiedConnectorServiceError::ParsingFailed),
+                }
+                .attach_printable("Failed to parse currency from UCS Nmi redirect form")?;
+                Ok(Self::Nmi {
+                    amount: amount_money.minor_amount.to_string(),
+                    currency,
+                    public_key: hyperswitch_masking::Secret::new(
+                        nmi.public_key
+                            .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
+                                field_name: "public_key",
+                            })?
+                            .expose(),
+                    ),
+                    customer_vault_id: nmi.customer_vault_id,
+                    order_id: nmi.order_id,
+                })
+            }
             None => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "Missing form type".to_string(),

@@ -60,13 +60,13 @@ use crate::{
     utils::{generate_id, OptionExt, ValueExt},
 };
 
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "pm_modular"))]
 #[derive(Debug, Clone, Default)]
 pub struct FeatureConfig {
     pub is_payment_method_modular_allowed: bool,
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "pm_modular"))]
 pub async fn get_feature_config(
     state: &SessionState,
     platform: &domain::Platform,
@@ -89,14 +89,19 @@ pub async fn validate_legacy_endpoint_access<E>(
 where
     E: From<errors::ApiErrorResponse> + error_stack::Context,
 {
-    let feature_config = get_feature_config(state, platform).await;
-    common_utils::fp_utils::when(feature_config.is_payment_method_modular_allowed, || {
-        Err(error_stack::report!(E::from(
-            errors::ApiErrorResponse::AccessForbidden {
-                resource: "Deprecated route".to_string(),
-            },
-        )))
-    })?;
+    #[cfg(feature = "pm_modular")]
+    {
+        let feature_config = get_feature_config(state, platform).await;
+        common_utils::fp_utils::when(feature_config.is_payment_method_modular_allowed, || {
+            Err(error_stack::report!(E::from(
+                errors::ApiErrorResponse::AccessForbidden {
+                    resource: "Deprecated route".to_string(),
+                },
+            )))
+        })?;
+    }
+    #[cfg(not(feature = "pm_modular"))]
+    let _ = (state, platform);
     Ok(())
 }
 

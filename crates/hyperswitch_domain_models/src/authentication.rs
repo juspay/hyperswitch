@@ -15,7 +15,12 @@ use rustc_hash::FxHashMap;
 use serde_json::Value;
 
 use super::behaviour;
-use crate::type_encryption::{crypto_operation, AsyncLift, CryptoOperation};
+use crate::{
+    router_request_types::unified_authentication_service::{
+        DynamicData, PostAuthenticationDetails,
+    },
+    type_encryption::{crypto_operation, AsyncLift, CryptoOperation},
+};
 
 #[derive(Clone, Debug, router_derive::ToEncryption, serde::Serialize)]
 pub struct Authentication {
@@ -121,6 +126,25 @@ impl Authentication {
             })
             .transpose()?
             .unwrap_or(false))
+    }
+
+    pub fn get_post_authentication_details(
+        &self,
+        authentication_value: Option<String>,
+    ) -> PostAuthenticationDetails {
+        PostAuthenticationDetails {
+            token_details: None,
+            dynamic_data_details: Some(DynamicData {
+                dynamic_data_value: authentication_value.map(Secret::new),
+                dynamic_data_type: None,
+                ds_trans_id: self.ds_trans_id.clone(),
+            }),
+            raw_card_details: None,
+            trans_status: self.trans_status.clone(),
+            eci: self.eci.clone(),
+            challenge_cancel: self.challenge_cancel.clone(),
+            challenge_code_reason: self.challenge_code_reason.clone(),
+        }
     }
 }
 
