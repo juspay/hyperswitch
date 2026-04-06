@@ -1347,7 +1347,12 @@ impl InstallmentInterestRate {
                 .map_err(Report::from)
                 .attach_printable("Failed to convert number of installments to decimal")?;
 
-            // EMI calculation in decimal for precision
+            // Formula: Total Interest = (EMI × n) - P
+            // where:
+            //   EMI = (P × r × (1 + r)^n) / ((1 + r)^n - 1)
+            //   P = principal amount
+            //   r = interest rate
+            //   n = number of installments
             let total_interest = if rate_decimal.is_zero() {
                 Decimal::ZERO
             } else {
