@@ -212,6 +212,9 @@ impl PaymentMethodIntentConfirm {
                     PaymentMethodCreateData::Card(_) | PaymentMethodCreateData::ProxyCard(_)
                 )
             }
+            api_enums::PaymentMethod::Wallet => {
+                matches!(payment_method_data, PaymentMethodCreateData::Wallet(_))
+            }
             _ => false,
         }
     }
@@ -507,6 +510,9 @@ impl PaymentMethodCreate {
                     payment_method_data,
                     PaymentMethodCreateData::Card(_) | PaymentMethodCreateData::ProxyCard(_)
                 )
+            }
+            api_enums::PaymentMethod::Wallet => {
+                matches!(payment_method_data, PaymentMethodCreateData::Wallet(_))
             }
             _ => false,
         }
