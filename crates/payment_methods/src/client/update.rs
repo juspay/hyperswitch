@@ -1,7 +1,6 @@
 //! Update payment method flow types and modular models.
 
-use api_models::payment_methods::NetworkTokenResponse;
-use api_models::payments;
+use api_models::{payment_methods::NetworkTokenResponse, payments};
 use common_enums::{PaymentMethod, PaymentMethodType, StorageType};
 use common_utils::{
     id_type,

@@ -1,5 +1,7 @@
-use api_models::payment_methods::{CardDetailFromLocker, NetworkTokenResponse};
-use api_models::payments;
+use api_models::{
+    payment_methods::{CardDetailFromLocker, NetworkTokenResponse},
+    payments,
+};
 use common_enums::{PaymentMethod, PaymentMethodType};
 use common_utils::{id_type, pii};
 use serde::{Deserialize, Serialize};
@@ -31,7 +33,7 @@ pub struct PaymentMethodResponseItem {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub last_used_at: PrimitiveDateTime,
     pub is_default: bool,
-    pub billing: Option<api_models::payments::Address>,
+    pub billing: Option<payments::Address>,
     pub network_tokenization: Option<NetworkTokenResponse>,
     pub psp_tokenization_enabled: bool,
 }
