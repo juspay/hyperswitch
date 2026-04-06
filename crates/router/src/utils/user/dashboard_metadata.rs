@@ -2,9 +2,12 @@ use std::{net::IpAddr, ops::Not, str::FromStr};
 
 use actix_web::http::header::HeaderMap;
 #[cfg(feature = "v1")]
-use api_models::user::dashboard_metadata::{
-    CreateSavedViewRequest, PaymentListFilterConstraintsV1, SavedViewFilters, SavedViewFiltersV1,
-    SavedViewOperation, UpdateSavedViewRequest,
+use api_models::{
+    payments,
+    user::dashboard_metadata::{
+        CreateSavedViewRequest, PaymentListFilterConstraintsV1, SavedViewFilters,
+        SavedViewFiltersV1, SavedViewOperation, UpdateSavedViewRequest,
+    },
 };
 use api_models::user::dashboard_metadata::{
     DeleteSavedViewRequest, GetMetaDataRequest, GetMultipleMetaDataPayload, ProdIntent,
@@ -473,6 +476,102 @@ pub fn validate_create_saved_view_request(
 }
 
 #[cfg(feature = "v1")]
+pub fn payment_list_filter_to_v1(
+    item: payments::PaymentListFilterConstraints,
+) -> PaymentListFilterConstraintsV1 {
+    let payments::PaymentListFilterConstraints {
+        payment_id,
+        profile_id,
+        customer_id,
+        limit,
+        offset,
+        amount_filter,
+        time_range,
+        connector,
+        currency,
+        status,
+        payment_method,
+        payment_method_type,
+        authentication_type,
+        merchant_connector_id,
+        order,
+        card_network,
+        merchant_order_reference_id,
+        card_discovery,
+        customer_email,
+    } = item;
+    PaymentListFilterConstraintsV1 {
+        payment_id,
+        profile_id,
+        customer_id,
+        limit,
+        offset,
+        amount_filter,
+        time_range,
+        connector,
+        currency,
+        status,
+        payment_method,
+        payment_method_type,
+        authentication_type,
+        merchant_connector_id,
+        order,
+        card_network,
+        merchant_order_reference_id,
+        card_discovery,
+        customer_email,
+    }
+}
+
+#[cfg(feature = "v1")]
+pub fn v1_to_payment_list_filter(
+    item: PaymentListFilterConstraintsV1,
+) -> payments::PaymentListFilterConstraints {
+    let PaymentListFilterConstraintsV1 {
+        payment_id,
+        profile_id,
+        customer_id,
+        limit,
+        offset,
+        amount_filter,
+        time_range,
+        connector,
+        currency,
+        status,
+        payment_method,
+        payment_method_type,
+        authentication_type,
+        merchant_connector_id,
+        order,
+        card_network,
+        merchant_order_reference_id,
+        card_discovery,
+        customer_email,
+    } = item;
+    payments::PaymentListFilterConstraints {
+        payment_id,
+        profile_id,
+        customer_id,
+        limit,
+        offset,
+        amount_filter,
+        time_range,
+        connector,
+        currency,
+        status,
+        payment_method,
+        payment_method_type,
+        authentication_type,
+        merchant_connector_id,
+        order,
+        card_network,
+        merchant_order_reference_id,
+        card_discovery,
+        customer_email,
+    }
+}
+
+#[cfg(feature = "v1")]
 fn get_payment_views_filters_v1(data: SavedViewFilters) -> PaymentListFilterConstraintsV1 {
     match data {
         SavedViewFilters::V1(f) => match f {
@@ -603,7 +702,9 @@ async fn delete_saved_view(
             let mut views_data = existing.ok_or(report!(UserErrors::SavedViewNotFound))?;
 
             let initial_len = views_data.views.len();
-            views_data.views.retain(|v| v.view_name != request.view_name);
+            views_data
+                .views
+                .retain(|v| v.view_name != request.view_name);
 
             if views_data.views.len() == initial_len {
                 return Err(report!(UserErrors::SavedViewNotFound))

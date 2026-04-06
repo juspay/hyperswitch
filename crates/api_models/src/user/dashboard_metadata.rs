@@ -255,7 +255,6 @@ pub enum SavedViewFilters {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct SavedView {
     pub view_name: String,
-    #[serde(flatten)]
     pub data: SavedViewFilters,
     pub created_at: String,
     pub updated_at: String,
@@ -283,100 +282,4 @@ pub struct UpdateSavedViewRequest {
 pub struct DeleteSavedViewRequest {
     pub entity: SavedViewEntity,
     pub view_name: String,
-}
-
-#[cfg(feature = "v1")]
-impl From<payments::PaymentListFilterConstraints> for PaymentListFilterConstraintsV1 {
-    fn from(item: payments::PaymentListFilterConstraints) -> Self {
-        let payments::PaymentListFilterConstraints {
-            payment_id,
-            profile_id,
-            customer_id,
-            limit,
-            offset,
-            amount_filter,
-            time_range,
-            connector,
-            currency,
-            status,
-            payment_method,
-            payment_method_type,
-            authentication_type,
-            merchant_connector_id,
-            order,
-            card_network,
-            merchant_order_reference_id,
-            card_discovery,
-            customer_email,
-        } = item;
-        Self {
-            payment_id,
-            profile_id,
-            customer_id,
-            limit,
-            offset,
-            amount_filter,
-            time_range,
-            connector,
-            currency,
-            status,
-            payment_method,
-            payment_method_type,
-            authentication_type,
-            merchant_connector_id,
-            order,
-            card_network,
-            merchant_order_reference_id,
-            card_discovery,
-            customer_email,
-        }
-    }
-}
-
-#[cfg(feature = "v1")]
-impl From<PaymentListFilterConstraintsV1> for payments::PaymentListFilterConstraints {
-    fn from(item: PaymentListFilterConstraintsV1) -> Self {
-        let PaymentListFilterConstraintsV1 {
-            payment_id,
-            profile_id,
-            customer_id,
-            limit,
-            offset,
-            amount_filter,
-            time_range,
-            connector,
-            currency,
-            status,
-            payment_method,
-            payment_method_type,
-            authentication_type,
-            merchant_connector_id,
-            order,
-            card_network,
-            merchant_order_reference_id,
-            card_discovery,
-            customer_email,
-        } = item;
-        Self {
-            payment_id,
-            profile_id,
-            customer_id,
-            limit,
-            offset,
-            amount_filter,
-            time_range,
-            connector,
-            currency,
-            status,
-            payment_method,
-            payment_method_type,
-            authentication_type,
-            merchant_connector_id,
-            order,
-            card_network,
-            merchant_order_reference_id,
-            card_discovery,
-            customer_email,
-        }
-    }
 }
