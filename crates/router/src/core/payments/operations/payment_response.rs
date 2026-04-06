@@ -196,26 +196,21 @@ where
                             let wallet_additional_data = match wallet_data {
                                 domain::WalletData::ApplePay(apple_pay) => {
                                     api_models::payments::additional_info::WalletAdditionalDataForCard {
-                                        last4: apple_pay
-                                            .payment_method
-                                            .network_token
-                                            .display_number
-                                            .clone()
-                                            .unwrap_or_default(),
-                                        card_network: apple_pay.payment_method.network.to_string(),
+                                        last4: apple_pay.payment_method.display_name.clone(),
+                                        card_network: apple_pay.payment_method.network.clone(),
                                         card_type: Some(apple_pay.payment_method.pm_type.clone()),
-                                        card_exp_month: Some(apple_pay.payment_method.network_token.expiry_month.clone().into()),
-                                        card_exp_year: Some(apple_pay.payment_method.network_token.expiry_year.clone().into()),
+                                        card_exp_month: None,
+                                        card_exp_year: None,
                                         auth_code: None,
                                     }
                                 }
                                 domain::WalletData::GooglePay(google_pay) => {
                                     api_models::payments::additional_info::WalletAdditionalDataForCard {
-                                        last4: google_pay.info.card_details.last4_digits.clone(),
-                                        card_network: google_pay.info.card_details.card_network.to_string(),
+                                        last4: google_pay.info.card_details.clone(),
+                                        card_network: google_pay.info.card_network.clone(),
                                         card_type: Some(google_pay.pm_type.clone()),
-                                        card_exp_month: google_pay.info.card_details.exp_month.clone().map(Into::into),
-                                        card_exp_year: google_pay.info.card_details.exp_year.clone().map(Into::into),
+                                        card_exp_month: None,
+                                        card_exp_year: None,
                                         auth_code: None,
                                     }
                                 }
