@@ -1273,6 +1273,8 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::OpenBankingUk
                     | enums::PaymentMethodType::PayBright
                     | enums::PaymentMethodType::Pix
+                    | enums::PaymentMethodType::PixAutomaticoPush
+                    | enums::PaymentMethodType::PixAutomaticoQr
                     | enums::PaymentMethodType::PaySafeCard
                     | enums::PaymentMethodType::Przelewy24
                     | enums::PaymentMethodType::PromptPay
@@ -1422,6 +1424,8 @@ impl TryFrom<&BankTransferData> for PaypalPaymentsRequest {
             | BankTransferData::DanamonVaBankTransfer { .. }
             | BankTransferData::MandiriVaBankTransfer { .. }
             | BankTransferData::Pix { .. }
+            | BankTransferData::PixAutomaticoPush { .. }
+            | BankTransferData::PixAutomaticoQr {}
             | BankTransferData::Pse {}
             | BankTransferData::InstantBankTransfer {}
             | BankTransferData::InstantBankTransferFinland {}
