@@ -121,10 +121,10 @@ where
 
                 let payout_enroll_disburse_account_response = response.into_inner();
 
-                let ucs_data = unified_connector_service::handle_unified_connector_service_response_for_payout_enroll_disburse_account(
+                let ucs_data = types::UcsPayoutEnrollDisburseAccountResponseData::foreign_try_from((
                     payout_enroll_disburse_account_response.clone(),
                     common_enums::PayoutStatus::Pending,
-                )
+                ))
                 .attach_printable("Failed to deserialize UCS response")?;
 
                 let router_data_response = ucs_data.router_data_response.inspect_err(|_| {

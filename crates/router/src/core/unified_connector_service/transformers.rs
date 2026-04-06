@@ -6213,7 +6213,6 @@ impl transformers::ForeignTryFrom<payments_grpc::payout_enums::PayoutStatus>
         grpc_status: payments_grpc::payout_enums::PayoutStatus,
     ) -> Result<Self, Self::Error> {
         match grpc_status {
-            payments_grpc::payout_enums::PayoutStatus::Unspecified => Ok(Self::Initiated),
             payments_grpc::payout_enums::PayoutStatus::Success => Ok(Self::Success),
             payments_grpc::payout_enums::PayoutStatus::Failed => Ok(Self::Failed),
             payments_grpc::payout_enums::PayoutStatus::Cancelled => Ok(Self::Cancelled),
@@ -6236,6 +6235,12 @@ impl transformers::ForeignTryFrom<payments_grpc::payout_enums::PayoutStatus>
             }
             payments_grpc::payout_enums::PayoutStatus::RequiresVendorAccountCreation => {
                 Ok(Self::RequiresVendorAccountCreation)
+            }
+            payments_grpc::payout_enums::PayoutStatus::Unspecified => {
+                Err(error_stack::Report::new(
+                    UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                )
+                .attach_printable("Received unspecified payout status from UCS, cannot map to internal payout status"))
             }
         }
     }
@@ -6328,6 +6333,7 @@ impl
         })
     }
 }
+#[cfg(feature = "payouts")]
 impl
     transformers::ForeignTryFrom<
         &RouterData<
@@ -6650,7 +6656,6 @@ impl
 #[cfg(feature = "payouts")]
 macro_rules! impl_ucs_payout_response_transformation {
     ($response_type:ty, $merchant_id_field:ident) => {
-        #[cfg(feature = "payouts")]
         impl transformers::ForeignTryFrom<($response_type, common_enums::PayoutStatus)>
             for Result<PayoutsResponseData, ErrorResponse>
         {
@@ -6730,30 +6735,37 @@ macro_rules! impl_ucs_payout_response_transformation {
     };
 }
 
+#[cfg(feature = "payouts")]
 impl_ucs_payout_response_transformation!(
     payments_grpc::PayoutServiceCreateResponse,
     merchant_payout_id
 );
+#[cfg(feature = "payouts")]
 impl_ucs_payout_response_transformation!(
     payments_grpc::PayoutServiceTransferResponse,
     merchant_payout_id
 );
+#[cfg(feature = "payouts")]
 impl_ucs_payout_response_transformation!(
     payments_grpc::PayoutServiceGetResponse,
     merchant_payout_id
 );
+#[cfg(feature = "payouts")]
 impl_ucs_payout_response_transformation!(
     payments_grpc::PayoutServiceVoidResponse,
     merchant_payout_id
 );
+#[cfg(feature = "payouts")]
 impl_ucs_payout_response_transformation!(
     payments_grpc::PayoutServiceStageResponse,
     merchant_payout_id
 );
+#[cfg(feature = "payouts")]
 impl_ucs_payout_response_transformation!(
     payments_grpc::PayoutServiceCreateRecipientResponse,
     merchant_payout_id
 );
+#[cfg(feature = "payouts")]
 impl_ucs_payout_response_transformation!(
     payments_grpc::PayoutServiceEnrollDisburseAccountResponse,
     merchant_payout_id

@@ -104,42 +104,43 @@ where
                 .change_context(ConnectorError::RequestEncodingFailed)
                 .attach_printable("Failed to construct Payout Transfer Request")?;
 
-        let updated_router_data = Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
-            router_data.clone(),
-            state,
-            granular_payout_transfer_request,
-            grpc_headers,
-            unified_connector_service_execution_mode,
-            |mut router_data, granular_payout_transfer_request, grpc_headers| async move {
-                let response = Box::pin(client.payout_transfer(
-                    granular_payout_transfer_request,
-                    connector_auth_metadata,
-                    grpc_headers,
-                ))
-                .await
-                .attach_printable("Failed to transfer payout")?;
+        let updated_router_data =
+            Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
+                router_data.clone(),
+                state,
+                granular_payout_transfer_request,
+                grpc_headers,
+                unified_connector_service_execution_mode,
+                |mut router_data, granular_payout_transfer_request, grpc_headers| async move {
+                    let response = Box::pin(client.payout_transfer(
+                        granular_payout_transfer_request,
+                        connector_auth_metadata,
+                        grpc_headers,
+                    ))
+                    .await
+                    .attach_printable("Failed to transfer payout")?;
 
-                let payout_transfer_response = response.into_inner();
+                    let payout_transfer_response = response.into_inner();
 
-                let ucs_data = unified_connector_service::handle_unified_connector_service_response_for_payout_transfer(
-                    payout_transfer_response.clone(),
-                    common_enums::PayoutStatus::Pending,
-                )
-                .attach_printable("Failed to deserialize UCS response")?;
+                    let ucs_data = types::UcsPayoutTransferResponseData::foreign_try_from((
+                        payout_transfer_response.clone(),
+                        common_enums::PayoutStatus::Pending,
+                    ))
+                    .attach_printable("Failed to deserialize UCS response")?;
 
-                let router_data_response = ucs_data.router_data_response.inspect_err(|_| {
-                    logger::debug!("Error in UCS router data response");
-                });
-                router_data.response = router_data_response;
+                    let router_data_response = ucs_data.router_data_response.inspect_err(|_| {
+                        logger::debug!("Error in UCS router data response");
+                    });
+                    router_data.response = router_data_response;
 
-                router_data.connector_http_status_code = Some(ucs_data.status_code);
+                    router_data.connector_http_status_code = Some(ucs_data.status_code);
 
-                Ok((router_data, (), payout_transfer_response))
-            },
-        ))
-        .await
-        .map(|(router_data, _)| router_data)
-        .change_context(ConnectorError::ResponseHandlingFailed)?;
+                    Ok((router_data, (), payout_transfer_response))
+                },
+            ))
+            .await
+            .map(|(router_data, _)| router_data)
+            .change_context(ConnectorError::ResponseHandlingFailed)?;
 
         Ok(updated_router_data)
     }

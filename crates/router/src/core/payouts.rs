@@ -1284,7 +1284,7 @@ pub async fn create_recipient(
         );
     if should_call_connector {
         // 1. Form router data
-        let mut router_data =
+        let router_data =
             core_utils::construct_payout_router_data(state, connector_data, platform, payout_data)
                 .await?;
 
@@ -1292,7 +1292,7 @@ pub async fn create_recipient(
             state,
             platform,
             header_payload,
-            &mut router_data,
+            &router_data,
             connector_data,
             payout_data,
         )
@@ -1808,7 +1808,7 @@ pub async fn create_payout(
         state,
         platform,
         header_payload,
-        &mut router_data,
+        &router_data,
         connector_data,
         payout_data,
     )
@@ -2056,7 +2056,7 @@ pub async fn create_payout_retrieve(
         state,
         platform,
         header_payload,
-        &mut router_data,
+        &router_data,
         connector_data,
         payout_data,
     )
@@ -2247,7 +2247,7 @@ pub async fn create_recipient_disburse_account(
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
     // 1. Form Router data
-    let mut router_data =
+    let router_data =
         core_utils::construct_payout_router_data(state, connector_data, platform, payout_data)
             .await?;
 
@@ -2255,7 +2255,7 @@ pub async fn create_recipient_disburse_account(
         state,
         platform,
         header_payload,
-        &mut router_data,
+        &router_data,
         connector_data,
         payout_data,
     )
@@ -2458,7 +2458,7 @@ pub async fn cancel_payout(
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
     // 1. Form Router data
-    let mut router_data =
+    let router_data =
         core_utils::construct_payout_router_data(state, connector_data, platform, payout_data)
             .await?;
 
@@ -2466,7 +2466,7 @@ pub async fn cancel_payout(
         state,
         platform,
         header_payload,
-        &mut router_data,
+        &router_data,
         connector_data,
         payout_data,
     )
@@ -2615,7 +2615,7 @@ pub async fn fulfill_payout(
         state,
         platform,
         header_payload,
-        &mut router_data,
+        &router_data,
         connector_data,
         payout_data,
     )
@@ -3797,7 +3797,7 @@ pub async fn decide_unified_connector_service_payout<F: Clone>(
     state: &SessionState,
     platform: &domain::Platform,
     header_payload: HeaderPayload,
-    router_data: &mut types::RouterData<F, types::PayoutsData, types::PayoutsResponseData>,
+    router_data: &types::RouterData<F, types::PayoutsData, types::PayoutsResponseData>,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<(gateway_context::RouterGatewayContext, SessionState)> {

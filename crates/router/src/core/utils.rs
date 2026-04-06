@@ -196,6 +196,16 @@ pub async fn construct_payout_router_data<'a, F>(
 
     let browser_info = payout_data.browser_info.to_owned();
 
+    let payment_method_type =
+        payout_data
+            .payout_method_data
+            .as_ref()
+            .map(From::from)
+            .or(payout_attempt
+                .additional_payout_method_data
+                .as_ref()
+                .map(From::from));
+
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: platform.get_processor().get_account().get_id().to_owned(),
@@ -215,7 +225,7 @@ pub async fn construct_payout_router_data<'a, F>(
         attempt_id: payout_attempt.payout_attempt_id.clone(),
         status: enums::AttemptStatus::Failure,
         payment_method: enums::PaymentMethod::default(),
-        payment_method_type: None,
+        payment_method_type,
         connector_auth_type,
         description: payout_data.payouts.description.clone(),
         address,

@@ -1228,6 +1228,7 @@ pub struct PayoutsManualUpdateResponse {
 impl From<&PayoutMethodData> for api_enums::PaymentMethodType {
     fn from(data: &PayoutMethodData) -> Self {
         match data {
+            // debit represent card payout methods, todo: consider renaming it to card in future
             PayoutMethodData::Card(_) => Self::Debit,
             PayoutMethodData::Bank(bank) => match bank {
                 Bank::Ach(_) => Self::Ach,
