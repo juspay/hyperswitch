@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.04.06.0
+
+### Features
+
+- **ucs:** Bump UCS client dependency to bring latest changes ([#11691](https://github.com/juspay/hyperswitch/pull/11691)) ([`c5a3fce`](https://github.com/juspay/hyperswitch/commit/c5a3fce4daf059a3fdf7fe6016b497217285d626))
+
+### Bug Fixes
+
+- **core/connector:** [SANTANDER] Pix Automatico Fixes ([#11701](https://github.com/juspay/hyperswitch/pull/11701)) ([`b9ab125`](https://github.com/juspay/hyperswitch/commit/b9ab125fc4e0dd67f55cef0d8aaf3fee36395891))
+
+**Full Changelog:** [`2026.04.03.0...2026.04.06.0`](https://github.com/juspay/hyperswitch/compare/2026.04.03.0...2026.04.06.0)
+
+- - -
+
 ## 2026.04.03.0
 
 ### Features

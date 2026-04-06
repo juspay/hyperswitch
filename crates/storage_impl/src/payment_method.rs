@@ -337,6 +337,43 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         .await
     }
 
+    #[cfg(feature = "v1")]
+    #[instrument(skip_all)]
+    async fn find_payment_method_by_customer_id_merchant_id_status_pm_type(
+        &self,
+        key_store: &MerchantKeyStore,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        status: common_enums::PaymentMethodStatus,
+        payment_method_type: common_enums::PaymentMethodType,
+        limit: Option<i64>,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<DomainPaymentMethod>, Self::Error> {
+        let conn = pg_connection_read(self).await?;
+        self.filter_resources(
+            key_store,
+            storage_scheme,
+            PaymentMethod::find_by_customer_id_merchant_id_status_pm_type(
+                &conn,
+                customer_id,
+                merchant_id,
+                status,
+                payment_method_type,
+                limit,
+            ),
+            |pm| pm.status == status && pm.payment_method_type == Some(payment_method_type),
+            FilterResourceParams {
+                key: PartitionKey::MerchantIdCustomerId {
+                    merchant_id,
+                    customer_id,
+                },
+                pattern: "payment_method_id_*",
+                limit,
+            },
+        )
+        .await
+    }
+
     #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn find_payment_method_by_global_customer_id_merchant_id_status(
@@ -650,6 +687,33 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         .await
     }
 
+    #[cfg(feature = "v1")]
+    #[instrument(skip_all)]
+    async fn find_payment_method_by_customer_id_merchant_id_status_pm_type(
+        &self,
+        key_store: &MerchantKeyStore,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        status: common_enums::PaymentMethodStatus,
+        payment_method_type: common_enums::PaymentMethodType,
+        limit: Option<i64>,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<DomainPaymentMethod>, Self::Error> {
+        let conn = pg_connection_read(self).await?;
+        self.find_resources(
+            key_store,
+            PaymentMethod::find_by_customer_id_merchant_id_status_pm_type(
+                &conn,
+                customer_id,
+                merchant_id,
+                status,
+                payment_method_type,
+                limit,
+            ),
+        )
+        .await
+    }
+
     #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn find_payment_method_by_global_customer_id_merchant_id_status(
@@ -933,7 +997,31 @@ impl PaymentMethodInterface for MockDb {
         )
         .await
     }
-
+    #[cfg(feature = "v1")]
+    async fn find_payment_method_by_customer_id_merchant_id_status_pm_type(
+        &self,
+        key_store: &MerchantKeyStore,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        status: common_enums::PaymentMethodStatus,
+        payment_method_type: common_enums::PaymentMethodType,
+        _limit: Option<i64>,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<DomainPaymentMethod>, Self::Error> {
+        let payment_methods = self.payment_methods.lock().await;
+        self.get_resources(
+            key_store,
+            payment_methods,
+            |pm| {
+                pm.customer_id == *customer_id
+                    && pm.merchant_id == *merchant_id
+                    && pm.status == status
+                    && pm.payment_method_type == Some(payment_method_type)
+            },
+            "cannot find payment method".to_string(),
+        )
+        .await
+    }
     #[cfg(feature = "v2")]
     async fn find_payment_method_by_global_customer_id_merchant_id_status(
         &self,

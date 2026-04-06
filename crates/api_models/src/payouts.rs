@@ -242,15 +242,59 @@ pub struct PayoutCreatePayoutLinkConfig {
 #[serde(rename_all = "snake_case")]
 pub enum PayoutMethodData {
     Card(CardPayout),
-    Bank(Bank),
+    Bank(Bank), // Deprecated - Use BankTransfer instead
     Wallet(Wallet),
     BankRedirect(BankRedirect),
     Passthrough(Passthrough),
+    BankTransfer(BankTransfer),
 }
 
 impl Default for PayoutMethodData {
     fn default() -> Self {
         Self::Card(CardPayout::default())
+    }
+}
+
+impl PayoutMethodData {
+    pub fn normalize(self) -> Self {
+        match self {
+            Self::Bank(bank) => Self::BankTransfer(bank.into()),
+            other => other,
+        }
+    }
+}
+
+impl From<Bank> for BankTransfer {
+    fn from(bank: Bank) -> Self {
+        match bank {
+            Bank::Ach(ach) => Self::Ach(ach),
+            Bank::Bacs(bacs) => Self::Bacs(bacs),
+            Bank::Sepa(sepa) => Self::Sepa(sepa),
+            Bank::Pix(pix) => Self::Pix(pix),
+            Bank::Trustly(trustly) => Self::Trustly(TrustlyBankTransferData {
+                iban: trustly.iban,
+                bank_country_code: trustly.country_code,
+                bank_account_number: trustly.account_number,
+                bank_number: trustly.bank_number,
+            }),
+        }
+    }
+}
+
+impl From<BankTransfer> for Bank {
+    fn from(bank: BankTransfer) -> Self {
+        match bank {
+            BankTransfer::Ach(ach) => Self::Ach(ach),
+            BankTransfer::Bacs(bacs) => Self::Bacs(bacs),
+            BankTransfer::Sepa(sepa) => Self::Sepa(sepa),
+            BankTransfer::Pix(pix) => Self::Pix(pix),
+            BankTransfer::Trustly(trustly) => Self::Trustly(TrustlyBankTransfer {
+                iban: trustly.iban,
+                country_code: trustly.bank_country_code,
+                account_number: trustly.bank_account_number,
+                bank_number: trustly.bank_number,
+            }),
+        }
     }
 }
 
@@ -277,14 +321,25 @@ pub struct CardPayout {
     pub card_network: Option<CardNetwork>,
 }
 
+/// Deprecated - Use `BankTransfer` instead
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(untagged)]
 pub enum Bank {
     Ach(AchBankTransfer),
     Bacs(BacsBankTransfer),
+    Trustly(TrustlyBankTransfer),
     Sepa(SepaBankTransfer),
     Pix(PixBankTransfer),
-    Trustly(TrustlyBankTransfer),
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(tag = "payout_method_type", rename_all = "snake_case")]
+pub enum BankTransfer {
+    Ach(AchBankTransfer),
+    Bacs(BacsBankTransfer),
+    Sepa(SepaBankTransfer),
+    Pix(PixBankTransfer),
+    Trustly(TrustlyBankTransferData),
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -423,6 +478,22 @@ pub struct TrustlyBankTransfer {
     /// The account number, identifying the end-user's account in the bank.
     #[schema(value_type = String, example = "69706212")]
     pub account_number: Option<Secret<String>>,
+    /// The bank number identifying the end-user's bank in the given clearing house.
+    #[schema(value_type = String, example = "6112")]
+    pub bank_number: Option<Secret<String>>,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct TrustlyBankTransferData {
+    /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
+    #[schema(value_type = String, example = "token_12345")]
+    pub iban: Option<Secret<String>>,
+    /// country code of the customer's bank account.
+    #[schema(value_type = CountryAlpha2, example = "US")]
+    pub bank_country_code: api_enums::CountryAlpha2,
+    /// The account number, identifying the end-user's account in the bank.
+    #[schema(value_type = String, example = "69706212")]
+    pub bank_account_number: Option<Secret<String>>,
     /// The bank number identifying the end-user's bank in the given clearing house.
     #[schema(value_type = String, example = "6112")]
     pub bank_number: Option<Secret<String>>,
@@ -980,7 +1051,7 @@ pub struct PayoutEnabledPaymentMethodsInfo {
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentMethodTypeInfo {
-    pub payment_method_type: common_enums::PaymentMethodType,
+    pub payment_method_type: api_enums::PaymentMethodType,
     pub required_fields: Option<HashMap<String, RequiredFieldInfo>>,
 }
 
@@ -1078,6 +1149,86 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
                     iban,
                     country_code,
                     account_number,
+                    bank_number,
+                },
+            )),
+        }
+    }
+}
+
+impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
+    fn from(bank_data: BankTransfer) -> Self {
+        match bank_data {
+            BankTransfer::Ach(AchBankTransfer {
+                bank_name,
+                bank_country_code,
+                bank_city,
+                bank_account_number,
+                bank_routing_number,
+            }) => Self::Ach(Box::new(
+                payout_method_utils::AchBankTransferAdditionalData {
+                    bank_name,
+                    bank_country_code,
+                    bank_city,
+                    bank_account_number: bank_account_number.into(),
+                    bank_routing_number: bank_routing_number.into(),
+                },
+            )),
+            BankTransfer::Bacs(BacsBankTransfer {
+                bank_name,
+                bank_country_code,
+                bank_city,
+                bank_account_number,
+                bank_sort_code,
+            }) => Self::Bacs(Box::new(
+                payout_method_utils::BacsBankTransferAdditionalData {
+                    bank_name,
+                    bank_country_code,
+                    bank_city,
+                    bank_account_number: bank_account_number.into(),
+                    bank_sort_code: bank_sort_code.into(),
+                },
+            )),
+            BankTransfer::Sepa(SepaBankTransfer {
+                bank_name,
+                bank_country_code,
+                bank_city,
+                iban,
+                bic,
+            }) => Self::Sepa(Box::new(
+                payout_method_utils::SepaBankTransferAdditionalData {
+                    bank_name,
+                    bank_country_code,
+                    bank_city,
+                    iban: iban.into(),
+                    bic: bic.map(From::from),
+                },
+            )),
+            BankTransfer::Pix(PixBankTransfer {
+                bank_name,
+                bank_branch,
+                bank_account_number,
+                pix_key,
+                tax_id,
+            }) => Self::Pix(Box::new(
+                payout_method_utils::PixBankTransferAdditionalData {
+                    bank_name,
+                    bank_branch,
+                    bank_account_number: bank_account_number.into(),
+                    pix_key: pix_key.into(),
+                    tax_id: tax_id.map(From::from),
+                },
+            )),
+            BankTransfer::Trustly(TrustlyBankTransferData {
+                iban,
+                bank_country_code,
+                bank_account_number,
+                bank_number,
+            }) => Self::Trustly(Box::new(
+                payout_method_utils::TrustlyBankTransferAdditionalData {
+                    iban,
+                    country_code: bank_country_code,
+                    account_number: bank_account_number,
                     bank_number,
                 },
             )),

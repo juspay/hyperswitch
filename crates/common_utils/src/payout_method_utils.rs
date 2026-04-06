@@ -85,12 +85,12 @@ pub enum BankAdditionalData {
     Ach(Box<AchBankTransferAdditionalData>),
     /// Additional data for bacs bank transfer payout method
     Bacs(Box<BacsBankTransferAdditionalData>),
+    /// Additional data for Trustly bank transfer payout method
+    Trustly(Box<TrustlyBankTransferAdditionalData>),
     /// Additional data for sepa bank transfer payout method
     Sepa(Box<SepaBankTransferAdditionalData>),
     /// Additional data for pix bank transfer payout method
     Pix(Box<PixBankTransferAdditionalData>),
-    /// Additional data for Trustly bank transfer payout method
-    Trustly(Box<TrustlyBankTransferAdditionalData>),
 }
 
 /// Masked payout method details for ach bank transfer payout method
