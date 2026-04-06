@@ -39,8 +39,10 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payment_link,
-        payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData, client_session::ClientSessionManager, OperationSessionGetters,
-            OperationSessionSetters},
+        payments::{
+            self, client_session::ClientSessionManager, helpers, operations, CustomerDetails,
+            OperationSessionGetters, OperationSessionSetters, PaymentAddress, PaymentData,
+        },
         utils as core_utils,
     },
     db::StorageInterface,
@@ -562,7 +564,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 }
             });
 
-                    #[cfg(not(feature = "pm_modular"))]
+        #[cfg(not(feature = "pm_modular"))]
         let payment_method_data = payment_method_data_from_request
             .map(Into::into)
             .or(payment_method_recurring_details.clone())
