@@ -42,8 +42,8 @@ use crate::{
     },
     unimplemented_payment_method,
     utils::{
-        self, PaymentsAuthorizeRequestData, PaymentsCaptureRequestData, PaymentsSyncRequestData,
-        RouterData as OtherRouterData, WalletData as OtherWalletData,
+        self, AdditionalCardInfo, PaymentsAuthorizeRequestData, PaymentsCaptureRequestData,
+        PaymentsSyncRequestData, RouterData as OtherRouterData, WalletData as OtherWalletData,
     },
 };
 
@@ -171,6 +171,7 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
@@ -257,6 +258,18 @@ pub enum PaymentSource {
     ApplePayPredecrypt(Box<ApplePayPredecrypt>),
     MandatePayment(MandateSource),
     GooglePayPredecrypt(Box<GooglePayPredecrypt>),
+    DecryptedWalletToken(DecryptedWalletToken),
+}
+
+#[derive(Debug, Serialize)]
+pub struct DecryptedWalletToken {
+    #[serde(rename = "type")]
+    decrypt_type: String,
+    token: cards::CardNumber,
+    token_type: String,
+    expiry_month: Secret<String>,
+    expiry_year: Secret<String>,
+    pub billing_address: Option<CheckoutAddress>,
 }
 
 #[derive(Debug, Serialize)]
@@ -290,6 +303,7 @@ pub struct ApplePayPredecrypt {
 pub enum CheckoutSourceTypes {
     Card,
     Token,
+    NetworkToken,
     #[serde(rename = "id")]
     SourceId,
 }
@@ -750,6 +764,52 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                     _ => CheckoutPaymentType::Unscheduled,
                 };
                 Ok((payment_source, previous_id, Some(true), p_type, None))
+            }
+            PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(
+                network_token_data,
+            ) => {
+                let previous_id = Some(
+                    item.router_data
+                        .request
+                        .get_optional_network_transaction_id()
+                        .ok_or_else(utils::missing_field_err("network_transaction_id"))
+                        .attach_printable("Checkout unable to find NTID for MIT")?,
+                );
+
+                let p_type = match item.router_data.request.mit_category {
+                    Some(MitCategory::Installment) => CheckoutPaymentType::Installment,
+                    Some(MitCategory::Recurring) => CheckoutPaymentType::Recurring,
+                    Some(MitCategory::Unscheduled) | None => CheckoutPaymentType::Unscheduled,
+                    _ => CheckoutPaymentType::Unscheduled,
+                };
+
+                let token_type = match network_token_data.token_source {
+                    Some(common_types::payments::TokenSource::ApplePay) => "applepay".to_string(),
+                    Some(common_types::payments::TokenSource::GooglePay) => "googlepay".to_string(),
+                    None => Err(errors::ConnectorError::MissingRequiredField {
+                        field_name: "token_source",
+                    })?,
+                };
+
+                let exp_month = network_token_data.token_exp_month.clone();
+                let expiry_year_4_digit = network_token_data.get_card_expiry_year_4_digit()?;
+
+                let payment_source = PaymentSource::DecryptedWalletToken(DecryptedWalletToken {
+                    token: cards::CardNumber::from(network_token_data.decrypted_token.clone()),
+                    decrypt_type: "network_token".to_string(),
+                    token_type,
+                    expiry_month: exp_month,
+                    expiry_year: expiry_year_4_digit,
+                    billing_address: billing_details,
+                });
+
+                Ok((
+                    payment_source,
+                    previous_id,
+                    Some(true),
+                    p_type,
+                    store_for_future_use,
+                ))
             }
             _ => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("checkout"),
