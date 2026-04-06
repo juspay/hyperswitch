@@ -14,7 +14,7 @@ crate::impl_queryable_id_type!(GlobalCustomerId);
 
 // NOTE: We intentionally do NOT use `impl_to_sql_from_sql_global_id_type!` here because that
 // macro generates a strict `FromSql` that validates GlobalId format. During the V1/V2 coexistence
-// period, V1-created rows may store a V1-format CustomerId (e.g. `cus_xxx`). 
+// period, V1-created rows may store a V1-format CustomerId (e.g. `cus_xxx`).
 // We use `new_unchecked` to accept any string value.
 impl<DB> diesel::serialize::ToSql<diesel::sql_types::Text, DB> for GlobalCustomerId
 where
