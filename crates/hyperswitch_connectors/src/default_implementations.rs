@@ -1393,7 +1393,6 @@ default_imp_for_cancel_post_capture!(
     connectors::Payeezy,
     connectors::Payjustnow,
     connectors::Payjustnowinstore,
-    connectors::Payload,
     connectors::Payme,
     connectors::Paystack,
     connectors::Paytm,
