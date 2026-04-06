@@ -3368,6 +3368,13 @@ impl<'a>
                     co_badged_card_data: card_details.co_badged_card_data.clone(),
                 }))
             }
+            // Wallet MIT via PSP token (ConnectorMandateId)
+            (
+                Some(domain::PaymentMethodData::Wallet(_)),
+                Some(&api_models::payments::MandateReferenceId::ConnectorMandateId(_)),
+            ) => Some(domain::PaymentMethodData::MandatePayment),
+            // Wallet CIT flow - pass through as-is
+            (Some(domain::PaymentMethodData::Wallet(_)), _) => payment_method_data.cloned(),
             // Keep data as-is, otherwise.
             (Some(payment_method_data), _) => Some(payment_method_data.clone()),
             // Preserve empty input.

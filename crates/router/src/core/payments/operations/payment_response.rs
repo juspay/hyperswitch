@@ -80,10 +80,12 @@ async fn update_modular_pm_and_mandate_impl<F, T>(
 where
     F: Clone + Send + Sync,
 {
-    if matches!(
+    let is_eligible_pm = matches!(
         payment_data.payment_attempt.payment_method,
-        Some(enums::PaymentMethod::Card)
-    ) {
+        Some(enums::PaymentMethod::Card) | Some(enums::PaymentMethod::Wallet)
+    );
+
+    if is_eligible_pm {
         let is_volatile = payment_data
             .get_payment_method_info()
             .map(|pm| pm.is_pm_volatile());
@@ -180,8 +182,7 @@ where
                     (None, None)
                 };
 
-                // #3 - Fill payment method data for cards (update card holder name, nick_name & cvc).
-                // Use request payment method data for card_holder_name and nick_name
+                // #3 - Fill payment method data for cards and wallets
                 let payment_method_data =
                     request_payment_method_data.and_then(|method_data| match method_data {
                         domain::PaymentMethodData::CardToken(card) => {
@@ -190,6 +191,37 @@ where
                                 nick_name: card.card_holder_name.clone(),
                                 card_cvc: None,
                             }))
+                        }
+                        domain::PaymentMethodData::Wallet(wallet_data) => {
+                            let wallet_additional_data = match wallet_data {
+                                domain::WalletData::ApplePay(apple_pay) => {
+                                    api_models::payments::additional_info::WalletAdditionalDataForCard {
+                                        last4: apple_pay
+                                            .payment_method
+                                            .network_token
+                                            .display_number
+                                            .clone()
+                                            .unwrap_or_default(),
+                                        card_network: apple_pay.payment_method.network.to_string(),
+                                        card_type: Some(apple_pay.payment_method.pm_type.clone()),
+                                        card_exp_month: Some(apple_pay.payment_method.network_token.expiry_month.clone().into()),
+                                        card_exp_year: Some(apple_pay.payment_method.network_token.expiry_year.clone().into()),
+                                        auth_code: None,
+                                    }
+                                }
+                                domain::WalletData::GooglePay(google_pay) => {
+                                    api_models::payments::additional_info::WalletAdditionalDataForCard {
+                                        last4: google_pay.info.card_details.last4_digits.clone(),
+                                        card_network: google_pay.info.card_details.card_network.to_string(),
+                                        card_type: Some(google_pay.pm_type.clone()),
+                                        card_exp_month: google_pay.info.card_details.exp_month.clone().map(Into::into),
+                                        card_exp_year: google_pay.info.card_details.exp_year.clone().map(Into::into),
+                                        auth_code: None,
+                                    }
+                                }
+                                _ => return None,
+                            };
+                            Some(PaymentMethodUpdateData::Wallet(Box::new(wallet_additional_data)))
                         }
                         _ => None,
                     });

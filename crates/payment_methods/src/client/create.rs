@@ -63,6 +63,7 @@ pub struct CardDetail {
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodCreateData {
     Card(CardDetail),
+    Wallet(Box<payments::additional_info::WalletAdditionalDataForCard>),
 }
 
 #[derive(Clone, Debug, Deserialize)]

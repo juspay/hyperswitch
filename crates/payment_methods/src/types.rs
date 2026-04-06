@@ -1,4 +1,5 @@
 use api_models::payment_methods::{CardDetailFromLocker, NetworkTokenResponse};
+use api_models::payments;
 use common_enums::{PaymentMethod, PaymentMethodType};
 use common_utils::{id_type, pii};
 use serde::{Deserialize, Serialize};
@@ -40,6 +41,7 @@ pub struct PaymentMethodResponseItem {
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodResponseData {
     Card(CardDetailFromLocker),
+    Wallet(Box<payments::additional_info::WalletAdditionalDataForCard>),
 }
 
 /// V2 modular service request payload.

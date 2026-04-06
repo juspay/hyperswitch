@@ -50,8 +50,9 @@ impl TryFrom<ModularListCustomerPaymentMethodsResponse> for ListCustomerPaymentM
                 recurring_enabled: pm.recurring_enabled,
                 installment_payment_enabled: None,
                 payment_experience: None,
-                card: pm.payment_method_data.map(|data| match data {
-                    PaymentMethodResponseData::Card(card_detail) => card_detail,
+                card: pm.payment_method_data.and_then(|data| match data {
+                    PaymentMethodResponseData::Card(card_detail) => Some(card_detail),
+                    PaymentMethodResponseData::Wallet(_) => None,
                 }),
                 metadata: None,
                 created: Some(pm.created),

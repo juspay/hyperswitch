@@ -1,6 +1,7 @@
 //! Update payment method flow types and modular models.
 
 use api_models::payment_methods::NetworkTokenResponse;
+use api_models::payments;
 use common_enums::{PaymentMethod, PaymentMethodType, StorageType};
 use common_utils::{
     id_type,
@@ -62,6 +63,7 @@ pub struct ModularPMUpdateRequest {
 #[serde(rename = "payment_method_data")]
 pub enum PaymentMethodUpdateData {
     Card(CardDetailUpdate),
+    Wallet(Box<payments::additional_info::WalletAdditionalDataForCard>),
 }
 
 /// Card update payload for the modular service.
