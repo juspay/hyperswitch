@@ -593,14 +593,6 @@ impl PaymentMethodCreateData {
             _ => None,
         }
     }
-
-    pub fn payment_method_type(&self) -> &'static str {
-        match self {
-            Self::Card(_) => "card",
-            Self::ProxyCard(_) => "proxy_card",
-            Self::BankDebit(_) => "bank_debit",
-        }
-    }
 }
 
 #[cfg(feature = "v1")]
@@ -3004,6 +2996,7 @@ pub struct CustomerPaymentMethodResponseItem {
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodListData {
     Card(CardDetailFromLocker),
+    BankDebit(BankDebitDetailsPaymentMethod),
     #[cfg(feature = "payouts")]
     #[schema(value_type = Bank)]
     Bank(payouts::Bank),

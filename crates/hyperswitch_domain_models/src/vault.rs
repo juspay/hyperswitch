@@ -210,18 +210,25 @@ impl PaymentMethodVaultingData {
             }),
             Self::CardNumber(card_number) => FingerprintData::CardNumber(card_number.clone()),
             Self::BankDebit(bank_debit) => {
-                let (account_number, routing_number) = match bank_debit {
-                    payment_method_data::BankDebitDetail::Ach {
-                        account_number,
-                        routing_number,
-                        ..
-                    } => (account_number.clone(), routing_number.clone()),
-                };
-                FingerprintData::BankDebit(FingerprintBankDebitData {
-                    account_number,
-                    routing_number,
-                })
+                FingerprintData::BankDebit(Self::get_bank_debit_fingerprint_data(bank_debit))
             }
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn get_bank_debit_fingerprint_data(
+        bank_debit: &payment_method_data::BankDebitDetail,
+    ) -> FingerprintBankDebitData {
+        let (account_number, routing_number) = match bank_debit {
+            payment_method_data::BankDebitDetail::Ach {
+                account_number,
+                routing_number,
+                ..
+            } => (account_number.clone(), routing_number.clone()),
+        };
+        FingerprintBankDebitData {
+            account_number,
+            routing_number,
         }
     }
 }

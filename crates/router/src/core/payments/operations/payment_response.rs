@@ -100,11 +100,10 @@ where
                 let payment_method_type = payment_data
                     .payment_attempt
                     .payment_method
-                    .map(|pm| pm.to_string())
-                    .unwrap_or_else(|| "unknown".to_string());
+                    .map(|pm| pm.to_string());
 
                 logger::info!(
-                    "Payment method is {}; is eligible for modular update: {}",
+                    "Payment method is {:?}; is eligible for modular update: {}",
                     payment_method_type,
                     should_update
                 );

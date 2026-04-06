@@ -1238,7 +1238,7 @@ pub async fn create_volatile_payment_method_core(
 
     match &req.payment_method_data {
         api::PaymentMethodCreateData::Card(_) | api::PaymentMethodCreateData::BankDebit(_) => {
-            let payment_method_type = req.payment_method_data.payment_method_type();
+            let payment_method_type = req.payment_method_type.to_string();
             logger::info!("Creating volatile {} payment method", payment_method_type);
             Box::pin(create_volatile_payment_method_for_card_and_bank_debit(
                 state,
@@ -1814,27 +1814,25 @@ pub async fn create_volatile_payment_method_for_card_and_bank_debit(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("failed to convert payment method")?;
 
-            let cvc_expiry_details = match &req.payment_method_data {
-                api::PaymentMethodCreateData::Card(_) => {
-                    let intent_fulfillment_time =
-                        common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
-                    req.payment_method_data
-                        .get_card()
-                        .and_then(|card| card.card_cvc.clone())
-                        .async_map(|cvc| {
-                            vault::insert_cvc_using_payment_token(
-                                state,
-                                &domain_payment_method.id,
-                                cvc,
-                                intent_fulfillment_time,
-                                platform.get_provider().get_key_store(),
-                            )
-                        })
-                        .await
-                        .transpose()?
-                }
-                _ => None,
-            };
+            let intent_fulfillment_time = common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
+
+            let card_cvc = req
+                .payment_method_data
+                .get_card()
+                .and_then(|card| card.card_cvc.clone());
+
+            let cvc_expiry_details = card_cvc
+                .async_map(|cvc| {
+                    vault::insert_cvc_using_payment_token(
+                        state,
+                        &domain_payment_method.id,
+                        cvc,
+                        intent_fulfillment_time,
+                        platform.get_provider().get_key_store(),
+                    )
+                })
+                .await
+                .transpose()?;
 
             let resp = pm_transforms::generate_payment_method_response(
                 &domain_payment_method,
@@ -2302,11 +2300,9 @@ impl PaymentMethodExt for payment_methods::PaymentMethodCreateData {
                     co_badged_card_data: None,
                 },
             )),
-            Self::BankDebit(bank_debit_details) => {
-                Ok(payment_methods::PaymentMethodsData::BankDebit(
-                    bank_debit_details.clone().into(),
-                ))
-            }
+            Self::BankDebit(bank_debit_details) => Ok(
+                payment_methods::PaymentMethodsData::BankDebit(bank_debit_details.clone().into()),
+            ),
         }
     }
 
