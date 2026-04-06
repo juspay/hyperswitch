@@ -173,7 +173,7 @@ config! {
     superposition_key = CLIENT_SESSION_VALIDATION_ENABLED,
     output = bool,
     default = true,
-    requires = DimensionsWithMerchantId,
+    requires = DimensionsWithProcessorAndPlatformMerchantId,
     targeting_key = id_type::PaymentId
 }
 

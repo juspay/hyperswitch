@@ -1090,7 +1090,9 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let payment_id = payment_data.payment_intent.payment_id.clone();
 
         // Check if client session validation is enabled
-        let dimensions = Dimensions::new().with_merchant_id(processor_merchant_id.clone());
+        let dimensions = Dimensions::new()
+            .with_platform_merchant_id(platform.get_provider().get_account().get_id().clone())
+            .with_processor_merchant_id(processor_merchant_id.clone());
 
         let session_validation_enabled = dimensions
             .get_client_session_validation_enabled(
