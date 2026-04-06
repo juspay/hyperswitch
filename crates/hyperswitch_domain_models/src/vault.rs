@@ -14,7 +14,7 @@ pub enum PaymentMethodVaultingData {
     Card(payment_methods::CardDetail),
     NetworkToken(payment_method_data::NetworkTokenDetails),
     CardNumber(cards::CardNumber),
-    BankDebit(payment_methods::BankDebitDetail),
+    BankDebit(payment_method_data::BankDebitDetail),
 }
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum FingerprintData {
@@ -75,7 +75,7 @@ impl PaymentMethodVaultingData {
             // will be called which will populated the payment methods data for card number and convert it to type CardDetail
             Self::CardNumber(_) => None,
             Self::BankDebit(bank_debit) => Some(payment_methods::RawPaymentMethodData::BankDebit(
-                bank_debit.clone(),
+                bank_debit.clone().into(),
             )),
         }
     }
@@ -211,7 +211,7 @@ impl PaymentMethodVaultingData {
             Self::CardNumber(card_number) => FingerprintData::CardNumber(card_number.clone()),
             Self::BankDebit(bank_debit) => {
                 let (account_number, routing_number) = match bank_debit {
-                    payment_methods::BankDebitDetail::Ach {
+                    payment_method_data::BankDebitDetail::Ach {
                         account_number,
                         routing_number,
                         ..
@@ -335,7 +335,7 @@ impl VaultingDataInterface for PaymentMethodVaultingData {
             Self::NetworkToken(network_token) => network_token.network_token.get_card_no(),
             Self::CardNumber(card_number) => card_number.get_card_no(),
             Self::BankDebit(bank_debit) => match bank_debit {
-                payment_methods::BankDebitDetail::Ach {
+                payment_method_data::BankDebitDetail::Ach {
                     account_number,
                     routing_number,
                     ..
@@ -380,7 +380,7 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodVaulting
                 .into(),
             ),
             payment_methods::PaymentMethodCreateData::BankDebit(bank_debit) => {
-                Ok(Self::BankDebit(bank_debit))
+                Ok(Self::BankDebit(bank_debit.into()))
             }
         }
     }
@@ -397,7 +397,7 @@ impl From<payment_methods::PaymentMethodCreateData> for PaymentMethodVaultingDat
                 })
             }
             payment_methods::PaymentMethodCreateData::BankDebit(bank_debit_detail) => {
-                Self::BankDebit(bank_debit_detail)
+                Self::BankDebit(bank_debit_detail.into())
             }
         }
     }

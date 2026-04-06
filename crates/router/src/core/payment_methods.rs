@@ -726,7 +726,7 @@ pub async fn retrieve_payment_method_with_token(
                 vault_bank_type,
                 vault_bank_holder_type,
             ) = match bank_debit_detail {
-                payment_methods::BankDebitDetail::Ach {
+                domain::BankDebitDetail::Ach {
                     account_number,
                     routing_number,
                     bank_account_holder_name,
@@ -758,9 +758,7 @@ pub async fn retrieve_payment_method_with_token(
                 ),
             ) = payment_method_data.get_payment_methods_data()
             {
-                use hyperswitch_domain_models::payment_method_data::BankDebitDetailsPaymentMethod;
-
-                let BankDebitDetailsPaymentMethod::AchBankDebit {
+                let domain::BankDebitDetailsPaymentMethod::AchBankDebit {
                     masked_account_number: _,
                     masked_routing_number: _,
                     card_holder_name,
@@ -2306,9 +2304,7 @@ impl PaymentMethodExt for payment_methods::PaymentMethodCreateData {
             )),
             Self::BankDebit(bank_debit_details) => {
                 Ok(payment_methods::PaymentMethodsData::BankDebit(
-                    payment_methods::BankDebitDetailsPaymentMethod::from(
-                        bank_debit_details.clone(),
-                    ),
+                    bank_debit_details.clone().into(),
                 ))
             }
         }

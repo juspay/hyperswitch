@@ -5287,7 +5287,7 @@ pub async fn get_bank_debit_from_hs_locker(
     provider: &domain::Provider,
     customer_id: &id_type::CustomerId,
     token_ref: &str,
-) -> errors::RouterResult<api_models::payment_methods::BankDebitDetail> {
+) -> errors::RouterResult<hyperswitch_domain_models::payment_method_data::BankDebitDetail> {
     let vault_request = pm_types::VaultRetrieveRequest {
         entity_id: hyperswitch_domain_models::vault::V1VaultEntityId::new(
             provider.get_account().get_id().clone(),

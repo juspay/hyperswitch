@@ -687,6 +687,29 @@ impl BankDebitDetail {
     }
 }
 
+impl From<BankDebitDetail> for BankDebitDetailsPaymentMethod {
+    fn from(bank_debit: BankDebitDetail) -> Self {
+        let masked_account_number = bank_debit.get_masked_account_number();
+        let masked_routing_number = bank_debit.get_masked_routing_number();
+        match bank_debit {
+            BankDebitDetail::Ach {
+                bank_account_holder_name,
+                bank_type,
+                bank_holder_type,
+                ..
+            } => Self::AchBankDebit {
+                masked_account_number,
+                masked_routing_number,
+                card_holder_name: None,
+                bank_account_holder_name,
+                bank_name: None,
+                bank_type,
+                bank_holder_type,
+            },
+        }
+    }
+}
+
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -1401,25 +1424,6 @@ pub enum BankDebitDetailsPaymentMethod {
         #[schema(value_type = String, example = "Personal")]
         bank_holder_type: Option<common_enums::BankHolderType>,
     },
-}
-
-impl From<BankDebitDetail> for BankDebitDetailsPaymentMethod {
-    fn from(bank_debit: BankDebitDetail) -> Self {
-        let masked_account_number = bank_debit.get_masked_account_number();
-        let masked_routing_number = bank_debit.get_masked_routing_number();
-        let bank_account_holder_name = bank_debit.get_bank_account_holder_name();
-        let bank_type = bank_debit.get_bank_type();
-        let bank_holder_type = bank_debit.get_bank_holder_type();
-        Self::AchBankDebit {
-            masked_account_number,
-            masked_routing_number,
-            card_holder_name: None,
-            bank_account_holder_name,
-            bank_name: None,
-            bank_type,
-            bank_holder_type,
-        }
-    }
 }
 
 impl From<&CoBadgedCardData> for CoBadgedCardDataToBeSaved {

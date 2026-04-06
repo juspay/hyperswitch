@@ -1459,6 +1459,112 @@ impl BankDebitData {
     }
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum BankDebitDetail {
+    Ach {
+        account_number: Secret<String>,
+        routing_number: Secret<String>,
+        bank_account_holder_name: Option<Secret<String>>,
+        bank_type: Option<common_enums::BankType>,
+        bank_holder_type: Option<common_enums::BankHolderType>,
+    },
+}
+
+impl BankDebitDetail {
+    pub fn get_masked_account_number(&self) -> String {
+        match self {
+            Self::Ach { account_number, .. } => account_number
+                .peek()
+                .chars()
+                .rev()
+                .take(4)
+                .collect::<String>()
+                .chars()
+                .rev()
+                .collect::<String>(),
+        }
+    }
+
+    pub fn get_masked_routing_number(&self) -> String {
+        match self {
+            Self::Ach { routing_number, .. } => routing_number
+                .peek()
+                .chars()
+                .rev()
+                .take(4)
+                .collect::<String>()
+                .chars()
+                .rev()
+                .collect::<String>(),
+        }
+    }
+}
+
+impl From<payment_methods::BankDebitDetail> for BankDebitDetail {
+    fn from(bank_debit: payment_methods::BankDebitDetail) -> Self {
+        match bank_debit {
+            payment_methods::BankDebitDetail::Ach {
+                account_number,
+                routing_number,
+                bank_account_holder_name,
+                bank_type,
+                bank_holder_type,
+            } => Self::Ach {
+                account_number,
+                routing_number,
+                bank_account_holder_name,
+                bank_type,
+                bank_holder_type,
+            },
+        }
+    }
+}
+
+impl From<BankDebitDetail> for BankDebitDetailsPaymentMethod {
+    fn from(bank_debit: BankDebitDetail) -> Self {
+        let masked_account_number = bank_debit.get_masked_account_number();
+        let masked_routing_number = bank_debit.get_masked_routing_number();
+
+        match bank_debit {
+            BankDebitDetail::Ach {
+                bank_account_holder_name,
+                bank_type,
+                bank_holder_type,
+                ..
+            } => Self::AchBankDebit {
+                masked_account_number,
+                masked_routing_number,
+                card_holder_name: None,
+                bank_account_holder_name,
+                bank_name: None,
+                bank_type,
+                bank_holder_type,
+            },
+        }
+    }
+}
+
+impl From<BankDebitDetail> for payment_methods::BankDebitDetail {
+    fn from(bank_debit: BankDebitDetail) -> Self {
+        match bank_debit {
+            BankDebitDetail::Ach {
+                account_number,
+                routing_number,
+                bank_account_holder_name,
+                bank_type,
+                bank_holder_type,
+            } => Self::Ach {
+                account_number,
+                routing_number,
+                bank_account_holder_name,
+                bank_type,
+                bank_holder_type,
+            },
+        }
+    }
+}
+
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BankTransferData {
@@ -3436,25 +3542,6 @@ pub enum BankDebitDetailsPaymentMethod {
         bank_type: Option<common_enums::BankType>,
         bank_holder_type: Option<common_enums::BankHolderType>,
     },
-}
-
-impl From<payment_methods::BankDebitDetail> for BankDebitDetailsPaymentMethod {
-    fn from(bank_debit: payment_methods::BankDebitDetail) -> Self {
-        let masked_account_number = bank_debit.get_masked_account_number();
-        let masked_routing_number = bank_debit.get_masked_routing_number();
-        let bank_account_holder_name = bank_debit.get_bank_account_holder_name();
-        let bank_type = bank_debit.get_bank_type();
-        let bank_holder_type = bank_debit.get_bank_holder_type();
-        Self::AchBankDebit {
-            masked_account_number,
-            masked_routing_number,
-            card_holder_name: None,
-            bank_account_holder_name,
-            bank_name: None,
-            bank_type,
-            bank_holder_type,
-        }
-    }
 }
 
 #[cfg(feature = "v1")]
