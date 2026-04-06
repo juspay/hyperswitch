@@ -6181,9 +6181,9 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                 message: "Card payout creation is not supported".to_string(),
                 connector: "Adyen",
             })?,
-            PayoutMethodData::Bank(bd) => {
+            PayoutMethodData::BankTransfer(bd) => {
                 let bank_details = match bd {
-                    payouts::Bank::Sepa(b) => PayoutBankDetails {
+                    payouts::BankTransfer::Sepa(b) => PayoutBankDetails {
                         bank_name: b.bank_name,
                         country_code: b.bank_country_code,
                         bank_city: b.bank_city,
@@ -6192,22 +6192,24 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                         iban: b.iban,
                         tax_id: None,
                     },
-                    payouts::Bank::Ach(..) => Err(errors::ConnectorError::NotSupported {
+                    payouts::BankTransfer::Ach(..) => Err(errors::ConnectorError::NotSupported {
                         message: "Bank transfer via ACH is not supported".to_string(),
                         connector: "Adyen",
                     })?,
-                    payouts::Bank::Bacs(..) => Err(errors::ConnectorError::NotSupported {
+                    payouts::BankTransfer::Bacs(..) => Err(errors::ConnectorError::NotSupported {
                         message: "Bank transfer via Bacs is not supported".to_string(),
                         connector: "Adyen",
                     })?,
-                    payouts::Bank::Pix(..) => Err(errors::ConnectorError::NotSupported {
+                    payouts::BankTransfer::Pix(..) => Err(errors::ConnectorError::NotSupported {
                         message: "Bank transfer via Pix is not supported".to_string(),
                         connector: "Adyen",
                     })?,
-                    payouts::Bank::Trustly(..) => Err(errors::ConnectorError::NotSupported {
-                        message: "Bank transfer via Trustly is not supported".to_string(),
-                        connector: "Adyen",
-                    })?,
+                    payouts::BankTransfer::Trustly(..) => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: "Bank transfer via Trustly is not supported".to_string(),
+                            connector: "Adyen",
+                        })?
+                    }
                 };
                 let bank_data = PayoutBankData { bank: bank_details };
                 let address: &hyperswitch_domain_models::address::AddressDetails =
@@ -6294,6 +6296,10 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
             PayoutMethodData::Passthrough(_) => Err(errors::ConnectorError::NotSupported {
                 message: "Passthrough payout creation is not supported".to_string(),
                 connector: "Adyen",
+            })?,
+            PayoutMethodData::Bank(_) => Err(errors::ConnectorError::GenericError {
+                error_message: "Payout method 'Bank' should have been normalized to 'BankTransfer'. This is an unexpected state.".to_string(),
+                error_object: serde_json::Value::Null,
             })?,
         }
     }

@@ -263,7 +263,7 @@ pub async fn validate_create_request(
                                 card_network: card.card_network.clone(),
                             },
                         ))),
-                        (_, Some(bank)) => Ok(Some(payouts::PayoutMethodData::Bank(bank))),
+                        (_, Some(bank)) => Ok(Some(payouts::PayoutMethodData::BankTransfer(bank))),
                         _ => Ok(None),
                     },
                     None => Ok(None),

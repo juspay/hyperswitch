@@ -697,6 +697,9 @@ open_banking_uk = { currency = "GBP,EUR,PLN" }
 [payout_method_filters.trustly]
 trustly = { currency = "BGN,GBP,EUR,PLN,CZK,DKK,HRK,HUF,NOK,PLN,RON,SEK" }
 
+[pm_filters.trustly]
+trustly = { currency = "BGN,GBP,EUR,PLN,CZK,DKK,HRK,HUF,NOK,PLN,RON,SEK" }
+
 [pm_filters.redsys]
 credit = { currency = "AUD,BGN,CAD,CHF,COP,CZK,DKK,EUR,GBP,HRK,HUF,ILS,INR,JPY,MYR,NOK,NZD,PEN,PLN,RUB,SAR,SEK,SGD,THB,USD,ZAR", country="ES" }
 debit = { currency = "AUD,BGN,CAD,CHF,COP,CZK,DKK,EUR,GBP,HRK,HUF,ILS,INR,JPY,MYR,NOK,NZD,PEN,PLN,RUB,SAR,SEK,SGD,THB,USD,ZAR", country="ES" }
@@ -993,7 +996,7 @@ connector_list = "juspaythreedsserver, ctp_mastercard, ctp_visa"
 connector_list = "worldpayvantiv"
 
 [grpc_client.unified_connector_service]
-ucs_only_connectors = "paytm, phonepe, truelayer"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "paytm, phonepe, truelayer, trustly"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode"    # Comma-separated list of connectors to disable UCS PSync call
 
 # Merchant Advice Code Configuration

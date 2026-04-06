@@ -8096,19 +8096,21 @@ required = true
 type = "Text"
 
 [trustly_payout]
-[trustly_payout.connector_auth.BodyKey]
+[trustly_payout.connector_auth.SignatureKey]
 api_key = "Username"
 key1 = "Password"
+api_secret = "Private Key(Base64 encoded)"
 [[trustly_payout.bank_transfer]]
 payment_method_type = "trustly"
-
-[trustly_payout.metadata.private_key]
-name = "private_key"
-label = "Private Key (Base64 encoded)"
-placeholder = "Enter your Private Key(Base64 encoded)"
-required = true
-type = "Text"
+[trustly_payout.connector_webhook_details]
+merchant_secret="Trustly's public key"
 
 [trustly]
-[trustly.connector_auth.HeaderKey]
-api_key = "API Key"
+[trustly.connector_auth.SignatureKey]
+api_key = "Username"
+key1 = "Password"
+api_secret = "Private Key(Base64 encoded)"
+[[trustly.bank_redirect]]
+payment_method_type = "trustly"
+[trustly.connector_webhook_details]
+merchant_secret="Trustly's public key"
