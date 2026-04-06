@@ -340,6 +340,12 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodVaulting
                 }
                 .into(),
             ),
+            payment_methods::PaymentMethodCreateData::Wallet(_) => Err(
+                errors::api_error_response::ApiErrorResponse::UnprocessableEntity {
+                    message: "Wallet for PaymentMethodCreateData".to_string(),
+                }
+                .into(),
+            ),
         }
     }
 }
