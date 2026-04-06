@@ -2184,13 +2184,13 @@ impl IncomingWebhook for Paypal {
         let payload: paypal::PaypalWebooksEventType = request
             .body
             .parse_struct("PaypalWebooksEventType")
-            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+            .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)?;
         let outcome = match payload.event_type {
             PaypalWebhookEventType::CustomerDisputeResolved => Some(
                 request
                     .body
                     .parse_struct::<paypal::DisputeOutcome>("PaypalWebooksEventType")
-                    .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?
+                    .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)?
                     .outcome_code,
             ),
             PaypalWebhookEventType::CustomerDisputeCreated
