@@ -344,11 +344,13 @@ fn convert_fallback_to_de_choices(
 
 pub fn build_static_routing_request_for_hybrid(
     created_by: String,
+    payment_id: String,
     input: BackendInput,
     fallback_output: Vec<RoutableConnectorChoice>,
 ) -> RoutingResult<RoutingEvaluateRequest> {
     convert_backend_input_to_routing_eval(
         created_by,
+        Some(payment_id),
         input,
         convert_fallback_to_de_choices(fallback_output),
     )
@@ -472,7 +474,7 @@ pub async fn decision_engine_hybrid_routing(
         payment_id,
         business_profile.get_id().to_owned(),
         business_profile.merchant_id.to_owned(),
-        "DecisionEngine: Hybrid Routing".to_string(),
+        "DecisionEngine: Routing".to_string(),
         Some(hybrid_request.clone()),
         true,
         false,
@@ -516,6 +518,7 @@ pub async fn perform_decision_euclid_routing(
     state: &SessionState,
     input: BackendInput,
     created_by: String,
+    payment_id: String,
     events_wrapper: RoutingEventsWrapper<RoutingEvaluateRequest>,
     fallback_output: Vec<RoutableConnectorChoice>,
 ) -> RoutingResult<RoutingEvaluateResponse> {
@@ -525,7 +528,7 @@ pub async fn perform_decision_euclid_routing(
     let fallback_output = convert_fallback_to_de_choices(fallback_output);
 
     let routing_request =
-        convert_backend_input_to_routing_eval(created_by, input, fallback_output)?;
+        convert_backend_input_to_routing_eval(created_by, Some(payment_id), input, fallback_output)?;
     events_wrapper.set_request_body(routing_request.clone());
 
     let event_response = EuclidApiClient::send_decision_engine_request(
@@ -610,7 +613,7 @@ pub async fn decision_engine_routing(
     let routing_events_wrapper = RoutingEventsWrapper::new(
         state.tenant.tenant_id.clone(),
         state.request_id.clone(),
-        payment_id,
+        payment_id.clone(),
         business_profile.get_id().to_owned(),
         business_profile.merchant_id.to_owned(),
         "DecisionEngine: Euclid Static Routing".to_string(),
@@ -623,6 +626,7 @@ pub async fn decision_engine_routing(
         state,
         backend_input.clone(),
         business_profile.get_id().get_string_repr().to_string(),
+        payment_id,
         routing_events_wrapper,
         merchant_fallback_config,
     )
@@ -1002,6 +1006,7 @@ pub struct ListRountingAlgorithmsRequest {
 // Maps Hyperswitch `BackendInput` to a `RoutingEvaluateRequest` compatible with Decision Engine
 pub fn convert_backend_input_to_routing_eval(
     created_by: String,
+    payment_id: Option<String>,
     input: BackendInput,
     fallback_output: Vec<DeRoutableConnectorChoice>,
 ) -> RoutingResult<RoutingEvaluateRequest> {
@@ -1136,6 +1141,7 @@ pub fn convert_backend_input_to_routing_eval(
 
     Ok(RoutingEvaluateRequest {
         created_by,
+        payment_id,
         parameters: params,
         fallback_output,
     })
