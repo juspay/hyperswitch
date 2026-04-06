@@ -763,60 +763,6 @@ where
     }
 }
 
-#[derive(
-    Debug,
-    serde::Deserialize,
-    serde::Serialize,
-    Clone,
-    PartialEq,
-    Eq,
-    Hash,
-    ToSchema,
-    PartialOrd,
-)]
-/// This domain type is specifically for merchant webhook URLs with validation
-pub struct MerchantWebhookUrl(url::Url);
-
-impl MerchantWebhookUrl {
-    /// Get string representation of the URL
-    pub fn get_string_repr(&self) -> &str {
-        self.0.as_str()
-    }
-
-    /// Wrap a url::Url in MerchantWebhookUrl type
-    pub fn wrap(url: url::Url) -> Self {
-        Self(url)
-    }
-
-    /// Get the inner url::Url
-    pub fn into_inner(self) -> url::Url {
-        self.0
-    }
-
-    /// Verify the URL scheme based on runtime environment
-    pub fn verify_https_scheme(&self) -> Result<(), String> {
-        let scheme = self.0.scheme().to_lowercase();
-
-        #[cfg(debug_assertions)]
-        {
-            // Debug builds: allow HTTP
-            if scheme == "https" || scheme == "http" {
-                return Ok(());
-            }
-        }
-
-        #[cfg(not(debug_assertions))]
-        {
-            // Release builds: HTTPS only
-            if scheme == "https" {
-                return Ok(());
-            }
-        }
-
-        Err("URL scheme must be HTTPS".to_string())
-    }
-}
-
 /// A type representing a range of time for filtering, including a mandatory start time and an optional end time.
 #[derive(
     Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash, ToSchema,
