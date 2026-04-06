@@ -1388,6 +1388,13 @@ impl From<&PayoutMethodData> for api_enums::PaymentMethodType {
                 Bank::Pix(_) => Self::Pix,
                 Bank::Trustly(_) => Self::Trustly,
             },
+            PayoutMethodData::BankTransfer(bank_transfer) => match bank_transfer {
+                BankTransfer::Ach(_) => Self::Ach,
+                BankTransfer::Bacs(_) => Self::Bacs,
+                BankTransfer::Sepa(_) => Self::SepaBankTransfer,
+                BankTransfer::Pix(_) => Self::Pix,
+                BankTransfer::Trustly(_) => Self::Trustly,
+            },
             PayoutMethodData::Wallet(wallet) => match wallet {
                 Wallet::ApplePayDecrypt(_) => Self::ApplePay,
                 Wallet::Paypal(_) => Self::Paypal,
