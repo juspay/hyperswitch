@@ -99,138 +99,141 @@ where
             (Some(false), Some(pm_id)) => {
                 let should_update = resp.status.should_update_payment_method();
                 logger::info!(
-                    "Payment method is card; is eligible for modular update: {}",
+                    "Is payment method eligible for modular update: {}",
                     should_update
                 );
 
-                // #2 - Derive network transaction ID from the connector response.
-                let (network_transaction_id, connector_token_details) = if should_update
-                    && matches!(
+                if should_update {
+                    // #1 - Derive network transaction ID from the connector response.
+                    let (network_transaction_id, connector_token_details) = if matches!(
                         payment_data.payment_attempt.setup_future_usage_applied,
                         Some(common_enums::FutureUsage::OffSession)
                     ) {
-                    let network_transaction_id = resp
-                    .response
-                    .as_ref()
-                    .map_err(|err| {
-                        logger::debug!(error=?err, "Failed to obtain the network_transaction_id from payment response in modular payment method update call");
-                    })
-                    .ok()
-                    .and_then(types::PaymentsResponseData::get_network_transaction_id);
-
-                    let connector_token_details = match resp
+                        let network_transaction_id = resp
                         .response
                         .as_ref()
+                        .map_err(|err| {
+                            logger::debug!(error=?err, "Failed to obtain the network_transaction_id from payment response in modular payment method update call");
+                        })
                         .ok()
-                        .and_then(types::PaymentsResponseData::get_mandate_reference)
-                    {
-                        Some(mandate_reference) => {
-                            let connector_id = payment_data
-                            .payment_attempt
-                            .merchant_connector_id
-                            .clone()
-                            .ok_or_else(|| {
-                                logger::error!("Missing required Param merchant_connector_id");
-                                ::payment_methods::errors::ModularPaymentMethodError::RetrieveFailed
-                            })?;
-                            let connector_customer_id = resp
-                                .connector_customer
+                        .and_then(types::PaymentsResponseData::get_network_transaction_id);
+
+                        let connector_token_details = match resp
+                            .response
+                            .as_ref()
+                            .ok()
+                            .and_then(types::PaymentsResponseData::get_mandate_reference)
+                        {
+                            Some(mandate_reference) => {
+                                let connector_id = payment_data
+                                .payment_attempt
+                                .merchant_connector_id
                                 .clone()
-                                .or_else(|| payment_data.get_connector_customer_id());
-                            update_connector_mandate_details_for_the_flow(
-                                mandate_reference.connector_mandate_id.clone(),
-                                mandate_reference.mandate_metadata.clone(),
+                                .ok_or_else(|| {
+                                    logger::error!("Missing required Param merchant_connector_id");
+                                    ::payment_methods::errors::ModularPaymentMethodError::RetrieveFailed
+                                })?;
+                                let connector_customer_id = resp
+                                    .connector_customer
+                                    .clone()
+                                    .or_else(|| payment_data.get_connector_customer_id());
+                                update_connector_mandate_details_for_the_flow(
+                                    mandate_reference.connector_mandate_id.clone(),
+                                    mandate_reference.mandate_metadata.clone(),
+                                    mandate_reference
+                                        .connector_mandate_request_reference_id
+                                        .clone(),
+                                    payment_data,
+                                )
+                                .change_context(
+                                    ::payment_methods::errors::ModularPaymentMethodError::UpdateFailed,
+                                )?;
                                 mandate_reference
-                                    .connector_mandate_request_reference_id
-                                    .clone(),
-                                payment_data,
-                            )
-                            .change_context(
-                                ::payment_methods::errors::ModularPaymentMethodError::UpdateFailed,
-                            )?;
-                            mandate_reference
-                                .connector_mandate_id
-                                .map(|connector_mandate_id| {
-                                    ::payment_methods::types::ConnectorTokenDetails {
-                                        connector_id,
-                                        token_type: TokenizationType::MultiUse,
-                                        status: ConnectorTokenStatus::Active,
-                                        connector_token_request_reference_id: mandate_reference
-                                            .connector_mandate_request_reference_id,
-                                        original_payment_authorized_amount: Some(
-                                            payment_data
+                                    .connector_mandate_id
+                                    .map(|connector_mandate_id| {
+                                        ::payment_methods::types::ConnectorTokenDetails {
+                                            connector_id,
+                                            token_type: TokenizationType::MultiUse,
+                                            status: ConnectorTokenStatus::Active,
+                                            connector_token_request_reference_id: mandate_reference
+                                                .connector_mandate_request_reference_id,
+                                            original_payment_authorized_amount: Some(
+                                                payment_data
+                                                    .payment_attempt
+                                                    .net_amount
+                                                    .get_total_amount(),
+                                            ),
+                                            original_payment_authorized_currency: payment_data
                                                 .payment_attempt
-                                                .net_amount
-                                                .get_total_amount(),
-                                        ),
-                                        original_payment_authorized_currency: payment_data
-                                            .payment_attempt
-                                            .currency,
-                                        metadata: mandate_reference.mandate_metadata,
-                                        connector_customer_id: connector_customer_id.clone(),
-                                        token: hyperswitch_masking::Secret::new(
-                                            connector_mandate_id,
-                                        ),
-                                    }
-                                })
-                        }
-                        None => None,
+                                                .currency,
+                                            metadata: mandate_reference.mandate_metadata,
+                                            connector_customer_id: connector_customer_id.clone(),
+                                            token: hyperswitch_masking::Secret::new(
+                                                connector_mandate_id,
+                                            ),
+                                        }
+                                    })
+                            }
+                            None => None,
+                        };
+
+                        (network_transaction_id, connector_token_details)
+                    } else {
+                        (None, None)
                     };
 
-                    (network_transaction_id, connector_token_details)
-                } else {
-                    (None, None)
-                };
+                    // #2 - Fill payment method data for cards
+                    let payment_method_data =
+                        request_payment_method_data.and_then(|method_data| match method_data {
+                            domain::PaymentMethodData::CardToken(card) => {
+                                Some(PaymentMethodUpdateData::Card(CardDetailUpdate {
+                                    card_holder_name: card.card_holder_name.clone(),
+                                    nick_name: card.card_holder_name.clone(),
+                                    card_cvc: None,
+                                }))
+                            }
+                            _ => None,
+                        });
+                    let acknowledgement_status =
+                        Some(common_enums::AcknowledgementStatus::Authenticated);
 
-                // #3 - Fill payment method data for cards
-                let payment_method_data =
-                    request_payment_method_data.and_then(|method_data| match method_data {
-                        domain::PaymentMethodData::CardToken(card) => {
-                            Some(PaymentMethodUpdateData::Card(CardDetailUpdate {
-                                card_holder_name: card.card_holder_name.clone(),
-                                nick_name: card.card_holder_name.clone(),
-                                card_cvc: None,
-                            }))
-                        }
-                        _ => None,
-                    });
-                let acknowledgement_status = should_update
-                    .then_some(common_enums::AcknowledgementStatus::Authenticated)
-                    .or(Some(common_enums::AcknowledgementStatus::Failed));
+                    let payload = UpdatePaymentMethodV1Payload {
+                        payment_method_data,
+                        connector_token_details,
+                        network_transaction_id: network_transaction_id
+                            .map(hyperswitch_masking::Secret::new),
+                        acknowledgement_status,
+                    };
 
-                let payload = UpdatePaymentMethodV1Payload {
-                    payment_method_data,
-                    connector_token_details,
-                    network_transaction_id: network_transaction_id
-                        .map(hyperswitch_masking::Secret::new),
-                    acknowledgement_status,
-                };
-
-                // #5 - Execute the modular payment-method update call if there is something to be updated
-                if payload.payment_method_data.is_some()
-                    || payload.connector_token_details.is_some()
-                    || payload.network_transaction_id.is_some()
-                    || payload.acknowledgement_status.is_some()
-                {
-                    match call_modular_payment_method_update(
-                        state,
-                        &payment_data.payment_attempt.processor_merchant_id,
-                        &payment_data.payment_attempt.profile_id,
-                        &pm_id,
-                        payload,
-                    )
-                    .await
+                    // #3 - Execute the modular payment-method update call if there is something to be updated
+                    if payload.payment_method_data.is_some()
+                        || payload.connector_token_details.is_some()
+                        || payload.network_transaction_id.is_some()
+                        || payload.acknowledgement_status.is_some()
                     {
-                        Ok(_) => {
-                            logger::info!("Successfully called modular payment method update");
-                        }
-                        Err(err) => {
-                            logger::error!("Failed to call modular payment method update: {}", err);
-                        }
-                    };
-                    payment_data.payment_attempt.payment_method_id = Some(pm_id.clone());
-                } else {
-                    logger::info!("No updates found for modular payment method update call");
+                        match call_modular_payment_method_update(
+                            state,
+                            &payment_data.payment_attempt.processor_merchant_id,
+                            &payment_data.payment_attempt.profile_id,
+                            &pm_id,
+                            payload,
+                        )
+                        .await
+                        {
+                            Ok(_) => {
+                                logger::info!("Successfully called modular payment method update");
+                            }
+                            Err(err) => {
+                                logger::error!(
+                                    "Failed to call modular payment method update: {}",
+                                    err
+                                );
+                            }
+                        };
+                        payment_data.payment_attempt.payment_method_id = Some(pm_id.clone());
+                    } else {
+                        logger::info!("No updates found for modular payment method update call");
+                    }
                 }
             }
             (_, _) => {

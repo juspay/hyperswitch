@@ -1214,7 +1214,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             }
                         }
                         Some(api_models::payments::PaymentMethodData::Wallet(_)) => {
-                            if req.setup_future_usage == Some(common_enums::FutureUsage::OffSession)
+                            if req
+                                .setup_future_usage
+                                .or(payment_data.payment_intent.setup_future_usage)
+                                == Some(common_enums::FutureUsage::OffSession)
                             {
                                 let payment_method = req.payment_method.ok_or(
                                     errors::ApiErrorResponse::MissingRequiredField {

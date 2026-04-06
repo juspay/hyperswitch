@@ -42,7 +42,7 @@ pub struct PaymentMethodResponseItem {
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodResponseData {
-    Card(CardDetailFromLocker),
+    Card(Box<CardDetailFromLocker>),
     Wallet(Box<api_models::payment_methods::PaymentMethodDataWalletInfo>),
 }
 

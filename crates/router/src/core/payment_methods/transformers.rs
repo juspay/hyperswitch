@@ -594,9 +594,9 @@ pub fn generate_payment_method_response(
         .clone()
         .map(|data| data.into_inner())
         .and_then(|data| match data {
-            api::PaymentMethodsData::Card(card) => {
-                Some(api::PaymentMethodResponseData::Card(card.into()))
-            }
+            api::PaymentMethodsData::Card(card) => Some(api::PaymentMethodResponseData::Card(
+                api::CardDetailFromLocker::from(card),
+            )),
             _ => None,
         });
     let mut connector_tokens = payment_method

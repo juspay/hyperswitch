@@ -51,7 +51,7 @@ impl TryFrom<ModularListCustomerPaymentMethodsResponse> for ListCustomerPaymentM
                 installment_payment_enabled: None,
                 payment_experience: None,
                 card: pm.payment_method_data.and_then(|data| match data {
-                    PaymentMethodResponseData::Card(card_detail) => Some(card_detail),
+                    PaymentMethodResponseData::Card(card_detail) => Some(*card_detail),
                     PaymentMethodResponseData::Wallet(_) => None,
                 }),
                 metadata: None,

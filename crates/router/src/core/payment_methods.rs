@@ -1888,7 +1888,7 @@ pub async fn create_payment_method_wallet_core(
     payment_method_billing_address: Option<
         Encryptable<hyperswitch_domain_models::address::Address>,
     >,
-    wallet_data: &api_models::payment_methods::PaymentMethodDataWalletInfo,
+    wallet_data: &payment_methods::PaymentMethodDataWalletInfo,
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
     use crate::core::payment_methods::cards;
 
