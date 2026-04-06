@@ -3787,8 +3787,14 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
 
         let connector_enum: enums::Connector = connector
             .parse()
-            .map_err(|_| errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Invalid connector name received")?;
+            .map_err(|err| {
+                logger::error!(
+                    "Invalid connector name received. Parsing Failed with error : {:?}",
+                    err
+                );
+                errors::ApiErrorResponse::InternalServerError
+            })
+            .attach_printable_lazy(|| format!("Invalid connector name received: {}", connector))?;
 
         if state
             .conf
@@ -3928,8 +3934,11 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
 
         let connector_enum: enums::Connector = connector
             .parse()
-            .map_err(|_| errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Invalid connector name received")?;
+            .map_err(|err| {
+                logger::error!("Failed to parse connector: {:?}", err);
+                errors::ApiErrorResponse::InternalServerError
+            })
+            .attach_printable_lazy(|| format!("Invalid connector name received: {}", connector))?;
 
         if state
             .conf
