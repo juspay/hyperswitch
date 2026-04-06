@@ -87,9 +87,6 @@ where
         )
         .map(ucs_types::UcsReferenceId::Payout);
         let resource_id = id_type::PayoutResourceId::from_str(router_data.attempt_id.as_str())
-            // .map(|id| {
-            //     ucs_types::UcsResourceId::PayoutAttempt(id)
-            // })
             .inspect_err(|err| {
                 logger::warn!(
                     error = ?err,
