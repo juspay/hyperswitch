@@ -35,10 +35,7 @@ pub use response::*;
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     unimplemented_payment_method,
-    utils::{
-        self, get_unimplemented_payment_method_error_message, AddressDetailsData, CardData,
-        RouterData as _,
-    },
+    utils::{self, AddressDetailsData, CardData, RouterData as _},
 };
 
 pub struct FinixRouterData<'a, Flow, Req, Res> {
@@ -138,19 +135,6 @@ impl TryFrom<&FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResp
     fn try_from(
         item: &FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        if matches!(
-            item.router_data.request.payment_method_data,
-            PaymentMethodData::Card(_)
-        ) && matches!(
-            item.router_data.auth_type,
-            enums::AuthenticationType::ThreeDs
-        ) {
-            return Err(ConnectorError::NotImplemented(
-                get_unimplemented_payment_method_error_message("finix"),
-            )
-            .into());
-        }
-
         let source =
             match item.router_data.request.payment_method_data.clone() {
                 PaymentMethodData::Card(_)
@@ -192,6 +176,22 @@ impl TryFrom<&FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResp
                     "Payment method not supported".to_string(),
                 ))?,
             };
+
+        let three_d_secure =
+            if let Some(auth_data) = item.router_data.request.authentication_data.as_ref() {
+                Some(FinixThreeDSecure {
+                    cardholder_authentication: auth_data.cavv.clone(),
+                    electronic_commerce_indicator: auth_data.eci.clone().ok_or(
+                        ConnectorError::MissingRequiredField {
+                            field_name: "Electronic Commerce Indicator (ECI)",
+                        },
+                    )?,
+                    transaction_id: auth_data.threeds_server_transaction_id.clone(),
+                })
+            } else {
+                None
+            };
+
         let statement_descriptor = item
             .router_data
             .request
@@ -205,7 +205,7 @@ impl TryFrom<&FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResp
             merchant: item.merchant_id.clone(),
             idempotency_id: Some(item.router_data.connector_request_reference_id.clone()),
             tags: None,
-            three_d_secure: None,
+            three_d_secure_authentication: three_d_secure,
             statement_descriptor,
         })
     }
