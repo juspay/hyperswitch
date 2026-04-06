@@ -92,15 +92,15 @@ pub struct CustomerNew {
     pub updated_by: Option<String>,
     pub version: ApiVersion,
     pub tax_registration_id: Option<Encryption>,
+    pub created_by: Option<String>,
+    pub last_modified_by: Option<String>,
+    pub document_details: Option<Encryption>,
+    pub id: common_utils::id_type::GlobalCustomerId,
     pub merchant_reference_id: Option<common_utils::id_type::CustomerId>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
     pub status: DeleteStatus,
-    pub id: common_utils::id_type::GlobalCustomerId,
-    pub created_by: Option<String>,
-    pub last_modified_by: Option<String>,
     pub customer_id: Option<common_utils::id_type::GlobalCustomerId>,
-    pub document_details: Option<Encryption>,
 }
 
 #[cfg(feature = "v2")]
@@ -192,12 +192,12 @@ pub struct Customer {
     pub created_by: Option<String>,
     pub last_modified_by: Option<String>,
     pub document_details: Option<Encryption>,
+    pub id: common_utils::id_type::GlobalCustomerId,
     pub merchant_reference_id: Option<common_utils::id_type::CustomerId>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
     #[diesel(deserialize_as = RequiredFromNullableWithDefault<DeleteStatus>)]
     pub status: DeleteStatus,
-    pub id: common_utils::id_type::GlobalCustomerId,
     pub customer_id: Option<common_utils::id_type::GlobalCustomerId>,
 }
 
