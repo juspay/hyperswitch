@@ -44,22 +44,36 @@ impl ProcessTrackerWorkflow<SessionState> for DisputeListWorkflow {
             .tracking_data
             .clone()
             .parse_value("ProcessDisputePTData")?;
-        let key_store = db
+
+        let provider_key_store = db
+            .get_merchant_key_store_by_merchant_id(
+                &tracking_data.provider_merchant_id,
+                &db.get_master_key().to_vec().into(),
+            )
+            .await?;
+        let provider_account = db
+            .find_merchant_account_by_merchant_id(
+                &tracking_data.provider_merchant_id,
+                &provider_key_store,
+            )
+            .await?;
+
+        let processor_key_store = db
             .get_merchant_key_store_by_merchant_id(
                 &tracking_data.merchant_id,
                 &db.get_master_key().to_vec().into(),
             )
             .await?;
 
-        let merchant_account = db
-            .find_merchant_account_by_merchant_id(&tracking_data.merchant_id.clone(), &key_store)
+        let processor_account = db
+            .find_merchant_account_by_merchant_id(&tracking_data.merchant_id, &processor_key_store)
             .await?;
 
         let platform = domain::Platform::new(
-            merchant_account.clone(),
-            key_store.clone(),
-            merchant_account,
-            key_store,
+            provider_account,
+            provider_key_store,
+            processor_account,
+            processor_key_store,
             None,
         );
 
@@ -216,6 +230,7 @@ pub async fn schedule_next_dispute_list_task(
     disputes::add_dispute_list_task_to_pt(
         db,
         &tracking_data.connector_name,
+        tracking_data.provider_merchant_id.clone(),
         tracking_data.merchant_id.clone(),
         tracking_data.merchant_connector_id.clone(),
         tracking_data.profile_id.clone(),
