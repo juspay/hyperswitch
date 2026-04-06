@@ -19,6 +19,10 @@ use euclid::frontend::{
     dir::{DirKeyKind, EuclidDirFilter},
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
+use rust_decimal::{
+    prelude::{FromPrimitive, ToPrimitive},
+    Decimal, MathematicalOps,
+};
 use serde::{Deserialize, Serialize};
 use smithy::SmithyModel;
 use time::PrimitiveDateTime;
@@ -1312,7 +1316,6 @@ pub struct InstallmentInterestRate(f64);
 
 impl InstallmentInterestRate {
     /// Calculate the total EMI interest for a given principal and number of installments
-    #[allow(clippy::as_conversions)]
     pub fn calculate_emi_interest(
         &self,
         amount: MinorUnit,
@@ -1329,22 +1332,38 @@ impl InstallmentInterestRate {
                 "Cannot calculate interest rate for amount greater than {max_amount}",
             ))
         } else {
-            let amount_f64 = amount
-                .to_string()
-                .parse::<f64>()
-                .change_context(errors::InstallmentInterestRateError::UnableToApplyInterestRate)
-                .attach_printable("Failed to parse amount as f64")?;
-            let rate_decimal = self.0 / 100.0;
-            let n = f64::from(u8::from(number_of_installments));
-            let total_interest = if rate_decimal == 0.0 {
-                0.0
+            let amount_decimal = Decimal::from_i64(amount)
+                .ok_or(errors::InstallmentInterestRateError::UnableToApplyInterestRate)
+                .map_err(Report::from)
+                .attach_printable("Failed to convert amount to decimal")?;
+
+            let rate_decimal = Decimal::from_f64(self.0 / 100.0)
+                .ok_or(errors::InstallmentInterestRateError::UnableToApplyInterestRate)
+                .map_err(Report::from)
+                .attach_printable("Failed to convert interest rate to decimal")?;
+
+            let n_decimal = Decimal::from_u8(u8::from(number_of_installments))
+                .ok_or(errors::InstallmentInterestRateError::UnableToApplyInterestRate)
+                .map_err(Report::from)
+                .attach_printable("Failed to convert number of installments to decimal")?;
+
+            // EMI calculation in decimal for precision
+            let total_interest = if rate_decimal.is_zero() {
+                Decimal::ZERO
             } else {
-                let factor = (1.0 + rate_decimal).powf(n);
-                let emi = (amount_f64 * rate_decimal * factor) / (factor - 1.0);
-                let total = emi * n;
-                total - amount_f64
+                let one = Decimal::ONE;
+                let factor = (one + rate_decimal).powd(n_decimal);
+                let emi = (amount_decimal * rate_decimal * factor) / (factor - one);
+                emi * n_decimal - amount_decimal
             };
-            let result = total_interest.round() as i64;
+
+            let result = total_interest
+                .round()
+                .to_i64()
+                .ok_or(errors::InstallmentInterestRateError::UnableToApplyInterestRate)
+                .map_err(Report::from)
+                .attach_printable("Failed to convert interest result to i64")?;
+
             Ok(MinorUnit::new(result))
         }
     }
