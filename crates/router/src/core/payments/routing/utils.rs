@@ -527,8 +527,12 @@ pub async fn perform_decision_euclid_routing(
     let mut events_wrapper = events_wrapper;
     let fallback_output = convert_fallback_to_de_choices(fallback_output);
 
-    let routing_request =
-        convert_backend_input_to_routing_eval(created_by, Some(payment_id), input, fallback_output)?;
+    let routing_request = convert_backend_input_to_routing_eval(
+        created_by,
+        Some(payment_id),
+        input,
+        fallback_output,
+    )?;
     events_wrapper.set_request_body(routing_request.clone());
 
     let event_response = EuclidApiClient::send_decision_engine_request(
