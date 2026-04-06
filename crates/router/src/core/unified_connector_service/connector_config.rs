@@ -100,6 +100,11 @@ pub struct PaysafeAchAccountId {
     pub account_id: Option<Secret<String>>,
 }
 
+#[derive(Debug, serde::Deserialize)]
+pub struct WorldpayMetadata {
+    merchant_name: Option<Secret<String>>,
+}
+
 /// Connector-specific configuration enum for all supported connectors
 #[derive(Debug, Clone, serde::Serialize)]
 pub enum ConnectorSpecificConfig {
@@ -1161,12 +1166,17 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     api_key,
                     key1,
                     api_secret,
-                } => Ok(Self::Worldpay {
-                    username: key1.clone(),
-                    password: api_key.clone(),
-                    entity_id: api_secret.clone(),
-                    merchant_name: None,
-                }),
+                } => {
+                    let metadata_parsed = metadata
+                        .and_then(|m| serde_json::from_value::<WorldpayMetadata>(m.clone()).ok());
+
+                    Ok(Self::Worldpay {
+                        username: key1.clone(),
+                        password: api_key.clone(),
+                        entity_id: api_secret.clone(),
+                        merchant_name: metadata_parsed.and_then(|m| m.merchant_name),
+                    })
+                }
                 _ => Err(err("Worldpay requires SignatureKey auth type")),
             },
             Connector::Worldpayxml => match auth {
