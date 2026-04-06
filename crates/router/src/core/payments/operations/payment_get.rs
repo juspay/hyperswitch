@@ -194,7 +194,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
         payment_attempt.encoded_data = request
             .param
             .as_ref()
-            .map(|val| masking::Secret::new(val.clone()));
+            .map(|val| hyperswitch_masking::Secret::new(val.clone()));
 
         let should_sync_with_connector =
             request.force_sync && payment_intent.status.should_force_sync_with_connector();

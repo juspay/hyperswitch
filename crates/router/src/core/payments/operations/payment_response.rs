@@ -1,6 +1,6 @@
 use std::{collections::HashMap, ops::Deref};
 
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "pm_modular"))]
 use ::payment_methods::client::{
     CardDetailUpdate, PaymentMethodUpdateData, UpdatePaymentMethodV1Payload,
 };
@@ -9,7 +9,7 @@ use api_models::payments::{ConnectorMandateReferenceId, MandateReferenceId};
 use api_models::routing::RoutableConnectorChoice;
 use async_trait::async_trait;
 use common_enums::AuthorizationStatus;
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "pm_modular"))]
 use common_enums::{ConnectorTokenStatus, TokenizationType};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use common_utils::ext_traits::ValueExt;
@@ -25,14 +25,14 @@ use hyperswitch_domain_models::payments::{
 };
 use hyperswitch_domain_models::{behaviour::Conversion, payments::payment_attempt::PaymentAttempt};
 #[cfg(feature = "v2")]
-use masking::{ExposeInterface, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, PeekInterface};
 use router_derive;
 use router_env::{instrument, logger, tracing};
 #[cfg(feature = "v1")]
 use tracing_futures::Instrument;
 
 use super::{Operation, OperationSessionSetters, PostUpdateTracker};
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "pm_modular"))]
 use crate::core::payment_methods::transformers::call_modular_payment_method_update;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use crate::core::routing::helpers as routing_helpers;
@@ -70,7 +70,7 @@ use crate::{
 /// This implementation executes the flow only when
 /// 1. Payment was created with supported payment methods
 /// 2. Payment attempt's status was not a terminal failure
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "pm_modular"))]
 async fn update_modular_pm_and_mandate_impl<F, T>(
     state: &SessionState,
     resp: &types::RouterData<F, T, types::PaymentsResponseData>,
@@ -83,22 +83,30 @@ where
     if matches!(
         payment_data.payment_attempt.payment_method,
         Some(enums::PaymentMethod::Card)
-    ) && resp.status.should_update_payment_method()
-    {
-        //#1 - Check if Payment method id is present in the payment data
-        match payment_data
+    ) {
+        let is_volatile = payment_data
+            .get_payment_method_info()
+            .map(|pm| pm.is_pm_volatile());
+
+        let payment_method_id = payment_data
             .payment_method_info
             .as_ref()
-            .map(|pm_info| pm_info.get_id().clone())
-        {
-            Some(payment_method_id) => {
-                logger::info!("Payment method is card and eligible for modular update");
+            .map(|pm_info| pm_info.get_id().clone());
+
+        match (is_volatile, payment_method_id) {
+            (Some(false), Some(pm_id)) => {
+                let should_update = resp.status.should_update_payment_method();
+                logger::info!(
+                    "Payment method is card; is eligible for modular update: {}",
+                    should_update
+                );
 
                 // #2 - Derive network transaction ID from the connector response.
-                let (network_transaction_id, connector_token_details) = if matches!(
-                    payment_data.payment_attempt.setup_future_usage_applied,
-                    Some(common_enums::FutureUsage::OffSession)
-                ) {
+                let (network_transaction_id, connector_token_details) = if should_update
+                    && matches!(
+                        payment_data.payment_attempt.setup_future_usage_applied,
+                        Some(common_enums::FutureUsage::OffSession)
+                    ) {
                     let network_transaction_id = resp
                     .response
                     .as_ref()
@@ -123,6 +131,10 @@ where
                                 logger::error!("Missing required Param merchant_connector_id");
                                 ::payment_methods::errors::ModularPaymentMethodError::RetrieveFailed
                             })?;
+                            let connector_customer_id = resp
+                                .connector_customer
+                                .clone()
+                                .or_else(|| payment_data.get_connector_customer_id());
                             update_connector_mandate_details_for_the_flow(
                                 mandate_reference.connector_mandate_id.clone(),
                                 mandate_reference.mandate_metadata.clone(),
@@ -153,7 +165,10 @@ where
                                             .payment_attempt
                                             .currency,
                                         metadata: mandate_reference.mandate_metadata,
-                                        token: masking::Secret::new(connector_mandate_id),
+                                        connector_customer_id: connector_customer_id.clone(),
+                                        token: hyperswitch_masking::Secret::new(
+                                            connector_mandate_id,
+                                        ),
                                     }
                                 })
                         }
@@ -178,16 +193,15 @@ where
                         }
                         _ => None,
                     });
-                let acknowledgement_status = if resp.status.should_update_payment_method() {
-                    Some(common_enums::AcknowledgementStatus::Authenticated)
-                } else {
-                    None
-                };
+                let acknowledgement_status = should_update
+                    .then_some(common_enums::AcknowledgementStatus::Authenticated)
+                    .or(Some(common_enums::AcknowledgementStatus::Failed));
 
                 let payload = UpdatePaymentMethodV1Payload {
                     payment_method_data,
                     connector_token_details,
-                    network_transaction_id: network_transaction_id.map(masking::Secret::new),
+                    network_transaction_id: network_transaction_id
+                        .map(hyperswitch_masking::Secret::new),
                     acknowledgement_status,
                 };
 
@@ -201,7 +215,7 @@ where
                         state,
                         &payment_data.payment_attempt.processor_merchant_id,
                         &payment_data.payment_attempt.profile_id,
-                        &payment_method_id,
+                        &pm_id,
                         payload,
                     )
                     .await
@@ -213,18 +227,16 @@ where
                             logger::error!("Failed to call modular payment method update: {}", err);
                         }
                     };
-                    payment_data.payment_attempt.payment_method_id =
-                        Some(payment_method_id.clone());
+                    payment_data.payment_attempt.payment_method_id = Some(pm_id.clone());
                 } else {
                     logger::info!("No updates found for modular payment method update call");
                 }
             }
-            _ => {
+            (_, _) => {
                 logger::info!("Payment method is not eligible for modular update");
             }
         }
     }
-
     Ok(())
 }
 
@@ -707,12 +719,27 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
-        feature_set: &core_utils::FeatureConfig,
+        #[cfg(feature = "pm_modular")] feature_set: &core_utils::FeatureConfig,
     ) -> RouterResult<()>
     where
         F: 'b + Clone + Send + Sync,
     {
-        if !feature_set.is_payment_method_modular_allowed {
+        #[cfg(feature = "pm_modular")]
+        {
+            if !feature_set.is_payment_method_modular_allowed {
+                return update_pm_connector_mandate_details(
+                    state,
+                    provider,
+                    initiator,
+                    payment_data,
+                    router_data,
+                )
+                .await;
+            }
+            Ok(())
+        }
+        #[cfg(not(feature = "pm_modular"))]
+        {
             update_pm_connector_mandate_details(
                 state,
                 provider,
@@ -721,12 +748,10 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                 router_data,
             )
             .await
-        } else {
-            Ok(())
         }
     }
 
-    #[cfg(feature = "v1")]
+    #[cfg(all(feature = "v1", feature = "pm_modular"))]
     async fn update_modular_pm_and_mandate<'b>(
         &self,
         state: &SessionState,
@@ -1008,12 +1033,27 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         initiator: Option<&domain::Initiator>,
         payment_data: &PaymentData<F>,
         router_data: &types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
-        feature_set: &core_utils::FeatureConfig,
+        #[cfg(feature = "pm_modular")] feature_set: &core_utils::FeatureConfig,
     ) -> RouterResult<()>
     where
         F: 'b + Clone + Send + Sync,
     {
-        if !feature_set.is_payment_method_modular_allowed {
+        #[cfg(feature = "pm_modular")]
+        {
+            if !feature_set.is_payment_method_modular_allowed {
+                return update_pm_connector_mandate_details(
+                    state,
+                    provider,
+                    initiator,
+                    payment_data,
+                    router_data,
+                )
+                .await;
+            }
+            Ok(())
+        }
+        #[cfg(not(feature = "pm_modular"))]
+        {
             update_pm_connector_mandate_details(
                 state,
                 provider,
@@ -1022,12 +1062,10 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
                 router_data,
             )
             .await
-        } else {
-            Ok(())
         }
     }
 
-    #[cfg(feature = "v1")]
+    #[cfg(all(feature = "v1", feature = "pm_modular"))]
     async fn update_modular_pm_and_mandate<'b>(
         &self,
         state: &SessionState,
@@ -1309,7 +1347,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsUpdateMetadat
                                 .payment_intent
                                 .metadata
                                 .clone(),
-                            feature_metadata: payment_intent.feature_metadata.clone().map(masking::Secret::new),
+                            feature_metadata: payment_intent.feature_metadata.clone().map(hyperswitch_masking::Secret::new),
                             updated_by: payment_data.payment_intent.updated_by.clone(),
                         };
 
@@ -1754,7 +1792,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
         >,
-        _feature_set: &core_utils::FeatureConfig,
+        #[cfg(feature = "pm_modular")] _feature_set: &core_utils::FeatureConfig,
     ) -> RouterResult<()>
     where
         F: 'b + Clone + Send + Sync,
@@ -1762,7 +1800,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         update_pm_connector_mandate_details(state, provider, initiator, payment_data, router_data)
             .await
     }
-    #[cfg(feature = "v1")]
+    #[cfg(all(feature = "v1", feature = "pm_modular"))]
     async fn update_modular_pm_and_mandate<'b>(
         &self,
         state: &SessionState,
@@ -1880,12 +1918,27 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             types::CompleteAuthorizeData,
             types::PaymentsResponseData,
         >,
-        feature_set: &core_utils::FeatureConfig,
+        #[cfg(feature = "pm_modular")] feature_set: &core_utils::FeatureConfig,
     ) -> RouterResult<()>
     where
         F: 'b + Clone + Send + Sync,
     {
-        if !feature_set.is_payment_method_modular_allowed {
+        #[cfg(feature = "pm_modular")]
+        {
+            if !feature_set.is_payment_method_modular_allowed {
+                return update_pm_connector_mandate_details(
+                    state,
+                    provider,
+                    initiator,
+                    payment_data,
+                    router_data,
+                )
+                .await;
+            }
+            Ok(())
+        }
+        #[cfg(not(feature = "pm_modular"))]
+        {
             update_pm_connector_mandate_details(
                 state,
                 provider,
@@ -1894,12 +1947,10 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
                 router_data,
             )
             .await
-        } else {
-            Ok(())
         }
     }
 
-    #[cfg(feature = "v1")]
+    #[cfg(all(feature = "v1", feature = "pm_modular"))]
     async fn update_modular_pm_and_mandate<'b>(
         &self,
         state: &SessionState,
@@ -2878,7 +2929,7 @@ fn get_payment_intent_update_data<F: Clone, T: types::Capturable>(
                 .payment_intent
                 .feature_metadata
                 .clone()
-                .map(masking::Secret::new),
+                .map(hyperswitch_masking::Secret::new),
         },
         Ok(types::PaymentsResponseData::PostCaptureVoidResponse {
             post_capture_void_status,
@@ -2917,7 +2968,7 @@ fn get_payment_intent_update_data<F: Clone, T: types::Capturable>(
                 .payment_intent
                 .feature_metadata
                 .clone()
-                .map(masking::Secret::new),
+                .map(hyperswitch_masking::Secret::new),
         },
     }
 }
@@ -3664,7 +3715,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
                         original_payment_authorized_amount: Some(net_amount),
                         original_payment_authorized_currency: Some(currency),
                         metadata: None,
-                        token: masking::Secret::new(token),
+                        connector_customer_id: None,
+                        token: hyperswitch_masking::Secret::new(token),
                         token_type: common_enums::TokenizationType::MultiUse,
                     };
 
@@ -3674,8 +3726,13 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
                         connector_token_details: Some(
                             connector_token_details_for_payment_method_update,
                         ),
-                        network_transaction_id: None,
-                        acknowledgement_status: None, //based on the response from the connector we can decide the acknowledgement status to be sent to payment method service
+                        network_transaction_id: payments_response
+                            .get_network_transaction_id()
+                            .map(hyperswitch_masking::Secret::new),
+                        acknowledgement_status: router_data
+                            .status
+                            .should_update_payment_method()
+                            .then_some(common_enums::AcknowledgementStatus::Authenticated),
                     };
 
                 let payment_method_update_request =
@@ -3708,7 +3765,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
 #[cfg(feature = "v1")]
 fn update_connector_mandate_details_for_the_flow<F: Clone>(
     connector_mandate_id: Option<String>,
-    mandate_metadata: Option<masking::Secret<serde_json::Value>>,
+    mandate_metadata: Option<hyperswitch_masking::Secret<serde_json::Value>>,
     connector_mandate_request_reference_id: Option<String>,
     payment_data: &mut PaymentData<F>,
 ) -> RouterResult<()> {

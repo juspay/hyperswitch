@@ -1,7 +1,7 @@
 //! Configs interface
 use common_enums::{connector_enums, ApplicationError};
 use common_utils::errors::CustomResult;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::Deserialize;
 
 use crate::errors::api_error_response;
@@ -58,6 +58,7 @@ pub struct Connectors {
     pub facilitapay: ConnectorParams,
     pub finix: ConnectorParams,
     pub fiserv: ConnectorParams,
+    pub fiservcommercehub: ConnectorParams,
     pub fiservemea: ConnectorParams,
     pub fiuu: ConnectorParamsWithThreeUrls,
     pub flexiti: ConnectorParams,
@@ -138,6 +139,7 @@ pub struct Connectors {
     pub tokenex: ConnectorParams,
     pub tokenio: ConnectorParams,
     pub truelayer: ConnectorParamsWithSecondaryBaseUrl,
+    pub trustly: ConnectorParams,
     pub trustpay: ConnectorParamsWithMoreUrls,
     pub trustpayments: ConnectorParams,
     pub tsys: ConnectorParams,

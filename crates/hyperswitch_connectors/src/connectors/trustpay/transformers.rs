@@ -27,7 +27,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{consts, errors};
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
@@ -609,6 +609,8 @@ impl TryFrom<&TrustpayRouterData<&PaymentsAuthorizeRouterData>> for TrustpayPaym
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -848,7 +850,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, TrustpayPaymentsResponse, T, PaymentsRe
             get_trustpay_response(item.response, item.http_code, item.data.status)?;
         Ok(Self {
             status,
-            response: error.map_or_else(|| Ok(payment_response_data), Err),
+            response: match error {
+                Some(err) => Err(err),
+                None => Ok(payment_response_data),
+            },
             connector_response,
             ..item.data
         })
@@ -1665,7 +1670,7 @@ impl<F> TryFrom<&TrustpayRouterData<&RefundsRouterData<F>>> for TrustpayRefundRe
     fn try_from(item: &TrustpayRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         let amount = item.amount.to_owned();
         match item.router_data.payment_method {
-            enums::PaymentMethod::BankRedirect => {
+            enums::PaymentMethod::BankRedirect | enums::PaymentMethod::BankTransfer => {
                 let auth = TrustpayAuthType::try_from(&item.router_data.connector_auth_type)
                     .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
                 Ok(Self::BankRedirectRefund(Box::new(
@@ -1916,7 +1921,10 @@ impl<F> TryFrom<RefundsResponseRouterData<F, RefundResponse>> for RefundsRouterD
             }
         };
         Ok(Self {
-            response: error.map_or_else(|| Ok(response), Err),
+            response: match error {
+                Some(err) => Err(err),
+                None => Ok(response),
+            },
             ..item.data
         })
     }

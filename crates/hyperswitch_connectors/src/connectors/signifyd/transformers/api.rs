@@ -13,7 +13,7 @@ use hyperswitch_domain_models::{
     router_response_types::fraud_check::FraudCheckResponseData,
 };
 use hyperswitch_interfaces::errors::ConnectorError;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use num_traits::ToPrimitive;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;

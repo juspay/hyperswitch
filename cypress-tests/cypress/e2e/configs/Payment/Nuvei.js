@@ -582,6 +582,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDSCardDetails,
         },
+        amount: 11500,
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
       },

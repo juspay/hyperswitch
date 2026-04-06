@@ -20,7 +20,7 @@ use common_utils::{ext_traits::ValueExt, types::keymanager as km_types};
 use diesel_models::{business_profile::CardTestingGuardConfig, organization::OrganizationBridge};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
 use crate::{
     consts,
@@ -95,6 +95,16 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             .map(|config| config.parse_value("pm_collect_link_config"))
             .transpose()?;
 
+        let network_tokenization_credentials = item
+            .network_tokenization_credentials
+            .map(|headers| {
+                headers
+                    .into_inner()
+                    .expose()
+                    .parse_value("network_tokenization_credentials")
+            })
+            .transpose()?;
+
         Ok(Self {
             merchant_id,
             merchant_name: item.merchant_name,
@@ -121,6 +131,7 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             pm_collect_link_config,
             product_type: item.product_type,
             merchant_account_type: item.merchant_account_type,
+            network_tokenization_credentials,
         })
     }
 }
@@ -167,6 +178,17 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
                     )
             })
             .transpose()?;
+
+        let network_tokenization_credentials = item
+            .network_tokenization_credentials
+            .map(|headers| {
+                headers
+                    .into_inner()
+                    .expose()
+                    .parse_value("network_tokenization_credentials")
+            })
+            .transpose()?;
+
         let masked_outgoing_webhook_custom_http_headers =
             outgoing_webhook_custom_http_headers.map(MaskedHeaders::from_headers);
 
@@ -243,6 +265,8 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
                 .map(ForeignFrom::foreign_from),
             billing_processor_id: item.billing_processor_id,
             is_l2_l3_enabled: Some(item.is_l2_l3_enabled),
+            network_tokenization_credentials,
+            payment_method_blocking: item.payment_method_blocking.map(ForeignInto::foreign_into),
         })
     }
 }
@@ -515,5 +539,8 @@ pub async fn create_profile_from_merchant_account(
         .attach_printable("error while generating external_vault_details")?,
         billing_processor_id: request.billing_processor_id,
         is_l2_l3_enabled: request.is_l2_l3_enabled.unwrap_or(false),
+        network_tokenization_credentials: None, // since credentials are at merchant level, they should not be in the profile, tracked in issue #15134
+        payment_method_blocking: None,
+        default_fallback_routing: None,
     }))
 }

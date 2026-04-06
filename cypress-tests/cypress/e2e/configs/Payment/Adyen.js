@@ -746,6 +746,81 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentIntentWithInstallments: {
+      Request: {
+        amount: 6000,
+        currency: "BRL",
+        installment_options: [
+          {
+            payment_method: "card",
+            installments: [
+              {
+                number_of_installments: [3, 6, 12],
+                billing_frequency: "month",
+                interest_rate: 5.0,
+              },
+            ],
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          amount: 6000,
+          currency: "BRL",
+        },
+      },
+    },
+    CardInstallmentConfirm: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        installment_data: {
+          number_of_installments: 3,
+          billing_frequency: "month",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          net_amount: 6300,
+        },
+      },
+    },
+    PaymentIntentWithInstallmentsAndConfirmTrue: {
+      Request: {
+        currency: "BRL",
+        confirm: true,
+        installment_options: [
+          {
+            payment_method: "card",
+            installments: [
+              {
+                number_of_installments: [3, 6, 12],
+                billing_frequency: "month",
+                interest_rate: 5.0,
+              },
+            ],
+          },
+        ],
+      },
+      Response: {
+        status: 422,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "installment_options and installment_data are not supported when confirm is true.",
+            code: "IR_06",
+          },
+        },
+      },
+    },
   },
   bank_transfer_pm: {
     Pix: {
@@ -956,6 +1031,55 @@ export const connectorDetails = {
     PmListResponse: {
       PmListNull: {
         payment_methods: [],
+      },
+      PmListWithInstallmentsNull: {
+        intent_data: {
+          status: "requires_payment_method",
+          amount: 6000,
+          currency: "USD",
+          installment_options: null,
+        },
+      },
+      PmListWithInstallmentsBRL: {
+        intent_data: {
+          status: "requires_payment_method",
+          amount: 6000,
+          currency: "BRL",
+          installment_options: [
+            {
+              payment_method: "card",
+              available_plans: [
+                {
+                  number_of_installments: 3,
+                  billing_frequency: "month",
+                  interest_rate: 5,
+                  amount_details: {
+                    amount_per_installment: 21,
+                    total_amount: 63,
+                  },
+                },
+                {
+                  number_of_installments: 6,
+                  billing_frequency: "month",
+                  interest_rate: 5,
+                  amount_details: {
+                    amount_per_installment: 10.5,
+                    total_amount: 63,
+                  },
+                },
+                {
+                  number_of_installments: 12,
+                  billing_frequency: "month",
+                  interest_rate: 5,
+                  amount_details: {
+                    amount_per_installment: 5.25,
+                    total_amount: 63,
+                  },
+                },
+              ],
+            },
+          ],
+        },
       },
       pmListDynamicFieldWithoutBilling: {
         payment_methods: [

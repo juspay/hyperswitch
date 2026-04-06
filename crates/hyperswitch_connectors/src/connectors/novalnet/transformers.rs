@@ -27,7 +27,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use strum::Display;
 
@@ -1113,8 +1113,10 @@ impl TryFrom<RefundsResponseRouterData<Execute, NovalnetRefundResponse>>
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NovolnetRedirectionResponse {
-    status: NovalnetTransactionStatus,
-    tid: Option<String>,
+    pub status: NovalnetTransactionStatus,
+    pub tid: Option<String>,
+    pub status_text: Option<String>,
+    pub status_code: Option<u64>,
 }
 
 impl TryFrom<&PaymentsSyncRouterData> for NovalnetSyncRequest {

@@ -102,11 +102,13 @@ pub enum Connector {
     Dlocal,
     Dwolla,
     Ebanx,
+    Envoy,
     Elavon,
     Facilitapay,
     Finix,
     Fiserv,
     Fiservemea,
+    Fiservcommercehub,
     Fiuu,
     Flexiti,
     Forte,
@@ -179,6 +181,7 @@ pub enum Connector {
     Tesouro,
     Tokenex,
     Tokenio,
+    Trustly,
     Truelayer,
     Trustpay,
     Trustpayments,
@@ -209,18 +212,23 @@ impl Connector {
         matches!(
             (self, payout_method),
             (Self::Paypal, Some(PayoutType::Wallet))
+                | (Self::Envoy, _)
                 | (_, Some(PayoutType::Card))
                 | (Self::Adyenplatform, _)
                 | (Self::Nomupay, _)
                 | (Self::Loonio, _)
                 | (Self::Truelayer, _)
+                | (Self::Trustly, _)
                 | (Self::Worldpay, Some(PayoutType::Wallet))
                 | (Self::Worldpayxml, Some(PayoutType::Wallet))
         )
     }
     #[cfg(feature = "payouts")]
     pub fn supports_create_recipient(self, payout_method: Option<PayoutType>) -> bool {
-        matches!((self, payout_method), (_, Some(PayoutType::Bank)))
+        matches!(
+            (self, payout_method),
+            (_, Some(PayoutType::Bank)) | (Self::Trustly, _)
+        )
     }
     #[cfg(feature = "payouts")]
     pub fn supports_payout_eligibility(self, payout_method: Option<PayoutType>) -> bool {
@@ -268,6 +276,7 @@ impl Connector {
                 | (Self::Dwolla, _)
                 | (Self::Santander, _)
                 | (Self::Truelayer, _)
+                | (Self::Fiservcommercehub, _)
         )
     }
     pub fn requires_order_creation_before_payment(self, payment_method: PaymentMethod) -> bool {
@@ -326,12 +335,14 @@ impl Connector {
             | Self::Digitalvirgo
             | Self::Dlocal
             | Self::Dwolla
+            | Self::Envoy
             | Self::Ebanx
             | Self::Elavon
             | Self::Facilitapay
             | Self::Finix
             | Self::Fiserv
             | Self::Fiservemea
+            | Self::Fiservcommercehub
             | Self::Fiuu
             | Self::Flexiti
             | Self::Forte
@@ -388,6 +399,7 @@ impl Connector {
             | Self::Tesouro
             // | Self::Thunes
             | Self::Truelayer
+            | Self::Trustly
             | Self::Trustpay
             | Self::Trustpayments
             // | Self::Tokenio
@@ -418,13 +430,12 @@ impl Connector {
             | Self::Noon
             | Self::Tokenex
             | Self::Tokenio
-            | Self::Stripe
             | Self::Datatrans
             | Self::Paytm
             | Self::Payjustnow
             | Self::Payjustnowinstore
             | Self::Phonepe => false,
-            Self::Checkout |Self::Zift| Self::Nmi |Self::Braintree|
+            Self::Stripe | Self::Checkout | Self::Zift | Self::Nmi | Self::Braintree|
             Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen => true,
         }
     }

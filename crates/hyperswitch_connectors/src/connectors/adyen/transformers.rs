@@ -54,7 +54,7 @@ use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::{Duration, OffsetDateTime, PrimitiveDateTime};
 use url::Url;
@@ -130,6 +130,7 @@ pub enum AdyenShopperInteraction {
 pub enum AdyenRecurringModel {
     UnscheduledCardOnFile,
     CardOnFile,
+    Subscription,
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
@@ -1947,6 +1948,8 @@ impl TryFrom<&AdyenRouterData<&PaymentsAuthorizeRouterData>> for AdyenPaymentReq
                 | PaymentMethodData::Upi(_)
                 | PaymentMethodData::OpenBanking(_)
                 | PaymentMethodData::CardToken(_)
+                | PaymentMethodData::CardWithOptionalCVC(_)
+                | PaymentMethodData::CardWithNetworkTokenDetails(_)
                 | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::CardWithLimitedDetails(_)
                 | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
@@ -2968,6 +2971,8 @@ impl TryFrom<(&BankTransferData, &PaymentsAuthorizeRouterData)> for AdyenPayment
             | BankTransferData::InstantBankTransferFinland {}
             | BankTransferData::InstantBankTransferPoland {}
             | BankTransferData::IndonesianBankTransfer { .. }
+            | BankTransferData::PixAutomaticoPush { .. }
+            | BankTransferData::PixAutomaticoQr {}
             | BankTransferData::Pse {} => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             )
@@ -3204,6 +3209,8 @@ impl
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::NetworkToken(_)
                     | PaymentMethodData::Card(_)
+                    | PaymentMethodData::CardWithOptionalCVC(_)
+                    | PaymentMethodData::CardWithNetworkTokenDetails(_)
                     | PaymentMethodData::CardWithLimitedDetails(_)
                     | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                     | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -3236,6 +3243,8 @@ impl
                     }
 
                     PaymentMethodData::Card(_)
+                    | PaymentMethodData::CardWithOptionalCVC(_)
+                    | PaymentMethodData::CardWithNetworkTokenDetails(_)
                     | PaymentMethodData::CardRedirect(_)
                     | PaymentMethodData::Wallet(_)
                     | PaymentMethodData::PayLater(_)
@@ -3727,6 +3736,8 @@ impl
             | BankTransferData::InstantBankTransfer {}
             | BankTransferData::InstantBankTransferFinland {}
             | BankTransferData::InstantBankTransferPoland {}
+            | BankTransferData::PixAutomaticoPush { .. }
+            | BankTransferData::PixAutomaticoQr {}
             | BankTransferData::IndonesianBankTransfer { .. } => (None, None),
         };
         let application_info = get_application_info(item);
@@ -5013,6 +5024,7 @@ pub fn get_qr_metadata(
             qr_code_url,
             display_to_timestamp,
             expiry_type: None,
+            raw_qr_data: None,
         };
         Some(qr_code_info.encode_to_value())
             .transpose()
@@ -5154,6 +5166,7 @@ pub fn get_present_to_shopper_metadata(
                 qr_code_url: None,
                 barcode: None,
                 expiry_date: None,
+                raw_qr_data: None,
             };
 
             Some(voucher_data.encode_to_value())
@@ -5286,10 +5299,10 @@ impl<F, Req>
         Ok(Self {
             status: adyen_payments_response_data.status,
             amount_captured: minor_amount_captured.map(|amount| amount.get_amount_as_i64()),
-            response: adyen_payments_response_data.error.map_or_else(
-                || Ok(adyen_payments_response_data.payments_response_data),
-                Err,
-            ),
+            response: match adyen_payments_response_data.error {
+                Some(err) => Err(err),
+                None => Ok(adyen_payments_response_data.payments_response_data),
+            },
             connector_response: adyen_payments_response_data.connector_response,
             minor_amount_captured,
             ..item.data
@@ -6216,9 +6229,9 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                 message: "Card payout creation is not supported".to_string(),
                 connector: "Adyen",
             })?,
-            PayoutMethodData::Bank(bd) => {
+            PayoutMethodData::BankTransfer(bd) => {
                 let bank_details = match bd {
-                    payouts::Bank::Sepa(b) => PayoutBankDetails {
+                    payouts::BankTransfer::Sepa(b) => PayoutBankDetails {
                         bank_name: b.bank_name,
                         country_code: b.bank_country_code,
                         bank_city: b.bank_city,
@@ -6227,18 +6240,24 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                         iban: b.iban,
                         tax_id: None,
                     },
-                    payouts::Bank::Ach(..) => Err(errors::ConnectorError::NotSupported {
+                    payouts::BankTransfer::Ach(..) => Err(errors::ConnectorError::NotSupported {
                         message: "Bank transfer via ACH is not supported".to_string(),
                         connector: "Adyen",
                     })?,
-                    payouts::Bank::Bacs(..) => Err(errors::ConnectorError::NotSupported {
+                    payouts::BankTransfer::Bacs(..) => Err(errors::ConnectorError::NotSupported {
                         message: "Bank transfer via Bacs is not supported".to_string(),
                         connector: "Adyen",
                     })?,
-                    payouts::Bank::Pix(..) => Err(errors::ConnectorError::NotSupported {
+                    payouts::BankTransfer::Pix(..) => Err(errors::ConnectorError::NotSupported {
                         message: "Bank transfer via Pix is not supported".to_string(),
                         connector: "Adyen",
                     })?,
+                    payouts::BankTransfer::Trustly(..) => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: "Bank transfer via Trustly is not supported".to_string(),
+                            connector: "Adyen",
+                        })?
+                    }
                 };
                 let bank_data = PayoutBankData { bank: bank_details };
                 let address: &hyperswitch_domain_models::address::AddressDetails =
@@ -6325,6 +6344,10 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
             PayoutMethodData::Passthrough(_) => Err(errors::ConnectorError::NotSupported {
                 message: "Passthrough payout creation is not supported".to_string(),
                 connector: "Adyen",
+            })?,
+            PayoutMethodData::Bank(_) => Err(errors::ConnectorError::GenericError {
+                error_message: "Payout method 'Bank' should have been normalized to 'BankTransfer'. This is an unexpected state.".to_string(),
+                error_object: serde_json::Value::Null,
             })?,
         }
     }
