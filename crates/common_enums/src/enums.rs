@@ -2353,6 +2353,8 @@ pub enum PaymentMethodType {
     Paypal,
     Paze,
     Pix,
+    PixAutomaticoQr,
+    PixAutomaticoPush,
     PaySafeCard,
     Przelewy24,
     PromptPay,
@@ -2486,6 +2488,8 @@ impl PaymentMethodType {
             Self::Paypal => "PayPal",
             Self::Paze => "Paze",
             Self::Pix => "Pix",
+            Self::PixAutomaticoQr => "Pix Automático QR",
+            Self::PixAutomaticoPush => "Pix Automático Push",
             Self::PaySafeCard => "PaySafeCard",
             Self::Przelewy24 => "Przelewy24",
             Self::PromptPay => "PromptPay",
@@ -3287,7 +3291,7 @@ pub enum CardSubtype {
     Corporaterevolving,
     Corporatet,
     #[strum(serialize = "CORPORATET&E")]
-    CorporatetAndE,
+    CorporateTAndE,
     Corporation,
     Credit,
     Ctslandcard,
@@ -3341,8 +3345,6 @@ pub enum CardSubtype {
     Globalpayment,
     Gmcard,
     Gold,
-    #[strum(serialize = "GOLD&PLATINUM")]
-    GoldAndPlatinum,
     #[strum(serialize = "GOLD PERSONAL")]
     GoldPersonal,
     #[strum(serialize = "GOLD/PLATINUM")]
@@ -3358,7 +3360,7 @@ pub enum CardSubtype {
     Green,
     Gsacard,
     #[strum(serialize = "GSACORPORATET&E")]
-    GsacorporatetAndE,
+    GsacorporateTAndE,
     Gsapurchasing,
     #[strum(serialize = "HSANON-SUBSTANTIATED")]
     HsanonSubstantiated,
