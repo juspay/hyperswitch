@@ -6814,6 +6814,38 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                     ),
                 ))?,
             },
+            api_models::payouts::PayoutMethodData::BankTransfer(bank_transfer) => {
+                match bank_transfer {
+                    api_models::payouts::BankTransfer::Ach(ach) => {
+                        payments_grpc::payout_method::PayoutMethodData::Ach(
+                            payments_grpc::AchBankTransferPayout::foreign_try_from(ach)?,
+                        )
+                    }
+                    api_models::payouts::BankTransfer::Bacs(bacs) => {
+                        payments_grpc::payout_method::PayoutMethodData::Bacs(
+                            payments_grpc::BacsBankTransferPayout::foreign_try_from(bacs)?,
+                        )
+                    }
+                    api_models::payouts::BankTransfer::Sepa(sepa) => {
+                        payments_grpc::payout_method::PayoutMethodData::Sepa(
+                            payments_grpc::SepaBankTransferPayout::foreign_try_from(sepa)?,
+                        )
+                    }
+                    api_models::payouts::BankTransfer::Pix(pix) => {
+                        payments_grpc::payout_method::PayoutMethodData::Pix(
+                            payments_grpc::PixBankTransferPayout::foreign_try_from(pix)?,
+                        )
+                    }
+                    api_models::payouts::BankTransfer::Trustly(_) => {
+                        Err(error_stack::Report::new(
+                            UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                                "Trustly bank transfer not supported for Unified Connector Service"
+                                    .to_string(),
+                            ),
+                        ))?
+                    }
+                }
+            }
             api_models::payouts::PayoutMethodData::Wallet(wallet) => match wallet {
                 api_models::payouts::Wallet::ApplePayDecrypt(apple_pay) => {
                     payments_grpc::payout_method::PayoutMethodData::ApplePayDecrypt(

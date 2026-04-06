@@ -3902,7 +3902,7 @@ pub async fn decide_unified_connector_service_payout<F: Clone>(
     state: &SessionState,
     platform: &domain::Platform,
     header_payload: HeaderPayload,
-    router_data: types::RouterData<F, types::PayoutsData, types::PayoutsResponseData>,
+    router_data: &types::RouterData<F, types::PayoutsData, types::PayoutsResponseData>,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<(gateway_context::RouterGatewayContext, SessionState)> {
