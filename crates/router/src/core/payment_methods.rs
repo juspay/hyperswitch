@@ -1891,84 +1891,60 @@ pub async fn create_payment_method_wallet_core(
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
     use crate::core::payment_methods::cards;
 
-    let db = &*state.store;
     let key_manager_state = &(state).into();
-    let current_time = common_utils::date_time::now();
 
-    let wallet_additional_data =
+    let additional_payment_method_data =
         domain::PaymentMethodsData::WalletDetails(wallet_data.clone().into());
 
-    let encrypted_payment_method_data = cards::create_encrypted_data(
-        key_manager_state,
-        platform.get_provider().get_key_store(),
-        wallet_additional_data,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Unable to encrypt wallet payment method data")?;
-
-    let parsed_payment_method_data = encrypted_payment_method_data
-        .deserialize_inner_value(|value| value.parse_value("PaymentMethodsData"))
+    let encrypted_payment_method_data = Some(additional_payment_method_data)
+        .async_map(|payment_method_data| {
+            cards::create_encrypted_data(
+                key_manager_state,
+                platform.get_provider().get_key_store(),
+                payment_method_data,
+            )
+        })
+        .await
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to encrypt wallet payment method data")?
+        .map(|encoded_pmd| {
+            encoded_pmd.deserialize_inner_value(|value| value.parse_value("PaymentMethodsData"))
+        })
+        .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to parse wallet payment method data")?;
 
-    // Insert payment method into DB
-    let pm = db
-        .insert_payment_method(
-            platform.get_provider().get_key_store(),
-            domain::PaymentMethod {
-                customer_id: Some(customer_id.clone()),
-                merchant_id: merchant_id.clone(),
-                id: payment_method_id.clone(),
-                locker_id: None,
-                payment_method_type: Some(req.payment_method),
-                payment_method_subtype: req.payment_method_type,
-                payment_method_data: Some(parsed_payment_method_data),
-                connector_mandate_details: None,
-                customer_acceptance: None,
-                client_secret: None,
-                status: enums::PaymentMethodStatus::Active,
-                network_transaction_id: None,
-                created_at: current_time,
-                last_modified: current_time,
-                last_used_at: current_time,
-                payment_method_billing_address,
-                updated_by: None,
-                version: common_types::consts::API_VERSION,
-                locker_fingerprint_id: None,
-                network_token_locker_id: None,
-                network_token_payment_method_data: None,
-                network_token_requestor_reference_id: None,
-                external_vault_source: None,
-                external_vault_token_data: None,
-                vault_type: Some(enums::VaultType::ModularService),
-                created_by: None,
-                last_modified_by: None,
-                customer_details: None,
-                network_tokenization_data: None,
-            },
-            platform.get_provider().get_account().storage_scheme,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to insert wallet payment method in db")?;
+    let payment_method = create_payment_method_for_confirm(
+        state,
+        customer_id,
+        payment_method_id,
+        None,
+        merchant_id,
+        platform.get_provider().get_key_store(),
+        platform.get_provider().get_account().storage_scheme,
+        req.payment_method_type,
+        req.payment_method_subtype,
+        payment_method_billing_address,
+        encrypted_payment_method_data,
+        None,
+        None,
+        platform.get_initiator(),
+    )
+    .await?;
 
-    let response = api::PaymentMethodResponse {
-        payment_method_id: Some(pm.id.clone()),
-        payment_method: Some(req.payment_method),
-        payment_method_type: req.payment_method_type,
-        card: None,
-        metadata: None,
-        created: Some(pm.created_at),
-        recurring_enabled: false,
-        installment_payment_enabled: None,
-        payment_experience: None,
-        card_network: None,
-        last_used_at: Some(pm.last_used_at),
-        client_secret: None,
-    };
+    let payment_method_response = pm_transforms::generate_payment_method_response(
+        &payment_method,
+        &None,
+        req.storage_type,
+        None,
+        req.customer_id,
+        None,
+        None,
+        None,
+    )?;
 
-    Ok((response, pm))
+    Ok((payment_method_response, payment_method))
 }
 
 // network tokenization and vaulting to locker is not required for proxy card since the card is already tokenized
