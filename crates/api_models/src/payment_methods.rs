@@ -67,9 +67,9 @@ pub struct PaymentMethodCreate {
     #[schema(example = "Visa")]
     pub card_network: Option<String>,
 
-    /// Payment method details from locker
+    /// Payment method details from locker. Deprecated - use `bank_transfer_data` instead.
     #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<Bank>)]
+    #[schema(value_type = Option<Bank>, deprecated)]
     pub bank_transfer: Option<payouts::Bank>,
 
     /// Payment method details from locker
